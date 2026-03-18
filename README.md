@@ -238,21 +238,19 @@ import json, sys
 data = json.load(sys.stdin)
 answer = data.get("answer", "")
 
-hits = []
-misses = []
+assertions = []
 
 if "42" in answer:
-    hits.append("Answer contains correct value (42)")
+    assertions.append({"text": "Answer contains correct value (42)", "passed": True})
 else:
-    misses.append("Answer does not contain expected value (42)")
+    assertions.append({"text": "Answer does not contain expected value (42)", "passed": False})
 
-score = 1.0 if hits else 0.0
+passed = sum(1 for a in assertions if a["passed"])
+score = 1.0 if passed == len(assertions) else 0.0
 
 print(json.dumps({
     "score": score,
-    "hits": hits,
-    "misses": misses,
-    "reasoning": f"Passed {len(hits)} check(s)"
+    "assertions": assertions,
 }))
 ```
 

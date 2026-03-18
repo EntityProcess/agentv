@@ -42,7 +42,5 @@ Evaluate the candidate answer based on:
 
 Respond with a JSON object containing:
 - score: A number from 0 to 1
-- reasoning: Brief explanation of your evaluation
-- hits: Array of positive aspects
-- misses: Array of issues or missing elements`;
+- assertions: Array of { text: string, passed: boolean, evidence?: string } entries describing each check`;
 });

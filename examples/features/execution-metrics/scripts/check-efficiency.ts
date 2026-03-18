@@ -16,70 +16,71 @@ const THRESHOLDS = {
 };
 
 export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
-  const checks: boolean[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (!trace) {
     return {
       score: 0.5,
-      hits: [],
-      misses: ['No trace summary available'],
-      reasoning: 'Cannot evaluate efficiency without trace data',
+      assertions: [{ text: 'No trace summary available', passed: false }],
     };
   }
 
   // Check tool call count
   if (trace.eventCount <= THRESHOLDS.maxToolCalls) {
-    hits.push(`Tool calls (${trace.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`);
-    checks.push(true);
+    assertions.push({
+      text: `Tool calls (${trace.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`,
+      passed: true,
+    });
   } else {
-    misses.push(`Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`);
-    checks.push(false);
+    assertions.push({
+      text: `Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`,
+      passed: false,
+    });
   }
 
   // Check token usage if available
   if (tokenUsage) {
     const totalTokens = tokenUsage.input + tokenUsage.output;
     if (totalTokens <= THRESHOLDS.maxTokens) {
-      hits.push(`Token usage (${totalTokens}) within limit`);
-      checks.push(true);
+      assertions.push({ text: `Token usage (${totalTokens}) within limit`, passed: true });
     } else {
-      misses.push(`High token usage: ${totalTokens} (max: ${THRESHOLDS.maxTokens})`);
-      checks.push(false);
+      assertions.push({
+        text: `High token usage: ${totalTokens} (max: ${THRESHOLDS.maxTokens})`,
+        passed: false,
+      });
     }
   }
 
   // Check cost if available
   if (costUsd !== undefined) {
     if (costUsd <= THRESHOLDS.maxCostUsd) {
-      hits.push(`Cost ($${costUsd.toFixed(4)}) within budget`);
-      checks.push(true);
+      assertions.push({ text: `Cost ($${costUsd.toFixed(4)}) within budget`, passed: true });
     } else {
-      misses.push(`High cost: $${costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`);
-      checks.push(false);
+      assertions.push({
+        text: `High cost: $${costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`,
+        passed: false,
+      });
     }
   }
 
   // Check duration if available
   if (durationMs !== undefined) {
     if (durationMs <= THRESHOLDS.maxDurationMs) {
-      hits.push(`Duration (${durationMs}ms) within limit`);
-      checks.push(true);
+      assertions.push({ text: `Duration (${durationMs}ms) within limit`, passed: true });
     } else {
-      misses.push(`Slow execution: ${durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
-      checks.push(false);
+      assertions.push({
+        text: `Slow execution: ${durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`,
+        passed: false,
+      });
     }
   }
 
   // Calculate score
-  const passCount = checks.filter((c) => c).length;
-  const score = checks.length > 0 ? passCount / checks.length : 0.5;
+  const passCount = assertions.filter((a) => a.passed).length;
+  const score = assertions.length > 0 ? passCount / assertions.length : 0.5;
 
   return {
     score: Math.round(score * 100) / 100,
-    hits: hits.slice(0, 4),
-    misses: misses.slice(0, 4),
-    reasoning: `Checked ${checks.length} efficiency metrics: ${passCount} passed, ${checks.length - passCount} failed`,
+    assertions: assertions.slice(0, 8),
   };
 });

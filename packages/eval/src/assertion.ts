@@ -87,19 +87,23 @@ export type AssertionType =
 /**
  * Result returned from an assertion handler.
  *
- * @example Pass with reasoning
+ * @example Pass with score
  * ```ts
- * { pass: true, reasoning: 'Output contains expected keywords' }
+ * { pass: true, assertions: [{ text: 'Output contains expected keywords', passed: true }] }
  * ```
  *
- * @example Fail with misses
+ * @example Fail with evidence
  * ```ts
- * { pass: false, misses: ['Missing required header'], score: 0.3 }
+ * { pass: false, score: 0.3, assertions: [{ text: 'Missing required header', passed: false }] }
  * ```
  *
  * @example Granular score (0-1)
  * ```ts
- * { score: 0.75, hits: ['Format correct', 'Content relevant'], misses: ['Missing citation'] }
+ * { score: 0.75, assertions: [
+ *   { text: 'Format correct', passed: true },
+ *   { text: 'Content relevant', passed: true },
+ *   { text: 'Missing citation', passed: false },
+ * ] }
  * ```
  */
 export interface AssertionScore {
@@ -107,12 +111,12 @@ export interface AssertionScore {
   readonly pass?: boolean;
   /** Numeric score between 0 and 1. Defaults to 1 if pass=true, 0 if pass=false. */
   readonly score?: number;
-  /** Aspects that passed. */
-  readonly hits?: readonly string[];
-  /** Aspects that failed. */
-  readonly misses?: readonly string[];
-  /** Human-readable explanation. */
-  readonly reasoning?: string;
+  /** Per-assertion verdicts with optional evidence. */
+  readonly assertions?: readonly {
+    readonly text: string;
+    readonly passed: boolean;
+    readonly evidence?: string;
+  }[];
   /** Optional structured details for domain-specific metrics. */
   readonly details?: Record<string, unknown>;
 }
@@ -161,9 +165,7 @@ function normalizeScore(result: AssertionScore): CodeGraderResult {
 
   return {
     score,
-    hits: result.hits ? [...result.hits] : [],
-    misses: result.misses ? [...result.misses] : [],
-    reasoning: result.reasoning,
+    assertions: result.assertions ? [...result.assertions] : [],
     details: result.details,
   };
 }
@@ -207,9 +209,7 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
     const errorMessage = formatError(error);
     const errorResult: CodeGraderResult = {
       score: 0,
-      hits: [],
-      misses: [errorMessage],
-      reasoning: `Assertion failed: ${errorMessage}`,
+      assertions: [{ text: `Assertion failed: ${errorMessage}`, passed: false }],
     };
     console.log(JSON.stringify(errorResult, null, 2));
     process.exit(1);

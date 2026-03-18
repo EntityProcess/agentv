@@ -8,8 +8,7 @@ function makeResult(testId: string, target: string, score: number): EvaluationRe
     timestamp: new Date().toISOString(),
     testId,
     score,
-    hits: [],
-    misses: [],
+    assertions: [],
     answer: '',
     target,
   };

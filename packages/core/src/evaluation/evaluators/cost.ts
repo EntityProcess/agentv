@@ -27,10 +27,8 @@ export class CostEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['No cost data available in trace'],
+        assertions: [{ text: 'No cost data available in trace', passed: false }],
         expectedAspectCount: 1,
-        reasoning: 'Execution cost not reported by provider',
         evaluatorRawRequest: {
           type: 'cost',
           budget,
@@ -48,10 +46,12 @@ export class CostEvaluator implements Evaluator {
     return {
       score,
       verdict: passed ? 'pass' : 'fail',
-      hits: passed ? [`Cost ${formatCost(costUsd)} <= ${formatCost(budget)} budget`] : [],
-      misses: passed ? [] : [`Cost ${formatCost(costUsd)} > ${formatCost(budget)} budget`],
+      assertions: [
+        passed
+          ? { text: `Cost ${formatCost(costUsd)} <= ${formatCost(budget)} budget`, passed: true }
+          : { text: `Cost ${formatCost(costUsd)} > ${formatCost(budget)} budget`, passed: false },
+      ],
       expectedAspectCount: 1,
-      reasoning: `Execution cost ${formatCost(costUsd)} (budget: ${formatCost(budget)})`,
       evaluatorRawRequest: {
         type: 'cost',
         budget,

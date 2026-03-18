@@ -56,10 +56,8 @@ export interface EvaluationContext {
 export interface EvaluationScore {
   readonly score: number;
   readonly verdict: EvaluationVerdict;
-  readonly hits: readonly string[];
-  readonly misses: readonly string[];
+  readonly assertions: readonly import('../types.js').AssertionEntry[];
   readonly expectedAspectCount: number;
-  readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
   readonly scores?: readonly ChildEvaluatorResult[];
   /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts, alignments). */
@@ -74,9 +72,7 @@ export interface ChildEvaluatorResult {
   readonly score: number;
   readonly weight?: number;
   readonly verdict: EvaluationVerdict;
-  readonly hits: readonly string[];
-  readonly misses: readonly string[];
-  readonly reasoning?: string;
+  readonly assertions: readonly import('../types.js').AssertionEntry[];
   readonly evaluatorRawRequest?: JsonObject;
   readonly scores?: readonly ChildEvaluatorResult[];
   /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts, alignments). */

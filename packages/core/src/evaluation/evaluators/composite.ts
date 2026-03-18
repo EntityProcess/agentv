@@ -1,7 +1,12 @@
 import { generateText } from 'ai';
 
 import { extractLastAssistantContent } from '../providers/types.js';
-import type { CompositeAggregatorConfig, CompositeEvaluatorConfig, JsonObject } from '../types.js';
+import type {
+  AssertionEntry,
+  CompositeAggregatorConfig,
+  CompositeEvaluatorConfig,
+  JsonObject,
+} from '../types.js';
 import { executeScript } from './code-evaluator.js';
 import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
 import {
@@ -94,9 +99,7 @@ export class CompositeEvaluator implements Evaluator {
     let totalWeight = 0;
     let weightedSum = 0;
     let evaluatedCount = 0;
-    const allHits: string[] = [];
-    const allMisses: string[] = [];
-    const reasoningParts: string[] = [];
+    const allAssertions: AssertionEntry[] = [];
     const scores: ChildEvaluatorResult[] = [];
 
     for (const member of results) {
@@ -109,9 +112,7 @@ export class CompositeEvaluator implements Evaluator {
         score: member.result.score,
         weight,
         verdict: member.result.verdict,
-        hits: [...member.result.hits],
-        misses: [...member.result.misses],
-        reasoning: member.result.reasoning,
+        assertions: [...member.result.assertions],
         evaluatorRawRequest: member.result.evaluatorRawRequest,
         scores: member.result.scores,
         details: member.result.details,
@@ -126,11 +127,9 @@ export class CompositeEvaluator implements Evaluator {
       evaluatedCount++;
       totalWeight += weight;
       weightedSum += member.result.score * weight;
-      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
-      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
-      if (member.result.reasoning) {
-        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
-      }
+      allAssertions.push(
+        ...member.result.assertions.map((a) => ({ ...a, text: `[${member.id}] ${a.text}` })),
+      );
     }
 
     // If all members skipped, propagate skip verdict
@@ -138,10 +137,8 @@ export class CompositeEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'skip' as const,
-        hits: [],
-        misses: [],
+        assertions: [{ text: 'All evaluators skipped (infrastructure failure)', passed: false }],
         expectedAspectCount: 1,
-        reasoning: 'All evaluators skipped (infrastructure failure)',
         evaluatorRawRequest: {
           aggregator: 'weighted_average',
           ...(weights ? { weights } : {}),
@@ -155,10 +152,8 @@ export class CompositeEvaluator implements Evaluator {
     return {
       score: clampScore(finalScore),
       verdict: scoreToVerdict(finalScore),
-      hits: allHits,
-      misses: allMisses,
-      expectedAspectCount: Math.max(allHits.length + allMisses.length, 1),
-      reasoning: reasoningParts.length > 0 ? reasoningParts.join('; ') : undefined,
+      assertions: allAssertions,
+      expectedAspectCount: allAssertions.length || 1,
       evaluatorRawRequest: {
         aggregator: 'weighted_average',
         ...(weights ? { weights } : {}),
@@ -169,11 +164,8 @@ export class CompositeEvaluator implements Evaluator {
 
   private runThreshold(results: readonly MemberResult[], threshold: number): EvaluationScore {
     const scores: ChildEvaluatorResult[] = [];
-    const allHits: string[] = [];
-    const allMisses: string[] = [];
-    const reasoningParts: string[] = [];
+    const allAssertions: AssertionEntry[] = [];
     let passingCount = 0;
-    let borderlineCount = 0;
     let evaluatedCount = 0;
 
     for (const member of results) {
@@ -183,9 +175,7 @@ export class CompositeEvaluator implements Evaluator {
         type: member.type,
         score: member.result.score,
         verdict: member.result.verdict,
-        hits: [...member.result.hits],
-        misses: [...member.result.misses],
-        reasoning: member.result.reasoning,
+        assertions: [...member.result.assertions],
         evaluatorRawRequest: member.result.evaluatorRawRequest,
         scores: member.result.scores,
         details: member.result.details,
@@ -201,16 +191,11 @@ export class CompositeEvaluator implements Evaluator {
       const isPassing = member.result.verdict === 'pass' || member.result.verdict === 'borderline';
       if (isPassing) {
         passingCount++;
-        if (member.result.verdict === 'borderline') {
-          borderlineCount++;
-        }
       }
 
-      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
-      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
-      if (member.result.reasoning) {
-        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
-      }
+      allAssertions.push(
+        ...member.result.assertions.map((a) => ({ ...a, text: `[${member.id}] ${a.text}` })),
+      );
     }
 
     // If all members skipped, propagate skip verdict
@@ -218,10 +203,8 @@ export class CompositeEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'skip' as const,
-        hits: [],
-        misses: [],
+        assertions: [{ text: 'All evaluators skipped (infrastructure failure)', passed: false }],
         expectedAspectCount: 1,
-        reasoning: 'All evaluators skipped (infrastructure failure)',
         evaluatorRawRequest: {
           aggregator: 'threshold',
           threshold,
@@ -234,22 +217,16 @@ export class CompositeEvaluator implements Evaluator {
     const score = totalCount > 0 ? passingCount / totalCount : 0;
     const pass = score >= threshold;
 
-    // Build reasoning with borderline warning
-    if (pass && borderlineCount > 0) {
-      reasoningParts.push(`Warning: ${borderlineCount} borderline evaluator(s) counted as passing`);
-    }
-
-    reasoningParts.unshift(
-      `${passingCount}/${totalCount} evaluators passed (threshold: ${threshold})`,
-    );
+    allAssertions.unshift({
+      text: `${passingCount}/${totalCount} evaluators passed (threshold: ${threshold})`,
+      passed: pass,
+    });
 
     return {
       score: clampScore(score),
       verdict: pass ? 'pass' : 'fail',
-      hits: allHits,
-      misses: allMisses,
-      expectedAspectCount: Math.max(allHits.length + allMisses.length, 1),
-      reasoning: reasoningParts.join('; '),
+      assertions: allAssertions,
+      expectedAspectCount: allAssertions.length || 1,
       evaluatorRawRequest: {
         aggregator: 'threshold',
         threshold,
@@ -274,9 +251,7 @@ export class CompositeEvaluator implements Evaluator {
       score: member.result.score,
       weight: weights?.[member.id] ?? 1.0,
       verdict: member.result.verdict,
-      hits: [...member.result.hits],
-      misses: [...member.result.misses],
-      reasoning: member.result.reasoning,
+      assertions: [...member.result.assertions],
       evaluatorRawRequest: member.result.evaluatorRawRequest,
       scores: member.result.scores,
       details: member.result.details,
@@ -286,9 +261,20 @@ export class CompositeEvaluator implements Evaluator {
       const stdout = await executeScript(scriptPath, inputPayload, undefined, cwd);
       const parsed = parseJsonSafe(stdout);
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
-      const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
-      const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
-      const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning : undefined;
+      const assertions: AssertionEntry[] = Array.isArray(parsed?.assertions)
+        ? parsed.assertions
+            .filter(
+              (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
+                typeof a === 'object' &&
+                a !== null &&
+                typeof (a as Record<string, unknown>).text === 'string',
+            )
+            .map((a) => ({
+              text: String(a.text),
+              passed: Boolean(a.passed),
+              ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),
+            }))
+        : [];
       const verdict =
         typeof parsed?.verdict === 'string' &&
         (parsed.verdict === 'pass' || parsed.verdict === 'fail' || parsed.verdict === 'borderline')
@@ -298,10 +284,8 @@ export class CompositeEvaluator implements Evaluator {
       return {
         score,
         verdict,
-        hits,
-        misses,
-        expectedAspectCount: hits.length + misses.length || 1,
-        reasoning,
+        assertions,
+        expectedAspectCount: assertions.length || 1,
         evaluatorRawRequest: {
           aggregator: 'code-grader',
           script: scriptPath,
@@ -313,10 +297,8 @@ export class CompositeEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [`Code aggregator failed: ${message}`],
+        assertions: [{ text: `Code aggregator failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
-        reasoning: message,
         evaluatorRawRequest: {
           aggregator: 'code-grader',
           script: scriptPath,
@@ -348,9 +330,7 @@ export class CompositeEvaluator implements Evaluator {
       type: member.type,
       score: member.result.score,
       verdict: member.result.verdict,
-      hits: [...member.result.hits],
-      misses: [...member.result.misses],
-      reasoning: member.result.reasoning,
+      assertions: [...member.result.assertions],
       evaluatorRawRequest: member.result.evaluatorRawRequest,
       scores: member.result.scores,
       details: member.result.details,
@@ -380,20 +360,15 @@ export class CompositeEvaluator implements Evaluator {
 
         const data = freeformEvaluationSchema.parse(parseJsonFromText(text));
         const score = clampScore(data.score);
-        // Cap hits/misses at 4 items to keep LLM grader output concise and focused
-        const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
-        const misses = Array.isArray(data.misses)
-          ? data.misses.filter(isNonEmptyString).slice(0, 4)
+        const assertions: AssertionEntry[] = Array.isArray(data.assertions)
+          ? data.assertions.slice(0, 8)
           : [];
-        const reasoning = data.reasoning;
 
         return {
           score,
           verdict: scoreToVerdict(score),
-          hits,
-          misses,
-          expectedAspectCount: Math.max(hits.length + misses.length, 1),
-          reasoning,
+          assertions,
+          expectedAspectCount: Math.max(assertions.length, 1),
           evaluatorRawRequest,
           scores,
         };
@@ -410,19 +385,15 @@ export class CompositeEvaluator implements Evaluator {
         parseJsonFromText(extractLastAssistantContent(response.output)),
       );
       const score = clampScore(data.score);
-      const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
-      const misses = Array.isArray(data.misses)
-        ? data.misses.filter(isNonEmptyString).slice(0, 4)
+      const assertions: AssertionEntry[] = Array.isArray(data.assertions)
+        ? data.assertions.slice(0, 8)
         : [];
-      const reasoning = data.reasoning;
 
       return {
         score,
         verdict: scoreToVerdict(score),
-        hits,
-        misses,
-        expectedAspectCount: Math.max(hits.length + misses.length, 1),
-        reasoning,
+        assertions,
+        expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
         scores,
       };
@@ -430,8 +401,7 @@ export class CompositeEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [],
+        assertions: [{ text: 'LLM aggregator failed', passed: false }],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         scores,

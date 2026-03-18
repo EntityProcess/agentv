@@ -55,11 +55,15 @@ interface AlignmentEntry {
   similarity: number;
 }
 
+interface AssertionEntry {
+  text: string;
+  passed: boolean;
+  evidence?: string;
+}
+
 interface EvalOutput {
   score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
+  assertions: AssertionEntry[];
   details: {
     alignment: AlignmentEntry[];
     metrics: Record<string, FieldMetrics>;
@@ -225,9 +229,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['Failed to parse answer as JSON'],
-        reasoning: 'Could not parse answer',
+        assertions: [{ text: 'Failed to parse answer as JSON', passed: false }],
         details: {
           alignment: [],
           metrics: {},
@@ -254,9 +256,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['No expected data found in expected_output'],
-        reasoning: 'Could not find assistant message with expected content',
+        assertions: [{ text: 'No expected data found in expected_output', passed: false }],
         details: {
           alignment: [],
           metrics: {},
@@ -281,9 +281,9 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: [`Expected line items not found at path: ${lineItemsPath}`],
-        reasoning: 'No expected line items array',
+        assertions: [
+          { text: `Expected line items not found at path: ${lineItemsPath}`, passed: false },
+        ],
         details: {
           alignment: [],
           metrics: {},
@@ -313,9 +313,9 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: [`Parsed line items not found at path: ${lineItemsPath}`],
-        reasoning: 'No parsed line items array',
+        assertions: [
+          { text: `Parsed line items not found at path: ${lineItemsPath}`, passed: false },
+        ],
         details: {
           alignment: [],
           metrics: fieldMetrics,
@@ -341,8 +341,7 @@ async function main(): Promise<void> {
   const unmatchedExpected = expectedItems.map((_, i) => i).filter((i) => !matchedExpected.has(i));
   const unmatchedParsed = parsedItems.map((_, i) => i).filter((i) => !matchedParsed.has(i));
 
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: AssertionEntry[] = [];
   const fieldMetrics: Record<string, FieldMetrics> = {};
 
   // Initialize field metrics
@@ -376,9 +375,10 @@ async function main(): Promise<void> {
       }
     }
 
-    hits.push(
-      `Matched expected[${match.expectedIdx}] -> parsed[${match.parsedIdx}] (${(match.similarity * 100).toFixed(0)}%)`,
-    );
+    assertions.push({
+      text: `Matched expected[${match.expectedIdx}] -> parsed[${match.parsedIdx}] (${(match.similarity * 100).toFixed(0)}%)`,
+      passed: true,
+    });
   }
 
   // Unmatched expected items contribute to FN
@@ -390,7 +390,7 @@ async function main(): Promise<void> {
         fieldMetrics[field].fn++;
       }
     }
-    misses.push(`Unmatched expected[${idx}] (FN)`);
+    assertions.push({ text: `Unmatched expected[${idx}] (FN)`, passed: false });
   }
 
   // Unmatched parsed items contribute to FP
@@ -402,7 +402,7 @@ async function main(): Promise<void> {
         fieldMetrics[field].fp++;
       }
     }
-    misses.push(`Unmatched parsed[${idx}] (FP)`);
+    assertions.push({ text: `Unmatched parsed[${idx}] (FP)`, passed: false });
   }
 
   // Compute derived metrics for each field
@@ -428,9 +428,7 @@ async function main(): Promise<void> {
 
   const output: EvalOutput = {
     score: macroF1,
-    hits: hits.slice(0, 10),
-    misses: misses.slice(0, 10),
-    reasoning: `Matched ${alignment.length}/${expectedItems.length} expected items, macro-F1=${macroF1.toFixed(3)}`,
+    assertions: assertions.slice(0, 20),
     details: {
       alignment,
       metrics: fieldMetrics,
@@ -452,9 +450,7 @@ main().catch((error) => {
   console.error(
     JSON.stringify({
       score: 0,
-      hits: [],
-      misses: [`Error: ${error.message}`],
-      reasoning: `Evaluation failed: ${error.message}`,
+      assertions: [{ text: `Error: ${error.message}`, passed: false }],
       details: {
         alignment: [],
         metrics: {},

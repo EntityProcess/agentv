@@ -14,11 +14,11 @@ AgentV provides two SDK functions for custom evaluation logic:
 | Function | Best For | Discovery |
 |----------|----------|-----------|
 | `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
-| `defineCodeGrader()` | Full scoring control with explicit hits/misses | Referenced via `type: code-grader` + `command:` |
+| `defineCodeGrader()` | Full scoring control with explicit assertions array | Referenced via `type: code-grader` + `command:` |
 
 **Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 
-**Use `defineCodeGrader()`** when you need full control over scoring with explicit `hits`/`misses` arrays, or when the evaluator is a one-off grader tied to a specific eval. See [Code Graders](/evaluators/code-graders/) for details.
+**Use `defineCodeGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the evaluator is a one-off grader tied to a specific eval. See [Code Graders](/evaluators/code-graders/) for details.
 
 Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
 
@@ -87,9 +87,9 @@ export default defineAssertion(({ outputText, trace }) => {
   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
-    hits: [
-      ...(hasContent ? ['Has content'] : []),
-      ...(isEfficient ? ['Efficient'] : []),
+    assertions: [
+      { text: 'Has content', passed: hasContent > 0 },
+      { text: 'Efficient', passed: isEfficient > 0 },
     ],
   };
 });
@@ -105,8 +105,7 @@ The handler must return an `AssertionScore` object:
 |-------|------|-------------|
 | `pass` | `boolean` | Explicit pass/fail. If omitted, derived from `score` (>= 0.5 = pass). |
 | `score` | `number` | Numeric score between 0 and 1. Defaults to 1 if `pass=true`, 0 if `pass=false`. |
-| `hits` | `string[]` | Aspects that passed. |
-| `misses` | `string[]` | Aspects that failed. |
+| `assertions` | `Array<{ text: string, passed: boolean, evidence?: string }>` | Per-aspect results. Each entry describes one check with its verdict and optional evidence. |
 | `reasoning` | `string` | Human-readable explanation. |
 | `details` | `Record<string, unknown>` | Optional structured data for domain-specific metrics. |
 
@@ -142,8 +141,7 @@ Expected output:
 ```json
 {
   "score": 1,
-  "hits": [],
-  "misses": [],
+  "assertions": [],
   "reasoning": "Output has 6 words (>= 3 required)"
 }
 ```

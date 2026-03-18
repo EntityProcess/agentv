@@ -29,10 +29,8 @@ export class InlineAssertEvaluator implements Evaluator {
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits: score >= 0.8 ? [result.name] : [],
-      misses: score < 0.5 ? [result.name] : [],
+      assertions: [{ text: result.name, passed: score >= 0.5 }],
       expectedAspectCount: 1,
-      reasoning: undefined,
       details: result.metadata ? (result.metadata as JsonObject) : undefined,
     };
   }

@@ -20,28 +20,31 @@ if (!workspacePath) {
   console.log(
     JSON.stringify({
       score: 0,
-      hits: [],
-      misses: ['workspace_path not provided — cannot run functional checks'],
-      reasoning: 'Code grader requires workspace_path to execute commands in the workspace',
+      assertions: [
+        {
+          text: 'workspace_path not provided — cannot run functional checks',
+          passed: false,
+          evidence: 'Code grader requires workspace_path to execute commands in the workspace',
+        },
+      ],
     }),
   );
   process.exit(0);
 }
 
-const hits: string[] = [];
-const misses: string[] = [];
+const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
 function runStage(name: string, command: string, args: string[]): boolean {
   try {
     execFileSync(command, args, { cwd: workspacePath as string, stdio: 'pipe', timeout: 60_000 });
-    hits.push(`${name} passed`);
+    assertions.push({ text: `${name} passed`, passed: true });
     return true;
   } catch (err: unknown) {
     const stderr =
       err && typeof err === 'object' && 'stderr' in err
         ? String((err as { stderr: unknown }).stderr).slice(-500)
         : String(err).slice(-500);
-    misses.push(`${name} failed: ${stderr.trim()}`);
+    assertions.push({ text: `${name} failed`, passed: false, evidence: stderr.trim() });
     return false;
   }
 }
@@ -60,14 +63,13 @@ if (compiled) {
   runStage('tests', 'npm', ['test']);
 }
 
-const total = hits.length + misses.length;
-const score = total > 0 ? hits.length / total : 0;
+const passed = assertions.filter((a) => a.passed).length;
+const total = assertions.length;
+const score = total > 0 ? passed / total : 0;
 
 console.log(
   JSON.stringify({
     score,
-    hits,
-    misses,
-    reasoning: `Passed ${hits.length}/${total} stages`,
+    assertions,
   }),
 );

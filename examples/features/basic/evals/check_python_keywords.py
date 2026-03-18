@@ -40,41 +40,37 @@ def check_python_keywords(code: str) -> dict:
     """
     
     score = 0.0
-    hits = []
-    misses = []
-    
+    assertions = []
+
     # Check for error handling (most important for demo)
     if 'raise' in code and ('Error' in code or 'Exception' in code):
         score += 0.34
-        hits.append("Raises exceptions")
+        assertions.append({"text": "Raises exceptions", "passed": True})
     else:
-        misses.append("Missing exception raising")
-    
+        assertions.append({"text": "Missing exception raising", "passed": False})
+
     # Check for docstrings
     if '"""' in code or "'''" in code:
         score += 0.33
-        hits.append("Contains docstrings")
+        assertions.append({"text": "Contains docstrings", "passed": True})
     else:
-        misses.append("Missing docstrings")
-    
+        assertions.append({"text": "Missing docstrings", "passed": False})
+
     # Check for type validation
     if 'isinstance' in code:
         score += 0.33
-        hits.append("Validates types with isinstance")
+        assertions.append({"text": "Validates types with isinstance", "passed": True})
     else:
-        misses.append("Missing type validation")
-    
+        assertions.append({"text": "Missing type validation", "passed": False})
+
     # Round score to 1.0 if all checks pass
-    if len(hits) == 3:
+    passed_count = sum(1 for a in assertions if a["passed"])
+    if passed_count == 3:
         score = 1.0
-    
-    reasoning = f"Passed {len(hits)}/3 checks. Score: {score:.2f}"
-    
+
     return {
         "score": score,
-        "hits": hits,
-        "misses": misses,
-        "reasoning": reasoning
+        "assertions": assertions,
     }
 
 
@@ -99,9 +95,7 @@ def main():
         # Return error result
         error_result = {
             "score": 0.0,
-            "hits": [],
-            "misses": [f"Evaluator error: {str(e)}"],
-            "reasoning": f"Evaluator error: {str(e)}"
+            "assertions": [{"text": f"Evaluator error: {str(e)}", "passed": False}],
         }
         print(json.dumps(error_result, indent=2))
         sys.exit(1)

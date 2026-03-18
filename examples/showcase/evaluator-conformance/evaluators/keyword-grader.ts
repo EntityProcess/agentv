@@ -15,9 +15,7 @@ export default defineCodeGrader(({ outputText, expectedOutputText, criteria }) =
   if (!candidate) {
     return {
       score: 0,
-      hits: [],
-      misses: ['Empty candidate output'],
-      reasoning: 'Candidate output is empty.',
+      assertions: [{ text: 'Empty candidate output', passed: false }],
     };
   }
 
@@ -27,29 +25,25 @@ export default defineCodeGrader(({ outputText, expectedOutputText, criteria }) =
   if (keywords.length === 0) {
     return {
       score: 0.5,
-      hits: [],
-      misses: [],
-      reasoning: 'No keywords to match against.',
+      assertions: [],
     };
   }
 
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   for (const kw of keywords) {
     if (candidate.includes(kw)) {
-      hits.push(`Contains "${kw}"`);
+      assertions.push({ text: `Contains "${kw}"`, passed: true });
     } else {
-      misses.push(`Missing "${kw}"`);
+      assertions.push({ text: `Missing "${kw}"`, passed: false });
     }
   }
 
-  const score = hits.length / keywords.length;
+  const matched = assertions.filter((a) => a.passed).length;
+  const score = matched / keywords.length;
 
   return {
     score: Math.round(score * 100) / 100,
-    hits,
-    misses,
-    reasoning: `Matched ${hits.length}/${keywords.length} keywords from expected output. Criteria: ${criteria}`,
+    assertions,
   };
 });

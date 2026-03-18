@@ -69,7 +69,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 
 /**
  * Negate an evaluation score: inverts score (1 - score), swaps pass/fail verdict,
- * swaps hits/misses, and annotates reasoning.
+ * and flips passed on each assertion.
  */
 export function negateScore(score: EvaluationScore): EvaluationScore {
   const negatedScore = clampScore(1 - score.score);
@@ -79,10 +79,10 @@ export function negateScore(score: EvaluationScore): EvaluationScore {
     ...score,
     score: negatedScore,
     verdict: negatedVerdict,
-    reasoning: score.reasoning
-      ? `[Negated] ${score.reasoning} (original score: ${score.score.toFixed(2)})`
-      : `[Negated] Original score: ${score.score.toFixed(2)}`,
-    hits: score.misses,
-    misses: score.hits,
+    assertions: score.assertions.map((a) => ({
+      ...a,
+      passed: !a.passed,
+      evidence: a.evidence ? `[Negated] ${a.evidence}` : undefined,
+    })),
   };
 }

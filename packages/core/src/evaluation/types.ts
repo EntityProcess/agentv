@@ -1,5 +1,12 @@
 import type { TokenUsage, ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
 
+/** A single assertion verdict with optional evidence. */
+export interface AssertionEntry {
+  readonly text: string;
+  readonly passed: boolean;
+  readonly evidence?: string;
+}
+
 /**
  * JSON primitive values appearing in AgentV payloads.
  */
@@ -901,11 +908,9 @@ export interface EvaluationResult {
   readonly dataset?: string;
   readonly conversationId?: string;
   readonly score: number;
-  readonly hits: readonly string[];
-  readonly misses: readonly string[];
+  readonly assertions: readonly AssertionEntry[];
   readonly answer: string;
   readonly target: string;
-  readonly reasoning?: string;
   /** Token usage metrics from provider (optional) */
   readonly tokenUsage?: TokenUsage;
   /** Total cost in USD (optional, from provider) */
@@ -972,9 +977,7 @@ export interface EvaluatorResult {
   readonly score: number;
   readonly weight?: number;
   readonly verdict?: EvaluationVerdict;
-  readonly hits: readonly string[];
-  readonly misses: readonly string[];
-  readonly reasoning?: string;
+  readonly assertions: readonly AssertionEntry[];
   readonly rawRequest?: JsonObject;
   readonly evaluatorProviderRequest?: JsonObject;
   readonly scores?: readonly EvaluatorResult[];
@@ -988,11 +991,4 @@ export interface EvaluatorResult {
   readonly startedAt?: string;
   /** ISO 8601 UTC timestamp when this grader finished executing. */
   readonly endedAt?: string;
-}
-
-/**
- * Convenience accessor matching the Python hit_count property.
- */
-export function getHitCount(result: Pick<EvaluationResult, 'hits'>): number {
-  return result.hits.length;
 }

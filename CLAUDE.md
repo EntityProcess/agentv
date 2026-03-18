@@ -160,7 +160,7 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 3. **Inspect the results JSONL** to verify:
    - The correct evaluator type is invoked (check `scores[].type`)
    - Scores are calculated as expected
-   - Hits/misses reflect the evaluation logic
+   - Assertions array reflects the evaluation logic (each entry has `text`, `passed`, optional `evidence`)
 
 4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
 
@@ -182,7 +182,7 @@ Before marking any branch as ready for review, complete this checklist:
    ```bash
    bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
    ```
-   Inspect the output JSONL to confirm correct evaluator type, scores, and hits/misses.
+   Inspect the output JSONL to confirm correct evaluator type, scores, and assertions array.
 
 4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed evaluator parsing, run an eval that exercises different evaluator types).
 

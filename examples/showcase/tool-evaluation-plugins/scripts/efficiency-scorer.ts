@@ -78,8 +78,7 @@ function calculateExplorationRatio(trace: TraceSummary): number {
 }
 
 export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
   const scores: number[] = [];
 
   const complexity = estimateTaskComplexity(criteria);
@@ -87,9 +86,7 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
   if (!trace) {
     return {
       score: 0.5,
-      hits: ['No efficiency metrics available'],
-      misses: [],
-      reasoning: 'Could not evaluate efficiency - no metrics provided',
+      assertions: [{ text: 'No efficiency metrics available', passed: true }],
     };
   }
 
@@ -98,12 +95,18 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
   const maxCalls = THRESHOLDS.maxToolCalls;
 
   if (toolCount <= maxCalls) {
-    hits.push(`Tool calls (${toolCount}) within budget (${maxCalls})`);
+    assertions.push({
+      text: `Tool calls (${toolCount}) within budget (${maxCalls})`,
+      passed: true,
+    });
     scores.push(1.0);
   } else {
     const penalty = Math.min((toolCount - maxCalls) / maxCalls, 1.0);
     scores.push(1.0 - penalty);
-    misses.push(`Excessive tool calls: ${toolCount} (budget: ${maxCalls})`);
+    assertions.push({
+      text: `Excessive tool calls: ${toolCount} (budget: ${maxCalls})`,
+      passed: false,
+    });
   }
 
   // 2. Exploration ratio evaluation
@@ -112,14 +115,20 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
   const tolerance = THRESHOLDS.explorationTolerance;
 
   if (Math.abs(expRatio - target) <= tolerance) {
-    hits.push(`Good exploration ratio: ${expRatio.toFixed(2)}`);
+    assertions.push({ text: `Good exploration ratio: ${expRatio.toFixed(2)}`, passed: true });
     scores.push(1.0);
   } else if (expRatio < target - tolerance) {
     scores.push(0.7);
-    misses.push(`Low exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`);
+    assertions.push({
+      text: `Low exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`,
+      passed: false,
+    });
   } else {
     scores.push(0.7);
-    misses.push(`High exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`);
+    assertions.push({
+      text: `High exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`,
+      passed: false,
+    });
   }
 
   // 3. Token usage evaluation
@@ -130,12 +139,15 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
       complexity === 'complex' ? THRESHOLDS.maxTokensComplex : THRESHOLDS.maxTokensSimple;
 
     if (totalTokens <= maxTokens) {
-      hits.push(`Token usage (${totalTokens}) within budget`);
+      assertions.push({ text: `Token usage (${totalTokens}) within budget`, passed: true });
       scores.push(1.0);
     } else {
       const penalty = Math.min((totalTokens - maxTokens) / maxTokens, 1.0);
       scores.push(1.0 - penalty * 0.5);
-      misses.push(`High token usage: ${totalTokens} (budget: ${maxTokens})`);
+      assertions.push({
+        text: `High token usage: ${totalTokens} (budget: ${maxTokens})`,
+        passed: false,
+      });
     }
   }
 
@@ -145,11 +157,14 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
     const maxCost = complexity === 'complex' ? THRESHOLDS.maxCostComplex : THRESHOLDS.maxCostSimple;
 
     if (cost <= maxCost) {
-      hits.push(`Cost ($${cost.toFixed(4)}) within budget`);
+      assertions.push({ text: `Cost ($${cost.toFixed(4)}) within budget`, passed: true });
       scores.push(1.0);
     } else {
       scores.push(0.5);
-      misses.push(`High cost: $${cost.toFixed(4)} (budget: $${maxCost.toFixed(4)})`);
+      assertions.push({
+        text: `High cost: $${cost.toFixed(4)} (budget: $${maxCost.toFixed(4)})`,
+        passed: false,
+      });
     }
   }
 
@@ -158,8 +173,6 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
 
   return {
     score: Math.round(finalScore * 100) / 100,
-    hits: hits.slice(0, 4),
-    misses: misses.slice(0, 4),
-    reasoning: `Task complexity: ${complexity}. Evaluated ${scores.length} criteria. Score: ${finalScore.toFixed(2)}`,
+    assertions: assertions.slice(0, 8),
   };
 });

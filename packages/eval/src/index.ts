@@ -10,7 +10,7 @@
  *
  * export default defineAssertion(({ outputText }) => ({
  *   pass: outputText.includes('hello'),
- *   reasoning: 'Checks greeting',
+ *   assertions: [{ text: 'Checks greeting', passed: outputText.includes('hello') }],
  * }));
  * ```
  *
@@ -21,8 +21,7 @@
  *
  * export default defineCodeGrader(({ trace, outputText }) => ({
  *   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
- *   hits: ['Efficient tool usage'],
- *   misses: [],
+ *   assertions: [{ text: 'Efficient tool usage', passed: trace?.eventCount <= 5 }],
  * }));
  * ```
  *
@@ -34,7 +33,7 @@
  * export default defineCodeGrader(async ({ inputText }) => {
  *   const target = createTargetClient();
  *   if (!target) {
- *     return { score: 0, misses: ['Target not available'] };
+ *     return { score: 0, assertions: [{ text: 'Target not available', passed: false }] };
  *   }
  *
  *   const response = await target.invoke({
@@ -123,14 +122,13 @@ export type { PromptTemplateHandler };
  *
  * export default defineCodeGrader(({ trace }) => {
  *   if (!trace) {
- *     return { score: 0.5, reasoning: 'No trace available' };
+ *     return { score: 0.5, assertions: [{ text: 'No trace available', passed: false }] };
  *   }
  *
  *   const efficient = trace.eventCount <= 10;
  *   return {
  *     score: efficient ? 1.0 : 0.5,
- *     hits: efficient ? ['Efficient execution'] : [],
- *     misses: efficient ? [] : ['Too many tool calls'],
+ *     assertions: [{ text: efficient ? 'Efficient execution' : 'Too many tool calls', passed: efficient }],
  *   };
  * });
  * ```
@@ -223,7 +221,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *
  * export default defineAssertion(({ outputText }) => ({
  *   pass: outputText.toLowerCase().includes('hello'),
- *   reasoning: 'Checks for greeting',
+ *   assertions: [{ text: 'Checks for greeting', passed: outputText.toLowerCase().includes('hello') }],
  * }));
  * ```
  *
@@ -236,9 +234,9 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
  *   return {
  *     score: hasContent + isEfficient,
- *     hits: [
- *       ...(hasContent ? ['Has content'] : []),
- *       ...(isEfficient ? ['Efficient'] : []),
+ *     assertions: [
+ *       { text: 'Has content', passed: !!hasContent },
+ *       { text: 'Efficient', passed: !!isEfficient },
  *     ],
  *   };
  * });

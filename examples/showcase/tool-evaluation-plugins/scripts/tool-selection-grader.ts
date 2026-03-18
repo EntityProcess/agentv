@@ -50,8 +50,7 @@ const toolTaskMappings: Record<string, string[]> = {
 };
 
 export default defineCodeGrader(({ inputText, criteria, output }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   const toolCalls = extractToolCalls(output ?? []);
 
@@ -73,9 +72,7 @@ export default defineCodeGrader(({ inputText, criteria, output }) => {
   if (toolCalls.length === 0) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No tools were called'],
-      reasoning: 'Agent did not use any tools. Expected at least some tool usage.',
+      assertions: [{ text: 'No tools were called', passed: false }],
     };
   }
 
@@ -86,27 +83,26 @@ export default defineCodeGrader(({ inputText, criteria, output }) => {
       (expected) => toolLower.includes(expected) || expected.includes(toolLower),
     );
     if (isRelevant || expectedTools.size === 0) {
-      hits.push(`Tool '${tool}' appears relevant to task`);
+      assertions.push({ text: `Tool '${tool}' appears relevant to task`, passed: true });
     } else {
-      misses.push(`Tool '${tool}' may not be needed for this task`);
+      assertions.push({ text: `Tool '${tool}' may not be needed for this task`, passed: false });
     }
   }
 
   // Check for missing expected tools
   for (const expected of expectedTools) {
     if (![...actualTools].some((t) => t.toLowerCase().includes(expected))) {
-      misses.push(`Expected a '${expected}'-type tool but none used`);
+      assertions.push({ text: `Expected a '${expected}'-type tool but none used`, passed: false });
     }
   }
 
   // Calculate score
-  const totalChecks = hits.length + misses.length;
-  const score = totalChecks > 0 ? hits.length / totalChecks : 0.5;
+  const passed = assertions.filter((a) => a.passed).length;
+  const totalChecks = assertions.length;
+  const score = totalChecks > 0 ? passed / totalChecks : 0.5;
 
   return {
     score: Math.round(score * 100) / 100,
-    hits: hits.slice(0, 4),
-    misses: misses.slice(0, 4),
-    reasoning: `Evaluated ${actualTools.size} tool(s) against task requirements. ${hits.length} appropriate, ${misses.length} issues found.`,
+    assertions: assertions.slice(0, 8),
   };
 });

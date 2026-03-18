@@ -17,15 +17,10 @@ const ok = hasExpected && hasCandidate && candidateDecisionOk;
 console.log(
   JSON.stringify({
     score: ok ? 1 : 0,
-    hits: [
-      hasExpected ? 'expected_output present' : null,
-      hasCandidate ? 'answer present' : null,
-      candidateDecisionOk ? 'answer parses' : null,
-    ].filter(Boolean),
-    misses: [
-      hasExpected ? null : 'expected_output missing',
-      hasCandidate ? null : 'answer missing',
-      candidateDecisionOk ? null : 'answer invalid',
-    ].filter(Boolean),
+    assertions: [
+      { text: 'expected_output present', passed: hasExpected },
+      { text: 'answer present', passed: hasCandidate },
+      { text: 'answer parses', passed: candidateDecisionOk },
+    ].filter((a) => a.passed !== undefined),
   }),
 );

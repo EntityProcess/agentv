@@ -27,10 +27,8 @@ export class LatencyEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['No duration data available in trace'],
+        assertions: [{ text: 'No duration data available in trace', passed: false }],
         expectedAspectCount: 1,
-        reasoning: 'Execution duration not reported by provider',
         evaluatorRawRequest: {
           type: 'latency',
           threshold,
@@ -45,10 +43,12 @@ export class LatencyEvaluator implements Evaluator {
     return {
       score,
       verdict: passed ? 'pass' : 'fail',
-      hits: passed ? [`Duration ${durationMs}ms <= ${threshold}ms threshold`] : [],
-      misses: passed ? [] : [`Duration ${durationMs}ms > ${threshold}ms threshold`],
+      assertions: [
+        passed
+          ? { text: `Duration ${durationMs}ms <= ${threshold}ms threshold`, passed: true }
+          : { text: `Duration ${durationMs}ms > ${threshold}ms threshold`, passed: false },
+      ],
       expectedAspectCount: 1,
-      reasoning: `Execution took ${durationMs}ms (threshold: ${threshold}ms)`,
       evaluatorRawRequest: {
         type: 'latency',
         threshold,

@@ -8,46 +8,40 @@ describe('negateScore', () => {
     const original: EvaluationScore = {
       score: 0.9,
       verdict: 'pass',
-      hits: ['criterion met'],
-      misses: [],
+      assertions: [{ text: 'criterion met', passed: true }],
       expectedAspectCount: 1,
-      reasoning: 'All good',
     };
 
     const negated = negateScore(original);
 
     expect(negated.score).toBeCloseTo(0.1, 10);
     expect(negated.verdict).toBe('fail');
-    expect(negated.hits).toEqual([]);
-    expect(negated.misses).toEqual(['criterion met']);
-    expect(negated.reasoning).toBe('[Negated] All good (original score: 0.90)');
+    expect(negated.assertions).toEqual([{ text: 'criterion met', passed: false }]);
   });
 
   it('inverts a failing score to passing', () => {
     const original: EvaluationScore = {
       score: 0.1,
       verdict: 'fail',
-      hits: [],
-      misses: ['criterion not met'],
+      assertions: [{ text: 'criterion not met', passed: false }],
       expectedAspectCount: 1,
-      reasoning: 'Failed check',
     };
 
     const negated = negateScore(original);
 
     expect(negated.score).toBeCloseTo(0.9, 10);
     expect(negated.verdict).toBe('pass');
-    expect(negated.hits).toEqual(['criterion not met']);
-    expect(negated.misses).toEqual([]);
-    expect(negated.reasoning).toBe('[Negated] Failed check (original score: 0.10)');
+    expect(negated.assertions).toEqual([{ text: 'criterion not met', passed: true }]);
   });
 
   it('keeps borderline verdict as borderline', () => {
     const original: EvaluationScore = {
       score: 0.7,
       verdict: 'borderline',
-      hits: ['partial'],
-      misses: ['incomplete'],
+      assertions: [
+        { text: 'partial', passed: true },
+        { text: 'incomplete', passed: false },
+      ],
       expectedAspectCount: 2,
     };
 
@@ -55,45 +49,34 @@ describe('negateScore', () => {
 
     expect(negated.score).toBeCloseTo(0.3, 10);
     expect(negated.verdict).toBe('borderline');
-    expect(negated.hits).toEqual(['incomplete']);
-    expect(negated.misses).toEqual(['partial']);
+    expect(negated.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['incomplete']);
+    expect(negated.assertions.filter((a) => !a.passed).map((a) => a.text)).toEqual(['partial']);
   });
 
-  it('swaps hits and misses', () => {
+  it('flips passed on each assertion', () => {
     const original: EvaluationScore = {
       score: 1.0,
       verdict: 'pass',
-      hits: ['a', 'b', 'c'],
-      misses: ['d'],
+      assertions: [
+        { text: 'a', passed: true },
+        { text: 'b', passed: true },
+        { text: 'c', passed: true },
+        { text: 'd', passed: false },
+      ],
       expectedAspectCount: 4,
     };
 
     const negated = negateScore(original);
 
-    expect(negated.hits).toEqual(['d']);
-    expect(negated.misses).toEqual(['a', 'b', 'c']);
+    expect(negated.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['d']);
+    expect(negated.assertions.filter((a) => !a.passed).map((a) => a.text)).toEqual(['a', 'b', 'c']);
   });
 
-  it('annotates reasoning when no original reasoning', () => {
-    const original: EvaluationScore = {
-      score: 0.8,
-      verdict: 'pass',
-      hits: [],
-      misses: [],
-      expectedAspectCount: 0,
-    };
-
-    const negated = negateScore(original);
-
-    expect(negated.reasoning).toBe('[Negated] Original score: 0.80');
-  });
-
-  it('clamps score to valid range (score 0 → 1)', () => {
+  it('clamps score to valid range (score 0 -> 1)', () => {
     const original: EvaluationScore = {
       score: 0,
       verdict: 'fail',
-      hits: [],
-      misses: ['everything failed'],
+      assertions: [{ text: 'everything failed', passed: false }],
       expectedAspectCount: 1,
     };
 
@@ -103,12 +86,11 @@ describe('negateScore', () => {
     expect(negated.verdict).toBe('pass');
   });
 
-  it('clamps score to valid range (score 1 → 0)', () => {
+  it('clamps score to valid range (score 1 -> 0)', () => {
     const original: EvaluationScore = {
       score: 1,
       verdict: 'pass',
-      hits: ['everything passed'],
-      misses: [],
+      assertions: [{ text: 'everything passed', passed: true }],
       expectedAspectCount: 1,
     };
 
@@ -122,8 +104,7 @@ describe('negateScore', () => {
     const original: EvaluationScore = {
       score: 0.5,
       verdict: 'fail',
-      hits: [],
-      misses: [],
+      assertions: [],
       expectedAspectCount: 3,
       details: { custom: 'data' },
     };

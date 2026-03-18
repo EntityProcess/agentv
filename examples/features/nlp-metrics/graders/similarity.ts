@@ -59,9 +59,7 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
   if (!reference) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No reference text provided'],
-      reasoning: 'Missing reference.',
+      assertions: [{ text: 'No reference text provided', passed: false }],
     };
   }
 
@@ -77,20 +75,19 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
   // Use cosine as the primary score
   const score = cosine;
 
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
-  if (cosine >= 0.7) hits.push(`Cosine similarity ${cosine.toFixed(3)} >= 0.7`);
-  else misses.push(`Cosine similarity ${cosine.toFixed(3)} < 0.7`);
+  if (cosine >= 0.7)
+    assertions.push({ text: `Cosine similarity ${cosine.toFixed(3)} >= 0.7`, passed: true });
+  else assertions.push({ text: `Cosine similarity ${cosine.toFixed(3)} < 0.7`, passed: false });
 
-  if (jaccard >= 0.5) hits.push(`Jaccard similarity ${jaccard.toFixed(3)} >= 0.5`);
-  else misses.push(`Jaccard similarity ${jaccard.toFixed(3)} < 0.5`);
+  if (jaccard >= 0.5)
+    assertions.push({ text: `Jaccard similarity ${jaccard.toFixed(3)} >= 0.5`, passed: true });
+  else assertions.push({ text: `Jaccard similarity ${jaccard.toFixed(3)} < 0.5`, passed: false });
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `Cosine=${cosine.toFixed(3)}, Jaccard=${jaccard.toFixed(3)}`,
+    assertions,
     details: { cosine, jaccard },
   };
 });

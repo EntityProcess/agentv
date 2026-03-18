@@ -3,26 +3,24 @@ import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ outputText }) => {
   const lower = outputText.toLowerCase();
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (lower.includes('paris')) {
-    hits.push('Answer mentions Paris');
+    assertions.push({ text: 'Answer mentions Paris', passed: true });
   } else {
-    misses.push('Answer does not mention Paris');
+    assertions.push({ text: 'Answer does not mention Paris', passed: false });
   }
 
   if (lower.includes('france')) {
-    hits.push('Answer mentions France');
+    assertions.push({ text: 'Answer mentions France', passed: true });
   } else {
-    misses.push('Answer does not mention France');
+    assertions.push({ text: 'Answer does not mention France', passed: false });
   }
 
-  const total = hits.length + misses.length;
+  const passed = assertions.filter((a) => a.passed).length;
+  const total = assertions.length;
   return {
-    score: total > 0 ? hits.length / total : 0,
-    hits,
-    misses,
-    reasoning: `Passed ${hits.length}/${total} keyword checks`,
+    score: total > 0 ? passed / total : 0,
+    assertions,
   };
 });

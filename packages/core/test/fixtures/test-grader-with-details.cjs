@@ -13,9 +13,10 @@ const hasCandidate = typeof input.answer === 'string';
 console.log(
   JSON.stringify({
     score: hasExpected && hasCandidate ? 0.75 : 0,
-    hits: hasExpected ? ['expected_output present'] : [],
-    misses: hasCandidate ? [] : ['answer missing'],
-    reasoning: 'Testing details passthrough',
+    assertions: [
+      ...(hasExpected ? [{ text: 'expected_output present', passed: true }] : []),
+      ...(hasCandidate ? [] : [{ text: 'answer missing', passed: false }]),
+    ],
     details: {
       metrics: {
         tp: 5,

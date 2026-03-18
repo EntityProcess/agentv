@@ -14,45 +14,44 @@
 import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (!trace) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No trace provided'],
-      reasoning: 'Execution metrics collection failed - no trace',
+      assertions: [{ text: 'No trace provided', passed: false }],
     };
   }
 
   // Check for tokenUsage
   if (tokenUsage) {
-    hits.push(`tokenUsage present: ${tokenUsage.input}/${tokenUsage.output}`);
+    assertions.push({
+      text: `tokenUsage present: ${tokenUsage.input}/${tokenUsage.output}`,
+      passed: true,
+    });
   } else {
-    misses.push('tokenUsage not present');
+    assertions.push({ text: 'tokenUsage not present', passed: false });
   }
 
   // Check for costUsd
   if (costUsd !== undefined) {
-    hits.push(`costUsd present: $${costUsd.toFixed(4)}`);
+    assertions.push({ text: `costUsd present: $${costUsd.toFixed(4)}`, passed: true });
   } else {
-    misses.push('costUsd not present');
+    assertions.push({ text: 'costUsd not present', passed: false });
   }
 
   // Check for durationMs
   if (durationMs !== undefined) {
-    hits.push(`durationMs present: ${durationMs}ms`);
+    assertions.push({ text: `durationMs present: ${durationMs}ms`, passed: true });
   } else {
-    misses.push('durationMs not present');
+    assertions.push({ text: 'durationMs not present', passed: false });
   }
 
-  const score = hits.length / (hits.length + misses.length);
+  const passed = assertions.filter((a) => a.passed).length;
+  const score = passed / assertions.length;
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `Checked 3 metric fields: ${hits.length} present, ${misses.length} missing`,
+    assertions,
   };
 });

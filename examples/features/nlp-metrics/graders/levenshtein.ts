@@ -41,9 +41,7 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
   if (!reference) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No reference text provided'],
-      reasoning: 'Missing reference.',
+      assertions: [{ text: 'No reference text provided', passed: false }],
     };
   }
 
@@ -54,17 +52,20 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
   const maxLen = Math.max(candNorm.length, refNorm.length);
   const score = maxLen === 0 ? 1 : 1 - distance / maxLen;
 
-  const hits: string[] = [];
-  const misses: string[] = [];
-
-  if (score >= 0.8) hits.push(`Edit similarity ${score.toFixed(3)} >= 0.8`);
-  else misses.push(`Edit similarity ${score.toFixed(3)} < 0.8`);
+  const passed = score >= 0.8;
+  const assertions = [
+    {
+      text: passed
+        ? `Edit similarity ${score.toFixed(3)} >= 0.8`
+        : `Edit similarity ${score.toFixed(3)} < 0.8`,
+      passed,
+      evidence: `Levenshtein distance=${distance}, normalised similarity=${score.toFixed(3)}`,
+    },
+  ];
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `Levenshtein distance=${distance}, normalised similarity=${score.toFixed(3)}`,
+    assertions,
     details: { distance, maxLen, similarity: score },
   };
 });

@@ -31,8 +31,7 @@ describe('InlineAssertEvaluator', () => {
 
     expect(score.score).toBe(1.0);
     expect(score.verdict).toBe('pass');
-    expect(score.hits).toEqual(['test-assert']);
-    expect(score.misses).toEqual([]);
+    expect(score.assertions).toEqual([{ text: 'test-assert', passed: true }]);
   });
 
   it('handles failing assertion', async () => {
@@ -46,7 +45,7 @@ describe('InlineAssertEvaluator', () => {
 
     expect(score.score).toBe(0.0);
     expect(score.verdict).toBe('fail');
-    expect(score.misses).toEqual(['fail-assert']);
+    expect(score.assertions).toEqual([{ text: 'fail-assert', passed: false }]);
   });
 
   it('handles async assert functions', async () => {

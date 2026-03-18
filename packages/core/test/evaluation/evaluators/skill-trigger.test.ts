@@ -100,7 +100,7 @@ describe('SkillTriggerEvaluator', () => {
       });
       const result = evaluator.evaluate(context);
       expect(result.verdict).toBe('fail');
-      expect(result.misses[0]).toContain('command_execution');
+      expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('command_execution');
     });
 
     it('should pass for codex with should_trigger: false and unrelated tool', () => {
@@ -178,7 +178,7 @@ describe('SkillTriggerEvaluator', () => {
       });
       const result = evaluator.evaluate(context);
       expect(result.verdict).toBe('fail');
-      expect(result.misses[0]).toBe('No tool calls recorded');
+      expect(result.assertions.filter((a) => !a.passed)[0].text).toBe('No tool calls recorded');
     });
 
     it('should support should_trigger: false', () => {

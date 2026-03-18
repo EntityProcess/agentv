@@ -110,7 +110,6 @@ import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ answer, criteria }) => ({
   score: answer.includes('expected') ? 1.0 : 0.0,
-  hits: ['Found expected content'],
-  misses: [],
+  assertions: [{ text: 'Found expected content', passed: answer.includes('expected') }],
 }));
 ```

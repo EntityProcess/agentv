@@ -63,10 +63,12 @@ export class JunitWriter {
           inner = `\n      <error message="${escapeXml(r.error)}">${escapeXml(r.error)}</error>\n    `;
         } else if (r.score < 0.5) {
           const message = `score=${r.score.toFixed(3)}`;
+          const failedAssertions = r.assertions.filter((a) => !a.passed);
           const detail = [
             `Score: ${r.score.toFixed(3)}`,
-            r.reasoning ? `Reasoning: ${r.reasoning}` : '',
-            r.misses.length > 0 ? `Misses: ${r.misses.join(', ')}` : '',
+            failedAssertions.length > 0
+              ? `Failed: ${failedAssertions.map((a) => a.text).join(', ')}`
+              : '',
           ]
             .filter(Boolean)
             .join('\n');

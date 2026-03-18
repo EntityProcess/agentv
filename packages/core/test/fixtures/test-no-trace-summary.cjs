@@ -8,8 +8,8 @@ const hasSummary = input.trace !== null && input.trace !== undefined;
 console.log(
   JSON.stringify({
     score: hasSummary ? 0 : 1,
-    hits: hasSummary ? [] : ['Correctly handled missing summary'],
-    misses: hasSummary ? ['Expected no summary'] : [],
-    reasoning: 'Checked for missing trace',
+    assertions: hasSummary
+      ? [{ text: 'Expected no summary', passed: false }]
+      : [{ text: 'Correctly handled missing summary', passed: true }],
   }),
 );

@@ -14,8 +14,7 @@
 import { defineCodeGrader } from '@agentv/eval';
 
 defineCodeGrader(({ fileChanges, config }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Config keys are camelCased by the SDK runtime (expected_files_modified → expectedFilesModified)
   const expectedFiles: string[] =
@@ -26,12 +25,10 @@ defineCodeGrader(({ fileChanges, config }) => {
     (config?.expectedKeywords as string[]) ?? (config?.expected_keywords as string[]) ?? [];
 
   if (!fileChanges) {
-    misses.push('No file changes captured');
+    assertions.push({ text: 'No file changes captured', passed: false });
     return {
       score: 0,
-      hits,
-      misses,
-      reasoning: 'Agent produced no file changes',
+      assertions,
     };
   }
 
@@ -44,9 +41,9 @@ defineCodeGrader(({ fileChanges, config }) => {
       (block) => block.includes(`a/${expectedPath}`) || block.includes(`b/${expectedPath}`),
     );
     if (found) {
-      hits.push(`file modified: ${expectedPath}`);
+      assertions.push({ text: `file modified: ${expectedPath}`, passed: true });
     } else {
-      misses.push(`file NOT modified: ${expectedPath}`);
+      assertions.push({ text: `file NOT modified: ${expectedPath}`, passed: false });
     }
   }
 
@@ -54,20 +51,19 @@ defineCodeGrader(({ fileChanges, config }) => {
   const diffLower = fileChanges.toLowerCase();
   for (const keyword of expectedKeywords) {
     if (diffLower.includes(keyword.toLowerCase())) {
-      hits.push(`keyword found: ${keyword}`);
+      assertions.push({ text: `keyword found: ${keyword}`, passed: true });
     } else {
-      misses.push(`keyword NOT found: ${keyword}`);
+      assertions.push({ text: `keyword NOT found: ${keyword}`, passed: false });
     }
   }
 
-  const total = hits.length + misses.length;
-  const score = total > 0 ? hits.length / total : 0;
+  const passed = assertions.filter((a) => a.passed).length;
+  const total = assertions.length;
+  const score = total > 0 ? passed / total : 0;
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `${hits.length}/${total} checks passed`,
+    assertions,
     details: {
       files_checked: expectedFiles.length,
       keywords_checked: expectedKeywords.length,

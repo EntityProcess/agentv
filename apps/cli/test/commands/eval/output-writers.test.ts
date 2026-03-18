@@ -16,8 +16,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     timestamp: '2024-01-01T00:00:00Z',
     testId: 'test-1',
     score: 1.0,
-    hits: ['criterion-1'],
-    misses: [],
+    assertions: [{ text: 'criterion-1', passed: true }],
     answer: 'answer',
     target: 'default',
     ...overrides,
@@ -106,7 +105,7 @@ describe('JunitWriter', () => {
     const writer = await JunitWriter.open(testFilePath);
 
     await writer.append(makeResult({ testId: 'pass-1', score: 0.9 }));
-    await writer.append(makeResult({ testId: 'fail-1', score: 0.3, reasoning: 'Too low' }));
+    await writer.append(makeResult({ testId: 'fail-1', score: 0.3 }));
     await writer.close();
 
     const xml = await readFile(testFilePath, 'utf8');
@@ -116,7 +115,6 @@ describe('JunitWriter', () => {
     expect(xml).toContain('<testcase name="fail-1"');
     expect(xml).toContain('<failure');
     expect(xml).toContain('score=0.300');
-    expect(xml).toContain('Too low');
   });
 
   it('should group results by dataset as testsuites', async () => {

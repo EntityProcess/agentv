@@ -44,7 +44,7 @@ async function createScoringGrader(dir: string): Promise<readonly string[]> {
   const script = join(dir, 'score-grader.js');
   await writeFile(
     script,
-    `console.log(JSON.stringify({ score: 1.0, hits: ['ok'], misses: [] }));
+    `console.log(JSON.stringify({ score: 1.0, assertions: [{ text: 'ok', passed: true }] }));
 `,
     'utf8',
   );
@@ -91,7 +91,7 @@ describe('CodeEvaluator file-backed output', () => {
     });
 
     expect(result.score).toBe(1.0);
-    expect(result.hits).toEqual(['ok']);
+    expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['ok']);
 
     // Temp files should be cleaned up
     const agentVTmpDirs = readdirSync(tmpdir()).filter((d) => d.startsWith('agentv-judge-'));

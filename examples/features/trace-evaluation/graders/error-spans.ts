@@ -11,20 +11,24 @@ export default defineCodeGrader(({ trace, config }) => {
   if (!trace) {
     return {
       score: 0,
-      misses: ['No trace available'],
-      reasoning: 'Cannot detect errors without trace data',
+      assertions: [{ text: 'No trace available', passed: false }],
     };
   }
 
   const maxErrors = (config?.maxErrors as number) ?? 0;
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Check error count
   if (trace.errorCount <= maxErrors) {
-    hits.push(`Error count (${trace.errorCount}) within limit (${maxErrors})`);
+    assertions.push({
+      text: `Error count (${trace.errorCount}) within limit (${maxErrors})`,
+      passed: true,
+    });
   } else {
-    misses.push(`Too many errors: ${trace.errorCount} (max: ${maxErrors})`);
+    assertions.push({
+      text: `Too many errors: ${trace.errorCount} (max: ${maxErrors})`,
+      passed: false,
+    });
   }
 
   // Check for tools that might indicate errors (if configured)
@@ -32,22 +36,21 @@ export default defineCodeGrader(({ trace, config }) => {
   for (const tool of forbiddenTools) {
     const count = trace.toolCallsByName[tool];
     if (count !== undefined && count > 0) {
-      misses.push(`Forbidden tool "${tool}" was called ${count} time(s)`);
+      assertions.push({
+        text: `Forbidden tool "${tool}" was called ${count} time(s)`,
+        passed: false,
+      });
     } else {
-      hits.push(`Forbidden tool "${tool}" was not called`);
+      assertions.push({ text: `Forbidden tool "${tool}" was not called`, passed: true });
     }
   }
 
-  const total = hits.length + misses.length;
-  const score = total > 0 ? hits.length / total : 1.0;
+  const passed = assertions.filter((a) => a.passed).length;
+  const total = assertions.length;
+  const score = total > 0 ? passed / total : 1.0;
 
   return {
     score: Math.round(score * 100) / 100,
-    hits,
-    misses,
-    reasoning:
-      trace.errorCount === 0
-        ? 'No errors detected in trace'
-        : `Found ${trace.errorCount} error(s) in trace`,
+    assertions,
   };
 });

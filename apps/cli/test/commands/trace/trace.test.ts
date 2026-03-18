@@ -18,10 +18,8 @@ const RESULT_WITH_TRACE = JSON.stringify({
   test_id: 'test-1',
   dataset: 'demo',
   score: 1,
-  hits: ['criterion-1'],
-  misses: [],
+  assertions: [{ text: 'criterion-1', passed: true }],
   target: 'default',
-  reasoning: 'Perfect score.',
   trace: {
     event_count: 5,
     tool_names: ['read', 'write'],
@@ -39,10 +37,11 @@ const RESULT_WITHOUT_TRACE = JSON.stringify({
   test_id: 'test-2',
   dataset: 'demo',
   score: 0.75,
-  hits: ['criterion-1'],
-  misses: ['criterion-2'],
+  assertions: [
+    { text: 'criterion-1', passed: true },
+    { text: 'criterion-2', passed: false },
+  ],
   target: 'default',
-  reasoning: 'Partial pass.',
 });
 
 const RESULT_FAILING = JSON.stringify({
@@ -50,8 +49,10 @@ const RESULT_FAILING = JSON.stringify({
   test_id: 'test-3',
   dataset: 'demo',
   score: 0,
-  hits: [],
-  misses: ['criterion-1', 'criterion-2'],
+  assertions: [
+    { text: 'criterion-1', passed: false },
+    { text: 'criterion-2', passed: false },
+  ],
   target: 'gpt-4',
   error: 'Agent timed out.',
 });

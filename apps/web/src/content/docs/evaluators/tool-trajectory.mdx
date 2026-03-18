@@ -109,9 +109,9 @@ Each `max_duration_ms` assertion counts as a separate scoring aspect. The rules:
 
 | Condition | Result |
 |-----------|--------|
-| `actual_duration <= max_duration_ms` | Pass (counts as hit) |
-| `actual_duration > max_duration_ms` | Fail (counts as miss) |
-| No `duration_ms` in trace output | Warning logged, neutral (neither hit nor miss) |
+| `actual_duration <= max_duration_ms` | Pass (assertion entry with `passed: true`) |
+| `actual_duration > max_duration_ms` | Fail (assertion entry with `passed: false`) |
+| No `duration_ms` in trace output | Warning logged, neutral (no assertion entry) |
 
 Set generous thresholds to avoid flaky tests from timing variance. Only add latency assertions where timing matters on critical paths.
 
@@ -120,10 +120,10 @@ Set generous thresholds to avoid flaky tests from timing variance. Only add late
 | Mode | Score Calculation |
 |------|------------------|
 | `any_order` | (tools meeting minimum) / (total tools with minimums) |
-| `in_order` | (sequence hits + latency hits) / (expected tools + latency assertions) |
-| `exact` | (sequence hits + latency hits) / (expected tools + latency assertions) |
+| `in_order` | (passed assertions) / (total assertions) |
+| `exact` | (passed assertions) / (total assertions) |
 
-Example: 3 expected tools with 2 latency assertions = 5 total aspects scored.
+Example: 3 expected tools with 2 latency assertions = 5 total assertion entries scored.
 
 ## Trace Data Format
 

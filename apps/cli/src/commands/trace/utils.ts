@@ -45,11 +45,9 @@ export interface RawResult {
   dataset?: string;
   conversation_id?: string;
   score: number;
-  hits?: string[];
-  misses?: string[];
+  assertions?: { text: string; passed: boolean; evidence?: string }[];
   answer?: string;
   target?: string;
-  reasoning?: string;
   error?: string;
   scores?: RawEvaluatorScore[];
   trace?: RawTraceSummary;
@@ -70,9 +68,7 @@ export interface RawEvaluatorScore {
   name: string;
   type: string;
   score: number;
-  hits?: string[];
-  misses?: string[];
-  reasoning?: string;
+  assertions?: { text: string; passed: boolean; evidence?: string }[];
   weight?: number;
 }
 

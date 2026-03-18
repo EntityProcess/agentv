@@ -64,19 +64,24 @@ export default defineCodeGrader(({ expectedOutput, input, outputText }) => {
       ? candidateObj.decision
       : undefined;
 
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
   if (!expectedDecision) {
-    misses.push('Missing expected decision (expected_output[].content.decision)');
+    assertions.push({
+      text: 'Missing expected decision (expected_output[].content.decision)',
+      passed: false,
+    });
   } else {
-    hits.push(`expected.decision present: ${expectedDecision}`);
+    assertions.push({ text: `expected.decision present: ${expectedDecision}`, passed: true });
   }
 
   if (!candidateDecision) {
-    misses.push('Candidate output is not valid JSON with a decision field');
+    assertions.push({
+      text: 'Candidate output is not valid JSON with a decision field',
+      passed: false,
+    });
   } else {
-    hits.push(`candidate.decision present: ${candidateDecision}`);
+    assertions.push({ text: `candidate.decision present: ${candidateDecision}`, passed: true });
   }
 
   const ok =
@@ -85,17 +90,14 @@ export default defineCodeGrader(({ expectedOutput, input, outputText }) => {
     expectedDecision === candidateDecision;
 
   if (!ok) {
-    misses.push(
-      `decision mismatch: expected=${expectedDecision ?? 'null'} actual=${candidateDecision ?? 'null'}`,
-    );
+    assertions.push({
+      text: `decision mismatch: expected=${expectedDecision ?? 'null'} actual=${candidateDecision ?? 'null'}`,
+      passed: false,
+    });
   }
 
   return {
     score: ok ? 1 : 0,
-    hits,
-    misses,
-    reasoning: ok
-      ? 'Batch runner decision matches the expected decision.'
-      : 'Batch runner decision did not match expected decision.',
+    assertions,
   };
 });

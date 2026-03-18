@@ -188,9 +188,7 @@ interface ScoreResult {
   originalScore: number;
   newScore: number;
   verdict: string;
-  hits: readonly string[];
-  misses: readonly string[];
-  reasoning?: string;
+  assertions: readonly { text: string; passed: boolean; evidence?: string }[];
 }
 
 async function runScore(
@@ -241,9 +239,7 @@ async function runScore(
       originalScore: raw.score,
       newScore: score.score,
       verdict: score.verdict,
-      hits: score.hits,
-      misses: score.misses,
-      reasoning: score.reasoning,
+      assertions: score.assertions,
     });
   }
 
@@ -270,12 +266,14 @@ function renderTable(scored: ScoreResult[], assertSpec: string): string {
 
   for (const r of scored) {
     const verdictColor = r.verdict === 'pass' ? c.green : c.red;
+    const failed = r.assertions.filter((a) => !a.passed);
+    const passed = r.assertions.filter((a) => a.passed);
     const detail =
-      r.misses.length > 0
-        ? r.misses[0].slice(0, 48)
-        : r.hits.length > 0
-          ? r.hits[0].slice(0, 48)
-          : (r.reasoning?.slice(0, 48) ?? '');
+      failed.length > 0
+        ? failed[0].text.slice(0, 48)
+        : passed.length > 0
+          ? passed[0].text.slice(0, 48)
+          : '';
 
     const row = [
       padRight(r.testId.slice(0, 24), cols[0].width),

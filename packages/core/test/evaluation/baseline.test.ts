@@ -9,11 +9,12 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
     dataset: 'test-dataset',
     conversationId: 'conv-1',
     score: 0.85,
-    hits: ['hit-1'],
-    misses: ['miss-1'],
+    assertions: [
+      { text: 'hit-1', passed: true },
+      { text: 'miss-1', passed: false },
+    ],
     answer: 'A very long candidate answer that bloats the file...',
     target: 'test-target',
-    reasoning: 'Good answer',
     requests: {
       lm: { chat_prompt: [{ role: 'user', content: 'hello' }] },
       agent: { model: 'gpt-4' },
@@ -42,9 +43,7 @@ function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): Evaluato
     score: 0.9,
     weight: 1,
     verdict: 'pass',
-    hits: ['good'],
-    misses: [],
-    reasoning: 'Well done',
+    assertions: [{ text: 'good', passed: true }],
     rawRequest: { prompt: 'evaluate' },
     evaluatorProviderRequest: { user_prompt: 'long prompt', system_prompt: 'system' },
     details: { tp: 5, fp: 0 },
@@ -62,10 +61,8 @@ describe('trimBaselineResult', () => {
     expect(trimmed.dataset).toBe(full.dataset);
     expect(trimmed.conversationId).toBe(full.conversationId);
     expect(trimmed.score).toBe(full.score);
-    expect(trimmed.hits).toEqual(full.hits);
-    expect(trimmed.misses).toEqual(full.misses);
+    expect(trimmed.assertions).toEqual(full.assertions);
     expect(trimmed.target).toBe(full.target);
-    expect(trimmed.reasoning).toBe(full.reasoning);
 
     expect(trimmed.answer).toBeUndefined();
     expect(trimmed.requests).toBeUndefined();
@@ -95,9 +92,7 @@ describe('trimBaselineResult', () => {
     expect(er.score).toBe(0.9);
     expect(er.weight).toBe(1);
     expect(er.verdict).toBe('pass');
-    expect(er.hits).toEqual(['good']);
-    expect(er.misses).toEqual([]);
-    expect(er.reasoning).toBe('Well done');
+    expect(er.assertions).toEqual([{ text: 'good', passed: true }]);
     expect(er.details).toEqual({ tp: 5, fp: 0 });
 
     expect(er.rawRequest).toBeUndefined();

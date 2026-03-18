@@ -108,9 +108,14 @@ export default defineCodeGrader((input) => {
   if (!reference) {
     return {
       score: 0.5,
-      hits: ['Candidate response provided'],
-      misses: ['No reference for comparison'],
-      reasoning: 'Pairwise comparison requires expectedOutputText field',
+      assertions: [
+        { text: 'Candidate response provided', passed: true },
+        {
+          text: 'No reference for comparison',
+          passed: false,
+          evidence: 'Pairwise comparison requires expectedOutputText field',
+        },
+      ],
     };
   }
 
@@ -146,10 +151,25 @@ export default defineCodeGrader((input) => {
   // Convert to score (candidate perspective)
   const score = finalWinner === 'A' ? 1.0 : finalWinner === 'B' ? 0.0 : 0.5;
 
+  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [
+    ...pass1.aAdvantages.slice(0, 4).map((text) => ({ text, passed: true })),
+    ...pass1.bAdvantages.slice(0, 4).map((text) => ({ text, passed: false })),
+  ];
+
+  // Add consistency evidence to the first assertion
+  const consistencyEvidence = `Pass 1: ${pass1.winner} wins. Pass 2 (swapped): ${pass2.winner} wins (maps to ${pass2Mapped}). Consistency: ${consistent}. Final: ${finalWinner} (${confidence} confidence)`;
+  if (assertions.length > 0) {
+    assertions[0].evidence = consistencyEvidence;
+  } else {
+    assertions.push({
+      text: `Final result: ${finalWinner}`,
+      passed: finalWinner === 'A',
+      evidence: consistencyEvidence,
+    });
+  }
+
   return {
     score,
-    hits: pass1.aAdvantages.slice(0, 4),
-    misses: pass1.bAdvantages.slice(0, 4),
-    reasoning: `Pass 1: ${pass1.winner} wins. Pass 2 (swapped): ${pass2.winner} wins (maps to ${pass2Mapped}). Consistency: ${consistent}. Final: ${finalWinner} (${confidence} confidence)`,
+    assertions,
   };
 });

@@ -1,4 +1,4 @@
-import type { TokenUsageEvaluatorConfig } from '../types.js';
+import type { AssertionEntry, TokenUsageEvaluatorConfig } from '../types.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
 export interface TokenUsageEvaluatorOptions {
@@ -34,10 +34,8 @@ export class TokenUsageEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['No token usage data available in trace'],
+        assertions: [{ text: 'No token usage data available in trace', passed: false }],
         expectedAspectCount,
-        reasoning: 'Token usage not reported by provider',
         evaluatorRawRequest: {
           type: 'token-usage',
           max_total: maxTotal ?? null,
@@ -53,42 +51,39 @@ export class TokenUsageEvaluator implements Evaluator {
     const cached = usage.cached ?? 0;
     const total = input + output + cached;
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
 
     if (typeof maxInput === 'number') {
       if (input <= maxInput) {
-        hits.push(`Input tokens ${input} <= ${maxInput}`);
+        assertions.push({ text: `Input tokens ${input} <= ${maxInput}`, passed: true });
       } else {
-        misses.push(`Input tokens ${input} > ${maxInput}`);
+        assertions.push({ text: `Input tokens ${input} > ${maxInput}`, passed: false });
       }
     }
 
     if (typeof maxOutput === 'number') {
       if (output <= maxOutput) {
-        hits.push(`Output tokens ${output} <= ${maxOutput}`);
+        assertions.push({ text: `Output tokens ${output} <= ${maxOutput}`, passed: true });
       } else {
-        misses.push(`Output tokens ${output} > ${maxOutput}`);
+        assertions.push({ text: `Output tokens ${output} > ${maxOutput}`, passed: false });
       }
     }
 
     if (typeof maxTotal === 'number') {
       if (total <= maxTotal) {
-        hits.push(`Total tokens ${total} <= ${maxTotal}`);
+        assertions.push({ text: `Total tokens ${total} <= ${maxTotal}`, passed: true });
       } else {
-        misses.push(`Total tokens ${total} > ${maxTotal}`);
+        assertions.push({ text: `Total tokens ${total} > ${maxTotal}`, passed: false });
       }
     }
 
-    const passed = misses.length === 0;
+    const passed = assertions.every((a) => a.passed);
 
     return {
       score: passed ? 1 : 0,
       verdict: passed ? 'pass' : 'fail',
-      hits,
-      misses,
+      assertions,
       expectedAspectCount,
-      reasoning: `token-usage input=${input}, output=${output}, cached=${cached}, total=${total}`,
       evaluatorRawRequest: {
         type: 'token-usage',
         max_total: maxTotal ?? null,

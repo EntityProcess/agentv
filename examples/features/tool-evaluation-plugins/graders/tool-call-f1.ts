@@ -41,8 +41,12 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
   if (expectedTools.length === 0) {
     return {
       score: 0,
-      misses: ['No expected_tools configured — set expected_tools in evaluator config'],
-      reasoning: 'Cannot compute F1 without expected_tools.',
+      assertions: [
+        {
+          text: 'No expected_tools configured — set expected_tools in evaluator config',
+          passed: false,
+        },
+      ],
     };
   }
 
@@ -64,17 +68,15 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
   const recall = tp.length + fn.length > 0 ? tp.length / (tp.length + fn.length) : 0;
   const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
 
-  const hits: string[] = tp.map((t) => `Expected tool '${t}' was called`);
-  const misses: string[] = [
-    ...fn.map((t) => `Expected tool '${t}' was NOT called`),
-    ...fpUnique.map((t) => `Unexpected tool '${t}' was called`),
+  const assertions: Array<{ text: string; passed: boolean }> = [
+    ...tp.map((t) => ({ text: `Expected tool '${t}' was called`, passed: true })),
+    ...fn.map((t) => ({ text: `Expected tool '${t}' was NOT called`, passed: false })),
+    ...fpUnique.map((t) => ({ text: `Unexpected tool '${t}' was called`, passed: false })),
   ];
 
   return {
     score: Math.round(f1 * 1000) / 1000,
-    hits,
-    misses,
-    reasoning: `precision=${precision.toFixed(3)} recall=${recall.toFixed(3)} F1=${f1.toFixed(3)} | expected=${expectedTools.length} actual=${actualTools.length} TP=${tp.length} FP=${fp.length} FN=${fn.length}`,
+    assertions,
     details: { precision, recall, f1, tp: tp.length, fp: fp.length, fn: fn.length },
   };
 });

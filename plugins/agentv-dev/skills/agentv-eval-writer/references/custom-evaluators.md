@@ -35,13 +35,15 @@
 ```json
 {
   "score": 0.85,
-  "hits": ["passed check"],
-  "misses": ["failed check"],
+  "assertions": [
+    { "text": "passed check", "passed": true },
+    { "text": "failed check", "passed": false }
+  ],
   "reasoning": "explanation"
 }
 ```
 
-`score` (0.0-1.0) required. `hits`, `misses`, `reasoning` optional.
+`score` (0.0-1.0) required. `assertions`, `reasoning` optional.
 
 ## SDK Functions
 
@@ -64,19 +66,20 @@ import json, sys
 
 def evaluate(data: dict) -> dict:
     candidate = data.get("answer", "")
-    hits, misses = [], []
+    assertions = []
     for kw in ["async", "await"]:
-        (hits if kw in candidate else misses).append(f"Keyword '{kw}'")
+        assertions.append({"text": f"Keyword '{kw}'", "passed": kw in candidate})
+    passed = sum(1 for a in assertions if a["passed"])
     return {
-        "score": len(hits) / max(len(hits) + len(misses), 1),
-        "hits": hits, "misses": misses
+        "score": passed / max(len(assertions), 1),
+        "assertions": assertions,
     }
 
 if __name__ == "__main__":
     try:
         print(json.dumps(evaluate(json.loads(sys.stdin.read()))))
     except Exception as e:
-        print(json.dumps({"score": 0, "misses": [str(e)]}))
+        print(json.dumps({"score": 0, "assertions": [{"text": str(e), "passed": False}]}))
         sys.exit(1)
 ```
 
@@ -87,16 +90,16 @@ if __name__ == "__main__":
 import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ answer, criteria }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
   if (answer.includes(criteria)) {
-    hits.push('Matches expected outcome');
+    assertions.push({ text: 'Matches expected outcome', passed: true });
   } else {
-    misses.push('Does not match expected outcome');
+    assertions.push({ text: 'Does not match expected outcome', passed: false });
   }
+  const passed = assertions.filter(a => a.passed).length;
   return {
-    score: hits.length / Math.max(hits.length + misses.length, 1),
-    hits, misses,
+    score: passed / Math.max(assertions.length, 1),
+    assertions,
   };
 });
 ```

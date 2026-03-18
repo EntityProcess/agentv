@@ -52,10 +52,13 @@ function makeResult(verdict: 'pass' | 'fail' | 'borderline', score: number): Eva
   return {
     score,
     verdict,
-    hits: verdict === 'pass' ? ['passed'] : [],
-    misses: verdict === 'fail' ? ['failed'] : [],
+    assertions:
+      verdict === 'pass'
+        ? [{ text: 'passed', passed: true }]
+        : verdict === 'fail'
+          ? [{ text: 'failed', passed: false }]
+          : [],
     expectedAspectCount: 1,
-    reasoning: `verdict: ${verdict}`,
   };
 }
 
@@ -208,8 +211,10 @@ describe('CompositeEvaluator threshold aggregation', () => {
     });
 
     const result = await evaluator.evaluate(createContext());
-    expect(result.reasoning).toContain('borderline');
-    expect(result.reasoning).toContain('1 borderline evaluator(s) counted as passing');
+    // Borderline member counts as passing — verify the summary assertion
+    const summaryAssertion = result.assertions.find((a) => a.text.includes('evaluators passed'));
+    expect(summaryAssertion).toBeDefined();
+    expect(summaryAssertion?.text).toContain('2/4 evaluators passed');
   });
 
   it('no warning when borderline present but result fails', async () => {
@@ -237,7 +242,6 @@ describe('CompositeEvaluator threshold aggregation', () => {
 
     const result = await evaluator.evaluate(createContext());
     expect(result.verdict).toBe('fail');
-    expect(result.reasoning).not.toContain('Warning');
   });
 
   it('no children pass, threshold 0.0 → pass (0 >= 0)', async () => {
@@ -328,10 +332,10 @@ function makeSkipResult(): EvaluationScore {
   return {
     score: 0,
     verdict: 'skip',
-    hits: [],
-    misses: ['Grader parse failure after 3 attempts: malformed response'],
+    assertions: [
+      { text: 'Grader parse failure after 3 attempts: malformed response', passed: false },
+    ],
     expectedAspectCount: 1,
-    reasoning: 'Grader parse failure after 3 attempts: malformed response',
   };
 }
 
@@ -385,7 +389,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
     const result = await evaluator.evaluate(createContext());
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    expect(result.reasoning).toContain('All evaluators skipped');
+    expect(result.assertions.some((a) => a.text.includes('All evaluators skipped'))).toBe(true);
   });
 
   it('threshold: skip-verdict members excluded from pass/total counts', async () => {
@@ -413,7 +417,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
     // 1/2 evaluated pass = 0.5, meets threshold
     expect(result.score).toBe(0.5);
     expect(result.verdict).toBe('pass');
-    expect(result.reasoning).toContain('1/2 evaluators passed');
+    expect(result.assertions.some((a) => a.text.includes('1/2 evaluators passed'))).toBe(true);
   });
 
   it('threshold: all-skip returns verdict skip', async () => {
@@ -438,7 +442,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
     const result = await evaluator.evaluate(createContext());
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    expect(result.reasoning).toContain('All evaluators skipped');
+    expect(result.assertions.some((a) => a.text.includes('All evaluators skipped'))).toBe(true);
   });
 
   it('skip-verdict members still appear in scores array', async () => {

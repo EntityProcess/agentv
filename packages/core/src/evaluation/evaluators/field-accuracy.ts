@@ -1,4 +1,9 @@
-import type { FieldAccuracyEvaluatorConfig, FieldConfig, JsonObject } from '../types.js';
+import type {
+  AssertionEntry,
+  FieldAccuracyEvaluatorConfig,
+  FieldConfig,
+  JsonObject,
+} from '../types.js';
 import { clampScore, deepEqual, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -84,10 +89,8 @@ export class FieldAccuracyEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['Failed to parse candidate answer as JSON'],
+        assertions: [{ text: 'Failed to parse candidate answer as JSON', passed: false }],
         expectedAspectCount: this.config.fields.length,
-        reasoning: 'Candidate answer is not valid JSON',
       };
     }
 
@@ -97,10 +100,8 @@ export class FieldAccuracyEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['No expected data found in expected_output'],
+        assertions: [{ text: 'No expected data found in expected_output', passed: false }],
         expectedAspectCount: this.config.fields.length,
-        reasoning: 'Could not extract expected data from expected_output',
       };
     }
 
@@ -384,21 +385,17 @@ export class FieldAccuracyEvaluator implements Evaluator {
    */
   private aggregateResults(results: readonly FieldResult[]): EvaluationScore {
     const aggregation = this.config.aggregation ?? 'weighted_average';
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
 
     for (const result of results) {
-      if (result.hit) {
-        hits.push(result.message);
-      } else {
-        misses.push(result.message);
-      }
+      assertions.push({ text: result.message, passed: result.hit });
     }
 
     let score: number;
     if (aggregation === 'all_or_nothing') {
       // All fields must pass for score 1.0
-      score = misses.length === 0 ? 1.0 : 0.0;
+      const hasFailed = assertions.some((a) => !a.passed);
+      score = hasFailed ? 0.0 : 1.0;
     } else {
       // weighted_average (default)
       const totalWeight = results.reduce((sum, r) => sum + r.weight, 0);
@@ -410,15 +407,11 @@ export class FieldAccuracyEvaluator implements Evaluator {
       }
     }
 
-    const reasoning = `${hits.length}/${results.length} fields matched`;
-
     return {
       score: clampScore(score),
       verdict: scoreToVerdict(score),
-      hits: hits.slice(0, 4), // Cap at 4 to keep output concise
-      misses: misses.slice(0, 4),
+      assertions,
       expectedAspectCount: results.length,
-      reasoning,
     };
   }
 }

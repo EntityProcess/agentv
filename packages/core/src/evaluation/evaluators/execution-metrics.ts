@@ -1,5 +1,5 @@
 import { explorationRatio } from '../trace.js';
-import type { ExecutionMetricsEvaluatorConfig } from '../types.js';
+import type { AssertionEntry, ExecutionMetricsEvaluatorConfig } from '../types.js';
 import { scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -12,7 +12,7 @@ export interface ExecutionMetricsEvaluatorOptions {
  * Supports multiple threshold types: tool calls, LLM calls, tokens, cost, duration,
  * and exploration ratio. Only specified thresholds are checked.
  *
- * Score is proportional: hits.length / (hits.length + misses.length)
+ * Score is proportional: passed / total assertions
  */
 export class ExecutionMetricsEvaluator implements Evaluator {
   readonly kind = 'execution-metrics';
@@ -44,10 +44,8 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['No trace summary available'],
+        assertions: [{ text: 'No trace summary available', passed: false }],
         expectedAspectCount: 1,
-        reasoning: 'Execution metrics not available - no trace summary provided',
         evaluatorRawRequest: {
           type: 'execution-metrics',
           config: this.extractConfiguredThresholds(),
@@ -59,8 +57,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     // After the guard, trace is guaranteed to be defined when needed
     const narrowedTrace = trace;
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
     const actualMetrics: Record<string, number | undefined> = {};
 
     // Check max_tool_calls
@@ -69,9 +66,9 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       actualMetrics.tool_calls = toolCalls;
 
       if (toolCalls <= max_tool_calls) {
-        hits.push(`Tool calls ${toolCalls} <= ${max_tool_calls} max`);
+        assertions.push({ text: `Tool calls ${toolCalls} <= ${max_tool_calls} max`, passed: true });
       } else {
-        misses.push(`Tool calls ${toolCalls} > ${max_tool_calls} max`);
+        assertions.push({ text: `Tool calls ${toolCalls} > ${max_tool_calls} max`, passed: false });
       }
     }
 
@@ -80,14 +77,14 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       const llmCalls = narrowedTrace.llmCallCount;
 
       if (llmCalls === undefined) {
-        misses.push('LLM call count data not available');
+        assertions.push({ text: 'LLM call count data not available', passed: false });
       } else {
         actualMetrics.llm_calls = llmCalls;
 
         if (llmCalls <= max_llm_calls) {
-          hits.push(`LLM calls ${llmCalls} <= ${max_llm_calls} max`);
+          assertions.push({ text: `LLM calls ${llmCalls} <= ${max_llm_calls} max`, passed: true });
         } else {
-          misses.push(`LLM calls ${llmCalls} > ${max_llm_calls} max`);
+          assertions.push({ text: `LLM calls ${llmCalls} > ${max_llm_calls} max`, passed: false });
         }
       }
     }
@@ -95,15 +92,21 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     // Check max_tokens
     if (max_tokens !== undefined) {
       if (!tokenUsage) {
-        misses.push('Token usage data not available');
+        assertions.push({ text: 'Token usage data not available', passed: false });
       } else {
         const totalTokens = tokenUsage.input + tokenUsage.output;
         actualMetrics.tokens = totalTokens;
 
         if (totalTokens <= max_tokens) {
-          hits.push(`Total tokens ${totalTokens} <= ${max_tokens} max`);
+          assertions.push({
+            text: `Total tokens ${totalTokens} <= ${max_tokens} max`,
+            passed: true,
+          });
         } else {
-          misses.push(`Total tokens ${totalTokens} > ${max_tokens} max`);
+          assertions.push({
+            text: `Total tokens ${totalTokens} > ${max_tokens} max`,
+            passed: false,
+          });
         }
       }
     }
@@ -111,15 +114,21 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     // Check max_cost_usd
     if (max_cost_usd !== undefined) {
       if (costUsd === undefined) {
-        misses.push('Cost data not available');
+        assertions.push({ text: 'Cost data not available', passed: false });
       } else {
         actualMetrics.cost_usd = costUsd;
 
         const formatCost = (n: number) => `$${n.toFixed(4)}`;
         if (costUsd <= max_cost_usd) {
-          hits.push(`Cost ${formatCost(costUsd)} <= ${formatCost(max_cost_usd)} max`);
+          assertions.push({
+            text: `Cost ${formatCost(costUsd)} <= ${formatCost(max_cost_usd)} max`,
+            passed: true,
+          });
         } else {
-          misses.push(`Cost ${formatCost(costUsd)} > ${formatCost(max_cost_usd)} max`);
+          assertions.push({
+            text: `Cost ${formatCost(costUsd)} > ${formatCost(max_cost_usd)} max`,
+            passed: false,
+          });
         }
       }
     }
@@ -127,14 +136,20 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     // Check max_duration_ms
     if (max_duration_ms !== undefined) {
       if (durationMs === undefined) {
-        misses.push('Duration data not available');
+        assertions.push({ text: 'Duration data not available', passed: false });
       } else {
         actualMetrics.duration_ms = durationMs;
 
         if (durationMs <= max_duration_ms) {
-          hits.push(`Duration ${durationMs}ms <= ${max_duration_ms}ms max`);
+          assertions.push({
+            text: `Duration ${durationMs}ms <= ${max_duration_ms}ms max`,
+            passed: true,
+          });
         } else {
-          misses.push(`Duration ${durationMs}ms > ${max_duration_ms}ms max`);
+          assertions.push({
+            text: `Duration ${durationMs}ms > ${max_duration_ms}ms max`,
+            passed: false,
+          });
         }
       }
     }
@@ -144,60 +159,35 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       const ratio = explorationRatio(narrowedTrace);
 
       if (ratio === undefined) {
-        misses.push('Exploration ratio not available (no tool calls)');
+        assertions.push({ text: 'Exploration ratio not available (no tool calls)', passed: false });
       } else {
         actualMetrics.exploration_ratio = ratio;
 
         const diff = Math.abs(ratio - target_exploration_ratio);
         if (diff <= exploration_tolerance) {
-          hits.push(
-            `Exploration ratio ${ratio.toFixed(2)} within tolerance of target ${target_exploration_ratio}`,
-          );
+          assertions.push({
+            text: `Exploration ratio ${ratio.toFixed(2)} within tolerance of target ${target_exploration_ratio}`,
+            passed: true,
+          });
         } else {
-          misses.push(
-            `Exploration ratio ${ratio.toFixed(2)} outside tolerance of target ${target_exploration_ratio} (diff: ${diff.toFixed(2)}, tolerance: ${exploration_tolerance})`,
-          );
+          assertions.push({
+            text: `Exploration ratio ${ratio.toFixed(2)} outside tolerance of target ${target_exploration_ratio} (diff: ${diff.toFixed(2)}, tolerance: ${exploration_tolerance})`,
+            passed: false,
+          });
         }
       }
     }
 
-    // Calculate score as proportion of hits
-    const totalChecks = hits.length + misses.length;
-    const score = totalChecks > 0 ? hits.length / totalChecks : 0;
-
-    // Build reasoning
-    const reasoningParts: string[] = [];
-    if (actualMetrics.tool_calls !== undefined) {
-      reasoningParts.push(`tool_calls=${actualMetrics.tool_calls}`);
-    }
-    if (actualMetrics.llm_calls !== undefined) {
-      reasoningParts.push(`llm_calls=${actualMetrics.llm_calls}`);
-    }
-    if (actualMetrics.tokens !== undefined) {
-      reasoningParts.push(`tokens=${actualMetrics.tokens}`);
-    }
-    if (actualMetrics.cost_usd !== undefined) {
-      reasoningParts.push(`cost=$${actualMetrics.cost_usd.toFixed(4)}`);
-    }
-    if (actualMetrics.duration_ms !== undefined) {
-      reasoningParts.push(`duration=${actualMetrics.duration_ms}ms`);
-    }
-    if (actualMetrics.exploration_ratio !== undefined) {
-      reasoningParts.push(`exploration_ratio=${actualMetrics.exploration_ratio.toFixed(2)}`);
-    }
-
-    const reasoning =
-      reasoningParts.length > 0
-        ? `execution-metrics ${reasoningParts.join(', ')}`
-        : 'No metrics evaluated';
+    // Calculate score as proportion of passed assertions
+    const totalChecks = assertions.length;
+    const passedCount = assertions.filter((a) => a.passed).length;
+    const score = totalChecks > 0 ? passedCount / totalChecks : 0;
 
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits,
-      misses,
+      assertions,
       expectedAspectCount: totalChecks || 1,
-      reasoning,
       evaluatorRawRequest: {
         type: 'execution-metrics',
         config: this.extractConfiguredThresholds(),

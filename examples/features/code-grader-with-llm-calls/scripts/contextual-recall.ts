@@ -38,9 +38,13 @@ export default defineCodeGrader(async (input) => {
   if (!criteria) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No criteria provided'],
-      reasoning: 'Contextual Recall requires criteria to extract statements from.',
+      assertions: [
+        {
+          text: 'No criteria provided',
+          passed: false,
+          evidence: 'Contextual Recall requires criteria to extract statements from.',
+        },
+      ],
     };
   }
 
@@ -50,10 +54,14 @@ export default defineCodeGrader(async (input) => {
   if (retrievalContext.length === 0) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No retrieval context found in expected_output.tool_calls'],
-      reasoning:
-        'Contextual Recall requires retrieval context in expected_output[].tool_calls[].output.results',
+      assertions: [
+        {
+          text: 'No retrieval context found in expected_output.tool_calls',
+          passed: false,
+          evidence:
+            'Contextual Recall requires retrieval context in expected_output[].tool_calls[].output.results',
+        },
+      ],
     };
   }
 
@@ -62,9 +70,12 @@ export default defineCodeGrader(async (input) => {
   if (!target) {
     return {
       score: 0,
-      hits: [],
-      misses: ['Target not available - ensure `target` block is configured in evaluator YAML'],
-      reasoning: 'Cannot evaluate without target access',
+      assertions: [
+        {
+          text: 'Target not available - ensure `target` block is configured in evaluator YAML',
+          passed: false,
+        },
+      ],
     };
   }
 
@@ -97,18 +108,20 @@ Extract the statements and respond with JSON only:
   } catch {
     return {
       score: 0,
-      hits: [],
-      misses: ['Failed to extract statements from criteria'],
-      reasoning: 'Statement extraction failed - unable to parse LLM response.',
+      assertions: [
+        {
+          text: 'Failed to extract statements from criteria',
+          passed: false,
+          evidence: 'Statement extraction failed - unable to parse LLM response.',
+        },
+      ],
     };
   }
 
   if (statements.length === 0) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No statements extracted from criteria'],
-      reasoning: 'Could not identify any distinct statements in the expected answer.',
+      assertions: [{ text: 'No statements extracted from criteria', passed: false }],
     };
   }
 
@@ -174,28 +187,28 @@ Respond with JSON only:
   const totalStatements = statements.length;
   const score = attributableCount / totalStatements;
 
-  // Build detailed hits/misses
-  const hits: string[] = [];
-  const misses: string[] = [];
+  // Build detailed assertions
+  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
   for (const result of attributionResults) {
     const nodeInfo = result.supportingNode ? ` (Node ${result.supportingNode})` : '';
     if (result.attributable) {
-      hits.push(`"${result.statement}" - ${result.reasoning}${nodeInfo}`);
+      assertions.push({
+        text: `"${result.statement}" attributable${nodeInfo}`,
+        passed: true,
+        evidence: result.reasoning,
+      });
     } else {
-      misses.push(`"${result.statement}" - ${result.reasoning}`);
+      assertions.push({
+        text: `"${result.statement}" not attributable`,
+        passed: false,
+        evidence: result.reasoning,
+      });
     }
   }
 
-  const isPerfect = score === 1.0;
-  const reasoning = isPerfect
-    ? `Perfect recall: all ${totalStatements} statements are attributable to retrieval context.`
-    : `${attributableCount}/${totalStatements} statements attributable. Some expected information is not covered by retrieval context.`;
-
   return {
     score,
-    hits,
-    misses,
-    reasoning,
+    assertions,
   };
 });

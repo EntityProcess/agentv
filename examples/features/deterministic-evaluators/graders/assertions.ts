@@ -49,8 +49,12 @@ export default defineCodeGrader(({ outputText, criteria, config }) => {
 
   return {
     score: pass ? 1 : 0,
-    hits: pass ? [`PASS: ${detail}`] : [],
-    misses: pass ? [] : [`FAIL: ${detail}`],
-    reasoning: `Assertion "${detail}" against candidate — ${pass ? 'passed' : 'failed'}. Criteria: ${criteria}`,
+    assertions: [
+      {
+        text: `${pass ? 'PASS' : 'FAIL'}: ${detail}`,
+        passed: pass,
+        evidence: `Criteria: ${criteria}`,
+      },
+    ],
   };
 });

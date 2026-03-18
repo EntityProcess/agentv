@@ -503,23 +503,27 @@ const SCRIPT = `
     /* evaluator results */
     if(r.scores&&r.scores.length>0){
       h+="<h4>Evaluator Results</h4>";
-      h+='<table class="eval-table"><thead><tr><th>Evaluator</th><th>Score</th><th>Status</th><th>Reasoning</th></tr></thead><tbody>';
+      h+='<table class="eval-table"><thead><tr><th>Evaluator</th><th>Score</th><th>Status</th><th>Assertions</th></tr></thead><tbody>';
       for(var i=0;i<r.scores.length;i++){
         var ev=r.scores[i],evS=ev.score>=0.5?"pass":"fail";
-        h+="<tr><td class=\\"fw-medium\\">"+esc(ev.name)+'</td><td class="'+sCls(ev.score)+'">'+fmtPct(ev.score)+"</td><td>"+sIcon(evS)+'</td><td class="reasoning-cell">'+esc(ev.reasoning||"")+"</td></tr>";
+        var evAssertions=ev.assertions||[];
+        var evSummary=evAssertions.map(function(a){return (a.passed?"✓ ":"✗ ")+a.text;}).join("; ");
+        h+="<tr><td class=\\"fw-medium\\">"+esc(ev.name)+'</td><td class="'+sCls(ev.score)+'">'+fmtPct(ev.score)+"</td><td>"+sIcon(evS)+'</td><td class="reasoning-cell">'+esc(evSummary)+"</td></tr>";
       }
       h+="</tbody></table>";
     }
 
-    /* hits / misses */
-    if(r.hits&&r.hits.length>0){
-      h+='<h4>Passed Expectations</h4><ul class="expect-list pass">';
-      for(var i=0;i<r.hits.length;i++)h+="<li>"+esc(r.hits[i])+"</li>";
+    /* assertions */
+    var passedA=r.assertions?r.assertions.filter(function(a){return a.passed;}):[];
+    var failedA=r.assertions?r.assertions.filter(function(a){return !a.passed;}):[];
+    if(passedA.length>0){
+      h+='<h4>Passed Assertions</h4><ul class="expect-list pass">';
+      for(var i=0;i<passedA.length;i++)h+="<li>"+esc(passedA[i].text)+(passedA[i].evidence?" <span class=\\"reasoning-cell\\">("+esc(passedA[i].evidence)+")</span>":"")+"</li>";
       h+="</ul>";
     }
-    if(r.misses&&r.misses.length>0){
-      h+='<h4>Failed Expectations</h4><ul class="expect-list fail">';
-      for(var i=0;i<r.misses.length;i++)h+="<li>"+esc(r.misses[i])+"</li>";
+    if(failedA.length>0){
+      h+='<h4>Failed Assertions</h4><ul class="expect-list fail">';
+      for(var i=0;i<failedA.length;i++)h+="<li>"+esc(failedA[i].text)+(failedA[i].evidence?" <span class=\\"reasoning-cell\\">("+esc(failedA[i].evidence)+")</span>":"")+"</li>";
       h+="</ul>";
     }
 

@@ -8,7 +8,7 @@ import type { Provider, ProviderResponse } from '../providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
-import type { JsonObject, RubricItem } from '../types.js';
+import type { AssertionEntry, JsonObject, RubricItem } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -99,9 +99,16 @@ export interface LlmGraderEvaluatorOptions {
 
 const freeformEvaluationSchema = z.object({
   score: z.number().min(0).max(1).describe('Score between 0.0 and 1.0'),
-  hits: z.array(z.string()).describe('Brief specific achievements').optional(),
-  misses: z.array(z.string()).describe('Brief failures or omissions').optional(),
-  reasoning: z.string().describe('Concise explanation (1-2 sentences)').optional(),
+  assertions: z
+    .array(
+      z.object({
+        text: z.string().describe('Brief description of what was checked'),
+        passed: z.boolean().describe('Whether this aspect was satisfied'),
+        evidence: z.string().describe('Concise evidence (1-2 sentences)').optional(),
+      }),
+    )
+    .describe('Per-aspect evaluation results — one entry per aspect checked')
+    .optional(),
 });
 
 const rubricCheckResultSchema = z.object({
@@ -248,21 +255,15 @@ export class LlmGraderEvaluator implements Evaluator {
       });
 
       const score = clampScore(data.score);
-      // Cap hits/misses at 4 items to keep LLM grader output concise and focused
-      const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
-      const misses = Array.isArray(data.misses)
-        ? data.misses.filter(isNonEmptyString).slice(0, 4)
+      const assertions: AssertionEntry[] = Array.isArray(data.assertions)
+        ? data.assertions.slice(0, 8)
         : [];
-      const reasoning = data.reasoning;
-      const expectedAspectCount = Math.max(hits.length + misses.length, 1);
 
       return {
         score,
         verdict: scoreToVerdict(score),
-        hits,
-        misses,
-        expectedAspectCount,
-        reasoning,
+        assertions,
+        expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
         tokenUsage,
       };
@@ -275,10 +276,8 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'skip' as const,
-        hits: [],
-        misses: [`Grader parse failure after 3 attempts: ${message}`],
+        assertions: [{ text: `Grader parse failure after 3 attempts: ${message}`, passed: false }],
         expectedAspectCount: 1,
-        reasoning: `Grader parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -320,15 +319,13 @@ export class LlmGraderEvaluator implements Evaluator {
         schema: rubricEvaluationSchema,
       });
 
-      const { score, verdict, hits, misses } = calculateRubricScore(data, rubrics);
+      const { score, verdict, assertions } = calculateRubricScore(data, rubrics);
 
       return {
         score,
         verdict,
-        hits,
-        misses,
+        assertions,
         expectedAspectCount: rubrics.length,
-        reasoning: data.overall_reasoning,
         evaluatorRawRequest,
         tokenUsage,
       };
@@ -339,10 +336,8 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'skip' as const,
-        hits: [],
-        misses: [`Grader parse failure after 3 attempts: ${message}`],
+        assertions: [{ text: `Grader parse failure after 3 attempts: ${message}`, passed: false }],
         expectedAspectCount: rubrics.length,
-        reasoning: `Grader parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -375,15 +370,13 @@ export class LlmGraderEvaluator implements Evaluator {
         schema: scoreRangeEvaluationSchema,
       });
 
-      const { score, verdict, hits, misses, details } = calculateScoreRangeResult(data, rubrics);
+      const { score, verdict, assertions, details } = calculateScoreRangeResult(data, rubrics);
 
       return {
         score,
         verdict,
-        hits,
-        misses,
+        assertions,
         expectedAspectCount: rubrics.length,
-        reasoning: data.overall_reasoning,
         evaluatorRawRequest,
         details,
         tokenUsage,
@@ -395,10 +388,8 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'skip' as const,
-        hits: [],
-        misses: [`Grader parse failure after 3 attempts: ${message}`],
+        assertions: [{ text: `Grader parse failure after 3 attempts: ${message}`, passed: false }],
         expectedAspectCount: rubrics.length,
-        reasoning: `Grader parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -470,8 +461,7 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [`llm-grader built-in evaluation failed: ${message}`],
+        assertions: [{ text: `llm-grader built-in evaluation failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: { mode: 'built-in', error: message },
@@ -535,8 +525,9 @@ export class LlmGraderEvaluator implements Evaluator {
         return {
           score: 0,
           verdict: 'fail',
-          hits: [],
-          misses: [`llm-grader ${modeLabel} returned no assistant response`],
+          assertions: [
+            { text: `llm-grader ${modeLabel} returned no assistant response`, passed: false },
+          ],
           expectedAspectCount: 1,
           evaluatorRawRequest,
           details: { mode: modeLabel, grader_target: provider.targetName },
@@ -558,8 +549,9 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [`llm-grader ${modeLabel} evaluation failed: ${message}`],
+        assertions: [
+          { text: `llm-grader ${modeLabel} evaluation failed: ${message}`, passed: false },
+        ],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: {
@@ -753,14 +745,12 @@ export class LlmGraderEvaluator implements Evaluator {
 
       if (rubrics && rubrics.length > 0) {
         const data = rubricEvaluationSchema.parse(parsed);
-        const { score, verdict, hits, misses } = calculateRubricScore(data, rubrics);
+        const { score, verdict, assertions } = calculateRubricScore(data, rubrics);
         return {
           score,
           verdict,
-          hits,
-          misses,
+          assertions,
           expectedAspectCount: rubrics.length,
-          reasoning: data.overall_reasoning,
           evaluatorRawRequest,
           details,
         };
@@ -768,18 +758,15 @@ export class LlmGraderEvaluator implements Evaluator {
 
       const data = freeformEvaluationSchema.parse(parsed);
       const score = clampScore(data.score);
-      const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
-      const misses = Array.isArray(data.misses)
-        ? data.misses.filter(isNonEmptyString).slice(0, 4)
+      const assertions: AssertionEntry[] = Array.isArray(data.assertions)
+        ? data.assertions.slice(0, 8)
         : [];
 
       return {
         score,
         verdict: scoreToVerdict(score),
-        hits,
-        misses,
-        expectedAspectCount: Math.max(hits.length + misses.length, 1),
-        reasoning: data.reasoning,
+        assertions,
+        expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
         details,
       };
@@ -787,8 +774,12 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['Failed to parse llm-grader agent response as valid evaluation JSON'],
+        assertions: [
+          {
+            text: 'Failed to parse llm-grader agent response as valid evaluation JSON',
+            passed: false,
+          },
+        ],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details,
@@ -978,9 +969,13 @@ export function buildOutputSchema(): string {
     '',
     '{',
     '  "score": <number between 0.0 and 1.0>,',
-    '  "hits": [<array of strings, max 4 items, brief specific achievements>],',
-    '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
-    '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
+    '  "assertions": [',
+    '    {',
+    '      "text": "<brief description of what was checked>",',
+    '      "passed": <boolean>,',
+    '      "evidence": "<concise evidence, 1-2 sentences, optional>"',
+    '    }',
+    '  ]',
     '}',
   ].join('\n');
 }
@@ -1012,12 +1007,10 @@ export function calculateRubricScore(
 ): {
   score: number;
   verdict: import('../types.js').EvaluationVerdict;
-  hits: string[];
-  misses: string[];
+  assertions: AssertionEntry[];
 } {
   const rubricMap = new Map(rubrics.map((rubric) => [rubric.id, rubric]));
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: AssertionEntry[] = [];
   let totalWeight = 0;
   let earnedWeight = 0;
   let failedRequired = false;
@@ -1030,20 +1023,22 @@ export function calculateRubricScore(
 
     totalWeight += rubric.weight;
 
+    assertions.push({
+      text: `[${rubric.id}] ${rubric.outcome}`,
+      passed: check.satisfied,
+      evidence: check.reasoning,
+    });
+
     if (check.satisfied) {
       earnedWeight += rubric.weight;
-      hits.push(`[${rubric.id}] ${rubric.outcome}: ${check.reasoning}`);
-    } else {
-      misses.push(`[${rubric.id}] ${rubric.outcome}: ${check.reasoning}`);
-      if (rubric.required) {
-        failedRequired = true;
-      }
+    } else if (rubric.required) {
+      failedRequired = true;
     }
   }
 
   const score = totalWeight > 0 ? Math.min(1, Math.max(0, earnedWeight / totalWeight)) : 0;
   const verdict = failedRequired ? 'fail' : scoreToVerdict(score);
-  return { score, verdict, hits, misses };
+  return { score, verdict, assertions };
 }
 
 /**
@@ -1078,13 +1073,11 @@ function calculateScoreRangeResult(
 ): {
   score: number;
   verdict: import('../types.js').EvaluationVerdict;
-  hits: string[];
-  misses: string[];
+  assertions: AssertionEntry[];
   details: JsonObject;
 } {
   const rubricMap = new Map(rubrics.map((rubric) => [rubric.id, rubric]));
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: AssertionEntry[] = [];
   const rawScores: Record<string, number> = {};
   let totalWeight = 0;
   let weightedScoreSum = 0;
@@ -1121,18 +1114,18 @@ function calculateScoreRangeResult(
     const rangeDescription = matchingRange?.outcome ?? '';
     const criterionLabel = rubric.outcome ?? rubric.id;
 
-    const reasoningText = check.reasoning ? `: ${check.reasoning}` : '';
-    const scoreInfo = `[${rubric.id}] ${criterionLabel} - Score: ${rawScore}/10 (${rangeDescription})${reasoningText}`;
-
     // Check gating
+    const passed =
+      !(requiredMinScore !== undefined && rawScore < requiredMinScore) && rawScore >= 7;
     if (requiredMinScore !== undefined && rawScore < requiredMinScore) {
       failedRequired = true;
-      misses.push(scoreInfo);
-    } else if (rawScore >= 7) {
-      hits.push(scoreInfo);
-    } else {
-      misses.push(scoreInfo);
     }
+
+    assertions.push({
+      text: `[${rubric.id}] ${criterionLabel} - Score: ${rawScore}/10 (${rangeDescription})`,
+      passed,
+      evidence: check.reasoning,
+    });
   }
 
   const score = totalWeight > 0 ? Math.min(1, Math.max(0, weightedScoreSum / totalWeight)) : 0;
@@ -1141,8 +1134,7 @@ function calculateScoreRangeResult(
   return {
     score,
     verdict,
-    hits,
-    misses,
+    assertions,
     details: {
       raw_scores: rawScores,
       normalization: 'score / 10',

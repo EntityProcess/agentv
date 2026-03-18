@@ -227,12 +227,7 @@ export const containsFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning:
-        result.score === 1
-          ? `Output contains "${c.value}"`
-          : `Output does not contain "${c.value}"`,
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -246,12 +241,7 @@ export const regexFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning:
-        result.score === 1
-          ? `Output matches pattern /${c.value}/${c.flags ?? ''}`
-          : `Output does not match pattern /${c.value}/${c.flags ?? ''}`,
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -264,9 +254,7 @@ export const isJsonFactory: EvaluatorFactoryFn = () => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? 'Output is valid JSON' : 'Output is not valid JSON',
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -280,10 +268,7 @@ export const equalsFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning:
-        result.score === 1 ? `Output equals "${c.value}"` : `Output does not equal "${c.value}"`,
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -297,9 +282,7 @@ export const containsAnyFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -313,9 +296,7 @@ export const containsAllFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -329,9 +310,7 @@ export const icontainsFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -345,9 +324,7 @@ export const icontainsAnyFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -361,9 +338,7 @@ export const icontainsAllFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -377,9 +352,7 @@ export const startsWithFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });
@@ -393,9 +366,7 @@ export const endsWithFactory: EvaluatorFactoryFn = (config) => {
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
-      hits: result.hits,
-      misses: result.misses,
-      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      assertions: result.assertions,
       expectedAspectCount: 1,
     };
   });

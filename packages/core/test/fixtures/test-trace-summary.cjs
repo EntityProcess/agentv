@@ -12,16 +12,10 @@ const score = hasEventCount && hasTokenUsage && hasCostUsd ? 1 : 0;
 console.log(
   JSON.stringify({
     score,
-    hits: [
-      hasEventCount ? 'eventCount present' : null,
-      hasTokenUsage ? 'tokenUsage present' : null,
-      hasCostUsd ? 'costUsd present' : null,
-    ].filter(Boolean),
-    misses: [
-      hasEventCount ? null : 'eventCount missing',
-      hasTokenUsage ? null : 'tokenUsage missing',
-      hasCostUsd ? null : 'costUsd missing',
-    ].filter(Boolean),
-    reasoning: 'Checked trace fields',
+    assertions: [
+      { text: 'eventCount present', passed: !!hasEventCount },
+      { text: 'tokenUsage present', passed: !!hasTokenUsage },
+      { text: 'costUsd present', passed: !!hasCostUsd },
+    ],
   }),
 );

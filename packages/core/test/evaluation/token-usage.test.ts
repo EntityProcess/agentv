@@ -22,8 +22,7 @@ describe('token usage type contracts', () => {
       name: 'test',
       type: 'llm-grader',
       score: 0.9,
-      hits: ['good'],
-      misses: [],
+      assertions: [{ text: 'good', passed: true }],
       tokenUsage: { input: 100, output: 50 },
     };
     expect(result.tokenUsage).toEqual({ input: 100, output: 50 });
@@ -34,8 +33,7 @@ describe('token usage type contracts', () => {
       name: 'test',
       type: 'llm-grader',
       score: 0.9,
-      hits: [],
-      misses: [],
+      assertions: [],
     };
     expect(result.tokenUsage).toBeUndefined();
   });
@@ -45,15 +43,13 @@ describe('token usage type contracts', () => {
       name: 'composite',
       type: 'composite',
       score: 0.8,
-      hits: [],
-      misses: [],
+      assertions: [],
       scores: [
         {
           name: 'child-grader',
           type: 'llm-grader',
           score: 0.8,
-          hits: [],
-          misses: [],
+          assertions: [],
           tokenUsage: { input: 200, output: 100 },
         },
       ],
