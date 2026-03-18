@@ -74,10 +74,10 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   mkdirSync(outputsDir, { recursive: true });
 
   for (const result of patched) {
-    const answer = result.answer;
-    if (answer) {
+    const outputText = result.outputText;
+    if (outputText) {
       const id = safeTestId(result);
-      writeFileSync(path.join(outputsDir, `${id}.txt`), answer);
+      writeFileSync(path.join(outputsDir, `${id}.txt`), outputText);
     }
   }
 }

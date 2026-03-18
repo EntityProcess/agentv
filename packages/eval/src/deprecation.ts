@@ -37,14 +37,14 @@ export function enrichInput(input: CodeGraderInput): CodeGraderInput {
   // Populate text convenience accessors (always strings)
   // inputText = question (first user message content as string)
   const inputText = input.question;
-  // outputText = answer (last assistant message content as string)
-  const outputText = input.answer;
+  // outputText = outputText (last assistant message content as string; renamed from answer)
+  const outputText = input.outputText ?? input.answer;
   // expectedOutputText = referenceAnswer (expected output content as string)
   const expectedOutputText = input.referenceAnswer ?? '';
 
   // Store the original values before redefining properties
   const originalQuestion = input.question;
-  const originalAnswer = input.answer;
+  const originalAnswer = input.outputText ?? input.answer;
   const originalReferenceAnswer = input.referenceAnswer;
 
   // Set new text accessor values

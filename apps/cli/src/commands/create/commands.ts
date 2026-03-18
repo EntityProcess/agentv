@@ -6,9 +6,9 @@ const ASSERTION_TEMPLATES: Record<string, string> = {
   default: `#!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer }) => {
+export default defineAssertion(({ outputText }) => {
   // TODO: Implement your assertion logic
-  const pass = answer.length > 0;
+  const pass = outputText.length > 0;
   return {
     pass,
     reasoning: pass ? 'Output has content' : 'Output is empty',
@@ -18,9 +18,9 @@ export default defineAssertion(({ answer }) => {
   score: `#!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer }) => {
+export default defineAssertion(({ outputText }) => {
   // TODO: Implement your scoring logic (0.0 to 1.0)
-  const score = answer.length > 0 ? 1.0 : 0.0;
+  const score = outputText.length > 0 ? 1.0 : 0.0;
   return {
     pass: score >= 0.5,
     score,

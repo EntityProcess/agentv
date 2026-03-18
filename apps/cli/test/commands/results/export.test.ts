@@ -21,7 +21,7 @@ const RESULT_FULL = {
     { text: 'Says hello', passed: true },
     { text: 'Uses name', passed: true },
   ],
-  answer: 'Hello, Alice!',
+  output_text: 'Hello, Alice!',
   target: 'gpt-4o',
   scores: [
     {
@@ -83,7 +83,7 @@ const RESULT_NO_TRACE = {
   dataset: 'demo',
   score: 1.0,
   assertions: [{ text: 'Correct', passed: true }],
-  answer: 'Yes.',
+  output_text: 'Yes.',
   target: 'default',
   token_usage: { input: 50, output: 20 },
   cost_usd: 0.001,

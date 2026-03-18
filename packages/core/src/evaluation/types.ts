@@ -909,7 +909,7 @@ export interface EvaluationResult {
   readonly conversationId?: string;
   readonly score: number;
   readonly assertions: readonly AssertionEntry[];
-  readonly answer: string;
+  readonly outputText: string;
   readonly target: string;
   /** Token usage metrics from provider (optional) */
   readonly tokenUsage?: TokenUsage;

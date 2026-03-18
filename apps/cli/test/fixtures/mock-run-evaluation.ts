@@ -29,7 +29,7 @@ interface EvaluationResultLike {
     readonly passed: boolean;
     readonly evidence?: string;
   }[];
-  readonly answer: string;
+  readonly outputText: string;
   readonly expectedAspectCount: number;
   readonly target: string;
   readonly timestamp: string;
@@ -42,7 +42,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       testId: 'case-alpha',
       score: 0.6,
       assertions: [{ text: 'alpha', passed: true }],
-      answer: 'Alpha answer',
+      outputText: 'Alpha answer',
       expectedAspectCount: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
@@ -55,7 +55,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
         { text: 'gamma', passed: true },
         { text: 'delta', passed: false },
       ],
-      answer: 'Beta answer',
+      outputText: 'Beta answer',
       expectedAspectCount: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),

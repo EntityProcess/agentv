@@ -66,7 +66,7 @@ export class CodeEvaluator implements Evaluator {
       criteria: context.evalCase.criteria,
       expectedOutput: context.evalCase.expected_output,
       referenceAnswer: context.evalCase.reference_answer,
-      answer: context.candidate,
+      outputText: context.candidate,
       output: outputForPayload,
       outputPath,
       guidelineFiles: context.evalCase.guideline_paths,
@@ -85,7 +85,6 @@ export class CodeEvaluator implements Evaluator {
       config: this.config ?? null,
       // Text convenience accessors (new names, always strings)
       inputText: context.evalCase.question,
-      outputText: context.candidate,
       expectedOutputText: context.evalCase.reference_answer ?? '',
     };
 

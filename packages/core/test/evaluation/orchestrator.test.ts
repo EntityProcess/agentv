@@ -209,7 +209,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(first.answer).toContain('structured logging');
+    expect(first.outputText).toContain('structured logging');
 
     const second = await runEvalCase({
       evalCase: baseTestCase,
@@ -220,7 +220,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(second.answer).toBe(first.answer);
+    expect(second.outputText).toBe(first.outputText);
     expect(provider.callIndex).toBe(1);
   });
 
@@ -981,7 +981,7 @@ describe('runEvalCase trace integration', () => {
 const stdin = readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
 console.log(\`Question: \${input.question}
-Candidate: \${input.answer}
+Answer: \${input.output_text}
 Reference: \${input.reference_answer ?? 'none'}\`);
 `,
       );
@@ -1031,7 +1031,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
 
       expect(result.score).toBe(1.0);
       expect(receivedQuestion).toContain('Question: What is 2+2?');
-      expect(receivedQuestion).toContain('Candidate: The answer is 4');
+      expect(receivedQuestion).toContain('Answer: The answer is 4');
       expect(receivedQuestion).toContain('Reference: The sum is 4');
     });
 
@@ -1045,7 +1045,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
         `const fs = require('fs');
 const stdin = fs.readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
-console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
+console.log('Question: ' + input.question + '\\nAnswer: ' + input.output_text);
 `,
       );
 

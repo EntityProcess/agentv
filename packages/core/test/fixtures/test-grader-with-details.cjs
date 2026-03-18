@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasExpected = Array.isArray(input.expected_output);
-const hasCandidate = typeof input.answer === 'string';
+const hasCandidate = typeof input.output_text === 'string';
 
 // Emit details with structured metrics
 console.log(

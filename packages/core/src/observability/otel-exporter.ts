@@ -192,7 +192,7 @@ export class OtelTraceExporter {
         rootSpan.setAttribute('agentv.target', result.target);
         if (result.dataset) rootSpan.setAttribute('agentv.dataset', result.dataset);
         rootSpan.setAttribute('agentv.score', result.score);
-        if (captureContent) rootSpan.setAttribute('agentv.answer', result.answer);
+        if (captureContent) rootSpan.setAttribute('agentv.output_text', result.outputText);
 
         // Flat execution metrics
         if (result.durationMs != null)

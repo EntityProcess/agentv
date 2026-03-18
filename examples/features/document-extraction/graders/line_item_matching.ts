@@ -34,7 +34,7 @@ interface EvalConfig {
 }
 
 interface EvalInput {
-  answer: string;
+  output_text: string;
   expected_output: Array<{ role: string; content: unknown }>;
   config: EvalConfig | null;
 }
@@ -224,7 +224,7 @@ async function main(): Promise<void> {
   // Parse candidate answer
   let candidateObj: unknown;
   try {
-    candidateObj = JSON.parse(input.answer);
+    candidateObj = JSON.parse(input.output_text);
   } catch {
     console.log(
       JSON.stringify({

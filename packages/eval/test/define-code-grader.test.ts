@@ -14,7 +14,7 @@ describe('CodeGraderInputSchema', () => {
     question: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
-    answer: 'The answer is 4',
+    outputText: 'The answer is 4',
     guidelineFiles: [],
     inputFiles: [],
     input: [{ role: 'user', content: 'What is 2+2?' }],
@@ -23,7 +23,7 @@ describe('CodeGraderInputSchema', () => {
   it('parses valid input', () => {
     const result = CodeGraderInputSchema.parse(validInput);
     expect(result.question).toBe('What is 2+2?');
-    expect(result.answer).toBe('The answer is 4');
+    expect(result.outputText).toBe('The answer is 4');
   });
 
   it('accepts optional trace', () => {
@@ -178,7 +178,7 @@ describe('CodeJudgeInputSchema (backward-compat alias)', () => {
       question: 'What is 2+2?',
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
-      answer: 'The answer is 4',
+      outputText: 'The answer is 4',
       guidelineFiles: [],
       inputFiles: [],
       input: [{ role: 'user', content: 'What is 2+2?' }],

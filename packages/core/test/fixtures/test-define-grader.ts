@@ -4,12 +4,12 @@
  */
 import { defineCodeGrader } from '../../../eval/src/index.js';
 
-export default defineCodeGrader(({ answer, criteria }) => {
+export default defineCodeGrader(({ outputText, criteria }) => {
   const assertions: { text: string; passed: boolean }[] = [];
 
   // Simple check: does candidate mention the criteria keywords?
   const outcomeWords = criteria.toLowerCase().split(/\s+/);
-  const candidateWords = answer.toLowerCase().split(/\s+/);
+  const candidateWords = outputText.toLowerCase().split(/\s+/);
 
   for (const word of outcomeWords) {
     if (word.length > 3 && candidateWords.includes(word)) {
