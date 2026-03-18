@@ -511,15 +511,17 @@ const SCRIPT = `
       h+="</tbody></table>";
     }
 
-    /* hits / misses */
-    if(r.hits&&r.hits.length>0){
-      h+='<h4>Passed Expectations</h4><ul class="expect-list pass">';
-      for(var i=0;i<r.hits.length;i++)h+="<li>"+esc(r.hits[i])+"</li>";
+    /* assertions */
+    var passedA=r.assertions?r.assertions.filter(function(a){return a.passed;}):[];
+    var failedA=r.assertions?r.assertions.filter(function(a){return !a.passed;}):[];
+    if(passedA.length>0){
+      h+='<h4>Passed Assertions</h4><ul class="expect-list pass">';
+      for(var i=0;i<passedA.length;i++)h+="<li>"+esc(passedA[i].text)+(passedA[i].evidence?" <span class=\\"reasoning-cell\\">("+esc(passedA[i].evidence)+")</span>":"")+"</li>";
       h+="</ul>";
     }
-    if(r.misses&&r.misses.length>0){
-      h+='<h4>Failed Expectations</h4><ul class="expect-list fail">';
-      for(var i=0;i<r.misses.length;i++)h+="<li>"+esc(r.misses[i])+"</li>";
+    if(failedA.length>0){
+      h+='<h4>Failed Assertions</h4><ul class="expect-list fail">';
+      for(var i=0;i<failedA.length;i++)h+="<li>"+esc(failedA[i].text)+(failedA[i].evidence?" <span class=\\"reasoning-cell\\">("+esc(failedA[i].evidence)+")</span>":"")+"</li>";
       h+="</ul>";
     }
 

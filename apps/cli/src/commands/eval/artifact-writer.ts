@@ -169,43 +169,15 @@ function parseWorkspaceChanges(
 }
 
 // ---------------------------------------------------------------------------
-// Build assertions from evaluator results (skill-creator compatible)
+// Build assertions from evaluation result (skill-creator compatible)
 // ---------------------------------------------------------------------------
 
 function buildAssertions(result: EvaluationResult): GradingArtifact['assertions'] {
-  const assertions: {
-    text: string;
-    passed: boolean;
-    evidence: string;
-  }[] = [];
-
-  if (result.scores && result.scores.length > 0) {
-    for (const evaluator of result.scores) {
-      for (const hit of evaluator.hits) {
-        assertions.push({
-          text: hit,
-          passed: true,
-          evidence: evaluator.reasoning ?? '',
-        });
-      }
-      for (const miss of evaluator.misses) {
-        assertions.push({
-          text: miss,
-          passed: false,
-          evidence: evaluator.reasoning ?? '',
-        });
-      }
-    }
-  } else {
-    for (const hit of result.hits) {
-      assertions.push({ text: hit, passed: true, evidence: result.reasoning ?? '' });
-    }
-    for (const miss of result.misses) {
-      assertions.push({ text: miss, passed: false, evidence: result.reasoning ?? '' });
-    }
-  }
-
-  return assertions;
+  return result.assertions.map((a) => ({
+    text: a.text,
+    passed: a.passed,
+    evidence: a.evidence ?? '',
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -223,11 +195,10 @@ function buildEvaluators(
     name: s.name,
     type: s.type,
     score: s.score,
-    reasoning: s.reasoning ?? '',
+    reasoning: '',
     weight: s.weight,
     verdict: s.verdict,
-    hits: s.hits,
-    misses: s.misses,
+    assertions: s.assertions,
     details: s.details,
   }));
 }
