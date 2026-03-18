@@ -126,7 +126,7 @@ export class PiAgentSdkProvider implements Provider {
           // Extract token usage and cost from AssistantMessage
           const msg = event.message;
           if (msg && typeof msg === 'object' && 'usage' in msg) {
-            const usage = (msg as Record<string, unknown>).usage;
+            const usage = (msg as unknown as Record<string, unknown>).usage;
             if (usage && typeof usage === 'object') {
               const u = usage as Record<string, unknown>;
               const input = toNumber(u.input);
@@ -157,7 +157,7 @@ export class PiAgentSdkProvider implements Provider {
 
           // Emit streamCallbacks for OTel
           if (request.streamCallbacks && msg && typeof msg === 'object' && 'role' in msg) {
-            const role = (msg as Record<string, unknown>).role;
+            const role = (msg as unknown as Record<string, unknown>).role;
             if (role === 'assistant') {
               request.streamCallbacks.onLlmCallEnd?.(modelId, tokenUsage);
             }
