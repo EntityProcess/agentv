@@ -74,13 +74,13 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 {{${TEMPLATE_VARIABLES.CRITERIA}}}
 
 [[ ## question ## ]]
-{{${TEMPLATE_VARIABLES.QUESTION}}}
+{{${TEMPLATE_VARIABLES.INPUT_TEXT}}}
 
 [[ ## reference_answer ## ]]
-{{${TEMPLATE_VARIABLES.REFERENCE_ANSWER}}}
+{{${TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT}}}
 
 [[ ## answer ## ]]
-{{${TEMPLATE_VARIABLES.ANSWER}}}`;
+{{${TEMPLATE_VARIABLES.OUTPUT_TEXT}}}`;
 
 type GraderProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
