@@ -47,7 +47,7 @@ function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): Evaluato
 // ---------------------------------------------------------------------------
 
 describe('buildGradingArtifact', () => {
-  it('maps evaluator hits/misses to expectations', () => {
+  it('maps evaluator hits/misses to assertions', () => {
     const result = makeResult({
       scores: [
         makeEvaluatorResult({
@@ -60,18 +60,18 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.expectations).toHaveLength(3);
-    expect(grading.expectations[0]).toEqual({
+    expect(grading.assertions).toHaveLength(3);
+    expect(grading.assertions[0]).toEqual({
       text: 'correct format',
       passed: true,
       evidence: 'Output was formatted well',
     });
-    expect(grading.expectations[1]).toEqual({
+    expect(grading.assertions[1]).toEqual({
       text: 'has code',
       passed: true,
       evidence: 'Output was formatted well',
     });
-    expect(grading.expectations[2]).toEqual({
+    expect(grading.assertions[2]).toEqual({
       text: 'missing tests',
       passed: false,
       evidence: 'Output was formatted well',
@@ -107,11 +107,11 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.expectations).toHaveLength(3);
-    expect(grading.expectations[0].text).toBe('ok-1');
-    expect(grading.expectations[0].evidence).toBe('top-level reasoning');
-    expect(grading.expectations[2].text).toBe('miss-1');
-    expect(grading.expectations[2].passed).toBe(false);
+    expect(grading.assertions).toHaveLength(3);
+    expect(grading.assertions[0].text).toBe('ok-1');
+    expect(grading.assertions[0].evidence).toBe('top-level reasoning');
+    expect(grading.assertions[2].text).toBe('miss-1');
+    expect(grading.assertions[2].passed).toBe(false);
   });
 
   it('includes evaluators list with AgentV extensions', () => {
@@ -140,7 +140,7 @@ describe('buildGradingArtifact', () => {
     const result = makeResult({ hits: [], misses: [], scores: undefined });
     const grading = buildGradingArtifact(result);
 
-    expect(grading.expectations).toHaveLength(0);
+    expect(grading.assertions).toHaveLength(0);
     expect(grading.summary).toEqual({
       passed: 0,
       failed: 0,
@@ -344,13 +344,13 @@ describe('parseJsonlResults', () => {
 // ---------------------------------------------------------------------------
 
 describe('schema compatibility', () => {
-  it('grading expectations have text/passed/evidence fields', () => {
+  it('grading assertions have text/passed/evidence fields', () => {
     const result = makeResult({
       scores: [makeEvaluatorResult({ hits: ['x'], misses: ['y'], reasoning: 'r' })],
     });
     const grading = buildGradingArtifact(result);
 
-    for (const exp of grading.expectations) {
+    for (const exp of grading.assertions) {
       expect(exp).toHaveProperty('text');
       expect(exp).toHaveProperty('passed');
       expect(exp).toHaveProperty('evidence');

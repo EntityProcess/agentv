@@ -8,7 +8,7 @@ import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
 // ---------------------------------------------------------------------------
 
 export interface GradingArtifact {
-  readonly expectations: readonly {
+  readonly assertions: readonly {
     readonly text: string;
     readonly passed: boolean;
     readonly evidence: string;
@@ -169,11 +169,11 @@ function parseWorkspaceChanges(
 }
 
 // ---------------------------------------------------------------------------
-// Build expectations from evaluator results (skill-creator compatible)
+// Build assertions from evaluator results (skill-creator compatible)
 // ---------------------------------------------------------------------------
 
-function buildExpectations(result: EvaluationResult): GradingArtifact['expectations'] {
-  const expectations: {
+function buildAssertions(result: EvaluationResult): GradingArtifact['assertions'] {
+  const assertions: {
     text: string;
     passed: boolean;
     evidence: string;
@@ -182,14 +182,14 @@ function buildExpectations(result: EvaluationResult): GradingArtifact['expectati
   if (result.scores && result.scores.length > 0) {
     for (const evaluator of result.scores) {
       for (const hit of evaluator.hits) {
-        expectations.push({
+        assertions.push({
           text: hit,
           passed: true,
           evidence: evaluator.reasoning ?? '',
         });
       }
       for (const miss of evaluator.misses) {
-        expectations.push({
+        assertions.push({
           text: miss,
           passed: false,
           evidence: evaluator.reasoning ?? '',
@@ -198,14 +198,14 @@ function buildExpectations(result: EvaluationResult): GradingArtifact['expectati
     }
   } else {
     for (const hit of result.hits) {
-      expectations.push({ text: hit, passed: true, evidence: result.reasoning ?? '' });
+      assertions.push({ text: hit, passed: true, evidence: result.reasoning ?? '' });
     }
     for (const miss of result.misses) {
-      expectations.push({ text: miss, passed: false, evidence: result.reasoning ?? '' });
+      assertions.push({ text: miss, passed: false, evidence: result.reasoning ?? '' });
     }
   }
 
-  return expectations;
+  return assertions;
 }
 
 // ---------------------------------------------------------------------------
@@ -237,16 +237,16 @@ function buildEvaluators(
 // ---------------------------------------------------------------------------
 
 export function buildGradingArtifact(result: EvaluationResult): GradingArtifact {
-  const expectations = buildExpectations(result);
-  const passed = expectations.filter((e) => e.passed).length;
-  const failed = expectations.filter((e) => !e.passed).length;
-  const total = expectations.length;
+  const assertions = buildAssertions(result);
+  const passed = assertions.filter((e) => e.passed).length;
+  const failed = assertions.filter((e) => !e.passed).length;
+  const total = assertions.length;
 
   const { toolCalls, total: totalToolCalls } = countToolCalls(result);
   const errorsEncountered = result.error ? 1 : 0;
 
   return {
-    expectations,
+    assertions,
     summary: {
       passed,
       failed,
