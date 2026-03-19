@@ -243,27 +243,38 @@ export class CopilotCliProvider implements Provider {
         prompt: promptMessages,
       });
 
+      let promptResponse: acp.PromptResponse;
       if (request.signal) {
         const abortHandler = () => {
           killProcess(agentProcess);
         };
         request.signal.addEventListener('abort', abortHandler, { once: true });
         try {
-          await this.raceWithTimeout(sendPromise, agentProcess);
+          promptResponse = await this.raceWithTimeout(sendPromise, agentProcess);
         } finally {
           request.signal.removeEventListener('abort', abortHandler);
         }
       } else {
-        await this.raceWithTimeout(sendPromise, agentProcess);
+        promptResponse = await this.raceWithTimeout(sendPromise, agentProcess);
       }
 
       const endTime = new Date().toISOString();
       const durationMs = Date.now() - startMs;
 
-      // If no usage_update was received (copilot CLI currently doesn't emit
-      // them via ACP — see github/copilot-cli#1152), estimate token usage from
-      // observed character counts using a ~4 chars/token heuristic.
-      if (!tokenUsage && (inputChars > 0 || outputChars > 0)) {
+      // Prefer token usage from PromptResponse (ACP spec includes per-turn
+      // Usage with inputTokens/outputTokens), then fall back to usage_update
+      // events, then estimate from character counts. See #683.
+      const responseUsage = promptResponse.usage;
+      if (responseUsage && responseUsage.totalTokens > 0) {
+        tokenUsage = {
+          input: responseUsage.inputTokens,
+          output: responseUsage.outputTokens,
+          ...(responseUsage.thoughtTokens != null ? { reasoning: responseUsage.thoughtTokens } : {}),
+          ...(responseUsage.cachedReadTokens != null ? { cached: responseUsage.cachedReadTokens } : {}),
+        };
+        request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
+      } else if (!tokenUsage && (inputChars > 0 || outputChars > 0)) {
+        // No usage from PromptResponse or usage_update — estimate from chars
         tokenUsage = estimateTokensFromChars(inputChars, outputChars);
         request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
       }
@@ -336,14 +347,13 @@ export class CopilotCliProvider implements Provider {
     return this.config.systemPrompt;
   }
 
-  private async raceWithTimeout(
-    sendPromise: Promise<unknown>,
+  private async raceWithTimeout<T>(
+    sendPromise: Promise<T>,
     agentProcess: ChildProcess,
-  ): Promise<void> {
+  ): Promise<T> {
     const timeoutMs = this.config.timeoutMs;
     if (!timeoutMs) {
-      await sendPromise;
-      return;
+      return sendPromise;
     }
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -356,7 +366,7 @@ export class CopilotCliProvider implements Provider {
     });
 
     try {
-      await Promise.race([sendPromise, timeoutPromise]);
+      return await Promise.race([sendPromise, timeoutPromise]);
     } finally {
       if (timer) clearTimeout(timer);
     }
