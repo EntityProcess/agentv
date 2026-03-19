@@ -174,6 +174,12 @@ export const evalRunCommand = command({
       long: 'model',
       description: 'Override model for the grader target (e.g., "openai:gpt-5-mini")',
     }),
+    outputMessages: option({
+      type: optional(string),
+      long: 'output-messages',
+      description:
+        'Number of trailing messages to include in results output (default: 1, or "all")',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -216,6 +222,7 @@ export const evalRunCommand = command({
       artifacts: args.artifacts,
       graderTarget: args.graderTarget,
       model: args.model,
+      outputMessages: args.outputMessages,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

@@ -85,6 +85,7 @@ interface NormalizedOptions {
   readonly artifacts?: string;
   readonly graderTarget?: string;
   readonly model?: string;
+  readonly outputMessages: number | 'all';
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -135,6 +136,56 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
 
 function normalizeWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
   return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
+}
+
+/**
+ * Normalize --output-messages value. Accepts a number (>= 1) or "all".
+ * Defaults to 1 (last assistant message only).
+ */
+function normalizeOutputMessages(cliValue: string | undefined): number | 'all' {
+  if (cliValue === undefined) {
+    return 1;
+  }
+  if (cliValue === 'all') {
+    return 'all';
+  }
+  const parsed = Number.parseInt(cliValue, 10);
+  if (Number.isNaN(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+    console.warn(
+      `Warning: Invalid --output-messages value '${cliValue}'. Must be a positive integer or 'all'. Defaulting to 1.`,
+    );
+    return 1;
+  }
+  return parsed;
+}
+
+/**
+ * Trim output messages for results JSONL.
+ * Each message is stripped to { role, content } only.
+ *
+ * - `1` (default): last assistant message only (legacy behavior)
+ * - `N`: last N messages (any role)
+ * - `'all'`: all messages
+ */
+export function trimOutputMessages(
+  output: EvaluationResult['output'],
+  outputMessages: number | 'all',
+): EvaluationResult['output'] {
+  const messages = output ?? [];
+
+  if (outputMessages === 'all') {
+    return messages.map((m) => ({ role: m.role, content: m.content }));
+  }
+
+  if (outputMessages === 1) {
+    // Legacy behavior: last assistant message only
+    const lastAssistant = messages.filter((m) => m.role === 'assistant').at(-1);
+    return lastAssistant ? [{ role: lastAssistant.role, content: lastAssistant.content }] : [];
+  }
+
+  // Last N messages (any role), trimmed to { role, content }
+  const sliced = messages.slice(-outputMessages);
+  return sliced.map((m) => ({ role: m.role, content: m.content }));
 }
 
 function normalizeOptions(
@@ -254,6 +305,7 @@ function normalizeOptions(
     artifacts: normalizeString(rawOptions.artifacts),
     graderTarget: normalizeString(rawOptions.graderTarget),
     model: normalizeString(rawOptions.model),
+    outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
   } satisfies NormalizedOptions;
 }
 
@@ -622,12 +674,13 @@ async function runSingleEvalFile(params: {
       // Finalize streaming observer span with score
       streamingObserver?.finalizeEvalCase(result.score, result.error);
 
-      // Trim output to last assistant message (role + content only) for results JSONL.
+      // Trim output messages for results JSONL based on --output-messages.
+      // Each message is trimmed to { role, content } only (no toolCalls, startTime, etc.).
       // Full output with tool calls goes to OTel.
-      const lastAssistant = result.output.filter((m) => m.role === 'assistant').at(-1);
+      const trimmedOutput = trimOutputMessages(result.output, options.outputMessages);
       const trimmedResult: EvaluationResult = {
         ...result,
-        output: lastAssistant ? [{ role: lastAssistant.role, content: lastAssistant.content }] : [],
+        output: trimmedOutput,
       };
       await outputWriter.append(trimmedResult);
 
