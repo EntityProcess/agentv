@@ -528,6 +528,14 @@ tests:
     });
 
     it('passes valid tests string path with .yaml extension', async () => {
+      await writeFile(
+        path.join(tempDir, 'cases.yaml'),
+        `- id: test-1
+  criteria: Goal
+  input: "Query"
+`,
+      );
+
       const filePath = path.join(tempDir, 'tests-yaml-ext.yaml');
       await writeFile(
         filePath,
@@ -546,6 +554,14 @@ tests:
     });
 
     it('passes valid tests string path with .yml extension', async () => {
+      await writeFile(
+        path.join(tempDir, 'cases.yml'),
+        `- id: test-1
+  criteria: Goal
+  input: "Query"
+`,
+      );
+
       const filePath = path.join(tempDir, 'tests-yml-ext.yaml');
       await writeFile(
         filePath,
@@ -563,6 +579,11 @@ tests:
     });
 
     it('passes valid tests string path with .jsonl extension', async () => {
+      await writeFile(
+        path.join(tempDir, 'cases.jsonl'),
+        `{"id":"test-1","criteria":"Goal","input":"Query"}\n`,
+      );
+
       const filePath = path.join(tempDir, 'tests-jsonl-ext.yaml');
       await writeFile(
         filePath,
@@ -637,6 +658,302 @@ tests:
 
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.message.includes("suite-level 'input'"))).toBe(true);
+    });
+  });
+
+  describe('workspace repo validation', () => {
+    it('warns when checkout.resolve is set for a local repo source', async () => {
+      const filePath = path.join(tempDir, 'workspace-local-resolve-warning.yaml');
+      await writeFile(
+        filePath,
+        `workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: local
+        path: /tmp/local-repo
+      checkout:
+        ref: main
+        resolve: local
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
+      ).toBe(true);
+    });
+
+    it('warns when a per-test workspace override sets checkout.resolve for a local repo source', async () => {
+      const filePath = path.join(tempDir, 'workspace-local-resolve-per-test-warning.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+    workspace:
+      repos:
+        - path: ./repo
+          source:
+            type: local
+            path: /tmp/local-repo
+          checkout:
+            ref: main
+            resolve: local
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
+      ).toBe(true);
+    });
+
+    it('warns when an inline workspace config interpolates a local repo source type', async () => {
+      const originalSourceType = process.env.REPO_SOURCE_TYPE;
+      process.env.REPO_SOURCE_TYPE = 'local';
+
+      try {
+        const filePath = path.join(
+          tempDir,
+          'workspace-local-resolve-inline-interpolated-warning.yaml',
+        );
+        await writeFile(
+          filePath,
+          `workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: "\${{ REPO_SOURCE_TYPE }}"
+        path: /tmp/local-repo
+      checkout:
+        ref: main
+        resolve: local
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+        );
+
+        const result = await validateEvalFile(filePath);
+
+        const warnings = result.errors.filter((e) => e.severity === 'warning');
+        expect(
+          warnings.some(
+            (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+          ),
+        ).toBe(true);
+      } finally {
+        if (originalSourceType === undefined) {
+          Reflect.deleteProperty(process.env, 'REPO_SOURCE_TYPE');
+        } else {
+          process.env.REPO_SOURCE_TYPE = originalSourceType;
+        }
+      }
+    });
+
+    it('warns when an external workspace file sets checkout.resolve for a local repo source', async () => {
+      const workspaceFile = path.join(tempDir, 'external-workspace.yaml');
+      await writeFile(
+        workspaceFile,
+        `repos:
+  - path: ./repo
+    source:
+      type: local
+      path: /tmp/local-repo
+    checkout:
+      ref: main
+      resolve: local
+`,
+      );
+
+      const filePath = path.join(tempDir, 'workspace-local-resolve-external-warning.yaml');
+      await writeFile(
+        filePath,
+        `workspace: ./external-workspace.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(
+        warnings.some(
+          (e) =>
+            e.filePath === workspaceFile &&
+            e.message.includes('checkout.resolve') &&
+            e.message.includes('local source'),
+        ),
+      ).toBe(true);
+    });
+
+    it('warns when an external workspace file interpolates a local repo source type', async () => {
+      const originalSourceType = process.env.REPO_SOURCE_TYPE;
+      process.env.REPO_SOURCE_TYPE = 'local';
+
+      try {
+        const workspaceFile = path.join(tempDir, 'external-workspace-interpolated.yaml');
+        await writeFile(
+          workspaceFile,
+          `repos:
+  - path: ./repo
+    source:
+      type: "\${{ REPO_SOURCE_TYPE }}"
+      path: /tmp/local-repo
+    checkout:
+      ref: main
+      resolve: local
+`,
+        );
+
+        const filePath = path.join(
+          tempDir,
+          'workspace-local-resolve-external-interpolated-warning.yaml',
+        );
+        await writeFile(
+          filePath,
+          `workspace: ./external-workspace-interpolated.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+        );
+
+        const result = await validateEvalFile(filePath);
+
+        const warnings = result.errors.filter((e) => e.severity === 'warning');
+        expect(
+          warnings.some(
+            (e) =>
+              e.filePath === workspaceFile &&
+              e.message.includes('checkout.resolve') &&
+              e.message.includes('local source'),
+          ),
+        ).toBe(true);
+      } finally {
+        if (originalSourceType === undefined) {
+          Reflect.deleteProperty(process.env, 'REPO_SOURCE_TYPE');
+        } else {
+          process.env.REPO_SOURCE_TYPE = originalSourceType;
+        }
+      }
+    });
+
+    it('rejects a missing external workspace file', async () => {
+      const filePath = path.join(tempDir, 'workspace-missing-external.yaml');
+      await writeFile(
+        filePath,
+        `workspace: ./does-not-exist.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' && e.message.includes('Failed to load external workspace file'),
+        ),
+      ).toBe(true);
+    });
+
+    it('warns for suite-level workspace config when tests are loaded from an external file', async () => {
+      const casesFile = path.join(tempDir, 'cases.yaml');
+      await writeFile(
+        casesFile,
+        `- id: test-1
+  criteria: Goal
+  input: "Query"
+`,
+      );
+
+      const filePath = path.join(tempDir, 'workspace-local-resolve-external-tests-warning.yaml');
+      await writeFile(
+        filePath,
+        `workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: local
+        path: /tmp/local-repo
+      checkout:
+        ref: main
+        resolve: local
+tests: ./cases.yaml
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
+      ).toBe(true);
+    });
+
+    it('warns for per-test workspace config when tests are loaded from an external file', async () => {
+      const casesFile = path.join(tempDir, 'cases-with-workspace.yaml');
+      await writeFile(
+        casesFile,
+        `- id: test-1
+  criteria: Goal
+  input: "Query"
+  workspace:
+    repos:
+      - path: ./repo
+        source:
+          type: local
+          path: /tmp/local-repo
+        checkout:
+          ref: main
+          resolve: local
+`,
+      );
+
+      const filePath = path.join(
+        tempDir,
+        'workspace-local-resolve-external-tests-per-test-warning.yaml',
+      );
+      await writeFile(
+        filePath,
+        `tests: ./cases-with-workspace.yaml
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
+      ).toBe(true);
     });
   });
 

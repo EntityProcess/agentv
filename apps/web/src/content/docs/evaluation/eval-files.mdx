@@ -197,6 +197,8 @@ repos:
       path: "${{ MY_REPO_LOCAL_PATH }}"
 ```
 
+For local sources, omit `checkout.resolve`. If you need to pin the local clone to a specific revision, use `checkout.ref` and optionally `checkout.ancestor`.
+
 ```bash
 # .env
 MY_REPO_LOCAL_PATH=/home/dev/repos/my-repo
