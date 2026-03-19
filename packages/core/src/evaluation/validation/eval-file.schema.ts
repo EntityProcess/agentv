@@ -317,6 +317,7 @@ const FailOnErrorSchema = z.boolean();
 const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.string()).optional(),
+  workers: z.number().int().min(1).max(50).optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   assert: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),

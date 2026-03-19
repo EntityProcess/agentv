@@ -137,6 +137,23 @@ export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | 
 }
 
 /**
+ * Extract workers count from suite-level execution block.
+ */
+export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const workers = (execution as Record<string, unknown>).workers;
+  if (typeof workers === 'number' && Number.isInteger(workers) && workers >= 1 && workers <= 50) {
+    return workers;
+  }
+
+  return undefined;
+}
+
+/**
  * Extract per-test targets array from a raw test case object.
  */
 export function extractTargetsFromTestCase(testCase: JsonObject): readonly string[] | undefined {

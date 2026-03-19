@@ -14,6 +14,7 @@ import {
   extractTargetsFromTestCase,
   extractTotalBudgetUsd,
   extractTrialsConfig,
+  extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
 import {
@@ -58,6 +59,7 @@ export {
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractTrialsConfig,
+  extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig, ExecutionDefaults } from './loaders/config-loader.js';
@@ -167,6 +169,8 @@ export type EvalSuiteResult = {
   readonly trials?: TrialsConfig;
   /** Suite-level targets from execution.targets (matrix evaluation) */
   readonly targets?: readonly string[];
+  /** Suite-level workers from execution.workers */
+  readonly workers?: number;
   /** Suite-level cache config from execution.cache */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
   /** Suite-level metadata (name, description, version, etc.) */
@@ -200,6 +204,7 @@ export async function loadTestSuite(
     tests,
     trials: extractTrialsConfig(parsed),
     targets: extractTargetsFromSuite(parsed),
+    workers: extractWorkersFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
     totalBudgetUsd: extractTotalBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),

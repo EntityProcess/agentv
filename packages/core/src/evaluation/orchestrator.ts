@@ -555,16 +555,22 @@ export async function runEvaluation(
   const resolvedRetainOnSuccess = retainOnSuccess ?? (keepWorkspaces ? 'keep' : 'cleanup');
   const resolvedRetainOnFailure = retainOnFailure ?? (cleanupWorkspaces ? 'cleanup' : 'keep');
 
-  const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
-  // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
-  // Non-pool shared workspaces must be sequential to prevent data corruption.
-  const workers = hasSharedWorkspace && !usePool ? 1 : requestedWorkers;
+  const workers = options.maxConcurrency ?? target.workers ?? 1;
   setupLog(
-    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} requestedWorkers=${requestedWorkers} effectiveWorkers=${workers}`,
+    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} workers=${workers}`,
   );
-  if (hasSharedWorkspace && !usePool && requestedWorkers > 1) {
+  if (hasSharedWorkspace && !usePool && workers > 1) {
     console.warn(
-      `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
+      [
+        `Warning: This eval uses a shared workspace with ${workers} workers.`,
+        'If the agent under test makes file edits, concurrent runs may corrupt each other.',
+        'To limit concurrency, add this to your eval YAML:',
+        '',
+        '  execution:',
+        '    workers: 1',
+        '',
+        'Or pass --workers 1 on the command line.',
+      ].join('\n'),
     );
   }
   const limit = pLimit(workers);
