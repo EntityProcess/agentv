@@ -238,7 +238,6 @@ export class LlmGraderEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       userPrompt,
       systemPrompt,
-      target: graderProvider.targetName,
     };
 
     try {
@@ -261,6 +260,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions,
         expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
         tokenUsage,
       };
     } catch (e: unknown) {
@@ -275,6 +275,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions: [{ text: `Grader parse failure after 3 attempts: ${message}`, passed: false }],
         expectedAspectCount: 1,
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
       };
     }
   }
@@ -303,7 +304,6 @@ export class LlmGraderEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       userPrompt: prompt,
       systemPrompt,
-      target: graderProvider.targetName,
     };
 
     try {
@@ -323,6 +323,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions,
         expectedAspectCount: rubrics.length,
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
         tokenUsage,
       };
     } catch (e: unknown) {
@@ -335,6 +336,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions: [{ text: `Grader parse failure after 3 attempts: ${message}`, passed: false }],
         expectedAspectCount: rubrics.length,
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
       };
     }
   }
@@ -354,7 +356,6 @@ export class LlmGraderEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       userPrompt: prompt,
       systemPrompt,
-      target: graderProvider.targetName,
     };
 
     try {
@@ -374,6 +375,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions,
         expectedAspectCount: rubrics.length,
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
         details,
         tokenUsage,
       };
@@ -387,6 +389,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions: [{ text: `Grader parse failure after 3 attempts: ${message}`, passed: false }],
         expectedAspectCount: rubrics.length,
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
       };
     }
   }
@@ -429,7 +432,6 @@ export class LlmGraderEvaluator implements Evaluator {
       mode: 'built-in',
       systemPrompt,
       userPrompt,
-      target: graderProvider.targetName,
       maxSteps: this.maxSteps,
     };
 
@@ -451,7 +453,13 @@ export class LlmGraderEvaluator implements Evaluator {
         tool_calls: toolCallCount,
       };
 
-      return this.parseAgentResult(text, rubrics, evaluatorRawRequest, details);
+      return this.parseAgentResult(
+        text,
+        rubrics,
+        evaluatorRawRequest,
+        details,
+        graderProvider.targetName,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
@@ -460,6 +468,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions: [{ text: `llm-grader built-in evaluation failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
         evaluatorRawRequest,
+        graderTarget: graderProvider.targetName,
         details: { mode: 'built-in', error: message },
       };
     }
@@ -526,6 +535,7 @@ export class LlmGraderEvaluator implements Evaluator {
           ],
           expectedAspectCount: 1,
           evaluatorRawRequest,
+          graderTarget: provider.targetName,
           details: { mode: modeLabel, grader_target: provider.targetName },
         };
       }
@@ -539,7 +549,13 @@ export class LlmGraderEvaluator implements Evaluator {
         grader_target: provider.targetName,
       };
 
-      return this.parseAgentResult(assistantContent, rubrics, evaluatorRawRequest, details);
+      return this.parseAgentResult(
+        assistantContent,
+        rubrics,
+        evaluatorRawRequest,
+        details,
+        provider.targetName,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
@@ -550,6 +566,7 @@ export class LlmGraderEvaluator implements Evaluator {
         ],
         expectedAspectCount: 1,
         evaluatorRawRequest,
+        graderTarget: provider.targetName,
         details: {
           mode: modeLabel,
           grader_target: provider.targetName,
@@ -735,6 +752,7 @@ export class LlmGraderEvaluator implements Evaluator {
     rubrics: readonly RubricItem[] | undefined,
     evaluatorRawRequest: JsonObject,
     details: JsonObject,
+    graderTarget?: string,
   ): EvaluationScore {
     try {
       const parsed = parseJsonFromText(text);
@@ -748,6 +766,7 @@ export class LlmGraderEvaluator implements Evaluator {
           assertions,
           expectedAspectCount: rubrics.length,
           evaluatorRawRequest,
+          graderTarget,
           details,
         };
       }
@@ -764,6 +783,7 @@ export class LlmGraderEvaluator implements Evaluator {
         assertions,
         expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
+        graderTarget,
         details,
       };
     } catch {
@@ -778,6 +798,7 @@ export class LlmGraderEvaluator implements Evaluator {
         ],
         expectedAspectCount: 1,
         evaluatorRawRequest,
+        graderTarget,
         details,
       };
     }

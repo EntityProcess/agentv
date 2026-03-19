@@ -338,7 +338,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     });
 
     expect(result.score).toBeCloseTo(0.9);
-    expect(result.evaluatorRawRequest?.target).toBe('grader-low-cost-b');
+    expect(result.graderTarget).toBe('grader-low-cost-b');
     expect(overrideGraderProvider.lastRequest).toBeDefined();
     expect(defaultGraderProvider.lastRequest).toBeUndefined();
   });

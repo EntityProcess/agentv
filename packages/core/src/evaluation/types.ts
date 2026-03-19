@@ -977,6 +977,8 @@ export interface EvaluatorResult {
   readonly assertions: readonly AssertionEntry[];
   readonly rawRequest?: JsonObject;
   readonly input?: JsonObject;
+  /** Target name used for grading (e.g., the LLM provider name). */
+  readonly target?: string;
   readonly scores?: readonly EvaluatorResult[];
   /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;

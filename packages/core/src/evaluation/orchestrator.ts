@@ -2316,6 +2316,7 @@ async function runEvaluatorList(options: {
         verdict: score.verdict,
         assertions: score.assertions,
         input: score.evaluatorRawRequest,
+        target: score.graderTarget,
         details: score.details,
         scores: mapChildResults(score.scores),
         tokenUsage: score.tokenUsage,

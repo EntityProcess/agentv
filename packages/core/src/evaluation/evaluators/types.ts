@@ -63,6 +63,8 @@ export interface EvaluationScore {
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;
+  /** Target name used for grading (e.g., the LLM provider). */
+  readonly graderTarget?: string;
 }
 
 export interface ChildEvaluatorResult {
