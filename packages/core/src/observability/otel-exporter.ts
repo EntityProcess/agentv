@@ -192,7 +192,12 @@ export class OtelTraceExporter {
         rootSpan.setAttribute('agentv.target', result.target);
         if (result.dataset) rootSpan.setAttribute('agentv.dataset', result.dataset);
         rootSpan.setAttribute('agentv.score', result.score);
-        if (captureContent) rootSpan.setAttribute('agentv.output_text', result.outputText);
+        if (captureContent && result.output.length > 0) {
+          const lastMsg = result.output[result.output.length - 1];
+          const text =
+            typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
+          rootSpan.setAttribute('agentv.output_text', text);
+        }
 
         // Flat execution metrics
         if (result.durationMs != null)

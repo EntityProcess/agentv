@@ -29,7 +29,7 @@ const CLAUDE_CLI_RESULT = {
     { text: 'Correct answer', passed: true, evidence: 'Matched expected output' },
     { text: 'Used reasoning', passed: true },
   ],
-  output_text: 'The answer is 42, derived through extended thinking.',
+  output: [{ role: 'assistant', content: 'The answer is 42, derived through extended thinking.' }],
   target: 'claude-cli',
   scores: [
     {
@@ -66,7 +66,7 @@ const CODEX_RESULT = {
     { text: 'File edited correctly', passed: true },
     { text: 'No extra changes', passed: true },
   ],
-  output_text: 'Applied the requested edit to src/main.ts.',
+  output: [{ role: 'assistant', content: 'Applied the requested edit to src/main.ts.' }],
   target: 'codex',
   scores: [
     {
@@ -102,7 +102,7 @@ const COPILOT_RESULT = {
     { text: 'Code completion correct', passed: true },
     { text: 'Follows style guide', passed: false, evidence: 'Missing semicolons' },
   ],
-  output_text: 'function add(a, b) { return a + b }',
+  output: [{ role: 'assistant', content: 'function add(a, b) { return a + b }' }],
   target: 'copilot-cli',
   scores: [
     {
@@ -131,7 +131,7 @@ const PI_RESULT = {
     { text: 'Refactored correctly', passed: true },
     { text: 'Tests pass', passed: false, evidence: 'Test suite has 1 failure' },
   ],
-  output_text: 'Refactored the module to use dependency injection.',
+  output: [{ role: 'assistant', content: 'Refactored the module to use dependency injection.' }],
   target: 'pi-coding-agent',
   duration_ms: 15000,
   token_usage: { input: 4000, output: 2000 },
@@ -146,7 +146,7 @@ const LLM_AZURE_RESULT = {
   dataset: 'multi-provider',
   score: 1.0,
   assertions: [{ text: 'Analysis correct', passed: true }],
-  output_text: 'The code has a race condition in the connection pool.',
+  output: [{ role: 'assistant', content: 'The code has a race condition in the connection pool.' }],
   target: 'azure-o4-mini',
   scores: [
     {
@@ -169,7 +169,7 @@ const LLM_GPT_RESULT = {
   dataset: 'multi-provider',
   score: 0.8,
   assertions: [{ text: 'Analysis correct', passed: true }],
-  output_text: 'There might be a concurrency issue.',
+  output: [{ role: 'assistant', content: 'There might be a concurrency issue.' }],
   target: 'gpt-4.1',
   duration_ms: 2800,
   token_usage: { input: 1200, output: 400 },
@@ -184,7 +184,7 @@ const MINIMAL_RESULT = {
   dataset: 'multi-provider',
   score: 0.5,
   assertions: [{ text: 'Exists', passed: true }],
-  output_text: 'Response.',
+  output: [{ role: 'assistant', content: 'Response.' }],
   target: 'mock',
   execution_status: 'ok',
 };
@@ -196,7 +196,7 @@ const ERROR_RESULT = {
   dataset: 'multi-provider',
   score: 0,
   assertions: [],
-  output_text: '',
+  output: [],
   target: 'claude-cli',
   error: 'Agent timed out after 120s',
   duration_ms: 120000,
@@ -528,16 +528,22 @@ describe('export e2e — multi-provider metrics verification', () => {
       exportResults('test.jsonl', content, outputDir);
 
       expect(
-        readFileSync(path.join(outputDir, 'outputs', 'test-claude-reasoning.txt'), 'utf8'),
-      ).toBe('The answer is 42, derived through extended thinking.');
-
-      expect(readFileSync(path.join(outputDir, 'outputs', 'test-codex-edit.txt'), 'utf8')).toBe(
-        'Applied the requested edit to src/main.ts.',
-      );
+        JSON.parse(
+          readFileSync(path.join(outputDir, 'outputs', 'test-claude-reasoning.txt'), 'utf8'),
+        ),
+      ).toEqual([
+        { role: 'assistant', content: 'The answer is 42, derived through extended thinking.' },
+      ]);
 
       expect(
-        readFileSync(path.join(outputDir, 'outputs', 'test-copilot-complete.txt'), 'utf8'),
-      ).toBe('function add(a, b) { return a + b }');
+        JSON.parse(readFileSync(path.join(outputDir, 'outputs', 'test-codex-edit.txt'), 'utf8')),
+      ).toEqual([{ role: 'assistant', content: 'Applied the requested edit to src/main.ts.' }]);
+
+      expect(
+        JSON.parse(
+          readFileSync(path.join(outputDir, 'outputs', 'test-copilot-complete.txt'), 'utf8'),
+        ),
+      ).toEqual([{ role: 'assistant', content: 'function add(a, b) { return a + b }' }]);
     });
 
     it('should not write output file for error result with empty answer', () => {

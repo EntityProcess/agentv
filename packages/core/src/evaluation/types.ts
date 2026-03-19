@@ -909,7 +909,6 @@ export interface EvaluationResult {
   readonly conversationId?: string;
   readonly score: number;
   readonly assertions: readonly AssertionEntry[];
-  readonly outputText: string;
   readonly target: string;
   /** Token usage metrics from provider (optional) */
   readonly tokenUsage?: TokenUsage;
@@ -932,10 +931,10 @@ export interface EvaluationResult {
   readonly trace?: TraceSummary;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
-  /** Input messages or prompt string sent to the agent */
-  readonly input?: readonly import('./providers/types.js').Message[] | string;
-  /** Full output messages from agent execution (only included when --trace flag is set) */
-  readonly output?: readonly import('./providers/types.js').Message[];
+  /** Input messages sent to the agent. Always Message[] for consistent shape with output. */
+  readonly input?: readonly import('./providers/types.js').Message[];
+  /** Output messages from agent execution. Always present — at minimum contains the final assistant message. */
+  readonly output: readonly import('./providers/types.js').Message[];
   /** Captured output from workspace before_all script */
   readonly beforeAllOutput?: string;
   /** Captured output from workspace before_each script */

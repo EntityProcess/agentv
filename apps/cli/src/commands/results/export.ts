@@ -74,10 +74,9 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   mkdirSync(outputsDir, { recursive: true });
 
   for (const result of patched) {
-    const outputText = result.outputText;
-    if (outputText) {
+    if (result.output && result.output.length > 0) {
       const id = safeTestId(result);
-      writeFileSync(path.join(outputsDir, `${id}.txt`), outputText);
+      writeFileSync(path.join(outputsDir, `${id}.txt`), JSON.stringify(result.output, null, 2));
     }
   }
 }

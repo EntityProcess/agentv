@@ -9,7 +9,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     testId: 'test-1',
     score: 0.9,
     assertions: [],
-    outputText: 'test answer',
+    output: [{ role: 'assistant' as const, content: 'test answer' }],
     target: 'test-target',
     verdict: 'pass',
     executionStatus: 'ok',

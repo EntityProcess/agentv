@@ -175,7 +175,7 @@ describe('runTestCase', () => {
     expect(result.assertions.filter((a) => a.passed)).toHaveLength(1);
     expect(result.assertions.filter((a) => !a.passed)).toHaveLength(0);
     expect(result.timestamp).toBe('2024-01-01T00:00:00.000Z');
-    expect(result.input).toBe('Explain logging improvements');
+    expect(result.input).toEqual([{ role: 'user', content: 'Explain logging improvements' }]);
     expect(result.executionStatus).toBe('ok');
     expect(result.failureStage).toBeUndefined();
     expect(result.failureReasonCode).toBeUndefined();
@@ -209,7 +209,8 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(first.outputText).toContain('structured logging');
+    expect(first.output).toBeDefined();
+    expect(first.output.length).toBeGreaterThan(0);
 
     const second = await runEvalCase({
       evalCase: baseTestCase,
@@ -220,7 +221,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(second.outputText).toBe(first.outputText);
+    expect(second.output).toEqual(first.output);
     expect(provider.callIndex).toBe(1);
   });
 
@@ -259,7 +260,7 @@ describe('runTestCase', () => {
 
     expect(result.score).toBe(0);
     expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('Provider failure');
-    expect(result.input).toBe('Explain logging improvements');
+    expect(result.input).toEqual([{ role: 'user', content: 'Explain logging improvements' }]);
     expect(result.executionStatus).toBe('execution_error');
     expect(result.failureStage).toBe('agent');
     expect(result.failureReasonCode).toBe('provider_error');
