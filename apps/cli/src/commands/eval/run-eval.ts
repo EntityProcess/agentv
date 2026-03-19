@@ -431,6 +431,7 @@ async function prepareFileMetadata(params: {
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
   readonly suiteTargets?: readonly string[];
+  readonly yamlWorkers?: number;
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
   readonly totalBudgetUsd?: number;
@@ -515,6 +516,7 @@ async function prepareFileMetadata(params: {
     selections,
     trialsConfig: suite.trials,
     suiteTargets,
+    yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
     totalBudgetUsd: suite.totalBudgetUsd,
@@ -551,6 +553,7 @@ async function runSingleEvalFile(params: {
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
   readonly workersOverride?: number;
+  readonly yamlWorkers?: number;
   readonly progressReporter: ProgressReporter;
   readonly seenEvalCases: Set<string>;
   readonly displayIdTracker: { getOrAssign(evalKey: string): number };
@@ -572,6 +575,7 @@ async function runSingleEvalFile(params: {
     cache,
     evaluationRunner,
     workersOverride,
+    yamlWorkers,
     progressReporter,
     seenEvalCases,
     displayIdTracker,
@@ -605,10 +609,10 @@ async function runSingleEvalFile(params: {
       ? Math.max(0, options.agentTimeoutSeconds) * 1000
       : undefined;
 
-  // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
+  // Resolve workers: CLI flag > eval YAML execution.workers > target setting > default
   const workerPreference = workersOverride ?? options.workers;
   let resolvedWorkers =
-    workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
+    workerPreference ?? yamlWorkers ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
@@ -937,6 +941,7 @@ export async function runEvalCommand(
       }[];
       readonly trialsConfig?: TrialsConfig;
       readonly suiteTargets?: readonly string[];
+      readonly yamlWorkers?: number;
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
       readonly totalBudgetUsd?: number;
@@ -1105,6 +1110,7 @@ export async function runEvalCommand(
             cache,
             evaluationRunner,
             workersOverride: perFileWorkers,
+            yamlWorkers: targetPrep.yamlWorkers,
             progressReporter,
             seenEvalCases,
             displayIdTracker,
