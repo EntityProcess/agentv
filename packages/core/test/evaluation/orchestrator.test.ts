@@ -401,15 +401,11 @@ describe('runTestCase', () => {
     );
     expect(graderProvider.lastRequest?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
 
-    expect(result.scores?.[0]?.input?.userPrompt).toContain(
-      'CUSTOM PROMPT CONTENT',
-    );
+    expect(result.scores?.[0]?.input?.userPrompt).toContain('CUSTOM PROMPT CONTENT');
     expect(result.scores?.[0]?.input?.systemPrompt).toContain(
       'You must respond with a single JSON object',
     );
-    expect(result.scores?.[0]?.input?.systemPrompt).not.toContain(
-      'CUSTOM PROMPT CONTENT',
-    );
+    expect(result.scores?.[0]?.input?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
   });
 
   it('passes chatPrompt for multi-turn evals', async () => {
