@@ -9,8 +9,13 @@ coverage/
 *.tsbuildinfo.*
 .DS_Store
 .astro/
-**/.agentv/results/
-**/.agentv/logs/
+# Ignore .agentv runtime output; tracked config (targets.yaml, config.yaml,
+# graders/, assertions/) is whitelisted below.
+**/.agentv/*
+!**/.agentv/targets.yaml
+!**/.agentv/config.yaml
+!**/.agentv/graders/
+!**/.agentv/assertions/
 .env
 __pycache__/
 .worktrees/

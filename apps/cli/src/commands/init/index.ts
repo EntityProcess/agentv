@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as readline from 'node:readline/promises';
 import { command, option, optional, string } from 'cmd-ts';
 
-import { getAgentvTemplates } from '../../templates/index.js';
+import { getAgentvTemplates, getEnvExampleTemplate } from '../../templates/index.js';
 
 export interface InitCommandOptions {
   targetPath?: string;
@@ -35,11 +35,10 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const agentvDir = path.join(targetPath, '.agentv');
 
   // Get templates for legacy bootstrap files only.
-  const agentvTemplates = getAgentvTemplates();
+  const otherAgentvTemplates = getAgentvTemplates();
 
-  // Separate .env.example from other .agentv templates
-  const envTemplate = agentvTemplates.find((t) => t.path === '.env.example');
-  const otherAgentvTemplates = agentvTemplates.filter((t) => t.path !== '.env.example');
+  // .env.example lives at templates root (not inside .agentv/) to avoid duplication
+  const envTemplate = getEnvExampleTemplate();
 
   // Check if any files already exist
   const existingFiles: string[] = [];

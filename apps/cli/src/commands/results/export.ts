@@ -19,7 +19,7 @@
  *   - To add new per-test output files, add a writer in `exportOutputs()`.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { command, option, optional, positional, string } from 'cmd-ts';
 
@@ -30,6 +30,7 @@ import {
   buildTimingArtifact,
   parseJsonlResults,
 } from '../eval/artifact-writer.js';
+import { loadRunCache } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
@@ -137,14 +138,19 @@ export const resultsExportCommand = command({
         // Explicit source file
         sourceFile = path.isAbsolute(source) ? source : path.resolve(cwd, source);
       } else {
-        // Find most recent result file
-        const metas = listResultFiles(cwd, 1);
-        if (metas.length === 0) {
-          console.error('Error: No result files found in .agentv/results/');
-          console.error('Run an evaluation first: agentv eval <eval-file>');
-          process.exit(1);
+        // Prefer cache pointer, fall back to directory scan
+        const cache = await loadRunCache(cwd);
+        if (cache && existsSync(cache.lastResultFile)) {
+          sourceFile = cache.lastResultFile;
+        } else {
+          const metas = listResultFiles(cwd, 1);
+          if (metas.length === 0) {
+            console.error('Error: No result files found in .agentv/results/');
+            console.error('Run an evaluation first: agentv eval <eval-file>');
+            process.exit(1);
+          }
+          sourceFile = metas[0].path;
         }
-        sourceFile = metas[0].path;
       }
 
       const content = readFileSync(sourceFile, 'utf8');

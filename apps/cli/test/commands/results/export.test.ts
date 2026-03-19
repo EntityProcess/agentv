@@ -260,4 +260,42 @@ describe('results export', () => {
     const outputDir = path.join(tempDir, 'output');
     expect(() => exportResults('test.jsonl', '', outputDir)).toThrow('No results found');
   });
+
+  it('should handle results with missing assertions field', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const minimal = {
+      timestamp: '2026-03-18T10:00:00.000Z',
+      test_id: 'test-minimal',
+      score: 0.8,
+      target: 'default',
+    };
+    const content = toJsonl(minimal);
+
+    // Should not throw — previously crashed with "Cannot read properties of undefined (reading 'map')"
+    exportResults('test.jsonl', content, outputDir);
+
+    const gradingPath = path.join(outputDir, 'grading', 'test-minimal.json');
+    expect(existsSync(gradingPath)).toBe(true);
+
+    const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
+    expect(grading.assertions).toEqual([]);
+    expect(grading.summary.total).toBe(0);
+  });
+
+  it('should handle results with missing target and testId fields', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const bare = {
+      timestamp: '2026-03-18T10:00:00.000Z',
+      score: 0.5,
+    };
+    const content = toJsonl(bare);
+
+    exportResults('test.jsonl', content, outputDir);
+
+    const benchmark: BenchmarkArtifact = JSON.parse(
+      readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+    );
+    expect(benchmark.metadata.targets).toEqual(['unknown']);
+    expect(benchmark.metadata.tests_run).toEqual(['unknown']);
+  });
 });

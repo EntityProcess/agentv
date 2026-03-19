@@ -39,6 +39,7 @@ import {
 } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
+import { saveRunCache } from './run-cache.js';
 import { findRepoRoot } from './shared.js';
 import {
   calculateEvaluationSummary,
@@ -1197,6 +1198,9 @@ export async function runEvalCommand(
           console.log(`  ${p}`);
         }
       }
+
+      // Persist last result file for `agentv results export` default lookup
+      await saveRunCache(cwd, outputPath).catch(() => undefined);
     }
 
     // Suggest retry-errors command when execution errors are detected
