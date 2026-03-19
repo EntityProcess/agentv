@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
+import type { Message } from '@agentv/core';
+
 import { trimOutputMessages } from '../../../src/commands/eval/run-eval.js';
 
-const makeMessages = () => [
+const makeMessages = (): readonly Message[] => [
   { role: 'user', content: 'Hello', startTime: '2024-01-01T00:00:00Z', durationMs: 10 },
   {
     role: 'assistant',
@@ -17,39 +19,37 @@ const makeMessages = () => [
 describe('trimOutputMessages', () => {
   describe('default (outputMessages = 1)', () => {
     it('returns only the last assistant message trimmed to { role, content }', () => {
-      const result = trimOutputMessages(makeMessages() as any, 1);
+      const result = trimOutputMessages(makeMessages(), 1);
       expect(result).toEqual([{ role: 'assistant', content: 'Done!' }]);
     });
 
     it('returns empty array when no assistant message exists', () => {
-      const messages = [{ role: 'user', content: 'Hello' }];
-      const result = trimOutputMessages(messages as any, 1);
+      const messages: readonly Message[] = [{ role: 'user', content: 'Hello' }];
+      const result = trimOutputMessages(messages, 1);
       expect(result).toEqual([]);
     });
 
     it('strips toolCalls, startTime, durationMs from the last assistant message', () => {
-      const messages = [
+      const messages: readonly Message[] = [
         {
           role: 'assistant',
           content: 'response',
           toolCalls: [{ id: 'tc1', name: 'read', arguments: '{}' }],
           startTime: '2024-01-01T00:00:00Z',
           durationMs: 500,
-          metadata: { key: 'value' },
         },
       ];
-      const result = trimOutputMessages(messages as any, 1);
+      const result = trimOutputMessages(messages, 1);
       expect(result).toEqual([{ role: 'assistant', content: 'response' }]);
       expect(result[0]).not.toHaveProperty('toolCalls');
       expect(result[0]).not.toHaveProperty('startTime');
       expect(result[0]).not.toHaveProperty('durationMs');
-      expect(result[0]).not.toHaveProperty('metadata');
     });
   });
 
   describe('outputMessages = N (numeric)', () => {
     it('returns last N messages (any role) trimmed to { role, content }', () => {
-      const result = trimOutputMessages(makeMessages() as any, 3);
+      const result = trimOutputMessages(makeMessages(), 3);
       expect(result).toEqual([
         { role: 'assistant', content: 'Hi there' },
         { role: 'tool', content: 'file contents' },
@@ -58,13 +58,13 @@ describe('trimOutputMessages', () => {
     });
 
     it('returns all messages when N exceeds message count', () => {
-      const result = trimOutputMessages(makeMessages() as any, 100);
+      const result = trimOutputMessages(makeMessages(), 100);
       expect(result).toHaveLength(4);
       expect(result[0]).toEqual({ role: 'user', content: 'Hello' });
     });
 
     it('strips metadata from all returned messages', () => {
-      const result = trimOutputMessages(makeMessages() as any, 2);
+      const result = trimOutputMessages(makeMessages(), 2);
       for (const msg of result) {
         expect(Object.keys(msg).sort()).toEqual(['content', 'role']);
       }
@@ -73,7 +73,7 @@ describe('trimOutputMessages', () => {
 
   describe('outputMessages = "all"', () => {
     it('returns all messages trimmed to { role, content }', () => {
-      const result = trimOutputMessages(makeMessages() as any, 'all');
+      const result = trimOutputMessages(makeMessages(), 'all');
       expect(result).toHaveLength(4);
       expect(result).toEqual([
         { role: 'user', content: 'Hello' },
@@ -84,7 +84,7 @@ describe('trimOutputMessages', () => {
     });
 
     it('strips all metadata fields from every message', () => {
-      const result = trimOutputMessages(makeMessages() as any, 'all');
+      const result = trimOutputMessages(makeMessages(), 'all');
       for (const msg of result) {
         expect(msg).not.toHaveProperty('toolCalls');
         expect(msg).not.toHaveProperty('startTime');
@@ -96,9 +96,10 @@ describe('trimOutputMessages', () => {
 
   describe('edge cases', () => {
     it('handles empty output array', () => {
-      expect(trimOutputMessages([] as any, 1)).toEqual([]);
-      expect(trimOutputMessages([] as any, 5)).toEqual([]);
-      expect(trimOutputMessages([] as any, 'all')).toEqual([]);
+      const empty: readonly Message[] = [];
+      expect(trimOutputMessages(empty, 1)).toEqual([]);
+      expect(trimOutputMessages(empty, 5)).toEqual([]);
+      expect(trimOutputMessages(empty, 'all')).toEqual([]);
     });
   });
 });

@@ -143,10 +143,7 @@ function normalizeWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | 
  * CLI value takes precedence over YAML execution.output_messages.
  * Defaults to 1 (last assistant message only).
  */
-function normalizeOutputMessages(
-  cliValue: string | undefined,
-  yamlValue: unknown,
-): number | 'all' {
+function normalizeOutputMessages(cliValue: string | undefined, yamlValue: unknown): number | 'all' {
   // CLI takes precedence
   const raw = cliValue ?? yamlValue;
   if (raw === undefined || raw === null) {
