@@ -176,6 +176,8 @@ export interface RunEvalCaseOptions {
   readonly repoManager?: RepoManager;
   /** Directory containing the eval YAML file. Used as default cwd for workspace scripts. */
   readonly evalDir?: string;
+  /** Include verbose request details in results (e.g. agent input text) */
+  readonly verbose?: boolean;
 }
 
 export interface ProgressEvent {
@@ -912,6 +914,7 @@ export async function runEvaluation(
             typeRegistry,
             repoManager,
             evalDir,
+            verbose,
           };
           let result =
             trials && trials.count > 1
@@ -1009,6 +1012,7 @@ export async function runEvaluation(
           primaryProvider,
           'agent',
           'provider_error',
+          verbose,
         );
         results.push(errorResult);
         if (onResult) {
@@ -1111,6 +1115,7 @@ async function runBatchEvaluation(options: {
     nowFn,
     onProgress,
     onResult,
+    verbose,
     resolveGraderProvider,
     agentTimeoutMs,
     targetResolver,
@@ -1222,6 +1227,7 @@ async function runBatchEvaluation(options: {
         endTime,
         targetResolver,
         availableTargets,
+        verbose,
       });
 
       if (providerError) {
@@ -1244,6 +1250,7 @@ async function runBatchEvaluation(options: {
         provider,
         'evaluator',
         'evaluator_error',
+        verbose,
       );
       results.push(errorResult);
       if (onResult) {
@@ -1311,6 +1318,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     typeRegistry: providedTypeRegistry,
     repoManager,
     evalDir,
+    verbose,
   } = options;
   const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
@@ -1356,6 +1364,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           provider,
           'setup',
           'template_error',
+          verbose,
         );
       }
 
@@ -1396,6 +1405,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           provider,
           'repo_setup',
           'local_path_not_found',
+          verbose,
         );
       }
     }
@@ -1424,6 +1434,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           provider,
           'repo_setup',
           'clone_error',
+          verbose,
         );
       }
     }
@@ -1452,6 +1463,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
               provider,
               'setup',
               'file_copy_error',
+              verbose,
             );
           }
         }
@@ -1498,6 +1510,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           provider,
           'setup',
           'script_error',
+          verbose,
         );
       }
     }
@@ -1531,6 +1544,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         provider,
         'setup',
         'script_error',
+        verbose,
       );
     }
   }
@@ -1581,6 +1595,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         provider,
         'agent',
         'provider_error',
+        verbose,
       );
       if (workspacePath) {
         if (forceCleanup) {
@@ -1602,6 +1617,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       provider,
       'agent',
       'provider_error',
+      verbose,
     );
     // On error, keep workspace for debugging (unless forceCleanup is set)
     if (workspacePath) {
@@ -1732,6 +1748,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       availableTargets,
       fileChanges,
       workspacePath,
+      verbose,
     });
 
     const totalDurationMs = Date.now() - caseStartMs;
@@ -1806,6 +1823,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       provider,
       'evaluator',
       'evaluator_error',
+      verbose,
     );
     // On error, keep workspace for debugging (only for per-case workspaces)
     if (workspacePath && !isSharedWorkspace) {
@@ -1957,6 +1975,7 @@ async function evaluateCandidate(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly verbose?: boolean;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -2016,7 +2035,7 @@ async function evaluateCandidate(options: {
 
   if (isAgentProvider(provider)) {
     agentRequest = {
-      question: promptInputs.question,
+      ...(options.verbose ? { input: promptInputs.question } : {}),
     } as JsonObject;
   } else {
     if (promptInputs.chatPrompt) {
@@ -2031,10 +2050,13 @@ async function evaluateCandidate(options: {
   }
 
   const evaluatorRequest = scores ? undefined : score.evaluatorRawRequest;
+  // Only include agent request if it has content (verbose mode adds the input field)
+  const effectiveAgentRequest =
+    agentRequest && Object.keys(agentRequest).length > 0 ? agentRequest : undefined;
   const requests =
-    agentRequest || lmRequest || evaluatorRequest
+    effectiveAgentRequest || lmRequest || evaluatorRequest
       ? {
-          ...(agentRequest ? { agent: agentRequest } : {}),
+          ...(effectiveAgentRequest ? { agent: effectiveAgentRequest } : {}),
           ...(lmRequest ? { lm: lmRequest } : {}),
           ...(evaluatorRequest ? { evaluator: evaluatorRequest } : {}),
         }
@@ -2056,9 +2078,9 @@ async function evaluateCandidate(options: {
     endTime,
     requests,
     input,
+    output: output ?? [{ role: 'assistant' as const, content: candidate }],
     scores: scores,
     trace: trace,
-    output: output ?? [{ role: 'assistant' as const, content: candidate }],
     fileChanges,
     executionStatus: classifyQualityStatus(score.score),
   };
@@ -2488,6 +2510,7 @@ function buildErrorResult(
   provider: Provider | undefined,
   failureStage: FailureStage,
   failureReasonCode: string,
+  verbose?: boolean,
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
@@ -2496,7 +2519,7 @@ function buildErrorResult(
 
   if (isAgentProvider(provider)) {
     agentRequest = {
-      question: promptInputs.question,
+      ...(verbose ? { input: promptInputs.question } : {}),
       error: message,
     } as JsonObject;
   } else {
@@ -2529,10 +2552,10 @@ function buildErrorResult(
     conversationId: evalCase.conversation_id,
     score: 0,
     assertions: [{ text: `Error: ${message}`, passed: false }],
-    output: [{ role: 'assistant' as const, content: `Error occurred: ${message}` }],
     target: targetName,
     requests,
     input,
+    output: [{ role: 'assistant' as const, content: `Error occurred: ${message}` }],
     error: message,
     executionStatus: 'execution_error',
     failureStage,

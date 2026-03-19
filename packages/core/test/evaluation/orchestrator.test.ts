@@ -497,6 +497,7 @@ describe('runTestCase', () => {
 
     const provider = new AgentProvider();
 
+    // Without verbose, agent request should be omitted (no redundant content)
     const result = await runEvalCase({
       evalCase: baseTestCase,
       provider,
@@ -508,9 +509,25 @@ describe('runTestCase', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.requests?.agent).toBeDefined();
+    expect(result.requests?.agent).toBeUndefined();
     expect(result.requests?.lm).toBeUndefined();
-    expect(result.requests?.agent?.question).toBe('Explain logging improvements');
+
+    // With verbose, agent request includes the input text
+    const verboseResult = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: {
+        ...baseTarget,
+        kind: 'codex',
+        config: { executable: 'echo' },
+      },
+      evaluators: evaluatorRegistry,
+      verbose: true,
+    });
+
+    expect(verboseResult.requests?.agent).toBeDefined();
+    expect(verboseResult.requests?.lm).toBeUndefined();
+    expect(verboseResult.requests?.agent?.input).toBe('Explain logging improvements');
   });
 
   it('uses file references (not embedded contents) for cli providers', async () => {
