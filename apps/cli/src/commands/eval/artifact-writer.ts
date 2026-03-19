@@ -101,7 +101,7 @@ function computePassRate(result: EvaluationResult): number {
     const passed = scores.filter((s) => s.score >= PASS_THRESHOLD).length;
     return passed / scores.length;
   }
-  return result.score >= PASS_THRESHOLD ? 1.0 : 0.0;
+  return (result.score ?? 0) >= PASS_THRESHOLD ? 1.0 : 0.0;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +173,7 @@ function parseWorkspaceChanges(
 // ---------------------------------------------------------------------------
 
 function buildAssertions(result: EvaluationResult): GradingArtifact['assertions'] {
+  if (!result.assertions) return [];
   return result.assertions.map((a) => ({
     text: a.text,
     passed: a.passed,
@@ -281,8 +282,8 @@ export function buildBenchmarkArtifact(
   const targetSet = new Set<string>();
   const testIdSet = new Set<string>();
   for (const result of results) {
-    targetSet.add(result.target);
-    testIdSet.add(result.testId);
+    targetSet.add(result.target ?? 'unknown');
+    testIdSet.add(result.testId ?? 'unknown');
   }
 
   const targets = [...targetSet].sort();
@@ -348,7 +349,9 @@ export function buildBenchmarkArtifact(
     }
   }
 
-  const errorCount = results.filter((r) => r.executionStatus === 'execution_error').length;
+  const errorCount = results.filter(
+    (r) => r.executionStatus != null && r.executionStatus === 'execution_error',
+  ).length;
   if (errorCount > 0) {
     notes.push(
       `${errorCount} test(s) had execution errors and are included in pass_rate as failures`,
@@ -452,7 +455,7 @@ export async function writeArtifactsFromResults(
   // Write per-test grading artifacts
   for (const result of results) {
     const grading = buildGradingArtifact(result);
-    const safeTestId = result.testId.replace(/[/\\:*?"<>|]/g, '_');
+    const safeTestId = (result.testId ?? 'unknown').replace(/[/\\:*?"<>|]/g, '_');
     const gradingPath = path.join(gradingDir, `${safeTestId}.json`);
     await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
   }
