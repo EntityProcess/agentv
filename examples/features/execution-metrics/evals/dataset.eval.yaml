@@ -15,6 +15,7 @@
 # Run with:
 #   bun agentv eval examples/features/execution-metrics/evals/dataset.eval.yaml --dry-run
 
+name: execution-metrics
 description: Demonstrates the built-in execution_metrics evaluator
 
 # Mock agent that returns realistic execution metrics

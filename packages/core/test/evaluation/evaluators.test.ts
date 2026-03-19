@@ -59,7 +59,7 @@ class CapturingProvider implements Provider {
 
 const baseTestCase: EvalTest = {
   id: 'case-1',
-  dataset: 'test-dataset',
+  eval_set: 'test-dataset',
   question: 'Improve the logging implementation',
   input: [{ role: 'user', content: 'Please add logging' }],
   input_segments: [{ type: 'text', value: 'Please add logging' }],

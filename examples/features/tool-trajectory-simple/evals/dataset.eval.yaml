@@ -30,6 +30,7 @@
 #      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-simple
 #   2. Run: cd examples/features && npx agentv eval tool-trajectory-simple/evals/dataset.eval.yaml --target mock_agent
 
+name: tool-trajectory-simple
 description: Tool trajectory evaluator examples for agent execution validation
 
 # Use mock_agent CLI target that returns trace data

@@ -108,8 +108,8 @@ function groupResults(results: RawResult[], groupBy?: string): GroupedResults[] 
       case 'target':
         key = result.target ?? 'unknown';
         break;
-      case 'dataset':
-        key = result.dataset ?? 'unknown';
+      case 'eval-set':
+        key = result.eval_set ?? 'unknown';
         break;
       case 'test-id':
         key = result.test_id ?? result.eval_id ?? 'unknown';
@@ -220,10 +220,10 @@ export const traceStatsCommand = command({
       description: 'Path to JSONL result file',
     }),
     groupBy: option({
-      type: optional(oneOf(['target', 'dataset', 'test-id'])),
+      type: optional(oneOf(['target', 'eval-set', 'test-id'])),
       long: 'group-by',
       short: 'g',
-      description: 'Group statistics by: target, dataset, or test-id',
+      description: 'Group statistics by: target, eval-set, or test-id',
     }),
     format: option({
       type: optional(oneOf(['table', 'json'])),

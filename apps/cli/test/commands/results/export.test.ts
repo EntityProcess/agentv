@@ -15,7 +15,7 @@ import { exportResults } from '../../../src/commands/results/export.js';
 const RESULT_FULL = {
   timestamp: '2026-03-18T10:00:01.000Z',
   test_id: 'test-greeting',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 1.0,
   assertions: [
     { text: 'Says hello', passed: true },
@@ -39,7 +39,7 @@ const RESULT_FULL = {
 const RESULT_PARTIAL = {
   timestamp: '2026-03-18T10:00:05.000Z',
   test_id: 'test-math',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 0.5,
   assertions: [
     { text: 'Correct formula', passed: true },
@@ -65,7 +65,7 @@ const RESULT_PARTIAL = {
 const RESULT_DIFFERENT_TARGET = {
   timestamp: '2026-03-18T10:00:10.000Z',
   test_id: 'test-greeting',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 0.75,
   assertions: [
     { text: 'Says hello', passed: true },
@@ -80,7 +80,7 @@ const RESULT_DIFFERENT_TARGET = {
 const RESULT_NO_TRACE = {
   timestamp: '2026-03-18T10:00:15.000Z',
   test_id: 'test-simple',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 1.0,
   assertions: [{ text: 'Correct', passed: true }],
   output: [{ role: 'assistant', content: 'Yes.' }],

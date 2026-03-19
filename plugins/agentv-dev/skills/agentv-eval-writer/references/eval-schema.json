@@ -6377,7 +6377,7 @@
                   "conversation_id": {
                     "type": "string"
                   },
-                  "dataset": {
+                  "eval_set": {
                     "type": "string"
                   },
                   "note": {
@@ -12678,7 +12678,7 @@
                   "conversation_id": {
                     "type": "string"
                   },
-                  "dataset": {
+                  "eval_set": {
                     "type": "string"
                   },
                   "note": {

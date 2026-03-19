@@ -1,4 +1,4 @@
-dataset: weighted-evaluators-examples
+name: weighted-evaluators-examples
 
 # This example demonstrates per-evaluator weights for top-level aggregation
 

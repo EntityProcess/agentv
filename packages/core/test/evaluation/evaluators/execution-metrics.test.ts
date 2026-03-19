@@ -7,7 +7,7 @@ import type { EvalTest, ExecutionMetricsEvaluatorConfig } from '../../../src/eva
 
 const baseTestCase: EvalTest = {
   id: 'metrics-test',
-  dataset: 'test',
+  eval_set: 'test',
   question: 'Test question',
   input: [{ role: 'user', content: 'Test' }],
   input_segments: [{ type: 'text', value: 'Test' }],

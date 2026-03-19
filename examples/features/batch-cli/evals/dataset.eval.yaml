@@ -6,6 +6,7 @@
 # - The CLI provider runs the batch runner once, producing JSONL output.
 # - output in JSONL are automatically converted to trace events for tool_trajectory evaluation.
 
+name: batch-cli
 description: Batch CLI demo (AML screening) using structured input → CSV → JSONL with trace extraction
 
 execution:

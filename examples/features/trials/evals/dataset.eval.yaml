@@ -1,6 +1,7 @@
 # AgentV Trial Strategy Example
 # Demonstrates execution.trials for handling LLM non-determinism
 
+name: trials
 description: Trial strategy example - pass@k with 2 trials
 
 execution:

@@ -16,7 +16,7 @@ import {
 const RESULT_WITH_TRACE = JSON.stringify({
   timestamp: '2026-02-20T21:38:05.833Z',
   test_id: 'test-1',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 1,
   assertions: [{ text: 'criterion-1', passed: true }],
   target: 'default',
@@ -34,7 +34,7 @@ const RESULT_WITH_TRACE = JSON.stringify({
 const RESULT_WITHOUT_TRACE = JSON.stringify({
   timestamp: '2026-02-20T21:38:06.000Z',
   test_id: 'test-2',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 0.75,
   assertions: [
     { text: 'criterion-1', passed: true },
@@ -46,7 +46,7 @@ const RESULT_WITHOUT_TRACE = JSON.stringify({
 const RESULT_FAILING = JSON.stringify({
   timestamp: '2026-02-20T21:38:07.000Z',
   test_id: 'test-3',
-  dataset: 'demo',
+  eval_set: 'demo',
   score: 0,
   assertions: [
     { text: 'criterion-1', passed: false },

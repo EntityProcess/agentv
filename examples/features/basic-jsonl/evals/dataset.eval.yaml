@@ -2,7 +2,7 @@
 # Tests are loaded from the JSONL file; this YAML provides shared configuration.
 
 description: JSONL version of the basic example - demonstrates file references, multi-turn, and per-case overrides
-dataset: basic-jsonl
+name: basic-jsonl
 
 execution:
   target: default

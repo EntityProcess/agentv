@@ -112,7 +112,7 @@ class CapturingCliProvider implements Provider {
 
 const baseTestCase: EvalTest = {
   id: 'case-1',
-  dataset: 'test-dataset',
+  eval_set: 'test-dataset',
   question: 'Explain logging improvements',
   input: [{ role: 'user', content: 'Explain logging improvements' }],
   input_segments: [{ type: 'text', value: 'Explain logging improvements' }],
@@ -420,7 +420,7 @@ describe('runTestCase', () => {
     const result = await runEvalCase({
       evalCase: {
         id: 'multi',
-        dataset: 'ds',
+        eval_set: 'ds',
         question: '',
         input: [
           { role: 'system', content: 'Guide' },
@@ -472,7 +472,7 @@ describe('runTestCase', () => {
     await runEvalCase({
       evalCase: {
         id: 'single',
-        dataset: 'ds',
+        eval_set: 'ds',
         question: '',
         input: [{ role: 'user', content: 'Hello' }],
         input_segments: [{ type: 'text', value: 'Hello' }],
@@ -581,7 +581,7 @@ class TraceProvider implements Provider {
 describe('runEvalCase trace integration', () => {
   const traceTestCase: EvalTest = {
     id: 'trace-case',
-    dataset: 'trace-dataset',
+    eval_set: 'trace-dataset',
     question: 'What is the weather?',
     input: [{ role: 'user', content: 'What is the weather?' }],
     input_segments: [{ type: 'text', value: 'What is the weather?' }],
@@ -1587,7 +1587,7 @@ rl.on('close', () => {
 describe('deterministic assertion evaluators in orchestrator', () => {
   const assertionTestCase: EvalTest = {
     id: 'assert-1',
-    dataset: 'test-dataset',
+    eval_set: 'test-dataset',
     question: 'Test question',
     input: [{ role: 'user', content: 'Test question' }],
     input_segments: [{ type: 'text', value: 'Test question' }],
@@ -1766,7 +1766,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
 describe('criteria with assert runs only declared evaluators (#452)', () => {
   const criteriaTestCase: EvalTest = {
     id: 'no-implicit-grader-1',
-    dataset: 'test-dataset',
+    eval_set: 'test-dataset',
     question: 'Test question',
     input: [{ role: 'user', content: 'Test question' }],
     input_segments: [{ type: 'text', value: 'Test question' }],
@@ -1869,7 +1869,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
 describe('required gates', () => {
   const assertionTestCase: EvalTest = {
     id: 'required-gate-1',
-    dataset: 'test-dataset',
+    eval_set: 'test-dataset',
     question: 'Test question',
     input: [{ role: 'user', content: 'Test question' }],
     input_segments: [{ type: 'text', value: 'Test question' }],

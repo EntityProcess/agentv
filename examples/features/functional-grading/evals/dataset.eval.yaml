@@ -10,6 +10,7 @@
 #
 # This pattern works for any language/framework: Python + pytest, Rust + cargo test, etc.
 
+name: functional-grading
 description: Functional grading with workspace_path — deploy-and-test pattern
 
 execution:

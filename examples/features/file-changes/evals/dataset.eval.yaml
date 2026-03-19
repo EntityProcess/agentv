@@ -9,6 +9,7 @@
 # Two tests each get their own fresh workspace copy, proving the feature
 # works independently across parallel eval runs.
 
+name: file-changes
 description: Verify file_changes captures edits, creates, and deletes across multiple tests
 
 execution:
