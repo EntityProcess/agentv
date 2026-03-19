@@ -25,7 +25,7 @@ class CapturingProvider implements Provider {
 
 const baseTestCase: EvalTest = {
   id: 'case-1',
-  dataset: 'test-dataset',
+  eval_set: 'test-dataset',
   question: 'Original Question Text',
   input: [{ role: 'user', content: 'User Input Message' }],
   input_segments: [{ type: 'text', value: 'Input Message' }],

@@ -42,7 +42,7 @@ export interface RawResult {
   timestamp?: string;
   test_id?: string;
   eval_id?: string;
-  dataset?: string;
+  eval_set?: string;
   conversation_id?: string;
   score: number;
   assertions?: { text: string; passed: boolean; evidence?: string }[];

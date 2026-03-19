@@ -81,7 +81,7 @@ describe('OtelStreamingObserver', () => {
     expect(spans[0].name).toBe('agentv.eval');
     expect(spans[0].attributes['agentv.test_id']).toBe('test-1');
     expect(spans[0].attributes['agentv.target']).toBe('my-target');
-    expect(spans[0].attributes['agentv.dataset']).toBe('my-dataset');
+    expect(spans[0].attributes['agentv.eval_set']).toBe('my-dataset');
     expect(spans[0].attributes['gen_ai.system']).toBe('agentv');
     expect(spans[0].ended).toBe(false);
   });

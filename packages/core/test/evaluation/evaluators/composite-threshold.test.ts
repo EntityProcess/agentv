@@ -12,7 +12,7 @@ import type { EvalTest, EvaluatorConfig } from '../../../src/evaluation/types.js
 
 const baseTestCase: EvalTest = {
   id: 'threshold-test',
-  dataset: 'test',
+  eval_set: 'test',
   question: 'Test question',
   input: [{ role: 'user', content: 'Test' }],
   input_segments: [{ type: 'text', value: 'Test' }],

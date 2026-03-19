@@ -82,7 +82,6 @@ type RawTestSuite = JsonObject & {
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
-  readonly dataset?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   /** @deprecated Use `assertions` instead */
@@ -254,12 +253,12 @@ async function loadTestsFromYaml(
   }
 
   const suite = interpolated as RawTestSuite;
-  const datasetNameFromSuite = asString(suite.dataset)?.trim();
-  const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, '') || 'eval';
-  const datasetName =
-    datasetNameFromSuite && datasetNameFromSuite.length > 0
-      ? datasetNameFromSuite
-      : fallbackDataset;
+  const evalSetNameFromSuite = asString(suite.name)?.trim();
+  const fallbackEvalSet = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, '') || 'eval';
+  const evalSetName =
+    evalSetNameFromSuite && evalSetNameFromSuite.length > 0
+      ? evalSetNameFromSuite
+      : fallbackEvalSet;
 
   const rawTestcases = resolveTests(suite);
 
@@ -469,7 +468,7 @@ async function loadTestsFromYaml(
 
     const testCase: EvalTest = {
       id,
-      dataset: datasetName,
+      eval_set: evalSetName,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,

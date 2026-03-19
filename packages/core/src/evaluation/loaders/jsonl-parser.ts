@@ -31,7 +31,7 @@ type LoadOptions = {
  */
 type SidecarMetadata = {
   readonly description?: string;
-  readonly dataset?: string;
+  readonly name?: string;
   readonly execution?: JsonObject;
   readonly evaluator?: JsonValue;
 };
@@ -91,7 +91,7 @@ async function loadSidecarMetadata(jsonlPath: string, verbose: boolean): Promise
 
     return {
       description: asString(parsed.description),
-      dataset: asString(parsed.dataset),
+      name: asString(parsed.name),
       execution: isJsonObject(parsed.execution) ? parsed.execution : undefined,
       evaluator: parsed.evaluator,
     };
@@ -151,10 +151,10 @@ export async function loadTestsFromJsonl(
   const rawFile = await readFile(absoluteTestPath, 'utf8');
   const rawCases = parseJsonlContent(rawFile, evalFilePath);
 
-  // Derive dataset name: sidecar > filename
-  const fallbackDataset = path.basename(absoluteTestPath, '.jsonl') || 'eval';
-  const datasetName =
-    sidecar.dataset && sidecar.dataset.trim().length > 0 ? sidecar.dataset : fallbackDataset;
+  // Derive eval set name: sidecar > filename
+  const fallbackEvalSet = path.basename(absoluteTestPath, '.jsonl') || 'eval';
+  const evalSetName =
+    sidecar.name && sidecar.name.trim().length > 0 ? sidecar.name : fallbackEvalSet;
 
   // Global defaults from sidecar
   const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm-grader';
@@ -163,7 +163,7 @@ export async function loadTestsFromJsonl(
   if (verbose) {
     console.log(`\n[JSONL Dataset: ${evalFilePath}]`);
     console.log(`  Cases: ${rawCases.length}`);
-    console.log(`  Dataset name: ${datasetName}`);
+    console.log(`  Eval set: ${evalSetName}`);
     if (sidecar.description) {
       console.log(`  Description: ${sidecar.description}`);
     }
@@ -294,7 +294,7 @@ export async function loadTestsFromJsonl(
 
     const testCase: EvalTest = {
       id,
-      dataset: datasetName,
+      eval_set: evalSetName,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,

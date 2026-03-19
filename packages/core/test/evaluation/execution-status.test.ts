@@ -40,7 +40,7 @@ class FixedResponseProvider implements Provider {
 
 const baseTestCase: EvalTest = {
   id: 'exec-status-1',
-  dataset: 'test-dataset',
+  eval_set: 'test-dataset',
   question: 'Explain logging improvements',
   input: [{ role: 'user', content: 'Explain logging improvements' }],
   input_segments: [{ type: 'text', value: 'Explain logging improvements' }],

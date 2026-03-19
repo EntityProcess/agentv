@@ -164,7 +164,7 @@ For large-scale evaluations, AgentV supports JSONL (JSON Lines) format as an alt
 Optional sidecar YAML metadata file (`dataset.eval.yaml` alongside `dataset.jsonl`):
 ```yaml
 description: Math evaluation dataset
-dataset: math-tests
+name: math-tests
 execution:
   target: azure-llm
 assertions:

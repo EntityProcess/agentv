@@ -1,6 +1,7 @@
 # AgentV Eval Schema Example
 # Demonstrates schema features with real file references and minimal redundancy
 
+name: basic
 description: Example showing basic features, conversation threading, multiple evaluators
 
 # File-level default target

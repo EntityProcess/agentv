@@ -190,7 +190,7 @@ export class OtelTraceExporter {
         // Core attributes
         rootSpan.setAttribute('agentv.test_id', result.testId);
         rootSpan.setAttribute('agentv.target', result.target);
-        if (result.dataset) rootSpan.setAttribute('agentv.dataset', result.dataset);
+        if (result.eval_set) rootSpan.setAttribute('agentv.eval_set', result.eval_set);
         rootSpan.setAttribute('agentv.score', result.score);
         if (captureContent && result.output.length > 0) {
           const lastMsg = result.output[result.output.length - 1];
@@ -430,14 +430,14 @@ export class OtelStreamingObserver {
   ) {}
 
   /** Create root eval span immediately (visible in backend right away) */
-  startEvalCase(testId: string, target: string, dataset?: string): void {
+  startEvalCase(testId: string, target: string, evalSet?: string): void {
     const ctx = this.parentCtx ?? this.api.context.active();
     this.rootSpan = this.tracer.startSpan('agentv.eval', undefined, ctx);
     this.rootSpan.setAttribute('gen_ai.operation.name', 'evaluate');
     this.rootSpan.setAttribute('gen_ai.system', 'agentv');
     this.rootSpan.setAttribute('agentv.test_id', testId);
     this.rootSpan.setAttribute('agentv.target', target);
-    if (dataset) this.rootSpan.setAttribute('agentv.dataset', dataset);
+    if (evalSet) this.rootSpan.setAttribute('agentv.eval_set', evalSet);
     this.rootCtx = this.api.trace.setSpan(this.api.context.active(), this.rootSpan);
   }
 

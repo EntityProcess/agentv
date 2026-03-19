@@ -795,7 +795,7 @@ export async function runEvaluation(
           const budgetResult: EvaluationResult = {
             timestamp: (now ?? (() => new Date()))().toISOString(),
             testId: evalCase.id,
-            dataset: evalCase.dataset,
+            eval_set: evalCase.eval_set,
             score: 0,
             assertions: [],
             output: [],
@@ -834,7 +834,7 @@ export async function runEvaluation(
           const haltResult: EvaluationResult = {
             timestamp: (now ?? (() => new Date()))().toISOString(),
             testId: evalCase.id,
-            dataset: evalCase.dataset,
+            eval_set: evalCase.eval_set,
             score: 0,
             assertions: [],
             output: [],
@@ -2038,7 +2038,7 @@ async function evaluateCandidate(options: {
   return {
     timestamp: completedAt.toISOString(),
     testId: evalCase.id,
-    dataset: evalCase.dataset,
+    eval_set: evalCase.eval_set,
     conversationId: evalCase.conversation_id,
     score: score.score,
     assertions: score.assertions,
@@ -2519,7 +2519,7 @@ function buildErrorResult(
   return {
     timestamp: timestamp.toISOString(),
     testId: evalCase.id,
-    dataset: evalCase.dataset,
+    eval_set: evalCase.eval_set,
     conversationId: evalCase.conversation_id,
     score: 0,
     assertions: [{ text: `Error: ${message}`, passed: false }],

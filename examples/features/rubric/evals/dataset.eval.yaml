@@ -1,6 +1,7 @@
 # AgentV Rubric Evaluator Example
 # Demonstrates the rubric-based evaluation feature using type: rubrics under assert
 
+name: rubric
 description: "Example showing rubric evaluator - string shorthand and type: rubrics"
 
 execution:
