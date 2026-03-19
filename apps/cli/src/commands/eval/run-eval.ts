@@ -612,7 +612,10 @@ async function runSingleEvalFile(params: {
   // Resolve workers: CLI flag > eval YAML execution.workers > target setting > default
   const workerPreference = workersOverride ?? options.workers;
   let resolvedWorkers =
-    workerPreference ?? yamlWorkers ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
+    workerPreference ??
+    yamlWorkers ??
+    resolvedTargetSelection.resolvedTarget.workers ??
+    DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }

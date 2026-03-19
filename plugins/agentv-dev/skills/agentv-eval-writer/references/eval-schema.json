@@ -3155,6 +3155,11 @@
                           "type": "string"
                         }
                       },
+                      "workers": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                      },
                       "assertions": {
                         "type": "array",
                         "items": {
@@ -9456,6 +9461,11 @@
                           "type": "string"
                         }
                       },
+                      "workers": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                      },
                       "assertions": {
                         "type": "array",
                         "items": {
@@ -12708,6 +12718,11 @@
               "items": {
                 "type": "string"
               }
+            },
+            "workers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
             },
             "assertions": {
               "type": "array",
