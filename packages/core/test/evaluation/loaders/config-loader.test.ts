@@ -382,34 +382,4 @@ describe('parseExecutionDefaults', () => {
     );
     expect(result).toEqual({ verbose: true });
   });
-
-  it('parses output_messages as integer', () => {
-    const result = parseExecutionDefaults({ output_messages: 5 }, '/test/config.yaml');
-    expect(result?.output_messages).toBe(5);
-  });
-
-  it('parses output_messages as "all"', () => {
-    const result = parseExecutionDefaults({ output_messages: 'all' }, '/test/config.yaml');
-    expect(result?.output_messages).toBe('all');
-  });
-
-  it('ignores invalid output_messages (zero)', () => {
-    const result = parseExecutionDefaults({ output_messages: 0 }, '/test/config.yaml');
-    expect(result).toBeUndefined();
-  });
-
-  it('ignores invalid output_messages (negative)', () => {
-    const result = parseExecutionDefaults({ output_messages: -1 }, '/test/config.yaml');
-    expect(result).toBeUndefined();
-  });
-
-  it('ignores invalid output_messages (non-integer)', () => {
-    const result = parseExecutionDefaults({ output_messages: 2.5 }, '/test/config.yaml');
-    expect(result).toBeUndefined();
-  });
-
-  it('ignores invalid output_messages (string other than "all")', () => {
-    const result = parseExecutionDefaults({ output_messages: 'some' }, '/test/config.yaml');
-    expect(result).toBeUndefined();
-  });
 });

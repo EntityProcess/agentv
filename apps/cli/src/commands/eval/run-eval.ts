@@ -140,22 +140,19 @@ function normalizeWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | 
 
 /**
  * Normalize --output-messages value. Accepts a number (>= 1) or "all".
- * CLI value takes precedence over YAML execution.output_messages.
  * Defaults to 1 (last assistant message only).
  */
-function normalizeOutputMessages(cliValue: string | undefined, yamlValue: unknown): number | 'all' {
-  // CLI takes precedence
-  const raw = cliValue ?? yamlValue;
-  if (raw === undefined || raw === null) {
+function normalizeOutputMessages(cliValue: string | undefined): number | 'all' {
+  if (cliValue === undefined) {
     return 1;
   }
-  if (raw === 'all') {
+  if (cliValue === 'all') {
     return 'all';
   }
-  const parsed = typeof raw === 'number' ? raw : Number.parseInt(String(raw), 10);
+  const parsed = Number.parseInt(cliValue, 10);
   if (Number.isNaN(parsed) || !Number.isInteger(parsed) || parsed < 1) {
     console.warn(
-      `Warning: Invalid --output-messages value '${raw}'. Must be a positive integer or 'all'. Defaulting to 1.`,
+      `Warning: Invalid --output-messages value '${cliValue}'. Must be a positive integer or 'all'. Defaulting to 1.`,
     );
     return 1;
   }
@@ -308,10 +305,7 @@ function normalizeOptions(
     artifacts: normalizeString(rawOptions.artifacts),
     graderTarget: normalizeString(rawOptions.graderTarget),
     model: normalizeString(rawOptions.model),
-    outputMessages: normalizeOutputMessages(
-      normalizeString(rawOptions.outputMessages),
-      yamlExecutionRecord?.output_messages,
-    ),
+    outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
   } satisfies NormalizedOptions;
 }
 
