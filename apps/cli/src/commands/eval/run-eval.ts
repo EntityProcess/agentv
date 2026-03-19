@@ -622,9 +622,14 @@ async function runSingleEvalFile(params: {
       // Finalize streaming observer span with score
       streamingObserver?.finalizeEvalCase(result.score, result.error);
 
-      // Strip output from result before writing to avoid bloating results JSONL
-      const { output: _, ...resultWithoutTrace } = result;
-      await outputWriter.append(resultWithoutTrace as EvaluationResult);
+      // Trim output to last assistant message (role + content only) for results JSONL.
+      // Full output with tool calls goes to OTel.
+      const lastAssistant = result.output.filter((m) => m.role === 'assistant').at(-1);
+      const trimmedResult: EvaluationResult = {
+        ...result,
+        output: lastAssistant ? [{ role: lastAssistant.role, content: lastAssistant.content }] : [],
+      };
+      await outputWriter.append(trimmedResult);
 
       // Export to OTel if exporter is configured (skip batch export when streaming is active)
       if (otelExporter && !streamingObserver) {
