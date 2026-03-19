@@ -50,9 +50,7 @@ function collectInputFiles(inputFiles: readonly string[] | undefined): string[] 
   return Array.from(unique.values());
 }
 
-function buildMandatoryPrereadBlock(
-  inputFiles: readonly string[],
-): string {
+function buildMandatoryPrereadBlock(inputFiles: readonly string[]): string {
   if (inputFiles.length === 0) {
     return '';
   }

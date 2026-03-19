@@ -66,12 +66,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
       }
     }
 
-    const allowedFields = new Set([
-      '$schema',
-      'eval_patterns',
-      'required_version',
-      'execution',
-    ]);
+    const allowedFields = new Set(['$schema', 'eval_patterns', 'required_version', 'execution']);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
 
     if (unexpectedFields.length > 0) {

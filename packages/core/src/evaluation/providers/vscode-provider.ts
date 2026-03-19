@@ -272,9 +272,7 @@ function buildPromptDocument(
   return parts.join('\n').trim();
 }
 
-function buildMandatoryPrereadBlock(
-  attachmentFiles: readonly string[],
-): string {
+function buildMandatoryPrereadBlock(attachmentFiles: readonly string[]): string {
   if (attachmentFiles.length === 0) {
     return '';
   }

@@ -343,7 +343,6 @@ describe('loadTests with format detection', () => {
 
     await expect(loadTests(txtPath, tempDir)).rejects.toThrow('Unsupported file format');
   });
-
 });
 
 describe('JSONL and YAML produce equivalent EvalTests', () => {

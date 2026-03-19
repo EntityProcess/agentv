@@ -22,14 +22,7 @@ type ProcessMessagesOptions = {
  * Process message content into structured segments with file resolution.
  */
 export async function processMessages(options: ProcessMessagesOptions): Promise<JsonObject[]> {
-  const {
-    messages,
-    searchRoots,
-    repoRootPath,
-    textParts,
-    messageType,
-    verbose,
-  } = options;
+  const { messages, searchRoots, repoRootPath, textParts, messageType, verbose } = options;
 
   const segments: JsonObject[] = [];
 

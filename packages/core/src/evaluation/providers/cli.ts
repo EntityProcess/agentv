@@ -694,10 +694,7 @@ export class CliProvider implements Provider {
 }
 
 async function buildTemplateValues(
-  request: Pick<
-    ProviderRequest,
-    'question' | 'inputFiles' | 'evalCaseId' | 'attempt'
-  >,
+  request: Pick<ProviderRequest, 'question' | 'inputFiles' | 'evalCaseId' | 'attempt'>,
   config: CliResolvedConfig,
   outputFilePath: string,
 ): Promise<{ values: Record<string, string>; promptFilePath: string }> {

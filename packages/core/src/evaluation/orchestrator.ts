@@ -2252,9 +2252,7 @@ async function runEvaluatorList(options: {
   };
 
   // Build the dispatch context for evaluator factories
-  const evalFileDir = evalCase.file_paths[0]
-    ? path.dirname(evalCase.file_paths[0])
-    : process.cwd();
+  const evalFileDir = evalCase.file_paths[0] ? path.dirname(evalCase.file_paths[0]) : process.cwd();
   const dispatchContext: import('./registry/evaluator-registry.js').EvaluatorDispatchContext = {
     graderProvider,
     targetResolver,

@@ -1,11 +1,7 @@
 import type { ChatMessageRole, ChatPrompt } from '../providers/types.js';
 import type { EvalTest, JsonObject, TestMessage } from '../types.js';
 import { isJsonObject } from '../types.js';
-import {
-  type FormattingMode,
-  formatSegment,
-  hasVisibleContent,
-} from './segment-formatter.js';
+import { type FormattingMode, formatSegment, hasVisibleContent } from './segment-formatter.js';
 
 /**
  * Build prompt inputs by consolidating user request context.
@@ -180,12 +176,7 @@ function buildChatPromptFromSegments(options: {
   readonly systemPrompt?: string;
   readonly mode?: FormattingMode;
 }): ChatPrompt | undefined {
-  const {
-    messages,
-    segmentsByMessage,
-    systemPrompt,
-    mode = 'lm',
-  } = options;
+  const { messages, segmentsByMessage, systemPrompt, mode = 'lm' } = options;
 
   if (messages.length === 0) {
     return undefined;
@@ -265,4 +256,3 @@ function buildChatPromptFromSegments(options: {
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
-
