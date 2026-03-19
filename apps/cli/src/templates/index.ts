@@ -11,6 +11,15 @@ export function getAgentvTemplates(): Template[] {
   return getTemplatesFromDir('.agentv');
 }
 
+export function getEnvExampleTemplate(): Template {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const templatesBase = currentDir.includes(`${path.sep}dist`)
+    ? path.join(currentDir, 'templates')
+    : currentDir;
+  const content = readFileSync(path.join(templatesBase, '.env.example'), 'utf-8');
+  return { path: '.env.example', content };
+}
+
 function getTemplatesFromDir(subdir: string): Template[] {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
