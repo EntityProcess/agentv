@@ -84,10 +84,11 @@ export class CopilotCliProvider implements Provider {
     let tokenUsage: ProviderTokenUsage | undefined;
     let costUsd: number | undefined;
 
-    // Character counters for estimating input/output token split.
-    // ACP usage_update only reports cumulative context window tokens (`used`),
-    // not separate input/output counts. We track chars flowing in each direction
-    // and pro-rata the total to estimate the split. See #683.
+    // Character counters for estimating token usage. Copilot CLI does not
+    // currently emit usage_update events via ACP (events are marked ephemeral
+    // internally — see github/copilot-cli#1152). When usage_update IS received,
+    // we use it directly with a char-based output estimation. Otherwise, we
+    // estimate both input and output from observed character counts. See #683.
     let inputChars = 0;
     let outputChars = 0;
 
@@ -188,10 +189,10 @@ export class CopilotCliProvider implements Provider {
         if (sessionUpdate === 'usage_update') {
           // ACP UsageUpdate provides { size, used, cost? } where `used` is cumulative
           // context window tokens — it does NOT separate input vs output tokens.
-          // We estimate the split by pro-rating `used` based on observed char counts
-          // flowing in each direction. See #683.
+          // We estimate output tokens from observed output chars and attribute the
+          // remainder to input. See #683.
           const used: number = update.used ?? 0;
-          tokenUsage = estimateTokenSplit(used, inputChars, outputChars);
+          tokenUsage = estimateTokenSplit(used, outputChars);
           // Cost may arrive across multiple events — accumulate
           if (update.cost && update.cost.currency === 'USD') {
             costUsd = (costUsd ?? 0) + update.cost.amount;
@@ -231,7 +232,7 @@ export class CopilotCliProvider implements Provider {
       }
       promptMessages.push({ type: 'text', text: prompt });
 
-      // Count prompt chars as input for token split estimation
+      // Count prompt chars as input for token estimation
       for (const msg of promptMessages) {
         inputChars += msg.text.length;
       }
@@ -258,6 +259,14 @@ export class CopilotCliProvider implements Provider {
 
       const endTime = new Date().toISOString();
       const durationMs = Date.now() - startMs;
+
+      // If no usage_update was received (copilot CLI currently doesn't emit
+      // them via ACP — see github/copilot-cli#1152), estimate token usage from
+      // observed character counts using a ~4 chars/token heuristic.
+      if (!tokenUsage && (inputChars > 0 || outputChars > 0)) {
+        tokenUsage = estimateTokensFromChars(inputChars, outputChars);
+        request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
+      }
 
       // Detect rejected tool calls — copilot's permission system blocked a tool
       const rejectedCalls = completedToolCalls.filter((tc) => {
@@ -493,7 +502,6 @@ Fix options:
 
 /**
  * Estimate the character length of an unknown value (tool result payload).
- * Uses JSON.stringify for objects, String() for primitives. Returns 0 for nullish.
  */
 function charLength(value: unknown): number {
   if (value == null) return 0;
@@ -508,25 +516,32 @@ function charLength(value: unknown): number {
 /**
  * Estimate input/output token split from cumulative context window usage.
  *
- * ACP's `usage_update` only reports total `used` tokens. We pro-rata this
- * based on the ratio of characters observed flowing as input (prompt + tool
- * results) vs output (agent message chunks). This is approximate — char-to-token
- * ratios vary — but far better than reporting output as 0.
- *
- * When no chars have been observed yet, all tokens are attributed to input.
+ * Used when copilot CLI emits usage_update events. The `used` value is the
+ * total context window, so we estimate output tokens from observed output
+ * chars and attribute the remainder to input.
  */
-function estimateTokenSplit(
-  used: number,
-  inputChars: number,
-  outputChars: number,
-): ProviderTokenUsage {
-  const totalChars = inputChars + outputChars;
-  if (totalChars === 0 || outputChars === 0) {
+function estimateTokenSplit(used: number, outputChars: number): ProviderTokenUsage {
+  if (outputChars === 0) {
     return { input: used, output: 0 };
   }
-  const outputRatio = outputChars / totalChars;
-  const estimatedOutput = Math.round(used * outputRatio);
-  return { input: used - estimatedOutput, output: estimatedOutput };
+  const estimatedOutput = Math.max(1, Math.round(outputChars / 4));
+  const output = Math.min(estimatedOutput, used);
+  return { input: used - output, output };
+}
+
+/**
+ * Estimate token usage purely from character counts when no usage_update
+ * event was received. Uses ~4 chars/token heuristic for English/code.
+ *
+ * Copilot CLI currently does not emit usage_update events via ACP (they are
+ * marked ephemeral internally — see github/copilot-cli#1152). This provides
+ * approximate token counts so eval results aren't completely missing them.
+ */
+function estimateTokensFromChars(inputChars: number, outputChars: number): ProviderTokenUsage {
+  return {
+    input: Math.max(1, Math.round(inputChars / 4)),
+    output: Math.max(0, Math.round(outputChars / 4)),
+  };
 }
 
 function summarizeAcpEvent(eventType: string, data: unknown): string | undefined {
