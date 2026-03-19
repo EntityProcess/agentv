@@ -6,7 +6,6 @@ import { parse as parseYaml } from 'yaml';
 import { interpolateEnv } from '../interpolation.js';
 import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
-import { loadConfig } from './config-loader.js';
 import {
   coerceEvaluator,
   parseEvaluators,
@@ -145,9 +144,6 @@ export async function loadTestsFromJsonl(
   const searchRoots = buildSearchRoots(absoluteTestPath, repoRootPath);
 
   // Load configuration (walks up directory tree to repo root)
-  const config = await loadConfig(absoluteTestPath, repoRootPath);
-  const guidelinePatterns = config?.guideline_patterns;
-
   // Load sidecar metadata
   const sidecar = await loadSidecarMetadata(absoluteTestPath, verbose);
 
@@ -214,16 +210,13 @@ export async function loadTestsFromJsonl(
     // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
 
-    const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
-    // Process all input messages to extract files and guidelines
+    // Process all input messages to extract files
     const inputSegments = await processMessages({
       messages: inputMessages,
       searchRoots,
       repoRootPath,
-      guidelinePatterns,
-      guidelinePaths,
       textParts: inputTextParts,
       messageType: 'input',
       verbose,
@@ -291,19 +284,13 @@ export async function loadTestsFromJsonl(
 
     warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
-    // Extract file paths from all input segments (non-guideline files)
+    // Extract file paths from all input segments
     const userFilePaths: string[] = [];
     for (const segment of inputSegments) {
       if (segment.type === 'file' && typeof segment.resolvedPath === 'string') {
         userFilePaths.push(segment.resolvedPath);
       }
     }
-
-    // Combine all file paths (guidelines + regular files)
-    const allFilePaths = [
-      ...guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
-      ...userFilePaths,
-    ];
 
     const testCase: EvalTest = {
       id,
@@ -314,27 +301,11 @@ export async function loadTestsFromJsonl(
       input_segments: inputSegments,
       expected_output: outputSegments,
       reference_answer: referenceAnswer,
-      guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
-      guideline_patterns: guidelinePatterns,
-      file_paths: allFilePaths,
+      file_paths: userFilePaths,
       criteria: outcome ?? '',
       evaluator: evalCaseEvaluatorKind,
       assertions: evaluators,
     };
-
-    if (verbose) {
-      console.log(`\n[Test: ${id}]`);
-      if (testCase.guideline_paths.length > 0) {
-        console.log(`  Guidelines used: ${testCase.guideline_paths.length}`);
-        for (const guidelinePath of testCase.guideline_paths) {
-          console.log(`    - ${guidelinePath}`);
-        }
-      } else if (!guidelinePatterns || guidelinePatterns.length === 0) {
-        console.log('  No guidelines found (guideline_patterns not configured)');
-      } else {
-        console.log('  No guidelines found');
-      }
-    }
 
     results.push(testCase);
   }

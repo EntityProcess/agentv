@@ -110,7 +110,6 @@ describe('agentv prompt eval CLI', () => {
       expect(JSON.parse(result.stdout)).toEqual({
         test_id: 'greeting-test',
         input: [{ role: 'user', content: 'Say hello to Taylor.' }],
-        guideline_paths: [],
         criteria: 'Assistant greets the user by name',
       });
     } finally {

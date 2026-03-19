@@ -281,8 +281,6 @@ function buildAnthropicProviderOptions(
   };
 }
 
-// When chatPrompt is provided, guidelines are intentionally excluded (includeGuidelines: false)
-// because they've already been merged into the system message during prompt building.
 function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   const provided = request.chatPrompt?.length ? request.chatPrompt : undefined;
   if (provided) {
@@ -291,11 +289,11 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
       return provided;
     }
 
-    const systemContent = resolveSystemContent(request, false);
+    const systemContent = resolveSystemContent(request);
     return [{ role: 'system', content: systemContent }, ...provided];
   }
 
-  const systemContent = resolveSystemContent(request, true);
+  const systemContent = resolveSystemContent(request);
   const userContent = request.question.trim();
 
   const prompt: ChatPrompt = [
@@ -306,17 +304,13 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   return prompt;
 }
 
-function resolveSystemContent(request: ProviderRequest, includeGuidelines: boolean): string {
+function resolveSystemContent(request: ProviderRequest): string {
   const systemSegments: string[] = [];
 
   if (request.systemPrompt && request.systemPrompt.trim().length > 0) {
     systemSegments.push(request.systemPrompt.trim());
   } else {
     systemSegments.push(DEFAULT_SYSTEM_PROMPT);
-  }
-
-  if (includeGuidelines && request.guidelines && request.guidelines.trim().length > 0) {
-    systemSegments.push(`[[ ## Guidelines ## ]]\n\n${request.guidelines.trim()}`);
   }
 
   return systemSegments.join('\n\n');

@@ -12,7 +12,7 @@ function fileName(path: string): string {
   return parts[parts.length - 1] ?? path;
 }
 
-export default defineCodeGrader(({ expectedOutput, outputText, guidelineFiles, inputFiles }) => {
+export default defineCodeGrader(({ expectedOutput, outputText, inputFiles }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Check if candidate matches expected message
@@ -29,7 +29,7 @@ export default defineCodeGrader(({ expectedOutput, outputText, guidelineFiles, i
   }
 
   // Check if attachments are mentioned
-  const attachmentNames = [...guidelineFiles, ...inputFiles].map(fileName);
+  const attachmentNames = inputFiles.map(fileName);
   for (const name of attachmentNames) {
     if (outputText.includes(name)) {
       assertions.push({ text: `Mentions attachment: ${name}`, passed: true });

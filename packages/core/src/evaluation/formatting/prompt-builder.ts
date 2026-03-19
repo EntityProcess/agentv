@@ -1,33 +1,19 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
-import { isGuidelineFile } from '../loaders/config-loader.js';
-import { fileExists } from '../loaders/file-resolver.js';
 import type { ChatMessageRole, ChatPrompt } from '../providers/types.js';
 import type { EvalTest, JsonObject, TestMessage } from '../types.js';
 import { isJsonObject } from '../types.js';
-import {
-  type FormattingMode,
-  formatFileContents,
-  formatSegment,
-  hasVisibleContent,
-} from './segment-formatter.js';
-
-const ANSI_YELLOW = '\u001b[33m';
-const ANSI_RESET = '\u001b[0m';
+import { type FormattingMode, formatSegment, hasVisibleContent } from './segment-formatter.js';
 
 /**
- * Build prompt inputs by consolidating user request context and guideline content.
+ * Build prompt inputs by consolidating user request context.
  */
 export interface PromptInputs {
   readonly question: string;
-  readonly guidelines: string;
   readonly chatPrompt?: ChatPrompt;
   readonly systemMessage?: string;
 }
 
 /**
- * Build prompt inputs by consolidating user request context and guideline content.
+ * Build prompt inputs by consolidating user request context.
  *
  * @param testCase - The evaluation test case
  * @param mode - Formatting mode: 'agent' for file references, 'lm' for embedded content (default: 'lm')
@@ -36,28 +22,6 @@ export async function buildPromptInputs(
   testCase: EvalTest,
   mode: FormattingMode = 'lm',
 ): Promise<PromptInputs> {
-  const guidelineParts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
-  for (const rawPath of testCase.guideline_paths) {
-    const absolutePath = path.resolve(rawPath);
-    if (!(await fileExists(absolutePath))) {
-      logWarning(`Could not read guideline file ${absolutePath}: file does not exist`);
-      continue;
-    }
-
-    try {
-      const content = (await readFile(absolutePath, 'utf8')).replace(/\r\n/g, '\n').trim();
-      guidelineParts.push({
-        content,
-        isFile: true,
-        displayPath: path.basename(absolutePath),
-      });
-    } catch (error) {
-      logWarning(`Could not read guideline file ${absolutePath}: ${(error as Error).message}`);
-    }
-  }
-
-  const guidelines = formatFileContents(guidelineParts);
-
   // Build segments per message to determine if role markers are needed
   const segmentsByMessage: JsonObject[][] = [];
   const fileContentsByPath = new Map<string, string>();
@@ -90,16 +54,6 @@ export async function buildPromptInputs(
           if (type === 'file') {
             const value = asString(segment.value);
             if (!value) continue;
-
-            // Check if this is a guideline file (extracted separately)
-            if (
-              testCase.guideline_patterns &&
-              isGuidelineFile(value, testCase.guideline_patterns)
-            ) {
-              // Reference marker only - actual content is in guidelines field
-              messageSegments.push({ type: 'guideline_ref', path: value });
-              continue;
-            }
 
             // Find the file content from input_segments
             const fileText = fileContentsByPath.get(value);
@@ -163,18 +117,6 @@ export async function buildPromptInputs(
     // Single-turn flat format
     const questionParts: string[] = [];
     for (const segment of testCase.input_segments) {
-      // Skip guideline files - they're in the guidelines field
-      if (
-        segment.type === 'file' &&
-        typeof segment.path === 'string' &&
-        testCase.guideline_patterns &&
-        isGuidelineFile(segment.path, testCase.guideline_patterns)
-      ) {
-        // Add reference marker for guideline files
-        questionParts.push(`<Attached: ${segment.path}>`);
-        continue;
-      }
-
       const formattedContent = formatSegment(segment, mode);
       if (formattedContent) {
         questionParts.push(formattedContent);
@@ -191,15 +133,13 @@ export async function buildPromptInputs(
     ? buildChatPromptFromSegments({
         messages: testCase.input,
         segmentsByMessage,
-        guidelinePatterns: testCase.guideline_patterns,
-        guidelineContent: guidelines,
         mode,
       })
     : undefined;
 
   // Both question (flat string) and chatPrompt (structured messages) are returned:
   // chatPrompt is used for the API call, question is retained for logging/debugging.
-  return { question, guidelines, chatPrompt };
+  return { question, chatPrompt };
 }
 
 /**
@@ -233,19 +173,10 @@ function needsRoleMarkers(
 function buildChatPromptFromSegments(options: {
   readonly messages: readonly TestMessage[];
   readonly segmentsByMessage: readonly JsonObject[][];
-  readonly guidelinePatterns?: readonly string[];
-  readonly guidelineContent?: string;
   readonly systemPrompt?: string;
   readonly mode?: FormattingMode;
 }): ChatPrompt | undefined {
-  const {
-    messages,
-    segmentsByMessage,
-    guidelinePatterns,
-    guidelineContent,
-    systemPrompt,
-    mode = 'lm',
-  } = options;
+  const { messages, segmentsByMessage, systemPrompt, mode = 'lm' } = options;
 
   if (messages.length === 0) {
     return undefined;
@@ -255,10 +186,6 @@ function buildChatPromptFromSegments(options: {
 
   if (systemPrompt && systemPrompt.trim().length > 0) {
     systemSegments.push(systemPrompt.trim());
-  }
-
-  if (guidelineContent && guidelineContent.trim().length > 0) {
-    systemSegments.push(`[[ ## Guidelines ## ]]\n\n${guidelineContent.trim()}`);
   }
 
   let startIndex = 0;
@@ -305,21 +232,8 @@ function buildChatPromptFromSegments(options: {
     }
 
     for (const segment of segments) {
-      if (segment.type === 'guideline_ref') {
-        continue;
-      }
       const formatted = formatSegment(segment, mode);
       if (formatted) {
-        const isGuidelineRef =
-          segment.type === 'file' &&
-          typeof segment.path === 'string' &&
-          guidelinePatterns &&
-          isGuidelineFile(segment.path, guidelinePatterns);
-
-        if (isGuidelineRef) {
-          continue;
-        }
-
         contentParts.push(formatted);
       }
     }
@@ -341,8 +255,4 @@ function buildChatPromptFromSegments(options: {
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
-}
-
-function logWarning(message: string): void {
-  console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
 }

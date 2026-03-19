@@ -31,7 +31,7 @@ export type ProviderKind =
   | 'agentv';
 
 /**
- * Agent providers that have filesystem access and don't need unwrapped guidelines.
+ * Agent providers that have filesystem access.
  * These providers read files directly from the filesystem using file:// URIs.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
@@ -113,8 +113,6 @@ export interface ProviderStreamCallbacks {
 export interface ProviderRequest {
   readonly question: string;
   readonly systemPrompt?: string;
-  readonly guidelines?: string;
-  readonly guideline_patterns?: readonly string[];
   readonly chatPrompt?: ChatPrompt;
   readonly inputFiles?: readonly string[];
   readonly evalCaseId?: string;
@@ -240,7 +238,7 @@ export function extractLastAssistantContent(messages: readonly Message[] | undef
 
 /**
  * Type guard to check if a provider is an agent provider with filesystem access.
- * Agent providers read files directly and don't need unwrapped guideline content.
+ * Agent providers read files directly from the filesystem.
  */
 export function isAgentProvider(provider: Provider | undefined): boolean {
   return provider ? AGENT_PROVIDER_KINDS.includes(provider.kind) : false;

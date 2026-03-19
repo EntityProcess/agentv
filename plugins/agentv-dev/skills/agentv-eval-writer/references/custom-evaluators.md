@@ -10,7 +10,6 @@
   "criteria": "string",
   "reference_answer": "string",
   "answer": "string",
-  "guideline_files": ["path"],
   "input_files": ["path"],
   "input": [{"role": "user", "content": "..."}],
   "expected_output": [{"role": "assistant", "content": "..."}],

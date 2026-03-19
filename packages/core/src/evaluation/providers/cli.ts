@@ -337,7 +337,6 @@ export class CliProvider implements Provider {
     const { values: templateValues, promptFilePath } = await buildTemplateValues(
       {
         question: '',
-        guidelines: '',
         inputFiles: batchInputFiles,
         evalCaseId: 'batch',
         attempt: 0,
@@ -657,7 +656,6 @@ export class CliProvider implements Provider {
     const { values: templateValues, promptFilePath } = await buildTemplateValues(
       {
         question: '',
-        guidelines: '',
         inputFiles: [],
         evalCaseId: 'healthcheck',
         attempt: 0,
@@ -696,10 +694,7 @@ export class CliProvider implements Provider {
 }
 
 async function buildTemplateValues(
-  request: Pick<
-    ProviderRequest,
-    'question' | 'guidelines' | 'inputFiles' | 'evalCaseId' | 'attempt'
-  >,
+  request: Pick<ProviderRequest, 'question' | 'inputFiles' | 'evalCaseId' | 'attempt'>,
   config: CliResolvedConfig,
   outputFilePath: string,
 ): Promise<{ values: Record<string, string>; promptFilePath: string }> {
@@ -711,7 +706,6 @@ async function buildTemplateValues(
     values: {
       PROMPT: shellEscape(request.question ?? ''),
       PROMPT_FILE: shellEscape(promptFilePath),
-      GUIDELINES: shellEscape(request.guidelines ?? ''),
       EVAL_ID: shellEscape(request.evalCaseId ?? ''),
       ATTEMPT: shellEscape(String(request.attempt ?? 0)),
       FILES: formatFileList(inputFiles, config.filesFormat),

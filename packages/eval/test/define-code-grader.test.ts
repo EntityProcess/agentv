@@ -15,7 +15,6 @@ describe('CodeGraderInputSchema', () => {
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
     outputText: 'The answer is 4',
-    guidelineFiles: [],
     inputFiles: [],
     input: [{ role: 'user', content: 'What is 2+2?' }],
   };
@@ -178,7 +177,6 @@ describe('CodeJudgeInputSchema (backward-compat alias)', () => {
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
       outputText: 'The answer is 4',
-      guidelineFiles: [],
       inputFiles: [],
       input: [{ role: 'user', content: 'What is 2+2?' }],
     };

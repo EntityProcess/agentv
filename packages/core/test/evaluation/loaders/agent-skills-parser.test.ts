@@ -145,9 +145,8 @@ describe('parseAgentSkillsEvals', () => {
     );
   });
 
-  it('initializes empty arrays for guideline_paths and file_paths when no baseDir', () => {
+  it('initializes empty arrays for file_paths when no baseDir', () => {
     const tests = parseAgentSkillsEvals(FIXTURE);
-    expect(tests[0].guideline_paths).toEqual([]);
     expect(tests[0].file_paths).toEqual([]);
   });
 

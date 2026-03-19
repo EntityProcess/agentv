@@ -14,18 +14,6 @@
       "description": "Minimum AgentV version required to run this project's evals. Uses semver range syntax (e.g., '>=2.11.0', '^2.11.0'). When the installed version is below the range, AgentV warns and prompts to update.",
       "examples": [">=2.11.0", "^2.12.0", ">=2.11.0 <3.0.0"]
     },
-    "guideline_patterns": {
-      "type": "array",
-      "description": "Glob patterns for identifying guideline files (instructions, prompts). Files matching these patterns are treated as guidelines, while non-matching files are treated as regular file content.",
-      "items": {
-        "type": "string",
-        "description": "Glob pattern (e.g., '**/*.instructions.md', '**/prompts/**')"
-      },
-      "examples": [
-        ["**/*.instructions.md", "**/instructions/**", "**/*.prompt.md", "**/prompts/**"],
-        ["**/*.guide.md", "**/guidelines/**", "docs/AGENTS.md"]
-      ]
-    },
     "eval_patterns": {
       "type": "array",
       "description": "Glob patterns for discovering eval files during interactive mode (`agentv eval` with no args). Defaults to ['**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml'] if not specified.",

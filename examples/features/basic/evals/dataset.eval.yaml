@@ -38,7 +38,6 @@ tests:
               }
               ```
           # File references are resolved relative to the eval file directory
-          # Files ending in .instructions.md are treated as guidelines
           - type: file
             value: javascript.instructions.md
     

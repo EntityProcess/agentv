@@ -11,7 +11,7 @@ function makeContext(overrides: Record<string, any> = {}): EvaluationContext {
     target: { name: 'test-target' },
     provider: { kind: 'claude-cli', targetName: 'test' },
     attempt: 1,
-    promptInputs: { question: 'test', guidelines: '' },
+    promptInputs: { question: 'test' },
     now: new Date(),
     ...overrides,
     // biome-ignore lint/suspicious/noExplicitAny: partial context for tests

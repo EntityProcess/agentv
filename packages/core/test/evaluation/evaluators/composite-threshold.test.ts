@@ -18,7 +18,6 @@ const baseTestCase: EvalTest = {
   input_segments: [{ type: 'text', value: 'Test' }],
   expected_output: [],
   reference_answer: '',
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Test outcome',
 };
@@ -43,7 +42,7 @@ function createContext(): EvaluationContext {
     target: baseTarget,
     provider: baseMockProvider,
     attempt: 0,
-    promptInputs: { question: '', guidelines: '' },
+    promptInputs: { question: '' },
     now: new Date(),
   };
 }

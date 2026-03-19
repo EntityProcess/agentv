@@ -332,8 +332,6 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         input_segments: inputSegments,
         expected_output: expectedOutput,
         reference_answer: expectedOutputValue,
-        guideline_paths: [],
-        guideline_patterns: [],
         file_paths: [],
         assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
         metadata: test.metadata,

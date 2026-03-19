@@ -152,7 +152,7 @@ function buildEvalTest(raw: RawResult): EvalTest {
     input: [],
     input_segments: [],
     expected_output: [],
-    guideline_paths: [],
+
     file_paths: [],
     criteria: '',
   };
@@ -217,7 +217,7 @@ async function runScore(
       target: { kind: 'custom' as const, name: raw.target ?? 'unknown', config: {} } as never,
       provider: stubProvider,
       attempt: 1,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       output: Array.isArray(output) ? output : undefined,
       trace,

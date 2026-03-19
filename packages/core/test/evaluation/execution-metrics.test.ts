@@ -249,7 +249,6 @@ describe('Code Grader Metrics Integration', () => {
     input_segments: [{ type: 'text', value: 'Test' }],
     expected_output: [],
     reference_answer: '',
-    guideline_paths: [],
     file_paths: [],
     criteria: 'Test outcome',
     evaluator: 'code-grader',
@@ -279,7 +278,7 @@ describe('Code Grader Metrics Integration', () => {
       candidate: 'Test answer',
       target: baseTarget,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       trace,
       tokenUsage: { input: 1000, output: 500 },
@@ -312,7 +311,7 @@ describe('Code Grader Metrics Integration', () => {
       candidate: 'Test answer',
       target: baseTarget,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       // No trace provided
     });

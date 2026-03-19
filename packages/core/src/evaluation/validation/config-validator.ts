@@ -25,33 +25,6 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
 
     const config = parsed as Record<string, unknown>;
 
-    // Validate guideline_patterns if present
-    const guidelinePatterns = config.guideline_patterns;
-    if (guidelinePatterns !== undefined) {
-      if (!Array.isArray(guidelinePatterns)) {
-        errors.push({
-          severity: 'error',
-          filePath,
-          location: 'guideline_patterns',
-          message: "Field 'guideline_patterns' must be an array",
-        });
-      } else if (!guidelinePatterns.every((p) => typeof p === 'string')) {
-        errors.push({
-          severity: 'error',
-          filePath,
-          location: 'guideline_patterns',
-          message: "All entries in 'guideline_patterns' must be strings",
-        });
-      } else if (guidelinePatterns.length === 0) {
-        errors.push({
-          severity: 'warning',
-          filePath,
-          location: 'guideline_patterns',
-          message: "Field 'guideline_patterns' is empty. Consider removing it or adding patterns.",
-        });
-      }
-    }
-
     // Validate eval_patterns if present
     const evalPatterns = config.eval_patterns;
     if (evalPatterns !== undefined) {
@@ -93,13 +66,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
       }
     }
 
-    const allowedFields = new Set([
-      '$schema',
-      'guideline_patterns',
-      'eval_patterns',
-      'required_version',
-      'execution',
-    ]);
+    const allowedFields = new Set(['$schema', 'eval_patterns', 'required_version', 'execution']);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
 
     if (unexpectedFields.length > 0) {

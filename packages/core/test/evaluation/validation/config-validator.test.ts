@@ -22,8 +22,6 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `required_version: ">=3.1.0"
-guideline_patterns:
-  - "**/*.instructions.md"
 `,
     );
 

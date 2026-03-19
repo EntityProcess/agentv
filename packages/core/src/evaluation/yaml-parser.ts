@@ -58,7 +58,6 @@ export {
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractTrialsConfig,
-  isGuidelineFile,
   loadConfig,
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig, ExecutionDefaults } from './loaders/config-loader.js';
@@ -247,7 +246,6 @@ async function loadTestsFromYaml(
 
   // Load configuration (walks up directory tree to repo root)
   const config = await loadConfig(absoluteTestPath, repoRootPath);
-  const guidelinePatterns = config?.guideline_patterns;
 
   const rawFile = await readFile(absoluteTestPath, 'utf8');
   const interpolated = interpolateEnv(parse(rawFile), process.env) as unknown;
@@ -366,31 +364,25 @@ async function loadTestsFromYaml(
     // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
 
-    const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
-    // Process suite-level input first: treat suite file references as guidelines
+    // Process suite-level input first
     const suiteInputSegments = effectiveSuiteInputMessages
       ? await processMessages({
           messages: effectiveSuiteInputMessages,
           searchRoots,
           repoRootPath,
-          guidelinePatterns,
-          guidelinePaths,
-          treatFileSegmentsAsGuidelines: true,
           textParts: inputTextParts,
           messageType: 'input',
           verbose,
         })
       : [];
 
-    // Process test-level input: use configured guideline pattern matching
+    // Process test-level input
     const testInputSegments = await processMessages({
       messages: testInputMessages,
       searchRoots,
       repoRootPath,
-      guidelinePatterns,
-      guidelinePaths,
       textParts: inputTextParts,
       messageType: 'input',
       verbose,
@@ -455,19 +447,13 @@ async function loadTestsFromYaml(
 
     warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
-    // Extract file paths from all input segments (non-guideline files)
+    // Extract file paths from all input segments
     const userFilePaths: string[] = [];
     for (const segment of inputSegments) {
       if (segment.type === 'file' && typeof segment.resolvedPath === 'string') {
         userFilePaths.push(segment.resolvedPath);
       }
     }
-
-    // Combine all file paths (guidelines + regular files)
-    const allFilePaths = [
-      ...guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
-      ...userFilePaths,
-    ];
 
     // Parse per-case workspace config and merge with suite-level
     const caseWorkspace = await resolveWorkspaceConfig(evalcase.workspace, evalFileDir);
@@ -490,9 +476,7 @@ async function loadTestsFromYaml(
       input_segments: inputSegments,
       expected_output: outputSegments,
       reference_answer: referenceAnswer,
-      guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
-      guideline_patterns: guidelinePatterns,
-      file_paths: allFilePaths,
+      file_paths: userFilePaths,
       criteria: outcome ?? '',
       evaluator: evalCaseEvaluatorKind,
       assertions: evaluators,
@@ -500,20 +484,6 @@ async function loadTestsFromYaml(
       metadata,
       targets: caseTargets,
     };
-
-    if (verbose) {
-      console.log(`\n[Test: ${id}]`);
-      if (testCase.guideline_paths.length > 0) {
-        console.log(`  Guidelines used: ${testCase.guideline_paths.length}`);
-        for (const guidelinePath of testCase.guideline_paths) {
-          console.log(`    - ${guidelinePath}`);
-        }
-      } else if (!guidelinePatterns || guidelinePatterns.length === 0) {
-        console.log('  No guidelines found (guideline_patterns not configured)');
-      } else {
-        console.log('  No guidelines found');
-      }
-    }
 
     results.push(testCase);
   }

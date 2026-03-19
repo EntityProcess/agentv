@@ -146,36 +146,6 @@ tests: ./ext-cases.yaml
     expect(tests[0].input[1]).toEqual({ role: 'user', content: 'External query' });
   });
 
-  it('resolves file references in suite-level input as guidelines', async () => {
-    await writeFile(path.join(tempDir, 'system-prompt.md'), 'You are an expert assistant.');
-
-    await writeFile(
-      path.join(tempDir, 'file-ref-input.eval.yaml'),
-      `input:
-  - role: user
-    content:
-      - type: file
-        value: ./system-prompt.md
-tests:
-  - id: file-ref-test
-    criteria: "Uses file content"
-    input: "What is TypeScript?"
-`,
-    );
-
-    const tests = await loadTests(path.join(tempDir, 'file-ref-input.eval.yaml'), tempDir);
-
-    expect(tests).toHaveLength(1);
-    // input stores raw messages (file refs unresolved)
-    expect(tests[0].input).toHaveLength(2);
-    expect(tests[0].input[0].role).toBe('user');
-    expect(tests[0].input[1]).toEqual({ role: 'user', content: 'What is TypeScript?' });
-    // Suite-level file refs are treated as guidelines (not input_segments)
-    expect(tests[0].input_segments.find((s) => s.type === 'file')).toBeUndefined();
-    const guidelinePath = tests[0].guideline_paths.find((p) => p.endsWith('system-prompt.md'));
-    expect(guidelinePath).toBeDefined();
-  });
-
   it('includes suite-level input text in the question field', async () => {
     await writeFile(
       path.join(tempDir, 'question-field.eval.yaml'),

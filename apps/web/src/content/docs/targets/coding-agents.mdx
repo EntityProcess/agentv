@@ -30,7 +30,7 @@ This differs from [LLM providers](/targets/llm-providers), which receive file co
 
 ### Example prompt
 
-Given an eval with a guideline file and a file input:
+Given an eval with file inputs:
 
 ```yaml
 input:
@@ -45,9 +45,6 @@ input:
 The agent receives a prompt like:
 
 ```
-Read all guideline files:
-* [guidelines.md](file:///abs/path/guidelines.md).
-
 Read all input files:
 * [example.ts](file:///abs/path/src/example.ts).
 
@@ -59,7 +56,7 @@ Then apply system_instructions on the user query below.
 Review this code
 ```
 
-The preread block instructs the agent to read both guideline and input files before processing the query. If a `system_prompt` is configured on the target, it is passed separately via the provider SDK (not in the prompt document).
+The preread block instructs the agent to read input files before processing the query. If a `system_prompt` is configured on the target, it is passed separately via the provider SDK (not in the prompt document).
 
 ## Claude
 

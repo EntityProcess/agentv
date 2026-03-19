@@ -10,7 +10,6 @@ import {
 } from './vscode/index.js';
 
 import { readTextFile } from '../file-utils.js';
-import { isGuidelineFile } from '../yaml-parser.js';
 import type { VSCodeResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 import { AGENTV_BATCH_REQUEST_TEMPLATE, AGENTV_REQUEST_TEMPLATE } from './vscode-templates.js';
@@ -45,7 +44,7 @@ export class VSCodeProvider implements Provider {
     await this.ensureEnvironmentReady();
 
     const inputFiles = normalizeAttachments(request.inputFiles);
-    const promptContent = buildPromptDocument(request, inputFiles, request.guideline_patterns);
+    const promptContent = buildPromptDocument(request, inputFiles);
 
     // Prefer workspace file resolved from eval-level workspace.template.
     // Fall back to target-level config.workspaceTemplate (must be a file, not directory).
@@ -113,7 +112,7 @@ export class VSCodeProvider implements Provider {
       normalizedRequests.map(({ inputFiles }) => inputFiles),
     );
     const userQueries = normalizedRequests.map(({ request, inputFiles }) =>
-      buildPromptDocument(request, inputFiles, request.guideline_patterns),
+      buildPromptDocument(request, inputFiles),
     );
 
     // For batch, we don't support per-request cwd override (would need separate workspaces)
@@ -253,7 +252,6 @@ async function resolveWorkspaceTemplateFile(
 function buildPromptDocument(
   request: ProviderRequest,
   attachments: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined,
 ): string {
   const parts: string[] = [];
 
@@ -262,12 +260,9 @@ function buildPromptDocument(
     parts.push(request.systemPrompt.trim());
   }
 
-  const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
   const attachmentFiles = collectAttachmentFiles(attachments);
 
-  const nonGuidelineAttachments = attachmentFiles.filter((file) => !guidelineFiles.includes(file));
-
-  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
+  const prereadBlock = buildMandatoryPrereadBlock(attachmentFiles);
   if (prereadBlock.length > 0) {
     parts.push('\n', prereadBlock);
   }
@@ -277,11 +272,8 @@ function buildPromptDocument(
   return parts.join('\n').trim();
 }
 
-function buildMandatoryPrereadBlock(
-  guidelineFiles: readonly string[],
-  attachmentFiles: readonly string[],
-): string {
-  if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
+function buildMandatoryPrereadBlock(attachmentFiles: readonly string[]): string {
+  if (attachmentFiles.length === 0) {
     return '';
   }
 
@@ -293,9 +285,6 @@ function buildMandatoryPrereadBlock(
     });
 
   const sections: string[] = [];
-  if (guidelineFiles.length > 0) {
-    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join('\n')}.`);
-  }
 
   if (attachmentFiles.length > 0) {
     sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join('\n')}.`);
@@ -307,29 +296,6 @@ function buildMandatoryPrereadBlock(
   );
 
   return sections.join('\n');
-}
-
-function collectGuidelineFiles(
-  attachments: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined,
-): string[] {
-  if (!attachments || attachments.length === 0) {
-    return [];
-  }
-
-  const unique = new Map<string, string>();
-  for (const attachment of attachments) {
-    const absolutePath = path.resolve(attachment);
-    const normalized = absolutePath.split(path.sep).join('/');
-
-    if (isGuidelineFile(normalized, guidelinePatterns)) {
-      if (!unique.has(absolutePath)) {
-        unique.set(absolutePath, absolutePath);
-      }
-    }
-  }
-
-  return Array.from(unique.values());
 }
 
 function collectAttachmentFiles(attachments: readonly string[] | undefined): string[] {
@@ -363,8 +329,6 @@ function pathToFileUri(filePath: string): string {
 }
 
 function _composeUserQuery(request: ProviderRequest): string {
-  // For VS Code, guidelines are handled via file attachments
-  // Do NOT include guideline content in the user query
   return request.question.trim();
 }
 

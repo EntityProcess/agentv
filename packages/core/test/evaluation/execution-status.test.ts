@@ -46,7 +46,6 @@ const baseTestCase: EvalTest = {
   input_segments: [{ type: 'text', value: 'Explain logging improvements' }],
   expected_output: [],
   reference_answer: '- add structured logging\n- avoid global state',
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improved',
   evaluator: 'llm-grader',

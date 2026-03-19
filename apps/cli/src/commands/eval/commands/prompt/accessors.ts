@@ -6,7 +6,6 @@ import { findRepoRoot } from '../../shared.js';
 interface PromptEvalInputResult {
   readonly test_id: string;
   readonly input: readonly JsonObject[];
-  readonly guideline_paths: readonly string[];
   readonly criteria: string;
 }
 
@@ -44,7 +43,6 @@ export async function getPromptEvalInput(
   return {
     test_id: evalCase.id,
     input: resolveMessages(evalCase.input, fileMap),
-    guideline_paths: evalCase.guideline_paths,
     criteria: evalCase.criteria,
   };
 }
@@ -79,10 +77,9 @@ export async function getPromptEvalGradingBrief(evalPath: string, testId: string
     lines.push(`Input: "${inputText}"`);
   }
 
-  // Files (exclude guidelines)
-  const filePaths = evalCase.file_paths.filter((p) => !evalCase.guideline_paths.includes(p));
-  if (filePaths.length > 0) {
-    lines.push(`Files: ${filePaths.join(', ')}`);
+  // Files
+  if (evalCase.file_paths.length > 0) {
+    lines.push(`Files: ${evalCase.file_paths.join(', ')}`);
   }
 
   // Expected output
@@ -160,8 +157,7 @@ function extractTextFromMessages(messages: JsonObject[]): string {
 /**
  * Build a mapping from relative file names to resolved absolute paths.
  * Uses input_segments (which have resolvedPath) as the primary source,
- * then falls back to suffix-matching against all file_paths for
- * guideline files (which are excluded from input_segments).
+ * then falls back to suffix-matching against all file_paths.
  */
 function buildFileMap(
   inputSegments: readonly JsonObject[],
@@ -179,7 +175,7 @@ function buildFileMap(
     }
   }
 
-  // For guideline files not in input_segments, match by suffix against file_paths
+  // Fall back to suffix-matching against file_paths
   return {
     get(key: string): string | undefined {
       const direct = map.get(key);

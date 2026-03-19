@@ -48,11 +48,6 @@ export function formatSegment(
     return asString(segment.value);
   }
 
-  if (type === 'guideline_ref') {
-    const refPath = asString(segment.path);
-    return refPath ? `<Attached: ${refPath}>` : undefined;
-  }
-
   if (type === 'file') {
     const filePath = asString(segment.path);
     if (!filePath) {
@@ -85,10 +80,6 @@ export function hasVisibleContent(segments: readonly JsonObject[]): boolean {
     if (type === 'text') {
       const value = asString(segment.value);
       return value !== undefined && value.trim().length > 0;
-    }
-
-    if (type === 'guideline_ref') {
-      return false;
     }
 
     if (type === 'file') {

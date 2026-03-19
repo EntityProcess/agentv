@@ -31,7 +31,6 @@ const baseTestCase: EvalTest = {
   input_segments: [{ type: 'text', value: 'Input Message' }],
   expected_output: [{ type: 'text', value: 'Expected Output Message' }],
   reference_answer: 'Reference Answer Text',
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Expected Outcome Text',
   evaluator: 'llm-grader',
@@ -76,7 +75,7 @@ File Changes: {{file_changes}}
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: formattedQuestion, guidelines: '' },
+      promptInputs: { question: formattedQuestion },
       now: new Date(),
       fileChanges: 'diff --git a/test.txt b/test.txt\n+added line',
     });
@@ -128,7 +127,7 @@ File Changes: {{file_changes}}
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: promptQuestion, guidelines: '' },
+      promptInputs: { question: promptQuestion },
       now: new Date(),
     });
 
@@ -173,7 +172,7 @@ Expected Messages: {{ expected_output }}
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: formattedQuestion, guidelines: '' },
+      promptInputs: { question: formattedQuestion },
       now: new Date(),
     });
 

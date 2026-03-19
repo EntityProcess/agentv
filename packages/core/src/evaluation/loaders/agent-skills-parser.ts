@@ -132,7 +132,6 @@ export function parseAgentSkillsEvals(
         ? [{ role: 'assistant', content: evalCase.expected_output }]
         : [],
       reference_answer: evalCase.expected_output,
-      guideline_paths: [],
       file_paths: filePaths,
       criteria: evalCase.expected_output ?? '',
       assertions,

@@ -108,7 +108,6 @@ function buildCodeGraderInput(fixture: Fixture): string {
     expected_output: [],
     input: [{ role: 'user', content: fixture.question }],
     output: [{ role: 'assistant', content: fixture.answer }],
-    guideline_files: [],
     input_files: [],
   });
 }

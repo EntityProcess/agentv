@@ -787,8 +787,6 @@ export interface EvalTest {
   readonly input_segments: readonly JsonObject[];
   readonly expected_output: readonly JsonObject[];
   readonly reference_answer?: string;
-  readonly guideline_paths: readonly string[];
-  readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];
   readonly criteria: string;
   readonly evaluator?: EvaluatorKind;

@@ -118,7 +118,6 @@ const baseTestCase: EvalTest = {
   input_segments: [{ type: 'text', value: 'Explain logging improvements' }],
   expected_output: [],
   reference_answer: '- add structured logging\n- avoid global state',
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improved',
   evaluator: 'llm-grader',
@@ -401,15 +400,11 @@ describe('runTestCase', () => {
     );
     expect(graderProvider.lastRequest?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
 
-    expect(result.scores?.[0]?.input?.userPrompt).toContain(
-      'CUSTOM PROMPT CONTENT',
-    );
+    expect(result.scores?.[0]?.input?.userPrompt).toContain('CUSTOM PROMPT CONTENT');
     expect(result.scores?.[0]?.input?.systemPrompt).toContain(
       'You must respond with a single JSON object',
     );
-    expect(result.scores?.[0]?.input?.systemPrompt).not.toContain(
-      'CUSTOM PROMPT CONTENT',
-    );
+    expect(result.scores?.[0]?.input?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
   });
 
   it('passes chatPrompt for multi-turn evals', async () => {
@@ -441,7 +436,6 @@ describe('runTestCase', () => {
         ],
         expected_output: [],
         reference_answer: '',
-        guideline_paths: [],
         file_paths: [],
         criteria: '',
         evaluator: 'llm-grader',
@@ -478,7 +472,6 @@ describe('runTestCase', () => {
         input_segments: [{ type: 'text', value: 'Hello' }],
         expected_output: [],
         reference_answer: '',
-        guideline_paths: [],
         file_paths: [],
         criteria: '',
         evaluator: 'llm-grader',
@@ -587,7 +580,6 @@ describe('runEvalCase trace integration', () => {
     input_segments: [{ type: 'text', value: 'What is the weather?' }],
     expected_output: [],
     reference_answer: 'The weather is sunny',
-    guideline_paths: [],
     file_paths: [],
     criteria: 'Weather information provided',
     evaluator: 'llm-grader',
@@ -1593,7 +1585,6 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     input_segments: [{ type: 'text', value: 'Test question' }],
     expected_output: [],
     reference_answer: '',
-    guideline_paths: [],
     file_paths: [],
     criteria: '',
   };
@@ -1772,7 +1763,6 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
     input_segments: [{ type: 'text', value: 'Test question' }],
     expected_output: [],
     reference_answer: '',
-    guideline_paths: [],
     file_paths: [],
     criteria: 'Response should be polite',
   };
@@ -1875,7 +1865,6 @@ describe('required gates', () => {
     input_segments: [{ type: 'text', value: 'Test question' }],
     expected_output: [],
     reference_answer: '',
-    guideline_paths: [],
     file_paths: [],
     criteria: '',
   };

@@ -1,30 +1,16 @@
 import path from 'node:path';
 
-import { isGuidelineFile } from '../yaml-parser.js';
 import type { ProviderRequest } from './types.js';
-
-export interface PromptDocumentOptions {
-  readonly guidelinePatterns?: readonly string[];
-  readonly guidelineOverrides?: ReadonlySet<string>;
-}
 
 export function buildPromptDocument(
   request: ProviderRequest,
   inputFiles: readonly string[] | undefined,
-  options?: PromptDocumentOptions,
 ): string {
   const parts: string[] = [];
 
-  const guidelineFiles = collectGuidelineFiles(
-    inputFiles,
-    options?.guidelinePatterns ?? request.guideline_patterns,
-    options?.guidelineOverrides,
-  );
   const inputFilesList = collectInputFiles(inputFiles);
 
-  const nonGuidelineInputFiles = inputFilesList.filter((file) => !guidelineFiles.includes(file));
-
-  const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineInputFiles);
+  const prereadBlock = buildMandatoryPrereadBlock(inputFilesList);
   if (prereadBlock.length > 0) {
     parts.push('\n', prereadBlock);
   }
@@ -50,36 +36,6 @@ export function normalizeInputFiles(
   return Array.from(deduped.values());
 }
 
-export function collectGuidelineFiles(
-  inputFiles: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined,
-  overrides?: ReadonlySet<string>,
-): string[] {
-  if (!inputFiles || inputFiles.length === 0) {
-    return [];
-  }
-
-  const unique = new Map<string, string>();
-  for (const inputFile of inputFiles) {
-    const absolutePath = path.resolve(inputFile);
-    if (overrides?.has(absolutePath)) {
-      if (!unique.has(absolutePath)) {
-        unique.set(absolutePath, absolutePath);
-      }
-      continue;
-    }
-
-    const normalized = absolutePath.split(path.sep).join('/');
-    if (isGuidelineFile(normalized, guidelinePatterns)) {
-      if (!unique.has(absolutePath)) {
-        unique.set(absolutePath, absolutePath);
-      }
-    }
-  }
-
-  return Array.from(unique.values());
-}
-
 function collectInputFiles(inputFiles: readonly string[] | undefined): string[] {
   if (!inputFiles || inputFiles.length === 0) {
     return [];
@@ -94,11 +50,8 @@ function collectInputFiles(inputFiles: readonly string[] | undefined): string[] 
   return Array.from(unique.values());
 }
 
-function buildMandatoryPrereadBlock(
-  guidelineFiles: readonly string[],
-  inputFiles: readonly string[],
-): string {
-  if (guidelineFiles.length === 0 && inputFiles.length === 0) {
+function buildMandatoryPrereadBlock(inputFiles: readonly string[]): string {
+  if (inputFiles.length === 0) {
     return '';
   }
 
@@ -110,9 +63,6 @@ function buildMandatoryPrereadBlock(
     });
 
   const sections: string[] = [];
-  if (guidelineFiles.length > 0) {
-    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join('\n')}.`);
-  }
 
   if (inputFiles.length > 0) {
     sections.push(`Read all input files:\n${buildList(inputFiles).join('\n')}.`);

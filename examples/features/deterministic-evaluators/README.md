@@ -62,7 +62,6 @@ cat <<'EOF' | bun run graders/assertions.ts
   "criteria": "Response contains hello",
   "expected_output": [],
   "answer": "Hello world!",
-  "guideline_files": [],
   "input_files": [],
   "input": [],
   "config": { "type": "icontains", "value": "hello" }
