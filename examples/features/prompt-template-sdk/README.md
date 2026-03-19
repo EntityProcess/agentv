@@ -34,7 +34,6 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 - `criteria` - Optional criteria / expected outcome
 - `expectedOutput` - Optional expected output messages
 - `output` - Optional output messages from agent
-- `guidelineFiles` - Paths to guideline files
 - `inputFiles` - Paths to input files
 - `input` - Input messages to agent
 - `trace` - Optional trace summary with tool usage metrics

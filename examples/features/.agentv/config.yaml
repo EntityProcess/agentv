@@ -2,15 +2,6 @@ $schema: agentv-config-v2
 
 # Example .agentv/config.yaml Configuration
 
-# Customize which files are treated as guidelines vs regular file content
-# using glob patterns. If this file is not present, AgentV uses default patterns.
-
-# Custom guideline patterns:
-guideline_patterns:
-  - "**/*.instructions.md"
-  - "**/*.prompt.md"
-  - "**/SKILL.md"
-
 # Customize which YAML files are discovered as evals during interactive mode
 # (`agentv eval` with no args). Defaults to dataset*.yaml and eval.yaml under evals/.
 eval_patterns:
@@ -23,9 +14,3 @@ execution:
   trace_file: .agentv/results/trace-{timestamp}.jsonl
   keep_workspaces: false
   otel_file: .agentv/results/otel-{timestamp}.json
-
-# Notes:
-# - Patterns use standard glob syntax (via fast-glob)
-# - Matching is case-insensitive
-# - Only files matching these patterns are discovered in interactive mode
-# - All other files referenced in tests are treated as regular file content
