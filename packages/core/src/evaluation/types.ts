@@ -931,8 +931,8 @@ export interface EvaluationResult {
   readonly trace?: TraceSummary;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
-  /** Input messages or prompt string sent to the agent */
-  readonly input?: readonly import('./providers/types.js').Message[] | string;
+  /** Input messages sent to the agent. Always Message[] for consistent shape with output. */
+  readonly input?: readonly import('./providers/types.js').Message[];
   /** Output messages from agent execution. Always present — at minimum contains the final assistant message. */
   readonly output: readonly import('./providers/types.js').Message[];
   /** Captured output from workspace before_all script */

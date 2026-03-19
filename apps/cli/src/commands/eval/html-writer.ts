@@ -495,7 +495,7 @@ const SCRIPT = `
     /* input / output */
     h+='<div class="detail-grid">';
     if(r.input!=null){
-      h+='<div class="detail-block"><h4>Input</h4><pre class="detail-pre">'+esc(typeof r.input==="string"?r.input:JSON.stringify(r.input,null,2))+"</pre></div>";
+      h+='<div class="detail-block"><h4>Input</h4><pre class="detail-pre">'+esc(JSON.stringify(r.input,null,2))+"</pre></div>";
     }
     h+='<div class="detail-block"><h4>Output</h4><pre class="detail-pre">'+esc(r.output?JSON.stringify(r.output,null,2):"")+"</pre></div>";
     h+="</div>";

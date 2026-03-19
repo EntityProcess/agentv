@@ -2589,7 +2589,7 @@ function buildResultInput(promptInputs: PromptInputs): EvaluationResult['input']
       content: message.content,
     }));
   }
-  return promptInputs.question;
+  return [{ role: 'user' as const, content: promptInputs.question }];
 }
 
 /**
