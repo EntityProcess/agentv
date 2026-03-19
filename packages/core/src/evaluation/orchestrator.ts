@@ -564,9 +564,12 @@ export async function runEvaluation(
       [
         `Warning: This eval uses a shared workspace with ${workers} workers.`,
         'If the agent under test makes file edits, concurrent runs may corrupt each other.',
-        'To limit concurrency, add this to your eval YAML:',
+        'To limit concurrency, either pass --workers 1 or set workers in your target config:',
         '',
-        '  workers: 1',
+        '  # targets.yaml',
+        '  targets:',
+        `    - name: ${target.name ?? 'default'}`,
+        '      workers: 1',
         '',
       ].join('\n'),
     );
