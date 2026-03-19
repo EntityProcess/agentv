@@ -25,7 +25,7 @@ const STRIPPED_TOP_LEVEL_FIELDS = new Set([
 /**
  * Fields to strip from evaluator results.
  */
-const STRIPPED_EVALUATOR_FIELDS = new Set(['rawRequest', 'evaluatorProviderRequest']);
+const STRIPPED_EVALUATOR_FIELDS = new Set(['rawRequest', 'input']);
 
 /**
  * Trims an evaluator result for baseline storage.

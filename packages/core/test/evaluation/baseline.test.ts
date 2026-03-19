@@ -43,7 +43,7 @@ function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): Evaluato
     verdict: 'pass',
     assertions: [{ text: 'good', passed: true }],
     rawRequest: { prompt: 'evaluate' },
-    evaluatorProviderRequest: { user_prompt: 'long prompt', system_prompt: 'system' },
+    input: { user_prompt: 'long prompt', system_prompt: 'system' },
     details: { tp: 5, fp: 0 },
     ...overrides,
   };
@@ -94,7 +94,7 @@ describe('trimBaselineResult', () => {
     expect(er.details).toEqual({ tp: 5, fp: 0 });
 
     expect(er.rawRequest).toBeUndefined();
-    expect(er.evaluatorProviderRequest).toBeUndefined();
+    expect(er.input).toBeUndefined();
   });
 
   it('recursively trims composite evaluator results', () => {
@@ -109,13 +109,13 @@ describe('trimBaselineResult', () => {
 
     const outerEr = trimmed.scores?.[0];
     expect(outerEr.rawRequest).toBeUndefined();
-    expect(outerEr.evaluatorProviderRequest).toBeUndefined();
+    expect(outerEr.input).toBeUndefined();
     expect(outerEr.scores).toHaveLength(1);
 
     const innerEr = outerEr.scores?.[0];
     expect(innerEr.name).toBe('inner');
     expect(innerEr.rawRequest).toBeUndefined();
-    expect(innerEr.evaluatorProviderRequest).toBeUndefined();
+    expect(innerEr.input).toBeUndefined();
     expect(innerEr.score).toBe(0.9);
   });
 

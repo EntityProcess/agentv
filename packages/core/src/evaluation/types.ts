@@ -978,7 +978,7 @@ export interface EvaluatorResult {
   readonly verdict?: EvaluationVerdict;
   readonly assertions: readonly AssertionEntry[];
   readonly rawRequest?: JsonObject;
-  readonly evaluatorProviderRequest?: JsonObject;
+  readonly input?: JsonObject;
   readonly scores?: readonly EvaluatorResult[];
   /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
