@@ -320,7 +320,7 @@ Design documents and implementation plans are stored in `.claude/plans/`. These 
 
 #### Git Worktrees
 
-Use the default `.worktrees/` directory (managed by the superpowers skill). After creating a worktree, always run setup:
+Use the default `agentv.worktrees/` directory (managed by the superpowers skill). After creating a worktree, always run setup:
 ```bash
 bun install                                    # worktrees do NOT share node_modules
 cp /home/christso/projects/agentv/.env .env    # required for e2e tests and LLM operations
