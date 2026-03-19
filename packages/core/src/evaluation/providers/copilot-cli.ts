@@ -269,8 +269,12 @@ export class CopilotCliProvider implements Provider {
         tokenUsage = {
           input: responseUsage.inputTokens,
           output: responseUsage.outputTokens,
-          ...(responseUsage.thoughtTokens != null ? { reasoning: responseUsage.thoughtTokens } : {}),
-          ...(responseUsage.cachedReadTokens != null ? { cached: responseUsage.cachedReadTokens } : {}),
+          ...(responseUsage.thoughtTokens != null
+            ? { reasoning: responseUsage.thoughtTokens }
+            : {}),
+          ...(responseUsage.cachedReadTokens != null
+            ? { cached: responseUsage.cachedReadTokens }
+            : {}),
         };
         request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
       } else if (!tokenUsage && (inputChars > 0 || outputChars > 0)) {
