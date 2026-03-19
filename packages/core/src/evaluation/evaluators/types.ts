@@ -19,7 +19,6 @@ export interface EvaluationContext {
   readonly attempt: number;
   readonly promptInputs: {
     readonly question: string;
-    readonly guidelines: string;
     readonly systemMessage?: string;
     readonly chatPrompt?: ChatPrompt;
   };

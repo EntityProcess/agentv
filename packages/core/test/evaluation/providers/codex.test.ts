@@ -64,7 +64,6 @@ describe('CodexCliProvider', () => {
     const request: ProviderRequest = {
       question: 'Implement feature',
       inputFiles: [guidelineFile, attachmentFile],
-      guideline_patterns: ['**/*.instructions.md'],
     };
 
     const response = await provider.invoke(request);

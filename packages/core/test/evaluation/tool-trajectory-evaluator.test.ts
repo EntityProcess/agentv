@@ -30,7 +30,6 @@ const mockEvalCase: EvalTest = {
   input: [],
   input_segments: [],
   expected_output: [],
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Expected outcome',
 };
@@ -45,7 +44,7 @@ function createContext(options: {
     target: mockTarget,
     provider: mockProvider,
     attempt: 0,
-    promptInputs: { question: '', guidelines: '' },
+    promptInputs: { question: '' },
     now: new Date(),
     trace: options.trace,
     output: options.output,

@@ -15,7 +15,6 @@ const baseTestCase: EvalTest = {
   input_segments: [{ type: 'text', value: 'Test input' }],
   expected_output: [],
   reference_answer: 'Expected answer',
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Test criteria',
   evaluator: 'code-grader',

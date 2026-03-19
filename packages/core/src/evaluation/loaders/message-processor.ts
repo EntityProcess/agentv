@@ -4,7 +4,6 @@ import path from 'node:path';
 import { formatFileContents } from '../formatting/segment-formatter.js';
 import type { JsonObject, TestMessage } from '../types.js';
 import { isJsonObject } from '../types.js';
-import { isGuidelineFile } from './config-loader.js';
 import { resolveFileReference } from './file-resolver.js';
 
 const ANSI_YELLOW = '\u001b[33m';
@@ -14,9 +13,6 @@ type ProcessMessagesOptions = {
   readonly messages: readonly TestMessage[];
   readonly searchRoots: readonly string[];
   readonly repoRootPath: string;
-  readonly guidelinePatterns?: readonly string[];
-  readonly guidelinePaths?: string[];
-  readonly treatFileSegmentsAsGuidelines?: boolean;
   readonly textParts?: string[];
   readonly messageType: 'input' | 'output';
   readonly verbose: boolean;
@@ -30,9 +26,6 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
     messages,
     searchRoots,
     repoRootPath,
-    guidelinePatterns,
-    guidelinePaths,
-    treatFileSegmentsAsGuidelines,
     textParts,
     messageType,
     verbose,
@@ -95,22 +88,6 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
         try {
           const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n');
 
-          const classifyAsGuideline = shouldTreatAsGuideline({
-            messageType,
-            resolvedPath,
-            repoRootPath,
-            guidelinePatterns,
-            treatFileSegmentsAsGuidelines,
-          });
-          if (classifyAsGuideline && guidelinePaths) {
-            guidelinePaths.push(path.resolve(resolvedPath));
-            if (verbose) {
-              console.log(`  [Guideline] Found: ${displayPath}`);
-              console.log(`    Resolved to: ${resolvedPath}`);
-            }
-            continue;
-          }
-
           segments.push({
             type: 'file',
             path: displayPath,
@@ -140,37 +117,6 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
   }
 
   return segments;
-}
-
-function shouldTreatAsGuideline(options: {
-  readonly messageType: 'input' | 'output';
-  readonly resolvedPath: string;
-  readonly repoRootPath: string;
-  readonly guidelinePatterns?: readonly string[];
-  readonly treatFileSegmentsAsGuidelines?: boolean;
-}): boolean {
-  const {
-    messageType,
-    resolvedPath,
-    repoRootPath,
-    guidelinePatterns,
-    treatFileSegmentsAsGuidelines,
-  } = options;
-
-  if (messageType !== 'input') {
-    return false;
-  }
-
-  if (treatFileSegmentsAsGuidelines) {
-    return true;
-  }
-
-  if (!guidelinePatterns || guidelinePatterns.length === 0) {
-    return false;
-  }
-
-  const relativeToRepo = path.relative(repoRootPath, resolvedPath);
-  return isGuidelineFile(relativeToRepo, guidelinePatterns);
 }
 
 /**

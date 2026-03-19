@@ -1124,8 +1124,6 @@ async function runBatchEvaluation(options: {
     const promptInputs = promptInputsList[index];
     return {
       question: promptInputs.question,
-      guidelines: promptInputs.guidelines,
-      guideline_patterns: evalCase.guideline_patterns,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       metadata: {
@@ -2013,7 +2011,6 @@ async function evaluateCandidate(options: {
   if (isAgentProvider(provider)) {
     agentRequest = {
       question: promptInputs.question,
-      guideline_paths: evalCase.guideline_paths,
     } as JsonObject;
   } else {
     if (promptInputs.chatPrompt) {
@@ -2023,7 +2020,6 @@ async function evaluateCandidate(options: {
     } else {
       lmRequest = {
         question: promptInputs.question,
-        guidelines: promptInputs.guidelines,
       } as JsonObject;
     }
   }
@@ -2256,8 +2252,8 @@ async function runEvaluatorList(options: {
   };
 
   // Build the dispatch context for evaluator factories
-  const evalFileDir = evalCase.guideline_paths[0]
-    ? path.dirname(evalCase.guideline_paths[0])
+  const evalFileDir = evalCase.file_paths[0]
+    ? path.dirname(evalCase.file_paths[0])
     : process.cwd();
   const dispatchContext: import('./registry/evaluator-registry.js').EvaluatorDispatchContext = {
     graderProvider,
@@ -2458,8 +2454,6 @@ async function invokeProvider(
 
     return await provider.invoke({
       question: promptInputs.question,
-      guidelines: promptInputs.guidelines,
-      guideline_patterns: evalCase.guideline_patterns,
       chatPrompt: promptInputs.chatPrompt,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
@@ -2499,21 +2493,17 @@ function buildErrorResult(
   if (isAgentProvider(provider)) {
     agentRequest = {
       question: promptInputs.question,
-      guideline_paths: evalCase.guideline_paths,
       error: message,
     } as JsonObject;
   } else {
     if (promptInputs.chatPrompt) {
       lmRequest = {
         chat_prompt: promptInputs.chatPrompt as unknown as JsonValue,
-        guideline_paths: evalCase.guideline_paths,
         error: message,
       } as JsonObject;
     } else {
       lmRequest = {
         question: promptInputs.question,
-        guidelines: promptInputs.guidelines,
-        guideline_paths: evalCase.guideline_paths,
         error: message,
       } as JsonObject;
     }
@@ -2573,7 +2563,6 @@ function createCacheKey(
   hash.update(target.name);
   hash.update(evalCase.id);
   hash.update(promptInputs.question);
-  hash.update(promptInputs.guidelines);
   hash.update(promptInputs.systemMessage ?? '');
   if (promptInputs.chatPrompt) {
     hash.update(JSON.stringify(promptInputs.chatPrompt));

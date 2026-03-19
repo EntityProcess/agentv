@@ -11,7 +11,6 @@ describe('CodeGraderInputSchema with outputPath', () => {
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
     outputText: 'The answer is 4',
-    guidelineFiles: [],
     inputFiles: [],
     input: [{ role: 'user', content: 'What is 2+2?' }],
   };
@@ -65,7 +64,6 @@ describe('Lazy file-backed output loading', () => {
       outputText: 'test',
       output: null,
       outputPath: filePath,
-      guidelineFiles: [],
       inputFiles: [],
       input: [],
     });
@@ -100,7 +98,6 @@ describe('Lazy file-backed output loading', () => {
       expectedOutput: [],
       outputText: 'test',
       output: [{ role: 'assistant', content: 'inline' }],
-      guidelineFiles: [],
       inputFiles: [],
       input: [],
     });

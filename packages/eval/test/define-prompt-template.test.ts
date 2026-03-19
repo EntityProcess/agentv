@@ -9,7 +9,6 @@ describe('PromptTemplateInputSchema', () => {
     criteria: 'The answer should be 4',
     expectedOutput: [],
     outputText: 'The answer is 4',
-    guidelineFiles: [],
     inputFiles: [],
     input: [],
   };
@@ -20,7 +19,6 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.outputText).toBe('The answer is 4');
     expect(result.criteria).toBe('The answer should be 4');
     expect(result.expectedOutput).toEqual([]);
-    expect(result.guidelineFiles).toEqual([]);
     expect(result.inputFiles).toEqual([]);
     expect(result.input).toEqual([]);
   });
@@ -82,15 +80,6 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.expectedOutput[0].content).toBe('4');
   });
 
-  it('accepts guidelineFiles with paths', () => {
-    const inputWithGuidelines = {
-      ...validInput,
-      guidelineFiles: ['/path/to/guideline1.txt', '/path/to/guideline2.txt'],
-    };
-    const result = PromptTemplateInputSchema.parse(inputWithGuidelines);
-    expect(result.guidelineFiles).toEqual(['/path/to/guideline1.txt', '/path/to/guideline2.txt']);
-  });
-
   it('accepts inputFiles with paths', () => {
     const inputWithFiles = {
       ...validInput,
@@ -132,7 +121,6 @@ describe('PromptTemplateInputSchema', () => {
       expectedOutputText: 'The sum is 4',
       outputText: 'The answer is 4',
       output: [{ role: 'assistant', content: 'The answer is 4' }],
-      guidelineFiles: ['/path/to/guideline.txt'],
       inputFiles: ['/path/to/input.txt'],
       input: [{ role: 'user', content: 'What is 2+2?' }],
       trace: {

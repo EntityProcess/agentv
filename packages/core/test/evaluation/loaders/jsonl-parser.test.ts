@@ -344,35 +344,6 @@ describe('loadTests with format detection', () => {
     await expect(loadTests(txtPath, tempDir)).rejects.toThrow('Unsupported file format');
   });
 
-  it('treats suite-level input file refs as guidelines in YAML', async () => {
-    const guidelinePath = path.join(tempDir, 'shared.prompt.md');
-    const yamlPath = path.join(tempDir, 'suite-input-guidelines.yaml');
-
-    await writeFile(guidelinePath, '# Shared prompt\n\nFollow repo instructions.\n');
-    await writeFile(
-      yamlPath,
-      `input:
-  - role: user
-    content:
-      - type: file
-        value: ./shared.prompt.md
-
-tests:
-  - id: suite-input-guideline-test
-    criteria: Goal
-    input:
-      - role: user
-        content: Hello
-`,
-    );
-
-    const cases = await loadTests(yamlPath, tempDir);
-
-    expect(cases).toHaveLength(1);
-    expect(cases[0].guideline_paths).toHaveLength(1);
-    expect(cases[0].guideline_paths[0]).toBe(path.resolve(guidelinePath));
-    expect(cases[0].input_segments.some((segment) => segment.type === 'file')).toBe(false);
-  });
 });
 
 describe('JSONL and YAML produce equivalent EvalTests', () => {

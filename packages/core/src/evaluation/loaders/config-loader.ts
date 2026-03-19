@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
 import type { FailOnError, JsonObject, TrialStrategy, TrialsConfig } from '../types.js';
@@ -26,7 +25,6 @@ export type ExecutionDefaults = {
 
 export type AgentVConfig = {
   readonly required_version?: string;
-  readonly guideline_patterns?: readonly string[];
   readonly eval_patterns?: readonly string[];
   readonly execution?: ExecutionDefaults;
 };
@@ -65,20 +63,6 @@ export async function loadConfig(
         continue;
       }
 
-      const guidelinePatterns = config.guideline_patterns;
-      if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
-        logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
-        continue;
-      }
-
-      if (
-        Array.isArray(guidelinePatterns) &&
-        !guidelinePatterns.every((p) => typeof p === 'string')
-      ) {
-        logWarning(`Invalid guideline_patterns in ${configPath}, all entries must be strings`);
-        continue;
-      }
-
       const evalPatterns = (config as Record<string, unknown>).eval_patterns;
       if (evalPatterns !== undefined && !Array.isArray(evalPatterns)) {
         logWarning(`Invalid eval_patterns in ${configPath}, expected array`);
@@ -97,7 +81,6 @@ export async function loadConfig(
 
       return {
         required_version: requiredVersion as string | undefined,
-        guideline_patterns: guidelinePatterns as readonly string[] | undefined,
         eval_patterns: evalPatterns as readonly string[] | undefined,
         execution: executionDefaults,
       };
@@ -109,16 +92,6 @@ export async function loadConfig(
   }
 
   return null;
-}
-
-/**
- * Determine whether a path references guideline content (instructions or prompts).
- */
-export function isGuidelineFile(filePath: string, patterns?: readonly string[]): boolean {
-  const normalized = filePath.split('\\').join('/');
-  const patternsToUse = patterns ?? [];
-
-  return micromatch.isMatch(normalized, patternsToUse as string[]);
 }
 
 /**

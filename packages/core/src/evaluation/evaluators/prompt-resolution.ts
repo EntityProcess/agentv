@@ -77,10 +77,7 @@ async function executePromptTemplate(
     expectedOutput: context.evalCase.expected_output,
     outputText: context.candidate,
     output: context.output ?? null,
-    guidelineFiles: context.evalCase.guideline_paths,
-    inputFiles: context.evalCase.file_paths.filter(
-      (p) => !context.evalCase.guideline_paths.includes(p),
-    ),
+    inputFiles: context.evalCase.file_paths,
     input: context.evalCase.input,
     trace: context.trace ?? null,
     fileChanges: context.fileChanges ?? null,

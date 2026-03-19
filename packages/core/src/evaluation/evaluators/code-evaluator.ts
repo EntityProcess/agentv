@@ -67,10 +67,7 @@ export class CodeEvaluator implements Evaluator {
       outputText: context.candidate,
       output: outputForPayload,
       outputPath,
-      guidelineFiles: context.evalCase.guideline_paths,
-      inputFiles: context.evalCase.file_paths.filter(
-        (path) => !context.evalCase.guideline_paths.includes(path),
-      ),
+      inputFiles: context.evalCase.file_paths,
       input: context.evalCase.input,
       trace: context.trace ?? null,
       tokenUsage: context.tokenUsage ?? null,

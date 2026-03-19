@@ -72,7 +72,7 @@ export const evalAssertCommand = command({
         criteria: '',
         expected_output: [],
         reference_answer: '',
-        guideline_files: [],
+
         input_files: [],
         trace: null,
         token_usage: null,

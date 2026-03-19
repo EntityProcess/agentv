@@ -65,7 +65,6 @@ const baseTestCase: EvalTest = {
   input_segments: [{ type: 'text', value: 'Please add logging' }],
   expected_output: [],
   reference_answer: '- add structured logging\n- avoid global state',
-  guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improvements applied',
   evaluator: 'llm-grader',
@@ -104,7 +103,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -146,7 +145,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -179,7 +178,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -225,7 +224,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -274,7 +273,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -334,7 +333,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: defaultGraderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -367,7 +366,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -390,7 +389,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -426,7 +425,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       evaluator: {
         name: 'rubric',
@@ -471,7 +470,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: multiTurnQuestion, guidelines: '' },
+      promptInputs: { question: multiTurnQuestion },
       now: new Date(),
     });
 
@@ -496,7 +495,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: flatQuestion, guidelines: '' },
+      promptInputs: { question: flatQuestion },
       now: new Date(),
     });
 
@@ -519,7 +518,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       evaluator: {
         name: 'rubric',
@@ -548,7 +547,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       evaluator: {
         name: 'rubric',
@@ -590,7 +589,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       evaluator: {
         name: 'my-custom-grader',
@@ -620,7 +619,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -654,7 +653,7 @@ describe('CodeEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -680,7 +679,7 @@ describe('CodeEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -704,7 +703,7 @@ describe('CodeEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -730,7 +729,7 @@ describe('CodeEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -757,7 +756,7 @@ describe('CodeEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       workspacePath: '/tmp/test-workspace',
     });
@@ -787,7 +786,7 @@ describe('CodeEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -832,7 +831,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -860,7 +859,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -897,7 +896,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -930,7 +929,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -963,7 +962,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -991,7 +990,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -1020,7 +1019,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -1046,7 +1045,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -1092,7 +1091,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -1115,7 +1114,7 @@ describe('FieldAccuracyEvaluator', () => {
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
@@ -1141,7 +1140,7 @@ describe('LatencyEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       durationMs: 1500,
     });
@@ -1166,7 +1165,7 @@ describe('LatencyEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       durationMs: 2500,
     });
@@ -1191,7 +1190,7 @@ describe('LatencyEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       // No trace
     });
@@ -1216,7 +1215,7 @@ describe('LatencyEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       durationMs: 1000,
     });
@@ -1242,7 +1241,7 @@ describe('CostEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       costUsd: 0.05,
     });
@@ -1267,7 +1266,7 @@ describe('CostEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       costUsd: 0.15,
     });
@@ -1292,7 +1291,7 @@ describe('CostEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       // No trace
     });
@@ -1317,7 +1316,7 @@ describe('CostEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       costUsd: 0.1,
     });
@@ -1339,7 +1338,7 @@ describe('TokenUsageEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       tokenUsage: { input: 400, output: 500, cached: 0 },
     });
@@ -1365,7 +1364,7 @@ describe('TokenUsageEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
       tokenUsage: { input: 10, output: 150 },
     });
@@ -1391,7 +1390,7 @@ describe('TokenUsageEvaluator', () => {
       target: baseTarget,
       provider: new StubProvider(textResponse('ok')),
       attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
+      promptInputs: { question: '' },
       now: new Date(),
     });
 
