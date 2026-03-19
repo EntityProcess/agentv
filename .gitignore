@@ -9,12 +9,6 @@ coverage/
 *.tsbuildinfo.*
 .DS_Store
 .astro/
-# .agentv runtime artifacts (config files like targets.yaml, config.yaml,
-# graders/, assertions/ are tracked normally)
-**/.agentv/results/
-**/.agentv/logs/
-**/.agentv/cache/
-**/.agentv/cache.json
 .env
 __pycache__/
 .worktrees/
