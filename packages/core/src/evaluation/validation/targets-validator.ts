@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
+import { interpolateEnv } from '../interpolation.js';
 import { CLI_PLACEHOLDERS } from '../providers/targets.js';
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -325,7 +326,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = parse(content);
+    parsed = interpolateEnv(parse(content), process.env);
   } catch (error) {
     errors.push({
       severity: 'error',
