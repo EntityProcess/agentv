@@ -68,13 +68,13 @@ The repository includes synthetic raw-result fixtures so you can verify the post
 ```bash
 bun examples/showcase/offline-grader-benchmark/scripts/score-grader-benchmark.ts \
   --results examples/showcase/offline-grader-benchmark/fixtures/setup-a.raw.jsonl \
-  --dataset examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
+  --eval-set examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
   --label grader-setup-a \
   > /tmp/grader-setup-a.scored.jsonl
 
 bun examples/showcase/offline-grader-benchmark/scripts/score-grader-benchmark.ts \
   --results examples/showcase/offline-grader-benchmark/fixtures/setup-b.raw.jsonl \
-  --dataset examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
+  --eval-set examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
   --label grader-setup-b \
   > /tmp/grader-setup-b.scored.jsonl
 
@@ -94,7 +94,7 @@ bun apps/cli/src/cli.ts eval \
 # Convert raw panel results into benchmark-scored JSONL (1 = matched human label, 0 = missed)
 bun examples/showcase/offline-grader-benchmark/scripts/score-grader-benchmark.ts \
   --results .agentv/results/offline-grader-setup-a.raw.jsonl \
-  --dataset examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
+  --eval-set examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
   --label grader-setup-a \
   > .agentv/results/offline-grader-setup-a.scored.jsonl
 
@@ -117,12 +117,12 @@ bun apps/cli/src/cli.ts eval examples/showcase/offline-grader-benchmark/evals/se
 # Score both runs against human labels
 bun examples/showcase/offline-grader-benchmark/scripts/score-grader-benchmark.ts \
   --results .agentv/results/offline-grader-setup-a.raw.jsonl \
-  --dataset examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
+  --eval-set examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
   --label grader-setup-a \
   > .agentv/results/offline-grader-setup-a.scored.jsonl
 bun examples/showcase/offline-grader-benchmark/scripts/score-grader-benchmark.ts \
   --results .agentv/results/offline-grader-setup-b.raw.jsonl \
-  --dataset examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
+  --eval-set examples/showcase/offline-grader-benchmark/fixtures/labeled-grader-export.jsonl \
   --label grader-setup-b \
   > .agentv/results/offline-grader-setup-b.scored.jsonl
 

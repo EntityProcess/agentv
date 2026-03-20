@@ -16,7 +16,7 @@ type ScoreRecord = {
 type EvalResult = {
   timestamp?: string;
   test_id?: string;
-  dataset?: string;
+  eval_set?: string;
   target?: string;
   input?: string;
   output_text?: string;
@@ -30,14 +30,14 @@ type GroundTruth = {
 };
 
 function usage(): never {
-  console.error(`Usage: bun score-grader-benchmark.ts --results <results.jsonl> --dataset <labeled.jsonl> [--label <name>] [--evaluator <name>]
+  console.error(`Usage: bun score-grader-benchmark.ts --results <results.jsonl> --eval-set <labeled.jsonl> [--label <name>] [--evaluator <name>]
 
 Reads raw AgentV eval JSONL for a grader panel, resolves a majority verdict from child grader scores,
 and emits scored JSONL where score=1 means the panel matched human ground truth.
 
 Options:
   --results <file>     Raw AgentV eval output JSONL
-  --dataset <file>     Offline labeled export JSONL used for the eval
+  --eval-set <file>    Offline labeled export JSONL used for the eval
   --label <name>       Optional output target label (defaults to input target or results filename)
   --evaluator <name>   Composite evaluator name to inspect (defaults to first composite / first score group)
   --help               Show this help message
@@ -105,9 +105,9 @@ function parseGroundTruth(rawExpectedOutput: unknown): GroundTruth {
   throw new Error('Expected output must encode a pass/fail label');
 }
 
-function loadDataset(datasetPath: string): Map<string, GroundTruth> {
+function loadEvalSet(evalSetPath: string): Map<string, GroundTruth> {
   const map = new Map<string, GroundTruth>();
-  const lines = readFileSync(datasetPath, 'utf-8')
+  const lines = readFileSync(evalSetPath, 'utf-8')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
@@ -156,13 +156,13 @@ const args = process.argv.slice(2);
 if (args.includes('--help')) usage();
 
 const resultsPath = getArg('--results');
-const datasetPath = getArg('--dataset');
+const evalSetPath = getArg('--eval-set');
 const labelOverride = getArg('--label');
 const evaluatorName = getArg('--evaluator');
 
-if (!resultsPath || !datasetPath) usage();
+if (!resultsPath || !evalSetPath) usage();
 
-const truthById = loadDataset(datasetPath);
+const truthById = loadEvalSet(evalSetPath);
 const rawResults = readFileSync(resultsPath, 'utf-8')
   .split('\n')
   .map((line) => line.trim())
@@ -178,7 +178,7 @@ for (const line of rawResults) {
 
   const truth = truthById.get(result.test_id);
   if (!truth) {
-    throw new Error(`No ground truth found for test_id '${result.test_id}' in ${datasetPath}`);
+    throw new Error(`No ground truth found for test_id '${result.test_id}' in ${evalSetPath}`);
   }
 
   const panel = selectPanel(result.scores, evaluatorName);
@@ -221,7 +221,7 @@ for (const line of rawResults) {
   const output = {
     timestamp: result.timestamp,
     test_id: result.test_id,
-    dataset: result.dataset,
+    eval_set: result.eval_set,
     target: labelOverride ?? result.target ?? labelFromPath(resultsPath),
     input: result.input,
     output_text: result.output_text,
