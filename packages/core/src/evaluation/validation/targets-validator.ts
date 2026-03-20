@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
-import { interpolateEnv } from '../interpolation.js';
 import { CLI_PLACEHOLDERS } from '../providers/targets.js';
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -326,7 +325,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = interpolateEnv(parse(content), process.env);
+    parsed = parse(content);
   } catch (error) {
     errors.push({
       severity: 'error',
@@ -534,6 +533,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     // Required field: provider
     const provider = target.provider;
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
+    const isTemplated = typeof provider === 'string' && /^\$\{\{.+\}\}$/.test(provider.trim());
     if (typeof provider !== 'string' || provider.trim().length === 0) {
       errors.push({
         severity: 'error',
@@ -541,8 +541,8 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         location: `${location}.provider`,
         message: "Missing or invalid 'provider' field (must be a non-empty string)",
       });
-    } else if (!knownProviders.includes(provider)) {
-      // Warning for unknown providers (non-fatal)
+    } else if (!isTemplated && !knownProviders.includes(provider)) {
+      // Warning for unknown providers (non-fatal); skip when provider uses ${{ VAR }}
       errors.push({
         severity: 'warning',
         filePath: absolutePath,
@@ -557,7 +557,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     // Check for unknown settings properties on target object
-    if (typeof provider === 'string') {
+    if (typeof provider === 'string' && !isTemplated) {
       validateUnknownSettings(target, provider, absolutePath, location, errors);
     }
 

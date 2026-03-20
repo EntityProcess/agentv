@@ -771,7 +771,7 @@ export function resolveTargetDefinition(
       `${parsed.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
     );
   }
-  const provider = parsed.provider.toLowerCase();
+  const provider = resolveString(parsed.provider, env, `${parsed.name} provider`, true).toLowerCase();
   const providerBatching = resolveOptionalBoolean(
     parsed.provider_batching ?? parsed.providerBatching,
   );
