@@ -41,6 +41,12 @@ interface ToolCallInProgress {
  * Spawns `copilot --acp --stdio` and communicates via NDJSON using
  * @agentclientprotocol/sdk. This bypasses the @github/copilot-sdk's
  * 60s session.idle timeout, enabling long-running agent tasks.
+ *
+ * Token usage: Copilot CLI does not currently emit token usage data via
+ * ACP — usage events are tracked internally but marked ephemeral and not
+ * sent to clients (see github/copilot-cli#1152). The provider is wired to
+ * consume PromptResponse.usage and usage_update events when they become
+ * available, but until then token_usage will be undefined. See #683.
  */
 export class CopilotCliProvider implements Provider {
   readonly id: string;
@@ -83,14 +89,6 @@ export class CopilotCliProvider implements Provider {
     let finalContent = '';
     let tokenUsage: ProviderTokenUsage | undefined;
     let costUsd: number | undefined;
-
-    // Character counters for estimating token usage. Copilot CLI does not
-    // currently emit usage_update events via ACP (events are marked ephemeral
-    // internally — see github/copilot-cli#1152). When usage_update IS received,
-    // we use it directly with a char-based output estimation. Otherwise, we
-    // estimate both input and output from observed character counts. See #683.
-    let inputChars = 0;
-    let outputChars = 0;
 
     // Set up ACP connection
     if (!agentProcess.stdin || !agentProcess.stdout) {
@@ -137,8 +135,6 @@ export class CopilotCliProvider implements Provider {
               endTime: new Date().toISOString(),
               durationMs: 0,
             });
-            // Tool results flow back as input context for the agent
-            inputChars += charLength(update.rawOutput);
             request.streamCallbacks?.onToolCallEnd?.(
               toolName,
               update.rawInput,
@@ -165,8 +161,6 @@ export class CopilotCliProvider implements Provider {
                 endTime: new Date().toISOString(),
                 durationMs: duration,
               });
-              // Tool results flow back as input context for the agent
-              inputChars += charLength(update.rawOutput);
               request.streamCallbacks?.onToolCallEnd?.(
                 inProgress.tool,
                 inProgress.input,
@@ -182,17 +176,17 @@ export class CopilotCliProvider implements Provider {
           const content = update.content;
           if (content?.type === 'text' && typeof content.text === 'string') {
             finalContent += content.text;
-            outputChars += content.text.length;
           }
         }
 
         if (sessionUpdate === 'usage_update') {
-          // ACP UsageUpdate provides { size, used, cost? } where `used` is cumulative
-          // context window tokens — it does NOT separate input vs output tokens.
-          // We estimate output tokens from observed output chars and attribute the
-          // remainder to input. See #683.
-          const used: number = update.used ?? 0;
-          tokenUsage = estimateTokenSplit(used, outputChars);
+          // ACP UsageUpdate provides { size, used, cost? } where `used` is
+          // cumulative context window tokens. This does NOT separate input vs
+          // output tokens, so we report `used` as input with output 0.
+          // Copilot CLI does not currently emit this event via ACP (events are
+          // marked ephemeral internally — see github/copilot-cli#1152), but
+          // this handler is ready for when it does. See #683.
+          tokenUsage = { input: update.used, output: 0 };
           // Cost may arrive across multiple events — accumulate
           if (update.cost && update.cost.currency === 'USD') {
             costUsd = (costUsd ?? 0) + update.cost.amount;
@@ -232,11 +226,6 @@ export class CopilotCliProvider implements Provider {
       }
       promptMessages.push({ type: 'text', text: prompt });
 
-      // Count prompt chars as input for token estimation
-      for (const msg of promptMessages) {
-        inputChars += msg.text.length;
-      }
-
       // Send and wait with timeout
       const sendPromise = connection.prompt({
         sessionId: session.sessionId,
@@ -261,9 +250,11 @@ export class CopilotCliProvider implements Provider {
       const endTime = new Date().toISOString();
       const durationMs = Date.now() - startMs;
 
-      // Prefer token usage from PromptResponse (ACP spec includes per-turn
-      // Usage with inputTokens/outputTokens), then fall back to usage_update
-      // events, then estimate from character counts. See #683.
+      // Prefer accurate token usage from PromptResponse.usage (ACP spec
+      // includes per-turn Usage with inputTokens/outputTokens — marked
+      // @experimental/UNSTABLE). Copilot CLI v1.0.9 does not populate this
+      // yet, but this is ready for when it does. Falls back to usage_update
+      // data if that was received. See #683.
       const responseUsage = promptResponse.usage;
       if (responseUsage && responseUsage.totalTokens > 0) {
         tokenUsage = {
@@ -276,10 +267,6 @@ export class CopilotCliProvider implements Provider {
             ? { cached: responseUsage.cachedReadTokens }
             : {}),
         };
-        request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
-      } else if (!tokenUsage && (inputChars > 0 || outputChars > 0)) {
-        // No usage from PromptResponse or usage_update — estimate from chars
-        tokenUsage = estimateTokensFromChars(inputChars, outputChars);
         request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
       }
 
@@ -512,50 +499,6 @@ Fix options:
 2) Set explicit executable for Copilot targets:
    - In .env: COPILOT_EXE=C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\@github\\copilot-win32-x64\\copilot.exe
   - In .agentv/targets.yaml: executable: \${{ COPILOT_EXE }}`;
-}
-
-/**
- * Estimate the character length of an unknown value (tool result payload).
- */
-function charLength(value: unknown): number {
-  if (value == null) return 0;
-  if (typeof value === 'string') return value.length;
-  try {
-    return JSON.stringify(value).length;
-  } catch {
-    return String(value).length;
-  }
-}
-
-/**
- * Estimate input/output token split from cumulative context window usage.
- *
- * Used when copilot CLI emits usage_update events. The `used` value is the
- * total context window, so we estimate output tokens from observed output
- * chars and attribute the remainder to input.
- */
-function estimateTokenSplit(used: number, outputChars: number): ProviderTokenUsage {
-  if (outputChars === 0) {
-    return { input: used, output: 0 };
-  }
-  const estimatedOutput = Math.max(1, Math.round(outputChars / 4));
-  const output = Math.min(estimatedOutput, used);
-  return { input: used - output, output };
-}
-
-/**
- * Estimate token usage purely from character counts when no usage_update
- * event was received. Uses ~4 chars/token heuristic for English/code.
- *
- * Copilot CLI currently does not emit usage_update events via ACP (they are
- * marked ephemeral internally — see github/copilot-cli#1152). This provides
- * approximate token counts so eval results aren't completely missing them.
- */
-function estimateTokensFromChars(inputChars: number, outputChars: number): ProviderTokenUsage {
-  return {
-    input: Math.max(1, Math.round(inputChars / 4)),
-    output: Math.max(0, Math.round(outputChars / 4)),
-  };
 }
 
 function summarizeAcpEvent(eventType: string, data: unknown): string | undefined {
