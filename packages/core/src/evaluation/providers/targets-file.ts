@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
+import { interpolateEnv } from '../interpolation.js';
 import { TARGETS_SCHEMA_V2 } from './types.js';
 import type { TargetDefinition } from './types.js';
 
@@ -59,7 +60,7 @@ export async function readTargetDefinitions(
   }
 
   const raw = await readFile(absolutePath, 'utf8');
-  const parsed = parse(raw) as unknown;
+  const parsed = interpolateEnv(parse(raw), process.env) as unknown;
 
   if (!isRecord(parsed)) {
     throw new Error(`targets.yaml at ${absolutePath} must be a YAML object with a 'targets' field`);
