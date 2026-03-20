@@ -41,6 +41,12 @@ interface ToolCallInProgress {
  * Spawns `copilot --acp --stdio` and communicates via NDJSON using
  * @agentclientprotocol/sdk. This bypasses the @github/copilot-sdk's
  * 60s session.idle timeout, enabling long-running agent tasks.
+ *
+ * Token usage: Copilot CLI does not currently emit token usage data via
+ * ACP — usage events are tracked internally but marked ephemeral and not
+ * sent to clients (see github/copilot-cli#1152). The provider is wired to
+ * consume PromptResponse.usage and usage_update events when they become
+ * available, but until then token_usage will be undefined. See #683.
  */
 export class CopilotCliProvider implements Provider {
   readonly id: string;
@@ -174,13 +180,13 @@ export class CopilotCliProvider implements Provider {
         }
 
         if (sessionUpdate === 'usage_update') {
-          // ACP UsageUpdate has { size, used, cost? } — cost has { amount, currency }
-          // `used` reports cumulative context window usage, so overwrite (not accumulate)
-          if (tokenUsage) {
-            tokenUsage = { input: update.used, output: tokenUsage.output };
-          } else {
-            tokenUsage = { input: update.used, output: 0 };
-          }
+          // ACP UsageUpdate provides { size, used, cost? } where `used` is
+          // cumulative context window tokens. This does NOT separate input vs
+          // output tokens, so we report `used` as input with output 0.
+          // Copilot CLI does not currently emit this event via ACP (events are
+          // marked ephemeral internally — see github/copilot-cli#1152), but
+          // this handler is ready for when it does. See #683.
+          tokenUsage = { input: update.used, output: 0 };
           // Cost may arrive across multiple events — accumulate
           if (update.cost && update.cost.currency === 'USD') {
             costUsd = (costUsd ?? 0) + update.cost.amount;
@@ -226,22 +232,43 @@ export class CopilotCliProvider implements Provider {
         prompt: promptMessages,
       });
 
+      let promptResponse: acp.PromptResponse;
       if (request.signal) {
         const abortHandler = () => {
           killProcess(agentProcess);
         };
         request.signal.addEventListener('abort', abortHandler, { once: true });
         try {
-          await this.raceWithTimeout(sendPromise, agentProcess);
+          promptResponse = await this.raceWithTimeout(sendPromise, agentProcess);
         } finally {
           request.signal.removeEventListener('abort', abortHandler);
         }
       } else {
-        await this.raceWithTimeout(sendPromise, agentProcess);
+        promptResponse = await this.raceWithTimeout(sendPromise, agentProcess);
       }
 
       const endTime = new Date().toISOString();
       const durationMs = Date.now() - startMs;
+
+      // Prefer accurate token usage from PromptResponse.usage (ACP spec
+      // includes per-turn Usage with inputTokens/outputTokens — marked
+      // @experimental/UNSTABLE). Copilot CLI v1.0.9 does not populate this
+      // yet, but this is ready for when it does. Falls back to usage_update
+      // data if that was received. See #683.
+      const responseUsage = promptResponse.usage;
+      if (responseUsage && responseUsage.totalTokens > 0) {
+        tokenUsage = {
+          input: responseUsage.inputTokens,
+          output: responseUsage.outputTokens,
+          ...(responseUsage.thoughtTokens != null
+            ? { reasoning: responseUsage.thoughtTokens }
+            : {}),
+          ...(responseUsage.cachedReadTokens != null
+            ? { cached: responseUsage.cachedReadTokens }
+            : {}),
+        };
+        request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
+      }
 
       // Detect rejected tool calls — copilot's permission system blocked a tool
       const rejectedCalls = completedToolCalls.filter((tc) => {
@@ -311,14 +338,13 @@ export class CopilotCliProvider implements Provider {
     return this.config.systemPrompt;
   }
 
-  private async raceWithTimeout(
-    sendPromise: Promise<unknown>,
+  private async raceWithTimeout<T>(
+    sendPromise: Promise<T>,
     agentProcess: ChildProcess,
-  ): Promise<void> {
+  ): Promise<T> {
     const timeoutMs = this.config.timeoutMs;
     if (!timeoutMs) {
-      await sendPromise;
-      return;
+      return sendPromise;
     }
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -331,7 +357,7 @@ export class CopilotCliProvider implements Provider {
     });
 
     try {
-      await Promise.race([sendPromise, timeoutPromise]);
+      return await Promise.race([sendPromise, timeoutPromise]);
     } finally {
       if (timer) clearTimeout(timer);
     }
