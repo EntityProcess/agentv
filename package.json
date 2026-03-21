@@ -24,8 +24,8 @@
     "tag:next": "bun scripts/tag-channel.ts next",
     "promote:latest": "bun scripts/tag-channel.ts latest",
     "examples:install": "bun scripts/install-examples.ts",
-    "publish": "bun run build && (cd packages/core && bun publish ; cd ../..) ; (cd packages/eval && bun publish ; cd ../..) ; (cd apps/cli && bun publish ; cd ../..)",
-    "publish:next": "bun run build && (cd packages/core && bun publish --tag next ; cd ../..) ; (cd packages/eval && bun publish --tag next ; cd ../..) ; (cd apps/cli && bun publish --tag next ; cd ../..)",
+    "publish": "bun run build && bun scripts/publish.ts",
+    "publish:next": "bun run build && bun scripts/publish.ts next",
     "prepare": "test -d .git && bunx prek install -t pre-push || true"
   },
   "devDependencies": {

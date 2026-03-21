@@ -26,6 +26,7 @@
     }
   },
   "scripts": {
+    "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
     "build": "tsup",
     "dev": "bun --watch src/index.ts",
     "typecheck": "tsc --noEmit",

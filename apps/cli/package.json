@@ -19,7 +19,7 @@
     "dev": "bun src/cli.ts",
     "build": "tsup && bun run copy-readme",
     "copy-readme": "bun -e \"import { cpSync } from 'fs'; cpSync('../../README.md', 'README.md')\"",
-    "prepublishOnly": "bun run copy-readme",
+    "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
