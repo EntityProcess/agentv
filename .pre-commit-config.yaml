@@ -32,3 +32,10 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+
+      - id: validate-evals
+        name: Validate eval YAML files
+        entry: bun run validate:examples
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

@@ -958,46 +958,6 @@ tests: ./cases.yaml
   });
 
   describe('backward-compat aliases', () => {
-    it('accepts eval_cases as deprecated alias for tests (with warning)', async () => {
-      const filePath = path.join(tempDir, 'eval-cases-alias.yaml');
-      await writeFile(
-        filePath,
-        `eval_cases:
-  - id: test-1
-    criteria: Goal
-    input:
-      - role: user
-        content: Query
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      expect(result.valid).toBe(true);
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("'eval_cases' is deprecated"))).toBe(true);
-    });
-
-    it('accepts evalcases as deprecated alias for tests (with warning)', async () => {
-      const filePath = path.join(tempDir, 'evalcases-alias.yaml');
-      await writeFile(
-        filePath,
-        `evalcases:
-  - id: test-1
-    criteria: Goal
-    input:
-      - role: user
-        content: Query
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      expect(result.valid).toBe(true);
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("'evalcases' is deprecated"))).toBe(true);
-    });
-
     it('accepts expected_outcome as deprecated alias for criteria (with warning)', async () => {
       const filePath = path.join(tempDir, 'expected-outcome-alias.yaml');
       await writeFile(

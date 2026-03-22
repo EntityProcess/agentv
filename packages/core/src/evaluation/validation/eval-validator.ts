@@ -97,26 +97,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     }
   }
 
-  // Resolve tests with backward-compat aliases
-  let cases: JsonValue | undefined = parsed.tests;
-  if (cases === undefined && 'eval_cases' in parsed) {
-    cases = parsed.eval_cases;
-    errors.push({
-      severity: 'warning',
-      filePath: absolutePath,
-      location: 'eval_cases',
-      message: "'eval_cases' is deprecated. Use 'tests' instead.",
-    });
-  }
-  if (cases === undefined && 'evalcases' in parsed) {
-    cases = parsed.evalcases;
-    errors.push({
-      severity: 'warning',
-      filePath: absolutePath,
-      location: 'evalcases',
-      message: "'evalcases' is deprecated. Use 'tests' instead.",
-    });
-  }
+  const cases: JsonValue | undefined = parsed.tests;
 
   // tests can be a string path (external file reference) or an array
   if (typeof cases === 'string') {
@@ -175,6 +156,21 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   for (let i = 0; i < cases.length; i++) {
     const evalCase = cases[i];
     const location = `tests[${i}]`;
+
+    // Tests array items can be file references (e.g., "file://cases/accuracy.yaml")
+    if (typeof evalCase === 'string') {
+      if (evalCase.startsWith('file://')) {
+        validateTestsStringPath(evalCase, absolutePath, errors);
+      } else {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location,
+          message: 'Test case string must be a file reference (file://...)',
+        });
+      }
+      continue;
+    }
 
     if (!isObject(evalCase)) {
       errors.push({
@@ -449,9 +445,13 @@ function validateMessages(
       });
     }
 
-    // Validate content field (can be string or array)
+    // Validate content field (can be string, array, or object)
+    // Messages with tool_calls may omit content entirely (e.g., assistant tool-call messages).
     const content = message.content;
-    if (typeof content === 'string') {
+    const hasToolCalls = 'tool_calls' in message;
+    if (content === undefined && hasToolCalls) {
+      // Valid: assistant message with tool_calls but no content
+    } else if (typeof content === 'string') {
       validateContentForRoleMarkers(content, `${msgLocation}.content`, filePath, errors);
     } else if (Array.isArray(content)) {
       // Array content - validate each element
@@ -496,12 +496,15 @@ function validateMessages(
           });
         }
       }
+    } else if (isObject(content)) {
+      // Structured content objects (e.g., { decision: "CLEAR" }) are valid
+      // — the runtime accepts them for expected_output and input messages.
     } else {
       errors.push({
         severity: 'error',
         filePath,
         location: `${msgLocation}.content`,
-        message: "Missing or invalid 'content' field (must be a string or array)",
+        message: "Missing or invalid 'content' field (must be a string, array, or object)",
       });
     }
   }
