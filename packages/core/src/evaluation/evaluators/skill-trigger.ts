@@ -59,6 +59,22 @@ const COPILOT_MATCHER: ToolMatcher = {
 };
 
 /**
+ * Pi CLI reads skill files using the lowercase `read` tool with a `path` argument.
+ * Skills are auto-discovered from `.agents/skills/` relative to the working directory.
+ *
+ * Skill lookup order (workspace-scoped first):
+ *   1. .agents/skills/<skill-name>/SKILL.md  (workspace-relative, auto-discovered)
+ *   2. ~/.agents/skills/<skill-name>/SKILL.md (global fallback)
+ */
+const PI_CODING_AGENT_MATCHER: ToolMatcher = {
+  skillTools: [],
+  skillInputField: 'skill',
+  readTools: ['read'],
+  readInputField: 'path',
+  readInputFields: ['path', 'file_path', 'filePath'],
+};
+
+/**
  * Codex reads skill files via command_execution using a bash sed command containing
  * the skill file path. The skill name appears in the command string, so we match
  * any command_execution whose command field includes the skill name.
@@ -90,7 +106,7 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   'claude-cli': CLAUDE_MATCHER,
   'claude-sdk': CLAUDE_MATCHER,
   codex: CODEX_MATCHER,
-  'pi-coding-agent': CLAUDE_MATCHER,
+  'pi-coding-agent': PI_CODING_AGENT_MATCHER,
   'pi-agent-sdk': CLAUDE_MATCHER,
   'copilot-cli': COPILOT_MATCHER,
   'copilot-sdk': COPILOT_MATCHER,

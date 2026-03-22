@@ -119,6 +119,44 @@ describe('SkillTriggerEvaluator', () => {
       expect(result.verdict).toBe('pass');
     });
 
+    it('should detect pi-coding-agent read tool loading skill file', () => {
+      const evaluator = new SkillTriggerEvaluator(makeConfig());
+      const context = makeContext({
+        provider: { kind: 'pi-coding-agent', targetName: 'test' },
+        output: [
+          {
+            role: 'assistant',
+            content: '',
+            toolCalls: [
+              {
+                tool: 'read',
+                input: { path: '/workspace/.agents/skills/csv-analyzer/SKILL.md' },
+              },
+            ],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('pass');
+      expect(result.score).toBe(1);
+    });
+
+    it('should fail for pi-coding-agent with non-matching read call', () => {
+      const evaluator = new SkillTriggerEvaluator(makeConfig());
+      const context = makeContext({
+        provider: { kind: 'pi-coding-agent', targetName: 'test' },
+        output: [
+          {
+            role: 'assistant',
+            content: 'some response',
+            toolCalls: [{ tool: 'read', input: { path: '/workspace/README.md' } }],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('fail');
+    });
+
     it('should detect codex bash command_execution reading skill file', () => {
       const evaluator = new SkillTriggerEvaluator(makeConfig());
       const context = makeContext({
@@ -348,24 +386,7 @@ describe('SkillTriggerEvaluator', () => {
   });
 
   describe('pi-coding-agent tools', () => {
-    it('should detect Skill tool for pi-coding-agent', () => {
-      const evaluator = new SkillTriggerEvaluator(makeConfig());
-      const context = makeContext({
-        provider: { kind: 'pi-coding-agent', targetName: 'test' },
-        output: [
-          {
-            role: 'assistant',
-            content: '',
-            toolCalls: [{ tool: 'Skill', input: { skill: 'csv-analyzer' } }],
-          },
-        ],
-      });
-      const result = evaluator.evaluate(context);
-      expect(result.verdict).toBe('pass');
-      expect(result.score).toBe(1);
-    });
-
-    it('should detect Read tool for pi-coding-agent when reading skill file', () => {
+    it('should detect pi-coding-agent read tool loading skill from .agents/skills', () => {
       const evaluator = new SkillTriggerEvaluator(makeConfig());
       const context = makeContext({
         provider: { kind: 'pi-coding-agent', targetName: 'test' },
@@ -375,8 +396,30 @@ describe('SkillTriggerEvaluator', () => {
             content: '',
             toolCalls: [
               {
-                tool: 'Read',
-                input: { file_path: '/skills/csv-analyzer/SKILL.md' },
+                tool: 'read',
+                input: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+              },
+            ],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('pass');
+      expect(result.score).toBe(1);
+    });
+
+    it('should detect pi-coding-agent read tool loading skill from global path', () => {
+      const evaluator = new SkillTriggerEvaluator(makeConfig());
+      const context = makeContext({
+        provider: { kind: 'pi-coding-agent', targetName: 'test' },
+        output: [
+          {
+            role: 'assistant',
+            content: '',
+            toolCalls: [
+              {
+                tool: 'read',
+                input: { path: '/home/user/.agents/skills/csv-analyzer/SKILL.md' },
               },
             ],
           },

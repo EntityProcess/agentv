@@ -771,6 +771,14 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
         id: typeof p.id === 'string' ? p.id : undefined,
       });
     }
+    // Pi CLI emits toolCall (camelCase) with arguments (not input)
+    if (p.type === 'toolCall' && typeof p.name === 'string') {
+      toolCalls.push({
+        tool: p.name,
+        input: p.arguments,
+        id: typeof p.id === 'string' ? p.id : undefined,
+      });
+    }
     // Also handle tool_result for output
     if (p.type === 'tool_result' && typeof p.tool_use_id === 'string') {
       // Find matching tool call and add output
