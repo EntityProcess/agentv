@@ -18,8 +18,8 @@ These principles guide all feature decisions. **Follow these when proposing or i
 AgentV's core should remain minimal. Complex or domain-specific logic belongs in plugins, not built-in features.
 
 **Extension points (prefer these over adding built-ins):**
-- `code-grader` (also accepts `code-judge`) scripts for custom evaluation logic
-- `llm-grader` (also accepts `llm-judge`) evaluators with custom prompt files for domain-specific LLM grading
+- `code-grader` scripts for custom evaluation logic
+- `llm-grader` evaluators with custom prompt files for domain-specific LLM grading
 - CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
 
 **Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in. This includes adding config overrides to existing evaluators — if a niche provider needs custom tool-name matching, that's a code-grader, not a new config field.
@@ -312,7 +312,7 @@ Design documents and implementation plans are stored in `.claude/plans/`. These 
 
 #### Git Worktrees
 
-Use the default `agentv.worktrees/` directory (managed by the superpowers skill). After creating a worktree, always run setup:
+Use the default `agentv.worktrees/` directory. After creating a worktree, always run setup:
 ```bash
 bun install                                    # worktrees do NOT share node_modules
 cp /home/christso/projects/agentv/.env .env    # required for e2e tests and LLM operations
@@ -346,13 +346,6 @@ bun run publish:next   # publish current version to npm `next`
 bun run promote:latest # promote same version to npm `latest`
 bun run tag:next 2.18.0
 bun run promote:latest 2.18.0
-```
-
-Legacy prerelease flow (still available):
-```bash
-bun run release:next         # bump to/increment `-next.N`
-bun run release next minor   # start a new minor prerelease line as `x.y.0-next.1`
-bun run release next major   # start a new major prerelease line as `x.0.0-next.1`
 ```
 
 ## Package Publishing
