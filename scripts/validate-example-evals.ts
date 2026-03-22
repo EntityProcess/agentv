@@ -15,10 +15,9 @@ import path from 'node:path';
 
 import {
   type ValidationResult,
-  detectFileType,
   validateEvalFile,
   validateFileReferences,
-} from '@agentv/core/evaluation/validation';
+} from '../packages/core/src/evaluation/validation/index.js';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 
