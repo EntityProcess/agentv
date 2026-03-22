@@ -97,26 +97,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     }
   }
 
-  // Resolve tests with backward-compat aliases
-  let cases: JsonValue | undefined = parsed.tests;
-  if (cases === undefined && 'eval_cases' in parsed) {
-    cases = parsed.eval_cases;
-    errors.push({
-      severity: 'warning',
-      filePath: absolutePath,
-      location: 'eval_cases',
-      message: "'eval_cases' is deprecated. Use 'tests' instead.",
-    });
-  }
-  if (cases === undefined && 'evalcases' in parsed) {
-    cases = parsed.evalcases;
-    errors.push({
-      severity: 'warning',
-      filePath: absolutePath,
-      location: 'evalcases',
-      message: "'evalcases' is deprecated. Use 'tests' instead.",
-    });
-  }
+  const cases: JsonValue | undefined = parsed.tests;
 
   // tests can be a string path (external file reference) or an array
   if (typeof cases === 'string') {
