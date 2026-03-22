@@ -180,11 +180,13 @@ Before marking any branch as ready for review, complete this checklist:
 
 2. **Run unit tests**: `bun run test` — all must pass.
 
-3. **Run at least one real eval** against an example file to verify end-to-end behavior:
-   ```bash
-   bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
-   ```
-   Inspect the output JSONL to confirm correct evaluator type, scores, and assertions array.
+3. **Manual red/green UAT (REQUIRED for all changes):**
+   Automated tests are not sufficient. Every change must be manually verified from the end user's perspective using a red/green approach:
+   - **Red (before fix):** Reproduce the bug or demonstrate the missing feature on `main` (or before your change). Confirm the undesired behavior is observable from the CLI / user-facing output.
+   - **Green (after fix):** Run the same scenario with your changes applied. Confirm the fix or feature works correctly from the end user's perspective.
+   - Document both the red and green results in the PR or conversation so the user can see the before/after.
+
+   For evaluator changes, this means running a real eval (not `--dry-run`) and inspecting the output JSONL. For CLI/UX changes, this means running the CLI command and verifying the console output.
 
 4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed evaluator parsing, run an eval that exercises different evaluator types).
 
