@@ -3,6 +3,7 @@
 This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
 ## High-Level Goals
+
 AgentV aims to provide a robust, declarative framework for evaluating AI agents.
 - **Declarative Definitions**: Define tasks, expected outcomes, and rubrics in simple YAML files.
 - **Structured Evaluation**: Use "Rubric as Object" (Google ADK style) for deterministic, type-safe grading.
@@ -84,9 +85,46 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
   - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
 - `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
 
-## Quality Assurance Workflow
+## Working Style
 
-The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks that automatically run build, typecheck, lint, and tests before pushing. **Do not manually run these checks before pushing**—just push to the feature branch and let the pre-push hook validate.
+### Planning
+- Use plan mode for any non-trivial task (5+ steps or architectural decisions).
+- If something goes sideways, STOP and re-plan immediately — don't keep pushing a broken approach.
+- For non-trivial changes, pause and ask: "Is there a more elegant solution?" before diving in.
+- Check in with the user before starting implementation on ambiguous tasks.
+
+### Subagent Strategy
+- Use subagents aggressively to keep the main context window clean.
+- Subagents for: research, file exploration, running tests, code review.
+- For complex problems, throw more subagents at it — parallelize where possible.
+- Name subagents descriptively.
+
+### Autonomous Bug Fixes
+- When you spot a bug, just fix it. Don't ask for hand-holding.
+- Point at logs, errors, failing tests — then resolve them.
+- Only ask when there's genuine ambiguity about intent.
+- Fix failing CI tests without being told.
+
+### Simplicity
+- Every change should be as simple as possible. Import existing code; don't reinvent.
+- Find root causes and fix them directly. No shotgun debugging.
+
+### Progress Updates
+- Provide high-level status updates at natural milestones.
+- When scope changes mid-task, communicate the shift and adjust the plan.
+
+## TypeScript Guidelines
+- Target ES2022 with Node 20+
+- Prefer type inference over explicit types
+- Use `async/await` for async operations
+- Prefer named exports
+- Keep modules cohesive
+
+## Testing & Verification
+
+### Pre-Push Hooks (Automated)
+
+The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks that automatically run build, typecheck, lint, and tests before pushing. **Do not manually run these checks before pushing** — just push to the feature branch and let the pre-push hook validate.
 
 **Setup (automatic):**
 The hooks are installed automatically when you run `bun install` via the `prepare` script. To manually install:
@@ -107,19 +145,7 @@ If any check fails, the push is blocked until the issues are fixed.
 bunx prek run --all-files --hook-stage pre-push
 ```
 
-## Documentation Updates
-
-When making changes to functionality:
-
-1. **Docs site** (`apps/web/src/content/docs/`): Update human-readable documentation on agentv.dev. This is the comprehensive reference.
-
-2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, evaluator types, or CLI commands. Keep concise — link to docs site for details.
-
-3. **Examples** (`examples/`): Update any example code, scripts, or eval YAML files that exercise the changed functionality. Examples are both documentation and integration tests.
-
-4. **README.md**: Keep minimal. Links point to agentv.dev.
-
-## Functional Testing
+### Functional Testing (CLI)
 
 When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed version (bun or npm). Instead:
 
@@ -129,21 +155,16 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 **Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes.
 
-## Browser E2E Testing (Docs Site)
+### Browser E2E Testing (Docs Site)
 
 Use `agent-browser` for visual verification of docs site changes. Environment-specific rules:
 
 - **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
 - **Never use `--headed`** — no display server available; headless (default) works correctly
 
-## Verifying Evaluator Changes
+### Verifying Evaluator Changes
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
-
-0. **Preflight (MUST pass before any eval/e2e run):** if you are in a git worktree, ensure a `.env` file exists in the current worktree root.
-   - Linux/macOS check: `test -f .env`
-   - Windows PowerShell check: `Test-Path .env`
-   - If missing, copy it from the main repo before running evals.
 
 1. **Copy `.env` to the worktree** if running in a git worktree (e2e tests need environment variables):
    ```bash
@@ -168,11 +189,11 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 
 5. **Note:** `--dry-run` returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
 
-## Completing Work — E2E Checklist
+### Completing Work — E2E Checklist
 
 Before marking any branch as ready for review, complete this checklist:
 
-1. **Copy `.env` to worktree** (if working in a git worktree):
+1. **Preflight:** If in a git worktree, ensure `.env` exists in the worktree root.
    ```bash
    cp /home/christso/projects/agentv/.env .env
    ```
@@ -192,6 +213,18 @@ Before marking any branch as ready for review, complete this checklist:
 
 5. **Mark PR as ready** only after all above steps pass.
 
+## Documentation Updates
+
+When making changes to functionality:
+
+1. **Docs site** (`apps/web/src/content/docs/`): Update human-readable documentation on agentv.dev. This is the comprehensive reference.
+
+2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, evaluator types, or CLI commands. Keep concise — link to docs site for details.
+
+3. **Examples** (`examples/`): Update any example code, scripts, or eval YAML files that exercise the changed functionality. Examples are both documentation and integration tests.
+
+4. **README.md**: Keep minimal. Links point to agentv.dev.
+
 ## Evaluator Type System
 
 Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
@@ -208,49 +241,6 @@ Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
 **Two type definitions exist:**
 - `EvaluatorKind` in `packages/core/src/evaluation/types.ts` — internal, canonical
 - `AssertionType` in `packages/eval/src/assertion.ts` — SDK-facing, must stay in sync
-
-## TypeScript Guidelines
-- Target ES2022 with Node 20+
-- Prefer type inference over explicit types
-- Use `async/await` for async operations
-- Prefer named exports
-- Keep modules cohesive
-
-## Version Management
-
-This project uses a simple release script for version bumping. The git commit history serves as the changelog.
-
-### Releasing a new version
-
-Run the release script for a version bump:
-
-```bash
-bun run release          # patch bump (default)
-bun run release minor    # minor bump
-bun run release major    # major bump
-```
-
-The script will:
-1. Validate you're on the `main` branch with no uncommitted changes
-2. Pull latest changes from origin
-3. Bump version in all package.json files
-4. Commit the version bump
-5. Create and push a git tag
-
-Recommended publish flow:
-```bash
-bun run publish:next   # publish current version to npm `next`
-bun run promote:latest # promote same version to npm `latest`
-bun run tag:next 2.18.0
-bun run promote:latest 2.18.0
-```
-
-Legacy prerelease flow (still available):
-```bash
-bun run release:next         # bump to/increment `-next.N`
-bun run release next minor   # start a new minor prerelease line as `x.y.0-next.1`
-bun run release next major   # start a new major prerelease line as `x.0.0-next.1`
-```
 
 ## Git Workflow
 
@@ -281,7 +271,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    ```
 
 4. **Before merging**, ensure:
-   - **E2E verification completed** (see "Completing Work — E2E Checklist" below)
+   - **E2E verification completed** (see "Completing Work — E2E Checklist")
    - CI pipeline passes (all checks green)
    - Code has been reviewed if required
    - No merge conflicts with `main`
@@ -328,6 +318,42 @@ bun install                                    # worktrees do NOT share node_mod
 cp /home/christso/projects/agentv/.env .env    # required for e2e tests and LLM operations
 ```
 Both steps are required before running builds, tests, or evals in the worktree.
+
+## Version Management
+
+This project uses a simple release script for version bumping. The git commit history serves as the changelog.
+
+### Releasing a new version
+
+Run the release script for a version bump:
+
+```bash
+bun run release          # patch bump (default)
+bun run release minor    # minor bump
+bun run release major    # major bump
+```
+
+The script will:
+1. Validate you're on the `main` branch with no uncommitted changes
+2. Pull latest changes from origin
+3. Bump version in all package.json files
+4. Commit the version bump
+5. Create and push a git tag
+
+Recommended publish flow:
+```bash
+bun run publish:next   # publish current version to npm `next`
+bun run promote:latest # promote same version to npm `latest`
+bun run tag:next 2.18.0
+bun run promote:latest 2.18.0
+```
+
+Legacy prerelease flow (still available):
+```bash
+bun run release:next         # bump to/increment `-next.N`
+bun run release next minor   # start a new minor prerelease line as `x.y.0-next.1`
+bun run release next major   # start a new major prerelease line as `x.0.0-next.1`
+```
 
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
