@@ -561,7 +561,7 @@ export async function runEvaluation(
   setupLog(
     `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} workers=${workers}`,
   );
-  if (hasSharedWorkspace && !usePool && workers > 1) {
+  if (hasSharedWorkspace && !usePool && workers > 1 && filteredEvalCases.length > 1) {
     console.warn(
       [
         `Warning: This eval uses a shared workspace with ${workers} workers.`,
