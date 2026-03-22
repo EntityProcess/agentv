@@ -1,13 +1,21 @@
 # Multi-provider skill-trigger evaluation example.
 #
+# Uses an isolated workspace template (workspace/) so no global skill installation
+# is needed. The workspace contains:
+#   .claude/skills/csv-analyzer/  — for claude/copilot providers
+#   .agents/skills/csv-analyzer/  — for codex provider
+#
 # The same EVAL.yaml works with any provider — just change --target:
 #
-#   agentv eval this-file.EVAL.yaml --target claude
-#   agentv eval this-file.EVAL.yaml --target copilot
-#   agentv eval this-file.EVAL.yaml --target pi-coding-agent
+#   agentv eval this-file.EVAL.yaml --target claude --targets ../.agentv/targets.yaml
+#   agentv eval this-file.EVAL.yaml --target copilot --targets ../.agentv/targets.yaml
+#   agentv eval this-file.EVAL.yaml --target codex --targets ../.agentv/targets.yaml
 #
 # The evaluator automatically resolves the correct tool names for each
 # provider. No provider-specific config needed in test cases.
+
+workspace:
+  template: workspace/
 
 tests:
   # === Positive cases: skill should trigger ===
