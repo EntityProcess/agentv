@@ -29,8 +29,14 @@ async function loadCopilotSdk(): Promise<typeof import('@github/copilot-sdk')> {
     try {
       copilotSdkModule = await import('@github/copilot-sdk');
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('vscode-jsonrpc')) {
+        throw new Error(
+          `Failed to load @github/copilot-sdk due to a known ESM compatibility issue with vscode-jsonrpc (https://github.com/github/copilot-sdk/issues/710).\n\nWorkarounds:\n  - Use the copilot-cli target instead (recommended): set target type to "copilot-cli" in your eval YAML\n  - If running under Node.js 24+: set NODE_OPTIONS="--experimental-specifier-resolution=node"\n  - Wait for vscode-jsonrpc@9.0.0 stable to be released upstream`,
+        );
+      }
       throw new Error(
-        `Failed to load @github/copilot-sdk. Please install it:\n  npm install @github/copilot-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to load @github/copilot-sdk. Please install it:\n  npm install @github/copilot-sdk\n\nOriginal error: ${message}`,
       );
     }
   }
