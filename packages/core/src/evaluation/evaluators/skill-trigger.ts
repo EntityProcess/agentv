@@ -107,7 +107,9 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   'claude-sdk': CLAUDE_MATCHER,
   codex: CODEX_MATCHER,
   'pi-coding-agent': PI_CODING_AGENT_MATCHER,
-  'pi-agent-sdk': CLAUDE_MATCHER,
+  // pi-agent-sdk has no tools, so skill detection is a no-op. Kept for completeness.
+  // TODO: consider removing pi-agent-sdk provider entirely.
+  'pi-agent-sdk': PI_CODING_AGENT_MATCHER,
   'copilot-cli': COPILOT_MATCHER,
   'copilot-sdk': COPILOT_MATCHER,
   vscode: COPILOT_MATCHER,

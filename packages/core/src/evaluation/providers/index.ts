@@ -100,6 +100,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('copilot-sdk', (t) => new CopilotSdkProvider(t.name, t.config as never))
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
     .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
+    // TODO: consider removing pi-agent-sdk — it has no tools and is superseded by pi-coding-agent
     .register('pi-agent-sdk', (t) => new PiAgentSdkProvider(t.name, t.config as never))
     // claude-cli is the new default subprocess provider; claude is an alias
     .register('claude-cli', (t) => new ClaudeCliProvider(t.name, t.config as never))
