@@ -46,9 +46,11 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   const absolutePath = path.resolve(filePath);
 
   let parsed: unknown;
+  let rawParsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = interpolateEnv(parse(content), process.env);
+    rawParsed = parse(content);
+    parsed = interpolateEnv(rawParsed, process.env);
   } catch (error) {
     errors.push({
       severity: 'error',
@@ -223,13 +225,30 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         message: "'expected_outcome' is deprecated. Use 'criteria' instead.",
       });
     }
-    if (criteria !== undefined && typeof criteria !== 'string') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.criteria`,
-        message: "Invalid 'criteria' field (must be a string if provided)",
-      });
+    if (criteria !== undefined) {
+      if (typeof criteria !== 'string') {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.criteria`,
+          message: "Invalid 'criteria' field (must be a string if provided)",
+        });
+      } else if (criteria.trim().length === 0) {
+        // Empty after interpolation — only flag if the raw value was also empty
+        // (not the result of an unset env var like ${{ EVAL_CRITERIA }}).
+        const rawCases = isObject(rawParsed) ? rawParsed.tests ?? rawParsed.eval_cases ?? rawParsed.evalcases : undefined;
+        const rawCase = Array.isArray(rawCases) ? rawCases[i] : undefined;
+        const rawCriteria = isObject(rawCase) ? (rawCase.criteria ?? rawCase.expected_outcome) : undefined;
+        const isInterpolated = typeof rawCriteria === 'string' && rawCriteria.includes('${{');
+        if (!isInterpolated) {
+          errors.push({
+            severity: 'error',
+            filePath: absolutePath,
+            location: `${location}.criteria`,
+            message: "Invalid 'criteria' field (must be a non-empty string if provided)",
+          });
+        }
+      }
     }
 
     // input field (string shorthand or message array)
