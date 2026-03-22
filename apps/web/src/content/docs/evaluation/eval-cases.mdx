@@ -167,12 +167,21 @@ The `assertions` field defines evaluators directly on a test. It supports both d
 
 These evaluators run without an LLM call and produce binary (0 or 1) scores:
 
-| Type | Field | Description |
+| Type | Value | Description |
 |------|-------|-------------|
-| `contains` | `value` | Checks if output contains the substring |
-| `regex` | `value` | Checks if output matches the regex pattern |
-| `is_json` | — | Checks if output is valid JSON |
-| `equals` | `value` | Checks if output exactly equals the value (trimmed) |
+| `contains` | `string` | Pass if output includes the substring |
+| `contains-any` | `string[]` | Pass if output includes ANY of the strings |
+| `contains-all` | `string[]` | Pass if output includes ALL of the strings |
+| `icontains` | `string` | Case-insensitive `contains` |
+| `icontains-any` | `string[]` | Case-insensitive `contains-any` |
+| `icontains-all` | `string[]` | Case-insensitive `contains-all` |
+| `starts-with` | `string` | Pass if output starts with value (trimmed) |
+| `ends-with` | `string` | Pass if output ends with value (trimmed) |
+| `regex` | `string` | Pass if output matches regex (optional `flags: "i"`) |
+| `is-json` | — | Pass if output is valid JSON |
+| `equals` | `string` | Pass if output exactly equals the value (trimmed) |
+
+Underscore variants (`contains_all`, `is_json`, etc.) are also accepted.
 
 ```yaml
 tests:
@@ -183,6 +192,62 @@ tests:
       - type: is-json
       - type: contains
         value: '"status"'
+```
+
+#### Array Assertions
+
+Use `contains-all` or `contains-any` to check multiple values in a single assertion instead of repeating `contains` multiple times:
+
+```yaml
+tests:
+  - id: required-fields
+    criteria: Response mentions all required fields
+    input: "Confirm details: name is Alice, email is alice@example.com"
+    assertions:
+      - type: contains-all
+        value: ["Alice", "alice@example.com"]
+
+  - id: greeting-variant
+    criteria: Response includes some form of greeting
+    input: "Greet the user warmly."
+    assertions:
+      - type: contains-any
+        value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
+```
+
+#### Assertion Modifiers
+
+All deterministic assertions support these optional fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `negate` | `boolean` | Invert the result (pass becomes fail, fail becomes pass) |
+| `weight` | `number` | Relative weight when aggregating scores (default: 1) |
+| `required` | `boolean \| number` | Gate that must pass for overall test to pass. `true` uses 0.8 threshold; a number sets a custom threshold. |
+| `name` | `string` | Custom name for the assertion (auto-generated if omitted) |
+| `flags` | `string` | Regex flags for `regex` type (e.g., `"i"` for case-insensitive) |
+
+```yaml
+tests:
+  - id: no-competitors
+    criteria: Response must not mention any competitor
+    input: "Describe our product advantages."
+    assertions:
+      - type: contains-any
+        value: ["CompetitorA", "CompetitorB", "CompetitorC"]
+        negate: true
+
+  - id: required-inputs
+    criteria: Agent asks for missing rule codes
+    input: "Process customs entry for country BE."
+    assertions:
+      - name: asks-for-rule-codes
+        type: icontains-any
+        value: ["rule code", "rule codes"]
+        required: true
+      - name: mentions-format
+        type: icontains-any
+        value: ["true/false", "boolean", "expected value"]
 ```
 
 Assertion evaluators auto-generate a `name` when one is not provided (e.g., `contains-DENIED`, `is_json`).
