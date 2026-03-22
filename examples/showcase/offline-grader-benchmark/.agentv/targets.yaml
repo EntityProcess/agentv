@@ -17,15 +17,13 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
 
   - name: grader_claude_haiku
-    provider: pi-agent-sdk
-    pi_provider: openrouter
+    provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: anthropic/claude-haiku-4.5
     system_prompt: "Return concise structured grading output only."
 
   - name: grader_gemini_flash
-    provider: pi-agent-sdk
-    pi_provider: openrouter
+    provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: google/gemini-3-flash-preview
     system_prompt: "Return concise structured grading output only."

@@ -82,6 +82,27 @@ agentv eval csv-analyzer.EVAL.yaml
 agentv eval csv-analyzer.EVAL.yaml --target default
 ```
 
+## Skill setup
+
+The `csv-analyzer` skill is included in this example under `.claude/skills/csv-analyzer/SKILL.md`. Claude Code automatically discovers skills in the project's `.claude/skills/` directory, so no global installation is needed for claude-cli, claude-sdk, or copilot targets.
+
+## Multi-provider eval
+
+`multi-provider-skill-trigger.EVAL.yaml` tests the same skill across multiple providers:
+
+```bash
+bun apps/cli/src/cli.ts eval multi-provider-skill-trigger.EVAL.yaml \
+  --target copilot --targets ../.agentv/targets.yaml
+```
+
+The `skill-trigger` evaluator automatically handles each provider's tool-call format:
+
+| Provider | Detection method |
+|----------|-----------------|
+| claude, claude-cli | `Skill` tool with `skill` input field |
+| copilot | `Using skill: <name>` tool prefix |
+| codex | `mcp:<server>/<name>` tool prefix |
+
 ## Copilot note
 
 When running `skill-trigger` evals against Copilot targets, real traces may show provider-specific tool names such as:
@@ -91,6 +112,4 @@ Using skill: <skill-name>
 Viewing ...<skill-path>
 ```
 
-They may also emit `Read` tool calls with the path in `input.path` rather than `input.file_path`.
-
-These shapes come from real provider traces and should be treated as valid skill-trigger evidence for Copilot targets.
+The evaluator scans the entire conversation transcript (not just the first tool call), so a preamble meta-skill like `using-superpowers` firing before `csv-analyzer` still results in a pass.

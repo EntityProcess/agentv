@@ -235,7 +235,7 @@ export class CodexProvider implements Provider {
     if (itemType === 'command_execution') {
       completedToolCalls.push({
         tool: 'command_execution',
-        input: item.command,
+        input: { command: item.command },
         output: item.aggregated_output,
         id: item.id,
       });

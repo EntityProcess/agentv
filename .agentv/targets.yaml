@@ -3,7 +3,8 @@
 
 targets:
   - name: default
-    provider: pi-agent-sdk
+    provider: pi-coding-agent
+    executable: ${{ PI_CLI_PATH }}
     pi_provider: openrouter
     model: z-ai/glm-4.7
     api_key: ${{ OPENROUTER_API_KEY }}

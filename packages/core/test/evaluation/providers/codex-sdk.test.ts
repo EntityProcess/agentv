@@ -289,7 +289,7 @@ describe('CodexProvider (SDK)', () => {
     expect(msg?.toolCalls).toBeDefined();
     expect(msg?.toolCalls?.length).toBe(1);
     expect(msg?.toolCalls?.[0]?.tool).toBe('command_execution');
-    expect(msg?.toolCalls?.[0]?.input).toBe('ls -la');
+    expect(msg?.toolCalls?.[0]?.input).toEqual({ command: 'ls -la' });
     expect(msg?.toolCalls?.[0]?.output).toBe('file1.ts\nfile2.ts');
     expect(msg?.toolCalls?.[0]?.id).toBe('cmd-1');
   });

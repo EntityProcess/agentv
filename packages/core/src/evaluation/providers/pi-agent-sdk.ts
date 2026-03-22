@@ -66,6 +66,13 @@ interface ToolExecTracker {
  *
  * Note: Dependencies are loaded lazily on first use to avoid bundling issues.
  * Users must install @mariozechner/pi-agent-core and @mariozechner/pi-ai separately.
+ *
+ * @deprecated Consider removing this provider. It initializes with tools: [] so it
+ * cannot read files or invoke skills — making it a plain Q&A loop with no agentic
+ * capability. The `pi-coding-agent` provider covers the same use cases and more
+ * (full tool access, workspace isolation, skill discovery). For lightweight LLM
+ * grading without a CLI dependency, use the `openrouter`, `openai`, or `gemini`
+ * providers instead.
  */
 export class PiAgentSdkProvider implements Provider {
   readonly id: string;

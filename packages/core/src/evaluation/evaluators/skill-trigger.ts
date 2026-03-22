@@ -59,6 +59,45 @@ const COPILOT_MATCHER: ToolMatcher = {
 };
 
 /**
+ * Pi CLI reads skill files using the lowercase `read` tool with a `path` argument.
+ * Skills are auto-discovered from `.agents/skills/` relative to the working directory.
+ *
+ * Skill lookup order (workspace-scoped first):
+ *   1. .agents/skills/<skill-name>/SKILL.md  (workspace-relative, auto-discovered)
+ *   2. ~/.agents/skills/<skill-name>/SKILL.md (global fallback)
+ */
+const PI_CODING_AGENT_MATCHER: ToolMatcher = {
+  skillTools: [],
+  skillInputField: 'skill',
+  readTools: ['read'],
+  readInputField: 'path',
+  readInputFields: ['path', 'file_path', 'filePath'],
+};
+
+/**
+ * Codex reads skill files via command_execution using a bash sed command containing
+ * the skill file path. The skill name appears in the command string, so we match
+ * any command_execution whose command field includes the skill name.
+ *
+ * Skill lookup order (workspace-scoped first):
+ *   1. .agents/skills/<skill-name>/SKILL.md  (workspace-relative)
+ *   2. .codex/skills/<skill-name>/SKILL.md   (fallback)
+ *   3. ~/.agents/skills/<skill-name>/SKILL.md (global fallback)
+ *
+ * MCP-based skill invocation (`mcp:<server>/<skill-name>`) is also supported for
+ * Codex configurations that surface skills as MCP tools.
+ */
+const CODEX_MATCHER: ToolMatcher = {
+  skillTools: [],
+  skillInputField: 'skill',
+  readTools: ['command_execution'],
+  readInputField: 'command',
+  skillToolPrefixes: ['mcp:'],
+  readToolPrefixes: ['mcp:'],
+  readInputFields: ['command', 'path', 'file_path', 'filePath'],
+};
+
+/**
  * Static mapping of provider kinds to their tool-name semantics.
  * Providers not listed here fall back to CLAUDE_MATCHER.
  */
@@ -66,8 +105,11 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   claude: CLAUDE_MATCHER,
   'claude-cli': CLAUDE_MATCHER,
   'claude-sdk': CLAUDE_MATCHER,
-  'pi-coding-agent': CLAUDE_MATCHER,
-  'pi-agent-sdk': CLAUDE_MATCHER,
+  codex: CODEX_MATCHER,
+  'pi-coding-agent': PI_CODING_AGENT_MATCHER,
+  // pi-agent-sdk has no tools, so skill detection is a no-op. Kept for completeness.
+  // TODO: consider removing pi-agent-sdk provider entirely.
+  'pi-agent-sdk': PI_CODING_AGENT_MATCHER,
   'copilot-cli': COPILOT_MATCHER,
   'copilot-sdk': COPILOT_MATCHER,
   vscode: COPILOT_MATCHER,
@@ -97,40 +139,44 @@ export class SkillTriggerEvaluator implements Evaluator {
     const providerKind = context.provider?.kind as ProviderKind | undefined;
     const matcher = this.resolveMatcher(providerKind);
 
-    const firstTool = (context.output ?? []).flatMap((msg) => msg.toolCalls ?? [])[0];
+    const allToolCalls = (context.output ?? []).flatMap((msg) => msg.toolCalls ?? []);
 
     let triggered = false;
     let evidence = '';
 
-    if (firstTool) {
-      const input = (firstTool.input ?? {}) as Record<string, unknown>;
+    for (const toolCall of allToolCalls) {
+      const input = (toolCall.input ?? {}) as Record<string, unknown>;
 
-      if (matcher.skillTools.includes(firstTool.tool)) {
+      if (matcher.skillTools.includes(toolCall.tool)) {
         const skillArg = String(input[matcher.skillInputField] ?? '');
         if (skillArg.includes(skillName)) {
           triggered = true;
           evidence = `Skill tool invoked with ${matcher.skillInputField}="${skillArg}"`;
+          break;
         }
       } else if (
         matcher.skillToolPrefixes?.some(
-          (prefix) => firstTool.tool.startsWith(prefix) && firstTool.tool.includes(skillName),
+          (prefix) => toolCall.tool.startsWith(prefix) && toolCall.tool.includes(skillName),
         )
       ) {
         triggered = true;
-        evidence = `Skill tool invoked via tool name "${firstTool.tool}"`;
-      } else if (matcher.readTools.includes(firstTool.tool)) {
+        evidence = `Skill tool invoked via tool name "${toolCall.tool}"`;
+        break;
+      } else if (matcher.readTools.includes(toolCall.tool)) {
         const filePath = this.readPathFromInput(input, matcher);
         if (filePath.includes(skillName)) {
           triggered = true;
           evidence = `Read tool loaded skill file: ${filePath}`;
+          break;
         }
       } else if (
         matcher.readToolPrefixes?.some(
-          (prefix) => firstTool.tool.startsWith(prefix) && firstTool.tool.includes(skillName),
+          (prefix) => toolCall.tool.startsWith(prefix) && toolCall.tool.includes(skillName),
         )
       ) {
         triggered = true;
-        evidence = `Read tool loaded skill file via tool name "${firstTool.tool}"`;
+        evidence = `Read tool loaded skill file via tool name "${toolCall.tool}"`;
+        break;
       }
     }
 
@@ -158,8 +204,8 @@ export class SkillTriggerEvaluator implements Evaluator {
       assertions: [
         {
           text: shouldTrigger
-            ? firstTool
-              ? `First tool was "${firstTool.tool}" — not a skill/read tool for "${skillName}"`
+            ? allToolCalls.length > 0
+              ? `Skill "${skillName}" not found in ${allToolCalls.length} tool call(s)`
               : 'No tool calls recorded'
             : evidence || `Skill "${skillName}" triggered unexpectedly`,
           passed: false,
