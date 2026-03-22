@@ -176,6 +176,21 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     const evalCase = cases[i];
     const location = `tests[${i}]`;
 
+    // Tests array items can be file references (e.g., "file://cases/accuracy.yaml")
+    if (typeof evalCase === 'string') {
+      if (evalCase.startsWith('file://')) {
+        validateTestsStringPath(evalCase, absolutePath, errors);
+      } else {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location,
+          message: 'Test case string must be a file reference (file://...)',
+        });
+      }
+      continue;
+    }
+
     if (!isObject(evalCase)) {
       errors.push({
         severity: 'error',
@@ -208,12 +223,12 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         message: "'expected_outcome' is deprecated. Use 'criteria' instead.",
       });
     }
-    if (criteria !== undefined && (typeof criteria !== 'string' || criteria.trim().length === 0)) {
+    if (criteria !== undefined && typeof criteria !== 'string') {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.criteria`,
-        message: "Invalid 'criteria' field (must be a non-empty string if provided)",
+        message: "Invalid 'criteria' field (must be a string if provided)",
       });
     }
 
@@ -449,9 +464,13 @@ function validateMessages(
       });
     }
 
-    // Validate content field (can be string or array)
+    // Validate content field (can be string, array, or object)
+    // Messages with tool_calls may omit content entirely (e.g., assistant tool-call messages).
     const content = message.content;
-    if (typeof content === 'string') {
+    const hasToolCalls = 'tool_calls' in message;
+    if (content === undefined && hasToolCalls) {
+      // Valid: assistant message with tool_calls but no content
+    } else if (typeof content === 'string') {
       validateContentForRoleMarkers(content, `${msgLocation}.content`, filePath, errors);
     } else if (Array.isArray(content)) {
       // Array content - validate each element
@@ -496,12 +515,15 @@ function validateMessages(
           });
         }
       }
+    } else if (isObject(content)) {
+      // Structured content objects (e.g., { decision: "CLEAR" }) are valid
+      // — the runtime accepts them for expected_output and input messages.
     } else {
       errors.push({
         severity: 'error',
         filePath,
         location: `${msgLocation}.content`,
-        message: "Missing or invalid 'content' field (must be a string or array)",
+        message: "Missing or invalid 'content' field (must be a string, array, or object)",
       });
     }
   }

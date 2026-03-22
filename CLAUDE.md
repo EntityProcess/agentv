@@ -99,6 +99,7 @@ bunx prek install -t pre-push
 - `bun run typecheck` - TypeScript type checking
 - `bun run lint` - Biome linting
 - `bun run test` - All tests
+- `bun run validate:examples` - Validate example eval YAML files against the agentv schema
 
 If any check fails, the push is blocked until the issues are fixed.
 

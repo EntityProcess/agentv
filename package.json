@@ -18,6 +18,7 @@
     "test:watch": "bun --filter @agentv/core test:watch & bun --filter agentv test:watch",
     "agentv": "bun apps/cli/src/cli.ts",
     "agentv:buildrun": "bun run build && bun apps/cli/dist/cli.js",
+    "validate:examples": "bun scripts/validate-example-evals.ts",
     "eval:baseline-check": "bun scripts/check-eval-baselines.ts",
     "release": "bun scripts/release.ts",
     "release:next": "bun scripts/release.ts next",
