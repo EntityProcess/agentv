@@ -165,7 +165,7 @@ def load_run_results(benchmark_dir: Path) -> dict:
                 result["assertion_results"] = raw_assertions
 
                 # Extract notes from user_notes_summary
-                notes_summary = grading.get("user_notes_summary", {})
+                notes_summary = grading.get("user_notes_summary") or {}
                 notes = []
                 notes.extend(notes_summary.get("uncertainties", []))
                 notes.extend(notes_summary.get("needs_review", []))
