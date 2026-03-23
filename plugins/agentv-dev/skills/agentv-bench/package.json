@@ -1,16 +1,12 @@
 {
   "name": "@agentv/agentv-bench",
   "version": "0.0.0",
-  "description": "AgentV optimizer scripts skill — Python mirrors of anthropics/skills skill-creator",
+  "description": "AgentV bench skill — evaluation orchestration and analysis scripts",
   "private": true,
   "scripts": {
     "validate": "python3 scripts/quick_validate.py .",
     "package": "python3 scripts/package_skill.py .",
-    "run-eval": "python3 scripts/run_eval.py",
-    "run-loop": "python3 scripts/run_loop.py",
-    "improve-description": "python3 scripts/improve_description.py",
     "aggregate-benchmark": "python3 scripts/aggregate_benchmark.py",
-    "generate-report": "python3 scripts/generate_report.py",
     "view-results": "python3 eval-viewer/generate_review.py"
   }
 }

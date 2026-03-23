@@ -37,11 +37,7 @@ This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agent
 The scripts layer wraps AgentV rather than replacing it. Use it when you want a provider-agnostic optimization workflow that still relies on core AgentV commands and artifacts:
 
 - `scripts/quick_validate.py` → validates skill structure and evals.json schema before a run
-- `scripts/run_eval.py` → runs evals defined in `evals/evals.json` via `claude -p`
-- `scripts/run_loop.py` → plans and executes repeated eval iterations, calling `run_eval.py` each round
-- `scripts/aggregate_benchmark.py` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
-- `scripts/generate_report.py` → builds a review model and writes a JSON report from AgentV artifacts
-- `scripts/improve_description.py` → proposes description experiments from observed failures/false triggers
+- `scripts/aggregate_benchmark.py` → reads `grading.json` artifacts and produces benchmark statistics
 - `scripts/package_skill.py` → packages the skill directory for distribution
 - `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
 
@@ -56,18 +52,10 @@ All scripts require Python 3.11+ and no external dependencies beyond the Python 
 - `scripts/package_skill.py` — package skill into a distributable `.skill` zip
 
 ### Eval workflow
-- `scripts/run_eval.py` — run trigger evaluation (tests skill description quality)
-- `scripts/run_loop.py` — run eval+improve loop until all assertions pass
-- `scripts/improve_description.py` — improve skill description using eval failures
-- `scripts/aggregate_benchmark.py` — aggregate run results into benchmark statistics
-- `scripts/generate_report.py` — generate HTML report from run_loop output
+- `scripts/aggregate_benchmark.py` — aggregate grading results into benchmark statistics
 
 ### Review viewer
 - `eval-viewer/generate_review.py` — serve live eval review UI (HTTP server + feedback API)
-
-### Note on eval formats
-Skills use `evals/evals.json` with `assertions` for both trigger and output quality testing.
-A future AgentV PR will add `agentv convert` to migrate existing `dataset.eval.yaml` files to `evals/evals.json`.
 
 ## Communicating with the user
 
@@ -198,14 +186,7 @@ Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agen
 agentv eval <eval-path> --artifacts .agentv/artifacts/
 ```
 
-**Agent mode** (evals.json via `run_eval.py`):
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-python scripts/quick_validate.py --eval evals/evals.json
-python scripts/run_eval.py --eval evals/evals.json --output iteration-1/
-# Multi-provider: use cli mode
-python scripts/run_eval.py --eval evals/evals.json --output iteration-1/ --mode cli --target copilot
-```
+**Agent mode** — see "Agent mode: Running eval.yaml without CLI" below. Parses eval.yaml directly and spawns executor/grader subagents. No CLI required.
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
 
@@ -518,12 +499,7 @@ Present the eval set. The user adjusts queries, toggles should-trigger, adds/rem
 
 Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations. Select best description by held-out test accuracy (split 60% train / 40% test) to avoid overfitting.
 
-When you already have `benchmark.json` and `grading.json`, use the scripts bundle to draft the next round of edits:
-
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-python scripts/improve_description.py --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
-```
+Use the grader and analyzer subagents to identify trigger failures and propose description improvements — the same eval → grade → analyze → improve loop used for agent output quality.
 
 ### Step 4: Apply
 
