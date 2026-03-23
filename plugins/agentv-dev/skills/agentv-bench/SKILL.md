@@ -182,14 +182,14 @@ grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |-------------------|------|-----|
-| `cli` (recommended) | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
-| `agent` (legacy) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`, Claude-only) |
+| `agent` (default) | **Agent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
+| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
 
 Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
 
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Recommended for new setups.
+**`agent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. See "Agent mode: Running eval.yaml without CLI" below.
 
-**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading. Legacy mode, Claude-only. Use `--mode cli --target <provider>` for multi-provider support.
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
 
 ### Running evaluations
 
@@ -243,14 +243,14 @@ This is the only opportunity to capture this data — it comes through the task 
 
 Once runs complete:
 
-1. **Deterministic evaluators** run automatically via CLI — `contains`, `regex`, `is-json`, `field-accuracy` produce instant results.
+**Agent mode grading** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates all assertion types natively: deterministic checks (contains, regex, is-json, etc.) via direct string operations, LLM-graded assertions via Claude's own reasoning, and code-grader via Bash script execution. No CLI call required.
 
-2. **LLM-graded assertions** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates each assertion against the outputs with cited evidence. For assertions that can be checked programmatically, it writes and runs a script rather than eyeballing it.
+**CLI mode grading** — deterministic evaluators run automatically via CLI. LLM-graded assertions are handled by the configured LLM provider.
 
-3. **Write grading.json** per run with this structure:
+Both modes write **grading.json** per test with this structure:
 ```json
 {
-  "assertion_results": [
+  "assertions": [
     {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
     {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
   ],
@@ -258,7 +258,7 @@ Once runs complete:
 }
 ```
 
-The grading.json `assertion_results` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
+The grading.json `assertions` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
 
 ### Workspace features (EVAL.yaml only)
 
@@ -271,11 +271,89 @@ The grading.json `assertion_results` array must use the fields `text`, `passed`,
 
 All artifacts use established schemas — do not modify the structure:
 
-- **grading.json**: per-test `assertion_results` with `{text, passed, evidence}`, plus `summary`
+- **grading.json**: per-test `assertions` with `{text, passed, evidence}`, plus `summary`
 - **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
 - **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}` with `mean ± stddev`
 
 Write artifacts to `.agentv/artifacts/` or the iteration directory.
+
+### Agent mode: Running eval.yaml without CLI
+
+When `AGENT_EVAL_MODE=agent` (default) or when the AgentV CLI is not available, run eval.yaml files directly using subagents. This mode has zero dependency on the agentv CLI.
+
+**Prerequisites:**
+- The eval.yaml file exists and contains valid test definitions
+- Read `references/eval-yaml-spec.md` for the full schema
+
+**Step 1: Parse the eval.yaml**
+
+Read the eval file. Extract:
+- Top-level `input` (default for all tests if per-test input is absent)
+- `tests[]` array — each test has `id`, `input`, `assertions[]`, optional `expected_output`, `criteria`
+- `workspace` config (if present — for workspace setup/teardown)
+
+**Step 2: Spawn executor subagents (parallel)**
+
+For each test, spawn an ad-hoc executor subagent in the same turn:
+
+```
+Execute this task:
+- Context: <optional — skill path, plugin path, or workspace description>
+- Task: <test.input or top-level input>
+- Save your complete response to: .agentv/results/export/<timestamp>/test-<test-id>/response.md
+- Save any output files to: .agentv/results/export/<timestamp>/test-<test-id>/outputs/
+```
+
+The executor runs in the current workspace — it inherits all CLAUDE.md instructions, skills, plugins, and MCP servers. The workspace IS the agent-under-test environment. The "agent" being evaluated can be a single skill, a plugin, the full workspace, or an eval_set spanning multiple eval files.
+
+**Step 3: Capture timing as executors complete**
+
+When each executor subagent completes, save timing data immediately to `.agentv/results/export/<timestamp>/test-<test-id>/timing.json`:
+
+```json
+{
+  "total_tokens": 84852,
+  "duration_ms": 23332,
+  "total_duration_seconds": 23.3
+}
+```
+
+**Step 4: Spawn grader subagents (parallel)**
+
+After an executor completes, spawn a grader subagent (read `agents/grader.md`):
+
+```
+Grade this test case:
+- eval-path: <path to eval.yaml>
+- test-id: <test-id>
+- response-file: .agentv/results/export/<timestamp>/test-<test-id>/response.md
+- bench-dir: .agentv/results/export/<timestamp>/
+- timing-file: .agentv/results/export/<timestamp>/test-<test-id>/timing.json
+Write result to: .agentv/results/export/<timestamp>/test-<test-id>/grading.json
+```
+
+**Step 5: Assemble results.jsonl**
+
+After all graders complete, read each `test-<id>/grading.json` and write one JSONL line per test to `.agentv/results/raw/eval_<timestamp>.jsonl`. Each line maps grading.json fields to AgentV `EvaluationResult` format:
+
+- `grading.assertions` → `assertions`
+- `grading.summary.pass_rate` → `score`
+- `grading.claims` → `extensions.claims`
+- `grading.eval_feedback` → `extensions.eval_feedback`
+- Add: `test_id`, `timestamp`, `execution_status` (`ok` if pass_rate > 0, `quality_failure` otherwise), `mode: "agent"`
+
+**Output structure:**
+```
+.agentv/results/
+├── raw/
+│   └── eval_<timestamp>.jsonl         ← AgentV JSONL (assembled from export/)
+└── export/<timestamp>/                 ← skill-creator-compatible
+    └── test-<test-id>/
+        ├── response.md                ← executor output
+        ├── outputs/                   ← executor output files
+        ├── timing.json                ← from subagent notification
+        └── grading.json              ← grader output
+```
 
 ---
 
