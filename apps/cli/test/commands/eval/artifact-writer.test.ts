@@ -562,6 +562,33 @@ describe('writeArtifactsFromResults', () => {
     expect(benchmark.notes).toContain('No results to summarize');
   });
 
+  it('writes aggregate grading.json alongside per-test artifacts', async () => {
+    const results = [
+      makeResult({
+        testId: 'test-1',
+        assertions: [{ text: 'a', passed: true }],
+      }),
+      makeResult({
+        testId: 'test-2',
+        assertions: [
+          { text: 'b', passed: true },
+          { text: 'c', passed: false },
+        ],
+      }),
+    ];
+
+    const { aggregateGradingPath } = await writeArtifactsFromResults(results, testDir);
+
+    expect(aggregateGradingPath).toBe(path.join(testDir, 'grading.json'));
+    const content = await readFile(aggregateGradingPath, 'utf8');
+    const grading = JSON.parse(content);
+
+    expect(grading.assertions).toHaveLength(3);
+    expect(grading.summary.passed).toBe(2);
+    expect(grading.summary.failed).toBe(1);
+    expect(grading.summary.pass_rate).toBe(0.667);
+  });
+
   it('sanitizes test IDs for filenames', async () => {
     const results = [makeResult({ testId: 'path/to:test*1' })];
     await writeArtifactsFromResults(results, testDir);

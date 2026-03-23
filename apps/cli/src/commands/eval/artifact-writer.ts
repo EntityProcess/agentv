@@ -482,7 +482,12 @@ export async function writeArtifacts(
   jsonlPath: string,
   outputDir: string,
   options?: { evalFile?: string },
-): Promise<{ gradingDir: string; timingPath: string; benchmarkPath: string }> {
+): Promise<{
+  gradingDir: string;
+  timingPath: string;
+  benchmarkPath: string;
+  aggregateGradingPath: string;
+}> {
   const content = await readFile(jsonlPath, 'utf8');
   const results = parseJsonlResults(content);
 
@@ -493,10 +498,16 @@ export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
   options?: { evalFile?: string },
-): Promise<{ gradingDir: string; timingPath: string; benchmarkPath: string }> {
+): Promise<{
+  gradingDir: string;
+  timingPath: string;
+  benchmarkPath: string;
+  aggregateGradingPath: string;
+}> {
   const gradingDir = path.join(outputDir, 'grading');
   const timingPath = path.join(outputDir, 'timing.json');
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
+  const aggregateGradingPath = path.join(outputDir, 'grading.json');
 
   await mkdir(gradingDir, { recursive: true });
 
@@ -516,5 +527,9 @@ export async function writeArtifactsFromResults(
   const benchmark = buildBenchmarkArtifact(results, options?.evalFile);
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
-  return { gradingDir, timingPath, benchmarkPath };
+  // Write aggregate grading
+  const aggregateGrading = buildAggregateGradingArtifact(results);
+  await writeFile(aggregateGradingPath, `${JSON.stringify(aggregateGrading, null, 2)}\n`, 'utf8');
+
+  return { gradingDir, timingPath, benchmarkPath, aggregateGradingPath };
 }
