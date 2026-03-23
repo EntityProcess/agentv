@@ -10,6 +10,8 @@
  *       <test-id>.json         — per-test grading artifact (assertions, evaluators)
  *     outputs/
  *       <test-id>.md           — human-readable agent response per test
+ *     inputs/
+ *       <test-id>.md           — human-readable input messages per test
  *
  * This module delegates artifact building to the shared artifact-writer so
  * that `agentv results export` and `agentv eval` produce identical schemas.
@@ -81,6 +83,18 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
       writeFileSync(path.join(outputsDir, `${id}.md`), md);
     }
   }
+
+  // inputs/<test-id>.md — human-readable input messages per test
+  const inputsDir = path.join(outputDir, 'inputs');
+  mkdirSync(inputsDir, { recursive: true });
+
+  for (const result of patched) {
+    const id = safeTestId(result);
+    const input = extractInput(result);
+    if (input) {
+      writeFileSync(path.join(inputsDir, `${id}.md`), input);
+    }
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -91,6 +105,20 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
  */
 function formatOutputMarkdown(output: readonly { role: string; content?: unknown }[]): string {
   return output.map((msg) => `@[${msg.role}]:\n${String(msg.content ?? '')}`).join('\n\n');
+}
+
+/**
+ * Extract human-readable input from a result.
+ * Handles both string input (single question) and Message[] input (multi-message).
+ */
+function extractInput(result: EvaluationResult): string | null {
+  const input = (result as unknown as Record<string, unknown>).input;
+  if (!input) return null;
+  if (typeof input === 'string') return input;
+  if (Array.isArray(input) && input.length > 0) {
+    return formatOutputMarkdown(input as { role: string; content?: unknown }[]);
+  }
+  return null;
 }
 
 /**
@@ -110,7 +138,7 @@ function deriveOutputDir(cwd: string, sourceFile: string): string {
   const basename = path.basename(sourceFile, '.jsonl');
   // Strip leading "eval_" prefix if present to get the timestamp
   const dirName = basename.startsWith('eval_') ? basename.slice(5) : basename;
-  return path.join(cwd, '.agentv', 'results', dirName);
+  return path.join(cwd, '.agentv', 'results', 'export', dirName);
 }
 
 // ── CLI command ──────────────────────────────────────────────────────────
@@ -128,7 +156,7 @@ export const resultsExportCommand = command({
       type: optional(string),
       long: 'out',
       short: 'o',
-      description: 'Output directory (defaults to .agentv/results/<run-timestamp>/)',
+      description: 'Output directory (defaults to .agentv/results/export/<run-timestamp>/)',
     }),
     dir: option({
       type: optional(string),

@@ -322,7 +322,7 @@ function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const baseName = 'eval';
   const extension = getDefaultExtension(format);
-  return path.join(cwd, '.agentv', 'results', `${baseName}_${timestamp}${extension}`);
+  return path.join(cwd, '.agentv', 'results', 'raw', `${baseName}_${timestamp}${extension}`);
 }
 
 type ProgressReporter = {

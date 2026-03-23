@@ -280,6 +280,49 @@ describe('results export', () => {
     expect(grading.summary.total).toBe(0);
   });
 
+  it('should write string input to inputs/<test-id>.md', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const resultWithInput = {
+      ...RESULT_FULL,
+      input: 'What is the capital of France?',
+    };
+    const content = toJsonl(resultWithInput);
+
+    exportResults('test.jsonl', content, outputDir);
+
+    const inputPath = path.join(outputDir, 'inputs', 'test-greeting.md');
+    expect(existsSync(inputPath)).toBe(true);
+    expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
+  });
+
+  it('should write Message[] input to inputs/<test-id>.md as markdown', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const resultWithMessages = {
+      ...RESULT_FULL,
+      input: [
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi there!' },
+      ],
+    };
+    const content = toJsonl(resultWithMessages);
+
+    exportResults('test.jsonl', content, outputDir);
+
+    const inputPath = path.join(outputDir, 'inputs', 'test-greeting.md');
+    expect(existsSync(inputPath)).toBe(true);
+    expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
+  });
+
+  it('should not create input file when input is missing', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const content = toJsonl(RESULT_FULL);
+
+    exportResults('test.jsonl', content, outputDir);
+
+    const inputPath = path.join(outputDir, 'inputs', 'test-greeting.md');
+    expect(existsSync(inputPath)).toBe(false);
+  });
+
   it('should handle results with missing target and testId fields', () => {
     const outputDir = path.join(tempDir, 'output');
     const bare = {

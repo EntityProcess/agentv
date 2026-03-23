@@ -122,16 +122,16 @@ describe('trace utils', () => {
       expect(metas).toEqual([]);
     });
 
-    it('should enumerate JSONL files in .agentv/results/', () => {
-      const resultsDir = path.join(tempDir, '.agentv', 'results');
-      mkdirSync(resultsDir, { recursive: true });
+    it('should enumerate JSONL files in .agentv/results/raw/', () => {
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      mkdirSync(rawDir, { recursive: true });
 
       writeFileSync(
-        path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
       );
       writeFileSync(
-        path.join(resultsDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
+        path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
         `${RESULT_FAILING}\n`,
       );
 
@@ -148,7 +148,7 @@ describe('trace utils', () => {
       expect(metas[1].passRate).toBe(0.5);
     });
 
-    it('should respect limit', () => {
+    it('should find legacy files in .agentv/results/ (backward compat)', () => {
       const resultsDir = path.join(tempDir, '.agentv', 'results');
       mkdirSync(resultsDir, { recursive: true });
 
@@ -156,8 +156,43 @@ describe('trace utils', () => {
         path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
+
+      const metas = listResultFiles(tempDir);
+      expect(metas).toHaveLength(1);
+      expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z.jsonl');
+    });
+
+    it('should deduplicate files preferring raw/ over legacy root', () => {
+      const resultsDir = path.join(tempDir, '.agentv', 'results');
+      const rawDir = path.join(resultsDir, 'raw');
+      mkdirSync(rawDir, { recursive: true });
+
+      // Same filename in both locations
       writeFileSync(
-        path.join(resultsDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
+        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        `${RESULT_WITH_TRACE}\n`,
+      );
+      writeFileSync(
+        path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        `${RESULT_WITH_TRACE}\n`,
+      );
+
+      const metas = listResultFiles(tempDir);
+      expect(metas).toHaveLength(1);
+      // Should prefer the raw/ version
+      expect(metas[0].path).toContain(path.join('raw', 'eval_2026-02-20T21-38-05-833Z.jsonl'));
+    });
+
+    it('should respect limit', () => {
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      mkdirSync(rawDir, { recursive: true });
+
+      writeFileSync(
+        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        `${RESULT_WITH_TRACE}\n`,
+      );
+      writeFileSync(
+        path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
         `${RESULT_FAILING}\n`,
       );
 
@@ -167,12 +202,12 @@ describe('trace utils', () => {
     });
 
     it('should ignore non-JSONL files', () => {
-      const resultsDir = path.join(tempDir, '.agentv', 'results');
-      mkdirSync(resultsDir, { recursive: true });
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      mkdirSync(rawDir, { recursive: true });
 
-      writeFileSync(path.join(resultsDir, 'notes.txt'), 'not a result file');
+      writeFileSync(path.join(rawDir, 'notes.txt'), 'not a result file');
       writeFileSync(
-        path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
 
