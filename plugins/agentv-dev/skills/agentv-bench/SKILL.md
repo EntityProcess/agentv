@@ -5,7 +5,7 @@ description: >-
   optimize prompts against evals, run EVAL.yaml or evals.json evaluations, benchmark agent
   performance, compare agent outputs across providers, analyze eval results, or improve agent
   performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn
-  conversations, code judges, tool trajectory scoring, and workspace file change tracking.
+  conversations, code graders, tool trajectory scoring, and workspace file change tracking.
   Use this skill whenever the user mentions evaluating, benchmarking, testing, or optimizing
   any agent, prompt, or skill — even if they don't explicitly say "agentv".
 ---
@@ -37,15 +37,10 @@ This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agent
 The scripts layer wraps AgentV rather than replacing it. Use it when you want a provider-agnostic optimization workflow that still relies on core AgentV commands and artifacts:
 
 - `scripts/quick_validate.py` → validates skill structure and evals.json schema before a run
-- `scripts/run_eval.py` → runs evals defined in `evals/evals.json` via `claude -p`
-- `scripts/run_loop.py` → plans and executes repeated eval iterations, calling `run_eval.py` each round
-- `scripts/aggregate_benchmark.py` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
-- `scripts/generate_report.py` → builds a review model and writes a JSON report from AgentV artifacts
-- `scripts/improve_description.py` → proposes description experiments from observed failures/false triggers
+- `scripts/aggregate_benchmark.py` → reads `grading.json` artifacts and produces benchmark statistics
 - `scripts/package_skill.py` → packages the skill directory for distribution
-- `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
 
-Keep code-judge execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
+Keep code-grader execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
 
 ## Scripts
 
@@ -56,18 +51,7 @@ All scripts require Python 3.11+ and no external dependencies beyond the Python 
 - `scripts/package_skill.py` — package skill into a distributable `.skill` zip
 
 ### Eval workflow
-- `scripts/run_eval.py` — run trigger evaluation (tests skill description quality)
-- `scripts/run_loop.py` — run eval+improve loop until all assertions pass
-- `scripts/improve_description.py` — improve skill description using eval failures
-- `scripts/aggregate_benchmark.py` — aggregate run results into benchmark statistics
-- `scripts/generate_report.py` — generate HTML report from run_loop output
-
-### Review viewer
-- `eval-viewer/generate_review.py` — serve live eval review UI (HTTP server + feedback API)
-
-### Note on eval formats
-Skills use `evals/evals.json` with `assertions` for both trigger and output quality testing.
-A future AgentV PR will add `agentv convert` to migrate existing `dataset.eval.yaml` files to `evals/evals.json`.
+- `scripts/aggregate_benchmark.py` — aggregate grading results into benchmark statistics
 
 ## Communicating with the user
 
@@ -105,7 +89,7 @@ Before running or optimizing, understand what you're working with.
 
 AgentV supports two evaluation formats:
 
-**EVAL.yaml** (native, full features) — supports workspaces, code judges, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
+**EVAL.yaml** (native, full features) — supports workspaces, code graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
 
 ```yaml
 # example.eval.yaml
@@ -116,7 +100,7 @@ tests:
     assertions:
       - type: contains
         value: "null"
-      - type: llm-judge
+      - type: llm-grader
         prompt: "Did the review identify the bug and suggest a concrete fix?"
 
 workspace:
@@ -158,11 +142,11 @@ Good assertions are objectively verifiable and have descriptive names. Subjectiv
 - `exact`, `contains`, `regex`, `is-json` — deterministic, zero cost, instant
 - `field-accuracy` — checks JSON field values against expected
 - `composite` — weighted combination of multiple evaluators
-- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-writer` skill)
+- `code-grader` — Python/TypeScript scripts via `defineCodeGrader()` (→ see `agentv-eval-writer` skill)
 - `tool-trajectory` — evaluate tool call sequences and patterns
-- `llm-judge` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
+- `llm-grader` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
 
-Prefer deterministic evaluators over LLM judges whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-judge`.
+Prefer deterministic evaluators over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-grader`.
 
 ---
 
@@ -182,14 +166,14 @@ grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |-------------------|------|-----|
-| `cli` (recommended) | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
-| `agent` (legacy) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`, Claude-only) |
+| `agent` (default) | **Agent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
+| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
 
 Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
 
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Recommended for new setups.
+**`agent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. See "Agent mode: Running eval.yaml without CLI" below.
 
-**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading. Legacy mode, Claude-only. Use `--mode cli --target <provider>` for multi-provider support.
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
 
 ### Running evaluations
 
@@ -198,14 +182,7 @@ Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agen
 agentv eval <eval-path> --artifacts .agentv/artifacts/
 ```
 
-**Agent mode** (evals.json via `run_eval.py`):
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-python scripts/quick_validate.py --eval evals/evals.json
-python scripts/run_eval.py --eval evals/evals.json --output iteration-1/
-# Multi-provider: use cli mode
-python scripts/run_eval.py --eval evals/evals.json --output iteration-1/ --mode cli --target copilot
-```
+**Agent mode** — see "Agent mode: Running eval.yaml without CLI" below. Parses eval.yaml directly and spawns executor/grader subagents. No CLI required.
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
 
@@ -243,14 +220,14 @@ This is the only opportunity to capture this data — it comes through the task 
 
 Once runs complete:
 
-1. **Deterministic evaluators** run automatically via CLI — `contains`, `regex`, `is-json`, `field-accuracy` produce instant results.
+**Agent mode grading** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates all assertion types natively: deterministic checks (contains, regex, is-json, etc.) via direct string operations, LLM-graded assertions via Claude's own reasoning, and `code-grader` via Bash script execution. No CLI call required.
 
-2. **LLM-graded assertions** — dispatch `eval-grader` subagent (read `agents/eval-grader.md`). The grader evaluates each assertion against the outputs with cited evidence. For assertions that can be checked programmatically, it writes and runs a script rather than eyeballing it.
+**CLI mode grading** — deterministic evaluators run automatically via CLI. LLM-graded assertions are handled by the configured LLM provider.
 
-3. **Write grading.json** per run with this structure:
+Both modes write **grading.json** per test with this structure:
 ```json
 {
-  "assertion_results": [
+  "assertions": [
     {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
     {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
   ],
@@ -258,7 +235,7 @@ Once runs complete:
 }
 ```
 
-The grading.json `assertion_results` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
+The grading.json `assertions` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
 
 ### Workspace features (EVAL.yaml only)
 
@@ -271,11 +248,89 @@ The grading.json `assertion_results` array must use the fields `text`, `passed`,
 
 All artifacts use established schemas — do not modify the structure:
 
-- **grading.json**: per-test `assertion_results` with `{text, passed, evidence}`, plus `summary`
+- **grading.json**: per-test `assertions` with `{text, passed, evidence}`, plus `summary`
 - **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
 - **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}` with `mean ± stddev`
 
 Write artifacts to `.agentv/artifacts/` or the iteration directory.
+
+### Agent mode: Running eval.yaml without CLI
+
+When `AGENT_EVAL_MODE=agent` (default) or when the AgentV CLI is not available, run eval.yaml files directly using subagents. This mode has zero dependency on the agentv CLI.
+
+**Prerequisites:**
+- The eval.yaml file exists and contains valid test definitions
+- Read `references/eval-yaml-spec.md` for the full schema
+
+**Step 1: Parse the eval.yaml**
+
+Read the eval file. Extract:
+- Top-level `input` (default for all tests if per-test input is absent)
+- `tests[]` array — each test has `id`, `input`, `assertions[]`, optional `expected_output`, `criteria`
+- `workspace` config (if present — for workspace setup/teardown)
+
+**Step 2: Spawn executor subagents (parallel)**
+
+For each test, spawn an ad-hoc executor subagent in the same turn:
+
+```
+Execute this task:
+- Context: <optional — skill path, plugin path, or workspace description>
+- Task: <test.input or top-level input>
+- Save your complete response to: .agentv/results/export/<timestamp>/test-<test-id>/response.md
+- Save any output files to: .agentv/results/export/<timestamp>/test-<test-id>/outputs/
+```
+
+The executor runs in the current workspace — it inherits all CLAUDE.md instructions, skills, plugins, and MCP servers. The workspace IS the agent-under-test environment. The "agent" being evaluated can be a single skill, a plugin, the full workspace, or an eval_set spanning multiple eval files.
+
+**Step 3: Capture timing as executors complete**
+
+When each executor subagent completes, save timing data immediately to `.agentv/results/export/<timestamp>/test-<test-id>/timing.json`:
+
+```json
+{
+  "total_tokens": 84852,
+  "duration_ms": 23332,
+  "total_duration_seconds": 23.3
+}
+```
+
+**Step 4: Spawn grader subagents (parallel)**
+
+After an executor completes, spawn a grader subagent (read `agents/grader.md`):
+
+```
+Grade this test case:
+- eval-path: <path to eval.yaml>
+- test-id: <test-id>
+- response-file: .agentv/results/export/<timestamp>/test-<test-id>/response.md
+- bench-dir: .agentv/results/export/<timestamp>/
+- timing-file: .agentv/results/export/<timestamp>/test-<test-id>/timing.json
+Write result to: .agentv/results/export/<timestamp>/test-<test-id>/grading.json
+```
+
+**Step 5: Assemble results.jsonl**
+
+After all graders complete, read each `test-<id>/grading.json` and write one JSONL line per test to `.agentv/results/raw/eval_<timestamp>.jsonl`. Each line maps grading.json fields to AgentV `EvaluationResult` format:
+
+- `grading.assertions` → `assertions`
+- `grading.summary.pass_rate` → `score`
+- `grading.claims` → `extensions.claims`
+- `grading.eval_feedback` → `extensions.eval_feedback`
+- Add: `test_id`, `timestamp`, `execution_status` (`ok` if pass_rate > 0, `quality_failure` otherwise), `mode: "agent"`
+
+**Output structure:**
+```
+.agentv/results/
+├── raw/
+│   └── eval_<timestamp>.jsonl         ← AgentV JSONL (assembled from export/)
+└── export/<timestamp>/                 ← skill-creator-compatible
+    └── test-<test-id>/
+        ├── response.md                ← executor output
+        ├── outputs/                   ← executor output files
+        ├── timing.json                ← from subagent notification
+        └── grading.json              ← grader output
+```
 
 ---
 
@@ -291,13 +346,13 @@ Read the JSONL results and look for:
 - **Always-fail tests** — task impossible, eval broken, or assertion misconfigured. Don't optimize against broken evals.
 - **Flaky tests** — non-deterministic results across runs. Investigate before treating failures as real.
 - **Systematic failures** — same failure pattern across multiple tests. This usually points to a missing instruction or wrong approach.
-- **Deterministic upgrade candidates** — LLM-judge assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
+- **Deterministic upgrade candidates** — `llm-grader` assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
 
 ### Dispatch subagents
 
-- **Dispatch `eval-analyzer`** (read `agents/eval-analyzer.md`) for a structured quality audit: deterministic upgrade suggestions, weak assertion detection, cost/quality flags, and benchmark pattern analysis.
+- **Dispatch `analyzer`** (read `agents/analyzer.md`) for a structured quality audit: deterministic upgrade suggestions, weak assertion detection, cost/quality flags, and benchmark pattern analysis.
 
-- **Dispatch `eval-comparator`** (read `agents/eval-comparator.md`) for blind N-way comparison between iterations or targets. The comparator blinds provider identities, generates task-specific rubrics, scores each output, then unblinds and attributes improvements.
+- **Dispatch `comparator`** (read `agents/comparator.md`) for blind N-way comparison between iterations or targets. The comparator blinds provider identities, generates task-specific rubrics, scores each output, then unblinds and attributes improvements.
 
 ### Trace analysis
 
@@ -393,7 +448,7 @@ When entering mid-lifecycle, run only the requested step and subsequent steps. D
 
 ## Advanced: Blind Comparison
 
-For situations where you want a rigorous comparison between two versions (e.g., "is the new version actually better?"), dispatch the `eval-comparator` subagent. It blinds identities, generates task-specific rubrics, scores outputs, then unblinds and explains why the winner won.
+For situations where you want a rigorous comparison between two versions (e.g., "is the new version actually better?"), dispatch the `comparator` subagent. It blinds identities, generates task-specific rubrics, scores outputs, then unblinds and explains why the winner won.
 
 This is optional and requires subagents. The human review loop is usually sufficient.
 
@@ -440,12 +495,7 @@ Present the eval set. The user adjusts queries, toggles should-trigger, adds/rem
 
 Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations. Select best description by held-out test accuracy (split 60% train / 40% test) to avoid overfitting.
 
-When you already have `benchmark.json` and `grading.json`, use the scripts bundle to draft the next round of edits:
-
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-python scripts/improve_description.py --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
-```
+Use the grader and analyzer subagents to identify trigger failures and propose description improvements — the same eval → grade → analyze → improve loop used for agent output quality.
 
 ### Step 4: Apply
 
@@ -497,9 +547,9 @@ tests:
 
 ```typescript
 // judges/codex-skill-trigger.ts
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ output }) => {
+export default defineCodeGrader(({ output }) => {
   const skillName = 'csv-analyzer';
   const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
   const firstTool = toolCalls[0];
@@ -538,11 +588,12 @@ The `agents/` directory contains instructions for specialized subagents. Read th
 
 | Agent | File | Purpose | When to dispatch |
 |-------|------|---------|-----------------|
-| eval-grader | `agents/eval-grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
-| eval-comparator | `agents/eval-comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
-| eval-analyzer | `agents/eval-analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
+| grader | `agents/grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
+| comparator | `agents/comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
+| analyzer | `agents/analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
 
 The `references/` directory has additional documentation:
+- `references/eval-yaml-spec.md` — Eval YAML schema and assertion grading recipes (read when running agent-mode evals)
 - `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
 
 ---
