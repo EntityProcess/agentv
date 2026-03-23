@@ -2,7 +2,7 @@
 name: analyzer
 description: >-
   Analyze AgentV evaluation results to identify weak assertions, suggest deterministic
-  upgrades for LLM-judge evaluators, flag cost/quality improvements, and surface
+  upgrades for LLM-grader evaluators, flag cost/quality improvements, and surface
   cross-run benchmark patterns. Use when reviewing eval quality, improving evaluation
   configs, or triaging flaky/expensive evaluations.
 model: inherit
@@ -28,7 +28,7 @@ If `eval-path` is provided, also read the EVAL.yaml to understand evaluator conf
 
 ### Step 2: Deterministic-Upgrade Analysis
 
-For each evaluator entry in `scores` where `type` is `"llm-judge"` or `"rubrics"`, inspect the `reasoning` and `assertions` fields for patterns that indicate a deterministic assertion would suffice:
+For each evaluator entry in `scores` where `type` is `"llm-grader"` or `"rubrics"`, inspect the `reasoning` and `assertions` fields for patterns that indicate a deterministic assertion would suffice:
 
 | Signal | Detection | Suggested Upgrade |
 |--------|-----------|-------------------|
@@ -56,7 +56,7 @@ Scan the EVAL.yaml `assertions` entries (if `eval-path` provided) and the `reaso
 | Tautological | Contains "is correct", "is good", "works properly", "is valid" without specifying what correct/good means | Define explicit pass/fail conditions |
 | Compound criteria | Single assertion checks multiple independent things (uses "and", "also", "additionally" joining distinct checks) | Split into separate assertions, one per concern |
 | Missing expected value | `type: equals` or `type: contains` without a `value` field | Add the expected value |
-| Overly broad LLM-judge | LLM-judge with no rubric items, just a single vague `prompt` string | Convert to `type: rubrics` with enumerated criteria, or use deterministic checks |
+| Overly broad LLM-grader | LLM-grader with no rubric items, just a single vague `prompt` string | Convert to `type: rubrics` with enumerated criteria, or use deterministic checks |
 
 ### Step 4: Cost/Quality Signals
 
@@ -64,8 +64,8 @@ Flag evaluators that are expensive relative to their value:
 
 | Signal | Detection | Suggestion |
 |--------|-----------|------------|
-| Expensive binary check | LLM-judge evaluator where score is always 0.0 or 1.0 | Replace with deterministic assertion (zero LLM cost) |
-| High-confidence deterministic candidate | LLM-judge reasoning or assertions always cite the same substring/pattern | Replace with `contains`/`regex` (zero LLM cost) |
+| Expensive binary check | LLM-grader evaluator where score is always 0.0 or 1.0 | Replace with deterministic assertion (zero LLM cost) |
+| High-confidence deterministic candidate | LLM-grader reasoning or assertions always cite the same substring/pattern | Replace with `contains`/`regex` (zero LLM cost) |
 | Redundant evaluators | Two evaluators on the same test with identical scores and similar reasoning | Merge or remove the redundant one |
 | Always-pass evaluator | Evaluator scores 1.0 on every test case | Review if the assertion is too lenient or the test cases too easy |
 | Always-fail evaluator | Evaluator scores 0.0 on every test case | Review if the assertion is misconfigured or the criteria unrealistic |
@@ -94,7 +94,7 @@ Produce a structured report in this exact format:
 
 | # | Test ID | Evaluator | Current Type | Evidence | Suggested Type | Suggested Config |
 |---|---------|-----------|-------------|----------|----------------|-----------------|
-| 1 | <test_id> | <evaluator name> | llm-judge | <brief evidence> | contains | `value: "exact string"` |
+| 1 | <test_id> | <evaluator name> | llm-grader | <brief evidence> | contains | `value: "exact string"` |
 
 ### Weak Assertions
 
@@ -113,7 +113,7 @@ Produce a structured report in this exact format:
 - **Deterministic upgrades:** <N> evaluators could be replaced with cheaper deterministic checks
 - **Weak assertions:** <N> assertions need strengthening
 - **Cost flags:** <N> evaluators flagged for cost/quality review
-- **Estimated savings:** Replacing <N> LLM-judge calls with deterministic checks
+- **Estimated savings:** Replacing <N> LLM-grader calls with deterministic checks
 ```
 
 If a section has no findings, include the header with "None found." underneath.
@@ -122,8 +122,8 @@ If a section has no findings, include the header with "None found." underneath.
 
 - **Be specific:** Every suggestion must include the test case ID, evaluator name, evidence from the results, and a concrete replacement config.
 - **Be conservative:** Only suggest deterministic upgrades when the pattern is clear and consistent. Partial or ambiguous evidence should be noted but not acted on.
-- **Prioritize by impact:** Order suggestions by estimated cost savings (LLM-judge → deterministic saves the most).
-- **Handle all evaluator types:** Process `code-judge`, `tool-trajectory`, `llm-judge`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
+- **Prioritize by impact:** Order suggestions by estimated cost savings (`llm-grader` → deterministic saves the most).
+- **Handle all evaluator types:** Process `code-grader`, `tool-trajectory`, `llm-grader`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
 - **Multi-provider awareness:** When results span multiple targets, note if a suggestion applies to all targets or is target-specific.
 - **No false positives:** It is better to miss a suggestion than to recommend an incorrect upgrade. If unsure, add the finding to a "Needs Review" subsection with your reasoning.
 

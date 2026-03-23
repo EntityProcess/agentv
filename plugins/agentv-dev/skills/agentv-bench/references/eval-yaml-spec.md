@@ -155,7 +155,7 @@ Same as contains variants but explicitly case-insensitive.
 
 ### LLM-judged assertions (require Claude reasoning)
 
-#### `llm-grader` / `llm-judge`
+#### `llm-grader`
 
 - **Fields:** `prompt` (string, required — either inline text or path to .md file)
 - **Recipe:** Read the prompt. Evaluate the response against the criteria using your own reasoning. Produce score (0.0-1.0) with evidence.
@@ -169,7 +169,7 @@ Same as contains variants but explicitly case-insensitive.
 
 ### Script-based assertions
 
-#### `code-grader` / `code-judge`
+#### `code-grader`
 
 - **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
 - **Recipe:** Run the script via Bash. The script receives context as JSON on stdin or via files. Parse stdout for JSON: `{"score": N, "reason": "..."}`

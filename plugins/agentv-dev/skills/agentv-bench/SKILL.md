@@ -5,7 +5,7 @@ description: >-
   optimize prompts against evals, run EVAL.yaml or evals.json evaluations, benchmark agent
   performance, compare agent outputs across providers, analyze eval results, or improve agent
   performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn
-  conversations, code judges, tool trajectory scoring, and workspace file change tracking.
+  conversations, code graders, tool trajectory scoring, and workspace file change tracking.
   Use this skill whenever the user mentions evaluating, benchmarking, testing, or optimizing
   any agent, prompt, or skill — even if they don't explicitly say "agentv".
 ---
@@ -45,7 +45,7 @@ The scripts layer wraps AgentV rather than replacing it. Use it when you want a 
 - `scripts/package_skill.py` → packages the skill directory for distribution
 - `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
 
-Keep code-judge execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
+Keep code-grader execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
 
 ## Scripts
 
@@ -105,7 +105,7 @@ Before running or optimizing, understand what you're working with.
 
 AgentV supports two evaluation formats:
 
-**EVAL.yaml** (native, full features) — supports workspaces, code judges, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
+**EVAL.yaml** (native, full features) — supports workspaces, code graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
 
 ```yaml
 # example.eval.yaml
@@ -116,7 +116,7 @@ tests:
     assertions:
       - type: contains
         value: "null"
-      - type: llm-judge
+      - type: llm-grader
         prompt: "Did the review identify the bug and suggest a concrete fix?"
 
 workspace:
@@ -158,11 +158,11 @@ Good assertions are objectively verifiable and have descriptive names. Subjectiv
 - `exact`, `contains`, `regex`, `is-json` — deterministic, zero cost, instant
 - `field-accuracy` — checks JSON field values against expected
 - `composite` — weighted combination of multiple evaluators
-- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-writer` skill)
+- `code-grader` — Python/TypeScript scripts via `defineCodeGrader()` (→ see `agentv-eval-writer` skill)
 - `tool-trajectory` — evaluate tool call sequences and patterns
-- `llm-judge` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
+- `llm-grader` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
 
-Prefer deterministic evaluators over LLM judges whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-judge`.
+Prefer deterministic evaluators over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-grader`.
 
 ---
 
@@ -243,7 +243,7 @@ This is the only opportunity to capture this data — it comes through the task 
 
 Once runs complete:
 
-**Agent mode grading** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates all assertion types natively: deterministic checks (contains, regex, is-json, etc.) via direct string operations, LLM-graded assertions via Claude's own reasoning, and code-grader via Bash script execution. No CLI call required.
+**Agent mode grading** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates all assertion types natively: deterministic checks (contains, regex, is-json, etc.) via direct string operations, LLM-graded assertions via Claude's own reasoning, and `code-grader` via Bash script execution. No CLI call required.
 
 **CLI mode grading** — deterministic evaluators run automatically via CLI. LLM-graded assertions are handled by the configured LLM provider.
 
@@ -369,7 +369,7 @@ Read the JSONL results and look for:
 - **Always-fail tests** — task impossible, eval broken, or assertion misconfigured. Don't optimize against broken evals.
 - **Flaky tests** — non-deterministic results across runs. Investigate before treating failures as real.
 - **Systematic failures** — same failure pattern across multiple tests. This usually points to a missing instruction or wrong approach.
-- **Deterministic upgrade candidates** — LLM-judge assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
+- **Deterministic upgrade candidates** — `llm-grader` assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
 
 ### Dispatch subagents
 
@@ -575,9 +575,9 @@ tests:
 
 ```typescript
 // judges/codex-skill-trigger.ts
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ output }) => {
+export default defineCodeGrader(({ output }) => {
   const skillName = 'csv-analyzer';
   const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
   const firstTool = toolCalls[0];

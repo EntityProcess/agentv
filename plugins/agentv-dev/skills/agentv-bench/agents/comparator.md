@@ -25,7 +25,7 @@ You will receive:
 - `outputs`: Array of evaluation outputs to compare. Each contains:
   - `target_id`: The provider/configuration identifier (DO NOT read this during scoring)
   - `answer`: The candidate response text
-  - `evaluator_results`: Array of evaluator scores and details (code-judge, tool-trajectory, llm-judge, deterministic)
+  - `evaluator_results`: Array of evaluator scores and details (code-grader, tool-trajectory, llm-grader, deterministic)
   - `workspace_changes`: File changes made during workspace evaluation (if applicable)
   - `tool_calls`: Tool invocations and results from multi-turn conversations (if applicable)
   - `conversation`: Full multi-turn conversation history (if applicable)
@@ -91,9 +91,9 @@ For each content criterion, define:
 
 **Evaluator-Specific Scoring** — when evaluator results are present:
 
-- **code-judge**: Factor in pass/fail results, test coverage, assertion hit rates
+- **code-grader**: Factor in pass/fail results, test coverage, assertion hit rates
 - **tool-trajectory**: Factor in tool call accuracy, sequence correctness, unnecessary tool calls
-- **llm-judge**: Factor in existing LLM judge scores as a reference signal (not as ground truth)
+- **llm-grader**: Factor in existing LLM grader scores as a reference signal (not as ground truth)
 - **deterministic**: Factor in exact match / keyword hit rates
 
 ### Phase 3: Scoring
@@ -236,7 +236,7 @@ Also produce a human-readable markdown summary:
 - **Be evidence-based**: Every score must cite specific evidence from the output.
 - **Evaluate substance over style**: Correct, complete answers with rough formatting score higher than polished but incorrect answers.
 - **Handle missing data gracefully**: If an output lacks workspace changes or tool calls but others have them, score what is present — do not penalize for data the target wasn't expected to produce.
-- **Respect evaluator signals**: When code-judge or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
+- **Respect evaluator signals**: When code-grader or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
 
 ## Edge Cases
 

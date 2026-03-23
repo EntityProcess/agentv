@@ -19,7 +19,7 @@ agentv prompt eval --expected-output evals.json --test-id 1
 AgentV automatically:
 - Promotes `prompt` → input messages
 - Promotes `expected_output` → reference answer
-- Converts `assertions` → LLM-judge evaluators
+- Converts `assertions` → LLM-grader evaluators
 - Resolves `files[]` paths relative to the evals.json directory
 
 If you're using the `agentv-bench` skill, the bundled Bun scripts wrap these same commands and artifacts instead of inventing a second format:
@@ -33,7 +33,7 @@ bun scripts/convert-evals.ts --eval-path ../../../../examples/features/agent-ski
 bun scripts/generate-report.ts --artifacts .agentv/artifacts --out /tmp/agentv-review.html
 ```
 
-These scripts still call `agentv` wherever possible. Code judges, grading, and artifact generation remain in AgentV core; the scripts just orchestrate and summarize the existing outputs.
+These scripts still call `agentv` wherever possible. Code graders, grading, and artifact generation remain in AgentV core; the scripts just orchestrate and summarize the existing outputs.
 
 ## What You Gain
 
@@ -42,12 +42,12 @@ Moving from skill-creator's eval loop to AgentV's lifecycle skill gives you:
 | Capability | skill-creator | AgentV lifecycle skill |
 |-----------|---------------|----------------------|
 | Workspace isolation | ❌ | ✅ Clone repos, run setup/teardown scripts |
-| Code judges | ❌ | ✅ Python/TypeScript evaluator scripts via `defineCodeJudge()` |
+| Code graders | ❌ | ✅ Python/TypeScript evaluator scripts via `defineCodeGrader()` |
 | Tool trajectory scoring | ❌ | ✅ Evaluate tool call sequences |
 | Multi-provider comparison | with-skill vs without-skill | N-way: Claude, GPT, Copilot, Gemini, custom CLI |
 | Multi-turn evaluation | ❌ | ✅ Conversation tracking with `conversation_id` |
 | Blind comparison | ❌ | ✅ Judge doesn't know which is baseline |
-| Deterministic upgrade suggestions | ❌ | ✅ LLM-judge → contains/regex/is-json |
+| Deterministic upgrade suggestions | ❌ | ✅ LLM-grader → contains/regex/is-json |
 | Human review checkpoint | ❌ | ✅ Structured feedback gate |
 | Workspace file tracking | ❌ | ✅ Evaluate by diffing workspace files |
 | Agent mode (no API keys) | ❌ | ✅ Uses grader agent in agent mode |
@@ -77,14 +77,14 @@ When evals.json becomes limiting, convert to EVAL.yaml for the full feature set:
 # Convert evals.json to EVAL.yaml
 agentv convert evals.json
 
-# Edit the generated YAML to add workspace config, code judges, etc.
+# Edit the generated YAML to add workspace config, code graders, etc.
 # Then run with the full lifecycle
 agentv eval eval.yaml
 ```
 
 EVAL.yaml unlocks:
 - **Workspace setup/teardown** — clone repos, install dependencies, clean up after tests
-- **Code judges** — write evaluators in Python or TypeScript, not just LLM prompts
+- **Code graders** — write evaluators in Python or TypeScript, not just LLM prompts
 - **Rubric-based grading** — multi-dimensional scoring with weighted criteria
 - **Retry policies** — automatic retries for flaky tests with configurable backoff
 - **Test groups** — organize tests by category with shared config
@@ -110,7 +110,7 @@ AgentV focuses on the **evaluation and optimization loop**. Skill-creator focuse
    - Workspace isolation (test in a real repo)
    - Multi-provider comparison (does the skill work with GPT too?)
    - Blind comparison (is the new version actually better?)
-   - Deterministic upgrades (replace vague LLM judges with precise checks)
+   - Deterministic upgrades (replace vague LLM graders with precise checks)
 4. Use AgentV's optimization loop to refine the skill's prompts
 5. Return to skill-creator for packaging and distribution
 ```
