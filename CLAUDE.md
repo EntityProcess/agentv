@@ -128,7 +128,30 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - CLI command JSON output (`results summary`, `results failures`, `results show`)
 - YAML eval config fields
 
-**Internal TypeScript uses `camelCase`** as standard. The boundary is at serialization: format functions that produce CLI/file output should use snake_case object literals directly. The `parseJsonlResults()` function in `artifact-writer.ts` handles snake_case → camelCase conversion when reading JSONL back into TypeScript.
+**Internal TypeScript uses `camelCase`** as standard. Convert at the serialization boundary only:
+
+```typescript
+// Interfaces for JSON output use snake_case (they define the wire format)
+interface SummaryJson {
+  total: number;
+  pass_rate: number;
+  failed_test_ids: string[];
+}
+
+// Function internals use camelCase (idiomatic TypeScript)
+function formatSummary(results: EvaluationResult[]): SummaryJson {
+  const passRate = computePassRate(results);      // camelCase local
+  const failedTestIds = findFailed(results);      // camelCase local
+
+  return {
+    total: results.length,
+    pass_rate: passRate,           // snake_case key ← camelCase value
+    failed_test_ids: failedTestIds,
+  };
+}
+```
+
+**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript.
 
 **Why:** Aligns with skill-creator (claude-plugins-official) and broader Python/JSON ecosystem conventions where snake_case is the standard wire format.
 
