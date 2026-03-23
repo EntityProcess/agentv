@@ -21,7 +21,6 @@ export interface SummaryJson {
   passed: number;
   failed: number;
   passRate: number;
-  meanScore: number;
   totalDurationMs: number;
   totalTokens: number;
   failedTestIds: string[];
@@ -31,8 +30,9 @@ export function formatSummary(results: EvaluationResult[]): SummaryJson {
   const total = results.length;
   const passed = results.filter((r) => r.score >= 1.0).length;
   const failed = total - passed;
-  const passRate = total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0;
-  const meanScore =
+  // passRate = mean of per-test scores (each score is the assertion pass rate for that test,
+  // matching skill-creator's pass_rate.mean semantics)
+  const passRate =
     total > 0 ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000 : 0;
 
   let totalDurationMs = 0;
@@ -45,16 +45,7 @@ export function formatSummary(results: EvaluationResult[]): SummaryJson {
 
   const failedTestIds = results.filter((r) => r.score < 1.0).map((r) => r.testId);
 
-  return {
-    total,
-    passed,
-    failed,
-    passRate,
-    meanScore,
-    totalDurationMs,
-    totalTokens,
-    failedTestIds,
-  };
+  return { total, passed, failed, passRate, totalDurationMs, totalTokens, failedTestIds };
 }
 
 // ── CLI command ──────────────────────────────────────────────────────────

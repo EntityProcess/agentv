@@ -31,10 +31,10 @@ describe('formatSummary', () => {
     expect(json.failedTestIds).toEqual(['test-2']);
   });
 
-  it('computes mean score correctly', () => {
+  it('computes passRate as mean of per-test scores', () => {
     const results = [makeResult({ score: 0.8 }), makeResult({ score: 0.6 })];
     const json = formatSummary(results);
-    expect(json.meanScore).toBe(0.7);
+    expect(json.passRate).toBe(0.7);
   });
 
   it('aggregates duration and tokens', () => {
