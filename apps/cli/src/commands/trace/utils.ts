@@ -117,32 +117,49 @@ export interface ResultFileMeta {
 
 /**
  * Enumerate result files in the .agentv/results/ directory.
+ * Scans both raw/ (new layout) and the base directory (legacy) for backward compatibility.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
-  const resultsDir = path.join(cwd, '.agentv', 'results');
+  const baseDir = path.join(cwd, '.agentv', 'results');
+  const rawDir = path.join(baseDir, 'raw');
 
-  let files: string[];
-  try {
-    files = readdirSync(resultsDir).filter((f) => f.endsWith('.jsonl'));
-  } catch {
-    return [];
+  // Scan both raw/ (new) and root (legacy) for backward compatibility
+  const files: string[] = [];
+  for (const dir of [rawDir, baseDir]) {
+    try {
+      const entries = readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
+      for (const entry of entries) {
+        files.push(path.join(dir, entry));
+      }
+    } catch {
+      // Directory doesn't exist yet
+    }
   }
 
-  // Sort by filename (which contains timestamp) descending (most recent first)
-  files.sort((a, b) => b.localeCompare(a));
-
-  if (limit !== undefined && limit > 0) {
-    files = files.slice(0, limit);
+  // Deduplicate by filename (prefer raw/ version since it appears first)
+  const seen = new Set<string>();
+  const uniqueFiles: string[] = [];
+  for (const filePath of files) {
+    const basename = path.basename(filePath);
+    if (!seen.has(basename)) {
+      seen.add(basename);
+      uniqueFiles.push(filePath);
+    }
   }
+
+  // Sort by filename descending (most recent first)
+  uniqueFiles.sort((a, b) => path.basename(b).localeCompare(path.basename(a)));
+
+  const limited = limit !== undefined && limit > 0 ? uniqueFiles.slice(0, limit) : uniqueFiles;
 
   const metas: ResultFileMeta[] = [];
 
-  for (const filename of files) {
-    const filePath = path.join(resultsDir, filename);
+  for (const filePath of limited) {
     try {
       const stat = statSync(filePath);
       const results = loadResultFile(filePath);
 
+      const filename = path.basename(filePath);
       const testCount = results.length;
       const passCount = results.filter((r) => r.score >= 1.0).length;
       const passRate = testCount > 0 ? passCount / testCount : 0;
