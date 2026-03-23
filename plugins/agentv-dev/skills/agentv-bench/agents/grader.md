@@ -138,7 +138,7 @@ If executor notes exist (e.g., `user_notes.md` in the output directory), read an
 2. Include relevant concerns in the grading output
 3. These may reveal problems even when assertions pass
 
-If no user notes are found, set `user_notes_summary` to null.
+If no user notes are found, set `user_notes_summary` to `{"uncertainties": [], "needs_review": [], "workarounds": []}`.
 
 ### Step 8: Critique the Evals
 
@@ -189,7 +189,11 @@ Write results to `{bench-dir}/test-{test-id}/grading.json`:
       "evidence": "Line 15 of output uses await fetch()"
     }
   ],
-  "user_notes_summary": null,
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
   "eval_feedback": {
     "suggestions": [],
     "overall": "No suggestions, evals look solid."
@@ -204,7 +208,7 @@ Write results to `{bench-dir}/test-{test-id}/grading.json`:
 - **execution_metrics**: From executor metrics/timing — tool call counts, output size. Omit if not available.
 - **timing**: From `timing-file` — executor and total duration in seconds. Omit if not available.
 - **claims**: Extracted and verified claims — `claim` (statement), `type` (factual/process/quality), `verified` (boolean), `evidence`
-- **user_notes_summary**: Issues from executor notes. Null if no notes found.
+- **user_notes_summary**: Issues from executor notes — `uncertainties[]`, `needs_review[]`, `workarounds[]`. Empty arrays if no notes found.
 - **eval_feedback**: Suggestions for improving the evals — `suggestions[]` (array of `{assertion?, reason}`), `overall` (brief assessment)
 
 ## Grading Standards: Surface vs Substance
