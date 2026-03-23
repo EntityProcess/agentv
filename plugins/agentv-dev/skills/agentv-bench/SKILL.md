@@ -543,6 +543,7 @@ The `agents/` directory contains instructions for specialized subagents. Read th
 | analyzer | `agents/analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
 
 The `references/` directory has additional documentation:
+- `references/eval-yaml-spec.md` — Eval YAML schema and assertion grading recipes (read when running agent-mode evals)
 - `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
 
 ---
