@@ -48,9 +48,7 @@ export function formatSummary(
     passed = results.filter((r) => r.score >= 1.0).length;
     failed = total - passed;
     passRate =
-      total > 0
-        ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000
-        : 0;
+      total > 0 ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000 : 0;
   }
 
   let totalDurationMs = 0;

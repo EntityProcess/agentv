@@ -85,8 +85,18 @@ describe('formatSummary with grading artifact', () => {
     };
 
     const results = [
-      makeResult({ testId: 'test-1', score: 0.5, durationMs: 1000, tokenUsage: { input: 100, output: 50 } }),
-      makeResult({ testId: 'test-2', score: 1.0, durationMs: 2000, tokenUsage: { input: 200, output: 100 } }),
+      makeResult({
+        testId: 'test-1',
+        score: 0.5,
+        durationMs: 1000,
+        tokenUsage: { input: 100, output: 50 },
+      }),
+      makeResult({
+        testId: 'test-2',
+        score: 1.0,
+        durationMs: 2000,
+        tokenUsage: { input: 200, output: 100 },
+      }),
     ];
 
     const json = formatSummary(results, grading);
