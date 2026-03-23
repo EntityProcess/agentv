@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type {
+  AggregateGradingArtifact,
   BenchmarkArtifact,
   GradingArtifact,
   TimingArtifact,
@@ -338,5 +339,28 @@ describe('results export', () => {
     );
     expect(benchmark.metadata.targets).toEqual(['unknown']);
     expect(benchmark.metadata.tests_run).toEqual(['unknown']);
+  });
+
+  it('should create top-level grading.json with aggregate assertions', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
+
+    exportResults('test.jsonl', content, outputDir);
+
+    const gradingPath = path.join(outputDir, 'grading.json');
+    expect(existsSync(gradingPath)).toBe(true);
+
+    const grading: AggregateGradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
+
+    // Assertions from both results, tagged with test_id
+    expect(grading.assertions.length).toBe(4); // 2 from RESULT_FULL + 2 from RESULT_PARTIAL
+    expect(grading.assertions[0].test_id).toBe('test-greeting');
+    expect(grading.assertions[2].test_id).toBe('test-math');
+
+    // Summary counts all assertions
+    expect(grading.summary.total).toBe(4);
+    expect(grading.summary.passed).toBe(3); // 2 from greeting + 1 from math
+    expect(grading.summary.failed).toBe(1); // 1 from math
+    expect(grading.summary.pass_rate).toBe(0.75);
   });
 });
