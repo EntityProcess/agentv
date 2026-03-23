@@ -790,17 +790,21 @@ export const resultsServeCommand = command({
 
       const app = createApp(results, cwd);
 
-      const { serve: startServer } = await import('@hono/node-server');
-      startServer({
-        fetch: app.fetch,
-        port: listenPort,
-      });
-
       console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       console.log(`Dashboard: http://localhost:${listenPort}`);
       console.log(`Feedback API: http://localhost:${listenPort}/api/feedback`);
       console.log(`Feedback file: ${feedbackPath(cwd)}`);
       console.log('Press Ctrl+C to stop');
+
+      const { serve: startServer } = await import('@hono/node-server');
+      // serve() returns a Node http.Server — its 'listening' event keeps
+      // the process alive. We await a never-resolving promise so the
+      // cmd-ts handler doesn't return and let the process exit.
+      startServer({
+        fetch: app.fetch,
+        port: listenPort,
+      });
+      await new Promise(() => {});
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exit(1);
