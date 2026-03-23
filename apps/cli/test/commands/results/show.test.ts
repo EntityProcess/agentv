@@ -1,10 +1,7 @@
+import { describe, expect, it } from 'bun:test';
+
 import type { EvaluationResult } from '@agentv/core';
-import { describe, expect, it } from 'vitest';
-import {
-  findResult,
-  formatShowJson,
-  formatShowMarkdown,
-} from '../../../src/commands/results/show.js';
+import { findResult, formatShow } from '../../../src/commands/results/show.js';
 
 const makeResult = (overrides: Partial<EvaluationResult> = {}): EvaluationResult =>
   ({
@@ -36,25 +33,21 @@ describe('findResult', () => {
   });
 });
 
-describe('formatShowMarkdown', () => {
-  it('includes test ID, input, score, assertions, and response', () => {
-    const result = makeResult();
-    const output = formatShowMarkdown(result);
-    expect(output).toContain('test-1');
-    expect(output).toContain('Give a formal greeting');
-    expect(output).toContain('0.5');
-    expect(output).toContain('FAIL');
-    expect(output).toContain('PASS');
-    expect(output).toContain('Hi there!');
-  });
-});
-
-describe('formatShowJson', () => {
+describe('formatShow', () => {
   it('returns structured test detail', () => {
     const result = makeResult();
-    const json = formatShowJson(result);
+    const json = formatShow(result);
     expect(json.testId).toBe('test-1');
     expect(json.score).toBe(0.5);
     expect(json.assertions).toHaveLength(2);
+    expect(json.input).toBe('Give a formal greeting');
+    expect(json.response).toBe('Hi there!');
+  });
+
+  it('includes duration and token count', () => {
+    const result = makeResult();
+    const json = formatShow(result);
+    expect(json.durationMs).toBe(1200);
+    expect(json.totalTokens).toBe(320);
   });
 });

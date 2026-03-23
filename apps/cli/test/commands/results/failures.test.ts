@@ -1,9 +1,7 @@
+import { describe, expect, it } from 'bun:test';
+
 import type { EvaluationResult } from '@agentv/core';
-import { describe, expect, it } from 'vitest';
-import {
-  formatFailuresJson,
-  formatFailuresMarkdown,
-} from '../../../src/commands/results/failures.js';
+import { formatFailures } from '../../../src/commands/results/failures.js';
 
 const makeResult = (overrides: Partial<EvaluationResult> = {}): EvaluationResult =>
   ({
@@ -17,10 +15,19 @@ const makeResult = (overrides: Partial<EvaluationResult> = {}): EvaluationResult
     ...overrides,
   }) as EvaluationResult;
 
-describe('formatFailuresMarkdown', () => {
-  it('shows only failed tests', () => {
+describe('formatFailures', () => {
+  it('returns only failed tests', () => {
     const results = [
-      makeResult({ testId: 'pass-1', score: 1, assertions: [{ text: 'ok', passed: true }] }),
+      makeResult({ testId: 'pass-1', score: 1 }),
+      makeResult({ testId: 'fail-1', score: 0.5 }),
+    ];
+    const json = formatFailures(results);
+    expect(json).toHaveLength(1);
+    expect(json[0].testId).toBe('fail-1');
+  });
+
+  it('includes assertion details for failed tests', () => {
+    const results = [
       makeResult({
         testId: 'fail-1',
         score: 0,
@@ -30,29 +37,17 @@ describe('formatFailuresMarkdown', () => {
         ],
       }),
     ];
-    const output = formatFailuresMarkdown(results);
-    expect(output).toContain('fail-1');
-    expect(output).not.toContain('pass-1');
-    expect(output).toContain('FAIL');
-    expect(output).toContain("contains 'Dear'");
-    expect(output).toContain('response was "Hi there"');
-  });
-
-  it('returns empty message when all pass', () => {
-    const results = [makeResult({ score: 1 })];
-    const output = formatFailuresMarkdown(results);
-    expect(output).toContain('All tests passed');
-  });
-});
-
-describe('formatFailuresJson', () => {
-  it('returns only failed tests', () => {
-    const results = [
-      makeResult({ testId: 'pass-1', score: 1 }),
-      makeResult({ testId: 'fail-1', score: 0.5 }),
-    ];
-    const json = formatFailuresJson(results);
+    const json = formatFailures(results);
     expect(json).toHaveLength(1);
-    expect(json[0].testId).toBe('fail-1');
+    expect(json[0].assertions).toHaveLength(2);
+    expect(json[0].assertions[1].text).toBe("contains 'Dear'");
+    expect(json[0].assertions[1].passed).toBe(false);
+    expect(json[0].assertions[1].evidence).toBe('response was "Hi there"');
+  });
+
+  it('returns empty array when all pass', () => {
+    const results = [makeResult({ score: 1 })];
+    const json = formatFailures(results);
+    expect(json).toHaveLength(0);
   });
 });

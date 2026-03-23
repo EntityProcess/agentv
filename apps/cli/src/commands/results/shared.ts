@@ -4,37 +4,26 @@
  * Provides:
  * - resolveSourceFile() — find JSONL from explicit path or auto-discover latest
  * - patchTestIds() — backward-compat eval_id -> test_id patching
- * - formatOption — cmd-ts option for --format markdown|json
  * - sourceArg — cmd-ts positional for optional JSONL source path
  *
  * How to extend:
- * - To add a new output format, add it to the OutputFormat union and handle in each command.
+ * - To add a new subcommand, import loadResults() and sourceArg from this module.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { oneOf, option, optional, positional, string } from 'cmd-ts';
+import { optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { loadRunCache } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 
-export type OutputFormat = 'markdown' | 'json';
-
 /** cmd-ts positional for optional JSONL source file. */
 export const sourceArg = positional({
   type: optional(string),
   displayName: 'source',
   description: 'JSONL result file (defaults to most recent in .agentv/results/)',
-});
-
-/** cmd-ts option for --format markdown|json. */
-export const formatOption = option({
-  type: optional(oneOf(['markdown', 'json'])),
-  long: 'format',
-  short: 'f',
-  description: 'Output format: markdown (default) or json',
 });
 
 /**
@@ -49,6 +38,10 @@ export async function resolveSourceFile(
 
   if (source) {
     sourceFile = path.isAbsolute(source) ? source : path.resolve(cwd, source);
+    if (!existsSync(sourceFile)) {
+      console.error(`Error: File not found: ${sourceFile}`);
+      process.exit(1);
+    }
   } else {
     const cache = await loadRunCache(cwd);
     if (cache && existsSync(cache.lastResultFile)) {
