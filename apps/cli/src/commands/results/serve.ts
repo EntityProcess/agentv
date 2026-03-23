@@ -33,10 +33,7 @@ import { listResultFiles } from '../trace/utils.js';
  * Resolve the JSONL result file path from an explicit source, run cache,
  * or directory scan. Throws if no file can be found.
  */
-export async function resolveSourceFile(
-  source: string | undefined,
-  cwd: string,
-): Promise<string> {
+export async function resolveSourceFile(source: string | undefined, cwd: string): Promise<string> {
   if (source) {
     const resolved = path.isAbsolute(source) ? source : path.resolve(cwd, source);
     if (!existsSync(resolved)) {
@@ -801,6 +798,8 @@ export const resultsServeCommand = command({
 
       console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       console.log(`Dashboard: http://localhost:${listenPort}`);
+      console.log(`Feedback API: http://localhost:${listenPort}/api/feedback`);
+      console.log(`Feedback file: ${feedbackPath(cwd)}`);
       console.log('Press Ctrl+C to stop');
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);

@@ -3,11 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import {
-  createApp,
-  loadResults,
-  resolveSourceFile,
-} from '../../../src/commands/results/serve.js';
+import { createApp, loadResults, resolveSourceFile } from '../../../src/commands/results/serve.js';
 
 // ── Sample JSONL content (snake_case, matching on-disk format) ──────────
 
@@ -157,7 +153,9 @@ describe('serve app', () => {
         }),
       });
       expect(res.status).toBe(200);
-      const data = (await res.json()) as { reviews: { test_id: string; comment: string; updated_at: string }[] };
+      const data = (await res.json()) as {
+        reviews: { test_id: string; comment: string; updated_at: string }[];
+      };
       expect(data.reviews).toHaveLength(1);
       expect(data.reviews[0].test_id).toBe('test-greeting');
       expect(data.reviews[0].comment).toBe('Looks good!');
@@ -223,6 +221,22 @@ describe('serve app', () => {
       const data = (await res.json()) as { reviews: { test_id: string; comment: string }[] };
       expect(data.reviews).toHaveLength(1);
       expect(data.reviews[0].comment).toBe('Updated');
+    });
+
+    it('accepts empty comment string', async () => {
+      const app = makeApp();
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: '' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        reviews: { comment: string }[];
+      };
+      expect(data.reviews[0].comment).toBe('');
     });
 
     it('rejects invalid payload (400)', async () => {
