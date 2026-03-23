@@ -20,14 +20,14 @@ Analyze JSONL evaluation results and produce actionable suggestions for improvin
 # Find your most recent results file
 agentv trace list --limit 5
 
-# Dispatch the eval-analyzer agent with the results file
-# Agent: eval-analyzer
+# Dispatch the analyzer agent with the results file
+# Agent: analyzer (under agentv-bench skill)
 # Parameters:
 #   results-file: <path-to-results.jsonl>
 #   eval-path: <path-to-eval.yaml>  (optional, for deeper analysis)
 ```
 
-**Dispatch the `eval-analyzer` agent** with:
+**Dispatch the `analyzer` agent** (from `agentv-bench` skill, `agents/analyzer.md`) with:
 - `results-file`: Path to the JSONL results (from `.agentv/results/` or `agentv trace list`)
 - `eval-path` (optional): Path to the EVAL.yaml for assertion-level analysis
 

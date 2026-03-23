@@ -245,7 +245,7 @@ Once runs complete:
 
 1. **Deterministic evaluators** run automatically via CLI — `contains`, `regex`, `is-json`, `field-accuracy` produce instant results.
 
-2. **LLM-graded assertions** — dispatch `eval-grader` subagent (read `agents/eval-grader.md`). The grader evaluates each assertion against the outputs with cited evidence. For assertions that can be checked programmatically, it writes and runs a script rather than eyeballing it.
+2. **LLM-graded assertions** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates each assertion against the outputs with cited evidence. For assertions that can be checked programmatically, it writes and runs a script rather than eyeballing it.
 
 3. **Write grading.json** per run with this structure:
 ```json
@@ -295,9 +295,9 @@ Read the JSONL results and look for:
 
 ### Dispatch subagents
 
-- **Dispatch `eval-analyzer`** (read `agents/eval-analyzer.md`) for a structured quality audit: deterministic upgrade suggestions, weak assertion detection, cost/quality flags, and benchmark pattern analysis.
+- **Dispatch `analyzer`** (read `agents/analyzer.md`) for a structured quality audit: deterministic upgrade suggestions, weak assertion detection, cost/quality flags, and benchmark pattern analysis.
 
-- **Dispatch `eval-comparator`** (read `agents/eval-comparator.md`) for blind N-way comparison between iterations or targets. The comparator blinds provider identities, generates task-specific rubrics, scores each output, then unblinds and attributes improvements.
+- **Dispatch `comparator`** (read `agents/comparator.md`) for blind N-way comparison between iterations or targets. The comparator blinds provider identities, generates task-specific rubrics, scores each output, then unblinds and attributes improvements.
 
 ### Trace analysis
 
@@ -393,7 +393,7 @@ When entering mid-lifecycle, run only the requested step and subsequent steps. D
 
 ## Advanced: Blind Comparison
 
-For situations where you want a rigorous comparison between two versions (e.g., "is the new version actually better?"), dispatch the `eval-comparator` subagent. It blinds identities, generates task-specific rubrics, scores outputs, then unblinds and explains why the winner won.
+For situations where you want a rigorous comparison between two versions (e.g., "is the new version actually better?"), dispatch the `comparator` subagent. It blinds identities, generates task-specific rubrics, scores outputs, then unblinds and explains why the winner won.
 
 This is optional and requires subagents. The human review loop is usually sufficient.
 
@@ -538,9 +538,9 @@ The `agents/` directory contains instructions for specialized subagents. Read th
 
 | Agent | File | Purpose | When to dispatch |
 |-------|------|---------|-----------------|
-| eval-grader | `agents/eval-grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
-| eval-comparator | `agents/eval-comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
-| eval-analyzer | `agents/eval-analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
+| grader | `agents/grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
+| comparator | `agents/comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
+| analyzer | `agents/analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
 
 The `references/` directory has additional documentation:
 - `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
