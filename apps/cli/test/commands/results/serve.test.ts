@@ -157,7 +157,7 @@ describe('serve app', () => {
         }),
       });
       expect(res.status).toBe(200);
-      const data = await res.json();
+      const data = (await res.json()) as { reviews: { test_id: string; comment: string; updated_at: string }[] };
       expect(data.reviews).toHaveLength(1);
       expect(data.reviews[0].test_id).toBe('test-greeting');
       expect(data.reviews[0].comment).toBe('Looks good!');
@@ -191,7 +191,7 @@ describe('serve app', () => {
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { reviews: { test_id: string }[] };
       expect(data.reviews).toHaveLength(2);
       expect(data.reviews.map((r: { test_id: string }) => r.test_id).sort()).toEqual([
         'test-greeting',
@@ -220,7 +220,7 @@ describe('serve app', () => {
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as { reviews: { test_id: string; comment: string }[] };
       expect(data.reviews).toHaveLength(1);
       expect(data.reviews[0].comment).toBe('Updated');
     });
