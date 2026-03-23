@@ -666,8 +666,9 @@ const SERVE_SCRIPT = `
       btns[k].addEventListener("click",(function(btn){return function(ev){
         ev.stopPropagation();
         var tid=btn.getAttribute("data-test-id");
-        var ta=btn.parentElement.querySelector(".feedback-input");
-        var st=btn.parentElement.querySelector(".feedback-status");
+        var sec=btn.closest(".feedback-section");
+        var ta=sec.querySelector(".feedback-input");
+        var st=sec.querySelector(".feedback-status");
         saveFeedback(tid,ta.value,st,btn);
       };})(btns[k]));
     }
