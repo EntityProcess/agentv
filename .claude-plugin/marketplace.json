@@ -1,6 +1,6 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentv",
+  "version": "1.0.0",
   "description": "Evaluate and optimize AI agents",
   "owner": {
     "name": "AgentV",
@@ -10,24 +10,12 @@
     {
       "name": "agentv-dev",
       "description": "Development skills for building and optimizing AgentV evaluations",
-      "source": "./plugins/agentv-dev",
-      "strict": false,
-      "skills": [
-        "./skills/agentv-bench",
-        "./skills/agentv-eval-analyzer",
-        "./skills/agentv-eval-writer",
-        "./skills/agentv-onboarding",
-        "./skills/agentv-trace-analyst"
-      ],
-      "category": "development"
+      "source": "./plugins/agentv-dev"
     },
     {
       "name": "agentv-claude-trace",
       "description": "Session tracing plugin — exports Claude Code session traces via OpenTelemetry",
-      "source": "./plugins/agentv-claude-trace",
-      "strict": false,
-      "hooks": "./hooks.json",
-      "category": "observability"
+      "source": "./plugins/agentv-claude-trace"
     }
   ]
 }
