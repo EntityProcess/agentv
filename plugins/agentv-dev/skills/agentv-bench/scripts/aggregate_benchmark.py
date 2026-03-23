@@ -153,7 +153,11 @@ def load_run_results(benchmark_dir: Path) -> dict:
                     result["tokens"] = metrics.get("output_chars", 0)
                 result["errors"] = metrics.get("errors_encountered", 0)
 
-                # Extract assertion_results — viewer requires fields: text, passed, evidence
+                # Three naming conventions exist for grading results across the ecosystem:
+                #   "assertion_results" — agentskills docs (evaluating-skills.mdx)
+                #   "assertions"        — AgentV native format
+                #   "expectations"      — skill-creator plugin (schemas.md)
+                # All use the same shape: [{text, passed, evidence}]. Fall through in priority order.
                 raw_assertions = grading.get("assertion_results", grading.get("assertions", grading.get("expectations", [])))
                 for exp in raw_assertions:
                     if "text" not in exp or "passed" not in exp:
