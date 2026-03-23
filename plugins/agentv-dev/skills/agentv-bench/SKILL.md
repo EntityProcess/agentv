@@ -39,7 +39,6 @@ The scripts layer wraps AgentV rather than replacing it. Use it when you want a 
 - `scripts/quick_validate.py` → validates skill structure and evals.json schema before a run
 - `scripts/aggregate_benchmark.py` → reads `grading.json` artifacts and produces benchmark statistics
 - `scripts/package_skill.py` → packages the skill directory for distribution
-- `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
 
 Keep code-grader execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
 
@@ -53,9 +52,6 @@ All scripts require Python 3.11+ and no external dependencies beyond the Python 
 
 ### Eval workflow
 - `scripts/aggregate_benchmark.py` — aggregate grading results into benchmark statistics
-
-### Review viewer
-- `eval-viewer/generate_review.py` — serve live eval review UI (HTTP server + feedback API)
 
 ## Communicating with the user
 

@@ -6,7 +6,6 @@
   "scripts": {
     "validate": "python3 scripts/quick_validate.py .",
     "package": "python3 scripts/package_skill.py .",
-    "aggregate-benchmark": "python3 scripts/aggregate_benchmark.py",
-    "view-results": "python3 eval-viewer/generate_review.py"
+    "aggregate-benchmark": "python3 scripts/aggregate_benchmark.py"
   }
 }
