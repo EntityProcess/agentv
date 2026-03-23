@@ -531,9 +531,9 @@ describe('export e2e — multi-provider metrics verification', () => {
         readFileSync(path.join(outputDir, 'outputs', 'test-claude-reasoning.md'), 'utf8'),
       ).toBe('@[assistant]:\nThe answer is 42, derived through extended thinking.');
 
-      expect(
-        readFileSync(path.join(outputDir, 'outputs', 'test-codex-edit.md'), 'utf8'),
-      ).toBe('@[assistant]:\nApplied the requested edit to src/main.ts.');
+      expect(readFileSync(path.join(outputDir, 'outputs', 'test-codex-edit.md'), 'utf8')).toBe(
+        '@[assistant]:\nApplied the requested edit to src/main.ts.',
+      );
 
       expect(
         readFileSync(path.join(outputDir, 'outputs', 'test-copilot-complete.md'), 'utf8'),
