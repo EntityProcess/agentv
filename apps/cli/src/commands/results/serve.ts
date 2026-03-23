@@ -98,7 +98,8 @@ function readFeedback(cwd: string): FeedbackData {
   }
   try {
     return JSON.parse(readFileSync(fp, 'utf8')) as FeedbackData;
-  } catch {
+  } catch (err) {
+    console.error(`Warning: could not parse ${fp}, starting fresh: ${(err as Error).message}`);
     return { reviews: [] };
   }
 }
@@ -191,7 +192,13 @@ function generateServeHtml(results: readonly EvaluationResult[]): string {
     const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
     return rest;
   });
-  const dataJson = JSON.stringify(lightResults).replace(/<\//g, '<\\/');
+  // Escape for safe embedding in <script>: prevent </script> breakout,
+  // HTML comment injection, and Unicode line terminators.
+  const dataJson = JSON.stringify(lightResults)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
   return `<!DOCTYPE html>
 <html lang="en">
