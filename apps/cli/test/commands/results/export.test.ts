@@ -182,17 +182,15 @@ describe('results export', () => {
     expect(grading.evaluators?.[0].type).toBe('llm-grader');
   });
 
-  it('should write answer text to outputs/<test-id>.txt', () => {
+  it('should write answer text to outputs/<test-id>.md as human-readable markdown', () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
     exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.txt');
+    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.md');
     expect(existsSync(answerPath)).toBe(true);
-    expect(JSON.parse(readFileSync(answerPath, 'utf8'))).toEqual([
-      { role: 'assistant', content: 'Hello, Alice!' },
-    ]);
+    expect(readFileSync(answerPath, 'utf8')).toBe('@[assistant]:\nHello, Alice!');
   });
 
   it('should group results by target in benchmark.json', () => {
@@ -215,7 +213,7 @@ describe('results export', () => {
 
     exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(outputDir, 'outputs', 'test-math.txt');
+    const answerPath = path.join(outputDir, 'outputs', 'test-math.md');
     expect(existsSync(answerPath)).toBe(false);
   });
 
@@ -252,7 +250,7 @@ describe('results export', () => {
     exportResults('test.jsonl', content, outputDir);
 
     // outputs dir still created but no file for this test
-    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.txt');
+    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.md');
     expect(existsSync(answerPath)).toBe(false);
   });
 

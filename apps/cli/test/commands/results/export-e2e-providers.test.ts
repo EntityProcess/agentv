@@ -520,30 +520,24 @@ describe('export e2e — multi-provider metrics verification', () => {
 
   // ── Output artifact tests ──────────────────────────────────────────────
 
-  describe('outputs/<test-id>.txt — raw agent responses', () => {
-    it('should write answer text for each provider', () => {
+  describe('outputs/<test-id>.md — human-readable agent responses', () => {
+    it('should write answer text for each provider as markdown', () => {
       const outputDir = path.join(tempDir, 'outputs');
       const content = toJsonl(CLAUDE_CLI_RESULT, CODEX_RESULT, COPILOT_RESULT);
 
       exportResults('test.jsonl', content, outputDir);
 
       expect(
-        JSON.parse(
-          readFileSync(path.join(outputDir, 'outputs', 'test-claude-reasoning.txt'), 'utf8'),
-        ),
-      ).toEqual([
-        { role: 'assistant', content: 'The answer is 42, derived through extended thinking.' },
-      ]);
+        readFileSync(path.join(outputDir, 'outputs', 'test-claude-reasoning.md'), 'utf8'),
+      ).toBe('@[assistant]:\nThe answer is 42, derived through extended thinking.');
 
       expect(
-        JSON.parse(readFileSync(path.join(outputDir, 'outputs', 'test-codex-edit.txt'), 'utf8')),
-      ).toEqual([{ role: 'assistant', content: 'Applied the requested edit to src/main.ts.' }]);
+        readFileSync(path.join(outputDir, 'outputs', 'test-codex-edit.md'), 'utf8'),
+      ).toBe('@[assistant]:\nApplied the requested edit to src/main.ts.');
 
       expect(
-        JSON.parse(
-          readFileSync(path.join(outputDir, 'outputs', 'test-copilot-complete.txt'), 'utf8'),
-        ),
-      ).toEqual([{ role: 'assistant', content: 'function add(a, b) { return a + b }' }]);
+        readFileSync(path.join(outputDir, 'outputs', 'test-copilot-complete.md'), 'utf8'),
+      ).toBe('@[assistant]:\nfunction add(a, b) { return a + b }');
     });
 
     it('should not write output file for error result with empty answer', () => {
@@ -552,7 +546,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       exportResults('test.jsonl', content, outputDir);
 
-      expect(existsSync(path.join(outputDir, 'outputs', 'test-error-case.txt'))).toBe(false);
+      expect(existsSync(path.join(outputDir, 'outputs', 'test-error-case.md'))).toBe(false);
     });
   });
 
