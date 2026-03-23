@@ -12,8 +12,8 @@
  *   - To add new summary fields, update both formatSummaryMarkdown and formatSummaryJson.
  */
 
-import { command, option, optional, string } from 'cmd-ts';
 import type { EvaluationResult } from '@agentv/core';
+import { command, option, optional, string } from 'cmd-ts';
 import { formatOption, loadResults, sourceArg } from './shared.js';
 
 // ── Formatting ───────────────────────────────────────────────────────────
@@ -74,9 +74,7 @@ export function formatSummaryJson(results: EvaluationResult[]): SummaryJson {
   const failed = total - passed;
   const passRate = total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0;
   const meanScore =
-    total > 0
-      ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000
-      : 0;
+    total > 0 ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000 : 0;
 
   let totalDurationMs = 0;
   let totalTokens = 0;

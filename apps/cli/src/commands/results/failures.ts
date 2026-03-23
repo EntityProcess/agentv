@@ -10,8 +10,8 @@
  *   - To add new fields to failure output, update both formatFailuresMarkdown and formatFailuresJson.
  */
 
-import { command, option, optional, string } from 'cmd-ts';
 import type { EvaluationResult } from '@agentv/core';
+import { command, option, optional, string } from 'cmd-ts';
 import { formatOption, loadResults, sourceArg } from './shared.js';
 
 // ── Formatting ───────────────────────────────────────────────────────────

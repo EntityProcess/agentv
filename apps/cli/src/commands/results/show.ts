@@ -10,8 +10,8 @@
  *   - To add new detail fields, update both formatShowMarkdown and formatShowJson.
  */
 
-import { command, option, optional, string } from 'cmd-ts';
 import type { EvaluationResult } from '@agentv/core';
+import { command, option, optional, string } from 'cmd-ts';
 import { formatOption, loadResults, sourceArg } from './shared.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -28,14 +28,18 @@ function formatInput(result: EvaluationResult): string {
   if (!input) return '(no input)';
   if (typeof input === 'string') return input;
   if (Array.isArray(input)) {
-    return input.map((msg: any) => String(msg.content ?? '')).join('\n');
+    return input
+      .map((msg: unknown) => String((msg as Record<string, unknown>).content ?? ''))
+      .join('\n');
   }
   return '(no input)';
 }
 
 function formatOutput(result: EvaluationResult): string {
   if (!result.output || result.output.length === 0) return '(no output)';
-  return result.output.map((msg) => String((msg as any).content ?? '')).join('\n');
+  return result.output
+    .map((msg) => String((msg as unknown as Record<string, unknown>).content ?? ''))
+    .join('\n');
 }
 
 // ── Formatting ───────────────────────────────────────────────────────────

@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
-import {
-  formatSummaryJson,
-  formatSummaryMarkdown,
-} from '../../../src/commands/results/summary.js';
 import type { EvaluationResult } from '@agentv/core';
+import { formatSummaryJson, formatSummaryMarkdown } from '../../../src/commands/results/summary.js';
 
 const makeResult = (overrides: Partial<EvaluationResult> = {}): EvaluationResult =>
   ({
@@ -93,10 +90,7 @@ describe('formatSummaryJson', () => {
   });
 
   it('computes mean score correctly', () => {
-    const results = [
-      makeResult({ score: 0.8 }),
-      makeResult({ score: 0.6 }),
-    ];
+    const results = [makeResult({ score: 0.8 }), makeResult({ score: 0.6 })];
     const json = formatSummaryJson(results);
     expect(json.meanScore).toBe(0.7);
   });

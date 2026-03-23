@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { formatFailuresMarkdown, formatFailuresJson } from '../../../src/commands/results/failures.js';
 import type { EvaluationResult } from '@agentv/core';
+import { describe, expect, it } from 'vitest';
+import {
+  formatFailuresJson,
+  formatFailuresMarkdown,
+} from '../../../src/commands/results/failures.js';
 
 const makeResult = (overrides: Partial<EvaluationResult> = {}): EvaluationResult =>
   ({
