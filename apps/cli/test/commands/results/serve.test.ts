@@ -1,0 +1,270 @@
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { createApp, loadResults, resolveSourceFile } from '../../../src/commands/results/serve.js';
+
+// ── Sample JSONL content (snake_case, matching on-disk format) ──────────
+
+const RESULT_A = {
+  timestamp: '2026-03-18T10:00:01.000Z',
+  test_id: 'test-greeting',
+  eval_set: 'demo',
+  score: 1.0,
+  assertions: [
+    { text: 'Says hello', passed: true },
+    { text: 'Uses name', passed: true },
+  ],
+  output: [{ role: 'assistant', content: 'Hello, Alice!' }],
+  target: 'gpt-4o',
+  scores: [
+    {
+      name: 'greeting_quality',
+      type: 'llm-grader',
+      score: 1.0,
+      assertions: [{ text: 'Says hello', passed: true }],
+    },
+  ],
+  duration_ms: 3500,
+  token_usage: { input: 1000, output: 500 },
+  cost_usd: 0.015,
+};
+
+const RESULT_B = {
+  timestamp: '2026-03-18T10:00:05.000Z',
+  test_id: 'test-math',
+  eval_set: 'demo',
+  score: 0.5,
+  assertions: [
+    { text: 'Correct formula', passed: true },
+    { text: 'Wrong answer', passed: false },
+  ],
+  target: 'gpt-4o',
+  duration_ms: 1200,
+  token_usage: { input: 200, output: 100 },
+  cost_usd: 0.003,
+};
+
+function toJsonl(...records: object[]): string {
+  return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
+}
+
+// ── resolveSourceFile ────────────────────────────────────────────────────
+
+describe('resolveSourceFile', () => {
+  it('throws for nonexistent file', async () => {
+    await expect(resolveSourceFile('/tmp/does-not-exist.jsonl', '/tmp')).rejects.toThrow(
+      'Source file not found',
+    );
+  });
+});
+
+// ── loadResults ──────────────────────────────────────────────────────────
+
+describe('loadResults', () => {
+  it('parses JSONL correctly', () => {
+    const content = toJsonl(RESULT_A, RESULT_B);
+    const results = loadResults(content);
+    expect(results).toHaveLength(2);
+    expect(results[0].testId).toBe('test-greeting');
+    expect(results[1].testId).toBe('test-math');
+    expect(results[0].score).toBe(1.0);
+    expect(results[1].score).toBe(0.5);
+  });
+
+  it('throws on empty content', () => {
+    expect(() => loadResults('')).toThrow('No valid results');
+  });
+
+  it('throws on whitespace-only content', () => {
+    expect(() => loadResults('  \n  \n  ')).toThrow('No valid results');
+  });
+});
+
+// ── Hono app (feedback API + HTML) ───────────────────────────────────────
+
+describe('serve app', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  function makeApp() {
+    const content = toJsonl(RESULT_A, RESULT_B);
+    const results = loadResults(content);
+    return createApp(results, tempDir);
+  }
+
+  // ── GET / ──────────────────────────────────────────────────────────────
+
+  describe('GET /', () => {
+    it('returns HTML with "AgentV" and "Results Review"', async () => {
+      const app = makeApp();
+      const res = await app.request('/');
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('AgentV');
+      expect(html).toContain('Results Review');
+    });
+
+    it('does not contain meta-refresh', async () => {
+      const app = makeApp();
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).not.toContain('meta http-equiv="refresh"');
+    });
+
+    it('contains data-test-id attributes', async () => {
+      const app = makeApp();
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('data-test-id');
+    });
+  });
+
+  // ── GET /api/feedback ──────────────────────────────────────────────────
+
+  describe('GET /api/feedback', () => {
+    it('returns empty reviews when no feedback file', async () => {
+      const app = makeApp();
+      const res = await app.request('/api/feedback');
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual({ reviews: [] });
+    });
+  });
+
+  // ── POST /api/feedback ─────────────────────────────────────────────────
+
+  describe('POST /api/feedback', () => {
+    it('persists reviews to feedback.json', async () => {
+      const app = makeApp();
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: 'Looks good!' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        reviews: { test_id: string; comment: string; updated_at: string }[];
+      };
+      expect(data.reviews).toHaveLength(1);
+      expect(data.reviews[0].test_id).toBe('test-greeting');
+      expect(data.reviews[0].comment).toBe('Looks good!');
+      expect(data.reviews[0].updated_at).toBeDefined();
+
+      // Verify file exists on disk
+      const fp = path.join(tempDir, 'feedback.json');
+      expect(existsSync(fp)).toBe(true);
+      const onDisk = JSON.parse(readFileSync(fp, 'utf8'));
+      expect(onDisk.reviews).toHaveLength(1);
+    });
+
+    it('merges with existing reviews', async () => {
+      const app = makeApp();
+
+      // First review
+      await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: 'First review' }],
+        }),
+      });
+
+      // Second review (different test_id)
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-math', comment: 'Math looks off' }],
+        }),
+      });
+
+      const data = (await res.json()) as { reviews: { test_id: string }[] };
+      expect(data.reviews).toHaveLength(2);
+      expect(data.reviews.map((r: { test_id: string }) => r.test_id).sort()).toEqual([
+        'test-greeting',
+        'test-math',
+      ]);
+    });
+
+    it('overwrites duplicate test_id', async () => {
+      const app = makeApp();
+
+      // First review
+      await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: 'Initial' }],
+        }),
+      });
+
+      // Overwrite same test_id
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: 'Updated' }],
+        }),
+      });
+
+      const data = (await res.json()) as { reviews: { test_id: string; comment: string }[] };
+      expect(data.reviews).toHaveLength(1);
+      expect(data.reviews[0].comment).toBe('Updated');
+    });
+
+    it('accepts empty comment string', async () => {
+      const app = makeApp();
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: '' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        reviews: { comment: string }[];
+      };
+      expect(data.reviews[0].comment).toBe('');
+    });
+
+    it('rejects invalid payload (400)', async () => {
+      const app = makeApp();
+
+      // Missing reviews array
+      const res1 = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foo: 'bar' }),
+      });
+      expect(res1.status).toBe(400);
+
+      // Invalid review entry
+      const res2 = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: [{ test_id: 123 }] }),
+      });
+      expect(res2.status).toBe(400);
+
+      // Not an object
+      const res3 = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '"just a string"',
+      });
+      expect(res3.status).toBe(400);
+    });
+  });
+});

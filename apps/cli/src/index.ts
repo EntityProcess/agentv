@@ -9,6 +9,7 @@ import { evalCommand } from './commands/eval/index.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { resultsCommand } from './commands/results/index.js';
+import { resultsServeCommand } from './commands/results/serve.js';
 import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
 import { transpileCommand } from './commands/transpile/index.js';
@@ -31,6 +32,7 @@ export const app = subcommands({
     init: initCmdTsCommand,
     results: resultsCommand,
     self: selfCommand,
+    serve: resultsServeCommand,
     trace: traceCommand,
     transpile: transpileCommand,
     trim: trimCommand,
@@ -58,6 +60,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'init',
   'results',
   'self',
+  'serve',
   'trace',
   'transpile',
   'trim',
