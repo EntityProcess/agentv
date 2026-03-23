@@ -77,6 +77,21 @@ export interface BenchmarkArtifact {
   readonly notes: readonly string[];
 }
 
+export interface AggregateGradingArtifact {
+  readonly assertions: readonly {
+    readonly test_id: string;
+    readonly text: string;
+    readonly passed: boolean;
+    readonly evidence: string;
+  }[];
+  readonly summary: {
+    readonly passed: number;
+    readonly failed: number;
+    readonly total: number;
+    readonly pass_rate: number;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Statistics helpers
 // ---------------------------------------------------------------------------
@@ -374,6 +389,39 @@ export function buildBenchmarkArtifact(
     run_summary: runSummary,
     per_evaluator_summary: perEvaluatorSummary,
     notes,
+  };
+}
+
+export function buildAggregateGradingArtifact(
+  results: readonly EvaluationResult[],
+): AggregateGradingArtifact {
+  const assertions: AggregateGradingArtifact['assertions'][number][] = [];
+
+  for (const result of results) {
+    if (!result.assertions) continue;
+    const testId = result.testId ?? 'unknown';
+    for (const a of result.assertions) {
+      assertions.push({
+        test_id: testId,
+        text: a.text,
+        passed: a.passed,
+        evidence: a.evidence ?? '',
+      });
+    }
+  }
+
+  const passed = assertions.filter((a) => a.passed).length;
+  const failed = assertions.filter((a) => !a.passed).length;
+  const total = assertions.length;
+
+  return {
+    assertions,
+    summary: {
+      passed,
+      failed,
+      total,
+      pass_rate: total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0,
+    },
   };
 }
 

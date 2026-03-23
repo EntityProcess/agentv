@@ -5,9 +5,11 @@ import path from 'node:path';
 import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
 
 import {
+  type AggregateGradingArtifact,
   type BenchmarkArtifact,
   type GradingArtifact,
   type TimingArtifact,
+  buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
   buildGradingArtifact,
   buildTimingArtifact,
@@ -302,6 +304,108 @@ describe('buildBenchmarkArtifact', () => {
     const summary = benchmark.run_summary['test-target'];
     expect(summary.cost_usd).toBeDefined();
     expect(summary.cost_usd?.mean).toBe(0.075);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Aggregate grading artifact
+// ---------------------------------------------------------------------------
+
+describe('buildAggregateGradingArtifact', () => {
+  it('combines assertions from multiple results with test_id', () => {
+    const results = [
+      makeResult({
+        testId: 'test-alpha',
+        assertions: [
+          { text: 'criterion-1', passed: true, evidence: 'looks good' },
+          { text: 'criterion-2', passed: false },
+        ],
+      }),
+      makeResult({
+        testId: 'test-beta',
+        assertions: [{ text: 'criterion-3', passed: true }],
+      }),
+    ];
+
+    const aggregate = buildAggregateGradingArtifact(results);
+
+    expect(aggregate.assertions).toHaveLength(3);
+    expect(aggregate.assertions[0]).toEqual({
+      test_id: 'test-alpha',
+      text: 'criterion-1',
+      passed: true,
+      evidence: 'looks good',
+    });
+    expect(aggregate.assertions[1]).toEqual({
+      test_id: 'test-alpha',
+      text: 'criterion-2',
+      passed: false,
+      evidence: '',
+    });
+    expect(aggregate.assertions[2]).toEqual({
+      test_id: 'test-beta',
+      text: 'criterion-3',
+      passed: true,
+      evidence: '',
+    });
+  });
+
+  it('computes correct summary counts', () => {
+    const results = [
+      makeResult({
+        testId: 'test-1',
+        assertions: [
+          { text: 'a', passed: true },
+          { text: 'b', passed: true },
+        ],
+      }),
+      makeResult({
+        testId: 'test-2',
+        assertions: [
+          { text: 'c', passed: false },
+          { text: 'd', passed: true },
+        ],
+      }),
+    ];
+
+    const aggregate = buildAggregateGradingArtifact(results);
+
+    expect(aggregate.summary).toEqual({
+      passed: 3,
+      failed: 1,
+      total: 4,
+      pass_rate: 0.75,
+    });
+  });
+
+  it('handles results with no assertions', () => {
+    const results = [
+      makeResult({
+        testId: 'test-1',
+        assertions: [{ text: 'a', passed: true }],
+      }),
+      makeResult({ testId: 'test-2', assertions: undefined }),
+    ];
+
+    const aggregate = buildAggregateGradingArtifact(results);
+
+    expect(aggregate.assertions).toHaveLength(1);
+    expect(aggregate.assertions[0].test_id).toBe('test-1');
+    expect(aggregate.summary.total).toBe(1);
+    expect(aggregate.summary.passed).toBe(1);
+    expect(aggregate.summary.failed).toBe(0);
+  });
+
+  it('handles empty results array', () => {
+    const aggregate = buildAggregateGradingArtifact([]);
+
+    expect(aggregate.assertions).toHaveLength(0);
+    expect(aggregate.summary).toEqual({
+      passed: 0,
+      failed: 0,
+      total: 0,
+      pass_rate: 0,
+    });
   });
 });
 
