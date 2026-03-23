@@ -37,7 +37,7 @@ describe('formatShow', () => {
   it('returns structured test detail', () => {
     const result = makeResult();
     const json = formatShow(result);
-    expect(json.testId).toBe('test-1');
+    expect(json.test_id).toBe('test-1');
     expect(json.score).toBe(0.5);
     expect(json.assertions).toHaveLength(2);
     expect(json.input).toBe('Give a formal greeting');
@@ -47,7 +47,7 @@ describe('formatShow', () => {
   it('includes duration and token count', () => {
     const result = makeResult();
     const json = formatShow(result);
-    expect(json.durationMs).toBe(1200);
-    expect(json.totalTokens).toBe(320);
+    expect(json.duration_ms).toBe(1200);
+    expect(json.total_tokens).toBe(320);
   });
 });

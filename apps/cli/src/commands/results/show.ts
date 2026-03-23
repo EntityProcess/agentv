@@ -43,10 +43,10 @@ function formatOutput(result: EvaluationResult): string {
 // ── Formatting ───────────────────────────────────────────────────────────
 
 export interface ShowJson {
-  testId: string;
+  test_id: string;
   score: number;
-  durationMs?: number;
-  totalTokens?: number;
+  duration_ms?: number;
+  total_tokens?: number;
   input: string;
   assertions: { text: string; passed: boolean; evidence?: string }[];
   response: string;
@@ -71,10 +71,10 @@ export function formatShow(result: EvaluationResult): ShowJson {
   }
 
   return {
-    testId: result.testId,
+    test_id: result.testId,
     score: result.score,
-    durationMs: result.durationMs,
-    totalTokens: usage ? (usage.input ?? 0) + (usage.output ?? 0) : undefined,
+    duration_ms: result.durationMs,
+    total_tokens: usage ? (usage.input ?? 0) + (usage.output ?? 0) : undefined,
     input: formatInput(result),
     assertions: allAssertions,
     response: formatOutput(result),

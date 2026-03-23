@@ -27,14 +27,14 @@ describe('formatSummary', () => {
     expect(json.total).toBe(2);
     expect(json.passed).toBe(1);
     expect(json.failed).toBe(1);
-    expect(json.passRate).toBe(0.5);
-    expect(json.failedTestIds).toEqual(['test-2']);
+    expect(json.pass_rate).toBe(0.5);
+    expect(json.failed_test_ids).toEqual(['test-2']);
   });
 
   it('computes passRate as mean of per-test scores', () => {
     const results = [makeResult({ score: 0.8 }), makeResult({ score: 0.6 })];
     const json = formatSummary(results);
-    expect(json.passRate).toBe(0.7);
+    expect(json.pass_rate).toBe(0.7);
   });
 
   it('aggregates duration and tokens', () => {
@@ -43,31 +43,31 @@ describe('formatSummary', () => {
       makeResult({ durationMs: 2000, tokenUsage: { input: 200, output: 100 } }),
     ];
     const json = formatSummary(results);
-    expect(json.totalDurationMs).toBe(3000);
-    expect(json.totalTokens).toBe(450);
+    expect(json.total_duration_ms).toBe(3000);
+    expect(json.total_tokens).toBe(450);
   });
 
   it('handles missing tokenUsage gracefully', () => {
     const results = [makeResult({ tokenUsage: undefined })];
     const json = formatSummary(results);
-    expect(json.totalTokens).toBe(0);
+    expect(json.total_tokens).toBe(0);
   });
 
   it('handles missing durationMs gracefully', () => {
     const results = [makeResult({ durationMs: undefined })];
     const json = formatSummary(results);
-    expect(json.totalDurationMs).toBe(0);
+    expect(json.total_duration_ms).toBe(0);
   });
 
   it('returns empty failedTestIds when all pass', () => {
     const results = [makeResult({ score: 1 })];
     const json = formatSummary(results);
-    expect(json.failedTestIds).toEqual([]);
+    expect(json.failed_test_ids).toEqual([]);
   });
 
   it('handles empty results', () => {
     const json = formatSummary([]);
     expect(json.total).toBe(0);
-    expect(json.passRate).toBe(0);
+    expect(json.pass_rate).toBe(0);
   });
 });

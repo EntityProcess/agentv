@@ -23,7 +23,7 @@ describe('formatFailures', () => {
     ];
     const json = formatFailures(results);
     expect(json).toHaveLength(1);
-    expect(json[0].testId).toBe('fail-1');
+    expect(json[0].test_id).toBe('fail-1');
   });
 
   it('includes assertion details for failed tests', () => {

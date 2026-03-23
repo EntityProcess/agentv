@@ -15,7 +15,7 @@ import { loadResults, sourceArg } from './shared.js';
 // ── Formatting ───────────────────────────────────────────────────────────
 
 export interface FailureEntry {
-  testId: string;
+  test_id: string;
   score: number;
   assertions: { text: string; passed: boolean; evidence?: string }[];
 }
@@ -41,7 +41,7 @@ export function formatFailures(results: EvaluationResult[]): FailureEntry[] {
         );
       }
 
-      return { testId: r.testId, score: r.score, assertions };
+      return { test_id: r.testId, score: r.score, assertions };
     });
 }
 

@@ -20,32 +20,32 @@ export interface SummaryJson {
   total: number;
   passed: number;
   failed: number;
-  passRate: number;
-  totalDurationMs: number;
-  totalTokens: number;
-  failedTestIds: string[];
+  pass_rate: number;
+  total_duration_ms: number;
+  total_tokens: number;
+  failed_test_ids: string[];
 }
 
 export function formatSummary(results: EvaluationResult[]): SummaryJson {
   const total = results.length;
   const passed = results.filter((r) => r.score >= 1.0).length;
   const failed = total - passed;
-  // passRate = mean of per-test scores (each score is the assertion pass rate for that test,
+  // pass_rate = mean of per-test scores (each score is the assertion pass rate for that test,
   // matching skill-creator's pass_rate.mean semantics)
-  const passRate =
+  const pass_rate =
     total > 0 ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000 : 0;
 
-  let totalDurationMs = 0;
-  let totalTokens = 0;
+  let total_duration_ms = 0;
+  let total_tokens = 0;
   for (const r of results) {
-    if (r.durationMs != null) totalDurationMs += r.durationMs;
+    if (r.durationMs != null) total_duration_ms += r.durationMs;
     const usage = r.tokenUsage as { input?: number; output?: number } | undefined;
-    if (usage) totalTokens += (usage.input ?? 0) + (usage.output ?? 0);
+    if (usage) total_tokens += (usage.input ?? 0) + (usage.output ?? 0);
   }
 
-  const failedTestIds = results.filter((r) => r.score < 1.0).map((r) => r.testId);
+  const failed_test_ids = results.filter((r) => r.score < 1.0).map((r) => r.testId);
 
-  return { total, passed, failed, passRate, totalDurationMs, totalTokens, failedTestIds };
+  return { total, passed, failed, pass_rate, total_duration_ms, total_tokens, failed_test_ids };
 }
 
 // ── CLI command ──────────────────────────────────────────────────────────
