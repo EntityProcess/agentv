@@ -20,7 +20,7 @@ export interface SummaryJson {
   total: number;
   passed: number;
   failed: number;
-  pass_rate: number;
+  pass_rate: { mean: number };
   total_duration_ms: number;
   total_tokens: number;
   failed_test_ids: string[];
@@ -49,7 +49,7 @@ export function formatSummary(results: EvaluationResult[]): SummaryJson {
     total,
     passed,
     failed,
-    pass_rate: passRate,
+    pass_rate: { mean: passRate },
     total_duration_ms: totalDurationMs,
     total_tokens: totalTokens,
     failed_test_ids: failedTestIds,
