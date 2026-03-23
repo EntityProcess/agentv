@@ -41,7 +41,7 @@ export function formatFailures(results: EvaluationResult[]): FailureEntry[] {
         );
       }
 
-      return { test_id: r.testId, score: r.score, assertions };
+      return { test_id: r.testId, score: r.score, assertions } satisfies FailureEntry;
     });
 }
 

@@ -70,11 +70,13 @@ export function formatShow(result: EvaluationResult): ShowJson {
     );
   }
 
+  const totalTokens = usage ? (usage.input ?? 0) + (usage.output ?? 0) : undefined;
+
   return {
     test_id: result.testId,
     score: result.score,
     duration_ms: result.durationMs,
-    total_tokens: usage ? (usage.input ?? 0) + (usage.output ?? 0) : undefined,
+    total_tokens: totalTokens,
     input: formatInput(result),
     assertions: allAssertions,
     response: formatOutput(result),

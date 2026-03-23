@@ -120,6 +120,18 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Prefer named exports
 - Keep modules cohesive
 
+## Wire Format Convention
+
+**All external-facing JSON and JSONL output uses `snake_case` keys.** This applies to:
+- JSONL result files on disk (`test_id`, `token_usage`, `duration_ms`)
+- Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`)
+- CLI command JSON output (`results summary`, `results failures`, `results show`)
+- YAML eval config fields
+
+**Internal TypeScript uses `camelCase`** as standard. The boundary is at serialization: format functions that produce CLI/file output should use snake_case object literals directly. The `parseJsonlResults()` function in `artifact-writer.ts` handles snake_case → camelCase conversion when reading JSONL back into TypeScript.
+
+**Why:** Aligns with skill-creator (claude-plugins-official) and broader Python/JSON ecosystem conventions where snake_case is the standard wire format.
+
 ## Testing & Verification
 
 ### Pre-Push Hooks (Automated)
