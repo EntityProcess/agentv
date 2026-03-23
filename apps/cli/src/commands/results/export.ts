@@ -9,7 +9,7 @@
  *     grading/
  *       <test-id>.json         — per-test grading artifact (assertions, evaluators)
  *     outputs/
- *       <test-id>.txt          — raw agent response text per test
+ *       <test-id>.md           — human-readable agent response per test
  *
  * This module delegates artifact building to the shared artifact-writer so
  * that `agentv results export` and `agentv eval` produce identical schemas.
@@ -70,19 +70,28 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
     writeFileSync(path.join(gradingDir, `${id}.json`), `${JSON.stringify(grading, null, 2)}\n`);
   }
 
-  // outputs/<test-id>.txt — raw agent response text
+  // outputs/<test-id>.md — human-readable agent response text
   const outputsDir = path.join(outputDir, 'outputs');
   mkdirSync(outputsDir, { recursive: true });
 
   for (const result of patched) {
     if (result.output && result.output.length > 0) {
       const id = safeTestId(result);
-      writeFileSync(path.join(outputsDir, `${id}.txt`), JSON.stringify(result.output, null, 2));
+      const md = formatOutputMarkdown(result.output);
+      writeFileSync(path.join(outputsDir, `${id}.md`), md);
     }
   }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Format an output message array as human-readable markdown.
+ * Each message becomes `@[role]:\n<content>\n\n`.
+ */
+function formatOutputMarkdown(output: readonly { role: string; content?: unknown }[]): string {
+  return output.map((msg) => `@[${msg.role}]:\n${String(msg.content ?? '')}`).join('\n\n');
+}
 
 /**
  * Extract a safe filename from a test ID, handling older JSONL formats
