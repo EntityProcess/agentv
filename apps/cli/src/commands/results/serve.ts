@@ -48,9 +48,18 @@ export async function resolveSourceFile(source: string | undefined, cwd: string)
     return cache.lastResultFile;
   }
 
-  const metas = listResultFiles(cwd, 1);
+  const metas = listResultFiles(cwd, 10);
   if (metas.length === 0) {
-    throw new Error('No result files found in .agentv/results/');
+    throw new Error(
+      'No result files found in .agentv/results/\nRun an evaluation first: agentv eval <eval-file>',
+    );
+  }
+  if (metas.length > 1) {
+    console.log('Available result files:');
+    for (const m of metas) {
+      console.log(`  ${m.path}`);
+    }
+    console.log(`\nServing most recent: ${metas[0].path}\n`);
   }
   return metas[0].path;
 }
