@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Repository Guidelines
+    url: https://github.com/EntityProcess/agentv/blob/main/CLAUDE.md
+    about: Issue bodies are the handoff contract. Include objective, design latitude, acceptance signals, non-goals, and related links.

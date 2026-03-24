@@ -314,6 +314,16 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 **IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
 
+### Tracker Conventions
+
+- The roadmap project is the source of truth for prioritization.
+- Issues in the roadmap are prioritized; issues outside it are not.
+- `bug` marks defects.
+- Issues without `bug` are non-bug work by default.
+- `core`, `wui`, and `tui` are area labels.
+- Keep issue bodies focused on the handoff contract: objective, design latitude, acceptance signals, non-goals, and related links.
+- Do not put priority metadata in issue bodies.
+
 ### Pull Requests
 
 **Always use squash merge** when merging PRs to main. This keeps the commit history clean with one commit per feature/fix.
