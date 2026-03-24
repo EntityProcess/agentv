@@ -5,6 +5,7 @@
  * Output structure:
  *   <output-dir>/
  *     benchmark.json           — aggregate scores, pass/fail counts, timing
+ *     index.jsonl              — per-test manifest with artifact pointers
  *     <test-id>/
  *       grading.json           — per-test grading artifact (assertions, evaluators)
  *       timing.json            — per-test timing artifact

@@ -1201,9 +1201,9 @@ export async function runEvalCommand(
       const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
       const {
         testArtifactDir,
+        indexPath,
         timingPath,
         benchmarkPath: abp,
-        indexPath,
       } = await writeArtifactsFromResults(allResults, artifactsDir, {
         evalFile,
         writeLegacyResults: false,

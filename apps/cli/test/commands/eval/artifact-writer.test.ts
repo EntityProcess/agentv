@@ -8,10 +8,12 @@ import {
   type AggregateGradingArtifact,
   type BenchmarkArtifact,
   type GradingArtifact,
+  type IndexArtifactEntry,
   type TimingArtifact,
   buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
   buildGradingArtifact,
+  buildIndexArtifactEntry,
   buildTimingArtifact,
   parseJsonlResults,
   writeArtifacts,
@@ -409,6 +411,53 @@ describe('buildAggregateGradingArtifact', () => {
   });
 });
 
+describe('buildIndexArtifactEntry', () => {
+  it('reuses result fields and writes relative artifact pointers', () => {
+    const entry = buildIndexArtifactEntry(
+      makeResult({
+        testId: 'alpha',
+        target: 'claude',
+        eval_set: 'demo',
+        scores: [makeEvaluatorResult({ name: 'quality', score: 0.7 })],
+        executionStatus: 'quality_failure',
+        error: 'model drift',
+      }),
+      {
+        outputDir: '/tmp/artifacts',
+        gradingPath: '/tmp/artifacts/alpha/grading.json',
+        timingPath: '/tmp/artifacts/alpha/timing.json',
+        outputPath: '/tmp/artifacts/alpha/outputs/response.md',
+        inputPath: '/tmp/artifacts/alpha/input.md',
+      },
+    );
+
+    expect(JSON.parse(JSON.stringify(entry))).toEqual({
+      timestamp: '2026-03-13T00:00:00.000Z',
+      test_id: 'alpha',
+      eval_set: 'demo',
+      score: 0.9,
+      target: 'claude',
+      scores: [
+        {
+          name: 'quality',
+          type: 'llm-grader',
+          score: 0.7,
+          assertions: [
+            { text: 'criterion-a', passed: true },
+            { text: 'criterion-b', passed: false },
+          ],
+        },
+      ],
+      execution_status: 'quality_failure',
+      error: 'model drift',
+      grading_path: 'alpha/grading.json',
+      timing_path: 'alpha/timing.json',
+      output_path: 'alpha/outputs/response.md',
+      input_path: 'alpha/input.md',
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // JSONL parsing
 // ---------------------------------------------------------------------------
@@ -568,9 +617,13 @@ describe('writeArtifactsFromResults', () => {
     expect(benchmark.metadata.eval_file).toBe('my-eval.yaml');
     expect(benchmark.metadata.tests_run.sort()).toEqual(['alpha', 'beta']);
 
-    const indexLines = (await readFile(paths.indexPath, 'utf8')).trim().split('\n');
+    const indexLines = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
     expect(indexLines).toHaveLength(2);
-    expect(JSON.parse(indexLines[0]).grading_path).toBe('alpha/test-target/grading.json');
+    expect(indexLines[0]?.grading_path).toBe('alpha/test-target/grading.json');
+    expect(indexLines[0]?.timing_path).toBe('alpha/test-target/timing.json');
   });
 
   it('handles empty results array', async () => {
@@ -584,6 +637,7 @@ describe('writeArtifactsFromResults', () => {
 
     const benchmark: BenchmarkArtifact = JSON.parse(await readFile(paths.benchmarkPath, 'utf8'));
     expect(benchmark.notes).toContain('No results to summarize');
+    expect(await readFile(paths.indexPath, 'utf8')).toBe('');
   });
 
   it('writes grading.json and timing.json inside each test directory', async () => {
@@ -710,6 +764,7 @@ describe('writeArtifacts (from JSONL file)', () => {
 
     const artifactEntries = await readdir(paths.testArtifactDir);
     expect(artifactEntries).toContain('from-file');
+    expect(artifactEntries).toContain('index.jsonl');
 
     const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
     expect(timing.duration_ms).toBe(12000);

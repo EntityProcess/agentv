@@ -6,6 +6,7 @@ import path from 'node:path';
 import type {
   BenchmarkArtifact,
   GradingArtifact,
+  IndexArtifactEntry,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { exportResults } from '../../../src/commands/results/export.js';
@@ -140,6 +141,37 @@ describe('results export', () => {
     expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
+  it('should create index.jsonl with per-test artifact pointers', async () => {
+    const outputDir = path.join(tempDir, 'output');
+    const resultWithInput = {
+      ...RESULT_FULL,
+      execution_status: 'ok',
+      input: [{ role: 'user', content: 'Hello' }],
+    };
+    const content = toJsonl(resultWithInput);
+
+    await exportResults('test.jsonl', content, outputDir);
+
+    const indexPath = path.join(outputDir, 'index.jsonl');
+    expect(existsSync(indexPath)).toBe(true);
+
+    const entries = readFileSync(indexPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      test_id: 'test-greeting',
+      target: 'gpt-4o',
+      execution_status: 'ok',
+      grading_path: 'demo/test-greeting/gpt-4o/grading.json',
+      timing_path: 'demo/test-greeting/gpt-4o/timing.json',
+      output_path: 'demo/test-greeting/gpt-4o/outputs/response.md',
+      input_path: 'demo/test-greeting/gpt-4o/input.md',
+    });
+  });
+
   it('should create per-test timing.json with run timing', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
@@ -237,6 +269,7 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'index.jsonl'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
     expect(existsSync(path.join(artifactDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(true);
     expect(existsSync(path.join(artifactDir(outputDir, RESULT_PARTIAL), 'grading.json'))).toBe(

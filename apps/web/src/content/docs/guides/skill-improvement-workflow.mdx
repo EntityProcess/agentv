@@ -269,6 +269,7 @@ If you've been using the Agent Skills skill-creator workflow, AgentV reads your 
 | `claude -p "prompt"` | `agentv eval evals.json --target claude` | Same eval, richer engine |
 | `grading.json` (read) | `<test-id>/grading.json` (write) | Same per-test schema, AgentV writes one grading file per test case |
 | `benchmark.json` (read) | `benchmark.json` (write) | Same schema, AgentV produces it |
+| n/a | `index.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
 | with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
 | Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code graders, etc. |
 

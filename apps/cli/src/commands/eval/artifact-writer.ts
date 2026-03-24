@@ -94,33 +94,27 @@ export interface AggregateGradingArtifact {
   };
 }
 
-export interface ResultIndexArtifact {
-  readonly timestamp?: string;
+export interface IndexArtifactEntry {
+  readonly timestamp: string;
   readonly test_id: string;
   readonly eval_set?: string;
-  readonly target?: string;
+  readonly conversation_id?: string;
   readonly score: number;
-  readonly scores?: readonly {
-    readonly name: string;
-    readonly type: string;
-    readonly score: number;
-    readonly weight?: number;
-    readonly verdict?: string;
-  }[];
+  readonly target: string;
+  readonly scores?: readonly Record<string, unknown>[];
   readonly execution_status?: string;
   readonly error?: string;
-  readonly cost_usd?: number;
-  readonly duration_ms?: number;
-  readonly token_usage?: {
-    readonly input?: number;
-    readonly output?: number;
-    readonly reasoning?: number;
-  };
+  readonly failure_stage?: string;
+  readonly failure_reason_code?: string;
+  readonly workspace_path?: string;
   readonly grading_path: string;
   readonly timing_path: string;
+  readonly output_path?: string;
   readonly input_path?: string;
   readonly response_path?: string;
 }
+
+export type ResultIndexArtifact = IndexArtifactEntry;
 
 // ---------------------------------------------------------------------------
 // Statistics helpers
@@ -500,6 +494,46 @@ function extractInput(result: EvaluationResult): string | null {
   return null;
 }
 
+function toRelativeArtifactPath(outputDir: string, filePath: string): string {
+  return path.relative(outputDir, filePath).split(path.sep).join('/');
+}
+
+export function buildIndexArtifactEntry(
+  result: EvaluationResult,
+  options: {
+    outputDir: string;
+    gradingPath: string;
+    timingPath: string;
+    outputPath?: string;
+    inputPath?: string;
+  },
+): IndexArtifactEntry {
+  return {
+    timestamp: result.timestamp,
+    test_id: result.testId ?? 'unknown',
+    eval_set: getEvalSet(result),
+    conversation_id: result.conversationId,
+    score: result.score,
+    target: result.target ?? 'unknown',
+    scores: result.scores
+      ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
+      : undefined,
+    execution_status: result.executionStatus,
+    error: result.error,
+    failure_stage: result.failureStage,
+    failure_reason_code: result.failureReasonCode,
+    workspace_path: result.workspacePath,
+    grading_path: toRelativeArtifactPath(options.outputDir, options.gradingPath),
+    timing_path: toRelativeArtifactPath(options.outputDir, options.timingPath),
+    output_path: options.outputPath
+      ? toRelativeArtifactPath(options.outputDir, options.outputPath)
+      : undefined,
+    input_path: options.inputPath
+      ? toRelativeArtifactPath(options.outputDir, options.inputPath)
+      : undefined,
+  };
+}
+
 export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
   const input = extractInput(result);
@@ -509,23 +543,23 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
     eval_set: getEvalSet(result),
-    target: result.target,
+    conversation_id: result.conversationId,
     score: result.score,
-    scores: result.scores?.map((score) => ({
-      name: score.name,
-      type: score.type,
-      score: score.score,
-      weight: score.weight,
-      verdict: score.verdict,
-    })),
+    target: result.target ?? 'unknown',
+    scores: result.scores
+      ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
+      : undefined,
     execution_status: result.executionStatus,
     error: result.error,
-    cost_usd: result.costUsd,
-    duration_ms: result.durationMs,
-    token_usage: result.tokenUsage as ResultIndexArtifact['token_usage'],
+    failure_stage: result.failureStage,
+    failure_reason_code: result.failureReasonCode,
+    workspace_path: result.workspacePath,
     grading_path: path.posix.join(artifactSubdir, 'grading.json'),
     timing_path: path.posix.join(artifactSubdir, 'timing.json'),
     input_path: input ? path.posix.join(artifactSubdir, 'input.md') : undefined,
+    output_path: hasResponse
+      ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
+      : undefined,
     response_path: hasResponse
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
       : undefined,

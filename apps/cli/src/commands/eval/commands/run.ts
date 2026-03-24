@@ -161,7 +161,7 @@ export const evalRunCommand = command({
       type: optional(string),
       long: 'artifacts',
       description:
-        'Write an additional artifact workspace (index.jsonl, <test>/grading.json, <test>/timing.json, timing.json, benchmark.json) to the specified directory',
+        'Write companion artifacts (index.jsonl, <test>/grading.json, <test>/timing.json, timing.json, benchmark.json) to the specified directory',
     }),
     graderTarget: option({
       type: optional(string),

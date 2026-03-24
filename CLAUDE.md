@@ -292,11 +292,22 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 1. **Claim the issue** — prevents other agents from duplicating work:
    ```bash
+   # Load AGENT_ID from .env, default to <hostname>-<harness> if not set
+   source .env 2>/dev/null
+   AGENT_ID="${AGENT_ID:-$(hostname)-claude}"
+
    # Check if already claimed
    gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
 
-   # Claim it
+   # Claim it — label + project roadmap status
    gh issue edit <number> --add-label "in-progress"
+
+   # Update project roadmap: set status to "In Progress" and stamp Agent ID
+   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "agentv") | .id')
+   if [ -n "$ITEM_ID" ]; then
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id 47fc9ee4
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
+   fi
    ```
    If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
 

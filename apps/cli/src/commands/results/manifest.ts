@@ -31,6 +31,7 @@ export interface ResultManifestRecord {
   readonly grading_path?: string;
   readonly timing_path?: string;
   readonly input_path?: string;
+  readonly output_path?: string;
   readonly response_path?: string;
 }
 
@@ -102,7 +103,7 @@ function hydrateOutput(
   baseDir: string,
   record: ResultManifestRecord,
 ): EvaluationResult['output'] | undefined {
-  const responseText = readOptionalText(baseDir, record.response_path);
+  const responseText = readOptionalText(baseDir, record.output_path ?? record.response_path);
   if (!responseText) {
     return undefined;
   }
