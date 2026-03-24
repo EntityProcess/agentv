@@ -1,7 +1,10 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import {
+  LEGACY_RESULTS_FILENAME,
+  RESULT_INDEX_FILENAME,
   resolveExistingRunPrimaryPath,
+  resolveExistingRunTracePath,
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
 
@@ -91,7 +94,7 @@ export interface RawTraceSummary {
  * Load all result records from a JSONL file.
  */
 export function loadResultFile(filePath: string): RawResult[] {
-  const resolvedFilePath = resolveWorkspaceOrFilePath(filePath);
+  const resolvedFilePath = resolveTraceResultPath(filePath);
   const content = readFileSync(resolvedFilePath, 'utf8');
   const lines = content
     .trim()
@@ -105,6 +108,28 @@ export function loadResultFile(filePath: string): RawResult[] {
     }
     return record;
   });
+}
+
+function resolveTraceResultPath(filePath: string): string {
+  if (path.basename(filePath) === RESULT_INDEX_FILENAME) {
+    const legacySibling = path.join(path.dirname(filePath), LEGACY_RESULTS_FILENAME);
+    try {
+      statSync(legacySibling);
+      return legacySibling;
+    } catch {
+      return filePath;
+    }
+  }
+
+  if (path.basename(filePath) === LEGACY_RESULTS_FILENAME) {
+    return filePath;
+  }
+
+  if (!filePath.endsWith('.jsonl')) {
+    return resolveExistingRunTracePath(filePath) ?? resolveWorkspaceOrFilePath(filePath);
+  }
+
+  return resolveWorkspaceOrFilePath(filePath);
 }
 
 /**

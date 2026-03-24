@@ -114,6 +114,27 @@ describe('trace utils', () => {
 
       expect(() => loadResultFile(filePath)).toThrow('Missing or invalid score');
     });
+
+    it('prefers legacy results.jsonl when loading a workspace directory', () => {
+      writeFileSync(path.join(tempDir, 'index.jsonl'), `${RESULT_WITHOUT_TRACE}\n`);
+      writeFileSync(path.join(tempDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      const results = loadResultFile(tempDir);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].trace?.event_count).toBe(5);
+    });
+
+    it('prefers legacy results.jsonl when pointed at index.jsonl directly', () => {
+      const indexPath = path.join(tempDir, 'index.jsonl');
+      writeFileSync(indexPath, `${RESULT_WITHOUT_TRACE}\n`);
+      writeFileSync(path.join(tempDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      const results = loadResultFile(indexPath);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].trace?.tool_calls).toEqual({ read: 3, write: 2 });
+    });
   });
 
   describe('listResultFiles', () => {

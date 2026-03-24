@@ -38,6 +38,15 @@ export function resolveExistingRunPrimaryPath(runDir: string): string | undefine
   return undefined;
 }
 
+export function resolveExistingRunTracePath(runDir: string): string | undefined {
+  const legacyPath = resolveRunLegacyResultsPath(runDir);
+  if (existsSync(legacyPath)) {
+    return legacyPath;
+  }
+
+  return resolveExistingRunPrimaryPath(runDir);
+}
+
 export function isDirectoryPath(filePath: string): boolean {
   try {
     return statSync(filePath).isDirectory();

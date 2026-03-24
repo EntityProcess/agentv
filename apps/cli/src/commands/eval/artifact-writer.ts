@@ -455,8 +455,29 @@ export function buildAggregateGradingArtifact(
   };
 }
 
+function safeArtifactPathSegment(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return trimmed.replace(/[/\\:*?"<>|]/g, '_');
+}
+
 function safeTestId(testId: string | undefined): string {
-  return (testId ?? 'unknown').replace(/[/\\:*?"<>|]/g, '_');
+  return safeArtifactPathSegment(testId, 'unknown');
+}
+
+function safeTargetId(target: string | undefined): string {
+  return safeArtifactPathSegment(target, 'default');
+}
+
+function buildArtifactSubdir(result: EvaluationResult): string {
+  const segments = [];
+  if (result.eval_set) {
+    segments.push(safeArtifactPathSegment(result.eval_set, 'default'));
+  }
+  segments.push(safeTestId(result.testId), safeTargetId(result.target));
+  return path.posix.join(...segments);
 }
 
 function formatOutputMarkdown(output: readonly { role: string; content?: unknown }[]): string {
@@ -474,7 +495,7 @@ function extractInput(result: EvaluationResult): string | null {
 }
 
 export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexArtifact {
-  const safeId = safeTestId(result.testId);
+  const artifactSubdir = buildArtifactSubdir(result);
   const input = extractInput(result);
   const hasResponse = Array.isArray(result.output) && result.output.length > 0;
 
@@ -496,10 +517,12 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
     cost_usd: result.costUsd,
     duration_ms: result.durationMs,
     token_usage: result.tokenUsage as ResultIndexArtifact['token_usage'],
-    grading_path: path.posix.join(safeId, 'grading.json'),
-    timing_path: path.posix.join(safeId, 'timing.json'),
-    input_path: input ? path.posix.join(safeId, 'input.md') : undefined,
-    response_path: hasResponse ? path.posix.join(safeId, 'outputs', 'response.md') : undefined,
+    grading_path: path.posix.join(artifactSubdir, 'grading.json'),
+    timing_path: path.posix.join(artifactSubdir, 'timing.json'),
+    input_path: input ? path.posix.join(artifactSubdir, 'input.md') : undefined,
+    response_path: hasResponse
+      ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
+      : undefined,
   };
 }
 
@@ -609,8 +632,8 @@ export async function writeArtifactsFromResults(
   for (const result of results) {
     const grading = buildGradingArtifact(result);
     const timing = buildTimingArtifact([result]);
-    const safeId = safeTestId(result.testId);
-    const testDir = path.join(outputDir, safeId);
+    const artifactSubdir = buildArtifactSubdir(result);
+    const testDir = path.join(outputDir, artifactSubdir);
     const gradingPath = path.join(testDir, 'grading.json');
     const perTestTimingPath = path.join(testDir, 'timing.json');
     await mkdir(testDir, { recursive: true });
