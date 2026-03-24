@@ -549,8 +549,9 @@ agentv compare <combined-results.jsonl> --baseline <target>                   # 
 agentv compare <combined-results.jsonl> --baseline <target> --candidate <target>  # pairwise
 agentv compare <results1.jsonl> <results2.jsonl>                              # two-file pairwise
 
-# Generate rubrics from criteria
-agentv generate rubrics <file.yaml> [--target <name>]
+# Author assertions directly in the eval file
+# Prefer simple assertions when they fit the criteria; use deterministic or LLM-based graders when needed
+agentv validate <file.yaml>
 ```
 
 ## Code Judge SDK

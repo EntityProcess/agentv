@@ -6,7 +6,6 @@ import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
 import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
 import { evalCommand } from './commands/eval/index.js';
-import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
@@ -28,7 +27,6 @@ export const app = subcommands({
     compare: compareCommand,
     convert: convertCommand,
     create: createCommand,
-    generate: generateCommand,
     init: initCmdTsCommand,
     results: resultsCommand,
     self: selfCommand,
@@ -56,7 +54,6 @@ const TOP_LEVEL_COMMANDS = new Set([
   'compare',
   'convert',
   'create',
-  'generate',
   'init',
   'results',
   'self',
@@ -113,6 +110,18 @@ export function preprocessArgv(argv: string[]): string[] {
   return result;
 }
 
+function isRetiredGenerateInvocation(argv: string[]): boolean {
+  return argv.slice(2)[0] === 'generate';
+}
+
+function getRetiredGenerateMessage(): string {
+  return [
+    '`agentv generate` has been retired.',
+    'Use the `agentv-eval-writer` skill for eval authoring help.',
+    'Choose assertions that fit the criteria: plain assertions when they are enough, deterministic graders when possible, and LLM-based grading when judgment is needed.',
+  ].join('\n');
+}
+
 export async function runCli(argv: string[] = process.argv): Promise<void> {
   // Kick off update check: reads from local cache (fast), spawns a detached
   // child to refresh if stale. The notice is printed on process exit so it
@@ -124,6 +133,10 @@ export async function runCli(argv: string[] = process.argv): Promise<void> {
   getUpdateNotice(packageJson.version).then((n) => {
     updateNotice = n;
   });
+
+  if (isRetiredGenerateInvocation(argv)) {
+    throw new Error(getRetiredGenerateMessage());
+  }
 
   const processedArgv = preprocessArgv(argv);
   await run(binary(app), processedArgv);

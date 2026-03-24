@@ -518,10 +518,7 @@ tests:
 
 Scoring: `(satisfied weights) / (total weights)` → verdicts: `pass` (≥0.8), `borderline` (≥0.6), `fail`
 
-Auto-generate rubrics from expected outcomes:
-```bash
-agentv generate rubrics evals/my-eval.yaml
-```
+Author assertions directly in your eval file. When you want help choosing between simple assertions, deterministic graders, and LLM-based graders, use the `agentv-eval-writer` skill.
 
 See [rubric evaluator](https://agentv.dev/evaluation/rubrics/) for detailed patterns.
 

@@ -292,7 +292,7 @@ export class LlmGraderEvaluator implements Evaluator {
   ): Promise<EvaluationScore> {
     if (!rubrics || rubrics.length === 0) {
       throw new Error(
-        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm-grader'}". Run "agentv generate rubrics" first.`,
+        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm-grader'}". Add rubric criteria under assertions or use the agentv-eval-writer skill for authoring help.`,
       );
     }
 
