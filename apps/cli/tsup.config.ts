@@ -17,6 +17,7 @@ export default defineConfig({
     'micromatch',
     '@mariozechner/pi-agent-core',
     '@mariozechner/pi-ai',
+    '@mariozechner/pi-coding-agent',
     '@github/copilot-sdk',
     '@openai/codex-sdk',
     '@anthropic-ai/claude-agent-sdk',
