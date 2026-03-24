@@ -58,7 +58,7 @@ AgentV's companion artifacts are compatible with skill-creator's eval-viewer:
 
 | Artifact | Format | Compatible with eval-viewer |
 |----------|--------|---------------------------|
-| `grading.json` | Per-assertion evidence with claims | ✅ Superset of skill-creator's grading format |
+| `<test-id>/grading.json` | Per-assertion evidence with claims | ✅ Superset of skill-creator's per-test grading format |
 | `benchmark.json` | Aggregate pass rates, timing, patterns | ✅ Superset of Agent Skills benchmark format |
 | Results JSONL | Per-test results | ✅ Standard JSONL format |
 

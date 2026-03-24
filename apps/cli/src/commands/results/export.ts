@@ -6,9 +6,9 @@
  *   <output-dir>/
  *     benchmark.json           — aggregate scores, pass/fail counts, timing
  *     timing.json              — aggregate token usage and duration
- *     grading.json             — aggregate assertions across all tests
- *     grading/
- *       <test-id>.json         — per-test grading artifact (assertions, evaluators)
+ *     <test-id>/
+ *       grading.json           — per-test grading artifact (assertions, evaluators)
+ *       timing.json            — per-test timing artifact
  *     outputs/
  *       <test-id>.md           — human-readable agent response per test
  *     inputs/
@@ -28,7 +28,6 @@ import { command, option, optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
 import {
-  buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
   buildGradingArtifact,
   buildTimingArtifact,
@@ -64,21 +63,15 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   const timing = buildTimingArtifact(patched);
   writeFileSync(path.join(outputDir, 'timing.json'), `${JSON.stringify(timing, null, 2)}\n`);
 
-  // grading.json — aggregate assertions across all tests
-  const aggregateGrading = buildAggregateGradingArtifact(patched);
-  writeFileSync(
-    path.join(outputDir, 'grading.json'),
-    `${JSON.stringify(aggregateGrading, null, 2)}\n`,
-  );
-
-  // grading/<test-id>.json — per-test grading artifacts
-  const gradingDir = path.join(outputDir, 'grading');
-  mkdirSync(gradingDir, { recursive: true });
-
+  // <test-id>/{grading,timing}.json — per-test artifacts
   for (const result of patched) {
     const id = safeTestId(result);
+    const testDir = path.join(outputDir, id);
     const grading = buildGradingArtifact(result);
-    writeFileSync(path.join(gradingDir, `${id}.json`), `${JSON.stringify(grading, null, 2)}\n`);
+    const perTestTiming = buildTimingArtifact([result]);
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(path.join(testDir, 'grading.json'), `${JSON.stringify(grading, null, 2)}\n`);
+    writeFileSync(path.join(testDir, 'timing.json'), `${JSON.stringify(perTestTiming, null, 2)}\n`);
   }
 
   // outputs/<test-id>.md — human-readable agent response text

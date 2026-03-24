@@ -443,7 +443,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
   // ── Grading artifact tests ─────────────────────────────────────────────
 
-  describe('grading/<test-id>.json — per-test grading', () => {
+  describe('<test-id>/grading.json — per-test grading', () => {
     it('should produce correct grading for Claude CLI result with trace', () => {
       const outputDir = path.join(tempDir, 'grade-claude');
       const content = toJsonl(CLAUDE_CLI_RESULT);
@@ -451,7 +451,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'grading', 'test-claude-reasoning.json'), 'utf8'),
+        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'grading.json'), 'utf8'),
       );
 
       expect(grading.assertions).toHaveLength(2);
@@ -478,7 +478,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'grading', 'test-copilot-complete.json'), 'utf8'),
+        readFileSync(path.join(outputDir, 'test-copilot-complete', 'grading.json'), 'utf8'),
       );
 
       expect(grading.summary.passed).toBe(1);
@@ -496,7 +496,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'grading', 'test-error-case.json'), 'utf8'),
+        readFileSync(path.join(outputDir, 'test-error-case', 'grading.json'), 'utf8'),
       );
 
       // Error result has empty assertions
@@ -513,7 +513,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       // Both have same test_id but different targets — export creates
       // files keyed by test_id, so last one wins (or both write)
-      const gradingPath = path.join(outputDir, 'grading', 'test-llm-analysis.json');
+      const gradingPath = path.join(outputDir, 'test-llm-analysis', 'grading.json');
       expect(existsSync(gradingPath)).toBe(true);
     });
   });
@@ -598,13 +598,13 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
 
       // Verify grading files
-      expect(existsSync(path.join(outputDir, 'grading', 'test-claude-reasoning.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'grading', 'test-codex-edit.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'grading', 'test-copilot-complete.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'grading', 'test-pi-refactor.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'grading', 'test-llm-analysis.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'grading', 'test-minimal.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'grading', 'test-error-case.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-claude-reasoning', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-codex-edit', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-copilot-complete', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-pi-refactor', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-llm-analysis', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-minimal', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'test-error-case', 'grading.json'))).toBe(true);
     });
   });
 
@@ -659,7 +659,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       exportResults('test.jsonl', toJsonl(record), outputDir);
 
-      expect(existsSync(path.join(outputDir, 'grading', 'legacy-test-id.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'legacy-test-id', 'grading.json'))).toBe(true);
     });
   });
 });

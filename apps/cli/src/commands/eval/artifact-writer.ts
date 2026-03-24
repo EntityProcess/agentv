@@ -483,10 +483,9 @@ export async function writeArtifacts(
   outputDir: string,
   options?: { evalFile?: string },
 ): Promise<{
-  gradingDir: string;
+  testArtifactDir: string;
   timingPath: string;
   benchmarkPath: string;
-  aggregateGradingPath: string;
 }> {
   const content = await readFile(jsonlPath, 'utf8');
   const results = parseJsonlResults(content);
@@ -499,24 +498,26 @@ export async function writeArtifactsFromResults(
   outputDir: string,
   options?: { evalFile?: string },
 ): Promise<{
-  gradingDir: string;
+  testArtifactDir: string;
   timingPath: string;
   benchmarkPath: string;
-  aggregateGradingPath: string;
 }> {
-  const gradingDir = path.join(outputDir, 'grading');
+  const testArtifactDir = outputDir;
   const timingPath = path.join(outputDir, 'timing.json');
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
-  const aggregateGradingPath = path.join(outputDir, 'grading.json');
-
-  await mkdir(gradingDir, { recursive: true });
+  await mkdir(outputDir, { recursive: true });
 
   // Write per-test grading artifacts
   for (const result of results) {
     const grading = buildGradingArtifact(result);
+    const timing = buildTimingArtifact([result]);
     const safeTestId = (result.testId ?? 'unknown').replace(/[/\\:*?"<>|]/g, '_');
-    const gradingPath = path.join(gradingDir, `${safeTestId}.json`);
+    const testDir = path.join(outputDir, safeTestId);
+    const gradingPath = path.join(testDir, 'grading.json');
+    const perTestTimingPath = path.join(testDir, 'timing.json');
+    await mkdir(testDir, { recursive: true });
     await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
+    await writeFile(perTestTimingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
   }
 
   // Write aggregate timing
@@ -527,9 +528,5 @@ export async function writeArtifactsFromResults(
   const benchmark = buildBenchmarkArtifact(results, options?.evalFile);
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
-  // Write aggregate grading
-  const aggregateGrading = buildAggregateGradingArtifact(results);
-  await writeFile(aggregateGradingPath, `${JSON.stringify(aggregateGrading, null, 2)}\n`, 'utf8');
-
-  return { gradingDir, timingPath, benchmarkPath, aggregateGradingPath };
+  return { testArtifactDir, timingPath, benchmarkPath };
 }

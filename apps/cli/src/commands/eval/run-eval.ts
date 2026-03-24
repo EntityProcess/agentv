@@ -27,7 +27,7 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
-import { buildAggregateGradingArtifact, writeArtifactsFromResults } from './artifact-writer.js';
+import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import {
@@ -1169,12 +1169,12 @@ export async function runEvalCommand(
       const artifactsDir = path.resolve(options.artifacts);
       const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
       const {
-        gradingDir,
+        testArtifactDir,
         timingPath,
         benchmarkPath: abp,
       } = await writeArtifactsFromResults(allResults, artifactsDir, { evalFile });
       console.log(`Artifacts written to: ${artifactsDir}`);
-      console.log(`  Grading: ${gradingDir} (${allResults.length} files)`);
+      console.log(`  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`);
       console.log(`  Timing:  ${timingPath}`);
       console.log(`  Benchmark: ${abp}`);
     }
@@ -1203,14 +1203,6 @@ export async function runEvalCommand(
       // Persist last run directory for `agentv results` commands
       const runDir = path.dirname(outputPath);
       await saveRunCache(cwd, runDir).catch(() => undefined);
-
-      // Write aggregate grading.json inside run directory
-      if (outputPath.endsWith('.jsonl')) {
-        const { writeFile } = await import('node:fs/promises');
-        const gradingPath = path.join(path.dirname(outputPath), 'grading.json');
-        const aggregateGrading = buildAggregateGradingArtifact(allResults);
-        await writeFile(gradingPath, `${JSON.stringify(aggregateGrading, null, 2)}\n`, 'utf8');
-      }
     }
 
     // Suggest retry-errors command when execution errors are detected
