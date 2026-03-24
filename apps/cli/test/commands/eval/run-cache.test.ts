@@ -4,10 +4,10 @@ import path from 'node:path';
 import { type RunCache, resolveRunCacheFile } from '../../../src/commands/eval/run-cache.js';
 
 describe('resolveRunCacheFile', () => {
-  it('should resolve new directory-based cache to results.jsonl inside dir', () => {
+  it('should resolve new directory-based cache to index.jsonl inside dir', () => {
     const cache: RunCache = { lastRunDir: '/results/raw/eval_2026-03-24', timestamp: '' };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/raw/eval_2026-03-24', 'results.jsonl'),
+      path.join('/results/raw/eval_2026-03-24', 'index.jsonl'),
     );
   });
 
@@ -22,7 +22,7 @@ describe('resolveRunCacheFile', () => {
       lastResultFile: '/results/raw/eval_old.jsonl',
       timestamp: '',
     };
-    expect(resolveRunCacheFile(cache)).toBe(path.join('/results/raw/eval_dir', 'results.jsonl'));
+    expect(resolveRunCacheFile(cache)).toBe(path.join('/results/raw/eval_dir', 'index.jsonl'));
   });
 
   it('should return empty string when neither field is set', () => {

@@ -215,13 +215,13 @@ describe('trace utils', () => {
       expect(metas).toHaveLength(1);
     });
 
-    it('should discover results.jsonl inside run directories in raw/', () => {
+    it('should discover index.jsonl inside run directories in raw/', () => {
       const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
       const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
       writeFileSync(
-        path.join(runDir, 'results.jsonl'),
+        path.join(runDir, 'index.jsonl'),
         `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
       );
 
@@ -240,7 +240,7 @@ describe('trace utils', () => {
       // New directory-based run
       const runDir = path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'results.jsonl'), `${RESULT_FAILING}\n`);
+      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_FAILING}\n`);
 
       // Legacy flat file
       writeFileSync(
@@ -262,7 +262,7 @@ describe('trace utils', () => {
       // Directory-based (preferred)
       const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
 
       // Flat file with same timestamp
       writeFileSync(
@@ -276,12 +276,12 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
     });
 
-    it('should skip directories without results.jsonl', () => {
+    it('should skip directories without index.jsonl or results.jsonl', () => {
       const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
       const emptyDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(emptyDir, { recursive: true });
 
-      // Directory exists but no results.jsonl inside
+      // Directory exists but no manifest/result file inside
       writeFileSync(path.join(emptyDir, 'grading.json'), '{}');
 
       const metas = listResultFiles(tempDir);

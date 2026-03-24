@@ -105,11 +105,11 @@ describe('results export', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('should create benchmark.json matching artifact-writer schema', () => {
+  it('should create benchmark.json matching artifact-writer schema', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    exportResults('eval_2026-03-18.jsonl', content, outputDir);
+    await exportResults('eval_2026-03-18.jsonl', content, outputDir);
 
     const benchmarkPath = path.join(outputDir, 'benchmark.json');
     expect(existsSync(benchmarkPath)).toBe(true);
@@ -127,11 +127,11 @@ describe('results export', () => {
     expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
-  it('should create per-test timing.json with run timing', () => {
+  it('should create per-test timing.json with run timing', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const timingPath = path.join(outputDir, 'test-greeting', 'timing.json');
     expect(existsSync(timingPath)).toBe(true);
@@ -144,11 +144,11 @@ describe('results export', () => {
     expect(timing.token_usage).toHaveProperty('reasoning');
   });
 
-  it('should create per-test artifact directories', () => {
+  it('should create per-test artifact directories', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const gradingPath = path.join(outputDir, 'test-greeting', 'grading.json');
     expect(existsSync(gradingPath)).toBe(true);
@@ -182,22 +182,22 @@ describe('results export', () => {
     expect(existsSync(perTestTimingPath)).toBe(true);
   });
 
-  it('should write answer text to <test-id>/outputs/response.md as human-readable markdown', () => {
+  it('should write answer text to <test-id>/outputs/response.md as human-readable markdown', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'response.md');
     expect(existsSync(answerPath)).toBe(true);
     expect(readFileSync(answerPath, 'utf8')).toBe('@[assistant]:\nHello, Alice!');
   });
 
-  it('should group results by target in benchmark.json', () => {
+  it('should group results by target in benchmark.json', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_DIFFERENT_TARGET);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const benchmark: BenchmarkArtifact = JSON.parse(
       readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
@@ -207,34 +207,34 @@ describe('results export', () => {
     expect(benchmark.run_summary['claude-sonnet']).toBeDefined();
   });
 
-  it('should handle results without answer text', () => {
+  it('should handle results without answer text', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_PARTIAL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const answerPath = path.join(outputDir, 'outputs', 'test-math.md');
     expect(existsSync(answerPath)).toBe(false);
   });
 
-  it('should handle multiple test cases in a single export', () => {
+  it('should handle multiple test cases in a single export', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL, RESULT_NO_TRACE);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
+    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'test-greeting', 'grading.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'test-math', 'grading.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'test-simple', 'grading.json'))).toBe(true);
   });
 
-  it('should include per-evaluator summary in benchmark when scores present', () => {
+  it('should include per-evaluator summary in benchmark when scores present', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const benchmark: BenchmarkArtifact = JSON.parse(
       readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
@@ -243,22 +243,22 @@ describe('results export', () => {
     expect(benchmark.per_evaluator_summary).toBeDefined();
   });
 
-  it('should not create output file when answer is missing', () => {
+  it('should not create output file when answer is missing', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_DIFFERENT_TARGET);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'response.md');
     expect(existsSync(answerPath)).toBe(false);
   });
 
-  it('should throw when content has no valid results', () => {
+  it('should throw when content has no valid results', async () => {
     const outputDir = path.join(tempDir, 'output');
-    expect(() => exportResults('test.jsonl', '', outputDir)).toThrow('No results found');
+    await expect(exportResults('test.jsonl', '', outputDir)).rejects.toThrow('No results found');
   });
 
-  it('should handle results with missing assertions field', () => {
+  it('should handle results with missing assertions field', async () => {
     const outputDir = path.join(tempDir, 'output');
     const minimal = {
       timestamp: '2026-03-18T10:00:00.000Z',
@@ -269,7 +269,7 @@ describe('results export', () => {
     const content = toJsonl(minimal);
 
     // Should not throw — previously crashed with "Cannot read properties of undefined (reading 'map')"
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const gradingPath = path.join(outputDir, 'test-minimal', 'grading.json');
     expect(existsSync(gradingPath)).toBe(true);
@@ -279,7 +279,7 @@ describe('results export', () => {
     expect(grading.summary.total).toBe(0);
   });
 
-  it('should write string input to <test-id>/input.md', () => {
+  it('should write string input to <test-id>/input.md', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,
@@ -287,14 +287,14 @@ describe('results export', () => {
     };
     const content = toJsonl(resultWithInput);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
   });
 
-  it('should write Message[] input to <test-id>/input.md as markdown', () => {
+  it('should write Message[] input to <test-id>/input.md as markdown', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithMessages = {
       ...RESULT_FULL,
@@ -305,24 +305,24 @@ describe('results export', () => {
     };
     const content = toJsonl(resultWithMessages);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
   });
 
-  it('should not create input file when input is missing', () => {
+  it('should not create input file when input is missing', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
     expect(existsSync(inputPath)).toBe(false);
   });
 
-  it('should handle results with missing target and testId fields', () => {
+  it('should handle results with missing target and testId fields', async () => {
     const outputDir = path.join(tempDir, 'output');
     const bare = {
       timestamp: '2026-03-18T10:00:00.000Z',
@@ -330,7 +330,7 @@ describe('results export', () => {
     };
     const content = toJsonl(bare);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const benchmark: BenchmarkArtifact = JSON.parse(
       readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
@@ -339,11 +339,11 @@ describe('results export', () => {
     expect(benchmark.metadata.tests_run).toEqual(['unknown']);
   });
 
-  it('should not create top-level grading.json aggregate artifact', () => {
+  it('should not create top-level grading.json aggregate artifact', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    exportResults('test.jsonl', content, outputDir);
+    await exportResults('test.jsonl', content, outputDir);
 
     const gradingPath = path.join(outputDir, 'grading.json');
     expect(existsSync(gradingPath)).toBe(false);

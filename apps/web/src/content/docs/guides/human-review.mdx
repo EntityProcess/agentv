@@ -56,12 +56,13 @@ cat results/output.jsonl | jq '{id: .testId, score: .score, verdict: .verdict}'
 
 ### Write feedback
 
-Create a `feedback.json` file in the results directory, alongside `results.jsonl` or `output.jsonl`:
+Create a `feedback.json` file in the run workspace, alongside `index.jsonl`:
 
 ```
 results/
   2026-03-14T10-32-00_claude/
-    results.jsonl          # automated eval results
+    index.jsonl            # primary run manifest
+    results.jsonl          # compatibility output during deprecation
     traces.jsonl           # execution traces
     feedback.json          # ← your review annotations
 ```
@@ -156,13 +157,13 @@ Keep feedback files alongside results to build a history of review decisions:
 ```
 results/
   2026-03-12T09-00-00_claude/
-    results.jsonl
+    index.jsonl
     feedback.json          # first iteration review
   2026-03-14T10-32-00_claude/
-    results.jsonl
+    index.jsonl
     feedback.json          # second iteration review
   2026-03-15T16-00-00_claude/
-    results.jsonl
+    index.jsonl
     feedback.json          # third iteration review
 ```
 

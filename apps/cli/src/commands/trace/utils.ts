@@ -1,5 +1,9 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import {
+  resolveExistingRunPrimaryPath,
+  resolveWorkspaceOrFilePath,
+} from '../eval/result-layout.js';
 
 // ANSI color codes (no dependency needed)
 const colors = {
@@ -87,7 +91,8 @@ export interface RawTraceSummary {
  * Load all result records from a JSONL file.
  */
 export function loadResultFile(filePath: string): RawResult[] {
-  const content = readFileSync(filePath, 'utf8');
+  const resolvedFilePath = resolveWorkspaceOrFilePath(filePath);
+  const content = readFileSync(resolvedFilePath, 'utf8');
   const lines = content
     .trim()
     .split('\n')
@@ -117,7 +122,7 @@ export interface ResultFileMeta {
 
 /**
  * Enumerate result files in the .agentv/results/ directory.
- * Scans raw/ for both directory-per-run layouts (results.jsonl inside subdirs)
+ * Scans raw/ for both directory-per-run layouts (index.jsonl preferred inside subdirs)
  * and legacy flat .jsonl files. Also scans the base directory for pre-raw/ files.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
@@ -132,12 +137,9 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
     const entries = readdirSync(rawDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const jsonlPath = path.join(rawDir, entry.name, 'results.jsonl');
-        try {
-          statSync(jsonlPath);
-          files.push({ filePath: jsonlPath, displayName: entry.name });
-        } catch {
-          // Directory without results.jsonl — skip
+        const primaryPath = resolveExistingRunPrimaryPath(path.join(rawDir, entry.name));
+        if (primaryPath) {
+          files.push({ filePath: primaryPath, displayName: entry.name });
         }
       }
     }

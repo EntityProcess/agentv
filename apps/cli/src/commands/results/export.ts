@@ -20,101 +20,36 @@
  *   - To add new per-test workspace files, add them under each test directory.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { command, option, optional, positional, string } from 'cmd-ts';
 
-import type { EvaluationResult } from '@agentv/core';
-import {
-  buildBenchmarkArtifact,
-  buildGradingArtifact,
-  buildTimingArtifact,
-  parseJsonlResults,
-} from '../eval/artifact-writer.js';
-import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
-import { listResultFiles } from '../trace/utils.js';
+import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
+import { loadResults as loadSharedResults, patchTestIds, resolveSourceFile } from './shared.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
 
-export function exportResults(sourceFile: string, content: string, outputDir: string): void {
+export async function exportResults(
+  sourceFile: string,
+  content: string,
+  outputDir: string,
+): Promise<void> {
   const results = parseJsonlResults(content);
 
   if (results.length === 0) {
     throw new Error(`No results found in ${sourceFile}`);
   }
 
-  // Patch testId for older JSONL files that used eval_id instead of test_id
-  const patched = results.map((r) => {
-    if (!r.testId && (r as unknown as Record<string, unknown>).evalId) {
-      return { ...r, testId: String((r as unknown as Record<string, unknown>).evalId) };
-    }
-    return r;
+  await writeArtifactsFromResults(patchTestIds(results), outputDir, {
+    evalFile: sourceFile,
+    writeLegacyResults: false,
   });
-
-  mkdirSync(outputDir, { recursive: true });
-
-  // benchmark.json — aggregate across all results
-  const benchmark = buildBenchmarkArtifact(patched, sourceFile);
-  writeFileSync(path.join(outputDir, 'benchmark.json'), `${JSON.stringify(benchmark, null, 2)}\n`);
-
-  // <test-id>/... — per-test workspace artifacts
-  for (const result of patched) {
-    const id = safeTestId(result);
-    const testDir = path.join(outputDir, id);
-    const outputsDir = path.join(testDir, 'outputs');
-    const grading = buildGradingArtifact(result);
-    const perTestTiming = buildTimingArtifact([result]);
-    mkdirSync(testDir, { recursive: true });
-    writeFileSync(path.join(testDir, 'grading.json'), `${JSON.stringify(grading, null, 2)}\n`);
-    writeFileSync(path.join(testDir, 'timing.json'), `${JSON.stringify(perTestTiming, null, 2)}\n`);
-    if (result.output && result.output.length > 0) {
-      const md = formatOutputMarkdown(result.output);
-      mkdirSync(outputsDir, { recursive: true });
-      writeFileSync(path.join(outputsDir, 'response.md'), md);
-    }
-    const input = extractInput(result);
-    if (input) {
-      writeFileSync(path.join(testDir, 'input.md'), input);
-    }
-  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 /**
- * Format an output message array as human-readable markdown.
- * Each message becomes `@[role]:\n<content>\n\n`.
- */
-function formatOutputMarkdown(output: readonly { role: string; content?: unknown }[]): string {
-  return output.map((msg) => `@[${msg.role}]:\n${String(msg.content ?? '')}`).join('\n\n');
-}
-
-/**
- * Extract human-readable input from a result.
- * Handles both string input (single question) and Message[] input (multi-message).
- */
-function extractInput(result: EvaluationResult): string | null {
-  const input = (result as unknown as Record<string, unknown>).input;
-  if (!input) return null;
-  if (typeof input === 'string') return input;
-  if (Array.isArray(input) && input.length > 0) {
-    return formatOutputMarkdown(input as { role: string; content?: unknown }[]);
-  }
-  return null;
-}
-
-/**
- * Extract a safe filename from a test ID, handling older JSONL formats
- * that used `eval_id` instead of `test_id`.
- */
-function safeTestId(result: EvaluationResult): string {
-  const raw = result.testId ?? (result as unknown as Record<string, unknown>).evalId ?? 'unknown';
-  return String(raw).replace(/[/\\:*?"<>|]/g, '_');
-}
-
-/**
  * Derive the default output directory from a JSONL source path.
- * Handles both directory-per-run (eval_<ts>/results.jsonl) and legacy flat files (eval_<ts>.jsonl).
+ * Handles both directory-per-run manifests (eval_<ts>/index.jsonl) and legacy flat files.
  */
 function deriveOutputDir(cwd: string, sourceFile: string): string {
   const parentDir = path.basename(path.dirname(sourceFile));
@@ -157,29 +92,8 @@ export const resultsExportCommand = command({
     const cwd = dir ?? process.cwd();
 
     try {
-      let sourceFile: string;
-
-      if (source) {
-        // Explicit source file
-        sourceFile = path.isAbsolute(source) ? source : path.resolve(cwd, source);
-      } else {
-        // Prefer cache pointer, fall back to directory scan
-        const cache = await loadRunCache(cwd);
-        const cachedFile = cache ? resolveRunCacheFile(cache) : '';
-        if (cachedFile && existsSync(cachedFile)) {
-          sourceFile = cachedFile;
-        } else {
-          const metas = listResultFiles(cwd, 1);
-          if (metas.length === 0) {
-            console.error('Error: No result files found in .agentv/results/');
-            console.error('Run an evaluation first: agentv eval <eval-file>');
-            process.exit(1);
-          }
-          sourceFile = metas[0].path;
-        }
-      }
-
-      const content = readFileSync(sourceFile, 'utf8');
+      const { sourceFile } = await resolveSourceFile(source, cwd);
+      const { results } = await loadSharedResults(source, cwd);
 
       const outputDir = out
         ? path.isAbsolute(out)
@@ -187,10 +101,12 @@ export const resultsExportCommand = command({
           : path.resolve(cwd, out)
         : deriveOutputDir(cwd, sourceFile);
 
-      exportResults(sourceFile, content, outputDir);
+      await writeArtifactsFromResults(results, outputDir, {
+        evalFile: sourceFile,
+        writeLegacyResults: false,
+      });
 
       // Report exported test IDs
-      const results = parseJsonlResults(content);
       console.log(`Exported ${results.length} test(s) to ${outputDir}`);
       for (const result of results) {
         const id =

@@ -40,16 +40,18 @@ From the repository root:
 ```bash
 cd examples/showcase/export-screening
 
-# Run evaluation (produces per-case results)
-bun agentv eval ./evals/dataset.eval.yaml --out results.jsonl
+# Run evaluation (produces a run workspace with index.jsonl)
+bun agentv eval ./evals/dataset.eval.yaml
 ```
 
 ### Computing Metrics
 
-Use the wrapper script to compute a confusion matrix and policy-weighted overall metrics from `results.jsonl`. It prints a human-readable confusion matrix table to the console and writes a structured CI result JSON file (defaults to `results.ci_check.json`):
+Use the wrapper script to compute a confusion matrix and policy-weighted overall metrics from
+`index.jsonl`. It prints a human-readable confusion matrix table to the console and writes a
+structured CI result JSON file (defaults to `results.ci_check.json`):
 
 ```bash
-bun run ./evals/ci_check.ts results.jsonl --threshold 0.95 --check-class High
+bun run ./evals/ci_check.ts .agentv/results/raw/eval_<timestamp>/index.jsonl --threshold 0.95 --check-class High
 ```
 
 ### Multi-Sample CI Gating
@@ -68,7 +70,7 @@ This is useful when LLM outputs are non-deterministic — aggregating over multi
 ```mermaid
 flowchart LR
     A[dataset.eval.yaml] --> B[bun agentv eval]
-    B --> C[results.jsonl<br/>per-case scores]
+    B --> C[index.jsonl<br/>run manifest]
     C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
 
@@ -94,7 +96,7 @@ The evaluator:
 ### 3. Wrapper Script (`ci_check.ts`)
 
 The `ci_check.ts` script:
-1. Reads `results.jsonl`
+1. Reads `index.jsonl`
 2. Parses predicted vs actual classifications from hits/misses
 3. Builds confusion matrix
 4. Computes per-class precision, recall, F1
@@ -150,8 +152,8 @@ bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --threshold 0.95
 # Multi-sample gate: run 5 times, aggregate, then check
 bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --samples 5 --threshold 0.90
 
-# Or check existing results file
-bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
+# Or check an existing run manifest
+bun run ./evals/ci_check.ts .agentv/results/raw/eval_<timestamp>/index.jsonl --threshold 0.95
 ```
 
 ### Options

@@ -531,7 +531,13 @@ describe('writeArtifactsFromResults', () => {
 
     // Check per-test artifact directories
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual(['alpha', 'benchmark.json', 'beta', 'timing.json']);
+    expect(artifactEntries.sort()).toEqual([
+      'alpha',
+      'benchmark.json',
+      'beta',
+      'index.jsonl',
+      'timing.json',
+    ]);
 
     const alphaGrading: GradingArtifact = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
@@ -552,13 +558,17 @@ describe('writeArtifactsFromResults', () => {
     const benchmark: BenchmarkArtifact = JSON.parse(await readFile(paths.benchmarkPath, 'utf8'));
     expect(benchmark.metadata.eval_file).toBe('my-eval.yaml');
     expect(benchmark.metadata.tests_run.sort()).toEqual(['alpha', 'beta']);
+
+    const indexLines = (await readFile(paths.indexPath, 'utf8')).trim().split('\n');
+    expect(indexLines).toHaveLength(2);
+    expect(JSON.parse(indexLines[0]).grading_path).toBe('alpha/grading.json');
   });
 
   it('handles empty results array', async () => {
     const paths = await writeArtifactsFromResults([], testDir);
 
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual(['benchmark.json', 'timing.json']);
+    expect(artifactEntries.sort()).toEqual(['benchmark.json', 'index.jsonl', 'timing.json']);
 
     const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
     expect(timing.total_tokens).toBe(0);
