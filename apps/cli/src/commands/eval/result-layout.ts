@@ -43,9 +43,7 @@ export function resolveWorkspaceOrFilePath(filePath: string): string {
 
   const existing = resolveExistingRunPrimaryPath(filePath);
   if (!existing) {
-    throw new Error(
-      `Result workspace is missing ${RESULT_INDEX_FILENAME}: ${filePath}`,
-    );
+    throw new Error(`Result workspace is missing ${RESULT_INDEX_FILENAME}: ${filePath}`);
   }
 
   return existing;

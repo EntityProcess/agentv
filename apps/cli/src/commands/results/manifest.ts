@@ -5,10 +5,7 @@ import type { EvaluationResult } from '@agentv/core';
 
 import type { GradingArtifact, TimingArtifact } from '../eval/artifact-writer.js';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
-import {
-  RESULT_INDEX_FILENAME,
-  resolveWorkspaceOrFilePath,
-} from '../eval/result-layout.js';
+import { RESULT_INDEX_FILENAME, resolveWorkspaceOrFilePath } from '../eval/result-layout.js';
 
 export interface ResultManifestRecord {
   readonly timestamp?: string;
@@ -260,4 +257,3 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
 
   return records;
 }
-
