@@ -528,17 +528,21 @@ describe('export e2e — multi-provider metrics verification', () => {
       exportResults('test.jsonl', content, outputDir);
 
       expect(
-        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'outputs', 'response.md'), 'utf8'),
+        readFileSync(
+          path.join(outputDir, 'test-claude-reasoning', 'outputs', 'response.md'),
+          'utf8',
+        ),
       ).toBe('@[assistant]:\nThe answer is 42, derived through extended thinking.');
 
       expect(
         readFileSync(path.join(outputDir, 'test-codex-edit', 'outputs', 'response.md'), 'utf8'),
-      ).toBe(
-        '@[assistant]:\nApplied the requested edit to src/main.ts.',
-      );
+      ).toBe('@[assistant]:\nApplied the requested edit to src/main.ts.');
 
       expect(
-        readFileSync(path.join(outputDir, 'test-copilot-complete', 'outputs', 'response.md'), 'utf8'),
+        readFileSync(
+          path.join(outputDir, 'test-copilot-complete', 'outputs', 'response.md'),
+          'utf8',
+        ),
       ).toBe('@[assistant]:\nfunction add(a, b) { return a + b }');
     });
 
