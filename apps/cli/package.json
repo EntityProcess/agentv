@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "3.11.0",
+  "version": "3.11.1",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
@@ -47,7 +47,9 @@
     "@mariozechner/pi-coding-agent": "^0.62.0"
   },
   "peerDependenciesMeta": {
-    "@mariozechner/pi-coding-agent": { "optional": true }
+    "@mariozechner/pi-coding-agent": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@agentv/core": "workspace:*",

@@ -1,6 +1,6 @@
 {
   "name": "@agentv/core",
-  "version": "3.11.0",
+  "version": "3.11.1",
   "description": "Primitive runtime components for AgentV",
   "type": "module",
   "repository": {
@@ -69,7 +69,9 @@
     "@mariozechner/pi-coding-agent": "^0.62.0"
   },
   "peerDependenciesMeta": {
-    "@mariozechner/pi-coding-agent": { "optional": true }
+    "@mariozechner/pi-coding-agent": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/micromatch": "^4.0.10",
