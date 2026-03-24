@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 const OUT_DIR = join(import.meta.dirname, '__tmp_grade_test__');
 const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 
-describe('eval grade', () => {
+describe('pipeline grade', () => {
   beforeEach(async () => {
     const testDir = join(OUT_DIR, 'test-01');
     const codeGradersDir = join(testDir, 'code_graders');
@@ -49,7 +49,7 @@ describe('eval grade', () => {
 
   it('writes code_grader_results/<name>.json with score', async () => {
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'eval', 'grade', OUT_DIR]);
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
 
     const result = JSON.parse(
       await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'always_pass.json'), 'utf8'),
@@ -60,7 +60,7 @@ describe('eval grade', () => {
 
   it('includes assertions from code grader output', async () => {
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'eval', 'grade', OUT_DIR]);
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
 
     const result = JSON.parse(
       await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'always_pass.json'), 'utf8'),

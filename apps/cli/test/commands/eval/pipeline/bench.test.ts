@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 const OUT_DIR = join(import.meta.dirname, '__tmp_bench_test__');
 const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 
-describe('eval bench', () => {
+describe('pipeline bench', () => {
   beforeEach(async () => {
     const testDir = join(OUT_DIR, 'test-01');
     const codeResultsDir = join(testDir, 'code_grader_results');
@@ -68,7 +68,7 @@ describe('eval bench', () => {
     });
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'eval', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
 
     const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
@@ -87,7 +87,7 @@ describe('eval bench', () => {
     });
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'eval', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const lines = indexContent
@@ -107,7 +107,7 @@ describe('eval bench', () => {
     });
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'eval', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
 
     const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
     expect(benchmark.metadata.targets).toContain('test-target');

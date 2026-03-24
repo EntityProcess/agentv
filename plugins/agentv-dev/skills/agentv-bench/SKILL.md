@@ -266,7 +266,7 @@ Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
 ### Agent mode: Running eval.yaml without CLI
 
-When `AGENT_EVAL_MODE=agent` (default), use the pipeline CLI subcommands (`eval input`, `eval grade`, `eval bench`) and Python wrapper scripts. This mode spends LLM tokens only on grading, not on YAML parsing or target invocation.
+When `AGENT_EVAL_MODE=agent` (default), use the pipeline CLI subcommands (`pipeline input`, `pipeline grade`, `pipeline bench`) and Python wrapper scripts. This mode spends LLM tokens only on grading, not on YAML parsing or target invocation.
 
 **Prerequisites:**
 - The eval.yaml file exists and contains valid test definitions
@@ -280,7 +280,7 @@ When `AGENT_EVAL_MODE=agent` (default), use the pipeline CLI subcommands (`eval 
 python scripts/run_tests.py evals/repro.eval.yaml --out .agentv/results/export/run-1
 
 # Or using CLI directly (extract only, agent handles execution):
-agentv eval input evals/repro.eval.yaml --out .agentv/results/export/run-1
+agentv pipeline input evals/repro.eval.yaml --out .agentv/results/export/run-1
 ```
 
 This creates an export directory with per-test `input.json`, `invoke.json`, `criteria.md`, and grader configs (`code_graders/*.json`, `llm_graders/*.json`). For CLI targets, `run_tests.py` also invokes the target and writes `response.md`.
@@ -291,7 +291,7 @@ For agent-as-target mode, the agent executes each test using the extracted `inpu
 
 ```bash
 python scripts/run_code_graders.py .agentv/results/export/run-1
-# Or: agentv eval grade .agentv/results/export/run-1
+# Or: agentv pipeline grade .agentv/results/export/run-1
 ```
 
 Executes all code-grader assertions against `response.md` files. Writes `code_grader_results/<name>.json` per test.
@@ -317,7 +317,7 @@ Dispatch the `grader` subagent (read `agents/grader.md`) for this step.
 
 ```bash
 python scripts/bench.py .agentv/results/export/run-1 < llm_scores.json
-# Or: agentv eval bench .agentv/results/export/run-1 < llm_scores.json
+# Or: agentv pipeline bench .agentv/results/export/run-1 < llm_scores.json
 ```
 
 Merges code-grader + LLM scores, computes weighted pass_rate, and writes:

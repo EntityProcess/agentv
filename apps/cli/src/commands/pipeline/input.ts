@@ -1,5 +1,5 @@
 /**
- * `agentv eval input` — Extract eval inputs, target invocation info, and grader
+ * `agentv pipeline input` — Extract eval inputs, target invocation info, and grader
  * configurations for agent-mode eval runs.
  *
  * Reads an eval YAML file and writes a structured export directory that agents
@@ -25,8 +25,8 @@ import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } f
 import { loadTestSuite } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
 
-import { findRepoRoot } from '../shared.js';
-import { selectTarget } from '../targets.js';
+import { findRepoRoot } from '../eval/shared.js';
+import { selectTarget } from '../eval/targets.js';
 
 export const evalInputCommand = command({
   name: 'input',

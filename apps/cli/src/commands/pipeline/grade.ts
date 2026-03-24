@@ -1,6 +1,6 @@
 /**
- * `agentv eval grade` — Run code-grader assertions against response.md files
- * in an export directory produced by `eval input`.
+ * `agentv pipeline grade` — Run code-grader assertions against response.md files
+ * in an export directory produced by `pipeline input`.
  *
  * For each test, reads code_graders/<name>.json configs, executes each grader
  * with the response text on stdin (matching CodeEvaluator payload format),
@@ -22,7 +22,7 @@ export const evalGradeCommand = command({
     exportDir: positional({
       type: string,
       displayName: 'export-dir',
-      description: 'Export directory from eval input',
+      description: 'Export directory from pipeline input',
     }),
   },
   handler: async ({ exportDir }) => {

@@ -15,16 +15,16 @@ describe('eval pipeline e2e', () => {
   it('runs full input → grade → bench pipeline', async () => {
     const { execa } = await import('execa');
 
-    // Step 1: eval input
-    await execa('bun', [CLI_ENTRY, 'eval', 'input', EVAL_PATH, '--out', OUT_DIR]);
+    // Step 1: pipeline input
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
     const manifest = JSON.parse(await readFile(join(OUT_DIR, 'manifest.json'), 'utf8'));
     expect(manifest.test_ids).toEqual(['test-01']);
 
     // Step 2: Write mock response.md (simulating target execution)
     await writeFile(join(OUT_DIR, 'test-01', 'response.md'), 'hello world response');
 
-    // Step 3: eval grade
-    await execa('bun', [CLI_ENTRY, 'eval', 'grade', OUT_DIR]);
+    // Step 3: pipeline grade
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
     const gradeResult = JSON.parse(
       await readFile(
         join(OUT_DIR, 'test-01', 'code_grader_results', 'contains_hello.json'),
@@ -33,7 +33,7 @@ describe('eval pipeline e2e', () => {
     );
     expect(gradeResult.score).toBe(1);
 
-    // Step 4: eval bench with mock LLM scores
+    // Step 4: pipeline bench with mock LLM scores
     const llmScores = JSON.stringify({
       'test-01': {
         relevance: {
@@ -42,7 +42,7 @@ describe('eval pipeline e2e', () => {
         },
       },
     });
-    await execa('bun', [CLI_ENTRY, 'eval', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
 
     // Verify final artifacts
     const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));

@@ -263,7 +263,7 @@ Process each file's tests independently, then aggregate results.
 
 These CLI subcommands break the monolithic `eval run` into discrete steps for agent-mode execution. The agent handles LLM grading between steps.
 
-### `agentv eval input <eval-path> --out <dir>`
+### `agentv pipeline input <eval-path> --out <dir>`
 
 Extracts inputs, target commands, and grader configs from an eval YAML file.
 
@@ -294,11 +294,11 @@ Extracts inputs, target commands, and grader configs from an eval YAML file.
 - `kind: "cli"` — has `command`, `cwd`, `timeout_ms`. Use the command to run the target.
 - `kind: "agent"` — agent executes directly, no CLI invocation needed.
 
-### `agentv eval grade <export-dir>`
+### `agentv pipeline grade <export-dir>`
 
 Runs code-grader assertions against `response.md` files in each test directory.
 
-**Prerequisites:** `eval input` has been run and `response.md` exists in each test dir.
+**Prerequisites:** `pipeline input` has been run and `response.md` exists in each test dir.
 
 **Output:** `<test-id>/code_grader_results/<name>.json` for each code grader, containing:
 ```json
@@ -311,7 +311,7 @@ Runs code-grader assertions against `response.md` files in each test directory.
 }
 ```
 
-### `agentv eval bench <export-dir>`
+### `agentv pipeline bench <export-dir>`
 
 Merges code-grader results with LLM grader scores (read from stdin) and produces final artifacts.
 
@@ -335,9 +335,9 @@ Merges code-grader results with LLM grader scores (read from stdin) and produces
 ### Agent-Mode Workflow
 
 ```
-1. agentv eval input eval.yaml --out ./export
+1. agentv pipeline input eval.yaml --out ./export
 2. (Agent runs targets or reads response.md)
-3. agentv eval grade ./export
+3. agentv pipeline grade ./export
 4. (Agent does LLM grading, produces scores JSON)
-5. echo '<scores>' | agentv eval bench ./export
+5. echo '<scores>' | agentv pipeline bench ./export
 ```

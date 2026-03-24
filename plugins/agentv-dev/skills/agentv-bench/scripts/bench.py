@@ -2,7 +2,7 @@
 """
 Merge evaluator scores and produce final benchmark artifacts.
 
-Calls `agentv eval bench` to merge code-grader results with LLM grader
+Calls `agentv pipeline bench` to merge code-grader results with LLM grader
 scores, compute weighted pass_rate, and write grading.json + index.jsonl +
 benchmark.json.
 
@@ -40,9 +40,9 @@ def main():
     parser.add_argument("export_dir", help="Export directory")
     args = parser.parse_args()
 
-    # Pass stdin through to agentv eval bench
+    # Pass stdin through to agentv pipeline bench
     result = subprocess.run(
-        ["agentv", "eval", "bench", args.export_dir],
+        ["agentv", "pipeline", "bench", args.export_dir],
         stdin=sys.stdin,
     )
     sys.exit(result.returncode)

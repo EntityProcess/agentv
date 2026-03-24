@@ -2,7 +2,7 @@
 """
 Run code-grader assertions on existing responses.
 
-Calls `agentv eval grade` to execute all code-grader assertions declared in
+Calls `agentv pipeline grade` to execute all code-grader assertions declared in
 the eval against response.md files in the export directory.
 
 Usage:
@@ -12,7 +12,7 @@ Example:
     python run_code_graders.py .agentv/results/export/run-1
 
 Prerequisites:
-    - `agentv eval input` has been run (or run_tests.py)
+    - `agentv pipeline input` has been run (or run_tests.py)
     - response.md exists in each test directory
 
 Output:
@@ -25,11 +25,11 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(description="Run code-grader assertions")
-    parser.add_argument("export_dir", help="Export directory from eval input")
+    parser.add_argument("export_dir", help="Export directory from pipeline input")
     args = parser.parse_args()
 
     result = subprocess.run(
-        ["agentv", "eval", "grade", args.export_dir],
+        ["agentv", "pipeline", "grade", args.export_dir],
         capture_output=False,
     )
     sys.exit(result.returncode)

@@ -1,5 +1,5 @@
 /**
- * `agentv eval bench` — Merge code-grader and LLM grader scores into final
+ * `agentv pipeline bench` — Merge code-grader and LLM grader scores into final
  * benchmark artifacts.
  *
  * Reads code_grader_results from disk and LLM grader scores from stdin,
@@ -31,7 +31,7 @@ export const evalBenchCommand = command({
     exportDir: positional({
       type: string,
       displayName: 'export-dir',
-      description: 'Export directory from eval input/grade',
+      description: 'Export directory from pipeline input/grade',
     }),
   },
   handler: async ({ exportDir }) => {

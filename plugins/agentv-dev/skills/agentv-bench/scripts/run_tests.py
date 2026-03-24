@@ -2,7 +2,7 @@
 """
 Run eval test cases by extracting inputs and invoking CLI targets.
 
-Calls `agentv eval input` to extract inputs, then invokes each test's CLI
+Calls `agentv pipeline input` to extract inputs, then invokes each test's CLI
 target command in parallel, writing response.md per test.
 
 Usage:
@@ -13,15 +13,15 @@ Example:
 
 Output structure:
     <out-dir>/
-    ├── manifest.json          ← from agentv eval input
+    ├── manifest.json          ← from agentv pipeline input
     ├── <test-id>/
-    │   ├── input.json         ← from agentv eval input
-    │   ├── invoke.json        ← from agentv eval input
+    │   ├── input.json         ← from agentv pipeline input
+    │   ├── invoke.json        ← from agentv pipeline input
     │   ├── response.md        ← target output (written by this script)
     │   └── timing.json        ← execution timing (written by this script)
 
 For agent-as-target mode (invoke.json has kind=agent), this script only runs
-`agentv eval input`. The agent handles execution directly.
+`agentv pipeline input`. The agent handles execution directly.
 """
 import argparse
 import json
@@ -35,14 +35,14 @@ from pathlib import Path
 
 
 def run_agentv_input(eval_path: str, out_dir: str) -> dict:
-    """Call agentv eval input and return the manifest."""
+    """Call agentv pipeline input and return the manifest."""
     result = subprocess.run(
-        ["agentv", "eval", "input", eval_path, "--out", out_dir],
+        ["agentv", "pipeline", "input", eval_path, "--out", out_dir],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        print(f"agentv eval input failed:\n{result.stderr}", file=sys.stderr)
+        print(f"agentv pipeline input failed:\n{result.stderr}", file=sys.stderr)
         sys.exit(1)
     manifest_path = Path(out_dir) / "manifest.json"
     return json.loads(manifest_path.read_text())
