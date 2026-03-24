@@ -20,7 +20,7 @@ export type ProviderKind =
   | 'copilot-sdk'
   | 'copilot-cli'
   | 'pi-coding-agent'
-  | 'pi-agent-sdk'
+  | 'pi-cli'
   | 'claude'
   | 'claude-cli'
   | 'claude-sdk'
@@ -39,7 +39,7 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'copilot-sdk',
   'copilot-cli',
   'pi-coding-agent',
-  'pi-agent-sdk',
+  'pi-cli',
   'claude',
   'claude-cli',
   'claude-sdk',
@@ -61,7 +61,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'copilot-sdk',
   'copilot-cli',
   'pi-coding-agent',
-  'pi-agent-sdk',
+  'pi-cli',
   'claude',
   'claude-cli',
   'claude-sdk',

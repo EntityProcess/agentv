@@ -1,7 +1,8 @@
 /**
- * Shared utilities for pi-coding-agent and pi-agent-sdk providers.
+ * Shared utilities for the pi-coding-agent provider.
  *
- * To add a new utility: export it here and import in both provider files.
+ * Provides helpers for extracting text content from Pi's message format
+ * and safe numeric conversions.
  */
 
 /**

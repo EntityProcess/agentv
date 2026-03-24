@@ -48,10 +48,9 @@ targets:
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
-  # Pi Coding Agent - autonomous coding CLI from pi-mono
+  # Pi Coding Agent - autonomous coding agent from pi-mono
   - name: pi
     provider: pi-coding-agent
-    executable: ${{ PI_CLI_PATH }}  # Optional: defaults to `pi` if omitted
     subprovider: openrouter
     model: openai/gpt-5.4
     api_key: ${{ OPENROUTER_API_KEY }}
