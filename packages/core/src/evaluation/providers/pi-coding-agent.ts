@@ -161,7 +161,7 @@ export class PiCodingAgentProvider implements Provider {
       const toolTrackers = new Map<string, ToolExecTracker>();
       const completedToolResults = new Map<string, { output: unknown; durationMs: number }>();
 
-      const unsubscribe = session.subscribe((event: any) => {
+      const unsubscribe = session.subscribe((event) => {
         // Log events for stream logging
         logger?.handleEvent(event);
 
