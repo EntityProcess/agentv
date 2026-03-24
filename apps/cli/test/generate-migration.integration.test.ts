@@ -25,20 +25,4 @@ describe('generate command migration', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).not.toContain('generate');
   });
-
-  it('prints a migration message for retired generate invocations', async () => {
-    const result = await execa('bun', [CLI_ENTRY, 'generate', 'rubrics', 'evals/example.yaml'], {
-      cwd: projectRoot,
-      reject: false,
-      env: {
-        ...process.env,
-        CI: 'true',
-      },
-    });
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('`agentv generate` has been retired.');
-    expect(result.stderr).toContain('Use the `agentv-eval-writer` skill for eval authoring help.');
-    expect(result.stderr).toContain('Choose assertions that fit the criteria');
-  });
 });

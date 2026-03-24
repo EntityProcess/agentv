@@ -110,18 +110,6 @@ export function preprocessArgv(argv: string[]): string[] {
   return result;
 }
 
-function isRetiredGenerateInvocation(argv: string[]): boolean {
-  return argv.slice(2)[0] === 'generate';
-}
-
-function getRetiredGenerateMessage(): string {
-  return [
-    '`agentv generate` has been retired.',
-    'Use the `agentv-eval-writer` skill for eval authoring help.',
-    'Choose assertions that fit the criteria: plain assertions when they are enough, deterministic graders when possible, and LLM-based grading when judgment is needed.',
-  ].join('\n');
-}
-
 export async function runCli(argv: string[] = process.argv): Promise<void> {
   // Kick off update check: reads from local cache (fast), spawns a detached
   // child to refresh if stale. The notice is printed on process exit so it
@@ -133,10 +121,6 @@ export async function runCli(argv: string[] = process.argv): Promise<void> {
   getUpdateNotice(packageJson.version).then((n) => {
     updateNotice = n;
   });
-
-  if (isRetiredGenerateInvocation(argv)) {
-    throw new Error(getRetiredGenerateMessage());
-  }
 
   const processedArgv = preprocessArgv(argv);
   await run(binary(app), processedArgv);
