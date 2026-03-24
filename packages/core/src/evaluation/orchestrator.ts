@@ -83,6 +83,24 @@ function classifyQualityStatus(score: number): ExecutionStatus {
   return score >= QUALITY_PASS_THRESHOLD ? 'ok' : 'quality_failure';
 }
 
+function buildSkippedEvaluatorError(
+  scores: readonly EvaluatorResult[] | undefined,
+): string | undefined {
+  const skippedScores = scores?.filter((score) => score.verdict === 'skip') ?? [];
+  if (skippedScores.length === 0) {
+    return undefined;
+  }
+
+  const messages = skippedScores.map((score) => {
+    const label = score.name || score.type;
+    const assertionMessage =
+      score.assertions.find((assertion) => !assertion.passed)?.text ?? 'Evaluator skipped';
+    return `${label}: ${assertionMessage}`;
+  });
+
+  return messages.length === 1 ? messages[0] : `Evaluators skipped: ${messages.join(' | ')}`;
+}
+
 function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
 }
@@ -1774,9 +1792,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       ...(evalRunTokenUsage ? { tokenUsage: evalRunTokenUsage } : {}),
     };
 
-    const executionStatus: ExecutionStatus = providerError
-      ? 'execution_error'
-      : classifyQualityStatus(result.score);
+    const skippedEvaluatorError = buildSkippedEvaluatorError(result.scores);
+    const executionStatus: ExecutionStatus =
+      providerError || skippedEvaluatorError ? 'execution_error' : classifyQualityStatus(result.score);
 
     const finalResult = providerError
       ? {
@@ -1791,7 +1809,21 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           beforeEachOutput,
           afterEachOutput,
         }
-      : { ...result, evalRun, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
+      : skippedEvaluatorError
+        ? {
+            ...result,
+            score: 0,
+            evalRun,
+            error: skippedEvaluatorError,
+            executionStatus,
+            failureStage: 'evaluator' as const,
+            failureReasonCode: 'evaluator_error',
+            executionError: { message: skippedEvaluatorError, stage: 'evaluator' as const },
+            beforeAllOutput,
+            beforeEachOutput,
+            afterEachOutput,
+          }
+        : { ...result, evalRun, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;

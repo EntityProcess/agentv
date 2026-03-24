@@ -146,6 +146,45 @@ describe('execution status classification', () => {
     expect(result.score).toBeLessThan(0.8);
   });
 
+  it('classifies skipped evaluators as execution_error and zeroes the score', async () => {
+    const provider = new FixedResponseProvider('hello world');
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...baseTestCase,
+        assertions: [
+          { name: 'has-hello', type: 'contains', value: 'hello' },
+          { name: 'quality-check', type: 'llm-grader' },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: {
+        'llm-grader': {
+          kind: 'llm-grader',
+          async evaluate() {
+            return {
+              score: 0,
+              verdict: 'skip' as const,
+              assertions: [
+                { text: 'Grader parse failure after 3 attempts: malformed JSON', passed: false },
+              ],
+              expectedAspectCount: 1,
+            };
+          },
+        },
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.executionStatus).toBe('execution_error');
+    expect(result.failureStage).toBe('evaluator');
+    expect(result.failureReasonCode).toBe('evaluator_error');
+    expect(result.executionError?.message).toContain('quality-check');
+    expect(result.executionError?.message).toContain('Grader parse failure');
+    expect(result.scores?.find((score) => score.name === 'quality-check')?.verdict).toBe('skip');
+  });
+
   it('preserves backward-compatible error field on execution errors', async () => {
     const provider = new ErrorProvider();
 
