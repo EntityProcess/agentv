@@ -1,0 +1,147 @@
+---
+title: Langfuse
+description: Export AgentV evaluation traces to Langfuse via OpenTelemetry
+sidebar:
+  order: 1
+---
+
+AgentV streams evaluation traces to [Langfuse](https://langfuse.com) using standard OTLP/HTTP — no Langfuse SDK required. The `langfuse` backend preset handles endpoint construction and authentication automatically.
+
+## Quick Start
+
+Set your Langfuse credentials as environment variables:
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+export LANGFUSE_SECRET_KEY=sk-lf-...
+```
+
+Run an eval with Langfuse export enabled:
+
+```bash
+agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse
+```
+
+Traces appear in your Langfuse dashboard within seconds.
+
+:::tip
+You can also set these in a `.env` file in your project root. See the [working example](https://github.com/EntityProcess/agentv/tree/main/examples/features/langfuse-export) for a complete setup.
+:::
+
+## How It Works
+
+AgentV uses the vendor-neutral OpenTelemetry protocol (OTLP/HTTP) to send traces. When you select the `langfuse` backend:
+
+1. **Endpoint** is constructed as `{LANGFUSE_HOST}/api/public/otel/v1/traces` (defaults to `https://cloud.langfuse.com`)
+2. **Authentication** uses HTTP Basic Auth built from `LANGFUSE_PUBLIC_KEY:LANGFUSE_SECRET_KEY`
+3. **No SDK dependency** — AgentV sends standard OTLP payloads that Langfuse's OTel-compatible ingestion endpoint accepts directly
+
+## Span Semantics — What Shows Up in Langfuse
+
+Each eval test case produces a trace with the following span hierarchy:
+
+| Span | Name pattern | Key attributes |
+|------|-------------|----------------|
+| Root | `agentv.eval` | test ID, target, score, duration |
+| LLM call | `chat <model>` | model name, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` |
+| Tool call | `execute_tool <name>` | tool name, arguments, results (with `--otel-capture-content`) |
+| Turn | `agentv.turn.N` | groups messages by conversation turn (with `--otel-group-turns`) |
+
+Langfuse dashboards recognize the `gen_ai.*` semantic conventions and display token usage, model names, and cost breakdowns automatically.
+
+## CLI Flags Reference
+
+| Flag | Description |
+|------|-------------|
+| `--export-otel` | Enable live OTel export |
+| `--otel-backend langfuse` | Use the Langfuse endpoint and auth preset |
+| `--otel-capture-content` | Include message and tool content in spans (disabled by default for privacy) |
+| `--otel-group-turns` | Add `agentv.turn.N` parent spans that group messages by conversation turn |
+
+:::caution[Privacy]
+`--otel-capture-content` sends full message and tool I/O to Langfuse. Only enable this when your Langfuse instance has appropriate access controls for the data being evaluated.
+:::
+
+## Config.yaml Alternative
+
+Instead of passing CLI flags every time, declare OTel settings in `.agentv/config.yaml`:
+
+```yaml
+export_otel: true
+otel_backend: langfuse
+```
+
+This is equivalent to running with `--export-otel --otel-backend langfuse` on every eval. CLI flags override config.yaml values when both are present.
+
+You can combine this with other config options:
+
+```yaml
+export_otel: true
+otel_backend: langfuse
+verbose: true
+trace_file: .agentv/results/trace-{timestamp}.jsonl
+```
+
+## Self-Hosted Langfuse
+
+For self-hosted Langfuse instances, set the `LANGFUSE_HOST` environment variable:
+
+```bash
+export LANGFUSE_HOST=https://your-langfuse-instance.com
+```
+
+AgentV constructs the OTel endpoint as `{LANGFUSE_HOST}/api/public/otel/v1/traces`. The authentication mechanism is the same — Basic Auth from your public and secret keys.
+
+## CI/CD (GitHub Actions)
+
+Export eval traces to Langfuse on every push:
+
+```yaml
+name: Eval with Langfuse
+on: [push]
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g agentv
+      - run: agentv eval evals/*.yaml --export-otel --otel-backend langfuse
+        env:
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+```
+
+:::note
+Store `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` as GitHub Actions secrets. Never commit credentials to your repository.
+:::
+
+## Troubleshooting
+
+### Authentication failures
+
+If you see 401 or 403 errors, verify your keys are set correctly:
+
+```bash
+# Check that both variables are present
+echo "Public: ${LANGFUSE_PUBLIC_KEY:0:10}..."
+echo "Secret: ${LANGFUSE_SECRET_KEY:0:10}..."
+```
+
+Ensure you are using the correct key pair for the Langfuse project you expect traces to appear in.
+
+### Traces not appearing
+
+- **Propagation delay** — traces may take a few seconds to appear in the Langfuse dashboard after an eval completes.
+- **Wrong project** — each key pair is scoped to a specific Langfuse project. Confirm you are viewing the correct project in the dashboard.
+- **Self-hosted endpoint** — if using `LANGFUSE_HOST`, verify the URL is reachable and includes the protocol (`https://`).
+
+### Rate limiting (429 responses)
+
+AgentV includes built-in exponential backoff for transient errors. If you are running many concurrent evals, you may still hit rate limits. Reduce concurrency or contact Langfuse support for higher limits.
+
+## Working Example
+
+The [`examples/features/langfuse-export/`](https://github.com/EntityProcess/agentv/tree/main/examples/features/langfuse-export) directory contains a complete working setup with config.yaml, .env.example, and sample eval file. Clone the repo and follow the README to get traces flowing in minutes.
