@@ -33,21 +33,6 @@ export async function createOutputWriter(
   }
 }
 
-export function getDefaultExtension(format: OutputFormat): string {
-  switch (format) {
-    case 'jsonl':
-      return '.jsonl';
-    case 'yaml':
-      return '.yaml';
-    case 'html':
-      return '.html';
-    default: {
-      const exhaustiveCheck: never = format;
-      throw new Error(`Unsupported output format: ${exhaustiveCheck}`);
-    }
-  }
-}
-
 const SUPPORTED_EXTENSIONS = new Set(['.jsonl', '.json', '.xml', '.yaml', '.yml', '.html', '.htm']);
 
 export function createWriterFromPath(filePath: string): Promise<OutputWriter> {

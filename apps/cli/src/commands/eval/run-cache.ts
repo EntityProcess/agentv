@@ -3,6 +3,10 @@ import path from 'node:path';
 
 const CACHE_FILENAME = 'cache.json';
 
+/**
+ * Persisted pointer to the last eval run, stored in .agentv/cache.json.
+ * Keys use camelCase (not snake_case) for backward compat with pre-existing cache files.
+ */
 export interface RunCache {
   /** Directory path for new per-run directory format (e.g. .agentv/results/raw/eval_<ts>/) */
   readonly lastRunDir?: string;
