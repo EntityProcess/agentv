@@ -14,3 +14,8 @@ execution:
   trace_file: .agentv/results/trace-{timestamp}.jsonl
   keep_workspaces: false
   otel_file: .agentv/results/otel-{timestamp}.json
+  # OTel live export (set credentials in .env)
+  # export_otel: true
+  # otel_backend: langfuse
+  # otel_capture_content: false
+  # otel_group_turns: true
