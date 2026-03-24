@@ -165,8 +165,8 @@ export class PiCodingAgentProvider implements Provider {
     const args: string[] = [];
 
     // Provider and model configuration
-    if (this.config.provider) {
-      args.push('--provider', this.config.provider);
+    if (this.config.subprovider) {
+      args.push('--provider', this.config.subprovider);
     }
     if (this.config.model) {
       args.push('--model', this.config.model);
@@ -252,7 +252,7 @@ export class PiCodingAgentProvider implements Provider {
 
     // Map provider-specific API key to the correct env var
     if (this.config.apiKey) {
-      const provider = this.config.provider?.toLowerCase() ?? 'google';
+      const provider = this.config.subprovider?.toLowerCase() ?? 'google';
       switch (provider) {
         case 'google':
         case 'gemini':

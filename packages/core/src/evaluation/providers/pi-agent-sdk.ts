@@ -98,7 +98,7 @@ export class PiAgentSdkProvider implements Provider {
 
     const startTimeIso = new Date().toISOString();
     const startMs = Date.now();
-    const providerName = this.config.provider ?? 'anthropic';
+    const providerName = this.config.subprovider ?? 'anthropic';
     const modelId = this.config.model ?? 'claude-sonnet-4-20250514';
     // Use type assertion since getModel has strict generic constraints for compile-time known values
     // but we're working with runtime configuration strings
@@ -248,7 +248,7 @@ export class PiAgentSdkProvider implements Provider {
           messages: agentMessages,
           systemPrompt,
           model: this.config.model,
-          provider: this.config.provider,
+          subprovider: this.config.subprovider,
         },
         output,
         tokenUsage,
