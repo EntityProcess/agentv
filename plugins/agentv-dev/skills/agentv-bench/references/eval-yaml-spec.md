@@ -172,7 +172,15 @@ Same as contains variants but explicitly case-insensitive.
 #### `code-grader`
 
 - **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
-- **Recipe:** Run the script via Bash. The script receives context as JSON on stdin or via files. Parse stdout for JSON: `{"score": N, "reason": "..."}`
+- **Script SDK:** Use `defineCodeGrader` from `@agentv/eval`:
+  ```typescript
+  import { defineCodeGrader } from '@agentv/eval';
+  export default defineCodeGrader(({ outputText, trace }) => ({
+    score: outputText.includes('expected') ? 1 : 0,
+    assertions: [{ text: 'Contains expected', passed: outputText.includes('expected') }],
+  }));
+  ```
+- **Recipe:** The CLI runs the script, passing context as JSON on stdin (`{output, outputText, input, inputText, ...}`). Script returns `{"score": N, "assertions": [...]}`
 - **PASS:** score >= 0.5 (or as configured).
 
 ### Composite assertion
@@ -250,3 +258,86 @@ eval_set:
 ```
 
 Process each file's tests independently, then aggregate results.
+
+## 7. Agent-Mode Pipeline CLI Commands
+
+These CLI subcommands break the monolithic `eval run` into discrete steps for agent-mode execution. The agent handles LLM grading between steps.
+
+### `agentv eval input <eval-path> --out <dir>`
+
+Extracts inputs, target commands, and grader configs from an eval YAML file.
+
+**Output structure:**
+```
+<out-dir>/
+├── manifest.json
+├── <test-id>/
+│   ├── input.json              ← {input_text, input_messages, file_paths}
+│   ├── invoke.json             ← {kind, command?, cwd?, timeout_ms?}
+│   ├── criteria.md             ← human-readable success criteria
+│   ├── expected_output.json    ← (if present)
+│   ├── code_graders/<name>.json   ← {name, command, weight, config?}
+│   └── llm_graders/<name>.json    ← {name, weight, threshold?, prompt_content}
+```
+
+**`manifest.json` format:**
+```json
+{
+  "eval_file": "path/to/eval.yaml",
+  "timestamp": "2026-03-24T...",
+  "target": {"name": "target-name", "kind": "cli"},
+  "test_ids": ["test-01", "test-02"]
+}
+```
+
+**`invoke.json` kinds:**
+- `kind: "cli"` — has `command`, `cwd`, `timeout_ms`. Use the command to run the target.
+- `kind: "agent"` — agent executes directly, no CLI invocation needed.
+
+### `agentv eval grade <export-dir>`
+
+Runs code-grader assertions against `response.md` files in each test directory.
+
+**Prerequisites:** `eval input` has been run and `response.md` exists in each test dir.
+
+**Output:** `<test-id>/code_grader_results/<name>.json` for each code grader, containing:
+```json
+{
+  "name": "grader-name",
+  "type": "code-grader",
+  "score": 1.0,
+  "weight": 1.0,
+  "assertions": [{"text": "...", "passed": true}]
+}
+```
+
+### `agentv eval bench <export-dir>`
+
+Merges code-grader results with LLM grader scores (read from stdin) and produces final artifacts.
+
+**Stdin format (LLM grader scores):**
+```json
+{
+  "<test-id>": {
+    "<grader-name>": {
+      "score": 0.85,
+      "assertions": [{"text": "...", "passed": true, "evidence": "..."}]
+    }
+  }
+}
+```
+
+**Output:**
+- `<test-id>/grading.json` — merged grading with `evaluators`, `assertions`, `summary.pass_rate`
+- `index.jsonl` — one JSON line per test: `{test_id, score, pass, evaluators: [...]}`
+- `benchmark.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
+
+### Agent-Mode Workflow
+
+```
+1. agentv eval input eval.yaml --out ./export
+2. (Agent runs targets or reads response.md)
+3. agentv eval grade ./export
+4. (Agent does LLM grading, produces scores JSON)
+5. echo '<scores>' | agentv eval bench ./export
+```
