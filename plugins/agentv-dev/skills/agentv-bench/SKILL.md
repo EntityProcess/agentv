@@ -32,25 +32,35 @@ After the agent is working well, you can also run description optimization to im
 
 ## Bundled scripts layer
 
-This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agentv-bench/scripts/`. Requires Python 3.11+. No extra dependencies — all scripts use the stdlib only.
+This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agentv-bench/scripts/`. Requires Python 3.11+ and the `agentv` CLI installed. No extra dependencies — all scripts use the stdlib only.
 
-The scripts layer wraps AgentV rather than replacing it. Use it when you want a provider-agnostic optimization workflow that still relies on core AgentV commands and artifacts:
+### Eval pipeline scripts (agent mode)
 
-- `scripts/quick_validate.py` → validates skill structure and evals.json schema before a run
-- `scripts/aggregate_benchmark.py` → reads `grading.json` artifacts and produces benchmark statistics
-- `scripts/package_skill.py` → packages the skill directory for distribution
+These scripts break the eval pipeline into discrete steps. The agent runs them in order, only handling LLM grading directly:
 
-Keep code-grader execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
+- `scripts/run_tests.py <eval-path> --out <dir>` — Extract inputs and invoke CLI targets in parallel. Writes `response.md` per test. For agent-as-target, only extracts inputs (agent handles execution).
+- `scripts/run_code_graders.py <dir>` — Run code-grader assertions on existing responses. Writes per-grader results.
+- `scripts/bench.py <dir> < llm_scores.json` — Merge code-grader + LLM scores, compute weighted pass_rate, write `grading.json` + `index.jsonl` + `benchmark.json`.
 
-## Scripts
+### Agent-mode workflow
 
-All scripts require Python 3.11+ and no external dependencies beyond the Python stdlib.
+```bash
+# 1. Extract inputs and run CLI targets
+python scripts/run_tests.py evals/repro.eval.yaml --out .agentv/results/export/run-1
 
-### Skill management
+# 2. Run code graders (deterministic, no LLM needed)
+python scripts/run_code_graders.py .agentv/results/export/run-1
+
+# 3. Agent performs LLM grading (reads llm_graders/*.json, produces scores JSON)
+# ... agent reads prompts, grades responses, writes llm_scores.json ...
+
+# 4. Merge all scores and produce final artifacts
+python scripts/bench.py .agentv/results/export/run-1 < llm_scores.json
+```
+
+### Skill management scripts
 - `scripts/quick_validate.py` — validate SKILL.md structure and frontmatter
 - `scripts/package_skill.py` — package skill into a distributable `.skill` zip
-
-### Eval workflow
 - `scripts/aggregate_benchmark.py` — aggregate grading results into benchmark statistics
 
 ## Communicating with the user
@@ -256,80 +266,81 @@ Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
 ### Agent mode: Running eval.yaml without CLI
 
-When `AGENT_EVAL_MODE=agent` (default) or when the AgentV CLI is not available, run eval.yaml files directly using subagents. This mode has zero dependency on the agentv CLI.
+When `AGENT_EVAL_MODE=agent` (default), use the pipeline CLI subcommands (`eval input`, `eval grade`, `eval bench`) and Python wrapper scripts. This mode spends LLM tokens only on grading, not on YAML parsing or target invocation.
 
 **Prerequisites:**
 - The eval.yaml file exists and contains valid test definitions
+- `agentv` CLI is installed (or run from source with `bun apps/cli/src/cli.ts`)
 - Read `references/eval-yaml-spec.md` for the full schema
 
-**Step 1: Parse the eval.yaml**
+**Step 1: Extract inputs and run targets**
 
-Read the eval file. Extract:
-- Top-level `input` (default for all tests if per-test input is absent)
-- `tests[]` array — each test has `id`, `input`, `assertions[]`, optional `expected_output`, `criteria`
-- `workspace` config (if present — for workspace setup/teardown)
+```bash
+# Using Python wrapper (recommended — handles target invocation in parallel):
+python scripts/run_tests.py evals/repro.eval.yaml --out .agentv/results/export/run-1
 
-**Step 2: Spawn executor subagents (parallel)**
-
-For each test, spawn an ad-hoc executor subagent in the same turn:
-
-```
-Execute this task:
-- Context: <optional — skill path, plugin path, or workspace description>
-- Task: <test.input or top-level input>
-- Save your complete response to: .agentv/results/export/<timestamp>/test-<test-id>/response.md
-- Save any output files to: .agentv/results/export/<timestamp>/test-<test-id>/outputs/
+# Or using CLI directly (extract only, agent handles execution):
+agentv eval input evals/repro.eval.yaml --out .agentv/results/export/run-1
 ```
 
-The executor runs in the current workspace — it inherits all CLAUDE.md instructions, skills, plugins, and MCP servers. The workspace IS the agent-under-test environment. The "agent" being evaluated can be a single skill, a plugin, the full workspace, or an eval_set spanning multiple eval files.
+This creates an export directory with per-test `input.json`, `invoke.json`, `criteria.md`, and grader configs (`code_graders/*.json`, `llm_graders/*.json`). For CLI targets, `run_tests.py` also invokes the target and writes `response.md`.
 
-**Step 3: Capture timing as executors complete**
+For agent-as-target mode, the agent executes each test using the extracted `input.json` and writes `response.md` directly.
 
-When each executor subagent completes, save timing data immediately to `.agentv/results/export/<timestamp>/test-<test-id>/timing.json`:
+**Step 2: Run code graders**
+
+```bash
+python scripts/run_code_graders.py .agentv/results/export/run-1
+# Or: agentv eval grade .agentv/results/export/run-1
+```
+
+Executes all code-grader assertions against `response.md` files. Writes `code_grader_results/<name>.json` per test.
+
+**Step 3: LLM grading (agent performs directly)**
+
+The agent reads `llm_graders/<name>.json` for each test, grades the response using the prompt content, and produces a scores JSON:
 
 ```json
 {
-  "total_tokens": 84852,
-  "duration_ms": 23332,
-  "total_duration_seconds": 23.3
+  "test-01": {
+    "relevance": {
+      "score": 0.85,
+      "assertions": [{"text": "Response is relevant", "passed": true, "evidence": "..."}]
+    }
+  }
 }
 ```
 
-**Step 4: Spawn grader subagents (parallel)**
+Dispatch the `grader` subagent (read `agents/grader.md`) for this step.
 
-After an executor completes, spawn a grader subagent (read `agents/grader.md`):
+**Step 4: Merge scores and produce artifacts**
 
-```
-Grade this test case:
-- eval-path: <path to eval.yaml>
-- test-id: <test-id>
-- response-file: .agentv/results/export/<timestamp>/test-<test-id>/response.md
-- bench-dir: .agentv/results/export/<timestamp>/
-- timing-file: .agentv/results/export/<timestamp>/test-<test-id>/timing.json
-Write result to: .agentv/results/export/<timestamp>/test-<test-id>/grading.json
+```bash
+python scripts/bench.py .agentv/results/export/run-1 < llm_scores.json
+# Or: agentv eval bench .agentv/results/export/run-1 < llm_scores.json
 ```
 
-**Step 5: Assemble results.jsonl**
-
-After all graders complete, read each `test-<id>/grading.json` and write one JSONL line per test to `.agentv/results/raw/eval_<timestamp>.jsonl`. Each line maps grading.json fields to AgentV `EvaluationResult` format:
-
-- `grading.assertions` → `assertions`
-- `grading.summary.pass_rate` → `score`
-- `grading.claims` → `extensions.claims`
-- `grading.eval_feedback` → `extensions.eval_feedback`
-- Add: `test_id`, `timestamp`, `execution_status` (`ok` if pass_rate > 0, `quality_failure` otherwise), `mode: "agent"`
+Merges code-grader + LLM scores, computes weighted pass_rate, and writes:
+- `<test-id>/grading.json` — per-test grading breakdown
+- `index.jsonl` — one line per test
+- `benchmark.json` — aggregate statistics
 
 **Output structure:**
 ```
-.agentv/results/
-├── raw/
-│   └── eval_<timestamp>.jsonl         ← AgentV JSONL (assembled from export/)
-└── export/<timestamp>/                 ← skill-creator-compatible
-    └── test-<test-id>/
-        ├── response.md                ← executor output
-        ├── outputs/                   ← executor output files
-        ├── timing.json                ← from subagent notification
-        └── grading.json              ← grader output
+.agentv/results/export/run-1/
+├── manifest.json                    ← eval metadata + test_ids
+├── index.jsonl                      ← per-test scores
+├── benchmark.json                   ← aggregate statistics
+├── <test-id>/
+│   ├── input.json                   ← test input text + messages
+│   ├── invoke.json                  ← target command or agent instructions
+│   ├── criteria.md                  ← grading criteria
+│   ├── response.md                  ← target/agent output
+│   ├── timing.json                  ← execution timing
+│   ├── code_graders/<name>.json     ← code grader configs
+│   ├── llm_graders/<name>.json      ← LLM grader configs
+│   ├── code_grader_results/<name>.json ← code grader results
+│   └── grading.json                 ← merged grading
 ```
 
 ---
