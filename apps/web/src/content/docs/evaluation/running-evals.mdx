@@ -77,6 +77,10 @@ agentv eval evals/my-eval.yaml --out results/baseline.jsonl
 
 Export execution traces (tool calls, timing, spans) to files for debugging and analysis:
 
+When AgentV writes to its default per-run workspace, it also writes a human-readable trace file at
+`<run-dir>/trace.jsonl` so `agentv trace` has a full-fidelity local trace source even when
+`index.jsonl` is the primary run manifest.
+
 ```bash
 # Human-readable JSONL trace (one record per test case)
 agentv eval evals/my-eval.yaml --trace-file traces/eval.jsonl
