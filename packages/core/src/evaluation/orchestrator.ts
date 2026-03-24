@@ -1794,7 +1794,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     const skippedEvaluatorError = buildSkippedEvaluatorError(result.scores);
     const executionStatus: ExecutionStatus =
-      providerError || skippedEvaluatorError ? 'execution_error' : classifyQualityStatus(result.score);
+      providerError || skippedEvaluatorError
+        ? 'execution_error'
+        : classifyQualityStatus(result.score);
 
     const finalResult = providerError
       ? {
@@ -1823,7 +1825,14 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
             beforeEachOutput,
             afterEachOutput,
           }
-        : { ...result, evalRun, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
+        : {
+            ...result,
+            evalRun,
+            executionStatus,
+            beforeAllOutput,
+            beforeEachOutput,
+            afterEachOutput,
+          };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
