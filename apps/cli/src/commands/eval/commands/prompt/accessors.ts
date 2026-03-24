@@ -171,20 +171,7 @@ function buildFileMap(
     }
 
     for (const segment of message.content) {
-      if (
-        segment.type === 'file' &&
-        typeof segment.resolvedPath === 'string' &&
-        typeof segment.value === 'string'
-      ) {
-        map.set(segment.value, segment.resolvedPath);
-      }
-      if (
-        segment.type === 'file' &&
-        typeof segment.resolvedPath === 'string' &&
-        typeof segment.path === 'string'
-      ) {
-        map.set(segment.path, segment.resolvedPath);
-      }
+      registerResolvedFileSegment(map, segment);
     }
   }
 
@@ -199,6 +186,23 @@ function buildFileMap(
       return this.get(key) !== undefined;
     },
   } as Map<string, string>;
+}
+
+function registerResolvedFileSegment(map: Map<string, string>, segment: JsonObject): void {
+  if (segment.type !== 'file' || typeof segment.resolvedPath !== 'string') {
+    return;
+  }
+
+  // `value` is the authored file reference from the eval. `path` is the
+  // normalized display/reference path attached during parsing. Usually they are
+  // the same, but both are valid lookup aliases for downstream prompt tooling.
+  const aliases = [segment.value, segment.path].filter(
+    (alias): alias is string => typeof alias === 'string',
+  );
+
+  for (const alias of aliases) {
+    map.set(alias, segment.resolvedPath);
+  }
 }
 
 /**
