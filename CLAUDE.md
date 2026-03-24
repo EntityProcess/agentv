@@ -290,7 +290,17 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 When working on a GitHub issue, **ALWAYS** follow this workflow:
 
-1. **Create a feature branch** from `main`:
+1. **Claim the issue** — prevents other agents from duplicating work:
+   ```bash
+   # Check if already claimed
+   gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
+
+   # Claim it
+   gh issue edit <number> --add-label "in-progress"
+   ```
+   If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
+
+2. **Create a feature branch** from `main`:
    ```bash
    git checkout main
    git pull origin main
@@ -298,19 +308,21 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    # Example: feat/42-add-new-embedder
    ```
 
-2. **Implement the changes** and commit following the commit convention
+3. **Implement the changes** and commit following the commit convention
 
-3. **Push the branch and create a Pull Request**:
+4. **Push the branch and create a Pull Request**:
    ```bash
    git push -u origin <branch-name>
    gh pr create --title "<type>(scope): description" --body "Closes #<issue-number>"
    ```
 
-4. **Before merging**, ensure:
+5. **Before merging**, ensure:
    - **E2E verification completed** (see "Completing Work — E2E Checklist")
    - CI pipeline passes (all checks green)
    - Code has been reviewed if required
    - No merge conflicts with `main`
+
+The `in-progress` label stays on the issue until the PR is merged and the issue is closed. Do not remove it manually.
 
 **IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
 
@@ -320,6 +332,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 - Issues in the roadmap are prioritized; issues outside it are not.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
+- `in-progress` marks an issue as claimed by an agent — do not start work on it.
 - `core`, `wui`, and `tui` are area labels.
 - Keep issue bodies focused on the handoff contract: objective, design latitude, acceptance signals, non-goals, and related links.
 - Do not put priority metadata in issue bodies.
