@@ -1,0 +1,125 @@
+# Multi-turn conversation evaluation example
+# Demonstrates conversation-level grading with composable llm-grader prompts
+# and structured per-turn score breakdowns in the `details` field.
+
+description: Multi-turn conversation evaluation with per-turn score breakdown
+
+execution:
+  target: default
+
+tests:
+  - id: support-context-retention
+    criteria: |-
+      Agent maintains context across all turns: remembers customer name (Sarah),
+      order number (#98765), and Friday delivery deadline. Provides relevant,
+      helpful responses. Maintains professional support persona throughout.
+
+    input:
+      - role: system
+        content: |-
+          You are a customer support agent for ShopFast. Be professional, empathetic,
+          and solution-oriented. Always address customers by name once introduced.
+      - role: user
+        content: |-
+          Hi, my name is Sarah. I placed an order last week and it still hasn't arrived.
+          My order number is #98765.
+      - role: assistant
+        content: |-
+          Hello Sarah! I'm sorry to hear your order hasn't arrived yet. Let me look up
+          order #98765 for you right away. I can see it was shipped on March 3rd via
+          standard delivery. It appears there's been a delay at the regional sorting
+          facility. Would you like me to check on expedited options?
+      - role: user
+        content: |-
+          Yes please. I really need it by Friday - it's a birthday gift for my daughter.
+      - role: assistant
+        content: |-
+          I completely understand the urgency, Sarah. A birthday gift definitely can't
+          be late! I've flagged order #98765 for priority handling. I can offer you two
+          options: (1) upgrade to express shipping at no extra cost, estimated delivery
+          Thursday, or (2) reroute to our nearest pickup location where it could be
+          available as early as Wednesday.
+      - role: user
+        content: |-
+          The express shipping sounds great. Also, can you add gift wrapping?
+
+    expected_output:
+      - role: assistant
+        content: |-
+          Absolutely, Sarah! I've upgraded order #98765 to express shipping - it should
+          arrive by Thursday, well before Friday. I've also added complimentary gift
+          wrapping since this is a special occasion. You'll receive a tracking update
+          shortly. Is there anything else I can help with for your daughter's birthday?
+
+    assertions:
+      - name: context_retention
+        type: llm-grader
+        prompt: ../graders/context-retention.md
+        required: true
+      - name: conversation_relevancy
+        type: llm-grader
+        prompt: ../graders/conversation-relevancy.md
+        weight: 2
+      - name: role_adherence
+        type: llm-grader
+        prompt: ../graders/role-adherence.md
+      - type: contains
+        value: "#98765"
+
+  - id: support-troubleshooting-flow
+    criteria: |-
+      Agent tracks problem context (WiFi connectivity), steps already attempted
+      (router restart), and user's stated technical comfort level (beginner)
+      across turns. Does not repeat already-tried solutions. Adjusts explanation
+      complexity to match the user's level.
+
+    input:
+      - role: system
+        content: |-
+          You are a technical support agent for NetConnect ISP. Adapt your
+          explanations to the customer's technical level. Never suggest steps
+          the customer has already tried.
+      - role: user
+        content: |-
+          My WiFi keeps dropping every 10 minutes. I already restarted my router
+          twice today. I'm not very tech-savvy so please keep it simple.
+      - role: assistant
+        content: |-
+          I'm sorry you're dealing with that - WiFi dropping out is really
+          frustrating! Since you've already restarted the router, let's skip that
+          step. Could you tell me: does the light on the front of your router stay
+          solid green, or does it blink or turn a different color when the WiFi drops?
+      - role: user
+        content: |-
+          It blinks orange for a few seconds then goes back to green.
+      - role: assistant
+        content: |-
+          That orange blinking usually means the router is briefly losing its
+          connection to our network. Let's try something simple: can you find the
+          small cable plugged into the back of your router labeled "WAN" or
+          "Internet"? Just unplug it, wait 10 seconds, and plug it back in firmly.
+          Sometimes it just needs a better connection.
+      - role: user
+        content: |-
+          OK I did that. What if it happens again?
+
+    expected_output:
+      - role: assistant
+        content: |-
+          Great, let's see if that helps! If the WiFi drops again in the next
+          30 minutes, it might be an issue on our end. In that case, I'll schedule
+          a technician visit at a time that works for you - no charge. Just let me
+          know if it happens again.
+
+    assertions:
+      - name: context_retention
+        type: llm-grader
+        prompt: ../graders/context-retention.md
+        required: true
+      - name: conversation_relevancy
+        type: llm-grader
+        prompt: ../graders/conversation-relevancy.md
+        weight: 2
+      - name: role_adherence
+        type: llm-grader
+        prompt: ../graders/role-adherence.md

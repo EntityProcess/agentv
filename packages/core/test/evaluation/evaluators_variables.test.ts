@@ -193,4 +193,41 @@ Expected Messages: {{ expected_output }}
     // Verify no unreplaced template markers remain
     expect(request?.question).not.toMatch(/\{\{\s*\w+\s*\}\}/);
   });
+
+  it('preserves freeform details returned by the grader', async () => {
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => undefined,
+    });
+
+    const result = (
+      evaluator as unknown as {
+        parseAgentResult: (
+          text: string,
+          rubrics: undefined,
+          evaluatorRawRequest: Record<string, unknown>,
+          details: Record<string, unknown>,
+          graderTarget?: string,
+        ) => { details?: Record<string, unknown> };
+      }
+    ).parseAgentResult(
+      JSON.stringify({
+        score: 0.75,
+        assertions: [{ text: 'Context retained', passed: true }],
+        details: {
+          scores_per_turn: [1, 0.5],
+          total_turns: 2,
+        },
+      }),
+      undefined,
+      { userPrompt: 'Prompt' },
+      { mode: 'delegate' },
+      'capturing',
+    );
+
+    expect(result.details).toEqual({
+      mode: 'delegate',
+      scores_per_turn: [1, 0.5],
+      total_turns: 2,
+    });
+  });
 });
