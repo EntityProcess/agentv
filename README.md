@@ -203,14 +203,17 @@ See `agentv eval --help` for all options: workers, timeouts, output formats, tra
 Write results to different formats using the `-o` flag (format auto-detected from extension):
 
 ```bash
-# JSONL (default streaming format)
-agentv eval evals/my-eval.yaml -o results.jsonl
+# Default run workspace (index.jsonl + benchmark/timing/per-test artifacts)
+agentv eval evals/my-eval.yaml
 
 # Self-contained HTML dashboard (opens in any browser, no server needed)
 agentv eval evals/my-eval.yaml -o report.html
 
+# Explicit JSONL compatibility output
+agentv eval evals/my-eval.yaml -o results.jsonl
+
 # Multiple formats simultaneously
-agentv eval evals/my-eval.yaml -o results.jsonl -o report.html
+agentv eval evals/my-eval.yaml -o report.html
 
 # JUnit XML for CI/CD integration
 agentv eval evals/my-eval.yaml -o results.xml
@@ -218,10 +221,14 @@ agentv eval evals/my-eval.yaml -o results.xml
 
 The HTML report auto-refreshes every 2 seconds during a live run, then locks once the run completes.
 
-You can also convert an existing JSONL results file to HTML after the fact:
+By default, `agentv eval` now creates a run workspace under `.agentv/results/raw/<run>/`
+with `index.jsonl` as the primary machine-facing manifest. A compatibility `results.jsonl`
+is still written alongside it for legacy tooling during the deprecation window.
+
+You can also convert an existing manifest or compatibility JSONL file to HTML after the fact:
 
 ```bash
-agentv convert results.jsonl -o report.html
+agentv convert .agentv/results/raw/eval_<timestamp>/index.jsonl -o report.html
 ```
 
 #### Timeouts
@@ -352,7 +359,7 @@ agentv create eval my-eval          # → evals/my-eval.eval.yaml + .cases.jsonl
 Compare a combined results file across all targets (N-way matrix):
 
 ```bash
-agentv compare results.jsonl
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl
 ```
 
 ```
@@ -373,8 +380,8 @@ Pairwise Summary:
 Designate a baseline for CI regression gating, or compare two specific targets:
 
 ```bash
-agentv compare results.jsonl --baseline gpt-4.1                          # exit 1 on regression
-agentv compare results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini  # pairwise
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 agentv compare before.jsonl after.jsonl                                  # two-file pairwise
 ```
 
