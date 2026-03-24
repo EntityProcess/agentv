@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const OUT_DIR = join(import.meta.dirname, '__tmp_bench_test__');
-const CLI_ENTRY = join(import.meta.dirname, '../../../../cli.ts');
+const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 
 describe('eval bench', () => {
   beforeEach(async () => {
@@ -24,7 +24,6 @@ describe('eval bench', () => {
         test_ids: ['test-01'],
       }),
     );
-    // Code grader result
     await writeFile(
       join(codeResultsDir, 'contains.json'),
       JSON.stringify({
@@ -35,7 +34,6 @@ describe('eval bench', () => {
         assertions: [{ text: 'Found keyword', passed: true }],
       }),
     );
-    // LLM grader metadata (for weight)
     await writeFile(
       join(llmGradersDir, 'relevance.json'),
       JSON.stringify({
@@ -45,7 +43,6 @@ describe('eval bench', () => {
         prompt_content: '...',
       }),
     );
-    // Code grader metadata (for weight)
     await writeFile(
       join(codeGradersDir, 'contains.json'),
       JSON.stringify({
@@ -93,7 +90,10 @@ describe('eval bench', () => {
     await execa('bun', [CLI_ENTRY, 'eval', 'bench', OUT_DIR], { input: llmScores });
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
-    const lines = indexContent.trim().split('\n').map(JSON.parse);
+    const lines = indexContent
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
     expect(lines).toHaveLength(1);
     expect(lines[0].test_id).toBe('test-01');
     expect(lines[0].score).toBeGreaterThan(0);

@@ -11,7 +11,7 @@
  * Stdin format (LLM scores):
  *   { "<test-id>": { "<grader-name>": { "score": 0.85, "assertions": [...] } } }
  */
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { command, positional, string } from 'cmd-ts';
@@ -43,7 +43,10 @@ export const evalBenchCommand = command({
     const stdinData = await readStdin();
     const llmScores: Record<
       string,
-      Record<string, { score: number; assertions: { text: string; passed: boolean; evidence?: string }[] }>
+      Record<
+        string,
+        { score: number; assertions: { text: string; passed: boolean; evidence?: string }[] }
+      >
     > = stdinData ? JSON.parse(stdinData) : {};
 
     const indexLines: string[] = [];
@@ -112,9 +115,8 @@ export const evalBenchCommand = command({
 
       const passed = allAssertions.filter((a) => a.passed).length;
       const failed = allAssertions.filter((a) => !a.passed).length;
-      const passRate = allAssertions.length > 0
-        ? Math.round((passed / allAssertions.length) * 1000) / 1000
-        : 0;
+      const passRate =
+        allAssertions.length > 0 ? Math.round((passed / allAssertions.length) * 1000) / 1000 : 0;
 
       allPassRates.push(passRate);
 
@@ -181,9 +183,7 @@ export const evalBenchCommand = command({
       'utf8',
     );
 
-    console.log(
-      `Benchmark: ${testIds.length} test(s), pass_rate=${passRateStats.mean}`,
-    );
+    console.log(`Benchmark: ${testIds.length} test(s), pass_rate=${passRateStats.mean}`);
   },
 });
 

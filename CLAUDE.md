@@ -300,6 +300,24 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    ```
    If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
 
+   Also update the project board status to "In Progress":
+   ```bash
+   # Find the project item ID for this issue
+   gh project item-list 1 --owner EntityProcess --format json | python3 -c "
+   import json, sys
+   data = json.load(sys.stdin)
+   for item in data.get('items', []):
+       if item.get('content', {}).get('number') == <number>:
+           print(item['id']); break
+   "
+
+   # Update status to In Progress (field ID and option ID from project config)
+   gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF \
+     --id <item-id> \
+     --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw \
+     --single-select-option-id "47fc9ee4"
+   ```
+
 2. **Create a worktree** with a feature branch:
    ```bash
    git worktree add agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description>
@@ -368,7 +386,9 @@ git checkout -b fix/<short-description>
 
 #### Plans
 
-Design documents and implementation plans are stored in `.claude/plans/`. These are temporary working materials. Once development concludes, delete the plan file and incorporate any user-relevant details into the official documentation.
+Design documents and implementation plans are stored in `docs/plans/` inside the worktree (not the main repo). Save plans to the worktree so they are committed on the feature branch and visible in the draft PR.
+
+Plans are temporary working materials. **Before merging the PR**, delete the plan file and incorporate any user-relevant details into the official documentation.
 
 #### Git Worktrees
 

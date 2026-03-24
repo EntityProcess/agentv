@@ -9,7 +9,7 @@
  * Export directory additions:
  *   <out-dir>/<test-id>/code_grader_results/<name>.json
  */
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { executeScript } from '@agentv/core';

@@ -21,11 +21,7 @@ import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-import type {
-  CodeEvaluatorConfig,
-  EvaluatorConfig,
-  LlmGraderEvaluatorConfig,
-} from '@agentv/core';
+import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
 import { loadTestSuite } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
 

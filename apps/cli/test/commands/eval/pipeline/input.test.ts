@@ -2,9 +2,9 @@ import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const FIXTURE_DIR = join(import.meta.dirname, '../__fixtures__');
+const FIXTURE_DIR = join(import.meta.dirname, 'fixtures');
 const OUT_DIR = join(import.meta.dirname, '__tmp_input_test__');
-const CLI_ENTRY = join(import.meta.dirname, '../../../../cli.ts');
+const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 const EVAL_PATH = join(FIXTURE_DIR, 'input-test.eval.yaml');
 
 describe('eval input', () => {

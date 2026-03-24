@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const OUT_DIR = join(import.meta.dirname, '__tmp_grade_test__');
-const CLI_ENTRY = join(import.meta.dirname, '../../../../cli.ts');
+const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 
 describe('eval grade', () => {
   beforeEach(async () => {
@@ -24,7 +24,11 @@ describe('eval grade', () => {
       join(codeGradersDir, 'always_pass.json'),
       JSON.stringify({
         name: 'always_pass',
-        command: ['bash', '-c', "echo '{\"score\":1,\"assertions\":[{\"text\":\"pass\",\"passed\":true}]}'"],
+        command: [
+          'bash',
+          '-c',
+          'echo \'{"score":1,"assertions":[{"text":"pass","passed":true}]}\'',
+        ],
         weight: 1.0,
       }),
     );
