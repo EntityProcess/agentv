@@ -95,7 +95,7 @@ function hydrateInput(
   }
 
   const messages = parseMarkdownMessages(inputText);
-  return messages.length > 0 ? messages : inputText;
+  return messages.length > 0 ? messages : [{ role: 'user', content: inputText.trimEnd() }];
 }
 
 function hydrateOutput(
