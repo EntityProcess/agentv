@@ -5,7 +5,15 @@ sidebar:
   order: 5
 ---
 
-The `trace` command provides headless trace inspection and analysis — no server or dashboard needed. All data is read from local JSONL result files.
+The `trace` command provides headless trace inspection and analysis — no server or dashboard needed.
+
+Supported sources:
+
+- Run workspaces or `index.jsonl` manifests for summary-level fallback
+- Simple trace JSONL files written via `agentv eval --trace-file ...`
+- OTLP JSON files written via `agentv eval --otel-file ...`
+
+For full tool-call inspection, prefer exported trace files over eval manifests.
 
 ## Subcommands
 
@@ -24,13 +32,13 @@ Shows filename, test count, pass rate, average score, file size, and timestamp f
 Display evaluation results with trace details.
 
 ```bash
-agentv trace show <result-file> [--test-id <id>] [--tree] [--format json|table]
+agentv trace show <trace-source> [--test-id <id>] [--tree] [--format json|table]
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--test-id` | Filter to a specific test ID |
-| `--tree` | Show hierarchical trace tree (requires results with output messages) |
+| `--tree` | Show hierarchical trace tree from output messages or exported trace spans |
 | `--format`, `-f` | Output format: `table` (default), `json` |
 
 #### Tree View
@@ -55,7 +63,7 @@ Falls back to a flat summary when output messages are not present in the result 
 Compute summary statistics (percentiles) across evaluation results.
 
 ```bash
-agentv trace stats <result-file> [--group-by target|dataset|test-id] [--format json|table]
+agentv trace stats <trace-source> [--group-by target|dataset|test-id] [--format json|table]
 ```
 
 | Option | Description |
@@ -82,11 +90,11 @@ All commands support `--format json` for piping to `jq`:
 
 ```bash
 # Find tests costing more than $0.10
-agentv trace show results.jsonl --format json \
+agentv trace show trace.jsonl --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
-agentv trace stats results.jsonl --group-by target --format json \
+agentv trace stats trace.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```
 

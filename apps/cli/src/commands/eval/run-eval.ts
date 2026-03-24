@@ -645,8 +645,13 @@ async function runSingleEvalFile(params: {
     });
   }
 
-  // Create streaming observer for real-time OTel span export
-  const streamingObserver = otelExporter?.createStreamingObserver() ?? null;
+  // Use streaming spans only for live remote export. File exports should use
+  // post-hoc exportResult(result), which has the complete EvaluationResult and
+  // avoids cross-test interleaving issues under parallel execution.
+  const useStreamingObserver = !!(otelExporter && options.exportOtel);
+  const streamingObserver = useStreamingObserver
+    ? (otelExporter?.createStreamingObserver() ?? null)
+    : null;
   const results = await evaluationRunner({
     testFilePath,
     repoRoot,
@@ -681,6 +686,9 @@ async function runSingleEvalFile(params: {
     model: options.model,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
+      (
+        streamingObserver as { completeFromResult?: (result: EvaluationResult) => void } | null
+      )?.completeFromResult?.(result);
       // Finalize streaming observer span with score
       streamingObserver?.finalizeEvalCase(result.score, result.error);
 
@@ -829,9 +837,17 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
+  const usesDefaultArtifactWorkspace = !options.outPath;
+  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
+  const defaultTraceFile =
+    usesDefaultArtifactWorkspace && !options.traceFile
+      ? path.join(path.dirname(outputPath), 'trace.jsonl')
+      : undefined;
+  const traceFilePath = options.traceFile ? path.resolve(options.traceFile) : defaultTraceFile;
+
   // Initialize OTel exporter if --export-otel flag is set or file export flags are used
   let otelExporter: OtelTraceExporterType | null = null;
-  const useFileExport = !!(options.otelFile || options.traceFile);
+  const useFileExport = !!(options.otelFile || traceFilePath);
 
   if (options.exportOtel || useFileExport) {
     try {
@@ -868,7 +884,7 @@ export async function runEvalCommand(
         captureContent,
         groupTurns: options.otelGroupTurns,
         otlpFilePath: options.otelFile ? path.resolve(options.otelFile) : undefined,
-        traceFilePath: options.traceFile ? path.resolve(options.traceFile) : undefined,
+        traceFilePath,
       });
 
       const initialized = await otelExporter.init();
@@ -886,8 +902,6 @@ export async function runEvalCommand(
     }
   }
 
-  const usesDefaultArtifactWorkspace = !options.outPath;
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
   const primaryWritePath = usesDefaultArtifactWorkspace
     ? path.join(path.dirname(outputPath), LEGACY_RESULTS_FILENAME)
     : outputPath;
@@ -921,8 +935,8 @@ export async function runEvalCommand(
   if (options.otelFile) {
     console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
   }
-  if (options.traceFile) {
-    console.log(`Trace file: ${path.resolve(options.traceFile)}`);
+  if (traceFilePath) {
+    console.log(`Trace file: ${traceFilePath}`);
   }
 
   // Determine cache state after loading file metadata (need YAML config)
