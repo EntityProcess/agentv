@@ -295,18 +295,13 @@ function normalizeOptions(
       (config?.execution?.traceFile
         ? resolveTimestampPlaceholder(config.execution.traceFile)
         : undefined),
-    exportOtel:
-      normalizeBoolean(rawOptions.exportOtel) ||
-      yamlExecution?.export_otel === true,
-    otelBackend:
-      normalizeString(rawOptions.otelBackend) ??
-      yamlExecution?.otel_backend,
+    exportOtel: normalizeBoolean(rawOptions.exportOtel) || yamlExecution?.export_otel === true,
+    otelBackend: normalizeString(rawOptions.otelBackend) ?? yamlExecution?.otel_backend,
     otelCaptureContent:
       normalizeBoolean(rawOptions.otelCaptureContent) ||
       yamlExecution?.otel_capture_content === true,
     otelGroupTurns:
-      normalizeBoolean(rawOptions.otelGroupTurns) ||
-      yamlExecution?.otel_group_turns === true,
+      normalizeBoolean(rawOptions.otelGroupTurns) || yamlExecution?.otel_group_turns === true,
     retryErrors: normalizeString(rawOptions.retryErrors),
     workspaceMode,
     workspacePath,
