@@ -1416,9 +1416,7 @@ function resolvePiCodingAgentConfig(
   evalFilePath?: string,
 ): PiCodingAgentResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
-  // subprovider is canonical; pi_provider, piProvider, llm_provider are deprecated aliases
-  const subproviderSource =
-    target.subprovider ?? target.pi_provider ?? target.piProvider ?? target.llm_provider;
+  const subproviderSource = target.subprovider;
   const modelSource = target.model ?? target.pi_model ?? target.piModel;
   const apiKeySource = target.api_key ?? target.apiKey;
   const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
@@ -1533,9 +1531,7 @@ function resolvePiAgentSdkConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): PiAgentSdkResolvedConfig {
-  // subprovider is canonical; pi_provider, piProvider, llm_provider are deprecated aliases
-  const subproviderSource =
-    target.subprovider ?? target.pi_provider ?? target.piProvider ?? target.llm_provider;
+  const subproviderSource = target.subprovider;
   const modelSource = target.model ?? target.pi_model ?? target.piModel;
   const apiKeySource = target.api_key ?? target.apiKey;
   const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
