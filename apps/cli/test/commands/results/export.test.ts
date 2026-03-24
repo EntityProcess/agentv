@@ -6,6 +6,7 @@ import path from 'node:path';
 import type {
   BenchmarkArtifact,
   GradingArtifact,
+  IndexArtifactEntry,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { exportResults } from '../../../src/commands/results/export.js';
@@ -127,6 +128,37 @@ describe('results export', () => {
     expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
+  it('should create index.jsonl with per-test artifact pointers', () => {
+    const outputDir = path.join(tempDir, 'output');
+    const resultWithInput = {
+      ...RESULT_FULL,
+      execution_status: 'ok',
+      input: [{ role: 'user', content: 'Hello' }],
+    };
+    const content = toJsonl(resultWithInput);
+
+    exportResults('test.jsonl', content, outputDir);
+
+    const indexPath = path.join(outputDir, 'index.jsonl');
+    expect(existsSync(indexPath)).toBe(true);
+
+    const entries = readFileSync(indexPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      test_id: 'test-greeting',
+      target: 'gpt-4o',
+      execution_status: 'ok',
+      grading_path: 'test-greeting/grading.json',
+      timing_path: 'test-greeting/timing.json',
+      output_path: 'test-greeting/outputs/response.md',
+      input_path: 'test-greeting/input.md',
+    });
+  });
+
   it('should create per-test timing.json with run timing', () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
@@ -224,6 +256,7 @@ describe('results export', () => {
     exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'index.jsonl'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
     expect(existsSync(path.join(outputDir, 'test-greeting', 'grading.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'test-math', 'grading.json'))).toBe(true);

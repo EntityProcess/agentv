@@ -5,6 +5,7 @@
  * Output structure:
  *   <output-dir>/
  *     benchmark.json           — aggregate scores, pass/fail counts, timing
+ *     index.jsonl              — per-test manifest with artifact pointers
  *     <test-id>/
  *       grading.json           — per-test grading artifact (assertions, evaluators)
  *       timing.json            — per-test timing artifact
@@ -28,6 +29,7 @@ import type { EvaluationResult } from '@agentv/core';
 import {
   buildBenchmarkArtifact,
   buildGradingArtifact,
+  buildIndexArtifactEntry,
   buildTimingArtifact,
   parseJsonlResults,
 } from '../eval/artifact-writer.js';
@@ -56,6 +58,7 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   // benchmark.json — aggregate across all results
   const benchmark = buildBenchmarkArtifact(patched, sourceFile);
   writeFileSync(path.join(outputDir, 'benchmark.json'), `${JSON.stringify(benchmark, null, 2)}\n`);
+  const indexLines: string[] = [];
 
   // <test-id>/... — per-test workspace artifacts
   for (const result of patched) {
@@ -64,19 +67,38 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
     const outputsDir = path.join(testDir, 'outputs');
     const grading = buildGradingArtifact(result);
     const perTestTiming = buildTimingArtifact([result]);
+    const gradingPath = path.join(testDir, 'grading.json');
+    const perTestTimingPath = path.join(testDir, 'timing.json');
     mkdirSync(testDir, { recursive: true });
-    writeFileSync(path.join(testDir, 'grading.json'), `${JSON.stringify(grading, null, 2)}\n`);
-    writeFileSync(path.join(testDir, 'timing.json'), `${JSON.stringify(perTestTiming, null, 2)}\n`);
+    writeFileSync(gradingPath, `${JSON.stringify(grading, null, 2)}\n`);
+    writeFileSync(perTestTimingPath, `${JSON.stringify(perTestTiming, null, 2)}\n`);
+    let outputPath: string | undefined;
     if (result.output && result.output.length > 0) {
       const md = formatOutputMarkdown(result.output);
       mkdirSync(outputsDir, { recursive: true });
-      writeFileSync(path.join(outputsDir, 'response.md'), md);
+      outputPath = path.join(outputsDir, 'response.md');
+      writeFileSync(outputPath, md);
     }
+    let inputPath: string | undefined;
     const input = extractInput(result);
     if (input) {
-      writeFileSync(path.join(testDir, 'input.md'), input);
+      inputPath = path.join(testDir, 'input.md');
+      writeFileSync(inputPath, input);
     }
+    indexLines.push(
+      JSON.stringify(
+        buildIndexArtifactEntry(result, {
+          outputDir,
+          gradingPath,
+          timingPath: perTestTimingPath,
+          outputPath,
+          inputPath,
+        }),
+      ),
+    );
   }
+
+  writeFileSync(path.join(outputDir, 'index.jsonl'), `${indexLines.join('\n')}\n`);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

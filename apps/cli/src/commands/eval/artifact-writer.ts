@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
+import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 
 // ---------------------------------------------------------------------------
 // Artifact interfaces (snake_case to match skill-creator conventions)
@@ -90,6 +91,25 @@ export interface AggregateGradingArtifact {
     readonly total: number;
     readonly pass_rate: number;
   };
+}
+
+export interface IndexArtifactEntry {
+  readonly timestamp: string;
+  readonly test_id: string;
+  readonly eval_set?: string;
+  readonly conversation_id?: string;
+  readonly score: number;
+  readonly target: string;
+  readonly scores?: readonly Record<string, unknown>[];
+  readonly execution_status?: string;
+  readonly error?: string;
+  readonly failure_stage?: string;
+  readonly failure_reason_code?: string;
+  readonly workspace_path?: string;
+  readonly grading_path: string;
+  readonly timing_path: string;
+  readonly output_path?: string;
+  readonly input_path?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +445,50 @@ export function buildAggregateGradingArtifact(
   };
 }
 
+function toRelativeArtifactPath(outputDir: string, filePath: string): string {
+  return path.relative(outputDir, filePath).split(path.sep).join('/');
+}
+
+function safeTestId(result: EvaluationResult): string {
+  return (result.testId ?? 'unknown').replace(/[/\\:*?"<>|]/g, '_');
+}
+
+export function buildIndexArtifactEntry(
+  result: EvaluationResult,
+  options: {
+    outputDir: string;
+    gradingPath: string;
+    timingPath: string;
+    outputPath?: string;
+    inputPath?: string;
+  },
+): IndexArtifactEntry {
+  return {
+    timestamp: result.timestamp,
+    test_id: result.testId ?? 'unknown',
+    eval_set: result.eval_set,
+    conversation_id: result.conversationId,
+    score: result.score,
+    target: result.target ?? 'unknown',
+    scores: result.scores
+      ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
+      : undefined,
+    execution_status: result.executionStatus,
+    error: result.error,
+    failure_stage: result.failureStage,
+    failure_reason_code: result.failureReasonCode,
+    workspace_path: result.workspacePath,
+    grading_path: toRelativeArtifactPath(options.outputDir, options.gradingPath),
+    timing_path: toRelativeArtifactPath(options.outputDir, options.timingPath),
+    output_path: options.outputPath
+      ? toRelativeArtifactPath(options.outputDir, options.outputPath)
+      : undefined,
+    input_path: options.inputPath
+      ? toRelativeArtifactPath(options.outputDir, options.inputPath)
+      : undefined,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Snake_case to camelCase conversion for reading JSONL files
 // ---------------------------------------------------------------------------
@@ -475,7 +539,7 @@ export function parseJsonlResults(content: string): EvaluationResult[] {
 }
 
 // ---------------------------------------------------------------------------
-// Artifact writer — reads JSONL and writes all three artifact types
+// Artifact writer — reads JSONL and writes the per-test artifact workspace
 // ---------------------------------------------------------------------------
 
 export async function writeArtifacts(
@@ -484,6 +548,7 @@ export async function writeArtifacts(
   options?: { evalFile?: string },
 ): Promise<{
   testArtifactDir: string;
+  indexPath: string;
   timingPath: string;
   benchmarkPath: string;
 }> {
@@ -499,26 +564,39 @@ export async function writeArtifactsFromResults(
   options?: { evalFile?: string },
 ): Promise<{
   testArtifactDir: string;
+  indexPath: string;
   timingPath: string;
   benchmarkPath: string;
 }> {
   const testArtifactDir = outputDir;
+  const indexPath = path.join(outputDir, 'index.jsonl');
   const timingPath = path.join(outputDir, 'timing.json');
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
+  const indexLines: string[] = [];
   await mkdir(outputDir, { recursive: true });
 
   // Write per-test grading artifacts
   for (const result of results) {
     const grading = buildGradingArtifact(result);
     const timing = buildTimingArtifact([result]);
-    const safeTestId = (result.testId ?? 'unknown').replace(/[/\\:*?"<>|]/g, '_');
-    const testDir = path.join(outputDir, safeTestId);
+    const testDir = path.join(outputDir, safeTestId(result));
     const gradingPath = path.join(testDir, 'grading.json');
     const perTestTimingPath = path.join(testDir, 'timing.json');
     await mkdir(testDir, { recursive: true });
     await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
     await writeFile(perTestTimingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
+    indexLines.push(
+      JSON.stringify(
+        buildIndexArtifactEntry(result, {
+          outputDir,
+          gradingPath,
+          timingPath: perTestTimingPath,
+        }),
+      ),
+    );
   }
+
+  await writeFile(indexPath, indexLines.length > 0 ? `${indexLines.join('\n')}\n` : '', 'utf8');
 
   // Write aggregate timing
   const timing = buildTimingArtifact(results);
@@ -528,5 +606,5 @@ export async function writeArtifactsFromResults(
   const benchmark = buildBenchmarkArtifact(results, options?.evalFile);
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
-  return { testArtifactDir, timingPath, benchmarkPath };
+  return { testArtifactDir, indexPath, timingPath, benchmarkPath };
 }

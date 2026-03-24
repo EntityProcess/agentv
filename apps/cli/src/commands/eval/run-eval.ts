@@ -1170,6 +1170,7 @@ export async function runEvalCommand(
       const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
       const {
         testArtifactDir,
+        indexPath,
         timingPath,
         benchmarkPath: abp,
       } = await writeArtifactsFromResults(allResults, artifactsDir, { evalFile });
@@ -1177,6 +1178,7 @@ export async function runEvalCommand(
       console.log(
         `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
       );
+      console.log(`  Index:   ${indexPath}`);
       console.log(`  Timing:  ${timingPath}`);
       console.log(`  Benchmark: ${abp}`);
     }
