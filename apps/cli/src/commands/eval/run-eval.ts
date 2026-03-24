@@ -320,7 +320,7 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   }
 }
 
-function buildDefaultOutputPath(cwd: string, _format: OutputFormat): string {
+function buildDefaultOutputPath(cwd: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const dirName = `eval_${timestamp}`;
   const runDir = path.join(cwd, '.agentv', 'results', 'raw', dirName);
@@ -887,9 +887,7 @@ export async function runEvalCommand(
     }
   }
 
-  const outputPath = options.outPath
-    ? path.resolve(options.outPath)
-    : buildDefaultOutputPath(cwd, options.format);
+  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
 
   // Resolve -o / --output paths (new multi-format support)
   const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
