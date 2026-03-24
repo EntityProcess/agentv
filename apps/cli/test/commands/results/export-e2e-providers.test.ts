@@ -210,6 +210,19 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
+function artifactDir(
+  outputDir: string,
+  record: { eval_set?: string; test_id?: string; eval_id?: string; target?: string },
+): string {
+  const testId = record.test_id ?? record.eval_id ?? 'unknown';
+  return path.join(
+    outputDir,
+    ...(record.eval_set ? [record.eval_set] : []),
+    testId,
+    record.target ?? 'default',
+  );
+}
+
 describe('export e2e — multi-provider metrics verification', () => {
   let tempDir: string;
 
@@ -231,7 +244,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
       );
 
       expect(timing.token_usage.input).toBe(2000);
@@ -246,13 +259,13 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const claudeTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
       );
       const codexTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-codex-edit', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CODEX_RESULT), 'timing.json'), 'utf8'),
       );
       const copilotTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-copilot-complete', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'timing.json'), 'utf8'),
       );
 
       expect(claudeTiming.token_usage.reasoning).toBe(1500);
@@ -267,7 +280,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
       );
 
       expect(timing.total_tokens).toBe(2800);
@@ -280,7 +293,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-codex-edit', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CODEX_RESULT), 'timing.json'), 'utf8'),
       );
 
       expect(timing.duration_ms).toBe(12000);
@@ -294,7 +307,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-minimal', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, MINIMAL_RESULT), 'timing.json'), 'utf8'),
       );
 
       expect(timing.total_tokens).toBe(0);
@@ -311,10 +324,10 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const claudeTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
       );
       const copilotTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-copilot-complete', 'timing.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'timing.json'), 'utf8'),
       );
 
       expect(claudeTiming.token_usage.reasoning).toBe(1500);
@@ -451,7 +464,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-claude-reasoning', 'grading.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'grading.json'), 'utf8'),
       );
 
       expect(grading.assertions).toHaveLength(2);
@@ -478,7 +491,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-copilot-complete', 'grading.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'grading.json'), 'utf8'),
       );
 
       expect(grading.summary.passed).toBe(1);
@@ -496,7 +509,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-error-case', 'grading.json'), 'utf8'),
+        readFileSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'grading.json'), 'utf8'),
       );
 
       // Error result has empty assertions
@@ -511,10 +524,12 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      // Both have same test_id but different targets — export creates
-      // files keyed by test_id, so last one wins (or both write)
-      const gradingPath = path.join(outputDir, 'test-llm-analysis', 'grading.json');
-      expect(existsSync(gradingPath)).toBe(true);
+      expect(existsSync(path.join(artifactDir(outputDir, LLM_AZURE_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, LLM_GPT_RESULT), 'grading.json'))).toBe(
+        true,
+      );
     });
   });
 
@@ -529,18 +544,21 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       expect(
         readFileSync(
-          path.join(outputDir, 'test-claude-reasoning', 'outputs', 'response.md'),
+          path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'outputs', 'response.md'),
           'utf8',
         ),
       ).toBe('@[assistant]:\nThe answer is 42, derived through extended thinking.');
 
       expect(
-        readFileSync(path.join(outputDir, 'test-codex-edit', 'outputs', 'response.md'), 'utf8'),
+        readFileSync(
+          path.join(artifactDir(outputDir, CODEX_RESULT), 'outputs', 'response.md'),
+          'utf8',
+        ),
       ).toBe('@[assistant]:\nApplied the requested edit to src/main.ts.');
 
       expect(
         readFileSync(
-          path.join(outputDir, 'test-copilot-complete', 'outputs', 'response.md'),
+          path.join(artifactDir(outputDir, COPILOT_RESULT), 'outputs', 'response.md'),
           'utf8',
         ),
       ).toBe('@[assistant]:\nfunction add(a, b) { return a + b }');
@@ -552,9 +570,9 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      expect(existsSync(path.join(outputDir, 'test-error-case', 'outputs', 'response.md'))).toBe(
-        false,
-      );
+      expect(
+        existsSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'outputs', 'response.md')),
+      ).toBe(false);
     });
   });
 
@@ -590,13 +608,28 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
 
       // Verify grading files
-      expect(existsSync(path.join(outputDir, 'test-claude-reasoning', 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'test-codex-edit', 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'test-copilot-complete', 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'test-pi-refactor', 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'test-llm-analysis', 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'test-minimal', 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'test-error-case', 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, CODEX_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, PI_RESULT), 'grading.json'))).toBe(true);
+      expect(existsSync(path.join(artifactDir(outputDir, LLM_AZURE_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, LLM_GPT_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, MINIMAL_RESULT), 'grading.json'))).toBe(
+        true,
+      );
+      expect(existsSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'grading.json'))).toBe(
+        true,
+      );
     });
   });
 
@@ -627,7 +660,10 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', toJsonl(record), outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'test-case-convert', 'timing.json'), 'utf8'),
+        readFileSync(
+          path.join(artifactDir(outputDir, { ...record, target: 'mock' as const }), 'timing.json'),
+          'utf8',
+        ),
       );
 
       expect(timing.token_usage.input).toBe(100);
@@ -651,7 +687,14 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', toJsonl(record), outputDir);
 
-      expect(existsSync(path.join(outputDir, 'legacy-test-id', 'grading.json'))).toBe(true);
+      expect(
+        existsSync(
+          path.join(
+            artifactDir(outputDir, { ...record, test_id: undefined, target: 'mock' as const }),
+            'grading.json',
+          ),
+        ),
+      ).toBe(true);
     });
   });
 });

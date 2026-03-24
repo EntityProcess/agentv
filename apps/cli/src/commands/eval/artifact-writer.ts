@@ -471,10 +471,16 @@ function safeTargetId(target: string | undefined): string {
   return safeArtifactPathSegment(target, 'default');
 }
 
+function getEvalSet(result: EvaluationResult): string | undefined {
+  const record = result as EvaluationResult & { evalSet?: string };
+  return result.eval_set ?? record.evalSet;
+}
+
 function buildArtifactSubdir(result: EvaluationResult): string {
   const segments = [];
-  if (result.eval_set) {
-    segments.push(safeArtifactPathSegment(result.eval_set, 'default'));
+  const evalSet = getEvalSet(result);
+  if (evalSet) {
+    segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
   segments.push(safeTestId(result.testId), safeTargetId(result.target));
   return path.posix.join(...segments);
@@ -502,7 +508,7 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
-    eval_set: result.eval_set,
+    eval_set: getEvalSet(result),
     target: result.target,
     score: result.score,
     scores: result.scores?.map((score) => ({

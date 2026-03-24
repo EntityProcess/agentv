@@ -94,6 +94,19 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
+function artifactDir(
+  outputDir: string,
+  record: { eval_set?: string; test_id?: string; eval_id?: string; target?: string },
+): string {
+  const testId = record.test_id ?? record.eval_id ?? 'unknown';
+  return path.join(
+    outputDir,
+    ...(record.eval_set ? [record.eval_set] : []),
+    testId,
+    record.target ?? 'default',
+  );
+}
+
 describe('results export', () => {
   let tempDir: string;
 
@@ -133,7 +146,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const timingPath = path.join(outputDir, 'test-greeting', 'timing.json');
+    const timingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'timing.json');
     expect(existsSync(timingPath)).toBe(true);
 
     const timing: TimingArtifact = JSON.parse(readFileSync(timingPath, 'utf8'));
@@ -150,7 +163,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const gradingPath = path.join(outputDir, 'test-greeting', 'grading.json');
+    const gradingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'grading.json');
     expect(existsSync(gradingPath)).toBe(true);
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
@@ -178,7 +191,7 @@ describe('results export', () => {
     expect(grading.evaluators?.[0].name).toBe('greeting_quality');
     expect(grading.evaluators?.[0].type).toBe('llm-grader');
 
-    const perTestTimingPath = path.join(outputDir, 'test-greeting', 'timing.json');
+    const perTestTimingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'timing.json');
     expect(existsSync(perTestTimingPath)).toBe(true);
   });
 
@@ -188,7 +201,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'response.md');
+    const answerPath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'response.md');
     expect(existsSync(answerPath)).toBe(true);
     expect(readFileSync(answerPath, 'utf8')).toBe('@[assistant]:\nHello, Alice!');
   });
@@ -225,9 +238,13 @@ describe('results export', () => {
 
     expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'test-greeting', 'grading.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'test-math', 'grading.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'test-simple', 'grading.json'))).toBe(true);
+    expect(existsSync(path.join(artifactDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(true);
+    expect(existsSync(path.join(artifactDir(outputDir, RESULT_PARTIAL), 'grading.json'))).toBe(
+      true,
+    );
+    expect(existsSync(path.join(artifactDir(outputDir, RESULT_NO_TRACE), 'grading.json'))).toBe(
+      true,
+    );
   });
 
   it('should include per-evaluator summary in benchmark when scores present', async () => {
@@ -249,7 +266,11 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'response.md');
+    const answerPath = path.join(
+      artifactDir(outputDir, RESULT_DIFFERENT_TARGET),
+      'outputs',
+      'response.md',
+    );
     expect(existsSync(answerPath)).toBe(false);
   });
 
@@ -271,7 +292,10 @@ describe('results export', () => {
     // Should not throw — previously crashed with "Cannot read properties of undefined (reading 'map')"
     await exportResults('test.jsonl', content, outputDir);
 
-    const gradingPath = path.join(outputDir, 'test-minimal', 'grading.json');
+    const gradingPath = path.join(
+      artifactDir(outputDir, { ...minimal, target: 'default' }),
+      'grading.json',
+    );
     expect(existsSync(gradingPath)).toBe(true);
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
@@ -289,7 +313,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
+    const inputPath = path.join(artifactDir(outputDir, resultWithInput), 'input.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
   });
@@ -307,7 +331,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
+    const inputPath = path.join(artifactDir(outputDir, resultWithMessages), 'input.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
   });
@@ -318,7 +342,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
+    const inputPath = path.join(artifactDir(outputDir, RESULT_FULL), 'input.md');
     expect(existsSync(inputPath)).toBe(false);
   });
 
