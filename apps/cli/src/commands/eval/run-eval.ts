@@ -37,7 +37,7 @@ import {
   createOutputWriter,
 } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
-import { LEGACY_RESULTS_FILENAME, buildDefaultRunDir } from './result-layout.js';
+import { buildDefaultRunDir } from './result-layout.js';
 import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
 import { saveRunCache } from './run-cache.js';
 import { findRepoRoot } from './shared.js';
@@ -902,9 +902,7 @@ export async function runEvalCommand(
     }
   }
 
-  const primaryWritePath = usesDefaultArtifactWorkspace
-    ? path.join(path.dirname(outputPath), LEGACY_RESULTS_FILENAME)
-    : outputPath;
+  const primaryWritePath = outputPath;
 
   // Resolve -o / --output paths (new multi-format support)
   const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
@@ -1192,10 +1190,8 @@ export async function runEvalCommand(
         timingPath,
         benchmarkPath: workspaceBenchmarkPath,
         indexPath,
-        legacyResultsPath,
       } = await writeArtifactsFromResults(allResults, workspaceDir, {
         evalFile,
-        writeLegacyResults: true,
       });
       console.log(`Artifact workspace written to: ${workspaceDir}`);
       console.log(`  Index: ${indexPath}`);
@@ -1204,9 +1200,6 @@ export async function runEvalCommand(
       );
       console.log(`  Timing: ${timingPath}`);
       console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
-      if (legacyResultsPath) {
-        console.log(`  Compatibility output: ${legacyResultsPath} (deprecated)`);
-      }
     }
 
     // Write companion artifacts (grading, timing, benchmark) if requested
@@ -1220,7 +1213,6 @@ export async function runEvalCommand(
         benchmarkPath: abp,
       } = await writeArtifactsFromResults(allResults, artifactsDir, {
         evalFile,
-        writeLegacyResults: false,
       });
       console.log(`Artifacts written to: ${artifactsDir}`);
       console.log(`  Index: ${indexPath}`);

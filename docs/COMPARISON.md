@@ -73,7 +73,7 @@ agentv compare before.jsonl after.jsonl   # Two-file pairwise A/B testing
 AgentV integrates into:
 - **CI/CD pipelines** (`agentv eval evals/` + `agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl`)
 - **Git hooks** (block PRs if eval scores drop)
-- **Scripts** (parse `index.jsonl`, `benchmark.json`, or compatibility `results.jsonl`)
+- **Scripts** (parse `index.jsonl`, `benchmark.json`)
 - **Notebooks** (iterate on eval logic)
 
 **4. Zero Infrastructure Overhead**

@@ -107,19 +107,19 @@ All commands support `--format json` for piping to `jq`:
 
 ```bash
 # Top 3 most expensive tests
-agentv trace show results.jsonl --format json \
+agentv trace show <result-file> --format json \
   | jq 'sort_by(-.cost_usd) | .[0:3] | .[] | {test_id, cost: .cost_usd, score}'
 
 # Tests where token usage exceeds 10k
-agentv trace show results.jsonl --format json \
+agentv trace show <result-file> --format json \
   | jq '[.[] | select(.token_usage.input + .token_usage.output > 10000) | {test_id, tokens: (.token_usage.input + .token_usage.output)}]'
 
 # Score distribution by dataset
-agentv trace show results.jsonl --format json \
+agentv trace show <result-file> --format json \
   | jq 'group_by(.dataset) | .[] | {dataset: .[0].dataset, count: length, avg_score: ([.[].score] | add / length)}'
 
 # Tool usage frequency across all tests
-agentv trace show results.jsonl --format json \
+agentv trace show <result-file> --format json \
   | jq '[.[].trace.tool_calls // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
 
 # Find regressions > 0.1 between two runs

@@ -2,7 +2,6 @@ import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
-export const LEGACY_RESULTS_FILENAME = 'results.jsonl';
 
 export function createRunDirName(timestamp = new Date()): string {
   return `eval_${timestamp.toISOString().replace(/[:.]/g, '-')}`;
@@ -20,31 +19,13 @@ export function resolveRunIndexPath(runDir: string): string {
   return path.join(runDir, RESULT_INDEX_FILENAME);
 }
 
-export function resolveRunLegacyResultsPath(runDir: string): string {
-  return path.join(runDir, LEGACY_RESULTS_FILENAME);
-}
-
 export function resolveExistingRunPrimaryPath(runDir: string): string | undefined {
   const indexPath = resolveRunIndexPath(runDir);
   if (existsSync(indexPath)) {
     return indexPath;
   }
 
-  const legacyPath = resolveRunLegacyResultsPath(runDir);
-  if (existsSync(legacyPath)) {
-    return legacyPath;
-  }
-
   return undefined;
-}
-
-export function resolveExistingRunTracePath(runDir: string): string | undefined {
-  const legacyPath = resolveRunLegacyResultsPath(runDir);
-  if (existsSync(legacyPath)) {
-    return legacyPath;
-  }
-
-  return resolveExistingRunPrimaryPath(runDir);
 }
 
 export function isDirectoryPath(filePath: string): boolean {
@@ -63,7 +44,7 @@ export function resolveWorkspaceOrFilePath(filePath: string): string {
   const existing = resolveExistingRunPrimaryPath(filePath);
   if (!existing) {
     throw new Error(
-      `Result workspace is missing ${RESULT_INDEX_FILENAME} and ${LEGACY_RESULTS_FILENAME}: ${filePath}`,
+      `Result workspace is missing ${RESULT_INDEX_FILENAME}: ${filePath}`,
     );
   }
 
