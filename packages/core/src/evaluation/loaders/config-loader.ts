@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
+import { interpolateEnv } from '../interpolation.js';
 import type { FailOnError, JsonObject, TrialStrategy, TrialsConfig } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
@@ -19,6 +20,10 @@ export type ExecutionDefaults = {
   readonly trace_file?: string;
   readonly keep_workspaces?: boolean;
   readonly otel_file?: string;
+  readonly export_otel?: boolean;
+  readonly otel_backend?: string;
+  readonly otel_capture_content?: boolean;
+  readonly otel_group_turns?: boolean;
   readonly pool_workspaces?: boolean;
   readonly pool_slots?: number;
 };
@@ -48,7 +53,7 @@ export async function loadConfig(
 
     try {
       const rawConfig = await readFile(configPath, 'utf8');
-      const parsed = parse(rawConfig) as unknown;
+      const parsed = interpolateEnv(parse(rawConfig), process.env) as unknown;
 
       if (!isJsonObject(parsed)) {
         logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);
@@ -364,6 +369,31 @@ export function parseExecutionDefaults(
     result.otel_file = otelFile.trim();
   } else if (otelFile !== undefined) {
     logWarning(`Invalid execution.otel_file in ${configPath}, expected non-empty string`);
+  }
+
+  if (typeof obj.export_otel === 'boolean') {
+    result.export_otel = obj.export_otel;
+  } else if (obj.export_otel !== undefined) {
+    logWarning(`Invalid execution.export_otel in ${configPath}, expected boolean`);
+  }
+
+  const otelBackend = obj.otel_backend;
+  if (typeof otelBackend === 'string' && otelBackend.trim().length > 0) {
+    result.otel_backend = otelBackend.trim();
+  } else if (otelBackend !== undefined) {
+    logWarning(`Invalid execution.otel_backend in ${configPath}, expected non-empty string`);
+  }
+
+  if (typeof obj.otel_capture_content === 'boolean') {
+    result.otel_capture_content = obj.otel_capture_content;
+  } else if (obj.otel_capture_content !== undefined) {
+    logWarning(`Invalid execution.otel_capture_content in ${configPath}, expected boolean`);
+  }
+
+  if (typeof obj.otel_group_turns === 'boolean') {
+    result.otel_group_turns = obj.otel_group_turns;
+  } else if (obj.otel_group_turns !== undefined) {
+    logWarning(`Invalid execution.otel_group_turns in ${configPath}, expected boolean`);
   }
 
   if (typeof obj.pool_workspaces === 'boolean') {

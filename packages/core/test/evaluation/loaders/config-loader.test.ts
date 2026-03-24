@@ -382,4 +382,54 @@ describe('parseExecutionDefaults', () => {
     );
     expect(result).toEqual({ verbose: true });
   });
+
+  it('parses export_otel boolean', () => {
+    const result = parseExecutionDefaults({ export_otel: true }, '/test/config.yaml');
+    expect(result?.export_otel).toBe(true);
+  });
+
+  it('ignores non-boolean export_otel', () => {
+    const result = parseExecutionDefaults({ export_otel: 'yes' }, '/test/config.yaml');
+    expect(result?.export_otel).toBeUndefined();
+  });
+
+  it('parses otel_backend string', () => {
+    const result = parseExecutionDefaults({ otel_backend: 'langfuse' }, '/test/config.yaml');
+    expect(result?.otel_backend).toBe('langfuse');
+  });
+
+  it('ignores empty otel_backend', () => {
+    const result = parseExecutionDefaults({ otel_backend: '  ' }, '/test/config.yaml');
+    expect(result?.otel_backend).toBeUndefined();
+  });
+
+  it('parses otel_capture_content boolean', () => {
+    const result = parseExecutionDefaults({ otel_capture_content: true }, '/test/config.yaml');
+    expect(result?.otel_capture_content).toBe(true);
+  });
+
+  it('parses otel_group_turns boolean', () => {
+    const result = parseExecutionDefaults({ otel_group_turns: true }, '/test/config.yaml');
+    expect(result?.otel_group_turns).toBe(true);
+  });
+
+  it('parses all OTel fields together', () => {
+    const result = parseExecutionDefaults(
+      {
+        export_otel: true,
+        otel_backend: 'langfuse',
+        otel_file: 'otel.json',
+        otel_capture_content: false,
+        otel_group_turns: true,
+      },
+      '/test/config.yaml',
+    );
+    expect(result).toEqual({
+      export_otel: true,
+      otel_backend: 'langfuse',
+      otel_file: 'otel.json',
+      otel_capture_content: false,
+      otel_group_turns: true,
+    });
+  });
 });
