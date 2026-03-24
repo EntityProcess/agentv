@@ -8,28 +8,30 @@ Demonstrates `agentv trace` subcommands for headless trace inspection and analys
 # List result files
 bun agentv trace list
 
-# Show results with trace details
-bun agentv trace show evals/multi-agent.eval.results.jsonl
+# Show results with trace details from a run workspace
+bun agentv trace show .agentv/results/raw/eval_<timestamp>
 
 # Show hierarchical trace tree (requires output messages)
-bun agentv trace show evals/multi-agent.eval.results.jsonl --tree
+bun agentv trace show .agentv/results/raw/eval_<timestamp> --tree
 
 # Filter to a specific test
-bun agentv trace show evals/multi-agent.eval.results.jsonl --test-id research-question --tree
+bun agentv trace show .agentv/results/raw/eval_<timestamp> --test-id research-question --tree
 
 # Compute percentile statistics
-bun agentv trace stats evals/multi-agent.eval.results.jsonl
+bun agentv trace stats .agentv/results/raw/eval_<timestamp>
 
 # Group stats by target provider
-bun agentv trace stats evals/multi-agent.eval.results.jsonl --group-by target
+bun agentv trace stats .agentv/results/raw/eval_<timestamp> --group-by target
 
 # JSON output for piping to jq
-bun agentv trace stats evals/multi-agent.eval.results.jsonl --format json | jq '.groups[].metrics'
+bun agentv trace stats .agentv/results/raw/eval_<timestamp> --format json | jq '.groups[].metrics'
 ```
 
 ## What's in the Example Data
 
-`evals/multi-agent.eval.results.jsonl` contains 5 test results from a multi-agent evaluation:
+The sample run workspace contains 5 test results from a multi-agent evaluation. `trace` accepts the
+workspace directory directly and falls back to the compatibility `results.jsonl` when full trace
+payloads are needed.
 
 | Test ID | Score | Target | Trace |
 |---|---|---|---|
@@ -47,10 +49,10 @@ Pipe JSON output to `jq` for complex queries:
 
 ```bash
 # Find tests that cost more than $0.10
-bun agentv trace show evals/multi-agent.eval.results.jsonl --format json \
+bun agentv trace show .agentv/results/raw/eval_<timestamp> --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare scores by target provider
-bun agentv trace stats evals/multi-agent.eval.results.jsonl --group-by target --format json \
+bun agentv trace stats .agentv/results/raw/eval_<timestamp> --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```

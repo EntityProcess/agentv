@@ -1,5 +1,12 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import {
+  LEGACY_RESULTS_FILENAME,
+  RESULT_INDEX_FILENAME,
+  resolveExistingRunPrimaryPath,
+  resolveExistingRunTracePath,
+  resolveWorkspaceOrFilePath,
+} from '../eval/result-layout.js';
 
 // ANSI color codes (no dependency needed)
 const colors = {
@@ -87,7 +94,8 @@ export interface RawTraceSummary {
  * Load all result records from a JSONL file.
  */
 export function loadResultFile(filePath: string): RawResult[] {
-  const content = readFileSync(filePath, 'utf8');
+  const resolvedFilePath = resolveTraceResultPath(filePath);
+  const content = readFileSync(resolvedFilePath, 'utf8');
   const lines = content
     .trim()
     .split('\n')
@@ -100,6 +108,28 @@ export function loadResultFile(filePath: string): RawResult[] {
     }
     return record;
   });
+}
+
+function resolveTraceResultPath(filePath: string): string {
+  if (path.basename(filePath) === RESULT_INDEX_FILENAME) {
+    const legacySibling = path.join(path.dirname(filePath), LEGACY_RESULTS_FILENAME);
+    try {
+      statSync(legacySibling);
+      return legacySibling;
+    } catch {
+      return filePath;
+    }
+  }
+
+  if (path.basename(filePath) === LEGACY_RESULTS_FILENAME) {
+    return filePath;
+  }
+
+  if (!filePath.endsWith('.jsonl')) {
+    return resolveExistingRunTracePath(filePath) ?? resolveWorkspaceOrFilePath(filePath);
+  }
+
+  return resolveWorkspaceOrFilePath(filePath);
 }
 
 /**
@@ -117,7 +147,7 @@ export interface ResultFileMeta {
 
 /**
  * Enumerate result files in the .agentv/results/ directory.
- * Scans raw/ for both directory-per-run layouts (results.jsonl inside subdirs)
+ * Scans raw/ for both directory-per-run layouts (index.jsonl preferred inside subdirs)
  * and legacy flat .jsonl files. Also scans the base directory for pre-raw/ files.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
@@ -132,12 +162,9 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
     const entries = readdirSync(rawDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const jsonlPath = path.join(rawDir, entry.name, 'results.jsonl');
-        try {
-          statSync(jsonlPath);
-          files.push({ filePath: jsonlPath, displayName: entry.name });
-        } catch {
-          // Directory without results.jsonl — skip
+        const primaryPath = resolveExistingRunPrimaryPath(path.join(rawDir, entry.name));
+        if (primaryPath) {
+          files.push({ filePath: primaryPath, displayName: entry.name });
         }
       }
     }

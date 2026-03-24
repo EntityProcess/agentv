@@ -26,6 +26,8 @@ import { Hono } from 'hono';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
+import { resolveResultSourcePath } from './manifest.js';
+import { loadResults as loadSharedResults } from './shared.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
 
@@ -35,7 +37,7 @@ import { listResultFiles } from '../trace/utils.js';
  */
 export async function resolveSourceFile(source: string | undefined, cwd: string): Promise<string> {
   if (source) {
-    const resolved = path.isAbsolute(source) ? source : path.resolve(cwd, source);
+    const resolved = resolveResultSourcePath(source, cwd);
     if (!existsSync(resolved)) {
       throw new Error(`Source file not found: ${resolved}`);
     }
@@ -830,9 +832,7 @@ export const resultsServeCommand = command({
     const listenPort = port ?? 3117;
 
     try {
-      const sourceFile = await resolveSourceFile(source, cwd);
-      const content = readFileSync(sourceFile, 'utf8');
-      const results = loadResults(content);
+      const { results, sourceFile } = await loadSharedResults(source, cwd);
 
       const app = createApp(results, cwd);
 

@@ -1,6 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import {
+  LEGACY_RESULTS_FILENAME,
+  RESULT_INDEX_FILENAME,
+  resolveExistingRunPrimaryPath,
+  resolveRunIndexPath,
+} from './result-layout.js';
+
 const CACHE_FILENAME = 'cache.json';
 
 /**
@@ -16,13 +23,13 @@ export interface RunCache {
 }
 
 /**
- * Resolve the JSONL results file path from a RunCache entry.
- * New format: lastRunDir/results.jsonl
+ * Resolve the primary result manifest path from a RunCache entry.
+ * New format: lastRunDir/index.jsonl (fallback: results.jsonl)
  * Legacy format: lastResultFile (flat JSONL path)
  */
 export function resolveRunCacheFile(cache: RunCache): string {
   if (cache.lastRunDir) {
-    return path.join(cache.lastRunDir, 'results.jsonl');
+    return resolveExistingRunPrimaryPath(cache.lastRunDir) ?? resolveRunIndexPath(cache.lastRunDir);
   }
   return cache.lastResultFile ?? '';
 }
@@ -40,12 +47,19 @@ export async function loadRunCache(cwd: string): Promise<RunCache | undefined> {
   }
 }
 
-export async function saveRunCache(cwd: string, runDir: string): Promise<void> {
+export async function saveRunCache(cwd: string, resultPath: string): Promise<void> {
   const dir = path.join(cwd, '.agentv');
   await mkdir(dir, { recursive: true });
-  const cache: RunCache = {
-    lastRunDir: runDir,
-    timestamp: new Date().toISOString(),
-  };
+  const basename = path.basename(resultPath);
+  const cache: RunCache =
+    basename === RESULT_INDEX_FILENAME || basename === LEGACY_RESULTS_FILENAME
+      ? {
+          lastRunDir: path.dirname(resultPath),
+          timestamp: new Date().toISOString(),
+        }
+      : {
+          lastResultFile: resultPath,
+          timestamp: new Date().toISOString(),
+        };
   await writeFile(cachePath(cwd), `${JSON.stringify(cache, null, 2)}\n`, 'utf-8');
 }
