@@ -7,6 +7,7 @@ import { createCommand } from './commands/create/index.js';
 import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
+import { pipelineCommand } from './commands/pipeline/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
 import { selfCommand } from './commands/self/index.js';
@@ -28,6 +29,7 @@ export const app = subcommands({
     convert: convertCommand,
     create: createCommand,
     init: initCmdTsCommand,
+    pipeline: pipelineCommand,
     results: resultsCommand,
     self: selfCommand,
     serve: resultsServeCommand,
@@ -55,6 +57,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'convert',
   'create',
   'init',
+  'pipeline',
   'results',
   'self',
   'serve',

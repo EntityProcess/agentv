@@ -292,9 +292,15 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 1. **Claim the issue** — prevents other agents from duplicating work:
    ```bash
-   # Load AGENT_ID from .env, default to <hostname>-<harness> if not set
+   # Load AGENT_ID from .env; if not set, ask the user or default to <harness>-<model>
+   # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
+   # Model = the LLM (opus, sonnet, o3, etc.)
+   # Examples: "claude-code-opus", "opencode-sonnet", "cursor-o3", "codex-cli-o3"
+   # Do NOT use hostname or machine name.
    source .env 2>/dev/null
-   AGENT_ID="${AGENT_ID:-$(hostname)-claude}"
+   if [ -z "$AGENT_ID" ]; then
+     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to <harness>-<model>."
+   fi
 
    # Check if already claimed
    gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
@@ -379,7 +385,9 @@ git checkout -b fix/<short-description>
 
 #### Plans
 
-Design documents and implementation plans are stored in `.claude/plans/`. These are temporary working materials. Once development concludes, delete the plan file and incorporate any user-relevant details into the official documentation.
+Design documents and implementation plans are stored in `docs/plans/` inside the worktree (not the main repo). Save plans to the worktree so they are committed on the feature branch and visible in the draft PR.
+
+Plans are temporary working materials. **Before merging the PR**, delete the plan file and incorporate any user-relevant details into the official documentation.
 
 #### Git Worktrees
 

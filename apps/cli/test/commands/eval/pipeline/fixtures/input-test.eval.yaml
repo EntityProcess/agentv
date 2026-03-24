@@ -1,0 +1,14 @@
+name: input-test
+tests:
+  - id: test-01
+    input: hello world
+    criteria: Response echoes the input
+    assertions:
+      - name: contains_hello
+        type: code-grader
+        command: echo '{"score":1}'
+        weight: 1.0
+      - name: relevance
+        type: llm-grader
+        prompt: Did the response echo the input?
+        weight: 2.0
