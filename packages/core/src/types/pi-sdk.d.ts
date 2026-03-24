@@ -1,6 +1,11 @@
 declare module '@mariozechner/pi-coding-agent' {
   interface PiEvent {
     type: string;
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+    result: unknown;
+    message: unknown;
     [key: string]: unknown;
   }
 
@@ -18,6 +23,13 @@ declare module '@mariozechner/pi-coding-agent' {
   export function createAgentSession(...args: unknown[]): Promise<{
     session: {
       subscribe(callback: (event: PiEvent) => void): () => void;
+      prompt(prompt: string): Promise<void>;
+      agent: {
+        state: {
+          messages: unknown[];
+        };
+      };
+      dispose(): void;
     };
   }>;
 }
