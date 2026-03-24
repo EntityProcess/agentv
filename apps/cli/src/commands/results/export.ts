@@ -5,21 +5,19 @@
  * Output structure:
  *   <output-dir>/
  *     benchmark.json           — aggregate scores, pass/fail counts, timing
- *     timing.json              — aggregate token usage and duration
- *     grading.json             — aggregate assertions across all tests
- *     grading/
- *       <test-id>.json         — per-test grading artifact (assertions, evaluators)
- *     outputs/
- *       <test-id>.md           — human-readable agent response per test
- *     inputs/
- *       <test-id>.md           — human-readable input messages per test
+ *     <test-id>/
+ *       grading.json           — per-test grading artifact (assertions, evaluators)
+ *       timing.json            — per-test timing artifact
+ *       outputs/
+ *         response.md          — human-readable agent response for this test
+ *       input.md               — human-readable input messages for this test
  *
  * This module delegates artifact building to the shared artifact-writer so
- * that `agentv results export` and `agentv eval` produce identical schemas.
+ * that benchmark/grading/timing schemas stay aligned with `agentv eval`.
  *
  * How to extend:
  *   - To change artifact schemas, update artifact-writer.ts (single source of truth).
- *   - To add new per-test output files, add a writer in `exportOutputs()`.
+ *   - To add new per-test workspace files, add them under each test directory.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -28,7 +26,6 @@ import { command, option, optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
 import {
-  buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
   buildGradingArtifact,
   buildTimingArtifact,
@@ -60,48 +57,24 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   const benchmark = buildBenchmarkArtifact(patched, sourceFile);
   writeFileSync(path.join(outputDir, 'benchmark.json'), `${JSON.stringify(benchmark, null, 2)}\n`);
 
-  // timing.json — aggregate token usage and duration
-  const timing = buildTimingArtifact(patched);
-  writeFileSync(path.join(outputDir, 'timing.json'), `${JSON.stringify(timing, null, 2)}\n`);
-
-  // grading.json — aggregate assertions across all tests
-  const aggregateGrading = buildAggregateGradingArtifact(patched);
-  writeFileSync(
-    path.join(outputDir, 'grading.json'),
-    `${JSON.stringify(aggregateGrading, null, 2)}\n`,
-  );
-
-  // grading/<test-id>.json — per-test grading artifacts
-  const gradingDir = path.join(outputDir, 'grading');
-  mkdirSync(gradingDir, { recursive: true });
-
+  // <test-id>/... — per-test workspace artifacts
   for (const result of patched) {
     const id = safeTestId(result);
+    const testDir = path.join(outputDir, id);
+    const outputsDir = path.join(testDir, 'outputs');
     const grading = buildGradingArtifact(result);
-    writeFileSync(path.join(gradingDir, `${id}.json`), `${JSON.stringify(grading, null, 2)}\n`);
-  }
-
-  // outputs/<test-id>.md — human-readable agent response text
-  const outputsDir = path.join(outputDir, 'outputs');
-  mkdirSync(outputsDir, { recursive: true });
-
-  for (const result of patched) {
+    const perTestTiming = buildTimingArtifact([result]);
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(path.join(testDir, 'grading.json'), `${JSON.stringify(grading, null, 2)}\n`);
+    writeFileSync(path.join(testDir, 'timing.json'), `${JSON.stringify(perTestTiming, null, 2)}\n`);
     if (result.output && result.output.length > 0) {
-      const id = safeTestId(result);
       const md = formatOutputMarkdown(result.output);
-      writeFileSync(path.join(outputsDir, `${id}.md`), md);
+      mkdirSync(outputsDir, { recursive: true });
+      writeFileSync(path.join(outputsDir, 'response.md'), md);
     }
-  }
-
-  // inputs/<test-id>.md — human-readable input messages per test
-  const inputsDir = path.join(outputDir, 'inputs');
-  mkdirSync(inputsDir, { recursive: true });
-
-  for (const result of patched) {
-    const id = safeTestId(result);
     const input = extractInput(result);
     if (input) {
-      writeFileSync(path.join(inputsDir, `${id}.md`), input);
+      writeFileSync(path.join(testDir, 'input.md'), input);
     }
   }
 }

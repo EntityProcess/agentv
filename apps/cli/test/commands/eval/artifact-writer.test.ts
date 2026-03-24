@@ -529,15 +529,20 @@ describe('writeArtifactsFromResults', () => {
       evalFile: 'my-eval.yaml',
     });
 
-    // Check grading files
-    const gradingFiles = await readdir(paths.gradingDir);
-    expect(gradingFiles.sort()).toEqual(['alpha.json', 'beta.json']);
+    // Check per-test artifact directories
+    const artifactEntries = await readdir(paths.testArtifactDir);
+    expect(artifactEntries.sort()).toEqual(['alpha', 'benchmark.json', 'beta', 'timing.json']);
 
     const alphaGrading: GradingArtifact = JSON.parse(
-      await readFile(path.join(paths.gradingDir, 'alpha.json'), 'utf8'),
+      await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
     );
     expect(alphaGrading.summary).toBeDefined();
     expect(alphaGrading.execution_metrics).toBeDefined();
+
+    const alphaTiming: TimingArtifact = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'alpha', 'timing.json'), 'utf8'),
+    );
+    expect(alphaTiming.duration_ms).toBe(5000);
 
     // Check timing
     const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
@@ -552,8 +557,8 @@ describe('writeArtifactsFromResults', () => {
   it('handles empty results array', async () => {
     const paths = await writeArtifactsFromResults([], testDir);
 
-    const gradingFiles = await readdir(paths.gradingDir);
-    expect(gradingFiles).toHaveLength(0);
+    const artifactEntries = await readdir(paths.testArtifactDir);
+    expect(artifactEntries.sort()).toEqual(['benchmark.json', 'timing.json']);
 
     const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
     expect(timing.total_tokens).toBe(0);
@@ -562,7 +567,7 @@ describe('writeArtifactsFromResults', () => {
     expect(benchmark.notes).toContain('No results to summarize');
   });
 
-  it('writes aggregate grading.json alongside per-test artifacts', async () => {
+  it('writes grading.json and timing.json inside each test directory', async () => {
     const results = [
       makeResult({
         testId: 'test-1',
@@ -577,24 +582,31 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    const { aggregateGradingPath } = await writeArtifactsFromResults(results, testDir);
+    await writeArtifactsFromResults(results, testDir);
 
-    expect(aggregateGradingPath).toBe(path.join(testDir, 'grading.json'));
-    const content = await readFile(aggregateGradingPath, 'utf8');
-    const grading = JSON.parse(content);
+    const gradingOne: GradingArtifact = JSON.parse(
+      await readFile(path.join(testDir, 'test-1', 'grading.json'), 'utf8'),
+    );
+    const gradingTwo: GradingArtifact = JSON.parse(
+      await readFile(path.join(testDir, 'test-2', 'grading.json'), 'utf8'),
+    );
+    const timingOne: TimingArtifact = JSON.parse(
+      await readFile(path.join(testDir, 'test-1', 'timing.json'), 'utf8'),
+    );
 
-    expect(grading.assertions).toHaveLength(3);
-    expect(grading.summary.passed).toBe(2);
-    expect(grading.summary.failed).toBe(1);
-    expect(grading.summary.pass_rate).toBe(0.667);
+    expect(gradingOne.summary.total).toBe(1);
+    expect(gradingOne.summary.passed).toBe(1);
+    expect(gradingTwo.summary.total).toBe(2);
+    expect(gradingTwo.summary.failed).toBe(1);
+    expect(timingOne.duration_ms).toBe(0);
   });
 
-  it('sanitizes test IDs for filenames', async () => {
+  it('sanitizes test IDs for directory names', async () => {
     const results = [makeResult({ testId: 'path/to:test*1' })];
     await writeArtifactsFromResults(results, testDir);
 
-    const gradingFiles = await readdir(path.join(testDir, 'grading'));
-    expect(gradingFiles).toEqual(['path_to_test_1.json']);
+    const artifactEntries = await readdir(testDir);
+    expect(artifactEntries).toContain('path_to_test_1');
   });
 });
 
@@ -629,8 +641,8 @@ describe('writeArtifacts (from JSONL file)', () => {
     const outputDir = path.join(testDir, 'out');
     const paths = await writeArtifacts(jsonlPath, outputDir);
 
-    const gradingFiles = await readdir(paths.gradingDir);
-    expect(gradingFiles).toHaveLength(1);
+    const artifactEntries = await readdir(paths.testArtifactDir);
+    expect(artifactEntries).toContain('from-file');
 
     const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
     expect(timing.duration_ms).toBe(12000);

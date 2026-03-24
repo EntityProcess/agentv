@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type {
-  AggregateGradingArtifact,
   BenchmarkArtifact,
   GradingArtifact,
   TimingArtifact,
@@ -128,33 +127,30 @@ describe('results export', () => {
     expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
-  it('should create timing.json with aggregate timing', () => {
+  it('should create per-test timing.json with run timing', () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
     exportResults('test.jsonl', content, outputDir);
 
-    const timingPath = path.join(outputDir, 'timing.json');
+    const timingPath = path.join(outputDir, 'test-greeting', 'timing.json');
     expect(existsSync(timingPath)).toBe(true);
 
     const timing: TimingArtifact = JSON.parse(readFileSync(timingPath, 'utf8'));
-    // Aggregate of both results: (1000+500) + (200+100) = 1800
-    expect(timing.total_tokens).toBe(1800);
-    // 3500 + 1200 = 4700
-    expect(timing.duration_ms).toBe(4700);
+    expect(timing.total_tokens).toBe(1500);
+    expect(timing.duration_ms).toBe(3500);
     expect(timing.token_usage).toHaveProperty('input');
     expect(timing.token_usage).toHaveProperty('output');
     expect(timing.token_usage).toHaveProperty('reasoning');
   });
 
-  it('should create per-test grading files in grading/ directory', () => {
+  it('should create per-test artifact directories', () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
     exportResults('test.jsonl', content, outputDir);
 
-    // grading/<test-id>.json (not per-test directories)
-    const gradingPath = path.join(outputDir, 'grading', 'test-greeting.json');
+    const gradingPath = path.join(outputDir, 'test-greeting', 'grading.json');
     expect(existsSync(gradingPath)).toBe(true);
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
@@ -181,15 +177,18 @@ describe('results export', () => {
     expect(grading.evaluators).toHaveLength(1);
     expect(grading.evaluators?.[0].name).toBe('greeting_quality');
     expect(grading.evaluators?.[0].type).toBe('llm-grader');
+
+    const perTestTimingPath = path.join(outputDir, 'test-greeting', 'timing.json');
+    expect(existsSync(perTestTimingPath)).toBe(true);
   });
 
-  it('should write answer text to outputs/<test-id>.md as human-readable markdown', () => {
+  it('should write answer text to <test-id>/outputs/response.md as human-readable markdown', () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
     exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.md');
+    const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'response.md');
     expect(existsSync(answerPath)).toBe(true);
     expect(readFileSync(answerPath, 'utf8')).toBe('@[assistant]:\nHello, Alice!');
   });
@@ -225,10 +224,10 @@ describe('results export', () => {
     exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'grading', 'test-greeting.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'grading', 'test-math.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'grading', 'test-simple.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
+    expect(existsSync(path.join(outputDir, 'test-greeting', 'grading.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'test-math', 'grading.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'test-simple', 'grading.json'))).toBe(true);
   });
 
   it('should include per-evaluator summary in benchmark when scores present', () => {
@@ -250,8 +249,7 @@ describe('results export', () => {
 
     exportResults('test.jsonl', content, outputDir);
 
-    // outputs dir still created but no file for this test
-    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.md');
+    const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'response.md');
     expect(existsSync(answerPath)).toBe(false);
   });
 
@@ -273,7 +271,7 @@ describe('results export', () => {
     // Should not throw — previously crashed with "Cannot read properties of undefined (reading 'map')"
     exportResults('test.jsonl', content, outputDir);
 
-    const gradingPath = path.join(outputDir, 'grading', 'test-minimal.json');
+    const gradingPath = path.join(outputDir, 'test-minimal', 'grading.json');
     expect(existsSync(gradingPath)).toBe(true);
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
@@ -281,7 +279,7 @@ describe('results export', () => {
     expect(grading.summary.total).toBe(0);
   });
 
-  it('should write string input to inputs/<test-id>.md', () => {
+  it('should write string input to <test-id>/input.md', () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,
@@ -291,12 +289,12 @@ describe('results export', () => {
 
     exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(outputDir, 'inputs', 'test-greeting.md');
+    const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
   });
 
-  it('should write Message[] input to inputs/<test-id>.md as markdown', () => {
+  it('should write Message[] input to <test-id>/input.md as markdown', () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithMessages = {
       ...RESULT_FULL,
@@ -309,7 +307,7 @@ describe('results export', () => {
 
     exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(outputDir, 'inputs', 'test-greeting.md');
+    const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
   });
@@ -320,7 +318,7 @@ describe('results export', () => {
 
     exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(outputDir, 'inputs', 'test-greeting.md');
+    const inputPath = path.join(outputDir, 'test-greeting', 'input.md');
     expect(existsSync(inputPath)).toBe(false);
   });
 
@@ -341,26 +339,13 @@ describe('results export', () => {
     expect(benchmark.metadata.tests_run).toEqual(['unknown']);
   });
 
-  it('should create top-level grading.json with aggregate assertions', () => {
+  it('should not create top-level grading.json aggregate artifact', () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
     exportResults('test.jsonl', content, outputDir);
 
     const gradingPath = path.join(outputDir, 'grading.json');
-    expect(existsSync(gradingPath)).toBe(true);
-
-    const grading: AggregateGradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
-
-    // Assertions from both results, tagged with test_id
-    expect(grading.assertions.length).toBe(4); // 2 from RESULT_FULL + 2 from RESULT_PARTIAL
-    expect(grading.assertions[0].test_id).toBe('test-greeting');
-    expect(grading.assertions[2].test_id).toBe('test-math');
-
-    // Summary counts all assertions
-    expect(grading.summary.total).toBe(4);
-    expect(grading.summary.passed).toBe(3); // 2 from greeting + 1 from math
-    expect(grading.summary.failed).toBe(1); // 1 from math
-    expect(grading.summary.pass_rate).toBe(0.75);
+    expect(existsSync(gradingPath)).toBe(false);
   });
 });
