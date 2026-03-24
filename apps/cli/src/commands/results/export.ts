@@ -34,7 +34,7 @@ import {
   buildTimingArtifact,
   parseJsonlResults,
 } from '../eval/artifact-writer.js';
-import { loadRunCache } from '../eval/run-cache.js';
+import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
@@ -186,8 +186,9 @@ export const resultsExportCommand = command({
       } else {
         // Prefer cache pointer, fall back to directory scan
         const cache = await loadRunCache(cwd);
-        if (cache && existsSync(cache.lastResultFile)) {
-          sourceFile = cache.lastResultFile;
+        const cachedFile = cache ? resolveRunCacheFile(cache) : '';
+        if (cachedFile && existsSync(cachedFile)) {
+          sourceFile = cachedFile;
         } else {
           const metas = listResultFiles(cwd, 1);
           if (metas.length === 0) {

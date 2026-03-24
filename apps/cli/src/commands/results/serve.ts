@@ -24,7 +24,7 @@ import type { EvaluationResult } from '@agentv/core';
 import { Hono } from 'hono';
 
 import { parseJsonlResults } from '../eval/artifact-writer.js';
-import { loadRunCache } from '../eval/run-cache.js';
+import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -44,8 +44,9 @@ export async function resolveSourceFile(source: string | undefined, cwd: string)
 
   // Prefer cache pointer, fall back to directory scan
   const cache = await loadRunCache(cwd);
-  if (cache && existsSync(cache.lastResultFile)) {
-    return cache.lastResultFile;
+  const cachedFile = cache ? resolveRunCacheFile(cache) : '';
+  if (cachedFile && existsSync(cachedFile)) {
+    return cachedFile;
   }
 
   const metas = listResultFiles(cwd, 10);

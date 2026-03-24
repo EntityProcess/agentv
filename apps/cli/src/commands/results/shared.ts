@@ -16,7 +16,7 @@ import { optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
-import { loadRunCache } from '../eval/run-cache.js';
+import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 
 /** cmd-ts positional for optional JSONL source file. */
@@ -44,8 +44,9 @@ export async function resolveSourceFile(
     }
   } else {
     const cache = await loadRunCache(cwd);
-    if (cache && existsSync(cache.lastResultFile)) {
-      sourceFile = cache.lastResultFile;
+    const cachedFile = cache ? resolveRunCacheFile(cache) : '';
+    if (cachedFile && existsSync(cachedFile)) {
+      sourceFile = cachedFile;
     } else {
       const metas = listResultFiles(cwd, 1);
       if (metas.length === 0) {
