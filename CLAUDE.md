@@ -300,13 +300,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    ```
    If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
 
-2. **Create a feature branch** from `main`:
-   ```bash
-   git checkout main
-   git pull origin main
-   git checkout -b <type>/<issue-number>-<short-description>
-   # Example: feat/42-add-new-embedder
-   ```
+2. **Create a worktree** using the `superpowers:using-git-worktrees` skill with branch name `<type>/<issue-number>-<short-description>` (e.g., `feat/42-add-new-embedder`). This handles branch creation, isolation, `bun install`, and `.env` copy.
 
 3. **Implement the changes** and commit following the commit convention
 
@@ -371,12 +365,7 @@ Design documents and implementation plans are stored in `.claude/plans/`. These 
 
 #### Git Worktrees
 
-Use the default `agentv.worktrees/` directory. After creating a worktree, always run setup:
-```bash
-bun install                                    # worktrees do NOT share node_modules
-cp /home/christso/projects/agentv/.env .env    # required for e2e tests and LLM operations
-```
-Both steps are required before running builds, tests, or evals in the worktree.
+Use the `superpowers:using-git-worktrees` skill to create worktrees. It handles directory selection (`agentv.worktrees/`), branch creation, `bun install`, and `.env` copy automatically.
 
 ## Version Management
 
