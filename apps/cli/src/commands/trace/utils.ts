@@ -117,66 +117,88 @@ export interface ResultFileMeta {
 
 /**
  * Enumerate result files in the .agentv/results/ directory.
- * Scans both raw/ (new layout) and the base directory (legacy) for backward compatibility.
+ * Scans raw/ for both directory-per-run layouts (results.jsonl inside subdirs)
+ * and legacy flat .jsonl files. Also scans the base directory for pre-raw/ files.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
   const baseDir = path.join(cwd, '.agentv', 'results');
   const rawDir = path.join(baseDir, 'raw');
 
-  // Scan both raw/ (new) and root (legacy) for backward compatibility
-  const files: string[] = [];
-  for (const dir of [rawDir, baseDir]) {
-    try {
-      const entries = readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
-      for (const entry of entries) {
-        files.push(path.join(dir, entry));
+  const files: { filePath: string; displayName: string }[] = [];
+
+  // Scan raw/ for both directory-based runs and flat JSONL files.
+  // Process directories first so they take priority in dedup over flat files.
+  try {
+    const entries = readdirSync(rawDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const jsonlPath = path.join(rawDir, entry.name, 'results.jsonl');
+        try {
+          statSync(jsonlPath);
+          files.push({ filePath: jsonlPath, displayName: entry.name });
+        } catch {
+          // Directory without results.jsonl — skip
+        }
       }
-    } catch {
-      // Directory doesn't exist yet
     }
+    for (const entry of entries) {
+      if (!entry.isDirectory() && entry.name.endsWith('.jsonl')) {
+        files.push({ filePath: path.join(rawDir, entry.name), displayName: entry.name });
+      }
+    }
+  } catch {
+    // raw/ doesn't exist yet
   }
 
-  // Deduplicate by filename (prefer raw/ version since it appears first)
+  // Also scan base directory for legacy files (backward compat)
+  try {
+    const entries = readdirSync(baseDir).filter((f) => f.endsWith('.jsonl'));
+    for (const entry of entries) {
+      files.push({ filePath: path.join(baseDir, entry), displayName: entry });
+    }
+  } catch {
+    // Base directory doesn't exist yet
+  }
+
+  // Deduplicate by normalized name (strip .jsonl so dir "eval_X" matches file "eval_X.jsonl")
   const seen = new Set<string>();
-  const uniqueFiles: string[] = [];
-  for (const filePath of files) {
-    const basename = path.basename(filePath);
-    if (!seen.has(basename)) {
-      seen.add(basename);
-      uniqueFiles.push(filePath);
+  const uniqueFiles: { filePath: string; displayName: string }[] = [];
+  for (const file of files) {
+    const key = file.displayName.replace(/\.jsonl$/, '');
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueFiles.push(file);
     }
   }
 
-  // Sort by filename descending (most recent first)
-  uniqueFiles.sort((a, b) => path.basename(b).localeCompare(path.basename(a)));
+  // Sort by display name descending (most recent first)
+  uniqueFiles.sort((a, b) => b.displayName.localeCompare(a.displayName));
 
   const limited = limit !== undefined && limit > 0 ? uniqueFiles.slice(0, limit) : uniqueFiles;
 
   const metas: ResultFileMeta[] = [];
 
-  for (const filePath of limited) {
+  for (const { filePath, displayName } of limited) {
     try {
-      const stat = statSync(filePath);
+      const fileStat = statSync(filePath);
       const results = loadResultFile(filePath);
 
-      const filename = path.basename(filePath);
       const testCount = results.length;
       const passCount = results.filter((r) => r.score >= 1.0).length;
       const passRate = testCount > 0 ? passCount / testCount : 0;
       const avgScore = testCount > 0 ? results.reduce((sum, r) => sum + r.score, 0) / testCount : 0;
 
-      // Extract timestamp from filename or first record
-      const filenameTimestamp = extractTimestampFromFilename(filename);
+      const filenameTimestamp = extractTimestampFromFilename(displayName);
       const timestamp = filenameTimestamp ?? results[0]?.timestamp ?? 'unknown';
 
       metas.push({
         path: filePath,
-        filename,
+        filename: displayName,
         timestamp,
         testCount,
         passRate,
         avgScore,
-        sizeBytes: stat.size,
+        sizeBytes: fileStat.size,
       });
     } catch {
       // Skip unreadable files

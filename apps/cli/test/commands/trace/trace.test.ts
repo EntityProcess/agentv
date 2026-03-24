@@ -214,6 +214,79 @@ describe('trace utils', () => {
       const metas = listResultFiles(tempDir);
       expect(metas).toHaveLength(1);
     });
+
+    it('should discover results.jsonl inside run directories in raw/', () => {
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
+      mkdirSync(runDir, { recursive: true });
+
+      writeFileSync(
+        path.join(runDir, 'results.jsonl'),
+        `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
+      );
+
+      const metas = listResultFiles(tempDir);
+
+      expect(metas).toHaveLength(1);
+      expect(metas[0].testCount).toBe(2);
+      expect(metas[0].passRate).toBe(0.5);
+      expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
+    });
+
+    it('should list both directory-based and flat-file results together', () => {
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      mkdirSync(rawDir, { recursive: true });
+
+      // New directory-based run
+      const runDir = path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'results.jsonl'), `${RESULT_FAILING}\n`);
+
+      // Legacy flat file
+      writeFileSync(
+        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        `${RESULT_WITH_TRACE}\n`,
+      );
+
+      const metas = listResultFiles(tempDir);
+      expect(metas).toHaveLength(2);
+      // Most recent first
+      expect(metas[0].filename).toBe('eval_2026-02-21T10-00-00-000Z');
+      expect(metas[1].filename).toBe('eval_2026-02-20T21-38-05-833Z.jsonl');
+    });
+
+    it('should deduplicate directory and flat file with same timestamp', () => {
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      mkdirSync(rawDir, { recursive: true });
+
+      // Directory-based (preferred)
+      const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      // Flat file with same timestamp
+      writeFileSync(
+        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        `${RESULT_WITH_TRACE}\n`,
+      );
+
+      const metas = listResultFiles(tempDir);
+      expect(metas).toHaveLength(1);
+      // Prefer directory-based (scanned first)
+      expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
+    });
+
+    it('should skip directories without results.jsonl', () => {
+      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
+      const emptyDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
+      mkdirSync(emptyDir, { recursive: true });
+
+      // Directory exists but no results.jsonl inside
+      writeFileSync(path.join(emptyDir, 'grading.json'), '{}');
+
+      const metas = listResultFiles(tempDir);
+      expect(metas).toHaveLength(0);
+    });
   });
 
   describe('extractTimestampFromFilename', () => {

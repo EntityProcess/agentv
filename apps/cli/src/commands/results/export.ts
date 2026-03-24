@@ -140,12 +140,18 @@ function safeTestId(result: EvaluationResult): string {
 }
 
 /**
- * Derive the default output directory from a JSONL filename.
- * e.g. eval_2026-03-18T12-00-00-000Z.jsonl → .agentv/results/2026-03-18T12-00-00-000Z/
+ * Derive the default output directory from a JSONL source path.
+ * Handles both directory-per-run (eval_<ts>/results.jsonl) and legacy flat files (eval_<ts>.jsonl).
  */
 function deriveOutputDir(cwd: string, sourceFile: string): string {
+  const parentDir = path.basename(path.dirname(sourceFile));
+  if (parentDir.startsWith('eval_')) {
+    // New directory-per-run: extract timestamp from parent dir name
+    const dirName = parentDir.slice(5);
+    return path.join(cwd, '.agentv', 'results', 'export', dirName);
+  }
+  // Legacy flat file: extract timestamp from filename
   const basename = path.basename(sourceFile, '.jsonl');
-  // Strip leading "eval_" prefix if present to get the timestamp
   const dirName = basename.startsWith('eval_') ? basename.slice(5) : basename;
   return path.join(cwd, '.agentv', 'results', 'export', dirName);
 }
