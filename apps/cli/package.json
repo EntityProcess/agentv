@@ -33,8 +33,6 @@
     "@github/copilot-sdk": "^0.1.25",
     "@hono/node-server": "^1.19.11",
     "@inquirer/prompts": "^8.2.1",
-    "@mariozechner/pi-agent-core": "^0.54.2",
-    "@mariozechner/pi-ai": "^0.54.2",
     "@openai/codex-sdk": "^0.104.0",
     "cmd-ts": "^0.14.3",
     "dotenv": "^16.4.5",
@@ -44,6 +42,12 @@
     "micromatch": "^4.0.8",
     "semver": "^7.7.4",
     "yaml": "^2.6.1"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.62.0"
+  },
+  "peerDependenciesMeta": {
+    "@mariozechner/pi-coding-agent": { "optional": true }
   },
   "devDependencies": {
     "@agentv/core": "workspace:*",

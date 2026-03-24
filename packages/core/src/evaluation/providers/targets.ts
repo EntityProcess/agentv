@@ -486,6 +486,20 @@ export interface CopilotSdkResolvedConfig {
 }
 
 export interface PiCodingAgentResolvedConfig {
+  readonly subprovider?: string;
+  readonly model?: string;
+  readonly apiKey?: string;
+  readonly tools?: string;
+  readonly thinking?: string;
+  readonly cwd?: string;
+  readonly workspaceTemplate?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+  readonly systemPrompt?: string;
+}
+
+export interface PiCliResolvedConfig {
   readonly executable: string;
   readonly subprovider?: string;
   readonly model?: string;
@@ -498,14 +512,6 @@ export interface PiCodingAgentResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
-  readonly systemPrompt?: string;
-}
-
-export interface PiAgentSdkResolvedConfig {
-  readonly subprovider?: string;
-  readonly model?: string;
-  readonly apiKey?: string;
-  readonly timeoutMs?: number;
   readonly systemPrompt?: string;
 }
 
@@ -625,12 +631,12 @@ export type ResolvedTarget =
       readonly config: PiCodingAgentResolvedConfig;
     }
   | {
-      readonly kind: 'pi-agent-sdk';
+      readonly kind: 'pi-cli';
       readonly name: string;
       readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
-      readonly config: PiAgentSdkResolvedConfig;
+      readonly config: PiCliResolvedConfig;
     }
   | {
       readonly kind: 'claude';
@@ -870,14 +876,14 @@ export function resolveTargetDefinition(
         providerBatching,
         config: resolvePiCodingAgentConfig(parsed, env, evalFilePath),
       };
-    case 'pi-agent-sdk':
+    case 'pi-cli':
       return {
-        kind: 'pi-agent-sdk',
+        kind: 'pi-cli',
         name: parsed.name,
         graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolvePiAgentSdkConfig(parsed, env),
+        config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
     case 'claude':
     case 'claude-code':
@@ -1415,13 +1421,11 @@ function resolvePiCodingAgentConfig(
   env: EnvLookup,
   evalFilePath?: string,
 ): PiCodingAgentResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
   const subproviderSource = target.subprovider;
   const modelSource = target.model ?? target.pi_model ?? target.piModel;
   const apiKeySource = target.api_key ?? target.apiKey;
   const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
   const thinkingSource = target.thinking ?? target.pi_thinking ?? target.piThinking;
-  const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
   const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
   const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
@@ -1429,12 +1433,6 @@ function resolvePiCodingAgentConfig(
     target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
   const logFormatSource = target.log_format ?? target.logFormat;
   const systemPromptSource = target.system_prompt ?? target.systemPrompt;
-
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} pi executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'pi';
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -1465,8 +1463,6 @@ function resolvePiCodingAgentConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
-
-  const args = resolveOptionalStringArray(argsSource, env, `${target.name} pi args`);
 
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi cwd`, {
     allowLiteral: true,
@@ -1511,6 +1507,111 @@ function resolvePiCodingAgentConfig(
       : undefined;
 
   return {
+    subprovider,
+    model,
+    apiKey,
+    tools,
+    thinking,
+    cwd,
+    workspaceTemplate,
+    timeoutMs,
+    logDir,
+    logFormat,
+    systemPrompt,
+  };
+}
+
+function resolvePiCliConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  evalFilePath?: string,
+): PiCliResolvedConfig {
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const subproviderSource = target.subprovider;
+  const modelSource = target.model ?? target.pi_model ?? target.piModel;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
+  const thinkingSource = target.thinking ?? target.pi_thinking ?? target.piThinking;
+  const cwdSource = target.cwd;
+  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource =
+    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const logFormatSource = target.log_format ?? target.logFormat;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? 'pi';
+
+  const subprovider = resolveOptionalString(
+    subproviderSource,
+    env,
+    `${target.name} pi-cli subprovider`,
+    { allowLiteral: true, optionalEnv: true },
+  );
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} pi-cli model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi-cli api key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
+
+  const tools = resolveOptionalString(toolsSource, env, `${target.name} pi-cli tools`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const thinking = resolveOptionalString(thinkingSource, env, `${target.name} pi-cli thinking`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const rawArgs = target.args ?? target.arguments;
+  const args = resolveOptionalStringArray(rawArgs, env, `${target.name} pi-cli args`);
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi-cli cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  let workspaceTemplate = resolveOptionalString(
+    workspaceTemplateSource,
+    env,
+    `${target.name} pi-cli workspace template`,
+    { allowLiteral: true, optionalEnv: true },
+  );
+
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
+
+  if (cwd && workspaceTemplate) {
+    throw new Error(`${target.name}: 'cwd' and 'workspace_template' are mutually exclusive.`);
+  }
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi-cli timeout`);
+
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} pi-cli log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const logFormat =
+    logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
     executable,
     subprovider,
     model,
@@ -1523,52 +1624,6 @@ function resolvePiCodingAgentConfig(
     timeoutMs,
     logDir,
     logFormat,
-    systemPrompt,
-  };
-}
-
-function resolvePiAgentSdkConfig(
-  target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup,
-): PiAgentSdkResolvedConfig {
-  const subproviderSource = target.subprovider;
-  const modelSource = target.model ?? target.pi_model ?? target.piModel;
-  const apiKeySource = target.api_key ?? target.apiKey;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
-
-  const subprovider = resolveOptionalString(
-    subproviderSource,
-    env,
-    `${target.name} pi-agent-sdk subprovider`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  const model = resolveOptionalString(modelSource, env, `${target.name} pi-agent-sdk model`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
-
-  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi-agent-sdk api key`, {
-    allowLiteral: false,
-    optionalEnv: true,
-  });
-
-  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi-agent-sdk timeout`);
-
-  const systemPrompt =
-    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
-      ? systemPromptSource.trim()
-      : undefined;
-
-  return {
-    subprovider,
-    model,
-    apiKey,
-    timeoutMs,
     systemPrompt,
   };
 }

@@ -1,10 +1,20 @@
-import { spawn } from 'node:child_process';
+/**
+ * Pi Coding Agent provider using the @mariozechner/pi-coding-agent SDK directly.
+ *
+ * Uses `createAgentSession` from the SDK instead of spawning the Pi CLI as a subprocess.
+ * Events are consumed via `session.subscribe()` to extract messages, tool calls, and token usage.
+ *
+ * Dependencies are lazy-loaded on first use to avoid bundling issues.
+ * The package `@mariozechner/pi-coding-agent` must be installed.
+ */
+
+import { execSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
@@ -19,28 +29,73 @@ import type {
   ToolCall,
 } from './types.js';
 
-const WORKSPACE_PREFIX = 'agentv-pi-';
-const PROMPT_FILENAME = 'prompt.md';
+// Lazy-loaded SDK modules
+let piCodingAgentModule: typeof import('@mariozechner/pi-coding-agent') | null = null;
+let piAiModule: typeof import('@mariozechner/pi-ai') | null = null;
 
-interface PiRunOptions {
-  readonly executable: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  readonly timeoutMs?: number;
-  readonly env: NodeJS.ProcessEnv;
-  readonly signal?: AbortSignal;
-  readonly onStdoutChunk?: (chunk: string) => void;
-  readonly onStderrChunk?: (chunk: string) => void;
+async function promptInstall(): Promise<boolean> {
+  if (!process.stdout.isTTY) return false;
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    return await new Promise<boolean>((resolve) => {
+      rl.question(
+        '@mariozechner/pi-coding-agent is not installed. Install it now? (y/N) ',
+        (answer) => resolve(answer.trim().toLowerCase() === 'y'),
+      );
+    });
+  } finally {
+    rl.close();
+  }
 }
 
-interface PiRunResult {
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly exitCode: number;
-  readonly timedOut?: boolean;
+async function loadSdkModules() {
+  if (!piCodingAgentModule || !piAiModule) {
+    try {
+      [piCodingAgentModule, piAiModule] = await Promise.all([
+        import('@mariozechner/pi-coding-agent'),
+        import('@mariozechner/pi-ai'),
+      ]);
+    } catch {
+      if (await promptInstall()) {
+        console.error('Installing @mariozechner/pi-coding-agent...');
+        execSync('bun add @mariozechner/pi-coding-agent', { stdio: 'inherit' });
+        [piCodingAgentModule, piAiModule] = await Promise.all([
+          import('@mariozechner/pi-coding-agent'),
+          import('@mariozechner/pi-ai'),
+        ]);
+      } else {
+        throw new Error(
+          'pi-coding-agent SDK is not installed. Install it with:\n  bun add @mariozechner/pi-coding-agent',
+        );
+      }
+    }
+  }
+  const toolMap: Record<string, unknown> = {
+    read: piCodingAgentModule.readTool,
+    bash: piCodingAgentModule.bashTool,
+    edit: piCodingAgentModule.editTool,
+    write: piCodingAgentModule.writeTool,
+    grep: piCodingAgentModule.grepTool,
+    find: piCodingAgentModule.findTool,
+    ls: piCodingAgentModule.lsTool,
+  };
+  return {
+    createAgentSession: piCodingAgentModule.createAgentSession,
+    codingTools: piCodingAgentModule.codingTools,
+    toolMap,
+    SessionManager: piCodingAgentModule.SessionManager,
+    getModel: piAiModule.getModel,
+  };
 }
 
-type PiRunner = (options: PiRunOptions) => Promise<PiRunResult>;
+/** Tracks in-flight tool executions for timing. */
+interface ToolExecTracker {
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: unknown;
+  readonly startMs: number;
+  readonly startTime: string;
+}
 
 export class PiCodingAgentProvider implements Provider {
   readonly id: string;
@@ -49,17 +104,11 @@ export class PiCodingAgentProvider implements Provider {
   readonly supportsBatch = false;
 
   private readonly config: PiCodingAgentResolvedConfig;
-  private readonly runPi: PiRunner;
 
-  constructor(
-    targetName: string,
-    config: PiCodingAgentResolvedConfig,
-    runner: PiRunner = defaultPiRunner,
-  ) {
+  constructor(targetName: string, config: PiCodingAgentResolvedConfig) {
     this.id = `pi-coding-agent:${targetName}`;
     this.targetName = targetName;
     this.config = config;
-    this.runPi = runner;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -72,223 +121,241 @@ export class PiCodingAgentProvider implements Provider {
     const startTime = new Date().toISOString();
     const startMs = Date.now();
 
-    const workspaceRoot = await this.createWorkspace();
+    const sdk = await loadSdkModules();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
+
     try {
-      // Save prompt to file for debugging/logging
-      const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
-      await writeFile(promptFile, request.question, 'utf8');
+      const cwd = this.resolveCwd(request.cwd);
+      const providerName = this.config.subprovider ?? 'google';
+      const modelId = this.config.model ?? 'gemini-2.5-flash';
 
-      const args = this.buildPiArgs(request.question, inputFiles, request.captureFileChanges);
-      const cwd = this.resolveCwd(workspaceRoot, request.cwd);
+      // Set provider-specific API key env var so the SDK can find it
+      this.setApiKeyEnv(providerName);
 
-      const result = await this.executePi(args, cwd, request.signal, logger);
+      // Build model using pi-ai's getModel (requires type assertion for runtime strings)
+      // biome-ignore lint/suspicious/noExplicitAny: runtime string config requires any cast
+      const model = (sdk.getModel as any)(providerName, modelId);
 
-      if (result.timedOut) {
-        throw new Error(
-          `Pi coding agent timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
-      }
+      // Select tools based on config
+      const tools = this.resolveTools(sdk);
 
-      if (result.exitCode !== 0) {
-        const detail = pickDetail(result.stderr, result.stdout);
-        const prefix = `Pi coding agent exited with code ${result.exitCode}`;
-        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
-      }
+      // Create agent session using the SDK
+      const { session } = await sdk.createAgentSession({
+        cwd,
+        model,
+        tools,
+        thinkingLevel: this.config.thinking as
+          | 'off'
+          | 'minimal'
+          | 'low'
+          | 'medium'
+          | 'high'
+          | 'xhigh'
+          | undefined,
+        sessionManager: sdk.SessionManager.inMemory(cwd),
+      });
 
-      const parsed = parsePiJsonl(result.stdout);
-      const output = extractMessages(parsed);
-      const tokenUsage = extractTokenUsage(parsed);
+      // Track token usage, cost, and tool timing from events
+      let tokenUsage: ProviderTokenUsage | undefined;
+      let costUsd: number | undefined;
+      const toolTrackers = new Map<string, ToolExecTracker>();
+      const completedToolResults = new Map<string, { output: unknown; durationMs: number }>();
 
-      // Emit stream callbacks for OTEL trace export (post-hoc from parsed output)
-      if (request.streamCallbacks) {
-        for (const msg of output) {
-          if (msg.toolCalls) {
-            for (const tc of msg.toolCalls) {
-              request.streamCallbacks.onToolCallEnd?.(
-                tc.tool,
-                tc.input,
-                tc.output,
-                tc.durationMs ?? 0,
-                tc.id,
-              );
+      const unsubscribe = session.subscribe((event) => {
+        // Log events for stream logging
+        logger?.handleEvent(event);
+
+        switch (event.type) {
+          case 'message_end': {
+            const msg = event.message;
+            if (
+              msg &&
+              typeof msg === 'object' &&
+              'role' in msg &&
+              msg.role === 'assistant' &&
+              'usage' in msg
+            ) {
+              const usage = (msg as unknown as Record<string, unknown>).usage;
+              if (usage && typeof usage === 'object') {
+                const u = usage as Record<string, unknown>;
+                const input = toFiniteNumber(u.input);
+                const output = toFiniteNumber(u.output);
+                const cached = toFiniteNumber(u.cacheRead);
+
+                let callDelta: ProviderTokenUsage | undefined;
+                if (input !== undefined || output !== undefined) {
+                  callDelta = {
+                    input: input ?? 0,
+                    output: output ?? 0,
+                    ...(cached !== undefined ? { cached } : {}),
+                  };
+                  tokenUsage = {
+                    input: (tokenUsage?.input ?? 0) + callDelta.input,
+                    output: (tokenUsage?.output ?? 0) + callDelta.output,
+                    ...(cached !== undefined
+                      ? { cached: (tokenUsage?.cached ?? 0) + cached }
+                      : tokenUsage?.cached !== undefined
+                        ? { cached: tokenUsage.cached }
+                        : {}),
+                  };
+                }
+
+                // Extract cost from usage.cost object
+                const cost = (u as Record<string, unknown>).cost;
+                if (cost && typeof cost === 'object') {
+                  const total = toFiniteNumber((cost as Record<string, unknown>).total);
+                  if (total !== undefined) {
+                    costUsd = (costUsd ?? 0) + total;
+                  }
+                }
+
+                // Emit per-call delta for OTel spans
+                request.streamCallbacks?.onLlmCallEnd?.(modelId, callDelta);
+              }
             }
+            break;
+          }
+
+          case 'tool_execution_start': {
+            toolTrackers.set(event.toolCallId, {
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              args: event.args,
+              startMs: Date.now(),
+              startTime: new Date().toISOString(),
+            });
+            request.streamCallbacks?.onToolCallStart?.(event.toolName, event.toolCallId);
+            break;
+          }
+
+          case 'tool_execution_end': {
+            const tracker = toolTrackers.get(event.toolCallId);
+            const durationMs = tracker ? Date.now() - tracker.startMs : 0;
+            completedToolResults.set(event.toolCallId, {
+              output: event.result,
+              durationMs,
+            });
+            request.streamCallbacks?.onToolCallEnd?.(
+              event.toolName,
+              tracker?.args,
+              event.result,
+              durationMs,
+              event.toolCallId,
+            );
+            toolTrackers.delete(event.toolCallId);
+            break;
           }
         }
-        request.streamCallbacks.onLlmCallEnd?.(this.config.model ?? 'pi', tokenUsage);
+      });
+
+      try {
+        // Build prompt with optional system prompt and input files
+        const systemPrompt = this.config.systemPrompt;
+        let prompt = request.question;
+        if (systemPrompt) {
+          prompt = `${systemPrompt}\n\n${prompt}`;
+        }
+        if (inputFiles && inputFiles.length > 0) {
+          const fileList = inputFiles.map((f) => `@${f}`).join('\n');
+          prompt = `${prompt}\n\nFiles:\n${fileList}`;
+        }
+
+        // Run with timeout
+        if (this.config.timeoutMs) {
+          const timeoutMs = this.config.timeoutMs;
+          let timeoutId: ReturnType<typeof setTimeout> | undefined;
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(
+              () =>
+                reject(
+                  new Error(`Pi coding agent timed out after ${Math.ceil(timeoutMs / 1000)}s`),
+                ),
+              timeoutMs,
+            );
+          });
+          try {
+            await Promise.race([session.prompt(prompt), timeoutPromise]);
+          } finally {
+            if (timeoutId !== undefined) clearTimeout(timeoutId);
+          }
+        } else {
+          await session.prompt(prompt);
+        }
+
+        // Extract messages from agent state
+        const agentMessages = session.agent.state.messages;
+        const output: Message[] = [];
+        for (const msg of agentMessages) {
+          output.push(convertAgentMessage(msg, toolTrackers, completedToolResults));
+        }
+
+        const endTime = new Date().toISOString();
+        const durationMs = Date.now() - startMs;
+
+        return {
+          raw: {
+            messages: agentMessages,
+            model: this.config.model,
+            provider: this.config.subprovider,
+          },
+          output,
+          tokenUsage,
+          costUsd,
+          durationMs,
+          startTime,
+          endTime,
+        };
+      } finally {
+        unsubscribe();
+        session.dispose();
       }
-
-      const endTime = new Date().toISOString();
-      const durationMs = Date.now() - startMs;
-
-      return {
-        raw: {
-          response: parsed,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          exitCode: result.exitCode,
-          args,
-          executable: this.config.executable,
-          promptFile,
-          workspace: workspaceRoot,
-          inputFiles,
-          logFile: logger?.filePath,
-        },
-        output,
-        tokenUsage,
-        durationMs,
-        startTime,
-        endTime,
-      };
     } finally {
       await logger?.close();
-      await this.cleanupWorkspace(workspaceRoot);
     }
   }
 
-  private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
-    // Request cwd override takes precedence (e.g., from workspace_template)
+  /** Maps config apiKey to the provider-specific env var the SDK reads. */
+  private setApiKeyEnv(providerName: string): void {
+    if (!this.config.apiKey) return;
+    const ENV_KEY_MAP: Record<string, string> = {
+      google: 'GEMINI_API_KEY',
+      gemini: 'GEMINI_API_KEY',
+      anthropic: 'ANTHROPIC_API_KEY',
+      openai: 'OPENAI_API_KEY',
+      groq: 'GROQ_API_KEY',
+      xai: 'XAI_API_KEY',
+      openrouter: 'OPENROUTER_API_KEY',
+    };
+    const envKey = ENV_KEY_MAP[providerName.toLowerCase()];
+    if (envKey) {
+      process.env[envKey] = this.config.apiKey;
+    }
+  }
+
+  private resolveCwd(cwdOverride?: string): string {
     if (cwdOverride) {
       return path.resolve(cwdOverride);
     }
-    if (!this.config.cwd) {
-      return workspaceRoot;
+    if (this.config.cwd) {
+      return path.resolve(this.config.cwd);
     }
-    return path.resolve(this.config.cwd);
+    return process.cwd();
   }
 
-  private buildPiArgs(
-    prompt: string,
-    inputFiles: readonly string[] | undefined,
-    _captureFileChanges?: boolean,
-  ): string[] {
-    const args: string[] = [];
-
-    // Provider and model configuration
-    if (this.config.subprovider) {
-      args.push('--provider', this.config.subprovider);
-    }
-    if (this.config.model) {
-      args.push('--model', this.config.model);
-    }
-    if (this.config.apiKey) {
-      args.push('--api-key', this.config.apiKey);
+  private resolveTools(sdk: Awaited<ReturnType<typeof loadSdkModules>>) {
+    if (!this.config.tools) {
+      return sdk.codingTools;
     }
 
-    // Output mode - always use JSON for structured output
-    args.push('--mode', 'json');
-
-    // Non-interactive mode
-    args.push('--print');
-
-    // No session storage for eval runs
-    args.push('--no-session');
-
-    // Tools configuration
-    if (this.config.tools) {
-      args.push('--tools', this.config.tools);
-    }
-
-    // Thinking level
-    if (this.config.thinking) {
-      args.push('--thinking', this.config.thinking);
-    }
-
-    // Custom args
-    if (this.config.args && this.config.args.length > 0) {
-      args.push(...this.config.args);
-    }
-
-    // Input files passed with @path syntax (pi-native file inclusion)
-    if (inputFiles && inputFiles.length > 0) {
-      for (const file of inputFiles) {
-        args.push(`@${file}`);
+    const toolNames = this.config.tools.split(',').map((t) => t.trim().toLowerCase());
+    const selected = [];
+    for (const name of toolNames) {
+      if (name in sdk.toolMap) {
+        selected.push(sdk.toolMap[name]);
       }
     }
-
-    const systemPrompt = this.config.systemPrompt;
-    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-
-    // Escape @ symbols in prompt that aren't file references
-    // Pi CLI interprets @ as file prefix, but AgentV uses @[Role]: for multi-turn
-    const escapedPrompt = escapeAtSymbols(fullPrompt);
-
-    // Prompt is passed as the final argument
-    args.push(escapedPrompt);
-
-    return args;
-  }
-
-  private async executePi(
-    args: readonly string[],
-    cwd: string,
-    signal: AbortSignal | undefined,
-    logger: PiStreamLogger | undefined,
-  ): Promise<PiRunResult> {
-    try {
-      return await this.runPi({
-        executable: this.config.executable,
-        args,
-        cwd,
-        timeoutMs: this.config.timeoutMs,
-        env: this.buildEnv(),
-        signal,
-        onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
-        onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
-      });
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code === 'ENOENT') {
-        throw new Error(
-          `Pi coding agent executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`,
-        );
-      }
-      throw error;
-    }
-  }
-
-  private buildEnv(): NodeJS.ProcessEnv {
-    const env = { ...process.env };
-
-    // Map provider-specific API key to the correct env var
-    if (this.config.apiKey) {
-      const provider = this.config.subprovider?.toLowerCase() ?? 'google';
-      switch (provider) {
-        case 'google':
-        case 'gemini':
-          env.GEMINI_API_KEY = this.config.apiKey;
-          break;
-        case 'anthropic':
-          env.ANTHROPIC_API_KEY = this.config.apiKey;
-          break;
-        case 'openai':
-          env.OPENAI_API_KEY = this.config.apiKey;
-          break;
-        case 'groq':
-          env.GROQ_API_KEY = this.config.apiKey;
-          break;
-        case 'xai':
-          env.XAI_API_KEY = this.config.apiKey;
-          break;
-        case 'openrouter':
-          env.OPENROUTER_API_KEY = this.config.apiKey;
-          break;
-      }
-    }
-
-    return env;
-  }
-
-  private async createWorkspace(): Promise<string> {
-    return await mkdtemp(path.join(tmpdir(), WORKSPACE_PREFIX));
-  }
-
-  private async cleanupWorkspace(workspaceRoot: string): Promise<void> {
-    try {
-      await rm(workspaceRoot, { recursive: true, force: true });
-    } catch {
-      // Best-effort cleanup
-    }
+    // biome-ignore lint/suspicious/noExplicitAny: tools are typed dynamically from SDK
+    return selected.length > 0 ? (selected as any[]) : sdk.codingTools;
   }
 
   private resolveLogDirectory(): string | undefined {
@@ -340,8 +407,6 @@ class PiStreamLogger {
   readonly filePath: string;
   private readonly stream: WriteStream;
   private readonly startedAt = Date.now();
-  private stdoutBuffer = '';
-  private stderrBuffer = '';
   private readonly format: 'summary' | 'json';
 
   private constructor(filePath: string, format: 'summary' | 'json') {
@@ -366,83 +431,56 @@ class PiStreamLogger {
       `# started: ${new Date().toISOString()}`,
       '',
     ].filter((line): line is string => Boolean(line));
-    logger.writeLines(header);
+    for (const line of header) {
+      logger.stream.write(`${line}\n`);
+    }
     return logger;
   }
 
-  handleStdoutChunk(chunk: string): void {
-    this.stdoutBuffer += chunk;
-    this.flushBuffer('stdout');
-  }
+  handleEvent(event: unknown): void {
+    if (!event || typeof event !== 'object') return;
+    const record = event as Record<string, unknown>;
+    const type = typeof record.type === 'string' ? record.type : undefined;
+    if (!type) return;
 
-  handleStderrChunk(chunk: string): void {
-    this.stderrBuffer += chunk;
-    this.flushBuffer('stderr');
+    const message =
+      this.format === 'json' ? JSON.stringify(event, null, 2) : summarizeSdkEvent(event);
+    if (message) {
+      this.stream.write(`[+${formatElapsed(this.startedAt)}] ${message}\n`);
+    }
   }
 
   async close(): Promise<void> {
-    this.flushBuffer('stdout');
-    this.flushBuffer('stderr');
-    this.flushRemainder();
     await new Promise<void>((resolve, reject) => {
       this.stream.once('error', reject);
       this.stream.end(() => resolve());
     });
   }
+}
 
-  private writeLines(lines: readonly string[]): void {
-    for (const line of lines) {
-      this.stream.write(`${line}\n`);
-    }
-  }
+function summarizeSdkEvent(event: unknown): string | undefined {
+  if (!event || typeof event !== 'object') return undefined;
+  const record = event as Record<string, unknown>;
+  const type = typeof record.type === 'string' ? record.type : undefined;
+  if (!type) return undefined;
 
-  private flushBuffer(source: 'stdout' | 'stderr'): void {
-    const buffer = source === 'stdout' ? this.stdoutBuffer : this.stderrBuffer;
-    const lines = buffer.split(/\r?\n/);
-    const remainder = lines.pop() ?? '';
-    if (source === 'stdout') {
-      this.stdoutBuffer = remainder;
-    } else {
-      this.stderrBuffer = remainder;
+  switch (type) {
+    case 'agent_start':
+    case 'agent_end':
+    case 'turn_start':
+    case 'turn_end':
+      return type;
+    case 'message_start':
+    case 'message_end': {
+      const msg = record.message as Record<string, unknown> | undefined;
+      return `${type}: ${msg?.role ?? 'unknown'}`;
     }
-    for (const line of lines) {
-      const formatted = this.formatLine(line, source);
-      if (formatted) {
-        this.stream.write(formatted);
-        this.stream.write('\n');
-      }
-    }
-  }
-
-  private formatLine(rawLine: string, source: 'stdout' | 'stderr'): string | undefined {
-    const trimmed = rawLine.trim();
-    if (trimmed.length === 0) {
-      return undefined;
-    }
-    const message =
-      this.format === 'json' ? formatPiJsonLog(trimmed) : formatPiLogMessage(trimmed, source);
-    return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
-  }
-
-  private flushRemainder(): void {
-    const stdoutRemainder = this.stdoutBuffer.trim();
-    if (stdoutRemainder.length > 0) {
-      const formatted = this.formatLine(stdoutRemainder, 'stdout');
-      if (formatted) {
-        this.stream.write(formatted);
-        this.stream.write('\n');
-      }
-    }
-    const stderrRemainder = this.stderrBuffer.trim();
-    if (stderrRemainder.length > 0) {
-      const formatted = this.formatLine(stderrRemainder, 'stderr');
-      if (formatted) {
-        this.stream.write(formatted);
-        this.stream.write('\n');
-      }
-    }
-    this.stdoutBuffer = '';
-    this.stderrBuffer = '';
+    case 'tool_execution_start':
+      return `tool_start: ${record.toolName}`;
+    case 'tool_execution_end':
+      return `tool_end: ${record.toolName}`;
+    default:
+      return type;
   }
 }
 
@@ -470,290 +508,72 @@ function formatElapsed(startedAt: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function formatPiLogMessage(rawLine: string, source: 'stdout' | 'stderr'): string {
-  const parsed = tryParseJsonValue(rawLine);
-  if (parsed) {
-    const summary = summarizePiEvent(parsed);
-    if (summary) {
-      return summary;
-    }
-  }
-  if (source === 'stderr') {
-    return `stderr: ${rawLine}`;
-  }
-  return rawLine;
-}
-
-function formatPiJsonLog(rawLine: string): string {
-  const parsed = tryParseJsonValue(rawLine);
-  if (!parsed) {
-    return rawLine;
-  }
-  try {
-    return JSON.stringify(parsed, null, 2);
-  } catch {
-    return rawLine;
-  }
-}
-
-function summarizePiEvent(event: unknown): string | undefined {
-  if (!event || typeof event !== 'object') {
-    return undefined;
-  }
-  const record = event as Record<string, unknown>;
-  const type = typeof record.type === 'string' ? record.type : undefined;
-
-  if (!type) {
-    return undefined;
-  }
-
-  // Handle specific event types
-  switch (type) {
-    case 'agent_start':
-      return 'agent_start';
-    case 'agent_end':
-      return 'agent_end';
-    case 'turn_start':
-      return 'turn_start';
-    case 'turn_end':
-      return 'turn_end';
-    case 'message_start':
-    case 'message_end': {
-      const message = record.message as Record<string, unknown> | undefined;
-      const role = message?.role;
-      return `${type}: ${role}`;
-    }
-    case 'message_update': {
-      const event = record.assistantMessageEvent as Record<string, unknown> | undefined;
-      const eventType = event?.type;
-      if (eventType === 'text_delta') {
-        const delta = event?.delta;
-        if (typeof delta === 'string') {
-          const preview = delta.length > 50 ? `${delta.slice(0, 50)}...` : delta;
-          return `text_delta: ${preview}`;
-        }
-      }
-      return `message_update: ${eventType}`;
-    }
-    default:
-      return type;
-  }
-}
-
-function tryParseJsonValue(rawLine: string): unknown | undefined {
-  try {
-    return JSON.parse(rawLine);
-  } catch {
-    return undefined;
-  }
-}
-
 /**
- * Parse Pi coding agent JSONL output.
- * Returns an array of parsed JSON objects from each line.
+ * Convert a pi-agent message to AgentV Message format.
+ * Enriches with token usage, metadata, and tool call timing from event trackers.
  */
-function parsePiJsonl(output: string): unknown[] {
-  const trimmed = output.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Pi coding agent produced no output');
-  }
-
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const parsed: unknown[] = [];
-  for (const line of lines) {
-    try {
-      parsed.push(JSON.parse(line));
-    } catch {
-      // Skip non-JSON lines (e.g., stderr mixed in)
-    }
-  }
-
-  if (parsed.length === 0) {
-    throw new Error('Pi coding agent produced no valid JSON output');
-  }
-
-  return parsed;
-}
-
-/**
- * Extract Message array from Pi JSONL events.
- * Looks for the agent_end event which contains the full message history.
- */
-function extractMessages(events: unknown[]): readonly Message[] {
-  // Find the agent_end event which contains all messages
-  for (let i = events.length - 1; i >= 0; i--) {
-    const event = events[i];
-    if (!event || typeof event !== 'object') {
-      continue;
-    }
-    const record = event as Record<string, unknown>;
-    if (record.type !== 'agent_end') {
-      continue;
-    }
-
-    const messages = record.messages;
-    if (!Array.isArray(messages)) {
-      continue;
-    }
-
-    return messages.map(convertPiMessage).filter((m): m is Message => m !== undefined);
-  }
-
-  // Fallback: collect messages from turn_end events
-  const output: Message[] = [];
-  for (const event of events) {
-    if (!event || typeof event !== 'object') {
-      continue;
-    }
-    const record = event as Record<string, unknown>;
-    if (record.type === 'turn_end') {
-      const message = record.message;
-      const converted = convertPiMessage(message);
-      if (converted) {
-        output.push(converted);
-      }
-    }
-  }
-
-  return output;
-}
-
-/**
- * Extract token usage from Pi JSONL events.
- * Checks the agent_end event for top-level usage, then aggregates from output messages.
- */
-function extractTokenUsage(events: unknown[]): ProviderTokenUsage | undefined {
-  // First, check agent_end for top-level usage
-  for (let i = events.length - 1; i >= 0; i--) {
-    const event = events[i];
-    if (!event || typeof event !== 'object') continue;
-    const record = event as Record<string, unknown>;
-    if (record.type !== 'agent_end') continue;
-
-    // Check for top-level usage on agent_end event
-    const usage = record.usage;
-    if (usage && typeof usage === 'object') {
-      const u = usage as Record<string, unknown>;
-      const input = toFiniteNumber(u.input_tokens ?? u.inputTokens ?? u.input);
-      const output = toFiniteNumber(u.output_tokens ?? u.outputTokens ?? u.output);
-      if (input !== undefined || output !== undefined) {
-        const result: ProviderTokenUsage = {
-          input: input ?? 0,
-          output: output ?? 0,
-        };
-        const cached = toFiniteNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
-        const reasoning = toFiniteNumber(u.reasoning_tokens ?? u.reasoningTokens ?? u.reasoning);
-        return {
-          ...result,
-          ...(cached !== undefined ? { cached } : {}),
-          ...(reasoning !== undefined ? { reasoning } : {}),
-        };
-      }
-    }
-
-    // Aggregate usage from messages within agent_end
-    const messages = record.messages;
-    if (Array.isArray(messages)) {
-      return aggregateUsageFromMessages(messages);
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Aggregate token usage from Pi messages that have usage metadata.
- */
-function aggregateUsageFromMessages(messages: unknown[]): ProviderTokenUsage | undefined {
-  let totalInput = 0;
-  let totalOutput = 0;
-  let totalCached: number | undefined;
-  let found = false;
-
-  for (const msg of messages) {
-    if (!msg || typeof msg !== 'object') continue;
-    const m = msg as Record<string, unknown>;
-    const usage = m.usage;
-    if (!usage || typeof usage !== 'object') continue;
-
-    const u = usage as Record<string, unknown>;
-    const input = toFiniteNumber(u.input_tokens ?? u.inputTokens ?? u.input);
-    const output = toFiniteNumber(u.output_tokens ?? u.outputTokens ?? u.output);
-
-    if (input !== undefined || output !== undefined) {
-      found = true;
-      totalInput += input ?? 0;
-      totalOutput += output ?? 0;
-      const cached = toFiniteNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
-      if (cached !== undefined) {
-        totalCached = (totalCached ?? 0) + cached;
-      }
-    }
-  }
-
-  if (!found) return undefined;
-
-  const result: ProviderTokenUsage = { input: totalInput, output: totalOutput };
-  if (totalCached !== undefined) {
-    return { ...result, cached: totalCached };
-  }
-  return result;
-}
-
-/**
- * Convert a Pi message to AgentV Message format.
- */
-function convertPiMessage(message: unknown): Message | undefined {
+function convertAgentMessage(
+  message: unknown,
+  toolTrackers: Map<string, ToolExecTracker>,
+  completedToolResults: Map<string, { output: unknown; durationMs: number }>,
+): Message {
   if (!message || typeof message !== 'object') {
-    return undefined;
+    return { role: 'unknown', content: String(message) };
   }
 
   const msg = message as Record<string, unknown>;
-  const role = msg.role;
-  if (typeof role !== 'string') {
-    return undefined;
-  }
-
-  // Extract text content from Pi's content array format
+  const role = typeof msg.role === 'string' ? msg.role : 'unknown';
   const content = extractPiTextContent(msg.content);
-
-  // Extract tool calls if present
-  const toolCalls = extractToolCalls(msg.content);
-
-  // Extract startTime (mapped from timestamp in raw message)
-  const startTime =
+  const toolCalls = extractToolCalls(msg.content, toolTrackers, completedToolResults);
+  const startTimeVal =
     typeof msg.timestamp === 'number'
       ? new Date(msg.timestamp).toISOString()
       : typeof msg.timestamp === 'string'
         ? msg.timestamp
         : undefined;
 
-  // Extract metadata (usage, model info, etc.)
+  // Extract per-message token usage from AssistantMessage.usage
+  let msgTokenUsage: ProviderTokenUsage | undefined;
+  if (msg.usage && typeof msg.usage === 'object') {
+    const u = msg.usage as Record<string, unknown>;
+    const input = toFiniteNumber(u.input);
+    const output = toFiniteNumber(u.output);
+    if (input !== undefined || output !== undefined) {
+      msgTokenUsage = {
+        input: input ?? 0,
+        output: output ?? 0,
+        ...(toFiniteNumber(u.cacheRead) !== undefined
+          ? { cached: toFiniteNumber(u.cacheRead) }
+          : {}),
+      };
+    }
+  }
+
   const metadata: Record<string, unknown> = {};
   if (msg.api) metadata.api = msg.api;
   if (msg.provider) metadata.provider = msg.provider;
   if (msg.model) metadata.model = msg.model;
-  if (msg.usage) metadata.usage = msg.usage;
   if (msg.stopReason) metadata.stopReason = msg.stopReason;
 
   return {
     role,
     content,
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    startTime,
+    startTime: startTimeVal,
     metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    tokenUsage: msgTokenUsage,
   };
 }
 
 /**
- * Extract tool calls from Pi's content array format.
- * Pi uses: content: [{ type: "tool_use", name: "...", input: {...} }, ...]
+ * Extract tool calls from pi-agent content array format.
+ * Enriches with output and timing from completed tool result trackers.
  */
-function extractToolCalls(content: unknown): readonly ToolCall[] {
+function extractToolCalls(
+  content: unknown,
+  toolTrackers: Map<string, ToolExecTracker>,
+  completedToolResults: Map<string, { output: unknown; durationMs: number }>,
+): readonly ToolCall[] {
   if (!Array.isArray(content)) {
     return [];
   }
@@ -764,144 +584,24 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
       continue;
     }
     const p = part as Record<string, unknown>;
-    if (p.type === 'tool_use' && typeof p.name === 'string') {
-      toolCalls.push({
-        tool: p.name,
-        input: p.input,
-        id: typeof p.id === 'string' ? p.id : undefined,
-      });
-    }
-    // Pi CLI emits toolCall (camelCase) with arguments (not input)
     if (p.type === 'toolCall' && typeof p.name === 'string') {
+      const id = typeof p.id === 'string' ? p.id : undefined;
+      const tracker = id ? toolTrackers.get(id) : undefined;
+      const completed = id ? completedToolResults.get(id) : undefined;
       toolCalls.push({
         tool: p.name,
         input: p.arguments,
-        id: typeof p.id === 'string' ? p.id : undefined,
+        id,
+        output: completed?.output,
+        durationMs: completed?.durationMs,
+        startTime: tracker?.startTime,
+        endTime:
+          tracker?.startTime && completed?.durationMs !== undefined
+            ? new Date(new Date(tracker.startTime).getTime() + completed.durationMs).toISOString()
+            : undefined,
       });
-    }
-    // Also handle tool_result for output
-    if (p.type === 'tool_result' && typeof p.tool_use_id === 'string') {
-      // Find matching tool call and add output
-      const existing = toolCalls.find((tc) => tc.id === p.tool_use_id);
-      if (existing) {
-        // Create new object with output added
-        const idx = toolCalls.indexOf(existing);
-        toolCalls[idx] = {
-          ...existing,
-          output: p.content,
-        };
-      }
     }
   }
 
   return toolCalls;
-}
-
-/**
- * Escape @ symbols in prompt text that pi CLI would interpret as file references.
- * Pi CLI uses @path syntax for file inclusion, but AgentV prompts use @[Role]: markers.
- * We replace @[ with [[ to avoid pi trying to read these as files.
- */
-function escapeAtSymbols(prompt: string): string {
-  // Replace @[Role]: patterns with [[Role]]: to avoid pi file interpretation
-  // This handles @[System]:, @[User]:, @[Assistant]:, @[Tool]: etc.
-  return prompt.replace(/@\[([^\]]+)\]:/g, '[[$1]]:');
-}
-
-function pickDetail(stderr: string, stdout: string): string | undefined {
-  const errorText = stderr.trim();
-  if (errorText.length > 0) {
-    return errorText;
-  }
-  const stdoutText = stdout.trim();
-  return stdoutText.length > 0 ? stdoutText : undefined;
-}
-
-function formatTimeoutSuffix(timeoutMs: number | undefined): string {
-  if (!timeoutMs || timeoutMs <= 0) {
-    return '';
-  }
-  const seconds = Math.ceil(timeoutMs / 1000);
-  return ` after ${seconds}s`;
-}
-
-async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
-  return await new Promise<PiRunResult>((resolve, reject) => {
-    // Parse executable - may be "node /path/to/script.js" or just "pi"
-    const parts = options.executable.split(/\s+/);
-    const executable = parts[0];
-    const executableArgs = parts.slice(1);
-    const allArgs = [...executableArgs, ...options.args];
-
-    const child = spawn(executable, allArgs, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
-    const onAbort = (): void => {
-      child.kill('SIGTERM');
-    };
-
-    if (options.signal) {
-      if (options.signal.aborted) {
-        onAbort();
-      } else {
-        options.signal.addEventListener('abort', onAbort, { once: true });
-      }
-    }
-
-    let timeoutHandle: NodeJS.Timeout | undefined;
-    if (options.timeoutMs && options.timeoutMs > 0) {
-      timeoutHandle = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-      }, options.timeoutMs);
-      timeoutHandle.unref?.();
-    }
-
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      options.onStdoutChunk?.(chunk);
-    });
-
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-      options.onStderrChunk?.(chunk);
-    });
-
-    // Close stdin immediately since prompt is passed as argument
-    child.stdin.end();
-
-    const cleanup = (): void => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-      if (options.signal) {
-        options.signal.removeEventListener('abort', onAbort);
-      }
-    };
-
-    child.on('error', (error) => {
-      cleanup();
-      reject(error);
-    });
-
-    child.on('close', (code) => {
-      cleanup();
-      resolve({
-        stdout,
-        stderr,
-        exitCode: typeof code === 'number' ? code : -1,
-        timedOut,
-      });
-    });
-  });
 }

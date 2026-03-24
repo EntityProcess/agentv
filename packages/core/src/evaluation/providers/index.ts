@@ -14,7 +14,7 @@ import { CodexProvider } from './codex.js';
 import { CopilotCliProvider } from './copilot-cli.js';
 import { CopilotSdkProvider } from './copilot-sdk.js';
 import { MockProvider } from './mock.js';
-import { PiAgentSdkProvider } from './pi-agent-sdk.js';
+import { PiCliProvider } from './pi-cli.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import { ProviderRegistry } from './provider-registry.js';
 import type { ResolvedTarget } from './targets.js';
@@ -48,7 +48,7 @@ export type {
   MockResolvedConfig,
   OpenAIResolvedConfig,
   OpenRouterResolvedConfig,
-  PiAgentSdkResolvedConfig,
+  PiCliResolvedConfig,
   PiCodingAgentResolvedConfig,
   ResolvedTarget,
   VSCodeResolvedConfig,
@@ -100,8 +100,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('copilot-sdk', (t) => new CopilotSdkProvider(t.name, t.config as never))
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
     .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
-    // TODO: consider removing pi-agent-sdk — it has no tools and is superseded by pi-coding-agent
-    .register('pi-agent-sdk', (t) => new PiAgentSdkProvider(t.name, t.config as never))
+    .register('pi-cli', (t) => new PiCliProvider(t.name, t.config as never))
     // claude-cli is the new default subprocess provider; claude is an alias
     .register('claude-cli', (t) => new ClaudeCliProvider(t.name, t.config as never))
     .register('claude', (t) => new ClaudeCliProvider(t.name, t.config as never))
