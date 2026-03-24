@@ -387,6 +387,8 @@ git checkout -b fix/<short-description>
 
 Design documents and implementation plans are stored in `docs/plans/` inside the worktree (not the main repo). Save plans to the worktree so they are committed on the feature branch and visible in the draft PR.
 
+**Path warning:** When working in a worktree, use paths relative to the worktree root (e.g., `docs/plans/plan.md`). Do NOT prefix with the worktree directory from the main repo (e.g., `agentv.worktrees/feat/xxx/docs/plans/plan.md`) — this creates accidental nested directories inside the worktree.
+
 Plans are temporary working materials. **Before merging the PR**, delete the plan file and incorporate any user-relevant details into the official documentation.
 
 #### Git Worktrees
