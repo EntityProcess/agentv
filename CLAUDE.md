@@ -292,31 +292,30 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 1. **Claim the issue** — prevents other agents from duplicating work:
    ```bash
+   # Load AGENT_ID from .env; if not set, ask the user or default to <harness>-<model>
+   # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
+   # Model = the LLM (opus, sonnet, o3, etc.)
+   # Examples: "claude-code-opus", "opencode-sonnet", "cursor-o3", "codex-cli-o3"
+   # Do NOT use hostname or machine name.
+   source .env 2>/dev/null
+   if [ -z "$AGENT_ID" ]; then
+     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to <harness>-<model>."
+   fi
+
    # Check if already claimed
    gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
 
-   # Claim it
+   # Claim it — label + project roadmap status
    gh issue edit <number> --add-label "in-progress"
+
+   # Update project roadmap: set status to "In Progress" and stamp Agent ID
+   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "agentv") | .id')
+   if [ -n "$ITEM_ID" ]; then
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id 47fc9ee4
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
+   fi
    ```
    If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
-
-   Also update the project board status to "In Progress":
-   ```bash
-   # Find the project item ID for this issue
-   gh project item-list 1 --owner EntityProcess --format json | python3 -c "
-   import json, sys
-   data = json.load(sys.stdin)
-   for item in data.get('items', []):
-       if item.get('content', {}).get('number') == <number>:
-           print(item['id']); break
-   "
-
-   # Update status to In Progress (field ID and option ID from project config)
-   gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF \
-     --id <item-id> \
-     --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw \
-     --single-select-option-id "47fc9ee4"
-   ```
 
 2. **Create a worktree** with a feature branch:
    ```bash
