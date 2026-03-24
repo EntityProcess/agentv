@@ -288,14 +288,13 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-**Prerequisite:** Ensure `AGENT_ID` is set in `.env`. Format: `<hostname>-<harness>` (e.g., `devbox-1-claude`, `devbox-2-codex`). This identifies which agent is working on an issue in the project roadmap.
-
 When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 1. **Claim the issue** — prevents other agents from duplicating work:
    ```bash
-   # Load AGENT_ID from .env
-   source .env
+   # Load AGENT_ID from .env, default to <hostname>-<harness> if not set
+   source .env 2>/dev/null
+   AGENT_ID="${AGENT_ID:-$(hostname)-claude}"
 
    # Check if already claimed
    gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
