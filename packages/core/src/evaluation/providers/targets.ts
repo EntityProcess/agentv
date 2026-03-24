@@ -487,7 +487,7 @@ export interface CopilotSdkResolvedConfig {
 
 export interface PiCodingAgentResolvedConfig {
   readonly executable: string;
-  readonly provider?: string;
+  readonly subprovider?: string;
   readonly model?: string;
   readonly apiKey?: string;
   readonly tools?: string;
@@ -502,7 +502,7 @@ export interface PiCodingAgentResolvedConfig {
 }
 
 export interface PiAgentSdkResolvedConfig {
-  readonly provider?: string;
+  readonly subprovider?: string;
   readonly model?: string;
   readonly apiKey?: string;
   readonly timeoutMs?: number;
@@ -1416,7 +1416,9 @@ function resolvePiCodingAgentConfig(
   evalFilePath?: string,
 ): PiCodingAgentResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
-  const providerSource = target.pi_provider ?? target.piProvider ?? target.llm_provider;
+  // subprovider is canonical; pi_provider, piProvider, llm_provider are deprecated aliases
+  const subproviderSource =
+    target.subprovider ?? target.pi_provider ?? target.piProvider ?? target.llm_provider;
   const modelSource = target.model ?? target.pi_model ?? target.piModel;
   const apiKeySource = target.api_key ?? target.apiKey;
   const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
@@ -1436,10 +1438,15 @@ function resolvePiCodingAgentConfig(
       optionalEnv: true,
     }) ?? 'pi';
 
-  const provider = resolveOptionalString(providerSource, env, `${target.name} pi provider`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
+  const subprovider = resolveOptionalString(
+    subproviderSource,
+    env,
+    `${target.name} pi subprovider`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
 
   const model = resolveOptionalString(modelSource, env, `${target.name} pi model`, {
     allowLiteral: true,
@@ -1507,7 +1514,7 @@ function resolvePiCodingAgentConfig(
 
   return {
     executable,
-    provider,
+    subprovider,
     model,
     apiKey,
     tools,
@@ -1526,16 +1533,18 @@ function resolvePiAgentSdkConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): PiAgentSdkResolvedConfig {
-  const providerSource = target.pi_provider ?? target.piProvider ?? target.llm_provider;
+  // subprovider is canonical; pi_provider, piProvider, llm_provider are deprecated aliases
+  const subproviderSource =
+    target.subprovider ?? target.pi_provider ?? target.piProvider ?? target.llm_provider;
   const modelSource = target.model ?? target.pi_model ?? target.piModel;
   const apiKeySource = target.api_key ?? target.apiKey;
   const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
   const systemPromptSource = target.system_prompt ?? target.systemPrompt;
 
-  const provider = resolveOptionalString(
-    providerSource,
+  const subprovider = resolveOptionalString(
+    subproviderSource,
     env,
-    `${target.name} pi-agent-sdk provider`,
+    `${target.name} pi-agent-sdk subprovider`,
     {
       allowLiteral: true,
       optionalEnv: true,
@@ -1560,7 +1569,7 @@ function resolvePiAgentSdkConfig(
       : undefined;
 
   return {
-    provider,
+    subprovider,
     model,
     apiKey,
     timeoutMs,

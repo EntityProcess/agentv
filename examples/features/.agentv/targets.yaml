@@ -52,7 +52,7 @@ targets:
   - name: pi
     provider: pi-coding-agent
     executable: ${{ PI_CLI_PATH }}  # Optional: defaults to `pi` if omitted
-    pi_provider: openrouter
+    subprovider: openrouter
     model: openai/gpt-5.4
     api_key: ${{ OPENROUTER_API_KEY }}
     grader_target: gemini-llm
