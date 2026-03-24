@@ -4,11 +4,9 @@
 
 targets:
   - name: default
-    provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (2024-12-01-preview)
+    provider: gemini
+    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+    model: ${{ GEMINI_MODEL_NAME }}
 
   - name: openai
     provider: openai
@@ -23,7 +21,7 @@ targets:
 
   - name: codex
     provider: codex
-    grader_target: azure-llm
+    grader_target: gemini-llm
     # Uses the Codex CLI (defaults to `codex` on PATH)
     # executable: ${{ CODEX_CLI_PATH }}        # Optional: override executable path
     # args:                             # Optional additional CLI arguments
@@ -65,13 +63,13 @@ targets:
   - name: copilot
     provider: copilot
     model: gpt-5-mini
-    grader_target: azure-llm
+    grader_target: gemini-llm
     log_format: json
 
   # Claude - Anthropic's Claude Agent SDK
   - name: claude
     provider: claude
-    grader_target: azure-llm
+    grader_target: gemini-llm
     # model: claude-sonnet-4-20250514          # Optional: override model
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)

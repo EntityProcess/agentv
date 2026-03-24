@@ -109,6 +109,10 @@ const freeformEvaluationSchema = z.object({
     )
     .describe('Per-aspect evaluation results — one entry per aspect checked')
     .optional(),
+  details: z
+    .record(z.unknown())
+    .describe('Optional structured metadata for domain-specific metrics')
+    .optional(),
 });
 
 const rubricCheckResultSchema = z.object({
@@ -261,6 +265,7 @@ export class LlmGraderEvaluator implements Evaluator {
         expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
         graderTarget: graderProvider.targetName,
+        details: data.details as JsonObject | undefined,
         tokenUsage,
       };
     } catch (e: unknown) {
@@ -784,7 +789,10 @@ export class LlmGraderEvaluator implements Evaluator {
         expectedAspectCount: Math.max(assertions.length, 1),
         evaluatorRawRequest,
         graderTarget,
-        details,
+        details:
+          data.details && Object.keys(data.details).length > 0
+            ? ({ ...details, ...data.details } as JsonObject)
+            : details,
       };
     } catch {
       return {
@@ -992,7 +1000,8 @@ export function buildOutputSchema(): string {
     '      "passed": <boolean>,',
     '      "evidence": "<concise evidence, 1-2 sentences, optional>"',
     '    }',
-    '  ]',
+    '  ],',
+    '  "details": {<optional object with domain-specific structured metrics>}',
     '}',
   ].join('\n');
 }

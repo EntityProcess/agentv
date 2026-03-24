@@ -59,7 +59,7 @@ export interface EvaluationScore {
   readonly expectedAspectCount: number;
   readonly evaluatorRawRequest?: JsonObject;
   readonly scores?: readonly ChildEvaluatorResult[];
-  /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts, alignments). */
+  /** Optional structured details from evaluators (e.g., TP/TN/FP/FN counts, alignments, per-turn scores). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;
@@ -76,7 +76,7 @@ export interface ChildEvaluatorResult {
   readonly assertions: readonly import('../types.js').AssertionEntry[];
   readonly evaluatorRawRequest?: JsonObject;
   readonly scores?: readonly ChildEvaluatorResult[];
-  /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts, alignments). */
+  /** Optional structured details from evaluators (e.g., TP/TN/FP/FN counts, alignments, per-turn scores). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;
