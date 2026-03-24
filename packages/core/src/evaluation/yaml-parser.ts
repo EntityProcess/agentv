@@ -3,6 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
+import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import { interpolateEnv } from './interpolation.js';
 import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
 import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
@@ -32,7 +33,6 @@ import {
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
-import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import type {
   EvalTest,
   JsonObject,

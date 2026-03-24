@@ -1,5 +1,5 @@
-import type { ChatMessageRole, ChatPrompt } from '../providers/types.js';
 import { extractContentSegments, flattenInputMessages } from '../input-message-utils.js';
+import type { ChatMessageRole, ChatPrompt } from '../providers/types.js';
 import type { EvalTest, JsonObject, TestMessage } from '../types.js';
 import { type FormattingMode, formatSegment, hasVisibleContent } from './segment-formatter.js';
 

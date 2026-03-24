@@ -3,8 +3,8 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse as parseYaml } from 'yaml';
 
-import { interpolateEnv } from '../interpolation.js';
 import { collectResolvedInputFilePaths } from '../input-message-utils.js';
+import { interpolateEnv } from '../interpolation.js';
 import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 import {
