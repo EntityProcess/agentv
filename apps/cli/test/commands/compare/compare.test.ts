@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -66,6 +66,23 @@ describe('compare command', () => {
       const results = loadJsonlResults(filePath);
 
       expect(results).toHaveLength(2);
+    });
+
+    it('should load index.jsonl manifests from a run workspace', () => {
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "case-1", "score": 0.8, "grading_path": "case-1/grading.json", "timing_path": "case-1/timing.json"}\n{"test_id": "case-2", "score": 0.9, "grading_path": "case-2/grading.json", "timing_path": "case-2/timing.json"}\n',
+      );
+
+      const results = loadJsonlResults(filePath);
+
+      expect(results).toEqual([
+        { testId: 'case-1', score: 0.8 },
+        { testId: 'case-2', score: 0.9 },
+      ]);
     });
 
     it('should throw error for missing test_id', () => {
@@ -166,6 +183,24 @@ describe('compare command', () => {
 
       const groups = loadCombinedResults(filePath);
       expect(groups.get('a')).toEqual([{ testId: 't1', score: 0.8 }]);
+    });
+
+    it('should group records from index.jsonl manifests', () => {
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        [
+          '{"test_id": "t1", "score": 0.8, "target": "model-a", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
+          '{"test_id": "t1", "score": 0.7, "target": "model-b", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
+        ].join('\n'),
+      );
+
+      const groups = loadCombinedResults(filePath);
+
+      expect(groups.get('model-a')).toEqual([{ testId: 't1', score: 0.8 }]);
+      expect(groups.get('model-b')).toEqual([{ testId: 't1', score: 0.7 }]);
     });
   });
 

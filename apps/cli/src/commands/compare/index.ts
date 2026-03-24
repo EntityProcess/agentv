@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import {
   array,
   command,
@@ -12,6 +11,7 @@ import {
   string,
 } from 'cmd-ts';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
+import { loadLightweightResults, resolveResultSourcePath } from '../results/manifest.js';
 
 // ANSI color codes (no dependency needed)
 const colors = {
@@ -69,57 +69,25 @@ export interface MatrixOutput {
 }
 
 export function loadJsonlResults(filePath: string): EvalResult[] {
-  const content = readFileSync(filePath, 'utf8');
-  const lines = content
-    .trim()
-    .split('\n')
-    .filter((line) => line.trim());
-
-  return lines.map((line) => {
-    const record = JSON.parse(line) as { test_id?: string; eval_id?: string; score?: number };
-    const testId = record.test_id ?? record.eval_id;
-    if (typeof testId !== 'string') {
-      throw new Error(`Missing test_id in result: ${line}`);
-    }
-    if (typeof record.score !== 'number') {
-      throw new Error(`Missing or invalid score in result: ${line}`);
-    }
-    return { testId, score: record.score };
-  });
+  return loadLightweightResults(resolveResultSourcePath(filePath)).map((record) => ({
+    testId: record.testId,
+    score: record.score,
+  }));
 }
 
 export function loadCombinedResults(filePath: string): Map<string, EvalResult[]> {
-  const content = readFileSync(filePath, 'utf8');
-  const lines = content
-    .trim()
-    .split('\n')
-    .filter((line) => line.trim());
-
   const groups = new Map<string, EvalResult[]>();
 
-  for (const line of lines) {
-    const record = JSON.parse(line) as {
-      test_id?: string;
-      eval_id?: string;
-      score?: number;
-      target?: string;
-    };
-    const testId = record.test_id ?? record.eval_id;
-    if (typeof testId !== 'string') {
-      throw new Error(`Missing test_id in result: ${line}`);
-    }
-    if (typeof record.score !== 'number') {
-      throw new Error(`Missing or invalid score in result: ${line}`);
-    }
+  for (const record of loadLightweightResults(resolveResultSourcePath(filePath))) {
     if (typeof record.target !== 'string') {
-      throw new Error(`Missing target field in combined result: ${line}`);
+      throw new Error(`Missing target field in combined result source: ${filePath}`);
     }
 
     const target = record.target;
     if (!groups.has(target)) {
       groups.set(target, []);
     }
-    groups.get(target)?.push({ testId, score: record.score });
+    groups.get(target)?.push({ testId: record.testId, score: record.score });
   }
 
   return groups;

@@ -37,6 +37,7 @@ import {
   createOutputWriter,
 } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
+import { LEGACY_RESULTS_FILENAME, buildDefaultRunDir } from './result-layout.js';
 import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
 import { saveRunCache } from './run-cache.js';
 import { findRepoRoot } from './shared.js';
@@ -321,11 +322,9 @@ async function ensureFileExists(filePath: string, description: string): Promise<
 }
 
 function buildDefaultOutputPath(cwd: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const dirName = `eval_${timestamp}`;
-  const runDir = path.join(cwd, '.agentv', 'results', 'raw', dirName);
+  const runDir = buildDefaultRunDir(cwd);
   mkdirSync(runDir, { recursive: true });
-  return path.join(runDir, 'results.jsonl');
+  return path.join(runDir, 'index.jsonl');
 }
 
 type ProgressReporter = {
@@ -646,8 +645,13 @@ async function runSingleEvalFile(params: {
     });
   }
 
-  // Create streaming observer for real-time OTel span export
-  const streamingObserver = otelExporter?.createStreamingObserver() ?? null;
+  // Use streaming spans only for live remote export. File exports should use
+  // post-hoc exportResult(result), which has the complete EvaluationResult and
+  // avoids cross-test interleaving issues under parallel execution.
+  const useStreamingObserver = !!(otelExporter && options.exportOtel);
+  const streamingObserver = useStreamingObserver
+    ? (otelExporter?.createStreamingObserver() ?? null)
+    : null;
   const results = await evaluationRunner({
     testFilePath,
     repoRoot,
@@ -682,6 +686,9 @@ async function runSingleEvalFile(params: {
     model: options.model,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
+      (
+        streamingObserver as { completeFromResult?: (result: EvaluationResult) => void } | null
+      )?.completeFromResult?.(result);
       // Finalize streaming observer span with score
       streamingObserver?.finalizeEvalCase(result.score, result.error);
 
@@ -830,9 +837,17 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
+  const usesDefaultArtifactWorkspace = !options.outPath;
+  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
+  const defaultTraceFile =
+    usesDefaultArtifactWorkspace && !options.traceFile
+      ? path.join(path.dirname(outputPath), 'trace.jsonl')
+      : undefined;
+  const traceFilePath = options.traceFile ? path.resolve(options.traceFile) : defaultTraceFile;
+
   // Initialize OTel exporter if --export-otel flag is set or file export flags are used
   let otelExporter: OtelTraceExporterType | null = null;
-  const useFileExport = !!(options.otelFile || options.traceFile);
+  const useFileExport = !!(options.otelFile || traceFilePath);
 
   if (options.exportOtel || useFileExport) {
     try {
@@ -869,7 +884,7 @@ export async function runEvalCommand(
         captureContent,
         groupTurns: options.otelGroupTurns,
         otlpFilePath: options.otelFile ? path.resolve(options.otelFile) : undefined,
-        traceFilePath: options.traceFile ? path.resolve(options.traceFile) : undefined,
+        traceFilePath,
       });
 
       const initialized = await otelExporter.init();
@@ -887,7 +902,9 @@ export async function runEvalCommand(
     }
   }
 
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
+  const primaryWritePath = usesDefaultArtifactWorkspace
+    ? path.join(path.dirname(outputPath), LEGACY_RESULTS_FILENAME)
+    : outputPath;
 
   // Resolve -o / --output paths (new multi-format support)
   const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
@@ -895,17 +912,20 @@ export async function runEvalCommand(
   // Build the primary output writer (from --out / default)
   // When extra --output paths are provided, combine all into a multi-writer
   const allOutputPaths =
-    extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
+    extraOutputPaths.length > 0 ? [primaryWritePath, ...extraOutputPaths] : [primaryWritePath];
   const uniqueOutputPaths = [...new Set(allOutputPaths)];
+  const reportedOutputPaths =
+    extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
+  const uniqueReportedOutputPaths = [...new Set(reportedOutputPaths)];
 
   let outputWriter: OutputWriter;
   if (uniqueOutputPaths.length === 1) {
-    outputWriter = await createOutputWriter(outputPath, options.format);
+    outputWriter = await createOutputWriter(primaryWritePath, options.format);
     console.log(`Output path: ${outputPath}`);
   } else {
     outputWriter = await createMultiWriter(uniqueOutputPaths);
     console.log('Output paths:');
-    for (const p of uniqueOutputPaths) {
+    for (const p of uniqueReportedOutputPaths) {
       console.log(`  ${p}`);
     }
   }
@@ -915,8 +935,8 @@ export async function runEvalCommand(
   if (options.otelFile) {
     console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
   }
-  if (options.traceFile) {
-    console.log(`Trace file: ${path.resolve(options.traceFile)}`);
+  if (traceFilePath) {
+    console.log(`Trace file: ${traceFilePath}`);
   }
 
   // Determine cache state after loading file metadata (need YAML config)
@@ -1164,8 +1184,33 @@ export async function runEvalCommand(
       console.log(`Benchmark written to: ${benchmarkPath}`);
     }
 
+    if (usesDefaultArtifactWorkspace) {
+      const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
+      const workspaceDir = path.dirname(outputPath);
+      const {
+        testArtifactDir,
+        timingPath,
+        benchmarkPath: workspaceBenchmarkPath,
+        indexPath,
+        legacyResultsPath,
+      } = await writeArtifactsFromResults(allResults, workspaceDir, {
+        evalFile,
+        writeLegacyResults: true,
+      });
+      console.log(`Artifact workspace written to: ${workspaceDir}`);
+      console.log(`  Index: ${indexPath}`);
+      console.log(
+        `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
+      );
+      console.log(`  Timing: ${timingPath}`);
+      console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+      if (legacyResultsPath) {
+        console.log(`  Compatibility output: ${legacyResultsPath} (deprecated)`);
+      }
+    }
+
     // Write companion artifacts (grading, timing, benchmark) if requested
-    if (options.artifacts && allResults.length > 0) {
+    if (options.artifacts) {
       const artifactsDir = path.resolve(options.artifacts);
       const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
       const {
@@ -1173,12 +1218,15 @@ export async function runEvalCommand(
         indexPath,
         timingPath,
         benchmarkPath: abp,
-      } = await writeArtifactsFromResults(allResults, artifactsDir, { evalFile });
+      } = await writeArtifactsFromResults(allResults, artifactsDir, {
+        evalFile,
+        writeLegacyResults: false,
+      });
       console.log(`Artifacts written to: ${artifactsDir}`);
+      console.log(`  Index: ${indexPath}`);
       console.log(
         `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
       );
-      console.log(`  Index:   ${indexPath}`);
       console.log(`  Timing:  ${timingPath}`);
       console.log(`  Benchmark: ${abp}`);
     }
@@ -1195,18 +1243,17 @@ export async function runEvalCommand(
     }
 
     if (allResults.length > 0) {
-      if (uniqueOutputPaths.length === 1) {
+      if (uniqueReportedOutputPaths.length === 1) {
         console.log(`\nResults written to: ${outputPath}`);
       } else {
         console.log('\nResults written to:');
-        for (const p of uniqueOutputPaths) {
+        for (const p of uniqueReportedOutputPaths) {
           console.log(`  ${p}`);
         }
       }
 
-      // Persist last run directory for `agentv results` commands
-      const runDir = path.dirname(outputPath);
-      await saveRunCache(cwd, runDir).catch(() => undefined);
+      // Persist last run path for `agentv results` commands
+      await saveRunCache(cwd, outputPath).catch(() => undefined);
     }
 
     // Suggest retry-errors command when execution errors are detected
@@ -1216,7 +1263,7 @@ export async function runEvalCommand(
       const relativeOutputPath = path.relative(cwd, outputPath);
       console.log(
         `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
-          `  agentv eval run ${evalFileArgs}${targetFlag} --retry-errors ${relativeOutputPath} -o ${relativeOutputPath}`,
+          `  agentv eval run ${evalFileArgs}${targetFlag} --retry-errors ${relativeOutputPath}`,
       );
     }
 

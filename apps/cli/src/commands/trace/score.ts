@@ -9,12 +9,19 @@ import {
   type Provider,
   type ProviderRequest,
   type ProviderResponse,
-  type TraceSummary,
   createBuiltinRegistry,
   toCamelCaseDeep,
 } from '@agentv/core';
 import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
-import { type RawResult, c, formatScore, loadResultFile, padLeft, padRight } from './utils.js';
+import {
+  type RawResult,
+  c,
+  formatScore,
+  loadResultFile,
+  padLeft,
+  padRight,
+  toTraceSummary,
+} from './utils.js';
 
 /**
  * Evaluator types that work without an LLM provider.
@@ -121,14 +128,6 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
         `Unsupported evaluator type: "${type}". Supported: ${SUPPORTED_TYPES.join(', ')}`,
       );
   }
-}
-
-/**
- * Convert a snake_case RawResult trace to camelCase TraceSummary.
- */
-function toTraceSummary(raw: RawResult): TraceSummary | undefined {
-  if (!raw.trace) return undefined;
-  return toCamelCaseDeep(raw.trace) as TraceSummary;
 }
 
 /**
@@ -300,8 +299,9 @@ export const traceScoreCommand = command({
   args: {
     file: positional({
       type: string,
-      displayName: 'result-file',
-      description: 'Path to JSONL result file',
+      displayName: 'trace-source',
+      description:
+        'Path to a run workspace, result manifest, simple trace JSONL, or OTLP JSON file',
     }),
     assert: option({
       type: string,
@@ -355,14 +355,14 @@ export const traceScoreCommand = command({
     if (traceRequired) {
       const hasTrace = results.some(
         (r) =>
-          r.trace ||
+          toTraceSummary(r) ||
           r.cost_usd !== undefined ||
           r.duration_ms !== undefined ||
           r.token_usage !== undefined,
       );
       if (!hasTrace) {
         console.error(
-          `${c.red}Error:${c.reset} Result file lacks trace data. Re-run eval with ${c.bold}--trace${c.reset} to capture trace summaries.`,
+          `${c.red}Error:${c.reset} Source lacks trace metrics. Export a trace file with ${c.bold}--trace-file${c.reset} or ${c.bold}--otel-file${c.reset}.`,
         );
         process.exit(1);
       }

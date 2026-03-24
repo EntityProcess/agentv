@@ -34,19 +34,19 @@ Pairwise Summary:
 
 ```bash
 # N-way matrix (all targets)
-agentv compare results.jsonl
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl
 
 # With baseline regression check (exits 1 if any target regresses)
-agentv compare results.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1
 
 # Pairwise from combined file
-agentv compare results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 
 # Filter to specific targets
-agentv compare results.jsonl --targets gpt-4.1 --targets gpt-5-mini
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --targets gpt-4.1 --targets gpt-5-mini
 
 # JSON output
-agentv compare results.jsonl --json
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --json
 ```
 
 ### Pairwise Mode
@@ -54,7 +54,7 @@ agentv compare results.jsonl --json
 Extract a head-to-head comparison between two specific targets:
 
 ```bash
-agentv compare results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 ```
 
 ```

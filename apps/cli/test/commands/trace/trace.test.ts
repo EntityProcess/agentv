@@ -56,6 +56,80 @@ const RESULT_FAILING = JSON.stringify({
   error: 'Agent timed out.',
 });
 
+const SIMPLE_TRACE = JSON.stringify({
+  test_id: 'trace-1',
+  target: 'default',
+  score: 0.9,
+  duration_ms: 1800,
+  cost_usd: 0.02,
+  token_usage: { input: 120, output: 80 },
+  spans: [
+    { type: 'llm', name: 'chat gpt-5-mini', duration_ms: 700 },
+    { type: 'tool', name: 'read_file', duration_ms: 200 },
+    { type: 'tool', name: 'read_file', duration_ms: 150 },
+  ],
+});
+
+const OTLP_TRACE = JSON.stringify({
+  resourceSpans: [
+    {
+      scopeSpans: [
+        {
+          spans: [
+            {
+              traceId: 'trace-abc',
+              spanId: 'root-1',
+              name: 'agentv.eval',
+              startTimeUnixNano: '1000000000',
+              endTimeUnixNano: '4000000000',
+              attributes: [
+                { key: 'agentv.test_id', value: { stringValue: 'otlp-1' } },
+                { key: 'agentv.target', value: { stringValue: 'default' } },
+                { key: 'agentv.score', value: { doubleValue: 0.8 } },
+                { key: 'agentv.trace.cost_usd', value: { doubleValue: 0.03 } },
+              ],
+              status: { code: 1 },
+              events: [
+                {
+                  name: 'agentv.evaluator.execution',
+                  attributes: [
+                    { key: 'agentv.evaluator.type', value: { stringValue: 'execution-metrics' } },
+                    { key: 'agentv.evaluator.score', value: { doubleValue: 1 } },
+                  ],
+                },
+              ],
+            },
+            {
+              traceId: 'trace-abc',
+              spanId: 'chat-1',
+              parentSpanId: 'root-1',
+              name: 'chat gpt-5-mini',
+              startTimeUnixNano: '1000000000',
+              endTimeUnixNano: '2500000000',
+              attributes: [
+                { key: 'gen_ai.operation.name', value: { stringValue: 'chat' } },
+                { key: 'gen_ai.usage.input_tokens', value: { intValue: 50 } },
+                { key: 'gen_ai.usage.output_tokens', value: { intValue: 25 } },
+              ],
+              status: { code: 1 },
+            },
+            {
+              traceId: 'trace-abc',
+              spanId: 'tool-1',
+              parentSpanId: 'chat-1',
+              name: 'execute_tool read_file',
+              startTimeUnixNano: '2500000000',
+              endTimeUnixNano: '3000000000',
+              attributes: [{ key: 'gen_ai.tool.name', value: { stringValue: 'read_file' } }],
+              status: { code: 1 },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+});
+
 describe('trace utils', () => {
   let tempDir: string;
 
@@ -113,6 +187,59 @@ describe('trace utils', () => {
       writeFileSync(filePath, '{"test_id": "test-1", "score": "high"}\n');
 
       expect(() => loadResultFile(filePath)).toThrow('Missing or invalid score');
+    });
+
+    it('loads workspace directories from index.jsonl instead of falling back to results.jsonl', () => {
+      writeFileSync(path.join(tempDir, 'index.jsonl'), `${RESULT_WITHOUT_TRACE}\n`);
+      writeFileSync(path.join(tempDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      const results = loadResultFile(tempDir);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].test_id).toBe('test-2');
+      expect(results[0].trace).toBeUndefined();
+    });
+
+    it('loads index.jsonl directly without resolving the legacy results sibling', () => {
+      const indexPath = path.join(tempDir, 'index.jsonl');
+      writeFileSync(indexPath, `${RESULT_WITHOUT_TRACE}\n`);
+      writeFileSync(path.join(tempDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      const results = loadResultFile(indexPath);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].test_id).toBe('test-2');
+      expect(results[0].trace).toBeUndefined();
+    });
+
+    it('loads simple trace jsonl exports and keeps spans available for trace commands', () => {
+      const filePath = path.join(tempDir, 'trace.jsonl');
+      writeFileSync(filePath, `${SIMPLE_TRACE}\n`);
+
+      const results = loadResultFile(filePath);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].spans).toHaveLength(3);
+      expect(results[0].spans?.[1]).toEqual({
+        type: 'tool',
+        name: 'read_file',
+        duration_ms: 200,
+      });
+    });
+
+    it('loads otlp json exports and derives summary trace metrics from spans', () => {
+      const filePath = path.join(tempDir, 'otel.json');
+      writeFileSync(filePath, OTLP_TRACE);
+
+      const results = loadResultFile(filePath);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].test_id).toBe('otlp-1');
+      expect(results[0].duration_ms).toBe(3000);
+      expect(results[0].token_usage).toEqual({ input: 50, output: 25 });
+      expect(results[0].trace?.event_count).toBe(1);
+      expect(results[0].trace?.llm_call_count).toBe(1);
+      expect(results[0].trace?.tool_calls).toEqual({ read_file: 1 });
     });
   });
 
@@ -215,13 +342,13 @@ describe('trace utils', () => {
       expect(metas).toHaveLength(1);
     });
 
-    it('should discover results.jsonl inside run directories in raw/', () => {
+    it('should discover index.jsonl inside run directories in raw/', () => {
       const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
       const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
       writeFileSync(
-        path.join(runDir, 'results.jsonl'),
+        path.join(runDir, 'index.jsonl'),
         `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
       );
 
@@ -240,7 +367,7 @@ describe('trace utils', () => {
       // New directory-based run
       const runDir = path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'results.jsonl'), `${RESULT_FAILING}\n`);
+      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_FAILING}\n`);
 
       // Legacy flat file
       writeFileSync(
@@ -262,7 +389,7 @@ describe('trace utils', () => {
       // Directory-based (preferred)
       const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
+      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
 
       // Flat file with same timestamp
       writeFileSync(
@@ -276,12 +403,12 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
     });
 
-    it('should skip directories without results.jsonl', () => {
+    it('should skip directories without index.jsonl or results.jsonl', () => {
       const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
       const emptyDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(emptyDir, { recursive: true });
 
-      // Directory exists but no results.jsonl inside
+      // Directory exists but no manifest/result file inside
       writeFileSync(path.join(emptyDir, 'grading.json'), '{}');
 
       const metas = listResultFiles(tempDir);

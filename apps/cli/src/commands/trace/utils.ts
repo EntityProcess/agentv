@@ -1,5 +1,14 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import type { EvaluationResult, TraceSummary } from '@agentv/core';
+import { toCamelCaseDeep } from '@agentv/core';
+import {
+  LEGACY_RESULTS_FILENAME,
+  RESULT_INDEX_FILENAME,
+  resolveExistingRunPrimaryPath,
+  resolveWorkspaceOrFilePath,
+} from '../eval/result-layout.js';
+import { loadManifestResults } from '../results/manifest.js';
 
 // ANSI color codes (no dependency needed)
 const colors = {
@@ -58,6 +67,7 @@ export interface RawResult {
   end_time?: string;
   input?: unknown;
   output?: unknown;
+  spans?: RawTraceSpan[];
   trials?: unknown[];
   aggregation?: unknown;
   file_changes?: string;
@@ -83,10 +93,48 @@ export interface RawTraceSummary {
   duration_ms?: number;
 }
 
+export interface RawTraceSpan {
+  type?: 'tool' | 'llm' | string;
+  name: string;
+  duration_ms?: number;
+}
+
 /**
- * Load all result records from a JSONL file.
+ * Load all result or trace records from a supported source.
+ *
+ * Supported sources:
+ * - Run workspace directories / index.jsonl manifests (summary fallback)
+ * - Legacy results.jsonl files (explicit path only)
+ * - Simple trace JSONL files written via --trace-file
+ * - OTLP JSON trace files written via --otel-file
  */
 export function loadResultFile(filePath: string): RawResult[] {
+  const resolvedFilePath = resolveTraceResultPath(filePath);
+
+  if (path.extname(resolvedFilePath) === '.json') {
+    return loadOtlpTraceFile(resolvedFilePath);
+  }
+
+  if (path.basename(resolvedFilePath) === RESULT_INDEX_FILENAME) {
+    return loadManifestAsRawResults(resolvedFilePath);
+  }
+
+  return loadJsonlRecords(resolvedFilePath);
+}
+
+function resolveTraceResultPath(filePath: string): string {
+  if (path.basename(filePath) === LEGACY_RESULTS_FILENAME) {
+    return filePath;
+  }
+
+  if (!filePath.endsWith('.jsonl') && !filePath.endsWith('.json')) {
+    return resolveWorkspaceOrFilePath(filePath);
+  }
+
+  return resolveWorkspaceOrFilePath(filePath);
+}
+
+function loadJsonlRecords(filePath: string): RawResult[] {
   const content = readFileSync(filePath, 'utf8');
   const lines = content
     .trim()
@@ -100,6 +148,360 @@ export function loadResultFile(filePath: string): RawResult[] {
     }
     return record;
   });
+}
+
+function loadManifestAsRawResults(filePath: string): RawResult[] {
+  return loadManifestResults(filePath).map(toRawResult);
+}
+
+function toRawResult(result: EvaluationResult): RawResult {
+  return {
+    timestamp: result.timestamp,
+    test_id: result.testId,
+    eval_set: result.eval_set,
+    conversation_id: result.conversationId,
+    score: result.score,
+    assertions: result.assertions?.map((assertion) => ({
+      text: assertion.text,
+      passed: assertion.passed,
+      evidence: assertion.evidence,
+    })),
+    target: result.target,
+    error: result.error,
+    scores: result.scores?.map((score) => ({
+      name: score.name,
+      type: score.type,
+      score: score.score,
+      assertions: score.assertions?.map((assertion) => ({
+        text: assertion.text,
+        passed: assertion.passed,
+        evidence: assertion.evidence,
+      })),
+      weight: score.weight,
+    })),
+    token_usage: result.tokenUsage
+      ? {
+          input: result.tokenUsage.input,
+          output: result.tokenUsage.output,
+          cached: result.tokenUsage.cached,
+        }
+      : undefined,
+    cost_usd: result.costUsd,
+    duration_ms: result.durationMs,
+    start_time: result.startTime,
+    end_time: result.endTime,
+    input: result.input,
+    output: result.output,
+    file_changes: result.fileChanges,
+  };
+}
+
+type OtlpAttributeValue =
+  | { stringValue?: string; intValue?: number | string; doubleValue?: number; boolValue?: boolean }
+  | { arrayValue?: { values?: OtlpAttributeValue[] } };
+
+interface OtlpAttribute {
+  key: string;
+  value: OtlpAttributeValue;
+}
+
+interface OtlpEvent {
+  name?: string;
+  attributes?: OtlpAttribute[];
+}
+
+interface OtlpSpan {
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  name?: string;
+  startTimeUnixNano?: string;
+  endTimeUnixNano?: string;
+  attributes?: OtlpAttribute[];
+  status?: { code?: number; message?: string };
+  events?: OtlpEvent[];
+}
+
+function loadOtlpTraceFile(filePath: string): RawResult[] {
+  const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as {
+    resourceSpans?: { scopeSpans?: { spans?: OtlpSpan[] }[] }[];
+  };
+
+  const spans = parsed.resourceSpans
+    ?.flatMap((resource) => resource.scopeSpans ?? [])
+    .flatMap((scope) => scope.spans ?? []);
+
+  if (!spans || spans.length === 0) {
+    return [];
+  }
+
+  const spanMap = new Map<string, OtlpSpan>();
+  const childMap = new Map<string, OtlpSpan[]>();
+
+  for (const span of spans) {
+    if (!span.spanId) continue;
+    spanMap.set(span.spanId, span);
+    if (span.parentSpanId) {
+      const siblings = childMap.get(span.parentSpanId) ?? [];
+      siblings.push(span);
+      childMap.set(span.parentSpanId, siblings);
+    }
+  }
+
+  const roots = spans.filter((span) => !span.parentSpanId || !spanMap.has(span.parentSpanId));
+
+  return roots.map((root, index) => {
+    const descendants = collectChildSpans(root.spanId, childMap);
+    const rootAttrs = parseOtlpAttributes(root.attributes);
+    const parsedDescendants = descendants.map((span) => ({
+      ...span,
+      parsedAttributes: parseOtlpAttributes(span.attributes),
+    }));
+    const toolSpans = parsedDescendants.filter(
+      (span) => typeof span.parsedAttributes.gen_ai_tool_name === 'string',
+    );
+    const llmSpans = parsedDescendants.filter(
+      (span) =>
+        span.parsedAttributes.gen_ai_operation_name === 'chat' ||
+        (typeof span.name === 'string' && span.name.startsWith('chat ')),
+    );
+    const tokenUsage = descendants.reduce(
+      (acc, span) => {
+        const attrs = parseOtlpAttributes(span.attributes);
+        acc.input += numberAttr(attrs.gen_ai_usage_input_tokens) ?? 0;
+        acc.output += numberAttr(attrs.gen_ai_usage_output_tokens) ?? 0;
+        const cached = numberAttr(attrs.gen_ai_usage_cache_read_input_tokens);
+        if (cached !== undefined && cached > 0) {
+          acc.cached = (acc.cached ?? 0) + cached;
+        }
+        return acc;
+      },
+      { input: 0, output: 0, cached: undefined as number | undefined },
+    );
+
+    const traceSummary = buildDerivedTraceSummary({
+      trace: {
+        event_count:
+          numberAttr(rootAttrs.agentv_trace_event_count) ??
+          (toolSpans.length > 0 ? toolSpans.length : undefined),
+        tool_calls: countRawSpanNames(
+          toolSpans.map((span) => ({
+            type: 'tool',
+            name: String(span.parsedAttributes.gen_ai_tool_name),
+          })),
+        ),
+        error_count: descendants.filter((span) => span.status?.code === 2).length || undefined,
+        llm_call_count:
+          numberAttr(rootAttrs.agentv_trace_llm_call_count) ??
+          (llmSpans.length > 0 ? llmSpans.length : undefined),
+      },
+      spans: [
+        ...llmSpans.map((span) => ({
+          type: 'llm' as const,
+          name: span.name ?? 'chat',
+          duration_ms: durationFromSpan(span),
+        })),
+        ...toolSpans.map((span) => ({
+          type: 'tool' as const,
+          name: String(span.parsedAttributes.gen_ai_tool_name),
+          duration_ms: durationFromSpan(span),
+        })),
+      ],
+      duration_ms: numberAttr(rootAttrs.agentv_trace_duration_ms) ?? durationFromSpan(root),
+      cost_usd: numberAttr(rootAttrs.agentv_trace_cost_usd),
+      token_usage:
+        tokenUsage.input ||
+        tokenUsage.output ||
+        tokenUsage.cached ||
+        numberAttr(rootAttrs.agentv_trace_token_input) ||
+        numberAttr(rootAttrs.agentv_trace_token_output) ||
+        numberAttr(rootAttrs.agentv_trace_token_cached)
+          ? {
+              input: tokenUsage.input || numberAttr(rootAttrs.agentv_trace_token_input) || 0,
+              output: tokenUsage.output || numberAttr(rootAttrs.agentv_trace_token_output) || 0,
+              ...(tokenUsage.cached || numberAttr(rootAttrs.agentv_trace_token_cached)
+                ? {
+                    cached:
+                      tokenUsage.cached || numberAttr(rootAttrs.agentv_trace_token_cached) || 0,
+                  }
+                : {}),
+            }
+          : undefined,
+    });
+
+    const score = numberAttr(rootAttrs.agentv_score);
+    if (score === undefined) {
+      throw new Error(
+        `Unsupported OTLP trace root span at index ${index + 1}: missing agentv.score attribute`,
+      );
+    }
+
+    return {
+      test_id:
+        stringAttr(rootAttrs.agentv_test_id) ??
+        stringAttr(rootAttrs.agentv_eval_id) ??
+        `trace-${index + 1}`,
+      eval_set: stringAttr(rootAttrs.agentv_eval_set),
+      target: stringAttr(rootAttrs.agentv_target),
+      score,
+      error: root.status?.code === 2 ? root.status.message : undefined,
+      cost_usd: traceSummary?.cost_usd,
+      duration_ms: traceSummary?.duration_ms,
+      token_usage: traceSummary?.token_usage,
+      trace: traceSummary
+        ? {
+            event_count: traceSummary.event_count,
+            tool_calls: traceSummary.tool_calls,
+            error_count: traceSummary.error_count,
+            tool_durations: traceSummary.tool_durations,
+            llm_call_count: traceSummary.llm_call_count,
+            token_usage: traceSummary.token_usage,
+            cost_usd: traceSummary.cost_usd,
+            duration_ms: traceSummary.duration_ms,
+          }
+        : undefined,
+      spans: traceSummary?.spans,
+      output: stringAttr(rootAttrs.agentv_output_text),
+      scores: root.events
+        ?.filter((event) => event.name?.startsWith('agentv.evaluator.'))
+        .map((event) => {
+          const attrs = parseOtlpAttributes(event.attributes);
+          const name = event.name?.replace(/^agentv\.evaluator\./, '') ?? 'unknown';
+          return {
+            name,
+            type: stringAttr(attrs.agentv_evaluator_type) ?? 'unknown',
+            score: numberAttr(attrs.agentv_evaluator_score) ?? 0,
+          };
+        }),
+    } satisfies RawResult;
+  });
+}
+
+function collectChildSpans(
+  spanId: string | undefined,
+  childMap: Map<string, OtlpSpan[]>,
+): OtlpSpan[] {
+  if (!spanId) return [];
+  const direct = childMap.get(spanId) ?? [];
+  const all = [...direct];
+  for (const child of direct) {
+    all.push(...collectChildSpans(child.spanId, childMap));
+  }
+  return all;
+}
+
+function parseOtlpAttributes(attributes: OtlpAttribute[] | undefined): Record<string, unknown> {
+  const parsed: Record<string, unknown> = {};
+  for (const attribute of attributes ?? []) {
+    parsed[attribute.key.replace(/\./g, '_')] = parseOtlpValue(attribute.value);
+  }
+  return parsed;
+}
+
+function parseOtlpValue(value: OtlpAttributeValue | undefined): unknown {
+  if (!value) return undefined;
+  if ('stringValue' in value && value.stringValue !== undefined) return value.stringValue;
+  if ('intValue' in value && value.intValue !== undefined) return Number(value.intValue);
+  if ('doubleValue' in value && value.doubleValue !== undefined) return value.doubleValue;
+  if ('boolValue' in value && value.boolValue !== undefined) return value.boolValue;
+  if ('arrayValue' in value)
+    return (value.arrayValue?.values ?? []).map((entry) => parseOtlpValue(entry));
+  return undefined;
+}
+
+function durationFromSpan(
+  span: Pick<OtlpSpan, 'startTimeUnixNano' | 'endTimeUnixNano'>,
+): number | undefined {
+  const start = Number(span.startTimeUnixNano);
+  const end = Number(span.endTimeUnixNano);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return undefined;
+  return Math.round((end - start) / 1_000_000);
+}
+
+function stringAttr(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function numberAttr(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+interface DerivedTraceSummary extends RawTraceSummary {
+  spans?: RawTraceSpan[];
+}
+
+export function buildDerivedTraceSummary(result: {
+  trace?: RawTraceSummary;
+  spans?: RawTraceSpan[];
+  token_usage?: RawResult['token_usage'];
+  cost_usd?: number;
+  duration_ms?: number;
+}): DerivedTraceSummary | undefined {
+  const toolSpans = (result.spans ?? []).filter((span) => span.type === 'tool');
+  const llmSpans = (result.spans ?? []).filter((span) => span.type === 'llm');
+  const toolCalls = result.trace?.tool_calls ?? countRawSpanNames(toolSpans);
+  const toolDurations = result.trace?.tool_durations ?? groupRawSpanDurations(toolSpans);
+  const hasSpanData = (result.spans?.length ?? 0) > 0;
+  const eventCount = result.trace?.event_count ?? (hasSpanData ? toolSpans.length : undefined);
+  const llmCallCount = result.trace?.llm_call_count ?? (hasSpanData ? llmSpans.length : undefined);
+
+  if (
+    !result.trace &&
+    !result.spans?.length &&
+    result.token_usage === undefined &&
+    result.cost_usd === undefined &&
+    result.duration_ms === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    event_count: eventCount,
+    tool_calls: toolCalls,
+    error_count: result.trace?.error_count,
+    tool_durations: toolDurations,
+    llm_call_count: llmCallCount,
+    token_usage: result.trace?.token_usage ?? result.token_usage,
+    cost_usd: result.trace?.cost_usd ?? result.cost_usd,
+    duration_ms: result.trace?.duration_ms ?? result.duration_ms,
+    spans: result.spans,
+  };
+}
+
+function countRawSpanNames(spans: RawTraceSpan[]): Record<string, number> | undefined {
+  const counts: Record<string, number> = {};
+  for (const span of spans) {
+    counts[span.name] = (counts[span.name] ?? 0) + 1;
+  }
+  return Object.keys(counts).length > 0 ? counts : undefined;
+}
+
+function groupRawSpanDurations(spans: RawTraceSpan[]): Record<string, number[]> | undefined {
+  const grouped: Record<string, number[]> = {};
+  for (const span of spans) {
+    if (span.duration_ms === undefined) continue;
+    const existing = grouped[span.name] ?? [];
+    existing.push(span.duration_ms);
+    grouped[span.name] = existing;
+  }
+  return Object.keys(grouped).length > 0 ? grouped : undefined;
+}
+
+export function getTraceSummary(result: RawResult): RawTraceSummary | undefined {
+  const derived = buildDerivedTraceSummary(result);
+  if (!derived) return undefined;
+  const { spans: _spans, ...trace } = derived;
+  return trace;
+}
+
+export function getTraceSpans(result: RawResult): RawTraceSpan[] {
+  return buildDerivedTraceSummary(result)?.spans ?? [];
+}
+
+export function toTraceSummary(result: RawResult): TraceSummary | undefined {
+  const rawTrace = getTraceSummary(result);
+  if (!rawTrace) return undefined;
+  return toCamelCaseDeep(rawTrace) as TraceSummary;
 }
 
 /**
@@ -117,7 +519,7 @@ export interface ResultFileMeta {
 
 /**
  * Enumerate result files in the .agentv/results/ directory.
- * Scans raw/ for both directory-per-run layouts (results.jsonl inside subdirs)
+ * Scans raw/ for both directory-per-run layouts (index.jsonl preferred inside subdirs)
  * and legacy flat .jsonl files. Also scans the base directory for pre-raw/ files.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
@@ -132,12 +534,9 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
     const entries = readdirSync(rawDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const jsonlPath = path.join(rawDir, entry.name, 'results.jsonl');
-        try {
-          statSync(jsonlPath);
-          files.push({ filePath: jsonlPath, displayName: entry.name });
-        } catch {
-          // Directory without results.jsonl — skip
+        const primaryPath = resolveExistingRunPrimaryPath(path.join(rawDir, entry.name));
+        if (primaryPath) {
+          files.push({ filePath: primaryPath, displayName: entry.name });
         }
       }
     }

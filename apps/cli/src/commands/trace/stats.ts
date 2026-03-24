@@ -5,6 +5,7 @@ import {
   c,
   formatCost,
   formatNumber,
+  getTraceSummary,
   loadResultFile,
   padLeft,
   padRight,
@@ -75,7 +76,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
 
   // Tool calls
   const toolCalls = results
-    .map((r) => r.trace?.event_count)
+    .map((r) => getTraceSummary(r)?.event_count)
     .filter((v): v is number => v !== undefined);
   if (toolCalls.length > 0) {
     rows.push({ name: 'tool_calls', values: toolCalls, formatter: (n) => String(Math.round(n)) });
@@ -83,7 +84,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
 
   // LLM calls
   const llmCalls = results
-    .map((r) => r.trace?.llm_call_count)
+    .map((r) => getTraceSummary(r)?.llm_call_count)
     .filter((v): v is number => v !== undefined);
   if (llmCalls.length > 0) {
     rows.push({ name: 'llm_calls', values: llmCalls, formatter: (n) => String(Math.round(n)) });
@@ -216,8 +217,9 @@ export const traceStatsCommand = command({
   args: {
     file: positional({
       type: string,
-      displayName: 'result-file',
-      description: 'Path to JSONL result file',
+      displayName: 'trace-source',
+      description:
+        'Path to a run workspace, result manifest, simple trace JSONL, or OTLP JSON file',
     }),
     groupBy: option({
       type: optional(oneOf(['target', 'eval-set', 'test-id'])),

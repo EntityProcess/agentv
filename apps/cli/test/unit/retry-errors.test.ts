@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -17,6 +17,14 @@ describe('retry-errors', () => {
   function createJsonlFile(lines: object[]): string {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
     const filePath = path.join(tmpDir, 'results.jsonl');
+    writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
+    return filePath;
+  }
+
+  function createIndexFile(lines: object[]): string {
+    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-index-test-'));
+    const filePath = path.join(tmpDir, 'index.jsonl');
+    mkdirSync(tmpDir, { recursive: true });
     writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
     return filePath;
   }
@@ -80,6 +88,28 @@ describe('retry-errors', () => {
     expect(results).toHaveLength(2);
     expect(results[0].testId).toBe('case-1');
     expect(results[1].testId).toBe('case-3');
+  });
+
+  it('supports index.jsonl manifests during the migration', async () => {
+    const filePath = createIndexFile([
+      {
+        test_id: 'case-1',
+        execution_status: 'ok',
+        score: 0.9,
+        grading_path: 'case-1/grading.json',
+        timing_path: 'case-1/timing.json',
+      },
+      {
+        test_id: 'case-2',
+        execution_status: 'execution_error',
+        score: 0,
+        grading_path: 'case-2/grading.json',
+        timing_path: 'case-2/timing.json',
+      },
+    ]);
+
+    const ids = await loadErrorTestIds(filePath);
+    expect(ids).toEqual(['case-2']);
   });
 
   it('skips malformed JSON lines', async () => {

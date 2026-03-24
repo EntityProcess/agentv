@@ -56,8 +56,8 @@ No network round-trips, no waiting for managed infrastructure:
 # AgentV workflow
 agentv eval evals/my-eval.yaml
 agentv eval evals/**/*.yaml --workers 10  # Parallel
-agentv compare results.jsonl              # N-way matrix comparison
-agentv compare results.jsonl --baseline gpt-4.1  # CI regression gate
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl
+agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1
 agentv compare before.jsonl after.jsonl   # Two-file pairwise A/B testing
 ```
 
@@ -71,9 +71,9 @@ agentv compare before.jsonl after.jsonl   # Two-file pairwise A/B testing
 ```
 
 AgentV integrates into:
-- **CI/CD pipelines** (`agentv eval evals/ --out results.jsonl`)
+- **CI/CD pipelines** (`agentv eval evals/` + `agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl`)
 - **Git hooks** (block PRs if eval scores drop)
-- **Scripts** (parse JSONL results, trigger alerts)
+- **Scripts** (parse `index.jsonl`, `benchmark.json`, or compatibility `results.jsonl`)
 - **Notebooks** (iterate on eval logic)
 
 **4. Zero Infrastructure Overhead**
@@ -139,8 +139,8 @@ Single eval run scores all three dimensions. Other approaches:
 
 ```yaml
 # .github/workflows/eval.yml
-- run: agentv eval evals/**/*.yaml --out results.jsonl
-- run: agentv compare results.jsonl --baseline gpt-4.1
+- run: agentv eval evals/**/*.yaml
+- run: agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1
   # Exit 1 if any target regresses vs baseline (N-way matrix)
 - run: agentv compare baseline.jsonl results.jsonl --threshold 0.05
   # Or two-file pairwise: fail if performance drops > 5%

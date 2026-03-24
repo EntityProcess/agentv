@@ -6,6 +6,8 @@ import {
   formatDuration,
   formatNumber,
   formatScore,
+  getTraceSpans,
+  getTraceSummary,
   loadResultFile,
 } from './utils.js';
 
@@ -13,7 +15,7 @@ import {
  * Render flat trace summary line (fallback when full output messages not available).
  */
 function renderFlatTrace(result: RawResult): string {
-  const trace = result.trace;
+  const trace = getTraceSummary(result);
   const parts: string[] = [];
 
   if (trace?.tool_calls && Object.keys(trace.tool_calls).length > 0) {
@@ -81,10 +83,18 @@ interface RawToolCall {
  */
 function renderTree(result: RawResult): string {
   const messages = result.output as RawMessage[] | undefined;
+  const spans = getTraceSpans(result);
 
   if (!messages || messages.length === 0) {
+    if (spans.length > 0) {
+      return renderSpanTree(result, spans);
+    }
     // Fallback to flat summary
-    if (result.trace || result.duration_ms !== undefined || result.cost_usd !== undefined) {
+    if (
+      getTraceSummary(result) ||
+      result.duration_ms !== undefined ||
+      result.cost_usd !== undefined
+    ) {
       return renderFlatTrace(result);
     }
     return `${c.dim}No trace data available${c.reset}`;
@@ -161,6 +171,36 @@ function renderTree(result: RawResult): string {
   }
 
   // Scores line
+  if (result.scores && result.scores.length > 0) {
+    lines.push('');
+    lines.push(`${c.dim}Scores:${c.reset} ${renderScores(result.scores)}`);
+  }
+
+  return lines.join('\n');
+}
+
+function renderSpanTree(result: RawResult, spans: ReturnType<typeof getTraceSpans>): string {
+  const lines: string[] = [];
+  const testId = result.test_id ?? result.eval_id ?? 'unknown';
+  const totalTokens = result.token_usage
+    ? result.token_usage.input + result.token_usage.output
+    : undefined;
+  const rootParts: string[] = [testId];
+  if (result.duration_ms !== undefined) rootParts.push(formatDuration(result.duration_ms));
+  if (totalTokens !== undefined) rootParts.push(`${formatNumber(totalTokens)} tok`);
+  if (result.cost_usd !== undefined) rootParts.push(formatCost(result.cost_usd));
+  lines.push(`${c.bold}${rootParts.join(', ')}${c.reset}`);
+
+  spans.forEach((span, index) => {
+    const connector = index === spans.length - 1 ? '└─' : '├─';
+    const color = span.type === 'llm' ? c.cyan : c.yellow;
+    const parts = [`${color}${span.name}${c.reset}`];
+    if (span.duration_ms !== undefined) {
+      parts.push(formatDuration(span.duration_ms));
+    }
+    lines.push(`${connector} ${parts.join(', ')}`);
+  });
+
   if (result.scores && result.scores.length > 0) {
     lines.push('');
     lines.push(`${c.dim}Scores:${c.reset} ${renderScores(result.scores)}`);
@@ -278,8 +318,9 @@ export const traceShowCommand = command({
   args: {
     file: positional({
       type: string,
-      displayName: 'result-file',
-      description: 'Path to JSONL result file',
+      displayName: 'trace-source',
+      description:
+        'Path to a run workspace, result manifest, simple trace JSONL, or OTLP JSON file',
     }),
     testId: option({
       type: optional(string),
@@ -288,7 +329,7 @@ export const traceShowCommand = command({
     }),
     tree: flag({
       long: 'tree',
-      description: 'Show hierarchical trace tree (requires results with --trace output)',
+      description: 'Show hierarchical trace tree from output messages or exported trace spans',
     }),
     format: option({
       type: optional(oneOf(['table', 'json'])),

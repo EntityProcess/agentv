@@ -203,6 +203,17 @@ export class OtelTraceExporter {
         if (result.durationMs != null)
           rootSpan.setAttribute('agentv.trace.duration_ms', result.durationMs);
         if (result.costUsd != null) rootSpan.setAttribute('agentv.trace.cost_usd', result.costUsd);
+        if (result.tokenUsage) {
+          if (result.tokenUsage.input != null) {
+            rootSpan.setAttribute('agentv.trace.token_input', result.tokenUsage.input);
+          }
+          if (result.tokenUsage.output != null) {
+            rootSpan.setAttribute('agentv.trace.token_output', result.tokenUsage.output);
+          }
+          if (result.tokenUsage.cached != null) {
+            rootSpan.setAttribute('agentv.trace.token_cached', result.tokenUsage.cached);
+          }
+        }
 
         // Trace summary attributes (tool-specific)
         if (result.trace) {
@@ -331,6 +342,7 @@ export class OtelTraceExporter {
       tracer.startActiveSpan(
         spanName,
         { startTime: startHr },
+        parentCtx,
         (span: {
           setAttribute: (...args: unknown[]) => void;
           end: (...args: unknown[]) => void;
@@ -371,6 +383,7 @@ export class OtelTraceExporter {
                 tracer.startActiveSpan(
                   `execute_tool ${tc.tool}`,
                   {},
+                  msgCtx,
                   (toolSpan: {
                     setAttribute: (...args: unknown[]) => void;
                     end: (...args: unknown[]) => void;
@@ -420,6 +433,17 @@ export class OtelStreamingObserver {
   private rootSpan: any = null;
   // biome-ignore lint/suspicious/noExplicitAny: OTel context loaded dynamically
   private rootCtx: any = null;
+  private observedChildSpans = false;
+  private pendingMetrics: {
+    durationMs?: number;
+    costUsd?: number;
+    tokenUsage?: ProviderTokenUsage;
+    trace?: {
+      eventCount: number;
+      toolCalls: Record<string, number>;
+      llmCallCount?: number;
+    };
+  } | null = null;
 
   constructor(
     private readonly tracer: Tracer,
@@ -431,6 +455,8 @@ export class OtelStreamingObserver {
 
   /** Create root eval span immediately (visible in backend right away) */
   startEvalCase(testId: string, target: string, evalSet?: string): void {
+    this.pendingMetrics = null;
+    this.observedChildSpans = false;
     const ctx = this.parentCtx ?? this.api.context.active();
     this.rootSpan = this.tracer.startSpan('agentv.eval', undefined, ctx);
     this.rootSpan.setAttribute('gen_ai.operation.name', 'evaluate');
@@ -450,8 +476,9 @@ export class OtelStreamingObserver {
     toolCallId?: string,
   ): void {
     if (!this.rootCtx) return;
+    this.observedChildSpans = true;
     this.api.context.with(this.rootCtx, () => {
-      const span = this.tracer.startSpan(`execute_tool ${name}`);
+      const span = this.tracer.startSpan(`execute_tool ${name}`, undefined, this.rootCtx);
       span.setAttribute('gen_ai.tool.name', name);
       if (toolCallId) span.setAttribute('gen_ai.tool.call.id', toolCallId);
       if (this.captureContent) {
@@ -473,8 +500,9 @@ export class OtelStreamingObserver {
   /** Create and immediately export an LLM span */
   onLlmCall(model: string, tokenUsage?: ProviderTokenUsage): void {
     if (!this.rootCtx) return;
+    this.observedChildSpans = true;
     this.api.context.with(this.rootCtx, () => {
-      const span = this.tracer.startSpan(`chat ${model}`);
+      const span = this.tracer.startSpan(`chat ${model}`, undefined, this.rootCtx);
       span.setAttribute('gen_ai.operation.name', 'chat');
       span.setAttribute('gen_ai.request.model', model);
       span.setAttribute('gen_ai.response.model', model);
@@ -490,10 +518,63 @@ export class OtelStreamingObserver {
     });
   }
 
+  /** Record final execution metrics before the root span is finalized. */
+  recordEvalMetrics(result: {
+    durationMs?: number;
+    costUsd?: number;
+    tokenUsage?: ProviderTokenUsage;
+    trace?: {
+      eventCount: number;
+      toolCalls: Record<string, number>;
+      llmCallCount?: number;
+    };
+  }): void {
+    this.pendingMetrics = result;
+  }
+
   /** Finalize root span with score/verdict after evaluation completes */
   finalizeEvalCase(score: number, error?: string): void {
     if (!this.rootSpan) return;
     this.rootSpan.setAttribute('agentv.score', score);
+    if (this.pendingMetrics?.durationMs != null) {
+      this.rootSpan.setAttribute('agentv.trace.duration_ms', this.pendingMetrics.durationMs);
+    }
+    if (this.pendingMetrics?.costUsd != null) {
+      this.rootSpan.setAttribute('agentv.trace.cost_usd', this.pendingMetrics.costUsd);
+    }
+    if (this.pendingMetrics?.tokenUsage) {
+      if (this.pendingMetrics.tokenUsage.input != null) {
+        this.rootSpan.setAttribute(
+          'agentv.trace.token_input',
+          this.pendingMetrics.tokenUsage.input,
+        );
+      }
+      if (this.pendingMetrics.tokenUsage.output != null) {
+        this.rootSpan.setAttribute(
+          'agentv.trace.token_output',
+          this.pendingMetrics.tokenUsage.output,
+        );
+      }
+      if (this.pendingMetrics.tokenUsage.cached != null) {
+        this.rootSpan.setAttribute(
+          'agentv.trace.token_cached',
+          this.pendingMetrics.tokenUsage.cached,
+        );
+      }
+    }
+    if (this.pendingMetrics?.trace) {
+      this.rootSpan.setAttribute('agentv.trace.event_count', this.pendingMetrics.trace.eventCount);
+      this.rootSpan.setAttribute(
+        'agentv.trace.tool_names',
+        Object.keys(this.pendingMetrics.trace.toolCalls).sort().join(','),
+      );
+      if (this.pendingMetrics.trace.llmCallCount != null) {
+        this.rootSpan.setAttribute(
+          'agentv.trace.llm_call_count',
+          this.pendingMetrics.trace.llmCallCount,
+        );
+      }
+    }
     if (error) {
       this.rootSpan.setStatus({ code: this.api.SpanStatusCode.ERROR, message: error });
     } else {
@@ -502,6 +583,41 @@ export class OtelStreamingObserver {
     this.rootSpan.end();
     this.rootSpan = null;
     this.rootCtx = null;
+    this.observedChildSpans = false;
+    this.pendingMetrics = null;
+  }
+
+  /** Backfill child spans from the completed result when the provider emitted no live callbacks. */
+  completeFromResult(result: EvaluationResult): void {
+    this.recordEvalMetrics({
+      durationMs: result.durationMs,
+      costUsd: result.costUsd,
+      tokenUsage: result.tokenUsage,
+      trace: result.trace,
+    });
+
+    if (this.observedChildSpans || !this.rootCtx) {
+      return;
+    }
+
+    const model =
+      result.output.find((msg) => msg.role === 'assistant')?.metadata?.model ??
+      result.target ??
+      'unknown';
+
+    this.onLlmCall(String(model), result.tokenUsage);
+
+    for (const message of result.output) {
+      for (const toolCall of message.toolCalls ?? []) {
+        this.onToolCall(
+          toolCall.tool,
+          toolCall.input,
+          toolCall.output,
+          toolCall.durationMs ?? 0,
+          toolCall.id,
+        );
+      }
+    }
   }
 
   /** Return the active eval span's trace ID and span ID for Braintrust trace bridging */

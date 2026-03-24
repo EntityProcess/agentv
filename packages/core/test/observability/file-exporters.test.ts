@@ -262,6 +262,63 @@ describe('SimpleTraceFileExporter', () => {
     expect(record.spans[0].duration_ms).toBe(200);
   });
 
+  it('buffers child spans across separate export calls until the root span closes', async () => {
+    const filePath = path.join(testDir, 'simple', 'streaming.jsonl');
+    const exporter = new SimpleTraceFileExporter(filePath);
+
+    const llmSpan = makeSpan({
+      traceId: 'stream-trace',
+      spanId: 'chat1',
+      parentSpanId: 'root1',
+      name: 'chat mock-model',
+      startTime: [1000, 0],
+      endTime: [1000, 500_000_000],
+      attributes: {
+        'gen_ai.operation.name': 'chat',
+        'gen_ai.usage.input_tokens': 40,
+        'gen_ai.usage.output_tokens': 20,
+      },
+    });
+
+    const toolSpan = makeSpan({
+      traceId: 'stream-trace',
+      spanId: 'tool1',
+      parentSpanId: 'root1',
+      name: 'execute_tool search',
+      startTime: [1000, 500_000_000],
+      endTime: [1000, 800_000_000],
+      attributes: { 'gen_ai.tool.name': 'search' },
+    });
+
+    const root = makeSpan({
+      traceId: 'stream-trace',
+      spanId: 'root1',
+      name: 'agentv.eval',
+      startTime: [1000, 0],
+      endTime: [1001, 0],
+      attributes: {
+        'agentv.test_id': 'streamed-test',
+        'agentv.target': 'mock-agent',
+        'agentv.score': 1,
+        'agentv.trace.cost_usd': 0.004,
+      },
+    });
+
+    exporter.export([llmSpan], (r) => expect(r.code).toBe(0));
+    exporter.export([toolSpan], (r) => expect(r.code).toBe(0));
+    exporter.export([root], (r) => expect(r.code).toBe(0));
+    await exporter.shutdown();
+
+    const record = JSON.parse((await readFile(filePath, 'utf8')).trim());
+    expect(record.test_id).toBe('streamed-test');
+    expect(record.token_usage).toEqual({ input: 40, output: 20 });
+    expect(record.cost_usd).toBe(0.004);
+    expect(record.spans).toEqual([
+      { type: 'llm', name: 'chat mock-model', duration_ms: 500 },
+      { type: 'tool', name: 'search', duration_ms: 300 },
+    ]);
+  });
+
   it('handles multiple root spans', async () => {
     const filePath = path.join(testDir, 'simple', 'multi.jsonl');
     const exporter = new SimpleTraceFileExporter(filePath);

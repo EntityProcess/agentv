@@ -15,6 +15,7 @@ export class SimpleTraceFileExporter {
   private streamReady: Promise<WriteStream> | null = null;
   private pendingWrites: Promise<void>[] = [];
   private _shuttingDown = false;
+  private spansByTraceId = new Map<string, ReadableSpan[]>();
 
   constructor(filePath: string) {
     this.filePath = filePath;
@@ -36,28 +37,27 @@ export class SimpleTraceFileExporter {
       resultCallback({ code: 0 });
       return;
     }
-    const spanMap = new Map<string, ReadableSpan>();
-    const childMap = new Map<string, ReadableSpan[]>();
-
+    const rootSpans: ReadableSpan[] = [];
     for (const span of spans) {
-      spanMap.set(span.spanContext().spanId, span);
-      const parentId = span.parentSpanId;
-      if (parentId) {
-        if (!childMap.has(parentId)) childMap.set(parentId, []);
-        childMap.get(parentId)?.push(span);
+      const traceId = span.spanContext().traceId;
+      const existing = this.spansByTraceId.get(traceId) ?? [];
+      existing.push(span);
+      this.spansByTraceId.set(traceId, existing);
+      if (span.name === 'agentv.eval') {
+        rootSpans.push(span);
       }
     }
 
-    // Root spans: no parent or parent not in this batch
-    const rootSpans = spans.filter(
-      (s: ReadableSpan) => !s.parentSpanId || !spanMap.has(s.parentSpanId),
-    );
-
     const writePromise = this.ensureStream().then((stream) => {
       for (const root of rootSpans) {
-        const children = this.collectChildren(root.spanContext().spanId, childMap);
+        const traceId = root.spanContext().traceId;
+        const traceSpans = this.spansByTraceId.get(traceId) ?? [root];
+        const children = traceSpans.filter(
+          (span) => span.spanContext().spanId !== root.spanContext().spanId,
+        );
         const record = this.buildSimpleRecord(root, children);
         stream.write(`${JSON.stringify(record)}\n`);
+        this.spansByTraceId.delete(traceId);
       }
     });
     this.pendingWrites.push(writePromise);
@@ -69,6 +69,7 @@ export class SimpleTraceFileExporter {
     this._shuttingDown = true;
     await Promise.all(this.pendingWrites);
     this.pendingWrites = [];
+    this.spansByTraceId.clear();
     return new Promise((resolve) => {
       if (this.stream) {
         this.stream.end(() => resolve());
@@ -83,18 +84,12 @@ export class SimpleTraceFileExporter {
     this.pendingWrites = [];
   }
 
-  private collectChildren(spanId: string, childMap: Map<string, ReadableSpan[]>): ReadableSpan[] {
-    const direct = childMap.get(spanId) || [];
-    const all: ReadableSpan[] = [...direct];
-    for (const child of direct) {
-      all.push(...this.collectChildren(child.spanContext().spanId, childMap));
-    }
-    return all;
-  }
-
   private buildSimpleRecord(root: ReadableSpan, children: ReadableSpan[]): Record<string, unknown> {
     const attrs = root.attributes || {};
-    const durationMs = hrTimeDiffMs(root.startTime, root.endTime);
+    const durationMs =
+      typeof attrs['agentv.trace.duration_ms'] === 'number'
+        ? attrs['agentv.trace.duration_ms']
+        : hrTimeDiffMs(root.startTime, root.endTime);
 
     let inputTokens = 0;
     let outputTokens = 0;
@@ -103,6 +98,24 @@ export class SimpleTraceFileExporter {
       if (ca['gen_ai.usage.input_tokens']) inputTokens += ca['gen_ai.usage.input_tokens'];
       if (ca['gen_ai.usage.output_tokens']) outputTokens += ca['gen_ai.usage.output_tokens'];
     }
+    const rootInputTokens =
+      typeof attrs['agentv.trace.token_input'] === 'number' ? attrs['agentv.trace.token_input'] : 0;
+    const rootOutputTokens =
+      typeof attrs['agentv.trace.token_output'] === 'number'
+        ? attrs['agentv.trace.token_output']
+        : 0;
+    const rootCachedTokens =
+      typeof attrs['agentv.trace.token_cached'] === 'number'
+        ? attrs['agentv.trace.token_cached']
+        : undefined;
+
+    const llmSpans = children
+      .filter((s: ReadableSpan) => s.attributes?.['gen_ai.operation.name'] === 'chat')
+      .map((s: ReadableSpan) => ({
+        type: 'llm' as const,
+        name: s.name,
+        duration_ms: hrTimeDiffMs(s.startTime, s.endTime),
+      }));
 
     const toolSpans = children
       .filter((s: ReadableSpan) => s.attributes?.['gen_ai.tool.name'])
@@ -119,8 +132,14 @@ export class SimpleTraceFileExporter {
       duration_ms: durationMs,
       cost_usd: attrs['agentv.trace.cost_usd'],
       token_usage:
-        inputTokens || outputTokens ? { input: inputTokens, output: outputTokens } : undefined,
-      spans: toolSpans.length > 0 ? toolSpans : undefined,
+        inputTokens || outputTokens || rootInputTokens || rootOutputTokens || rootCachedTokens
+          ? {
+              input: inputTokens || rootInputTokens,
+              output: outputTokens || rootOutputTokens,
+              ...(rootCachedTokens ? { cached: rootCachedTokens } : {}),
+            }
+          : undefined,
+      spans: [...llmSpans, ...toolSpans].length > 0 ? [...llmSpans, ...toolSpans] : undefined,
     };
   }
 }

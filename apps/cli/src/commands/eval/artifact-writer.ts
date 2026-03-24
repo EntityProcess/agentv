@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
+import { LEGACY_RESULTS_FILENAME, RESULT_INDEX_FILENAME } from './result-layout.js';
 
 // ---------------------------------------------------------------------------
 // Artifact interfaces (snake_case to match skill-creator conventions)
@@ -110,7 +111,10 @@ export interface IndexArtifactEntry {
   readonly timing_path: string;
   readonly output_path?: string;
   readonly input_path?: string;
+  readonly response_path?: string;
 }
+
+export type ResultIndexArtifact = IndexArtifactEntry;
 
 // ---------------------------------------------------------------------------
 // Statistics helpers
@@ -445,12 +449,53 @@ export function buildAggregateGradingArtifact(
   };
 }
 
-function toRelativeArtifactPath(outputDir: string, filePath: string): string {
-  return path.relative(outputDir, filePath).split(path.sep).join('/');
+function safeArtifactPathSegment(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return trimmed.replace(/[/\\:*?"<>|]/g, '_');
 }
 
-function safeTestId(result: EvaluationResult): string {
-  return (result.testId ?? 'unknown').replace(/[/\\:*?"<>|]/g, '_');
+function safeTestId(testId: string | undefined): string {
+  return safeArtifactPathSegment(testId, 'unknown');
+}
+
+function safeTargetId(target: string | undefined): string {
+  return safeArtifactPathSegment(target, 'default');
+}
+
+function getEvalSet(result: EvaluationResult): string | undefined {
+  const record = result as EvaluationResult & { evalSet?: string };
+  return result.eval_set ?? record.evalSet;
+}
+
+function buildArtifactSubdir(result: EvaluationResult): string {
+  const segments = [];
+  const evalSet = getEvalSet(result);
+  if (evalSet) {
+    segments.push(safeArtifactPathSegment(evalSet, 'default'));
+  }
+  segments.push(safeTestId(result.testId), safeTargetId(result.target));
+  return path.posix.join(...segments);
+}
+
+function formatOutputMarkdown(output: readonly { role: string; content?: unknown }[]): string {
+  return output.map((msg) => `@[${msg.role}]:\n${String(msg.content ?? '')}`).join('\n\n');
+}
+
+function extractInput(result: EvaluationResult): string | null {
+  const input = (result as unknown as Record<string, unknown>).input;
+  if (!input) return null;
+  if (typeof input === 'string') return input;
+  if (Array.isArray(input) && input.length > 0) {
+    return formatOutputMarkdown(input as { role: string; content?: unknown }[]);
+  }
+  return null;
+}
+
+function toRelativeArtifactPath(outputDir: string, filePath: string): string {
+  return path.relative(outputDir, filePath).split(path.sep).join('/');
 }
 
 export function buildIndexArtifactEntry(
@@ -466,7 +511,7 @@ export function buildIndexArtifactEntry(
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
-    eval_set: result.eval_set,
+    eval_set: getEvalSet(result),
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
@@ -487,6 +532,46 @@ export function buildIndexArtifactEntry(
       ? toRelativeArtifactPath(options.outputDir, options.inputPath)
       : undefined,
   };
+}
+
+export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexArtifact {
+  const artifactSubdir = buildArtifactSubdir(result);
+  const input = extractInput(result);
+  const hasResponse = Array.isArray(result.output) && result.output.length > 0;
+
+  return {
+    timestamp: result.timestamp,
+    test_id: result.testId ?? 'unknown',
+    eval_set: getEvalSet(result),
+    conversation_id: result.conversationId,
+    score: result.score,
+    target: result.target ?? 'unknown',
+    scores: result.scores
+      ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
+      : undefined,
+    execution_status: result.executionStatus,
+    error: result.error,
+    failure_stage: result.failureStage,
+    failure_reason_code: result.failureReasonCode,
+    workspace_path: result.workspacePath,
+    grading_path: path.posix.join(artifactSubdir, 'grading.json'),
+    timing_path: path.posix.join(artifactSubdir, 'timing.json'),
+    input_path: input ? path.posix.join(artifactSubdir, 'input.md') : undefined,
+    output_path: hasResponse
+      ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
+      : undefined,
+    response_path: hasResponse
+      ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
+      : undefined,
+  };
+}
+
+async function writeJsonlFile(filePath: string, records: readonly unknown[]): Promise<void> {
+  const content =
+    records.length === 0
+      ? ''
+      : `${records.map((record) => JSON.stringify(toSnakeCaseDeep(record))).join('\n')}\n`;
+  await writeFile(filePath, content, 'utf8');
 }
 
 // ---------------------------------------------------------------------------
@@ -539,7 +624,7 @@ export function parseJsonlResults(content: string): EvaluationResult[] {
 }
 
 // ---------------------------------------------------------------------------
-// Artifact writer — reads JSONL and writes the per-test artifact workspace
+// Artifact writer — reads JSONL and writes all three artifact types
 // ---------------------------------------------------------------------------
 
 export async function writeArtifacts(
@@ -548,55 +633,70 @@ export async function writeArtifacts(
   options?: { evalFile?: string },
 ): Promise<{
   testArtifactDir: string;
-  indexPath: string;
   timingPath: string;
   benchmarkPath: string;
+  indexPath: string;
+  legacyResultsPath?: string;
 }> {
   const content = await readFile(jsonlPath, 'utf8');
   const results = parseJsonlResults(content);
 
-  return writeArtifactsFromResults(results, outputDir, options);
+  return writeArtifactsFromResults(results, outputDir, {
+    ...options,
+    writeLegacyResults: false,
+  });
 }
 
 export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
-  options?: { evalFile?: string },
+  options?: { evalFile?: string; writeLegacyResults?: boolean },
 ): Promise<{
   testArtifactDir: string;
-  indexPath: string;
   timingPath: string;
   benchmarkPath: string;
+  indexPath: string;
+  legacyResultsPath?: string;
 }> {
   const testArtifactDir = outputDir;
-  const indexPath = path.join(outputDir, 'index.jsonl');
   const timingPath = path.join(outputDir, 'timing.json');
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
-  const indexLines: string[] = [];
+  const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
+  const legacyResultsPath = options?.writeLegacyResults
+    ? path.join(outputDir, LEGACY_RESULTS_FILENAME)
+    : undefined;
   await mkdir(outputDir, { recursive: true });
+  const indexRecords: ResultIndexArtifact[] = [];
 
   // Write per-test grading artifacts
   for (const result of results) {
     const grading = buildGradingArtifact(result);
     const timing = buildTimingArtifact([result]);
-    const testDir = path.join(outputDir, safeTestId(result));
+    const artifactSubdir = buildArtifactSubdir(result);
+    const testDir = path.join(outputDir, artifactSubdir);
     const gradingPath = path.join(testDir, 'grading.json');
     const perTestTimingPath = path.join(testDir, 'timing.json');
     await mkdir(testDir, { recursive: true });
     await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
     await writeFile(perTestTimingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
-    indexLines.push(
-      JSON.stringify(
-        buildIndexArtifactEntry(result, {
-          outputDir,
-          gradingPath,
-          timingPath: perTestTimingPath,
-        }),
-      ),
-    );
-  }
 
-  await writeFile(indexPath, indexLines.length > 0 ? `${indexLines.join('\n')}\n` : '', 'utf8');
+    const input = extractInput(result);
+    if (input) {
+      await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
+    }
+
+    if (result.output && result.output.length > 0) {
+      const outputsDir = path.join(testDir, 'outputs');
+      await mkdir(outputsDir, { recursive: true });
+      await writeFile(
+        path.join(outputsDir, 'response.md'),
+        formatOutputMarkdown(result.output),
+        'utf8',
+      );
+    }
+
+    indexRecords.push(buildResultIndexArtifact(result));
+  }
 
   // Write aggregate timing
   const timing = buildTimingArtifact(results);
@@ -606,5 +706,11 @@ export async function writeArtifactsFromResults(
   const benchmark = buildBenchmarkArtifact(results, options?.evalFile);
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
-  return { testArtifactDir, indexPath, timingPath, benchmarkPath };
+  await writeJsonlFile(indexPath, indexRecords);
+
+  if (legacyResultsPath) {
+    await writeJsonlFile(legacyResultsPath, results);
+  }
+
+  return { testArtifactDir, timingPath, benchmarkPath, indexPath, legacyResultsPath };
 }
