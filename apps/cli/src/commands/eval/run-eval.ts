@@ -1,4 +1,4 @@
-import { constants } from 'node:fs';
+import { constants, mkdirSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,7 +35,6 @@ import {
   type OutputWriter,
   createMultiWriter,
   createOutputWriter,
-  getDefaultExtension,
 } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
@@ -321,11 +320,12 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   }
 }
 
-function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
+function buildDefaultOutputPath(cwd: string, _format: OutputFormat): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const baseName = 'eval';
-  const extension = getDefaultExtension(format);
-  return path.join(cwd, '.agentv', 'results', 'raw', `${baseName}_${timestamp}${extension}`);
+  const dirName = `eval_${timestamp}`;
+  const runDir = path.join(cwd, '.agentv', 'results', 'raw', dirName);
+  mkdirSync(runDir, { recursive: true });
+  return path.join(runDir, 'results.jsonl');
 }
 
 type ProgressReporter = {
@@ -1202,13 +1202,14 @@ export async function runEvalCommand(
         }
       }
 
-      // Persist last result file for `agentv results export` default lookup
-      await saveRunCache(cwd, outputPath).catch(() => undefined);
+      // Persist last run directory for `agentv results` commands
+      const runDir = path.dirname(outputPath);
+      await saveRunCache(cwd, runDir).catch(() => undefined);
 
-      // Write aggregate grading.json as companion to JSONL
+      // Write aggregate grading.json inside run directory
       if (outputPath.endsWith('.jsonl')) {
         const { writeFile } = await import('node:fs/promises');
-        const gradingPath = outputPath.replace(/\.jsonl$/, '.grading.json');
+        const gradingPath = path.join(path.dirname(outputPath), 'grading.json');
         const aggregateGrading = buildAggregateGradingArtifact(allResults);
         await writeFile(gradingPath, `${JSON.stringify(aggregateGrading, null, 2)}\n`, 'utf8');
       }
