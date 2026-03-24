@@ -32,6 +32,7 @@ import {
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
+import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import type {
   EvalTest,
   JsonObject,
@@ -361,9 +362,6 @@ async function loadTestsFromYaml(
     // Prepend suite-level input to test input (respecting skip_defaults)
     const effectiveSuiteInputMessages =
       suiteInputMessages && !skipDefaults ? suiteInputMessages : undefined;
-    const inputMessages = effectiveSuiteInputMessages
-      ? [...effectiveSuiteInputMessages, ...testInputMessages]
-      : testInputMessages;
 
     // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
@@ -371,7 +369,7 @@ async function loadTestsFromYaml(
     const inputTextParts: string[] = [];
 
     // Process suite-level input first
-    const suiteInputSegments = effectiveSuiteInputMessages
+    const suiteResolvedInputMessages = effectiveSuiteInputMessages
       ? await processMessages({
           messages: effectiveSuiteInputMessages,
           searchRoots,
@@ -383,7 +381,7 @@ async function loadTestsFromYaml(
       : [];
 
     // Process test-level input
-    const testInputSegments = await processMessages({
+    const testResolvedInputMessages = await processMessages({
       messages: testInputMessages,
       searchRoots,
       repoRootPath,
@@ -391,7 +389,7 @@ async function loadTestsFromYaml(
       messageType: 'input',
       verbose,
     });
-    const inputSegments = [...suiteInputSegments, ...testInputSegments];
+    const inputMessages = [...suiteResolvedInputMessages, ...testResolvedInputMessages];
 
     // Process expected_output into segments (only if provided)
     // Preserve full message structure including role and tool_calls for evaluator
@@ -451,13 +449,7 @@ async function loadTestsFromYaml(
 
     warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
-    // Extract file paths from all input segments
-    const userFilePaths: string[] = [];
-    for (const segment of inputSegments) {
-      if (segment.type === 'file' && typeof segment.resolvedPath === 'string') {
-        userFilePaths.push(segment.resolvedPath);
-      }
-    }
+    const userFilePaths = collectResolvedInputFilePaths(inputMessages);
 
     // Parse per-case workspace config and merge with suite-level
     const caseWorkspace = await resolveWorkspaceConfig(evalcase.workspace, evalFileDir);
@@ -477,7 +469,6 @@ async function loadTestsFromYaml(
       conversation_id: conversationId,
       question: question,
       input: inputMessages,
-      input_segments: inputSegments,
       expected_output: outputSegments,
       reference_answer: referenceAnswer,
       file_paths: userFilePaths,

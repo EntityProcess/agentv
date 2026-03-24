@@ -73,8 +73,8 @@ describe('input_files shorthand', () => {
     const message = tests[0].input[0];
     const content = message.content as Array<{ type: string; value: string }>;
     expect(content).toHaveLength(3);
-    expect(content[0]).toEqual({ type: 'file', value: './sales.csv' });
-    expect(content[1]).toEqual({ type: 'file', value: './b.csv' });
+    expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
+    expect(content[1]).toMatchObject({ type: 'file', value: './b.csv', path: './b.csv' });
     expect(content[2]).toEqual({ type: 'text', value: 'Compare these two files.' });
   });
 
@@ -150,7 +150,7 @@ tests:
       expect(message.role).toBe('user');
       const content = message.content as Array<{ type: string; value: string }>;
       expect(content).toHaveLength(2);
-      expect(content[0]).toEqual({ type: 'file', value: './sales.csv' });
+      expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
       expect(content[1].type).toBe('text');
     }
 
@@ -189,11 +189,15 @@ tests:
 
     // First test uses suite-level input_files
     const content0 = tests[0].input[0].content as Array<{ type: string; value: string }>;
-    expect(content0[0]).toEqual({ type: 'file', value: './sales.csv' });
+    expect(content0[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
 
     // Second test uses its own input_files (overrides suite-level)
     const content1 = tests[1].input[0].content as Array<{ type: string; value: string }>;
-    expect(content1[0]).toEqual({ type: 'file', value: './override.csv' });
+    expect(content1[0]).toMatchObject({
+      type: 'file',
+      value: './override.csv',
+      path: './override.csv',
+    });
     expect(content1).toHaveLength(2); // only override.csv + text, not sales.csv
   });
 
@@ -217,8 +221,12 @@ tests:
     expect(tests).toHaveLength(1);
     const content = tests[0].input[0].content as Array<{ type: string; value: string }>;
     expect(content).toHaveLength(3);
-    expect(content[0]).toEqual({ type: 'file', value: './sales.csv' });
-    expect(content[1]).toEqual({ type: 'file', value: './schema.json' });
+    expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
+    expect(content[1]).toMatchObject({
+      type: 'file',
+      value: './schema.json',
+      path: './schema.json',
+    });
     expect(content[2]).toEqual({ type: 'text', value: 'Summarize the constraints.' });
   });
 

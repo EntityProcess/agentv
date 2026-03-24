@@ -12,7 +12,6 @@ const baseTestCase: EvalTest = {
   eval_set: 'test-dataset',
   question: 'Test question',
   input: [{ role: 'user', content: 'Test input' }],
-  input_segments: [{ type: 'text', value: 'Test input' }],
   expected_output: [],
   reference_answer: 'Expected answer',
   file_paths: [],

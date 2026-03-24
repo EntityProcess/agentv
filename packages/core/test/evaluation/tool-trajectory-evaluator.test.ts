@@ -28,7 +28,6 @@ const mockEvalCase: EvalTest = {
   id: 'test-case',
   question: 'Test question',
   input: [],
-  input_segments: [],
   expected_output: [],
   file_paths: [],
   criteria: 'Expected outcome',

@@ -208,7 +208,7 @@ export class LlmGraderEvaluator implements Evaluator {
 
     // Prepare template variables for substitution
     const variables = {
-      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input_segments, null, 2),
+      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input, null, 2),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(
         context.evalCase.expected_output,
         null,

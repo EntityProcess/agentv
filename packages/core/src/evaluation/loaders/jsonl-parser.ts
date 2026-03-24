@@ -4,6 +4,7 @@ import micromatch from 'micromatch';
 import { parse as parseYaml } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
+import { collectResolvedInputFilePaths } from '../input-message-utils.js';
 import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 import {
@@ -193,14 +194,14 @@ export async function loadTestsFromJsonl(
     }
 
     // Resolve input with shorthand support
-    const inputMessages = resolveInputMessages(evalcase);
+    const rawInputMessages = resolveInputMessages(evalcase);
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
     // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assert
     const hasEvaluationSpec =
       !!outcome || expectedMessages.length > 0 || evalcase.assert !== undefined;
-    if (!id || !hasEvaluationSpec || !inputMessages || inputMessages.length === 0) {
+    if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
         `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
       );
@@ -213,8 +214,8 @@ export async function loadTestsFromJsonl(
     const inputTextParts: string[] = [];
 
     // Process all input messages to extract files
-    const inputSegments = await processMessages({
-      messages: inputMessages,
+    const inputMessages = await processMessages({
+      messages: rawInputMessages,
       searchRoots,
       repoRootPath,
       textParts: inputTextParts,
@@ -284,13 +285,7 @@ export async function loadTestsFromJsonl(
 
     warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
-    // Extract file paths from all input segments
-    const userFilePaths: string[] = [];
-    for (const segment of inputSegments) {
-      if (segment.type === 'file' && typeof segment.resolvedPath === 'string') {
-        userFilePaths.push(segment.resolvedPath);
-      }
-    }
+    const userFilePaths = collectResolvedInputFilePaths(inputMessages);
 
     const testCase: EvalTest = {
       id,
@@ -298,7 +293,6 @@ export async function loadTestsFromJsonl(
       conversation_id: conversationId,
       question: question,
       input: inputMessages,
-      input_segments: inputSegments,
       expected_output: outputSegments,
       reference_answer: referenceAnswer,
       file_paths: userFilePaths,
