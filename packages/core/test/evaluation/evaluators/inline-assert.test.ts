@@ -10,7 +10,6 @@ describe('InlineAssertEvaluator', () => {
         question: 'test question',
         criteria: '',
         input: [{ role: 'user', content: 'test question' }],
-        input_segments: [],
         expected_output: [],
         file_paths: [],
         reference_answer: referenceAnswer,

@@ -288,13 +288,6 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
           ? test.input
           : (test.input.find((m) => m.role === 'user')?.content ?? '');
 
-      // Build input_segments so buildPromptInputs can construct the question
-      const inputSegments = input.map((m) => ({
-        type: 'text' as const,
-        value: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        messageIndex: 0,
-      }));
-
       const expectedOutputValue = test.expectedOutput ?? test.expected_output;
       const expectedOutput = expectedOutputValue
         ? ([
@@ -329,7 +322,6 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         criteria: test.criteria ?? '',
         question: String(question),
         input,
-        input_segments: inputSegments,
         expected_output: expectedOutput,
         reference_answer: expectedOutputValue,
         file_paths: [],

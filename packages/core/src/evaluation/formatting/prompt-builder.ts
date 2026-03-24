@@ -1,6 +1,6 @@
+import { extractContentSegments, flattenInputMessages } from '../input-message-utils.js';
 import type { ChatMessageRole, ChatPrompt } from '../providers/types.js';
 import type { EvalTest, JsonObject, TestMessage } from '../types.js';
-import { isJsonObject } from '../types.js';
 import { type FormattingMode, formatSegment, hasVisibleContent } from './segment-formatter.js';
 
 /**
@@ -23,61 +23,9 @@ export async function buildPromptInputs(
   mode: FormattingMode = 'lm',
 ): Promise<PromptInputs> {
   // Build segments per message to determine if role markers are needed
-  const segmentsByMessage: JsonObject[][] = [];
-  const fileContentsByPath = new Map<string, string>();
-  for (const segment of testCase.input_segments) {
-    if (
-      segment.type === 'file' &&
-      typeof segment.path === 'string' &&
-      typeof segment.text === 'string'
-    ) {
-      fileContentsByPath.set(segment.path, segment.text);
-    }
-  }
-
-  for (const message of testCase.input) {
-    const messageSegments: JsonObject[] = [];
-
-    if (typeof message.content === 'string') {
-      if (message.content.trim().length > 0) {
-        messageSegments.push({ type: 'text', value: message.content });
-      }
-    } else if (Array.isArray(message.content)) {
-      for (const segment of message.content) {
-        if (typeof segment === 'string') {
-          if (segment.trim().length > 0) {
-            messageSegments.push({ type: 'text', value: segment });
-          }
-        } else if (isJsonObject(segment)) {
-          const type = asString(segment.type);
-
-          if (type === 'file') {
-            const value = asString(segment.value);
-            if (!value) continue;
-
-            // Find the file content from input_segments
-            const fileText = fileContentsByPath.get(value);
-
-            if (fileText !== undefined) {
-              messageSegments.push({ type: 'file', text: fileText, path: value });
-            }
-          } else if (type === 'text') {
-            const textValue = asString(segment.value);
-            if (textValue && textValue.trim().length > 0) {
-              messageSegments.push({ type: 'text', value: textValue });
-            }
-          }
-        }
-      }
-    } else if (isJsonObject(message.content)) {
-      const rendered = JSON.stringify(message.content, null, 2);
-      if (rendered.trim().length > 0) {
-        messageSegments.push({ type: 'text', value: rendered });
-      }
-    }
-
-    segmentsByMessage.push(messageSegments);
-  }
+  const segmentsByMessage: JsonObject[][] = testCase.input.map((message) =>
+    extractContentSegments(message.content),
+  );
 
   // Determine if we need role markers based on actual processed content
   const useRoleMarkers = needsRoleMarkers(testCase.input, segmentsByMessage);
@@ -116,7 +64,7 @@ export async function buildPromptInputs(
   } else {
     // Single-turn flat format
     const questionParts: string[] = [];
-    for (const segment of testCase.input_segments) {
+    for (const segment of flattenInputMessages(testCase.input)) {
       const formattedContent = formatSegment(segment, mode);
       if (formattedContent) {
         questionParts.push(formattedContent);
@@ -251,8 +199,4 @@ function buildChatPromptFromSegments(options: {
   }
 
   return chatPrompt.length > 0 ? (chatPrompt as ChatPrompt) : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
 }

@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { formatFileContents } from '../formatting/segment-formatter.js';
+import { cloneJsonObject } from '../input-message-utils.js';
 import type { JsonObject, TestMessage } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { resolveFileReference } from './file-resolver.js';
@@ -21,18 +22,18 @@ type ProcessMessagesOptions = {
 /**
  * Process message content into structured segments with file resolution.
  */
-export async function processMessages(options: ProcessMessagesOptions): Promise<JsonObject[]> {
+export async function processMessages(options: ProcessMessagesOptions): Promise<TestMessage[]> {
   const { messages, searchRoots, repoRootPath, textParts, messageType, verbose } = options;
 
-  const segments: JsonObject[] = [];
+  const processedMessages: TestMessage[] = [];
 
   for (const message of messages) {
     const content = message.content;
     if (typeof content === 'string') {
-      segments.push({ type: 'text', value: content });
       if (textParts) {
         textParts.push(content);
       }
+      processedMessages.push({ ...message, content });
       continue;
     }
 
@@ -41,16 +42,18 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
     // via evalCase.input.
     if (isJsonObject(content)) {
       const rendered = JSON.stringify(content, null, 2);
-      segments.push({ type: 'text', value: rendered });
       if (textParts) {
         textParts.push(rendered);
       }
+      processedMessages.push({ ...message, content: cloneJsonObject(content) });
       continue;
     }
 
     if (!Array.isArray(content)) {
       continue;
     }
+
+    const processedContent: JsonObject[] = [];
 
     for (const rawSegment of content) {
       if (!isJsonObject(rawSegment)) {
@@ -81,8 +84,8 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
         try {
           const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n');
 
-          segments.push({
-            type: 'file',
+          processedContent.push({
+            ...cloneJsonObject(rawSegment),
             path: displayPath,
             text: fileContent,
             resolvedPath: path.resolve(resolvedPath),
@@ -101,15 +104,17 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
       }
 
       const clonedSegment = cloneJsonObject(rawSegment);
-      segments.push(clonedSegment);
+      processedContent.push(clonedSegment);
       const inlineValue = clonedSegment.value;
       if (typeof inlineValue === 'string' && textParts) {
         textParts.push(inlineValue);
       }
     }
+
+    processedMessages.push({ ...message, content: processedContent });
   }
 
-  return segments;
+  return processedMessages;
 }
 
 /**
@@ -201,27 +206,6 @@ export async function resolveAssistantContent(
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
-}
-
-function cloneJsonObject(source: JsonObject): JsonObject {
-  const entries = Object.entries(source).map(([key, value]) => [key, cloneJsonValue(value)]);
-  return Object.fromEntries(entries) as JsonObject;
-}
-
-function cloneJsonValue(value: unknown): unknown {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => cloneJsonValue(item));
-  }
-  if (typeof value === 'object') {
-    return cloneJsonObject(value as JsonObject);
-  }
-  return value;
 }
 
 function logWarning(message: string, details?: readonly string[]): void {

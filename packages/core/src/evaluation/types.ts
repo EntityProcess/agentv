@@ -784,7 +784,6 @@ export interface EvalTest {
   readonly conversation_id?: string;
   readonly question: string;
   readonly input: readonly TestMessage[];
-  readonly input_segments: readonly JsonObject[];
   readonly expected_output: readonly JsonObject[];
   readonly reference_answer?: string;
   readonly file_paths: readonly string[];

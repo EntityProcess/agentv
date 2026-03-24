@@ -127,7 +127,6 @@ export function parseAgentSkillsEvals(
       id: String(id),
       question: prompt,
       input: [{ role: 'user', content: prompt }],
-      input_segments: [{ type: 'text', value: prompt }],
       expected_output: evalCase.expected_output
         ? [{ role: 'assistant', content: evalCase.expected_output }]
         : [],

@@ -150,7 +150,6 @@ function buildEvalTest(raw: RawResult): EvalTest {
     id: raw.test_id ?? 'unknown',
     question: '',
     input: [],
-    input_segments: [],
     expected_output: [],
 
     file_paths: [],

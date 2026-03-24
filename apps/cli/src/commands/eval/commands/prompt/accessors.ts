@@ -38,7 +38,7 @@ export async function getPromptEvalInput(
 ): Promise<PromptEvalInputResult> {
   const repoRoot = await findRepoRoot(process.cwd());
   const evalCase = await loadTestById(evalPath, repoRoot, testId);
-  const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+  const fileMap = buildFileMap(evalCase.input, evalCase.file_paths);
 
   return {
     test_id: evalCase.id,
@@ -66,7 +66,7 @@ export async function getPromptEvalExpectedOutput(
 export async function getPromptEvalGradingBrief(evalPath: string, testId: string): Promise<string> {
   const repoRoot = await findRepoRoot(process.cwd());
   const evalCase = await loadTestById(evalPath, repoRoot, testId);
-  const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+  const fileMap = buildFileMap(evalCase.input, evalCase.file_paths);
   const resolvedInput = resolveMessages(evalCase.input, fileMap);
 
   const lines: string[] = [];
@@ -156,22 +156,22 @@ function extractTextFromMessages(messages: JsonObject[]): string {
 
 /**
  * Build a mapping from relative file names to resolved absolute paths.
- * Uses input_segments (which have resolvedPath) as the primary source,
- * then falls back to suffix-matching against all file_paths.
+ * Uses enriched input file segments as the primary source, then falls back
+ * to suffix-matching against all file_paths.
  */
 function buildFileMap(
-  inputSegments: readonly JsonObject[],
+  inputMessages: readonly TestMessage[],
   allFilePaths: readonly string[],
 ): Map<string, string> {
   const map = new Map<string, string>();
 
-  for (const segment of inputSegments) {
-    if (
-      segment.type === 'file' &&
-      typeof segment.path === 'string' &&
-      typeof segment.resolvedPath === 'string'
-    ) {
-      map.set(segment.path, segment.resolvedPath);
+  for (const message of inputMessages) {
+    if (!Array.isArray(message.content)) {
+      continue;
+    }
+
+    for (const segment of message.content) {
+      registerResolvedFileSegment(map, segment);
     }
   }
 
@@ -186,6 +186,23 @@ function buildFileMap(
       return this.get(key) !== undefined;
     },
   } as Map<string, string>;
+}
+
+function registerResolvedFileSegment(map: Map<string, string>, segment: JsonObject): void {
+  if (segment.type !== 'file' || typeof segment.resolvedPath !== 'string') {
+    return;
+  }
+
+  // `value` is the authored file reference from the eval. `path` is the
+  // normalized display/reference path attached during parsing. Usually they are
+  // the same, but both are valid lookup aliases for downstream prompt tooling.
+  const aliases = [segment.value, segment.path].filter(
+    (alias): alias is string => typeof alias === 'string',
+  );
+
+  for (const alias of aliases) {
+    map.set(alias, segment.resolvedPath);
+  }
 }
 
 /**

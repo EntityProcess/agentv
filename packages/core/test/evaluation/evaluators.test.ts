@@ -62,7 +62,6 @@ const baseTestCase: EvalTest = {
   eval_set: 'test-dataset',
   question: 'Improve the logging implementation',
   input: [{ role: 'user', content: 'Please add logging' }],
-  input_segments: [{ type: 'text', value: 'Please add logging' }],
   expected_output: [],
   reference_answer: '- add structured logging\n- avoid global state',
   file_paths: [],
