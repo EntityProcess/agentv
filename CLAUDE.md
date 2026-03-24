@@ -231,7 +231,7 @@ Before marking any branch as ready for review, complete this checklist:
 
 1. **Preflight:** If in a git worktree, ensure `.env` exists in the worktree root.
    ```bash
-   cp /home/christso/projects/agentv/.env .env
+   cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
    ```
    Without this, any eval run or LLM-dependent test will fail with missing API key errors.
 
@@ -305,7 +305,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    git worktree add agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description>
    cd agentv.worktrees/<branch-name>
    bun install
-   cp /home/christso/projects/agentv/.env .env
+   cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
    # Example: git worktree add agentv.worktrees/feat/42-add-new-embedder -b feat/42-add-new-embedder
    ```
 
@@ -375,7 +375,7 @@ Design documents and implementation plans are stored in `.claude/plans/`. These 
 Use the `agentv.worktrees/` directory. After creating a worktree, always run setup:
 ```bash
 bun install                                    # worktrees do NOT share node_modules
-cp /home/christso/projects/agentv/.env .env    # required for e2e tests and LLM operations
+cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env    # required for e2e tests and LLM operations
 ```
 Both steps are required before running builds, tests, or evals in the worktree.
 
