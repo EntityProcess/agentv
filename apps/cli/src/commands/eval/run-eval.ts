@@ -27,7 +27,7 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
-import { writeArtifactsFromResults } from './artifact-writer.js';
+import { buildAggregateGradingArtifact, writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import {
@@ -1201,6 +1201,14 @@ export async function runEvalCommand(
 
       // Persist last result file for `agentv results export` default lookup
       await saveRunCache(cwd, outputPath).catch(() => undefined);
+
+      // Write aggregate grading.json as companion to JSONL
+      if (outputPath.endsWith('.jsonl')) {
+        const { writeFile } = await import('node:fs/promises');
+        const gradingPath = outputPath.replace(/\.jsonl$/, '.grading.json');
+        const aggregateGrading = buildAggregateGradingArtifact(allResults);
+        await writeFile(gradingPath, `${JSON.stringify(aggregateGrading, null, 2)}\n`, 'utf8');
+      }
     }
 
     // Suggest retry-errors command when execution errors are detected

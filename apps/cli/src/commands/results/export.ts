@@ -6,6 +6,7 @@
  *   <output-dir>/
  *     benchmark.json           — aggregate scores, pass/fail counts, timing
  *     timing.json              — aggregate token usage and duration
+ *     grading.json             — aggregate assertions across all tests
  *     grading/
  *       <test-id>.json         — per-test grading artifact (assertions, evaluators)
  *     outputs/
@@ -27,6 +28,7 @@ import { command, option, optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
 import {
+  buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
   buildGradingArtifact,
   buildTimingArtifact,
@@ -61,6 +63,13 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   // timing.json — aggregate token usage and duration
   const timing = buildTimingArtifact(patched);
   writeFileSync(path.join(outputDir, 'timing.json'), `${JSON.stringify(timing, null, 2)}\n`);
+
+  // grading.json — aggregate assertions across all tests
+  const aggregateGrading = buildAggregateGradingArtifact(patched);
+  writeFileSync(
+    path.join(outputDir, 'grading.json'),
+    `${JSON.stringify(aggregateGrading, null, 2)}\n`,
+  );
 
   // grading/<test-id>.json — per-test grading artifacts
   const gradingDir = path.join(outputDir, 'grading');

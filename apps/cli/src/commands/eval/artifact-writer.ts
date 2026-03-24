@@ -77,6 +77,21 @@ export interface BenchmarkArtifact {
   readonly notes: readonly string[];
 }
 
+export interface AggregateGradingArtifact {
+  readonly assertions: readonly {
+    readonly test_id: string;
+    readonly text: string;
+    readonly passed: boolean;
+    readonly evidence: string;
+  }[];
+  readonly summary: {
+    readonly passed: number;
+    readonly failed: number;
+    readonly total: number;
+    readonly pass_rate: number;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Statistics helpers
 // ---------------------------------------------------------------------------
@@ -377,6 +392,39 @@ export function buildBenchmarkArtifact(
   };
 }
 
+export function buildAggregateGradingArtifact(
+  results: readonly EvaluationResult[],
+): AggregateGradingArtifact {
+  const assertions: AggregateGradingArtifact['assertions'][number][] = [];
+
+  for (const result of results) {
+    if (!result.assertions) continue;
+    const testId = result.testId ?? 'unknown';
+    for (const a of result.assertions) {
+      assertions.push({
+        test_id: testId,
+        text: a.text,
+        passed: a.passed,
+        evidence: a.evidence ?? '',
+      });
+    }
+  }
+
+  const passed = assertions.filter((a) => a.passed).length;
+  const failed = assertions.filter((a) => !a.passed).length;
+  const total = assertions.length;
+
+  return {
+    assertions,
+    summary: {
+      passed,
+      failed,
+      total,
+      pass_rate: total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Snake_case to camelCase conversion for reading JSONL files
 // ---------------------------------------------------------------------------
@@ -434,7 +482,12 @@ export async function writeArtifacts(
   jsonlPath: string,
   outputDir: string,
   options?: { evalFile?: string },
-): Promise<{ gradingDir: string; timingPath: string; benchmarkPath: string }> {
+): Promise<{
+  gradingDir: string;
+  timingPath: string;
+  benchmarkPath: string;
+  aggregateGradingPath: string;
+}> {
   const content = await readFile(jsonlPath, 'utf8');
   const results = parseJsonlResults(content);
 
@@ -445,10 +498,16 @@ export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
   options?: { evalFile?: string },
-): Promise<{ gradingDir: string; timingPath: string; benchmarkPath: string }> {
+): Promise<{
+  gradingDir: string;
+  timingPath: string;
+  benchmarkPath: string;
+  aggregateGradingPath: string;
+}> {
   const gradingDir = path.join(outputDir, 'grading');
   const timingPath = path.join(outputDir, 'timing.json');
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
+  const aggregateGradingPath = path.join(outputDir, 'grading.json');
 
   await mkdir(gradingDir, { recursive: true });
 
@@ -468,5 +527,9 @@ export async function writeArtifactsFromResults(
   const benchmark = buildBenchmarkArtifact(results, options?.evalFile);
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
-  return { gradingDir, timingPath, benchmarkPath };
+  // Write aggregate grading
+  const aggregateGrading = buildAggregateGradingArtifact(results);
+  await writeFile(aggregateGradingPath, `${JSON.stringify(aggregateGrading, null, 2)}\n`, 'utf8');
+
+  return { gradingDir, timingPath, benchmarkPath, aggregateGradingPath };
 }

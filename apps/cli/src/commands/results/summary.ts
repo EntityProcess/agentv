@@ -10,8 +10,10 @@
  *   - To add new summary fields, update formatSummary and the SummaryJson interface.
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import type { EvaluationResult } from '@agentv/core';
 import { command, option, optional, string } from 'cmd-ts';
+import type { AggregateGradingArtifact } from '../eval/artifact-writer.js';
 import { loadResults, sourceArg } from './shared.js';
 
 // ── Formatting ───────────────────────────────────────────────────────────
@@ -26,14 +28,28 @@ export interface SummaryJson {
   failed_test_ids: string[];
 }
 
-export function formatSummary(results: EvaluationResult[]): SummaryJson {
+export function formatSummary(
+  results: EvaluationResult[],
+  grading?: AggregateGradingArtifact,
+): SummaryJson {
   const total = results.length;
-  const passed = results.filter((r) => r.score >= 1.0).length;
-  const failed = total - passed;
-  // Mean of per-test scores (each score is the assertion pass rate for that test,
-  // matching skill-creator's pass_rate.mean semantics)
-  const passRate =
-    total > 0 ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000 : 0;
+
+  let passed: number;
+  let failed: number;
+  let passRate: number;
+
+  if (grading) {
+    // Use pre-computed assertion-level counts from grading artifact
+    passed = grading.summary.passed;
+    failed = grading.summary.failed;
+    passRate = grading.summary.pass_rate;
+  } else {
+    // Fall back to computing from per-test scores
+    passed = results.filter((r) => r.score >= 1.0).length;
+    failed = total - passed;
+    passRate =
+      total > 0 ? Math.round((results.reduce((s, r) => s + r.score, 0) / total) * 1000) / 1000 : 0;
+  }
 
   let totalDurationMs = 0;
   let totalTokens = 0;
@@ -73,8 +89,20 @@ export const resultsSummaryCommand = command({
   handler: async ({ source, dir }) => {
     const cwd = dir ?? process.cwd();
     try {
-      const { results } = await loadResults(source, cwd);
-      console.log(JSON.stringify(formatSummary(results), null, 2));
+      const { results, sourceFile } = await loadResults(source, cwd);
+
+      // Try to load companion grading.json
+      let grading: AggregateGradingArtifact | undefined;
+      const gradingPath = sourceFile.replace(/\.jsonl$/, '.grading.json');
+      if (existsSync(gradingPath)) {
+        try {
+          grading = JSON.parse(readFileSync(gradingPath, 'utf8'));
+        } catch {
+          // Fall back to JSONL-only computation
+        }
+      }
+
+      console.log(JSON.stringify(formatSummary(results, grading), null, 2));
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exit(1);
