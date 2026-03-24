@@ -1,0 +1,12 @@
+$schema: agentv-config-v2
+
+# Langfuse OTel Export Configuration
+#
+# Credentials are loaded from .env (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY).
+# No CLI flags needed — this config enables export automatically.
+
+execution:
+  export_otel: true
+  otel_backend: langfuse
+  otel_group_turns: true
+  otel_file: .agentv/results/otel-{timestamp}.json
