@@ -199,7 +199,14 @@ function escapeHtml(s: string): string {
 function generateServeHtml(results: readonly EvaluationResult[]): string {
   const lightResults = results.map((r) => {
     const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
-    return rest;
+    const toolCalls =
+      trace?.toolCalls && Object.keys(trace.toolCalls).length > 0 ? trace.toolCalls : undefined;
+    const graderDurationMs = (r.scores ?? []).reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
+    return {
+      ...rest,
+      ...(toolCalls && { _toolCalls: toolCalls }),
+      ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
+    };
   });
   // Escape for safe embedding in <script>: prevent </script> breakout,
   // HTML comment injection, and Unicode line terminators.
@@ -360,6 +367,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .error-box h4{color:var(--danger);margin:0 0 6px}
 .error-box pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word}
 .detail-meta{font-size:12px;color:var(--text-muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border-light)}
+.tool-calls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tool-tag{display:inline-block;padding:2px 10px;font-size:12px;font-family:var(--mono);background:var(--primary-bg);color:var(--primary);border:1px solid var(--border);border-radius:12px}
 .empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}
 .empty-state h3{font-size:16px;margin-bottom:8px;color:var(--text)}
 
@@ -457,7 +466,7 @@ const SERVE_SCRIPT = `
 
   /* ---- compute stats ---- */
   function computeStats(d){
-    var t=d.length,p=0,f=0,e=0,dur=0,ti=0,to=0,cost=0,sc=[];
+    var t=d.length,p=0,f=0,e=0,dur=0,ti=0,to=0,cost=0,sc=[],tc=0;
     for(var i=0;i<d.length;i++){
       var r=d[i],s=getStatus(r);
       if(s==="pass")p++;else if(s==="fail")f++;else e++;
@@ -465,9 +474,10 @@ const SERVE_SCRIPT = `
       if(r.tokenUsage){ti+=(r.tokenUsage.input||0);to+=(r.tokenUsage.output||0);}
       if(r.costUsd)cost+=r.costUsd;
       if(s!=="error")sc.push(r.score);
+      if(r._toolCalls){for(var k in r._toolCalls)tc+=r._toolCalls[k];}
     }
     var g=t-e;
-    return{total:t,passed:p,failed:f,errors:e,passRate:g>0?p/g:0,dur:dur,tokens:ti+to,inTok:ti,outTok:to,cost:cost,scores:sc};
+    return{total:t,passed:p,failed:f,errors:e,passRate:g>0?p/g:0,dur:dur,tokens:ti+to,inTok:ti,outTok:to,cost:cost,scores:sc,toolCalls:tc};
   }
   function computeTargets(d){
     var m={};
@@ -542,6 +552,7 @@ const SERVE_SCRIPT = `
     h+=card("Duration",fmtDur(stats.dur),"neutral");
     h+=card("Tokens",fmtTok(stats.tokens),"neutral");
     h+=card("Est. Cost",fmtCost(stats.cost),"neutral");
+    if(stats.toolCalls>0)h+=card("Tool Calls",fmtTok(stats.toolCalls),"neutral");
     h+="</div>";
 
     /* targets table */
@@ -737,6 +748,16 @@ const SERVE_SCRIPT = `
       h+="</ul>";
     }
 
+    /* tool calls */
+    if(r._toolCalls){
+      var tc=r._toolCalls,tcArr=[];
+      for(var k in tc)tcArr.push({name:k,count:tc[k]});
+      tcArr.sort(function(a,b){return b.count-a.count;});
+      h+='<h4>Tool Calls</h4><div class="tool-calls">';
+      for(var i=0;i<tcArr.length;i++)h+='<span class="tool-tag">'+esc(tcArr[i].name)+": "+tcArr[i].count+"</span>";
+      h+="</div>";
+    }
+
     /* error */
     if(r.error)h+='<div class="error-box"><h4>Error</h4><pre>'+esc(r.error)+"</pre></div>";
 
@@ -744,7 +765,14 @@ const SERVE_SCRIPT = `
     h+='<div class="detail-meta">';
     var m=[];
     if(r.tokenUsage)m.push(fmtTok(r.tokenUsage.input)+" in / "+fmtTok(r.tokenUsage.output)+" out tokens");
-    if(r.durationMs)m.push(fmtDur(r.durationMs));
+    if(r.durationMs){
+      if(r._graderDurationMs>0){
+        var execMs=r.durationMs-r._graderDurationMs;
+        m.push(fmtDur(execMs>0?execMs:0)+" executor + "+fmtDur(r._graderDurationMs)+" grader");
+      }else{
+        m.push(fmtDur(r.durationMs));
+      }
+    }
     if(r.target)m.push(r.target);
     if(r.costUsd)m.push(fmtCost(r.costUsd));
     if(r.timestamp)m.push(r.timestamp);
