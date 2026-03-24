@@ -26,7 +26,10 @@ describe('eval pipeline e2e', () => {
     // Step 3: eval grade
     await execa('bun', [CLI_ENTRY, 'eval', 'grade', OUT_DIR]);
     const gradeResult = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'contains_hello.json'), 'utf8'),
+      await readFile(
+        join(OUT_DIR, 'test-01', 'code_grader_results', 'contains_hello.json'),
+        'utf8',
+      ),
     );
     expect(gradeResult.score).toBe(1);
 
@@ -42,9 +45,7 @@ describe('eval pipeline e2e', () => {
     await execa('bun', [CLI_ENTRY, 'eval', 'bench', OUT_DIR], { input: llmScores });
 
     // Verify final artifacts
-    const grading = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'),
-    );
+    const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));
     expect(grading.evaluators).toHaveLength(2);
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
 
