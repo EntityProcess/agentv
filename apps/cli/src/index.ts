@@ -6,7 +6,6 @@ import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
 import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
 import { evalCommand } from './commands/eval/index.js';
-import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
@@ -28,7 +27,6 @@ export const app = subcommands({
     compare: compareCommand,
     convert: convertCommand,
     create: createCommand,
-    generate: generateCommand,
     init: initCmdTsCommand,
     results: resultsCommand,
     self: selfCommand,
@@ -56,7 +54,6 @@ const TOP_LEVEL_COMMANDS = new Set([
   'compare',
   'convert',
   'create',
-  'generate',
   'init',
   'results',
   'self',

@@ -115,15 +115,9 @@ score = sum(criterion_score / 10 * weight) / sum(total_weights)
 | `borderline` | ≥ 0.6 |
 | `fail` | < 0.6 |
 
-## Auto-Generate Rubrics
+## Authoring Rubrics
 
-Generate rubrics from expected outcomes:
-
-```bash
-agentv generate rubrics evals/my-eval.yaml
-```
-
-This analyzes each test's `criteria` and creates structured rubric criteria.
+Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic evaluators, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the evaluator choice driven by the criteria rather than one fixed recipe.
 
 ## Combining with Other Evaluators
 
