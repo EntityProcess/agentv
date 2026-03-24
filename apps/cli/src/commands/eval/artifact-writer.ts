@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
-import { LEGACY_RESULTS_FILENAME, RESULT_INDEX_FILENAME } from './result-layout.js';
+import { RESULT_INDEX_FILENAME } from './result-layout.js';
 
 // ---------------------------------------------------------------------------
 // Artifact interfaces (snake_case to match skill-creator conventions)
@@ -636,35 +636,27 @@ export async function writeArtifacts(
   timingPath: string;
   benchmarkPath: string;
   indexPath: string;
-  legacyResultsPath?: string;
 }> {
   const content = await readFile(jsonlPath, 'utf8');
   const results = parseJsonlResults(content);
 
-  return writeArtifactsFromResults(results, outputDir, {
-    ...options,
-    writeLegacyResults: false,
-  });
+  return writeArtifactsFromResults(results, outputDir, options);
 }
 
 export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
-  options?: { evalFile?: string; writeLegacyResults?: boolean },
+  options?: { evalFile?: string },
 ): Promise<{
   testArtifactDir: string;
   timingPath: string;
   benchmarkPath: string;
   indexPath: string;
-  legacyResultsPath?: string;
 }> {
   const testArtifactDir = outputDir;
   const timingPath = path.join(outputDir, 'timing.json');
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
   const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
-  const legacyResultsPath = options?.writeLegacyResults
-    ? path.join(outputDir, LEGACY_RESULTS_FILENAME)
-    : undefined;
   await mkdir(outputDir, { recursive: true });
   const indexRecords: ResultIndexArtifact[] = [];
 
@@ -708,9 +700,5 @@ export async function writeArtifactsFromResults(
 
   await writeJsonlFile(indexPath, indexRecords);
 
-  if (legacyResultsPath) {
-    await writeJsonlFile(legacyResultsPath, results);
-  }
-
-  return { testArtifactDir, timingPath, benchmarkPath, indexPath, legacyResultsPath };
+  return { testArtifactDir, timingPath, benchmarkPath, indexPath };
 }

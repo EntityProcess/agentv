@@ -189,9 +189,8 @@ describe('trace utils', () => {
       expect(() => loadResultFile(filePath)).toThrow('Missing or invalid score');
     });
 
-    it('loads workspace directories from index.jsonl instead of falling back to results.jsonl', () => {
+    it('loads workspace directories via index.jsonl', () => {
       writeFileSync(path.join(tempDir, 'index.jsonl'), `${RESULT_WITHOUT_TRACE}\n`);
-      writeFileSync(path.join(tempDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
 
       const results = loadResultFile(tempDir);
 
@@ -200,10 +199,9 @@ describe('trace utils', () => {
       expect(results[0].trace).toBeUndefined();
     });
 
-    it('loads index.jsonl directly without resolving the legacy results sibling', () => {
+    it('loads index.jsonl directly', () => {
       const indexPath = path.join(tempDir, 'index.jsonl');
       writeFileSync(indexPath, `${RESULT_WITHOUT_TRACE}\n`);
-      writeFileSync(path.join(tempDir, 'results.jsonl'), `${RESULT_WITH_TRACE}\n`);
 
       const results = loadResultFile(indexPath);
 
@@ -403,7 +401,7 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
     });
 
-    it('should skip directories without index.jsonl or results.jsonl', () => {
+    it('should skip directories without index.jsonl', () => {
       const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
       const emptyDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(emptyDir, { recursive: true });

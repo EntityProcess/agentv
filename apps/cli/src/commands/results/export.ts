@@ -42,7 +42,6 @@ export async function exportResults(
 
   await writeArtifactsFromResults(patchTestIds(results), outputDir, {
     evalFile: sourceFile,
-    writeLegacyResults: false,
   });
 }
 
@@ -104,7 +103,6 @@ export const resultsExportCommand = command({
 
       await writeArtifactsFromResults(results, outputDir, {
         evalFile: sourceFile,
-        writeLegacyResults: false,
       });
 
       // Report exported test IDs

@@ -209,8 +209,8 @@ agentv eval evals/my-eval.yaml
 # Self-contained HTML dashboard (opens in any browser, no server needed)
 agentv eval evals/my-eval.yaml -o report.html
 
-# Explicit JSONL compatibility output
-agentv eval evals/my-eval.yaml -o results.jsonl
+# Explicit JSONL output
+agentv eval evals/my-eval.yaml -o output.jsonl
 
 # Multiple formats simultaneously
 agentv eval evals/my-eval.yaml -o report.html
@@ -221,11 +221,10 @@ agentv eval evals/my-eval.yaml -o results.xml
 
 The HTML report auto-refreshes every 2 seconds during a live run, then locks once the run completes.
 
-By default, `agentv eval` now creates a run workspace under `.agentv/results/raw/<run>/`
-with `index.jsonl` as the primary machine-facing manifest. A compatibility `results.jsonl`
-is still written alongside it for legacy tooling during the deprecation window.
+By default, `agentv eval` creates a run workspace under `.agentv/results/raw/<run>/`
+with `index.jsonl` as the machine-facing manifest.
 
-You can also convert an existing manifest or compatibility JSONL file to HTML after the fact:
+You can also convert an existing manifest to HTML after the fact:
 
 ```bash
 agentv convert .agentv/results/raw/eval_<timestamp>/index.jsonl -o report.html

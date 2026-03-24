@@ -3,7 +3,6 @@ import path from 'node:path';
 import type { EvaluationResult, TraceSummary } from '@agentv/core';
 import { toCamelCaseDeep } from '@agentv/core';
 import {
-  LEGACY_RESULTS_FILENAME,
   RESULT_INDEX_FILENAME,
   resolveExistingRunPrimaryPath,
   resolveWorkspaceOrFilePath,
@@ -103,8 +102,7 @@ export interface RawTraceSpan {
  * Load all result or trace records from a supported source.
  *
  * Supported sources:
- * - Run workspace directories / index.jsonl manifests (summary fallback)
- * - Legacy results.jsonl files (explicit path only)
+ * - Run workspace directories / index.jsonl manifests
  * - Simple trace JSONL files written via --trace-file
  * - OTLP JSON trace files written via --otel-file
  */
@@ -123,14 +121,6 @@ export function loadResultFile(filePath: string): RawResult[] {
 }
 
 function resolveTraceResultPath(filePath: string): string {
-  if (path.basename(filePath) === LEGACY_RESULTS_FILENAME) {
-    return filePath;
-  }
-
-  if (!filePath.endsWith('.jsonl') && !filePath.endsWith('.json')) {
-    return resolveWorkspaceOrFilePath(filePath);
-  }
-
   return resolveWorkspaceOrFilePath(filePath);
 }
 

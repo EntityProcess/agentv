@@ -5,11 +5,7 @@ import type { EvaluationResult } from '@agentv/core';
 
 import type { GradingArtifact, TimingArtifact } from '../eval/artifact-writer.js';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
-import {
-  LEGACY_RESULTS_FILENAME,
-  RESULT_INDEX_FILENAME,
-  resolveWorkspaceOrFilePath,
-} from '../eval/result-layout.js';
+import { RESULT_INDEX_FILENAME, resolveWorkspaceOrFilePath } from '../eval/result-layout.js';
 
 export interface ResultManifestRecord {
   readonly timestamp?: string;
@@ -260,10 +256,4 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
   }
 
   return records;
-}
-
-export function resolveLegacyResultsSibling(sourceFile: string): string | undefined {
-  const resolvedSourceFile = resolveWorkspaceOrFilePath(sourceFile);
-  const legacyPath = path.join(path.dirname(resolvedSourceFile), LEGACY_RESULTS_FILENAME);
-  return existsSync(legacyPath) ? legacyPath : undefined;
 }

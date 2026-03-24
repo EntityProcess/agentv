@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  LEGACY_RESULTS_FILENAME,
   RESULT_INDEX_FILENAME,
   resolveExistingRunPrimaryPath,
   resolveRunIndexPath,
@@ -24,7 +23,7 @@ export interface RunCache {
 
 /**
  * Resolve the primary result manifest path from a RunCache entry.
- * New format: lastRunDir/index.jsonl (fallback: results.jsonl)
+ * New format: lastRunDir/index.jsonl
  * Legacy format: lastResultFile (flat JSONL path)
  */
 export function resolveRunCacheFile(cache: RunCache): string {
@@ -52,7 +51,7 @@ export async function saveRunCache(cwd: string, resultPath: string): Promise<voi
   await mkdir(dir, { recursive: true });
   const basename = path.basename(resultPath);
   const cache: RunCache =
-    basename === RESULT_INDEX_FILENAME || basename === LEGACY_RESULTS_FILENAME
+    basename === RESULT_INDEX_FILENAME
       ? {
           lastRunDir: path.dirname(resultPath),
           timestamp: new Date().toISOString(),
