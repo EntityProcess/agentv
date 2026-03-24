@@ -1174,7 +1174,9 @@ export async function runEvalCommand(
         benchmarkPath: abp,
       } = await writeArtifactsFromResults(allResults, artifactsDir, { evalFile });
       console.log(`Artifacts written to: ${artifactsDir}`);
-      console.log(`  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`);
+      console.log(
+        `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
+      );
       console.log(`  Timing:  ${timingPath}`);
       console.log(`  Benchmark: ${abp}`);
     }
