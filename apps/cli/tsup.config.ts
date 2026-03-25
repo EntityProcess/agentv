@@ -1,4 +1,4 @@
-import { cpSync } from 'node:fs';
+import { cpSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'tsup';
 
@@ -30,6 +30,10 @@ export default defineConfig({
   onSuccess: async () => {
     const srcTemplatesDir = path.join('src', 'templates');
     const distTemplatesDir = path.join('dist', 'templates');
+
+    // Remove stale templates so externally-added files (e.g. plugin skills)
+    // don't survive builds and accidentally ship in the npm package
+    rmSync(distTemplatesDir, { recursive: true, force: true });
 
     // Copy entire templates directory structure recursively
     cpSync(srcTemplatesDir, distTemplatesDir, {
