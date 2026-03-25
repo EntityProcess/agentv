@@ -90,6 +90,7 @@ For deeper research on challenging reviews, consult these resources via web fetc
 - [Agent Skills specification](https://agentskills.io/specification) — Official SKILL.md format, frontmatter fields, progressive disclosure rules
 - [Agent Skills best practices](https://agentskills.io/skill-creation/best-practices) — Context spending, calibrating control, gotchas, scripts, validation loops
 - [Agent Skills description optimization](https://agentskills.io/skill-creation/optimizing-descriptions) — Trigger testing, train/validation splits, overfitting avoidance
+- [Agent Skills using scripts](https://agentskills.io/skill-creation/using-scripts) — Self-contained scripts, --help, structured output, idempotency, exit codes
 - [AgentV documentation](https://agentv.dev/) — Eval YAML schema, assertion types, workspace evals, multi-provider targets
 - [OpenSpec](https://github.com/Fission-AI/OpenSpec) — Spec-driven development framework (OPSX conventions, artifact graphs, hard gates, delta specs)
 - [Superpowers](https://github.com/obra/superpowers/) — Claude Code plugin with `<HARD-GATE>` pattern, brainstorming workflow, skill-based development phases
