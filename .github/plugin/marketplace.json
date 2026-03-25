@@ -18,9 +18,9 @@
       "source": "./plugins/agentv-claude-trace"
     },
     {
-      "name": "agentic-architect",
-      "description": "Design and review AI agent architectures — species selection, workflow patterns, and plugin quality review",
-      "source": "./plugins/agentic-architect"
+      "name": "agentic-engineering",
+      "description": "Design and review AI agent systems — architecture patterns, workflow design, and plugin quality review",
+      "source": "./plugins/agentic-engineering"
     }
   ]
 }
