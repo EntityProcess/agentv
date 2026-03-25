@@ -45,6 +45,7 @@ import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
   formatMatrixSummary,
+  formatThresholdSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 
@@ -1160,6 +1161,15 @@ export async function runEvalCommand(
 
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
+
+    // Threshold quality gate check
+    if (resolvedThreshold !== undefined) {
+      const thresholdResult = formatThresholdSummary(summary.mean, resolvedThreshold);
+      console.log(`\n${thresholdResult.message}`);
+      if (!thresholdResult.passed) {
+        process.exitCode = 1;
+      }
+    }
 
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && allResults.length > 0) {

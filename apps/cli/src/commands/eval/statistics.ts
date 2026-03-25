@@ -334,3 +334,17 @@ export function formatMatrixSummary(results: readonly EvaluationResult[]): strin
 
   return lines.join('\n');
 }
+
+/**
+ * Format a threshold check summary line.
+ * Returns whether the threshold was met and the formatted message.
+ */
+export function formatThresholdSummary(
+  meanScore: number,
+  threshold: number,
+): { passed: boolean; message: string } {
+  const passed = meanScore >= threshold;
+  const verdict = passed ? 'PASS' : 'FAIL';
+  const message = `Suite score: ${meanScore.toFixed(2)} (threshold: ${threshold.toFixed(2)}) — ${verdict}`;
+  return { passed, message };
+}
