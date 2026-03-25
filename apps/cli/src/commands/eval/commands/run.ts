@@ -224,6 +224,9 @@ export const evalRunCommand = command({
       outputMessages: args.outputMessages,
       threshold: args.threshold,
     };
-    await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+    const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+    if (result?.thresholdFailed) {
+      process.exit(1);
+    }
   },
 });

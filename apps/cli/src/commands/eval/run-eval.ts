@@ -754,6 +754,8 @@ export interface RunEvalResult {
   readonly outputPath: string;
   readonly testFiles: readonly string[];
   readonly target?: string;
+  /** True when --threshold is set and mean score is below the threshold */
+  readonly thresholdFailed?: boolean;
 }
 
 export async function runEvalCommand(
@@ -1171,12 +1173,11 @@ export async function runEvalCommand(
     console.log(formatEvaluationSummary(summary));
 
     // Threshold quality gate check
+    let thresholdFailed = false;
     if (resolvedThreshold !== undefined) {
       const thresholdResult = formatThresholdSummary(summary.mean, resolvedThreshold);
       console.log(`\n${thresholdResult.message}`);
-      if (!thresholdResult.passed) {
-        process.exitCode = 1;
-      }
+      thresholdFailed = !thresholdResult.passed;
     }
 
     // Print matrix summary when multiple targets were evaluated
@@ -1273,6 +1274,7 @@ export async function runEvalCommand(
       outputPath,
       testFiles: resolvedTestFiles,
       target: options.target,
+      thresholdFailed,
     };
   } finally {
     unsubscribeCodexLogs();
