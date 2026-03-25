@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { z } from 'zod';
 
+import type { CopilotLogResolvedConfig } from './copilot-log.js';
 import type { EnvLookup, TargetDefinition } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -623,6 +624,14 @@ export type ResolvedTarget =
       readonly config: CopilotCliResolvedConfig;
     }
   | {
+      readonly kind: 'copilot-log';
+      readonly name: string;
+      readonly graderTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CopilotLogResolvedConfig;
+    }
+  | {
       readonly kind: 'pi-coding-agent';
       readonly name: string;
       readonly graderTarget?: string;
@@ -865,6 +874,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotCliConfig(parsed, env, evalFilePath),
+      };
+    case 'copilot-log':
+      return {
+        kind: 'copilot-log',
+        name: parsed.name,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCopilotLogConfig(parsed, env),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -1949,6 +1967,25 @@ function resolveString(
     throw new Error(`${description} is required`);
   }
   return value;
+}
+
+function resolveCopilotLogConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): CopilotLogResolvedConfig {
+  const sessionDirSource = target.session_dir ?? target.sessionDir;
+  const sessionIdSource = target.session_id ?? target.sessionId;
+  const discoverSource = target.discover;
+  const sessionStateDirSource = target.session_state_dir ?? target.sessionStateDir;
+  const cwdSource = target.cwd;
+
+  return {
+    sessionDir: resolveOptionalString(sessionDirSource, env, `${target.name} copilot-log session_dir`, { allowLiteral: true, optionalEnv: true }),
+    sessionId: resolveOptionalString(sessionIdSource, env, `${target.name} copilot-log session_id`, { allowLiteral: true, optionalEnv: true }),
+    discover: discoverSource === 'latest' ? 'latest' : undefined,
+    sessionStateDir: resolveOptionalString(sessionStateDirSource, env, `${target.name} copilot-log session_state_dir`, { allowLiteral: true, optionalEnv: true }),
+    cwd: resolveOptionalString(cwdSource, env, `${target.name} copilot-log cwd`, { allowLiteral: true, optionalEnv: true }),
+  };
 }
 
 function resolveOptionalString(
