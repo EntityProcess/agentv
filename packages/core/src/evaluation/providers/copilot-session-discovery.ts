@@ -13,7 +13,7 @@
  *   2. Add filter logic in the sessions.filter() chain
  */
 
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -87,9 +87,7 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
         updatedAt,
         isActive,
       });
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   let filtered = sessions;

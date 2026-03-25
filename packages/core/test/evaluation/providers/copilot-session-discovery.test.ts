@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -15,11 +15,7 @@ describe('discoverCopilotSessions', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  async function createSession(
-    sessionId: string,
-    workspaceYaml: string,
-    eventsJsonl = '',
-  ) {
+  async function createSession(sessionId: string, workspaceYaml: string, eventsJsonl = '') {
     const sessionDir = path.join(tempDir, sessionId);
     await mkdir(sessionDir, { recursive: true });
     await writeFile(path.join(sessionDir, 'workspace.yaml'), workspaceYaml);

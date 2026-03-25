@@ -83,7 +83,7 @@ export {
 } from './provider-registry.js';
 
 export { discoverProviders } from './provider-discovery.js';
-export { type CopilotLogResolvedConfig } from './copilot-log.js';
+export type { CopilotLogResolvedConfig } from './copilot-log.js';
 export { discoverCopilotSessions, type CopilotSession } from './copilot-session-discovery.js';
 
 /**

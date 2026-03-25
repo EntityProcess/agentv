@@ -1980,11 +1980,29 @@ function resolveCopilotLogConfig(
   const cwdSource = target.cwd;
 
   return {
-    sessionDir: resolveOptionalString(sessionDirSource, env, `${target.name} copilot-log session_dir`, { allowLiteral: true, optionalEnv: true }),
-    sessionId: resolveOptionalString(sessionIdSource, env, `${target.name} copilot-log session_id`, { allowLiteral: true, optionalEnv: true }),
+    sessionDir: resolveOptionalString(
+      sessionDirSource,
+      env,
+      `${target.name} copilot-log session_dir`,
+      { allowLiteral: true, optionalEnv: true },
+    ),
+    sessionId: resolveOptionalString(
+      sessionIdSource,
+      env,
+      `${target.name} copilot-log session_id`,
+      { allowLiteral: true, optionalEnv: true },
+    ),
     discover: discoverSource === 'latest' ? 'latest' : undefined,
-    sessionStateDir: resolveOptionalString(sessionStateDirSource, env, `${target.name} copilot-log session_state_dir`, { allowLiteral: true, optionalEnv: true }),
-    cwd: resolveOptionalString(cwdSource, env, `${target.name} copilot-log cwd`, { allowLiteral: true, optionalEnv: true }),
+    sessionStateDir: resolveOptionalString(
+      sessionStateDirSource,
+      env,
+      `${target.name} copilot-log session_state_dir`,
+      { allowLiteral: true, optionalEnv: true },
+    ),
+    cwd: resolveOptionalString(cwdSource, env, `${target.name} copilot-log cwd`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
   };
 }
 

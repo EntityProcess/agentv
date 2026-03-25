@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  parseCopilotEvents,
   type ParsedCopilotSession,
+  parseCopilotEvents,
 } from '../../../src/evaluation/providers/copilot-log-parser.js';
 
 function eventLine(type: string, data: Record<string, unknown> = {}): string {
@@ -26,9 +26,7 @@ describe('parseCopilotEvents', () => {
   });
 
   it('parses user.message into user Message', () => {
-    const lines = [
-      eventLine('user.message', { content: 'Hello agent' }),
-    ].join('\n');
+    const lines = [eventLine('user.message', { content: 'Hello agent' })].join('\n');
 
     const result = parseCopilotEvents(lines);
     expect(result.messages).toHaveLength(1);
@@ -40,9 +38,7 @@ describe('parseCopilotEvents', () => {
     const lines = [
       eventLine('assistant.message', {
         content: 'I will help you',
-        toolRequests: [
-          { toolName: 'Read File', arguments: { file_path: '/src/index.ts' } },
-        ],
+        toolRequests: [{ toolName: 'Read File', arguments: { file_path: '/src/index.ts' } }],
       }),
     ].join('\n');
 
@@ -51,8 +47,8 @@ describe('parseCopilotEvents', () => {
     expect(result.messages[0].role).toBe('assistant');
     expect(result.messages[0].content).toBe('I will help you');
     expect(result.messages[0].toolCalls).toHaveLength(1);
-    expect(result.messages[0].toolCalls![0].tool).toBe('Read File');
-    expect(result.messages[0].toolCalls![0].input).toEqual({ file_path: '/src/index.ts' });
+    expect(result.messages[0].toolCalls?.[0].tool).toBe('Read File');
+    expect(result.messages[0].toolCalls?.[0].input).toEqual({ file_path: '/src/index.ts' });
   });
 
   it('parses skill.invoked as ToolCall with tool=Skill', () => {
@@ -67,9 +63,9 @@ describe('parseCopilotEvents', () => {
     const result = parseCopilotEvents(lines);
     const assistantMsg = result.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
-    expect(assistantMsg!.toolCalls).toHaveLength(1);
-    expect(assistantMsg!.toolCalls![0].tool).toBe('Skill');
-    expect(assistantMsg!.toolCalls![0].input).toEqual({ skill: 'csv-analyzer' });
+    expect(assistantMsg?.toolCalls).toHaveLength(1);
+    expect(assistantMsg?.toolCalls?.[0].tool).toBe('Skill');
+    expect(assistantMsg?.toolCalls?.[0].input).toEqual({ skill: 'csv-analyzer' });
   });
 
   it('pairs tool.execution_start with tool.execution_complete', () => {
@@ -89,9 +85,9 @@ describe('parseCopilotEvents', () => {
     const result = parseCopilotEvents(lines);
     const assistantMsg = result.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
-    expect(assistantMsg!.toolCalls).toHaveLength(1);
-    expect(assistantMsg!.toolCalls![0].tool).toBe('Read File');
-    expect(assistantMsg!.toolCalls![0].output).toBe('file contents');
+    expect(assistantMsg?.toolCalls).toHaveLength(1);
+    expect(assistantMsg?.toolCalls?.[0].tool).toBe('Read File');
+    expect(assistantMsg?.toolCalls?.[0].output).toBe('file contents');
   });
 
   it('extracts token usage from assistant.usage', () => {
