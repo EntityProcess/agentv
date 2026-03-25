@@ -355,9 +355,7 @@ export function extractThreshold(suite: JsonObject): number | undefined {
     return raw;
   }
 
-  logWarning(
-    `Invalid execution.threshold: ${raw}. Must be a number between 0 and 1. Ignoring.`,
-  );
+  logWarning(`Invalid execution.threshold: ${raw}. Must be a number between 0 and 1. Ignoring.`);
   return undefined;
 }
 

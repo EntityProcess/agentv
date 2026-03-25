@@ -1015,7 +1015,8 @@ export async function runEvalCommand(
 
   // Build the output writer (deferred until after threshold is resolved so JUnit
   // writer can use the resolved threshold for per-test pass/fail decisions)
-  const writerOptions = resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
+  const writerOptions =
+    resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
   let outputWriter: OutputWriter;
   if (uniqueOutputPaths.length === 1) {
     outputWriter = await createOutputWriter(primaryWritePath, options.format);
