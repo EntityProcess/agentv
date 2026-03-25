@@ -6,7 +6,7 @@ tests:
     assertions:
       - name: contains_hello
         type: code-grader
-        command: echo '{"score":1}'
+        command: node grader-score-1.js
         weight: 1.0
       - name: relevance
         type: llm-grader
