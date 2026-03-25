@@ -31,6 +31,7 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -124,6 +125,10 @@ def main():
         "--workers", type=int, default=3, help="Parallel workers (default: 3)"
     )
     args = parser.parse_args()
+
+    if "AGENTV_RUN_TIMESTAMP" not in os.environ:
+        ts = datetime.now(timezone.utc).isoformat().replace(":", "-").replace(".", "-")
+        os.environ["AGENTV_RUN_TIMESTAMP"] = ts
 
     manifest = run_agentv_input(args.eval_path, args.out)
     out = Path(args.out)

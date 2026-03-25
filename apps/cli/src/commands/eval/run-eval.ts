@@ -763,6 +763,14 @@ export async function runEvalCommand(
 ): Promise<RunEvalResult | undefined> {
   const cwd = process.cwd();
 
+  // Set AGENTV_RUN_TIMESTAMP so CLI targets can group artifacts under the same run folder.
+  if (!process.env.AGENTV_RUN_TIMESTAMP) {
+    process.env.AGENTV_RUN_TIMESTAMP = new Date()
+      .toISOString()
+      .replace(/:/g, '-')
+      .replace(/\./g, '-');
+  }
+
   // Load agentv.config.ts (if present) for default values
   let config: Awaited<ReturnType<typeof loadTsConfig>> = null;
   try {
