@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "1604663b3709",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/plans/2026-03-25-threshold-flag-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/16/04663b3709/0/metadata.json",
+      "transcript": "/16/04663b3709/0/full.jsonl",
+      "content_hash": "/16/04663b3709/0/content_hash.txt",
+      "prompt": "/16/04663b3709/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 40104,
+    "cache_read_tokens": 1222487,
+    "output_tokens": 6413,
+    "api_call_count": 29
+  }
+}
