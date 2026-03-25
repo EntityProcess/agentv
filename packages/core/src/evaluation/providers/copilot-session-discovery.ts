@@ -16,6 +16,7 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
 export interface CopilotSession {
   readonly sessionId: string;
@@ -59,7 +60,7 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
 
     try {
       const workspaceContent = await readFile(workspacePath, 'utf8');
-      const workspace = parseSimpleYaml(workspaceContent);
+      const workspace = (parseYaml(workspaceContent) ?? {}) as Record<string, unknown>;
 
       const cwd = String(workspace.cwd ?? '');
 
@@ -114,28 +115,3 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
   return filtered.slice(0, limit);
 }
 
-/**
- * Minimal YAML parser for workspace.yaml files.
- * Only handles flat key: value pairs (no nesting, no arrays).
- * Nested or multi-line values will be captured as partial strings
- * (everything after the first colon on that line).
- */
-function parseSimpleYaml(content: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const colonIdx = trimmed.indexOf(':');
-    if (colonIdx <= 0) continue;
-    const key = trimmed.slice(0, colonIdx).trim();
-    let value = trimmed.slice(colonIdx + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    result[key] = value;
-  }
-  return result;
-}
