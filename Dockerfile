@@ -11,7 +11,17 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
-# ── Stage 2: runtime ──────────────────────────────────────────────────
+# ── Stage 2: production deps ─────────────────────────────────────────
+FROM oven/bun:1.3.3 AS deps
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY packages/core/package.json packages/core/
+COPY packages/eval/package.json packages/eval/
+COPY apps/cli/package.json apps/cli/
+COPY apps/web/package.json apps/web/
+RUN bun install --frozen-lockfile --production
+
+# ── Stage 3: runtime ─────────────────────────────────────────────────
 FROM oven/bun:1.3.3-slim
 WORKDIR /app
 
@@ -29,7 +39,9 @@ ENV UV_PYTHON_INSTALL_DIR=/opt/python
 RUN uv python install 3.12
 ENV PATH="/opt/python/cpython-3.12.9-linux-aarch64-gnu/bin:${PATH}"
 
-# Copy only built artifacts — skip root node_modules (1.2GB of devDeps)
+# Copy production node_modules (resolved symlinks) and built artifacts
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/cli/node_modules ./apps/cli/node_modules
 COPY --from=build /app/package.json /app/bun.lock ./
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/core/package.json ./packages/core/
@@ -37,7 +49,6 @@ COPY --from=build /app/packages/eval/dist ./packages/eval/dist
 COPY --from=build /app/packages/eval/package.json ./packages/eval/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist
 COPY --from=build /app/apps/cli/package.json ./apps/cli/
-COPY --from=build /app/apps/cli/node_modules ./apps/cli/node_modules
 RUN chown -R agentv:agentv /app
 
 USER agentv
