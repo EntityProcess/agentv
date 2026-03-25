@@ -36,6 +36,7 @@ COPY --from=build /app/packages/eval/dist ./packages/eval/dist
 COPY --from=build /app/packages/eval/package.json ./packages/eval/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist
 COPY --from=build /app/apps/cli/package.json ./apps/cli/
+COPY --from=build /app/apps/cli/node_modules ./apps/cli/node_modules
 RUN chown -R agentv:agentv /app
 
 USER agentv
