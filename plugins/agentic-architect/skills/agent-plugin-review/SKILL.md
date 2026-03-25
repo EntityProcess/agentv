@@ -54,7 +54,6 @@ For each SKILL.md, check against `references/skill-quality-checklist.md`:
 - Discipline-enforcing skills have rationalization tables, red flags lists, and explicit loophole closures
 - Consistency — no contradictions within or across files (tool names, filenames, commands, rules)
 - No manual routing workarounds — if AGENTS.md or instruction files contain heavy TRIGGER/ACTION routing tables or skill-chain logic, the skill descriptions are likely too weak. Good descriptions enable auto-discovery without manual routing.
-- External dependencies declared — skills that depend on MCP servers, external repos, specific directory layouts, or services should declare these explicitly, not assume they exist
 
 ### Step 4: Workflow architecture review (LLM judgment)
 
@@ -88,8 +87,10 @@ Use a PR review (not individual comments) to batch all findings.
 
 For deeper research on challenging reviews, consult these resources via web fetch, deepwiki, or clone the repo locally:
 
+- [Agent Skills specification](https://agentskills.io/specification) — Official SKILL.md format, frontmatter fields, progressive disclosure rules
+- [Agent Skills best practices](https://agentskills.io/skill-creation/best-practices) — Context spending, calibrating control, gotchas, scripts, validation loops
+- [Agent Skills description optimization](https://agentskills.io/skill-creation/optimizing-descriptions) — Trigger testing, train/validation splits, overfitting avoidance
 - [AgentV documentation](https://agentv.dev/) — Eval YAML schema, assertion types, workspace evals, multi-provider targets
-- [Agent Skills directory](https://agentskills.io/home) — Browse published skills for quality and pattern examples
 - [OpenSpec](https://github.com/Fission-AI/OpenSpec) — Spec-driven development framework (OPSX conventions, artifact graphs, hard gates, delta specs)
 - [Superpowers](https://github.com/obra/superpowers/) — Claude Code plugin with `<HARD-GATE>` pattern, brainstorming workflow, skill-based development phases
 - [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin) — Four-phase workflow (Plan/Work/Review/Compound) with learning loop pattern
