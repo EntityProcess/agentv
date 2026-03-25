@@ -162,6 +162,32 @@ describe('JunitWriter', () => {
       'Cannot write to closed JUnit writer',
     );
   });
+
+  it('uses custom threshold for pass/fail when provided', async () => {
+    const filePath = path.join(testDir, `junit-threshold-${Date.now()}.xml`);
+    const writer = await JunitWriter.open(filePath, { threshold: 0.8 });
+
+    await writer.append(makeResult({ testId: 'high', score: 0.9 }));
+    await writer.append(makeResult({ testId: 'mid', score: 0.6 }));
+    await writer.close();
+
+    const xml = await readFile(filePath, 'utf8');
+    expect(xml).not.toContain('<failure message="score=0.900"');
+    expect(xml).toContain('<failure message="score=0.600"');
+  });
+
+  it('defaults to 0.5 threshold when none provided', async () => {
+    const filePath = path.join(testDir, `junit-default-${Date.now()}.xml`);
+    const writer = await JunitWriter.open(filePath);
+
+    await writer.append(makeResult({ testId: 'pass', score: 0.6 }));
+    await writer.append(makeResult({ testId: 'fail', score: 0.3 }));
+    await writer.close();
+
+    const xml = await readFile(filePath, 'utf8');
+    expect(xml).not.toContain('<failure message="score=0.600"');
+    expect(xml).toContain('<failure message="score=0.300"');
+  });
 });
 
 describe('escapeXml', () => {

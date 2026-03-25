@@ -906,12 +906,9 @@ export async function runEvalCommand(
     extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
   const uniqueReportedOutputPaths = [...new Set(reportedOutputPaths)];
 
-  let outputWriter: OutputWriter;
   if (uniqueOutputPaths.length === 1) {
-    outputWriter = await createOutputWriter(primaryWritePath, options.format);
     console.log(`Output path: ${outputPath}`);
   } else {
-    outputWriter = await createMultiWriter(uniqueOutputPaths);
     console.log('Output paths:');
     for (const p of uniqueReportedOutputPaths) {
       console.log(`  ${p}`);
@@ -1015,6 +1012,16 @@ export async function runEvalCommand(
   // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold
   const yamlThreshold = firstMeta?.threshold;
   const resolvedThreshold = options.threshold ?? yamlThreshold;
+
+  // Build the output writer (deferred until after threshold is resolved so JUnit
+  // writer can use the resolved threshold for per-test pass/fail decisions)
+  const writerOptions = resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
+  let outputWriter: OutputWriter;
+  if (uniqueOutputPaths.length === 1) {
+    outputWriter = await createOutputWriter(primaryWritePath, options.format);
+  } else {
+    outputWriter = await createMultiWriter(uniqueOutputPaths, writerOptions);
+  }
 
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
