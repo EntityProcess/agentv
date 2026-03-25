@@ -76,7 +76,7 @@ agentv eval ./evals/example.yaml
 
 Results appear in `.agentv/results/eval_<timestamp>.jsonl` with scores, reasoning, and execution traces.
 
-Learn more in the [examples/](examples/README.md) directory. For a detailed comparison with other frameworks, see [docs/COMPARISON.md](docs/COMPARISON.md).
+Learn more in the [examples/](../../examples/README.md) directory. For a detailed comparison with other frameworks, see [docs/COMPARISON.md](../../docs/COMPARISON.md).
 
 ## Why AgentV?
 
@@ -120,7 +120,7 @@ bun install && bun run build
 bun test
 ```
 
-See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
+See [AGENTS.md](../../AGENTS.md) for development guidelines and design principles.
 
 ### Releasing
 
@@ -304,7 +304,7 @@ assertions:
     value: "Hello"
 ```
 
-See the [sdk-custom-assertion example](examples/features/sdk-custom-assertion).
+See the [sdk-custom-assertion example](../../examples/features/sdk-custom-assertion).
 
 #### Programmatic API with `evaluate()`
 
@@ -326,7 +326,7 @@ const { results, summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
-Auto-discovers `default` target from `.agentv/targets.yaml` and `.env` credentials. See the [sdk-programmatic-api example](examples/features/sdk-programmatic-api).
+Auto-discovers `default` target from `.agentv/targets.yaml` and `.env` credentials. See the [sdk-programmatic-api example](../../examples/features/sdk-programmatic-api).
 
 #### Typed Configuration with `defineConfig()`
 
@@ -342,7 +342,7 @@ export default defineConfig({
 });
 ```
 
-See the [sdk-config-file example](examples/features/sdk-config-file).
+See the [sdk-config-file example](../../examples/features/sdk-config-file).
 
 #### Scaffold Commands
 
@@ -425,7 +425,7 @@ Write validators in any language (Python, TypeScript, Node, etc.):
 
 For complete examples and patterns, see:
 - [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
-- [code-grader-sdk example](examples/features/code-grader-sdk)
+- [code-grader-sdk example](../../examples/features/code-grader-sdk)
 
 ### Deterministic Assertions
 
@@ -464,7 +464,7 @@ assertions:
     flags: "i"
 ```
 
-See the [assert-extended example](examples/features/assert-extended) for complete patterns.
+See the [assert-extended example](../../examples/features/assert-extended) for complete patterns.
 
 ### Target Configuration: `grader_target`
 
@@ -551,7 +551,7 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 
 **Getting Started:**
 - Run `agentv init` to set up your first evaluation workspace
-- Check [examples/README.md](examples/README.md) for demos (math, code generation, tool use)
+- Check [examples/README.md](../../examples/README.md) for demos (math, code generation, tool use)
 - AI agents: Ask Claude Code to `/agentv-eval-builder` to create and iterate on evals
 
 **Detailed Guides:**
@@ -596,8 +596,8 @@ After this, `npm install -g` will work without `sudo`.
 
 ## Contributing
 
-See [AGENTS.md](AGENTS.md) for development guidelines, design principles, and quality assurance workflow.
+See [AGENTS.md](../../AGENTS.md) for development guidelines, design principles, and quality assurance workflow.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](../../LICENSE) for details.
