@@ -2,7 +2,7 @@ description: Evaluates that the agentv-plugin-review skill is triggered and catc
 
 execution:
   targets:
-    - default
+    - pi-cli
 
 workspace:
   template: ./workspace-template
