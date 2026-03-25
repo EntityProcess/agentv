@@ -52,8 +52,7 @@ For each SKILL.md, check against `references/skill-quality-checklist.md`:
 - Keywords throughout for search discovery
 - Cross-references use skill name with requirement markers, not `@` force-load syntax
 - Discipline-enforcing skills have rationalization tables, red flags lists, and explicit loophole closures
-- Internal self-consistency — a skill must not contradict itself (e.g., prohibiting X then documenting how to use X later in the same file)
-- Cross-file consistency — output filenames, tool names, and command references must match across skills, evals, and commands that refer to the same thing
+- Consistency — no contradictions within or across files (tool names, filenames, commands, rules)
 
 ### Step 4: Workflow architecture review (LLM judgment)
 
