@@ -1,0 +1,11 @@
+services:
+  agentv:
+    build: .
+    ports:
+      - "${PORT:-3117}:${PORT:-3117}"
+    environment:
+      - PORT=${PORT:-3117}
+      - ANTHROPIC_API_KEY
+    volumes:
+      - ./results:/data/results
+    command: ["serve", "--dir", "/data/results"]
