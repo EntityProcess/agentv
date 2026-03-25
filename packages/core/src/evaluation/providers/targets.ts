@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { z } from 'zod';
 
-import type { CopilotLogResolvedConfig } from './copilot-log.js';
 import type { EnvLookup, TargetDefinition } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -484,6 +483,19 @@ export interface CopilotSdkResolvedConfig {
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
   readonly systemPrompt?: string;
+}
+
+export interface CopilotLogResolvedConfig {
+  /** Explicit path to a session directory containing events.jsonl. */
+  readonly sessionDir?: string;
+  /** Session UUID — combined with sessionStateDir to build the path. */
+  readonly sessionId?: string;
+  /** Auto-discovery mode. 'latest' picks the most recent session. */
+  readonly discover?: 'latest';
+  /** Override the default ~/.copilot/session-state directory. */
+  readonly sessionStateDir?: string;
+  /** Filter discovery by working directory. */
+  readonly cwd?: string;
 }
 
 export interface PiCodingAgentResolvedConfig {
@@ -1969,6 +1981,14 @@ function resolveString(
   return value;
 }
 
+function resolveDiscover(value: unknown, targetName: string): 'latest' | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (value === 'latest') return 'latest';
+  throw new Error(
+    `Target "${targetName}": discover must be "latest" (got "${String(value)}")`,
+  );
+}
+
 function resolveCopilotLogConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
@@ -1992,7 +2012,7 @@ function resolveCopilotLogConfig(
       `${target.name} copilot-log session_id`,
       { allowLiteral: true, optionalEnv: true },
     ),
-    discover: discoverSource === 'latest' ? 'latest' : undefined,
+    discover: resolveDiscover(discoverSource, target.name),
     sessionStateDir: resolveOptionalString(
       sessionStateDirSource,
       env,

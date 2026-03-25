@@ -71,10 +71,21 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
         updatedAt = new Date(0);
       }
 
+      // Check whether the session has ended by looking for "session.shutdown"
+      // in the last 4 KB of the events file. The shutdown event is always the
+      // final event, so reading only the tail avoids loading multi-MB transcripts.
       let isActive = true;
       try {
-        const eventsContent = await readFile(eventsPath, 'utf8');
-        isActive = !eventsContent.includes('"session.shutdown"');
+        const fd = await import('node:fs/promises').then((fs) => fs.open(eventsPath, 'r'));
+        try {
+          const fstat = await fd.stat();
+          const tailSize = Math.min(fstat.size, 4096);
+          const buf = Buffer.alloc(tailSize);
+          await fd.read(buf, 0, tailSize, Math.max(0, fstat.size - tailSize));
+          isActive = !buf.toString('utf8').includes('"session.shutdown"');
+        } finally {
+          await fd.close();
+        }
       } catch {
         // No events file — treat as active
       }
@@ -106,6 +117,8 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
 /**
  * Minimal YAML parser for workspace.yaml files.
  * Only handles flat key: value pairs (no nesting, no arrays).
+ * Nested or multi-line values will be captured as partial strings
+ * (everything after the first colon on that line).
  */
 function parseSimpleYaml(content: string): Record<string, string> {
   const result: Record<string, string> = {};

@@ -165,6 +165,22 @@ describe('parseCopilotEvents', () => {
     expect(result.messages[0].content).toBe('valid line');
   });
 
+  it('silently drops tool.execution_complete without matching start', () => {
+    const lines = [
+      eventLine('tool.execution_complete', {
+        toolCallId: 'orphan-1',
+        success: true,
+        result: 'some output',
+      }),
+      eventLine('user.message', { content: 'after orphan' }),
+    ].join('\n');
+
+    const result = parseCopilotEvents(lines);
+    // The orphaned complete event should be dropped, only user message remains
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0].role).toBe('user');
+  });
+
   it('aggregates token usage across multiple models', () => {
     const lines = [
       eventLine('session.shutdown', {

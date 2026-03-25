@@ -23,20 +23,8 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { parseCopilotEvents } from './copilot-log-parser.js';
 import { discoverCopilotSessions } from './copilot-session-discovery.js';
+import type { CopilotLogResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
-
-export interface CopilotLogResolvedConfig {
-  /** Explicit path to a session directory containing events.jsonl. */
-  readonly sessionDir?: string;
-  /** Session UUID — combined with sessionStateDir to build the path. */
-  readonly sessionId?: string;
-  /** Auto-discovery mode. 'latest' picks the most recent session. */
-  readonly discover?: 'latest';
-  /** Override the default ~/.copilot/session-state directory. */
-  readonly sessionStateDir?: string;
-  /** Filter discovery by working directory. */
-  readonly cwd?: string;
-}
 
 export class CopilotLogProvider implements Provider {
   readonly id: string;

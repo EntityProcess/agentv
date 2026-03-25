@@ -37,7 +37,6 @@ export interface ParsedCopilotSession {
   readonly messages: Message[];
   readonly meta: CopilotSessionMeta;
   readonly tokenUsage?: ProviderTokenUsage;
-  readonly costUsd?: number;
   readonly durationMs?: number;
 }
 
@@ -150,6 +149,9 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
       case 'tool.execution_complete': {
         const toolCallId = String(data.toolCallId ?? '');
         const started = toolCallsInProgress.get(toolCallId);
+        // Orphaned completes (no matching start) are silently dropped —
+        // orphaned starts (session crashed mid-tool) are also discarded
+        // since incomplete tool calls provide no useful evaluation signal.
         if (started) {
           toolCallsInProgress.delete(toolCallId);
           messages.push({

@@ -349,6 +349,14 @@ export interface TargetDefinition {
   readonly attachmentsFormat?: string | unknown | undefined;
   readonly env?: unknown | undefined;
   readonly healthcheck?: unknown | undefined;
+  // Copilot-log fields
+  readonly session_dir?: string | unknown | undefined;
+  readonly sessionDir?: string | unknown | undefined;
+  readonly session_id?: string | unknown | undefined;
+  readonly sessionId?: string | unknown | undefined;
+  readonly discover?: string | unknown | undefined;
+  readonly session_state_dir?: string | unknown | undefined;
+  readonly sessionStateDir?: string | unknown | undefined;
   // Copilot SDK fields
   readonly cli_url?: string | unknown | undefined;
   readonly cliUrl?: string | unknown | undefined;
