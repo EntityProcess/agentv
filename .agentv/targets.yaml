@@ -11,7 +11,15 @@ targets:
     grader_target: gemini-flash
 
   - name: pi-cli
+    provider: pi-cli
+    grader_target: gemini-flash
+
+  - name: pi-coding-agent
     provider: pi-coding-agent
+    subprovider: openrouter
+    model: z-ai/glm-4.7
+    api_key: ${{ OPENROUTER_API_KEY }}
+    system_prompt: "Answer directly based on the information provided."
     grader_target: gemini-flash
 
   - name: codex
