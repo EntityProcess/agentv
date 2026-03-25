@@ -99,8 +99,8 @@ interface FeedbackData {
   reviews: FeedbackReview[];
 }
 
-function feedbackPath(cwd: string): string {
-  return path.join(cwd, 'feedback.json');
+function feedbackPath(resultDir: string): string {
+  return path.join(resultDir, 'feedback.json');
 }
 
 function readFeedback(cwd: string): FeedbackData {
@@ -125,7 +125,7 @@ function writeFeedback(cwd: string, data: FeedbackData): void {
 /**
  * Create a Hono app with dashboard and feedback API routes.
  */
-export function createApp(results: EvaluationResult[], cwd: string): Hono {
+export function createApp(results: EvaluationResult[], resultDir: string): Hono {
   const app = new Hono();
 
   // Dashboard HTML
@@ -135,7 +135,7 @@ export function createApp(results: EvaluationResult[], cwd: string): Hono {
 
   // Read feedback
   app.get('/api/feedback', (c) => {
-    const data = readFeedback(cwd);
+    const data = readFeedback(resultDir);
     return c.json(data);
   });
 
@@ -164,7 +164,7 @@ export function createApp(results: EvaluationResult[], cwd: string): Hono {
       }
     }
 
-    const existing = readFeedback(cwd);
+    const existing = readFeedback(resultDir);
     const now = new Date().toISOString();
 
     for (const review of incoming) {
@@ -182,7 +182,7 @@ export function createApp(results: EvaluationResult[], cwd: string): Hono {
       }
     }
 
-    writeFeedback(cwd, existing);
+    writeFeedback(resultDir, existing);
     return c.json(existing);
   });
 
@@ -833,13 +833,14 @@ export const resultsServeCommand = command({
 
     try {
       const { results, sourceFile } = await loadSharedResults(source, cwd);
+      const resultDir = path.dirname(path.resolve(sourceFile));
 
-      const app = createApp(results, cwd);
+      const app = createApp(results, resultDir);
 
       console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       console.log(`Dashboard: http://localhost:${listenPort}`);
       console.log(`Feedback API: http://localhost:${listenPort}/api/feedback`);
-      console.log(`Feedback file: ${feedbackPath(cwd)}`);
+      console.log(`Feedback file: ${feedbackPath(resultDir)}`);
       console.log('Press Ctrl+C to stop');
 
       const { serve: startServer } = await import('@hono/node-server');
