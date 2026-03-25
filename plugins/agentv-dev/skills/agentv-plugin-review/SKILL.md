@@ -34,35 +34,46 @@ Read the PR diff and categorize changed files:
 | `AGENTS.md` | Routing rules, trigger/action consistency |
 | `*.instructions.md` | Scope, applyTo patterns, content weight |
 | `references/` | Cross-references from SKILL.md, completeness |
-| `plugin.json` | Manifest correctness, marketplace registration |
 
 ### Step 2: Review Skills
 
-For each SKILL.md file, check:
+For each SKILL.md file, check against `references/skill-quality-checklist.md`. Key items:
 
-**Frontmatter quality:**
-- `name` and `description` fields present
-- Description uses third-person ("This skill should be used when...")
-- Description includes specific trigger phrases users would say
-- Description is specific enough to avoid false triggers on adjacent skills
+**Frontmatter (Claude Search Optimization):**
+- Only `name` and `description` fields (max 1024 chars total)
+- `name` uses only letters, numbers, hyphens (no special chars)
+- `description` in third person, starts with "Use when..."
+- Description describes WHEN to use (triggering conditions), NOT WHAT the skill does
+- Description must NOT summarize the skill's workflow — this causes Claude to follow the description instead of reading the full SKILL.md body
+- Description specific enough to avoid false triggers on adjacent skills
 
 **Content quality:**
-- Body uses imperative/infinitive form, not second person
-- Line count under 500 (per repo convention if applicable — check AGENTS.md)
-- Detailed content moved to `references/` files, not bloating SKILL.md
-- All referenced files (`references/*.md`, `scripts/*.py`) actually exist
-- No hardcoded local paths (e.g., `C:\git\...`) — use configurable defaults or environment variables
+- Body is concise — only include what Claude doesn't already know
+- Imperative/infinitive form, not second person
+- Line count under 500 (per repo convention if applicable)
+- Heavy reference (100+ lines) moved to `references/` files
+- One excellent code example beats many mediocre ones — no multi-language dilution
+- Flowcharts only for non-obvious decisions (not for linear instructions or reference)
+- Keywords throughout for search discovery (error messages, symptoms, tool names)
+- No hardcoded local paths — use configurable defaults or environment variables
 - No version printing instructions — rely on git history
+- No narrative storytelling ("In session X, we found...")
 
 **Cross-references:**
+- All referenced files (`references/*.md`, `scripts/*.py`) actually exist
 - Skills referenced by name in other skills actually exist
 - Commands that load skills use correct paths (relative within plugin, absolute in evals)
-- Skills mentioned in AGENTS.md routing rules match actual skill folder names
+- Use skill name with requirement markers, not `@` force-load syntax
 
 **Workflow coherence:**
 - Each skill has a clear single responsibility
-- Skills that are part of a multi-phase workflow have consistent artifact contracts (output of phase N matches expected input of phase N+1)
+- Skills that are part of a multi-phase workflow have consistent artifact contracts
 - Hard gates enforce artifact existence before downstream phases proceed
+
+**Discipline-enforcing skills (additional checks):**
+- Specific workarounds explicitly forbidden (not just the rule, but named loopholes)
+- Rationalization table present (common excuses + reality)
+- Red flags list for self-checking
 
 ### Step 3: Review Evals
 
@@ -132,6 +143,7 @@ Use a PR review (not individual comments) to batch all findings into a single su
 
 ## Skill Resources
 
+- `references/skill-quality-checklist.md` — Skill quality checklist based on Superpowers writing-skills and Anthropic best practices
 - `references/eval-checklist.md` — Detailed eval file review checklist
 - `references/workflow-checklist.md` — Workflow architecture checklist based on OpenSpec patterns
 
