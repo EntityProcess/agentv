@@ -1,0 +1,41 @@
+description: Tests the deploy-plan skill
+
+tests:
+  - id: basic-plan
+    criteria: Creates a deployment plan from a release spec
+    input:
+      - role: user
+        content:
+          - type: file
+            value: "plugins/deploy-auto/skills/deploy-plan/SKILL.md"
+          - type: text
+            value: "Create a deployment plan for releasing v2.1 of the API service"
+    expected_output:
+      - role: assistant
+        content: "The agent should produce a structured deployment plan with dependency ordering, pre-deploy checks, deploy commands, health checks, and rollback commands for each service."
+
+  - id: multi-service-ordering
+    criteria: Orders deployments by dependency graph
+    input:
+      - role: user
+        content:
+          - type: file
+            value: "plugins/deploy-auto/skills/deploy-plan/SKILL.md"
+          - type: text
+            value: "Plan deployment for 3 services: frontend (depends on API), API (depends on database), database (no deps)"
+    expected_output:
+      - role: assistant
+        content: "The agent should order: database first, then API, then frontend."
+
+  - id: rollback-checkpoints
+    criteria: Includes rollback checkpoints for each step
+    input:
+      - role: user
+        content:
+          - type: file
+            value: "plugins/deploy-auto/skills/deploy-plan/SKILL.md"
+          - type: text
+            value: "The release has 4 services. Make sure I can rollback at any point."
+    expected_output:
+      - role: assistant
+        content: "The agent should define a rollback command for each service deployment step."
