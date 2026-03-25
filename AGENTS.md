@@ -258,3 +258,185 @@ When making changes to functionality:
 2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, evaluator types, or CLI commands. Keep concise — link to docs site for details.
 
 3. **Examples** (`examples/`): Update any example code, scripts, or eval YAML files that exercise the changed functionality. Examples are both documentation and integration tests.
+
+4. **README.md**: Keep minimal. Links point to agentv.dev.
+
+## Evaluator Type System
+
+Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
+
+- **YAML config:** `type: llm-grader`, `type: is-json`, `type: execution-metrics`
+- **Internal TypeScript:** `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
+- **Output `scores[].type`:** `"llm-grader"`, `"is-json"`
+- **Registry keys:** `registry.register('llm-grader', ...)`
+
+**Source of truth:** `EVALUATOR_KIND_VALUES` array in `packages/core/src/evaluation/types.ts`
+
+**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-grader`) via `normalizeEvaluatorType()` in `evaluator-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
+
+**Two type definitions exist:**
+- `EvaluatorKind` in `packages/core/src/evaluation/types.ts` — internal, canonical
+- `AssertionType` in `packages/eval/src/assertion.ts` — SDK-facing, must stay in sync
+
+## Git Workflow
+
+### Commit Convention
+
+Follow conventional commits: `type(scope): description`
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+### Issue Workflow
+
+When working on a GitHub issue, **ALWAYS** follow this workflow:
+
+1. **Claim the issue** — prevents other agents from duplicating work:
+   ```bash
+   # Load AGENT_ID from .env; if not set, ask the user or default to <harness>-<model>
+   # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
+   # Model = the LLM (opus, sonnet, o3, etc.)
+   # Examples: "claude-code-opus", "opencode-sonnet", "cursor-o3", "codex-cli-o3"
+   # In this local dev environment, default to "devbox2-codex" unless the user specifies another AGENT_ID.
+   # Do NOT use hostname or machine name.
+   source .env 2>/dev/null
+   if [ -z "$AGENT_ID" ]; then
+     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to devbox2-codex in this environment (otherwise use <harness>-<model>)."
+   fi
+
+   # Check if already claimed
+   gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
+
+   # Claim it — label + project roadmap status
+   gh issue edit <number> --add-label "in-progress"
+
+   # Update project roadmap: set status to "In Progress" and stamp Agent ID
+   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "agentv") | .id')
+   if [ -n "$ITEM_ID" ]; then
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id 47fc9ee4
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
+   fi
+   ```
+   If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
+
+2. **Create a worktree** with a feature branch:
+   ```bash
+   git worktree add agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description>
+   cd agentv.worktrees/<branch-name>
+   bun install
+   cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
+   # Example: git worktree add agentv.worktrees/feat/42-add-new-embedder -b feat/42-add-new-embedder
+   ```
+
+3. **Implement the changes** and commit following the commit convention
+
+4. **Push the branch and create a Pull Request**:
+   ```bash
+   git push -u origin <branch-name>
+   gh pr create --title "<type>(scope): description" --body "Closes #<issue-number>"
+   ```
+
+5. **Before merging**, ensure:
+   - **E2E verification completed** (see "Completing Work — E2E Checklist")
+   - CI pipeline passes (all checks green)
+   - Code has been reviewed if required
+   - No merge conflicts with `main`
+
+The `in-progress` label stays on the issue until the PR is merged and the issue is closed. Do not remove it manually.
+
+**IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
+
+### Tracker Conventions
+
+- The roadmap project is the source of truth for prioritization.
+- Issues in the roadmap are prioritized; issues outside it are not.
+- `bug` marks defects.
+- Issues without `bug` are non-bug work by default.
+- `in-progress` marks an issue as claimed by an agent — do not start work on it.
+- `core`, `wui`, and `tui` are area labels.
+- Keep issue bodies focused on the handoff contract: objective, design latitude, acceptance signals, non-goals, and related links.
+- Do not put priority metadata in issue bodies.
+
+### Pull Requests
+
+**Always use squash merge** when merging PRs to main. This keeps the commit history clean with one commit per feature/fix.
+
+```bash
+# Using GitHub CLI to squash merge a PR
+gh pr merge <PR_NUMBER> --squash --delete-branch
+
+# Or with auto-merge enabled
+gh pr merge <PR_NUMBER> --squash --auto
+```
+
+Do NOT use regular merge or rebase merge, as these create noisy commit history with intermediate commits.
+
+### After Squash Merge
+
+Once a PR is squash-merged, its source branch diverges from main. **Do NOT** try to push additional commits from that branch—you will get merge conflicts.
+
+For follow-up fixes:
+```bash
+git checkout main
+git pull origin main
+git checkout -b fix/<short-description>
+# Apply fixes on the fresh branch
+```
+
+### Plans and Worktrees
+
+#### Plans
+
+Design documents and implementation plans are stored in `docs/plans/` inside the worktree (not the main repo). Save plans to the worktree so they are committed on the feature branch and visible in the draft PR.
+
+**Path warning:** When working in a worktree, use paths relative to the worktree root (e.g., `docs/plans/plan.md`). Do NOT prefix with the worktree directory from the main repo (e.g., `agentv.worktrees/feat/xxx/docs/plans/plan.md`) — this creates accidental nested directories inside the worktree.
+
+Plans are temporary working materials. **Before merging the PR**, delete the plan file and incorporate any user-relevant details into the official documentation.
+
+#### Git Worktrees
+
+Use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
+
+After creating a worktree, always run setup:
+```bash
+bun install                                    # worktrees do NOT share node_modules
+cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env    # required for e2e tests and LLM operations
+```
+Both steps are required before running builds, tests, or evals in the worktree.
+
+## Version Management
+
+This project uses a simple release script for version bumping. The git commit history serves as the changelog.
+
+### Releasing a new version
+
+Run the release script for a version bump:
+
+```bash
+bun run release          # patch bump (default)
+bun run release minor    # minor bump
+bun run release major    # major bump
+```
+
+The script will:
+1. Validate you're on the `main` branch with no uncommitted changes
+2. Pull latest changes from origin
+3. Bump version in all package.json files
+4. Commit the version bump
+5. Create and push a git tag
+
+Recommended publish flow:
+```bash
+bun run publish:next   # publish current version to npm `next`
+bun run promote:latest # promote same version to npm `latest`
+bun run tag:next 2.18.0
+bun run promote:latest 2.18.0
+```
+
+## Package Publishing
+- Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
+- CLI package (`apps/cli/`) is published as `agentv` on npm
+- Uses tsup with `noExternal: ["@agentv/core"]` to bundle workspace dependencies
+- Install command: `bun install -g agentv` (preferred) or `npm install -g agentv`
+
+## Python Scripts
+When running Python scripts, always use: `uv run <script.py>`
