@@ -109,6 +109,7 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   'pi-coding-agent': PI_CODING_AGENT_MATCHER,
   'pi-cli': PI_CODING_AGENT_MATCHER,
   'copilot-cli': COPILOT_MATCHER,
+  'copilot-log': COPILOT_MATCHER,
   'copilot-sdk': COPILOT_MATCHER,
   vscode: COPILOT_MATCHER,
   'vscode-insiders': COPILOT_MATCHER,

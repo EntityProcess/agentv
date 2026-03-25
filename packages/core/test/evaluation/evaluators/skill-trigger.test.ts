@@ -70,6 +70,22 @@ describe('SkillTriggerEvaluator', () => {
       expect(result.score).toBe(1);
     });
 
+    it('should resolve copilot-log to Copilot tool names', () => {
+      const evaluator = new SkillTriggerEvaluator(makeConfig());
+      const context = makeContext({
+        provider: { kind: 'copilot-log', targetName: 'test' },
+        output: [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Skill', input: { skill: 'csv-analyzer' } }],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('pass');
+      expect(result.score).toBe(1);
+    });
+
     it('should fall back to Claude defaults for unknown provider', () => {
       const evaluator = new SkillTriggerEvaluator(makeConfig());
       const context = makeContext({
