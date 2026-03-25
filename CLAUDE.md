@@ -296,10 +296,11 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
    # Model = the LLM (opus, sonnet, o3, etc.)
    # Examples: "claude-code-opus", "opencode-sonnet", "cursor-o3", "codex-cli-o3"
+   # In this local dev environment, default to "devbox2-codex" unless the user specifies another AGENT_ID.
    # Do NOT use hostname or machine name.
    source .env 2>/dev/null
    if [ -z "$AGENT_ID" ]; then
-     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to <harness>-<model>."
+     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to devbox2-codex in this environment (otherwise use <harness>-<model>)."
    fi
 
    # Check if already claimed

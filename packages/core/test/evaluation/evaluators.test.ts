@@ -154,6 +154,50 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
 
+  it('recovers when a freeform assertion uses passed: mixed', async () => {
+    const graderProvider = new StubProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: `{
+            "score": 0.65,
+            "assertions": [
+              {
+                "text": "Addressed the core request",
+                "passed": mixed,
+                "evidence": "The answer covers part of the requested behavior."
+              }
+            ]
+          }`,
+        },
+      ],
+    });
+
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.65);
+    expect(result.verdict).toBe('borderline');
+    expect(result.assertions).toEqual([
+      {
+        text: 'Addressed the core request',
+        passed: false,
+        evidence: 'The answer covers part of the requested behavior.',
+      },
+    ]);
+  });
+
   it('validates score is in range [0.0, 1.0]', async () => {
     const graderProvider = new StubProvider({
       output: [
@@ -601,6 +645,28 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     expect(warnSpy.mock.calls[0][0]).toContain('my-custom-grader');
     expect(warnSpy.mock.calls[0][0]).toContain('skipped');
     warnSpy.mockRestore();
+  });
+
+  it('keeps skipping on unrecoverable malformed JSON', async () => {
+    const graderProvider = new StubProvider(textResponse('{"score":'));
+
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('skip');
+    expect(result.assertions[0]?.text).toContain('Grader parse failure');
   });
 
   it('emits stderr warning with default name when evaluator name is not set', async () => {
