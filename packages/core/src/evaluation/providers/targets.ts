@@ -1985,7 +1985,6 @@ function resolveDiscover(value: unknown, targetName: string): 'latest' | undefin
   if (value === undefined || value === null) return undefined;
   if (value === 'latest') return 'latest';
   throw new Error(`Target "${targetName}": discover must be "latest" (got "${String(value)}")`);
-
 }
 
 function resolveCopilotLogConfig(
