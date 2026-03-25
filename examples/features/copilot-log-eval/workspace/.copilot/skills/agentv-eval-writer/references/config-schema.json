@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentV Config Schema",
+  "description": "Schema for .agentv/config.yaml configuration files",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema identifier",
+      "enum": ["agentv-config-v2"]
+    },
+    "required_version": {
+      "type": "string",
+      "description": "Minimum AgentV version required to run this project's evals. Uses semver range syntax (e.g., '>=2.11.0', '^2.11.0'). When the installed version is below the range, AgentV warns and prompts to update.",
+      "examples": [">=2.11.0", "^2.12.0", ">=2.11.0 <3.0.0"]
+    },
+    "eval_patterns": {
+      "type": "array",
+      "description": "Glob patterns for discovering eval files during interactive mode (`agentv eval` with no args). Defaults to ['**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml'] if not specified.",
+      "items": {
+        "type": "string",
+        "description": "Glob pattern (e.g., '**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml')"
+      },
+      "examples": [["**/evals/**/dataset*.yaml", "**/evals/**/eval.yaml"], ["**/evals/**/*.yaml"]]
+    },
+    "execution": {
+      "type": "object",
+      "description": "Default execution options. CLI flags take precedence over these values.",
+      "properties": {
+        "verbose": {
+          "type": "boolean",
+          "description": "Enable verbose logging (equivalent to --verbose)",
+          "default": false
+        },
+        "keep_workspaces": {
+          "type": "boolean",
+          "description": "Always keep temp workspaces after eval (equivalent to --keep-workspaces)",
+          "default": false
+        },
+        "otel_file": {
+          "type": "string",
+          "description": "Write OTLP JSON trace to this path (equivalent to --otel-file). Supports {timestamp} placeholder.",
+          "examples": [".agentv/results/otel-{timestamp}.json"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema"],
+  "additionalProperties": false
+}

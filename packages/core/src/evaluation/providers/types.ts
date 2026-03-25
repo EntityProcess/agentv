@@ -32,14 +32,17 @@ export type ProviderKind =
   | 'agentv';
 
 /**
- * Agent providers that have filesystem access.
+ * Agent providers that spawn interactive sessions with filesystem access.
  * These providers read files directly from the filesystem using file:// URIs.
+ *
+ * Note: copilot-log is intentionally excluded — it is a passive transcript
+ * reader, not an interactive agent. This allows deterministic-only evals
+ * (e.g., skill-trigger) to run without a grader_target or LLM API key.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
   'copilot-sdk',
   'copilot-cli',
-  'copilot-log',
   'pi-coding-agent',
   'pi-cli',
   'claude',

@@ -1,0 +1,11 @@
+{
+  "name": "@agentv/agentv-bench",
+  "version": "0.0.0",
+  "description": "AgentV bench skill — evaluation orchestration and analysis scripts",
+  "private": true,
+  "scripts": {
+    "validate": "python3 scripts/quick_validate.py .",
+    "package": "python3 scripts/package_skill.py .",
+    "aggregate-benchmark": "python3 scripts/aggregate_benchmark.py"
+  }
+}
