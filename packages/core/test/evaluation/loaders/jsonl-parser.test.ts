@@ -160,6 +160,24 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].evaluator).toBe('llm-grader');
   });
 
+  it('rejects deprecated sidecar evaluator aliases', async () => {
+    const jsonlPath = path.join(tempDir, 'with-deprecated-sidecar.jsonl');
+    const sidecarPath = path.join(tempDir, 'with-deprecated-sidecar.yaml');
+
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
+    );
+    await writeFile(
+      sidecarPath,
+      'description: Test dataset\nname: my-tests\nevaluator: llm_judge\n',
+    );
+
+    await expect(loadTestsFromJsonl(jsonlPath, tempDir)).rejects.toThrow(
+      "Unsupported grader 'llm_judge' in sidecar. Use 'llm-grader' instead.",
+    );
+  });
+
   it('uses default dataset name from filename when no sidecar', async () => {
     const jsonlPath = path.join(tempDir, 'my-dataset.jsonl');
     await writeFile(

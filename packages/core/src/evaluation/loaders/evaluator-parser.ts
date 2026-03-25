@@ -1347,10 +1347,9 @@ export function coerceEvaluator(
   // Normalize legacy snake_case to kebab-case
   const normalized = normalizeEvaluatorType(candidate);
   if (isDeprecatedJudgeType(normalized)) {
-    logWarning(
-      `Unknown grader '${candidate}' in ${contextId}; use '${normalized.replace('-judge', '-grader')}' instead`,
+    throw new Error(
+      `Unsupported grader '${candidate}' in ${contextId}. Use '${normalized.replace('-judge', '-grader')}' instead.`,
     );
-    return undefined;
   }
   if (isEvaluatorKind(normalized)) {
     return normalized;
