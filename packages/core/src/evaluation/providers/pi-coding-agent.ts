@@ -10,11 +10,12 @@
 
 import { execSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
+import { accessSync, createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
@@ -29,13 +30,15 @@ import type {
   ToolCall,
 } from './types.js';
 
-// Lazy-loaded SDK modules
+// Lazy-loaded SDK modules — guarded by a shared promise so concurrent workers
+// all wait on a single load attempt (and at most one interactive prompt).
 let piCodingAgentModule: typeof import('@mariozechner/pi-coding-agent') | null = null;
 let piAiModule: typeof import('@mariozechner/pi-ai') | null = null;
+let loadingPromise: Promise<void> | null = null;
 
 async function promptInstall(): Promise<boolean> {
   if (!process.stdout.isTTY) return false;
-  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     return await new Promise<boolean>((resolve) => {
       rl.question(
@@ -48,43 +51,81 @@ async function promptInstall(): Promise<boolean> {
   }
 }
 
-async function loadSdkModules() {
-  if (!piCodingAgentModule || !piAiModule) {
+/** Resolve agentv's own package root (where bun add should install peer deps). */
+function findAgentvRoot(): string {
+  const thisFile = fileURLToPath(import.meta.url);
+  let dir = path.dirname(thisFile);
+  // Walk up until we find a package.json (covers both src and dist layouts)
+  for (let i = 0; i < 10; i++) {
     try {
+      const pkg = path.join(dir, 'package.json');
+      // existsSync-free check: if readFileSync throws, keep walking
+      accessSync(pkg);
+      return dir;
+    } catch {
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  // Fallback: current file's directory
+  return path.dirname(thisFile);
+}
+
+async function doLoadSdkModules(): Promise<void> {
+  try {
+    [piCodingAgentModule, piAiModule] = await Promise.all([
+      import('@mariozechner/pi-coding-agent'),
+      import('@mariozechner/pi-ai'),
+    ]);
+  } catch {
+    if (await promptInstall()) {
+      const installDir = findAgentvRoot();
+      console.error(`Installing @mariozechner/pi-coding-agent into ${installDir}...`);
+      execSync('bun add @mariozechner/pi-coding-agent', {
+        cwd: installDir,
+        stdio: 'inherit',
+      });
       [piCodingAgentModule, piAiModule] = await Promise.all([
         import('@mariozechner/pi-coding-agent'),
         import('@mariozechner/pi-ai'),
       ]);
-    } catch {
-      if (await promptInstall()) {
-        console.error('Installing @mariozechner/pi-coding-agent...');
-        execSync('bun add @mariozechner/pi-coding-agent', { stdio: 'inherit' });
-        [piCodingAgentModule, piAiModule] = await Promise.all([
-          import('@mariozechner/pi-coding-agent'),
-          import('@mariozechner/pi-ai'),
-        ]);
-      } else {
-        throw new Error(
-          'pi-coding-agent SDK is not installed. Install it with:\n  bun add @mariozechner/pi-coding-agent',
-        );
-      }
+    } else {
+      throw new Error(
+        'pi-coding-agent SDK is not installed. Install it with:\n  bun add @mariozechner/pi-coding-agent',
+      );
     }
   }
+}
+
+async function loadSdkModules() {
+  if (!piCodingAgentModule || !piAiModule) {
+    if (!loadingPromise) {
+      loadingPromise = doLoadSdkModules().catch((err) => {
+        loadingPromise = null;
+        throw err;
+      });
+    }
+    await loadingPromise;
+  }
+  // After doLoadSdkModules resolves, both modules are guaranteed non-null.
+  const piSdk = piCodingAgentModule as NonNullable<typeof piCodingAgentModule>;
+  const piAi = piAiModule as NonNullable<typeof piAiModule>;
   const toolMap: Record<string, unknown> = {
-    read: piCodingAgentModule.readTool,
-    bash: piCodingAgentModule.bashTool,
-    edit: piCodingAgentModule.editTool,
-    write: piCodingAgentModule.writeTool,
-    grep: piCodingAgentModule.grepTool,
-    find: piCodingAgentModule.findTool,
-    ls: piCodingAgentModule.lsTool,
+    read: piSdk.readTool,
+    bash: piSdk.bashTool,
+    edit: piSdk.editTool,
+    write: piSdk.writeTool,
+    grep: piSdk.grepTool,
+    find: piSdk.findTool,
+    ls: piSdk.lsTool,
   };
   return {
-    createAgentSession: piCodingAgentModule.createAgentSession,
-    codingTools: piCodingAgentModule.codingTools,
+    createAgentSession: piSdk.createAgentSession,
+    codingTools: piSdk.codingTools,
     toolMap,
-    SessionManager: piCodingAgentModule.SessionManager,
-    getModel: piAiModule.getModel,
+    SessionManager: piSdk.SessionManager,
+    getModel: piAi.getModel,
   };
 }
 
