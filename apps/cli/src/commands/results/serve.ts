@@ -7,8 +7,18 @@
  *   - Test Cases tab: filterable/sortable table with expandable detail panels
  *   - Feedback UI: textarea + save button per test, persisted to feedback.json
  *   - Feedback API: GET/POST /api/feedback for reading/writing reviews
+ *   - Result picker: dropdown to switch between available result files
+ *   - Empty state: starts successfully with no results, shows guidance
+ *   - Auto-refresh: polls for new result files every 5 seconds
  *
  * The server uses Hono for routing and @hono/node-server to listen.
+ *
+ * API endpoints:
+ *   - GET /           — dashboard HTML (renders empty state if no results)
+ *   - GET /api/runs   — list available result files with metadata
+ *   - GET /api/runs/:filename — load results from a specific run file
+ *   - GET /api/feedback  — read feedback reviews
+ *   - POST /api/feedback — write feedback reviews
  *
  * Exported functions (for testing):
  *   - resolveSourceFile(source, cwd) — resolves JSONL path
@@ -26,8 +36,8 @@ import { Hono } from 'hono';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
-import { resolveResultSourcePath } from './manifest.js';
-import { loadResults as loadSharedResults } from './shared.js';
+import { loadManifestResults, resolveResultSourcePath } from './manifest.js';
+import { patchTestIds } from './shared.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
 
@@ -123,14 +133,49 @@ function writeFeedback(cwd: string, data: FeedbackData): void {
 // ── Hono app factory ─────────────────────────────────────────────────────
 
 /**
- * Create a Hono app with dashboard and feedback API routes.
+ * Create a Hono app with dashboard, result picker, and feedback API routes.
+ * Accepts an empty results array for the empty-state dashboard.
  */
-export function createApp(results: EvaluationResult[], resultDir: string): Hono {
+export function createApp(results: EvaluationResult[], resultDir: string, cwd?: string): Hono {
+  const searchDir = cwd ?? resultDir;
   const app = new Hono();
 
   // Dashboard HTML
   app.get('/', (c) => {
     return c.html(generateServeHtml(results));
+  });
+
+  // List available result files (for the result picker)
+  app.get('/api/runs', (c) => {
+    const metas = listResultFiles(searchDir);
+    return c.json({
+      runs: metas.map((m) => ({
+        filename: m.filename,
+        path: m.path,
+        timestamp: m.timestamp,
+        test_count: m.testCount,
+        pass_rate: m.passRate,
+        avg_score: m.avgScore,
+        size_bytes: m.sizeBytes,
+      })),
+    });
+  });
+
+  // Load results from a specific run file
+  app.get('/api/runs/:filename', (c) => {
+    const filename = c.req.param('filename');
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: `Run not found: ${filename}` }, 404);
+    }
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const lightResults = stripHeavyFields(loaded);
+      return c.json({ results: lightResults, source: meta.path });
+    } catch (err) {
+      return c.json({ error: `Failed to load run: ${(err as Error).message}` }, 500);
+    }
   });
 
   // Read feedback
@@ -189,6 +234,24 @@ export function createApp(results: EvaluationResult[], resultDir: string): Hono 
   return app;
 }
 
+/**
+ * Strip heavy fields (requests, trace) from results for JSON API responses.
+ * Mirrors the logic used in generateServeHtml for the embedded DATA.
+ */
+function stripHeavyFields(results: readonly EvaluationResult[]) {
+  return results.map((r) => {
+    const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
+    const toolCalls =
+      trace?.toolCalls && Object.keys(trace.toolCalls).length > 0 ? trace.toolCalls : undefined;
+    const graderDurationMs = (r.scores ?? []).reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
+    return {
+      ...rest,
+      ...(toolCalls && { _toolCalls: toolCalls }),
+      ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
+    };
+  });
+}
+
 // ── HTML generation ──────────────────────────────────────────────────────
 
 function escapeHtml(s: string): string {
@@ -235,6 +298,11 @@ ${SERVE_STYLES}
             <h1 class="header-title">AgentV</h1>
             <span class="header-subtitle">Results Review</span>
         </div>
+        <div class="header-center">
+            <select id="run-picker" class="run-picker" title="Switch result file">
+                <option value="">Loading runs...</option>
+            </select>
+        </div>
         <div class="header-right">
             <span class="timestamp">${escapeHtml(new Date().toISOString())}</span>
         </div>
@@ -275,6 +343,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .header-left{display:flex;align-items:baseline;gap:12px}
 .header-title{font-size:18px;font-weight:600}
 .header-subtitle{font-size:14px;color:var(--text-muted)}
+.header-center{flex:1;display:flex;justify-content:center;padding:0 16px}
+.run-picker{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:var(--font);max-width:400px;width:100%;cursor:pointer}
+.run-picker:hover{border-color:var(--primary)}
+.run-picker:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-bg)}
 .timestamp{font-size:12px;color:var(--text-muted);font-family:var(--mono)}
 
 /* Tabs */
@@ -374,6 +446,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .tool-tag{display:inline-block;padding:2px 10px;font-size:12px;font-family:var(--mono);background:var(--primary-bg);color:var(--primary);border:1px solid var(--border);border-radius:12px}
 .empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}
 .empty-state h3{font-size:16px;margin-bottom:8px;color:var(--text)}
+.welcome-state{text-align:center;padding:80px 24px;color:var(--text-muted)}
+.welcome-state h2{font-size:24px;margin-bottom:12px;color:var(--text);font-weight:600}
+.welcome-state p{font-size:15px;margin-bottom:8px;max-width:500px;margin-left:auto;margin-right:auto}
+.welcome-state code{font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:2px 6px;font-size:13px}
+.welcome-state .hint{margin-top:24px;font-size:13px;color:var(--text-muted)}
 
 /* Feedback */
 .feedback-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border-light)}
@@ -534,7 +611,15 @@ const SERVE_SCRIPT = `
 
   /* ---- render ---- */
   function render(){
-    if(DATA.length===0){app.innerHTML='<div class="empty-state"><h3>No results</h3><p>No evaluation results to display.</p></div>';return;}
+    if(DATA.length===0){
+      app.innerHTML='<div class="welcome-state">'
+        +'<h2>No results yet</h2>'
+        +'<p>Run an evaluation or mount a results directory to see results here.</p>'
+        +'<p><code>agentv eval &lt;eval-file&gt;</code></p>'
+        +'<p class="hint">The dashboard will automatically detect new result files.</p>'
+        +'</div>';
+      return;
+    }
     if(state.tab==="overview")renderOverview();else renderTests();
   }
 
@@ -797,6 +882,65 @@ const SERVE_SCRIPT = `
     return h;
   }
 
+  /* ---- run picker ---- */
+  var runPicker=document.getElementById("run-picker");
+  var knownRunFilenames=[];
+
+  function refreshRunList(){
+    fetch("/api/runs").then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.runs)return;
+      var runs=d.runs;
+      var newFilenames=runs.map(function(r){return r.filename;});
+
+      /* Detect new runs that appeared since last poll */
+      if(knownRunFilenames.length>0){
+        var hasNew=newFilenames.some(function(f){return knownRunFilenames.indexOf(f)===-1;});
+        if(hasNew&&DATA.length===0){
+          /* Auto-load the first (most recent) run when starting from empty state */
+          loadRun(runs[0].filename);
+        }
+      }
+      knownRunFilenames=newFilenames;
+
+      /* Rebuild picker options */
+      var h='<option value="">Select a result file...</option>';
+      if(runs.length===0){
+        h='<option value="">No result files</option>';
+      }
+      for(var i=0;i<runs.length;i++){
+        var r=runs[i];
+        var label=r.filename+" ("+r.test_count+" tests, "+(r.pass_rate*100).toFixed(0)+"% pass)";
+        h+='<option value="'+esc(r.filename)+'">'+esc(label)+"</option>";
+      }
+      runPicker.innerHTML=h;
+    }).catch(function(){});
+  }
+
+  function loadRun(filename){
+    fetch("/api/runs/"+encodeURIComponent(filename)).then(function(r){return r.json();}).then(function(d){
+      if(d.error){console.error(d.error);return;}
+      DATA=d.results;
+      stats=computeStats(DATA);
+      tgtStats=computeTargets(DATA);
+      tgtNames=tgtStats.map(function(t){return t.target;});
+      state.expanded={};
+      feedbackCache={};
+      loadFeedback();
+      render();
+      /* Update picker selection */
+      runPicker.value=filename;
+    }).catch(function(err){console.error("Failed to load run:",err);});
+  }
+
+  runPicker.addEventListener("change",function(){
+    var val=runPicker.value;
+    if(val)loadRun(val);
+  });
+
+  /* Poll for new result files every 5 seconds */
+  refreshRunList();
+  setInterval(refreshRunList,5000);
+
   /* ---- init ---- */
   loadFeedback();
   render();
@@ -832,14 +976,49 @@ export const resultsServeCommand = command({
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
     try {
-      const { results, sourceFile } = await loadSharedResults(source, cwd);
-      const resultDir = path.dirname(path.resolve(sourceFile));
+      let results: EvaluationResult[] = [];
+      let sourceFile: string | undefined;
 
-      const app = createApp(results, resultDir);
+      // When a source is explicitly provided, it must exist.
+      // Otherwise, try to auto-discover results; start empty if none found.
+      if (source) {
+        const resolved = resolveResultSourcePath(source, cwd);
+        if (!existsSync(resolved)) {
+          console.error(`Error: Source file not found: ${resolved}`);
+          process.exit(1);
+        }
+        sourceFile = resolved;
+        results = patchTestIds(loadManifestResults(resolved));
+      } else {
+        // Auto-discover: run cache -> directory scan -> empty state
+        const cache = await loadRunCache(cwd);
+        const cachedFile = cache ? resolveRunCacheFile(cache) : '';
+        if (cachedFile && existsSync(cachedFile)) {
+          sourceFile = cachedFile;
+          results = patchTestIds(loadManifestResults(cachedFile));
+        } else {
+          const metas = listResultFiles(cwd, 1);
+          if (metas.length > 0) {
+            sourceFile = metas[0].path;
+            results = patchTestIds(loadManifestResults(metas[0].path));
+          }
+          // If no metas, results stays empty — dashboard shows welcome state
+        }
+      }
 
-      console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
+      // Use the run directory for feedback storage (matches #764 behavior)
+      const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
+      const app = createApp(results, resultDir, cwd);
+
+      if (results.length > 0 && sourceFile) {
+        console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
+      } else {
+        console.log('No results found. Dashboard will show an empty state.');
+        console.log('Run an evaluation to see results: agentv eval <eval-file>');
+      }
       console.log(`Dashboard: http://localhost:${listenPort}`);
       console.log(`Feedback API: http://localhost:${listenPort}/api/feedback`);
+      console.log(`Result picker API: http://localhost:${listenPort}/api/runs`);
       console.log(`Feedback file: ${feedbackPath(resultDir)}`);
       console.log('Press Ctrl+C to stop');
 

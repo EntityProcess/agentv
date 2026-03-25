@@ -267,4 +267,60 @@ describe('serve app', () => {
       expect(res3.status).toBe(400);
     });
   });
+
+  // ── Empty state (no results) ────────────────────────────────────────
+
+  describe('empty state', () => {
+    it('serves dashboard HTML with empty results', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/');
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('AgentV');
+      expect(html).toContain('No results yet');
+      expect(html).toContain('Run an evaluation');
+    });
+
+    it('serves feedback API with empty results', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/api/feedback');
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual({ reviews: [] });
+    });
+  });
+
+  // ── GET /api/runs ───────────────────────────────────────────────────
+
+  describe('GET /api/runs', () => {
+    it('returns empty runs list for temp directory', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/api/runs');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { runs: unknown[] };
+      expect(data.runs).toEqual([]);
+    });
+  });
+
+  // ── GET /api/runs/:filename ─────────────────────────────────────────
+
+  describe('GET /api/runs/:filename', () => {
+    it('returns 404 for nonexistent run', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/api/runs/nonexistent');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Run picker in HTML ──────────────────────────────────────────────
+
+  describe('run picker', () => {
+    it('includes run-picker select in dashboard HTML', async () => {
+      const app = makeApp();
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('run-picker');
+      expect(html).toContain('/api/runs');
+    });
+  });
 });
