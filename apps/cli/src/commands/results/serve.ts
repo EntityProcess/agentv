@@ -818,7 +818,7 @@ export const resultsServeCommand = command({
       type: optional(number),
       long: 'port',
       short: 'p',
-      description: 'Port to listen on (default: 3117)',
+      description: 'Port to listen on (flag → PORT env var → 3117)',
     }),
     dir: option({
       type: optional(string),
@@ -829,7 +829,7 @@ export const resultsServeCommand = command({
   },
   handler: async ({ source, port, dir }) => {
     const cwd = dir ?? process.cwd();
-    const listenPort = port ?? 3117;
+    const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
     try {
       const { results, sourceFile } = await loadSharedResults(source, cwd);
