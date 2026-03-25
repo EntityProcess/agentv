@@ -1,0 +1,262 @@
+description: Evaluates the agentv-plugin-review skill's ability to identify issues in plugin PRs
+
+input:
+  - role: user
+    content:
+      - type: file
+        value: /plugins/agentv-dev/skills/agentv-plugin-review/SKILL.md
+
+tests:
+  - id: detect-missing-eval
+    criteria: Identifies that a SKILL.md file has no corresponding eval file
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              I'm reviewing a plugin PR that adds a deployment automation plugin. It adds these skills and evals:
+
+              Skills added:
+              - plugins/deploy-auto/skills/deploy-plan/SKILL.md (180 lines)
+              - plugins/deploy-auto/skills/deploy-execute/SKILL.md (220 lines)
+              - plugins/deploy-auto/skills/deploy-rollback/SKILL.md (95 lines)
+
+              Evals added:
+              - evals/deploy-auto/deploy-plan.eval.yaml
+              - evals/deploy-auto/deploy-execute.eval.yaml
+
+              Review the completeness of this PR.
+    assertions:
+      - type: contains
+        value: deploy-rollback
+      - type: rubrics
+        criteria:
+          - Flags that deploy-rollback skill has no corresponding eval file
+          - Does not flag deploy-plan or deploy-execute as missing evals
+
+  - id: detect-eval-naming
+    criteria: Identifies eval files using bare .yaml instead of .eval.yaml
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              Review the naming of these eval files in a plugin PR:
+
+              evals/infra/provision-server.yaml
+              evals/infra/configure-dns.eval.yaml
+              evals/infra/setup-monitoring.yaml
+              evals/infra/teardown.eval.yaml
+
+              The repo convention is to use .eval.yaml. Any naming issues?
+    assertions:
+      - type: contains
+        value: .eval.yaml
+      - type: rubrics
+        criteria:
+          - Flags provision-server.yaml and setup-monitoring.yaml as using wrong extension
+          - Recommends renaming to .eval.yaml
+          - Does not flag configure-dns.eval.yaml or teardown.eval.yaml
+
+  - id: detect-missing-assertions
+    criteria: Identifies eval files without assertions that rely solely on expected_output prose
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              Review this eval file for a code review skill:
+
+              ```yaml
+              description: Tests the security-review skill
+
+              tests:
+                - id: detect-sql-injection
+                  criteria: Detects SQL injection vulnerability in user input handling
+                  input:
+                    - role: user
+                      content:
+                        - type: file
+                          value: "/plugins/sec-tools/skills/security-review/SKILL.md"
+                        - type: text
+                          value: "Review this code for security issues: `query = 'SELECT * FROM users WHERE id=' + request.params.id`"
+                  expected_output:
+                    - role: assistant
+                      content: "The agent should identify the SQL injection vulnerability and recommend using parameterized queries instead of string concatenation."
+              ```
+
+              Any issues with this eval?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Flags that no assertions are defined
+          - Notes that expected_output contains evaluation criteria prose rather than a concrete sample response
+          - Suggests adding deterministic assertions where possible (e.g., contains "SQL injection" or "parameterized")
+
+  - id: detect-relative-file-paths
+    criteria: Identifies eval file paths missing leading slash
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              Review this eval input section for correct file path format:
+
+              ```yaml
+              tests:
+                - id: basic-lint
+                  input:
+                    - role: user
+                      content:
+                        - type: file
+                          value: "plugins/linter/skills/python-lint/SKILL.md"
+                        - type: text
+                          value: "Lint this Python file for style issues"
+              ```
+
+              The repo convention is that eval file paths use a leading slash. Any issues?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Flags that the file path is missing a leading slash
+          - Recommends /plugins/linter/skills/python-lint/SKILL.md
+
+  - id: detect-repeated-inputs
+    criteria: Identifies eval files repeating the same file input across all tests instead of using top-level input
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              Review this eval file structure. It has 5 tests and every test includes the same file input:
+
+              ```yaml
+              description: Tests the migration-planner skill
+
+              tests:
+                - id: detect-breaking-change
+                  criteria: Detects breaking schema changes
+                  input:
+                    - role: user
+                      content:
+                        - type: file
+                          value: /plugins/db-tools/skills/migration-planner/SKILL.md
+                        - type: text
+                          value: "I'm dropping the email column from the users table"
+
+                - id: suggest-rollback
+                  criteria: Suggests rollback strategy
+                  input:
+                    - role: user
+                      content:
+                        - type: file
+                          value: /plugins/db-tools/skills/migration-planner/SKILL.md
+                        - type: text
+                          value: "Plan a rollback for this migration"
+
+                - id: multi-step-migration
+                  criteria: Plans multi-step migration
+                  input:
+                    - role: user
+                      content:
+                        - type: file
+                          value: /plugins/db-tools/skills/migration-planner/SKILL.md
+                        - type: text
+                          value: "I need to rename a column without downtime"
+              ```
+
+              (2 more tests follow the same pattern)
+
+              Any structural improvements?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Identifies the repeated SKILL.md file input across all tests
+          - Recommends using top-level input for the shared file reference
+          - Shows or describes the improved structure with top-level input
+
+  - id: detect-missing-hard-gates
+    criteria: Identifies multi-phase workflow skills without artifact existence checks between phases
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              Review this 3-phase workflow plugin for architecture issues.
+
+              Phase 1 skill (research) produces `{output_dir}/context.md`.
+              Phase 2 skill (design) reads context.md and produces `{output_dir}/design.md`.
+              Phase 3 skill (tasks) reads design.md and produces `{output_dir}/tasks.md`.
+
+              Phase 2 SKILL.md begins:
+              ```markdown
+              ## Process
+              Read the context gathered in Phase 1 and produce a design document covering
+              architecture decisions, file changes, and test strategy.
+              ```
+
+              Phase 3 SKILL.md begins:
+              ```markdown
+              ## Process
+              Read the design document and extract a concrete implementation task checklist
+              with checkboxes.
+              ```
+
+              Neither phase checks whether its prerequisite artifact exists before starting work. What workflow architecture issues do you see?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Flags missing hard gates between phases
+          - Recommends checking that prerequisite artifacts exist before proceeding
+          - Suggests stopping with a clear message directing the user to run the prerequisite phase
+
+  - id: detect-factual-contradiction
+    criteria: Identifies contradictions between a skill's documented behavior and its eval's expected output
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              I found a potential inconsistency between a skill and its eval.
+
+              The test-runner skill SKILL.md (line 45) says:
+              "Execute tests using pytest with the --tb=short flag for concise tracebacks"
+
+              The eval's expected_output for the run-tests test case says:
+              "The agent should run the test suite using python -m unittest discover"
+
+              Is this a real issue?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Flags the contradiction between pytest (skill) and python -m unittest (eval)
+          - Recommends updating the eval to match the skill's documented approach
+          - Notes that eval expected_output must be factually consistent with the skill being tested
+
+  - id: detect-nonexistent-command-reference
+    criteria: Identifies skills that tell users to run slash commands that do not exist
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |
+              Review this skill. It's Phase 1 of a 3-phase data pipeline plugin.
+
+              At the end of the gather skill (Phase 1), it says:
+              "Next step — run:
+              /data-analyze {output_folder}
+              Or let the orchestrator continue automatically."
+
+              The plugin's commands/ directory contains:
+              - commands/data-pipeline.md (orchestrates all 3 phases)
+
+              There is no commands/data-analyze.md file. However, there IS a skill at:
+              - skills/data-analyze/SKILL.md
+
+              What issues do you see?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Flags that /data-analyze is referenced but does not exist as a slash command
+          - Notes the distinction between skills (auto-discovered) and slash commands (require a file in commands/)
+          - Suggests either creating the command or updating the handoff to reference the skill name instead
