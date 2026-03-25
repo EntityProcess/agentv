@@ -114,4 +114,3 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
 
   return filtered.slice(0, limit);
 }
-
