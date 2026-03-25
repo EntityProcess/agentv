@@ -229,6 +229,33 @@ execution:
 
 When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`. With concurrency > 1, a few additional tests may complete before halting takes effect.
 
+### Suite-Level Quality Threshold
+
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
+
+**CLI flag:**
+
+```bash
+agentv eval evals/ --threshold 0.8
+```
+
+**YAML config:**
+
+```yaml
+execution:
+  threshold: 0.8
+```
+
+The CLI `--threshold` flag overrides the YAML value. The threshold is a number between 0 and 1. Mean score is computed from quality results only (execution errors are excluded).
+
+When active, a summary line is printed after the eval results:
+
+```
+Suite score: 0.85 (threshold: 0.80) — PASS
+```
+
+The threshold also controls JUnit XML pass/fail: tests with scores below the threshold are marked as `<failure>` in JUnit output. When no threshold is set, JUnit defaults to 0.5.
+
 ## Validate Before Running
 
 Check eval files for schema errors without executing:

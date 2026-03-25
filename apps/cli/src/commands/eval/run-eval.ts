@@ -1014,6 +1014,9 @@ export async function runEvalCommand(
   // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold
   const yamlThreshold = firstMeta?.threshold;
   const resolvedThreshold = options.threshold ?? yamlThreshold;
+  if (resolvedThreshold !== undefined && (resolvedThreshold < 0 || resolvedThreshold > 1)) {
+    throw new Error('--threshold must be between 0 and 1');
+  }
 
   // Build the output writer (deferred until after threshold is resolved so JUnit
   // writer can use the resolved threshold for per-test pass/fail decisions)
