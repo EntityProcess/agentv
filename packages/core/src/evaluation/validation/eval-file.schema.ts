@@ -72,7 +72,7 @@ const RubricItemSchema = z.object({
 // --- Type-specific evaluator schemas ---
 
 const CodeGraderSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['code-grader', 'code_grader', 'code-judge', 'code_judge']),
+  type: z.enum(['code-grader', 'code_grader']),
   command: z.union([z.string(), z.array(z.string())]),
   script: z.union([z.string(), z.array(z.string())]).optional(),
   cwd: z.string().optional(),
@@ -81,7 +81,7 @@ const CodeGraderSchema = EvaluatorCommonSchema.extend({
 });
 
 const LlmGraderSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['llm-grader', 'llm_grader', 'llm-judge', 'llm_judge']),
+  type: z.enum(['llm-grader', 'llm_grader']),
   prompt: PromptSchema.optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   model: z.string().optional(),
@@ -102,12 +102,12 @@ const AggregatorSchema = z.discriminatedUnion('type', [
     threshold: z.number().min(0).max(1),
   }),
   z.object({
-    type: z.literal('code-judge'),
+    type: z.literal('code-grader'),
     path: z.string(),
     cwd: z.string().optional(),
   }),
   z.object({
-    type: z.literal('llm-judge'),
+    type: z.literal('llm-grader'),
     prompt: z.string().optional(),
     model: z.string().optional(),
   }),

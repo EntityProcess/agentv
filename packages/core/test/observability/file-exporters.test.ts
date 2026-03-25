@@ -54,9 +54,9 @@ describe('OtlpJsonFileExporter', () => {
       attributes: { 'agentv.test_id': 'test-1', 'agentv.score': 0.9 },
       events: [
         {
-          name: 'agentv.evaluator.match',
+          name: 'agentv.grader.match',
           time: [1000, 500_000_000],
-          attributes: { 'agentv.evaluator.score': 1 },
+          attributes: { 'agentv.grader.score': 1 },
         },
       ],
     });
@@ -91,7 +91,7 @@ describe('OtlpJsonFileExporter', () => {
 
     // Check events
     expect(spans[0].events).toHaveLength(1);
-    expect(spans[0].events[0].name).toBe('agentv.evaluator.match');
+    expect(spans[0].events[0].name).toBe('agentv.grader.match');
   });
 
   it('collects spans across multiple export calls', async () => {

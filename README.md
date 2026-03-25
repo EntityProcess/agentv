@@ -221,13 +221,13 @@ agentv eval evals/my-eval.yaml -o results.xml
 
 The HTML report auto-refreshes every 2 seconds during a live run, then locks once the run completes.
 
-By default, `agentv eval` creates a run workspace under `.agentv/results/raw/<run>/`
+By default, `agentv eval` creates a run workspace under `.agentv/results/runs/<run>/`
 with `index.jsonl` as the machine-facing manifest.
 
 You can also convert an existing manifest to HTML after the fact:
 
 ```bash
-agentv convert .agentv/results/raw/eval_<timestamp>/index.jsonl -o report.html
+agentv convert .agentv/results/runs/eval_<timestamp>/index.jsonl -o report.html
 ```
 
 #### Timeouts
@@ -358,7 +358,7 @@ agentv create eval my-eval          # → evals/my-eval.eval.yaml + .cases.jsonl
 Compare a combined results file across all targets (N-way matrix):
 
 ```bash
-agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl
+agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl
 ```
 
 ```
@@ -379,8 +379,8 @@ Pairwise Summary:
 Designate a baseline for CI regression gating, or compare two specific targets:
 
 ```bash
-agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1
-agentv compare .agentv/results/raw/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 agentv compare before.jsonl after.jsonl                                  # two-file pairwise
 ```
 

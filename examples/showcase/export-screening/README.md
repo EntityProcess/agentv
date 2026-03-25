@@ -51,7 +51,7 @@ Use the wrapper script to compute a confusion matrix and policy-weighted overall
 structured CI result JSON file (defaults to `results.ci_check.json`):
 
 ```bash
-bun run ./evals/ci_check.ts .agentv/results/raw/eval_<timestamp>/index.jsonl --threshold 0.95 --check-class High
+bun run ./evals/ci_check.ts .agentv/results/runs/eval_<timestamp>/index.jsonl --threshold 0.95 --check-class High
 ```
 
 ### Multi-Sample CI Gating
@@ -153,7 +153,7 @@ bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --threshold 0.95
 bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --samples 5 --threshold 0.90
 
 # Or check an existing run manifest
-bun run ./evals/ci_check.ts .agentv/results/raw/eval_<timestamp>/index.jsonl --threshold 0.95
+bun run ./evals/ci_check.ts .agentv/results/runs/eval_<timestamp>/index.jsonl --threshold 0.95
 ```
 
 ### Options

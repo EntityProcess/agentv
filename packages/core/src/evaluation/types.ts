@@ -157,8 +157,6 @@ export function isTestMessage(value: unknown): value is TestMessage {
 const EVALUATOR_KIND_VALUES = [
   'code-grader',
   'llm-grader',
-  'code-judge',
-  'llm-judge',
   'rubric',
   'composite',
   'tool-trajectory',
@@ -296,7 +294,7 @@ export type WorkspaceConfig = {
 
 export type CodeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'code-judge' | 'code-grader';
+  readonly type: 'code-grader';
   readonly command: readonly string[];
   /** @deprecated Use `command` instead */
   readonly script?: readonly string[];
@@ -328,7 +326,7 @@ export type PromptScriptConfig = {
 
 export type LlmGraderEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'llm-grader' | 'llm-judge';
+  readonly type: 'llm-grader';
   /** Text prompt (inline or file path) or executable script config */
   readonly prompt?: string | PromptScriptConfig;
   readonly promptPath?: string;
@@ -400,15 +398,8 @@ export type RubricItem = {
 export type CompositeAggregatorConfig =
   | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
   | { readonly type: 'code-grader'; readonly path: string; readonly cwd?: string }
-  | { readonly type: 'code-judge'; readonly path: string; readonly cwd?: string }
   | {
       readonly type: 'llm-grader';
-      readonly prompt?: string;
-      readonly promptPath?: string;
-      readonly model?: string;
-    }
-  | {
-      readonly type: 'llm-judge';
       readonly prompt?: string;
       readonly promptPath?: string;
       readonly model?: string;

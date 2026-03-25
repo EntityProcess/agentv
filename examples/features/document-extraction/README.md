@@ -96,7 +96,7 @@ Macro-F1: 0.759
 The `aggregate_metrics.ts` script only works with evaluators that emit `details.metrics`:
 
 ```bash
-bun run scripts/aggregate_metrics.ts .agentv/results/raw/eval_<timestamp>/index.jsonl [options]
+bun run scripts/aggregate_metrics.ts .agentv/results/runs/eval_<timestamp>/index.jsonl [options]
 
 Options:
   --evaluator <name>  Filter to a specific evaluator

@@ -1,4 +1,4 @@
-# Custom Evaluators
+# Custom Graders
 
 ## Wire Format
 
@@ -46,10 +46,10 @@
 ## SDK Functions
 
 ```typescript
-import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agentv/eval';
+import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@agentv/eval';
 ```
 
-- `defineCodeJudge(fn)` - Wraps evaluation function with stdin/stdout handling
+- `defineCodeGrader(fn)` - Wraps evaluation function with stdin/stdout handling
 - `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
@@ -85,9 +85,9 @@ if __name__ == "__main__":
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ answer, criteria }) => {
+export default defineCodeGrader(({ answer, criteria }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
   if (answer.includes(criteria)) {
     assertions.push({ text: 'Matches expected outcome', passed: true });

@@ -255,13 +255,13 @@ export class OtelTraceExporter {
           }
         }
 
-        // Evaluator scores as span events
+        // Grader scores as span events
         if (result.scores) {
           for (const score of result.scores) {
-            rootSpan.addEvent(`agentv.evaluator.${score.name}`, {
-              'agentv.evaluator.score': score.score,
-              'agentv.evaluator.type': score.type,
-              ...(score.verdict ? { 'agentv.evaluator.verdict': score.verdict } : {}),
+            rootSpan.addEvent(`agentv.grader.${score.name}`, {
+              'agentv.grader.score': score.score,
+              'agentv.grader.type': score.type,
+              ...(score.verdict ? { 'agentv.grader.verdict': score.verdict } : {}),
             });
           }
         }

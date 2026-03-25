@@ -100,10 +100,10 @@ const OTLP_TRACE = JSON.stringify({
               status: { code: 1 },
               events: [
                 {
-                  name: 'agentv.evaluator.execution',
+                  name: 'agentv.grader.execution',
                   attributes: [
-                    { key: 'agentv.evaluator.type', value: { stringValue: 'execution-metrics' } },
-                    { key: 'agentv.evaluator.score', value: { doubleValue: 1 } },
+                    { key: 'agentv.grader.type', value: { stringValue: 'execution-metrics' } },
+                    { key: 'agentv.grader.score', value: { doubleValue: 1 } },
                   ],
                 },
               ],
@@ -256,16 +256,16 @@ describe('trace utils', () => {
       expect(metas).toEqual([]);
     });
 
-    it('should enumerate JSONL files in .agentv/results/raw/', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      mkdirSync(rawDir, { recursive: true });
+    it('should enumerate JSONL files in .agentv/results/runs/', () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
 
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
       );
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
         `${RESULT_FAILING}\n`,
       );
 
@@ -296,14 +296,14 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z.jsonl');
     });
 
-    it('should deduplicate files preferring raw/ over legacy root', () => {
+    it('should deduplicate files preferring runs/ over legacy root', () => {
       const resultsDir = path.join(tempDir, '.agentv', 'results');
-      const rawDir = path.join(resultsDir, 'raw');
-      mkdirSync(rawDir, { recursive: true });
+      const runsDir = path.join(resultsDir, 'runs');
+      mkdirSync(runsDir, { recursive: true });
 
       // Same filename in both locations
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
       writeFileSync(
@@ -313,20 +313,20 @@ describe('trace utils', () => {
 
       const metas = listResultFiles(tempDir);
       expect(metas).toHaveLength(1);
-      // Should prefer the raw/ version
-      expect(metas[0].path).toContain(path.join('raw', 'eval_2026-02-20T21-38-05-833Z.jsonl'));
+      // Should prefer the runs/ version
+      expect(metas[0].path).toContain(path.join('runs', 'eval_2026-02-20T21-38-05-833Z.jsonl'));
     });
 
     it('should respect limit', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      mkdirSync(rawDir, { recursive: true });
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
 
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
         `${RESULT_FAILING}\n`,
       );
 
@@ -336,12 +336,12 @@ describe('trace utils', () => {
     });
 
     it('should ignore non-JSONL files', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      mkdirSync(rawDir, { recursive: true });
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
 
-      writeFileSync(path.join(rawDir, 'notes.txt'), 'not a result file');
+      writeFileSync(path.join(runsDir, 'notes.txt'), 'not a result file');
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
 
@@ -349,9 +349,9 @@ describe('trace utils', () => {
       expect(metas).toHaveLength(1);
     });
 
-    it('should discover index.jsonl inside run directories in raw/', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
+    it('should discover index.jsonl inside run directories in runs/', () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      const runDir = path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
       writeFileSync(
@@ -368,17 +368,17 @@ describe('trace utils', () => {
     });
 
     it('should list both directory-based and flat-file results together', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      mkdirSync(rawDir, { recursive: true });
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
 
       // New directory-based run
-      const runDir = path.join(rawDir, 'eval_2026-02-21T10-00-00-000Z');
+      const runDir = path.join(runsDir, 'eval_2026-02-21T10-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_FAILING}\n`);
 
       // Legacy flat file
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
 
@@ -390,17 +390,17 @@ describe('trace utils', () => {
     });
 
     it('should deduplicate directory and flat file with same timestamp', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      mkdirSync(rawDir, { recursive: true });
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
 
       // Directory-based (preferred)
-      const runDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
+      const runDir = path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
 
       // Flat file with same timestamp
       writeFileSync(
-        path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
 
@@ -411,8 +411,8 @@ describe('trace utils', () => {
     });
 
     it('should skip directories without index.jsonl', () => {
-      const rawDir = path.join(tempDir, '.agentv', 'results', 'raw');
-      const emptyDir = path.join(rawDir, 'eval_2026-02-20T21-38-05-833Z');
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      const emptyDir = path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z');
       mkdirSync(emptyDir, { recursive: true });
 
       // Directory exists but no manifest/result file inside

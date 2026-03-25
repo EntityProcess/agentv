@@ -2462,7 +2462,6 @@ function buildEvaluatorRegistry(
 ): Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator } {
   const llmGrader =
     overrides?.['llm-grader'] ??
-    overrides?.['llm-judge'] ??
     new LlmGraderEvaluator({
       resolveGraderProvider: async (context) => {
         if (context.graderProvider) {

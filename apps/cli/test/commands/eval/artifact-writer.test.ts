@@ -280,8 +280,8 @@ describe('buildBenchmarkArtifact', () => {
 
     const benchmark = buildBenchmarkArtifact(results);
 
-    expect(benchmark.per_evaluator_summary).toBeDefined();
-    expect(benchmark.per_evaluator_summary?.['quality:llm-grader'].mean).toBe(0.8);
+    expect(benchmark.per_grader_summary).toBeDefined();
+    expect(benchmark.per_grader_summary?.['quality:llm-grader'].mean).toBe(0.8);
   });
 
   it('adds note when execution errors present', () => {

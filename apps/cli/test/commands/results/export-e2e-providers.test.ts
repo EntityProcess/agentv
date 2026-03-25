@@ -440,7 +440,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(benchmark.notes.some((n) => n.includes('execution error'))).toBe(true);
     });
 
-    it('should include per_evaluator_summary across providers', async () => {
+    it('should include per_grader_summary across providers', async () => {
       const outputDir = path.join(tempDir, 'bench-eval');
       const content = toJsonl(CLAUDE_CLI_RESULT, LLM_AZURE_RESULT);
 
@@ -450,7 +450,7 @@ describe('export e2e — multi-provider metrics verification', () => {
         readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
       );
 
-      expect(benchmark.per_evaluator_summary).toBeDefined();
+      expect(benchmark.per_grader_summary).toBeDefined();
     });
   });
 

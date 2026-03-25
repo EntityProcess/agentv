@@ -290,7 +290,7 @@ describe('results export', () => {
       readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
     );
 
-    expect(benchmark.per_evaluator_summary).toBeDefined();
+    expect(benchmark.per_grader_summary).toBeDefined();
   });
 
   it('should not create output file when answer is missing', async () => {

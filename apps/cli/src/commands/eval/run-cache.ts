@@ -14,7 +14,7 @@ const CACHE_FILENAME = 'cache.json';
  * Keys use camelCase (not snake_case) for backward compat with pre-existing cache files.
  */
 export interface RunCache {
-  /** Directory path for new per-run directory format (e.g. .agentv/results/raw/eval_<ts>/) */
+  /** Directory path for new per-run directory format (e.g. .agentv/results/runs/eval_<ts>/) */
   readonly lastRunDir?: string;
   /** JSONL file path for legacy flat-file format. Kept for backward compat. */
   readonly lastResultFile?: string;

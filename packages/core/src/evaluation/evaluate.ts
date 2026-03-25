@@ -90,7 +90,7 @@ export interface EvalTestInput {
   readonly expectedOutput?: string;
   /** @deprecated Use `expectedOutput` instead */
   readonly expected_output?: string;
-  /** Assertion evaluators — accepts factory functions, config objects, or inline functions */
+  /** Assertion graders — accepts factory functions, config objects, or inline functions */
   readonly assert?: readonly AssertEntry[];
   /** Arbitrary metadata */
   readonly metadata?: Record<string, unknown>;
@@ -101,7 +101,7 @@ export interface EvalTestInput {
  * Matches the YAML `assert` block structure.
  */
 export interface EvalAssertionInput {
-  /** Assertion type (e.g., 'contains', 'llm-judge', 'code-judge') */
+  /** Assertion type (e.g., 'contains', 'llm-grader', 'code-grader') */
   readonly type: string;
   /** Display name */
   readonly name?: string;
@@ -111,9 +111,9 @@ export interface EvalAssertionInput {
   readonly weight?: number;
   /** Whether this assertion is required to pass */
   readonly required?: boolean | number;
-  /** Prompt file for llm_judge */
+  /** Prompt file for llm_grader */
   readonly prompt?: string;
-  /** Script for code_judge */
+  /** Script for code_grader */
   readonly script?: string | readonly string[];
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
@@ -361,7 +361,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 
 /**
  * Map user-facing assertion type names to internal evaluator type names.
- * Handles snake_case to kebab-case normalization (e.g., 'llm_judge' -> 'llm-judge').
+ * Handles snake_case to kebab-case normalization (e.g., 'llm_grader' -> 'llm-grader').
  */
 function mapAssertionType(type: string): string {
   return type.replace(/_/g, '-');

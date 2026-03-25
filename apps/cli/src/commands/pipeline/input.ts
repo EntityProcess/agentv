@@ -171,7 +171,7 @@ async function writeGraderConfigs(
   let hasLlmGraders = false;
 
   for (const assertion of assertions) {
-    if (assertion.type === 'code-grader' || assertion.type === 'code-judge') {
+    if (assertion.type === 'code-grader') {
       if (!hasCodeGraders) {
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;
@@ -184,7 +184,7 @@ async function writeGraderConfigs(
         weight: config.weight ?? 1.0,
         config: config.config ?? {},
       });
-    } else if (assertion.type === 'llm-grader' || assertion.type === 'llm-judge') {
+    } else if (assertion.type === 'llm-grader') {
       if (!hasLlmGraders) {
         await mkdir(llmGradersDir, { recursive: true });
         hasLlmGraders = true;

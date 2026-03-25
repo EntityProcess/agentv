@@ -2,8 +2,8 @@
  * Convention-based discovery of custom assertion scripts.
  *
  * Scans `.agentv/assertions/` for TypeScript/JavaScript files and registers
- * them as code-judge evaluators in the registry. The file name (without
- * extension) becomes the evaluator type name.
+ * them as code graders in the registry. The file name (without
+ * extension) becomes the grader type name.
  *
  * Example: `.agentv/assertions/sentiment.ts` → type "sentiment" in EVAL.yaml
  */
@@ -17,9 +17,9 @@ import type { EvaluatorRegistry } from './evaluator-registry.js';
 
 /**
  * Discover custom assertion scripts from `.agentv/assertions/` and register
- * them as evaluator types in the registry.
+ * them as grader types in the registry.
  *
- * @param registry - The evaluator registry to register discovered assertions into
+ * @param registry - The grader registry to register discovered assertions into
  * @param baseDir - The base directory to search from (typically project root or eval file dir)
  * @returns Names of discovered assertion types
  */

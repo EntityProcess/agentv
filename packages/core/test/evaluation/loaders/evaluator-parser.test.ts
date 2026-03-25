@@ -613,12 +613,12 @@ describe('parseEvaluators - kebab-case type normalization', () => {
     expect(evaluators?.[0].type).toBe('is-json');
   });
 
-  it('normalizes snake_case types to kebab-case (backward compatible)', async () => {
+  it('normalizes snake_case grader types to kebab-case (backward compatible)', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'snake-llm',
-          type: 'llm_judge',
+          type: 'llm_grader',
           prompt: 'test prompt',
         },
       ],
@@ -628,6 +628,22 @@ describe('parseEvaluators - kebab-case type normalization', () => {
 
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm-grader');
+  });
+
+  it('rejects deprecated judge aliases', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'old-llm',
+          type: 'llm_judge',
+          prompt: 'test prompt',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toBeUndefined();
   });
 
   it('leaves single-word types unchanged', async () => {

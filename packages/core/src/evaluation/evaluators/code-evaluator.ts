@@ -29,7 +29,7 @@ export interface CodeEvaluatorOptions {
 }
 
 export class CodeEvaluator implements Evaluator {
-  readonly kind = 'code-judge';
+  readonly kind = 'code-grader';
 
   private readonly command: readonly string[];
   private readonly cwd?: string;
@@ -53,14 +53,14 @@ export class CodeEvaluator implements Evaluator {
     if (outputForPayload) {
       const serialized = JSON.stringify(outputForPayload);
       if (serialized.length > FILE_BACKED_OUTPUT_THRESHOLD) {
-        const tmpDir = await mkdtemp(join(tmpdir(), 'agentv-judge-'));
+        const tmpDir = await mkdtemp(join(tmpdir(), 'agentv-grader-'));
         outputPath = join(tmpDir, 'output.json');
         await writeFile(outputPath, serialized);
         outputForPayload = null;
       }
     }
 
-    // Build payload (camelCase internally, converted to snake_case for judges)
+    // Build payload (camelCase internally, converted to snake_case for graders)
     const payload = {
       criteria: context.evalCase.criteria,
       expectedOutput: context.evalCase.expected_output,
@@ -84,7 +84,7 @@ export class CodeEvaluator implements Evaluator {
 
     const inputPayload = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
 
-    // Set up target proxy if configured and judge provider is available
+    // Set up target proxy if configured and grader provider is available
     let proxyEnv: Record<string, string> | undefined;
     let proxyShutdown: (() => Promise<void>) | undefined;
     let getProxyUsage: (() => TargetProxyUsageMetadata) | undefined;

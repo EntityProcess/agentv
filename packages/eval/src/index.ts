@@ -1,7 +1,7 @@
 /**
  * AgentV Evaluation SDK
  *
- * Build custom evaluators for AI agent outputs.
+ * Build custom graders for AI agent outputs.
  *
  * @example Custom assertion (simplest way to add evaluation logic)
  * ```typescript
@@ -66,11 +66,6 @@ export {
   type ToolCall,
   type TokenUsage,
   type PromptTemplateInput,
-  // Backward-compat aliases (deprecated)
-  CodeJudgeInputSchema,
-  CodeJudgeResultSchema,
-  type CodeJudgeInput,
-  type CodeJudgeResult,
 } from './schemas.js';
 
 // Re-export target client
@@ -97,15 +92,13 @@ export type {
 
 import { type AssertionHandler, runAssertion } from './assertion.js';
 import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';
-import { type CodeGraderHandler, type CodeJudgeHandler, runCodeGrader } from './runtime.js';
+import { type CodeGraderHandler, runCodeGrader } from './runtime.js';
 
 export type { CodeGraderHandler };
-/** @deprecated Use CodeGraderHandler */
-export type { CodeJudgeHandler };
 export type { PromptTemplateHandler };
 
 /**
- * Define a code grader evaluator with automatic stdin/stdout handling.
+ * Define a code grader with automatic stdin/stdout handling.
  *
  * This function:
  * 1. Reads JSON from stdin (snake_case format)
@@ -152,9 +145,6 @@ export function defineCodeGrader(handler: CodeGraderHandler): void {
   runCodeGrader(handler);
 }
 
-/** @deprecated Use defineCodeGrader */
-export const defineCodeJudge = defineCodeGrader;
-
 /**
  * Define a prompt template with automatic stdin/stdout handling.
  *
@@ -199,7 +189,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
 }
 
 /**
- * Define a custom assertion evaluator with automatic stdin/stdout handling.
+ * Define a custom assertion grader with automatic stdin/stdout handling.
  *
  * Assertions are the simplest way to add custom evaluation logic. They receive
  * the full evaluation context and return a pass/fail result with optional

@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-LLM graders (also accepts `llm-judge` for backward compatibility) use a language model to evaluate agent responses against custom criteria defined in a prompt file.
+LLM graders use a language model to evaluate agent responses against custom criteria defined in a prompt file.
 
 ## Default Grader
 
@@ -19,7 +19,7 @@ tests:
     # No assertions needed — default llm-grader evaluates against criteria
 ```
 
-When `assertions` **is** present, no default grader is added. To use an LLM grader alongside other evaluators, declare it explicitly. See [How criteria and assertions interact](/evaluation/eval-cases/#how-criteria-and-assertions-interact).
+When `assertions` **is** present, no default grader is added. To use an LLM grader alongside other graders, declare it explicitly. See [How criteria and assertions interact](/evaluation/eval-cases/#how-criteria-and-assertions-interact).
 
 ## Configuration
 
@@ -33,7 +33,7 @@ assertions:
     target: grader_gpt_5_mini   # optional: route this grader to a named LLM target
 ```
 
-Use `target:` when you want different `llm-grader` evaluators in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
+Use `target:` when you want different `llm-grader` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
 
 ## Prompt Files
 
@@ -74,9 +74,9 @@ Score the response from 0.0 to 1.0 based on:
 | `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
-## Per-Evaluator Grader Target
+## Per-Grader Target
 
-By default, an `llm-grader` uses the suite target's `grader_target`. Override it per evaluator when you need multiple grader models in one run:
+By default, an `llm-grader` uses the suite target's `grader_target`. Override it per grader when you need multiple grader models in one run:
 
 ```yaml
 assertions:
@@ -135,7 +135,7 @@ assertions:
   - name: custom-eval
     type: llm-grader
     prompt:
-      command: [bun, run, ../prompts/custom-evaluator.ts]
+      command: [bun, run, ../prompts/custom-grader.ts]
       config:
         rubric: "Your rubric here"
         strictMode: true
@@ -180,7 +180,7 @@ At this layer, `input` and `expected_output` no longer exist as separate fields.
 
 ### 3. Template Variable Layer
 
-Derived strings injected into evaluator prompts:
+Derived strings injected into grader prompts:
 
 | Variable | Derivation |
 |----------|------------|

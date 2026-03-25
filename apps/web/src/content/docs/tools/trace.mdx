@@ -94,7 +94,7 @@ agentv trace show trace.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
-agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl --group-by target --format json \
+agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```
 

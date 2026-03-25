@@ -39,7 +39,7 @@ Mixed strings and objects are supported in `assertions` — strings are grouped 
 ```yaml
 assertions:
   - Mentions divide-and-conquer approach  # grouped into rubrics
-  - type: code-judge                      # kept as-is
+  - type: code-grader
     command: [check_syntax.py]
   - States time complexity                # grouped into rubrics
 ```
