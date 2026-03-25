@@ -19,6 +19,7 @@ export type ProviderKind =
   | 'codex'
   | 'copilot-sdk'
   | 'copilot-cli'
+  | 'copilot-log'
   | 'pi-coding-agent'
   | 'pi-cli'
   | 'claude'
@@ -31,8 +32,12 @@ export type ProviderKind =
   | 'agentv';
 
 /**
- * Agent providers that have filesystem access.
+ * Agent providers that spawn interactive sessions with filesystem access.
  * These providers read files directly from the filesystem using file:// URIs.
+ *
+ * Note: copilot-log is intentionally excluded — it is a passive transcript
+ * reader, not an interactive agent. This allows deterministic-only evals
+ * (e.g., skill-trigger) to run without a grader_target or LLM API key.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
@@ -60,6 +65,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'codex',
   'copilot-sdk',
   'copilot-cli',
+  'copilot-log',
   'pi-coding-agent',
   'pi-cli',
   'claude',
@@ -343,6 +349,14 @@ export interface TargetDefinition {
   readonly attachmentsFormat?: string | unknown | undefined;
   readonly env?: unknown | undefined;
   readonly healthcheck?: unknown | undefined;
+  // Copilot-log fields
+  readonly session_dir?: string | unknown | undefined;
+  readonly sessionDir?: string | unknown | undefined;
+  readonly session_id?: string | unknown | undefined;
+  readonly sessionId?: string | unknown | undefined;
+  readonly discover?: string | unknown | undefined;
+  readonly session_state_dir?: string | unknown | undefined;
+  readonly sessionStateDir?: string | unknown | undefined;
   // Copilot SDK fields
   readonly cli_url?: string | unknown | undefined;
   readonly cliUrl?: string | unknown | undefined;

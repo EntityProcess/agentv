@@ -1,0 +1,14 @@
+targets:
+  # Passive transcript reader — reads Copilot CLI session transcripts from disk.
+  # Zero API cost. No grader_target needed for deterministic evaluators.
+  #
+  # Usage:
+  #   agentv eval evals/skill-trigger.EVAL.yaml --target copilot-log
+  #
+  # Session resolution (pick one):
+  #   discover: latest             — auto-discover most recent session
+  #   session_id: "<uuid>"         — read a specific session by ID
+  #   session_dir: "/path/to/dir"  — read from an explicit directory
+  - name: copilot-log
+    provider: copilot-log
+    discover: latest

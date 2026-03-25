@@ -485,6 +485,19 @@ export interface CopilotSdkResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export interface CopilotLogResolvedConfig {
+  /** Explicit path to a session directory containing events.jsonl. */
+  readonly sessionDir?: string;
+  /** Session UUID — combined with sessionStateDir to build the path. */
+  readonly sessionId?: string;
+  /** Auto-discovery mode. 'latest' picks the most recent session. */
+  readonly discover?: 'latest';
+  /** Override the default ~/.copilot/session-state directory. */
+  readonly sessionStateDir?: string;
+  /** Filter discovery by working directory. */
+  readonly cwd?: string;
+}
+
 export interface PiCodingAgentResolvedConfig {
   readonly subprovider?: string;
   readonly model?: string;
@@ -621,6 +634,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CopilotCliResolvedConfig;
+    }
+  | {
+      readonly kind: 'copilot-log';
+      readonly name: string;
+      readonly graderTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CopilotLogResolvedConfig;
     }
   | {
       readonly kind: 'pi-coding-agent';
@@ -865,6 +886,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotCliConfig(parsed, env, evalFilePath),
+      };
+    case 'copilot-log':
+      return {
+        kind: 'copilot-log',
+        name: parsed.name,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCopilotLogConfig(parsed, env),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -1949,6 +1979,49 @@ function resolveString(
     throw new Error(`${description} is required`);
   }
   return value;
+}
+
+function resolveDiscover(value: unknown, targetName: string): 'latest' | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (value === 'latest') return 'latest';
+  throw new Error(`Target "${targetName}": discover must be "latest" (got "${String(value)}")`);
+}
+
+function resolveCopilotLogConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): CopilotLogResolvedConfig {
+  const sessionDirSource = target.session_dir ?? target.sessionDir;
+  const sessionIdSource = target.session_id ?? target.sessionId;
+  const discoverSource = target.discover;
+  const sessionStateDirSource = target.session_state_dir ?? target.sessionStateDir;
+  const cwdSource = target.cwd;
+
+  return {
+    sessionDir: resolveOptionalString(
+      sessionDirSource,
+      env,
+      `${target.name} copilot-log session_dir`,
+      { allowLiteral: true, optionalEnv: true },
+    ),
+    sessionId: resolveOptionalString(
+      sessionIdSource,
+      env,
+      `${target.name} copilot-log session_id`,
+      { allowLiteral: true, optionalEnv: true },
+    ),
+    discover: resolveDiscover(discoverSource, target.name),
+    sessionStateDir: resolveOptionalString(
+      sessionStateDirSource,
+      env,
+      `${target.name} copilot-log session_state_dir`,
+      { allowLiteral: true, optionalEnv: true },
+    ),
+    cwd: resolveOptionalString(cwdSource, env, `${target.name} copilot-log cwd`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+  };
 }
 
 function resolveOptionalString(

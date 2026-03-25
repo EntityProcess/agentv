@@ -109,6 +109,7 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   'pi-coding-agent': PI_CODING_AGENT_MATCHER,
   'pi-cli': PI_CODING_AGENT_MATCHER,
   'copilot-cli': COPILOT_MATCHER,
+  'copilot-log': COPILOT_MATCHER,
   'copilot-sdk': COPILOT_MATCHER,
   vscode: COPILOT_MATCHER,
   'vscode-insiders': COPILOT_MATCHER,
@@ -143,9 +144,10 @@ export class SkillTriggerEvaluator implements Evaluator {
     let evidence = '';
 
     for (const toolCall of allToolCalls) {
+      const toolName = toolCall.tool ?? '';
       const input = (toolCall.input ?? {}) as Record<string, unknown>;
 
-      if (matcher.skillTools.includes(toolCall.tool)) {
+      if (matcher.skillTools.includes(toolName)) {
         const skillArg = String(input[matcher.skillInputField] ?? '');
         if (skillArg.includes(skillName)) {
           triggered = true;
@@ -154,13 +156,13 @@ export class SkillTriggerEvaluator implements Evaluator {
         }
       } else if (
         matcher.skillToolPrefixes?.some(
-          (prefix) => toolCall.tool.startsWith(prefix) && toolCall.tool.includes(skillName),
+          (prefix) => toolName.startsWith(prefix) && toolName.includes(skillName),
         )
       ) {
         triggered = true;
-        evidence = `Skill tool invoked via tool name "${toolCall.tool}"`;
+        evidence = `Skill tool invoked via tool name "${toolName}"`;
         break;
-      } else if (matcher.readTools.includes(toolCall.tool)) {
+      } else if (matcher.readTools.includes(toolName)) {
         const filePath = this.readPathFromInput(input, matcher);
         if (filePath.includes(skillName)) {
           triggered = true;
@@ -169,11 +171,11 @@ export class SkillTriggerEvaluator implements Evaluator {
         }
       } else if (
         matcher.readToolPrefixes?.some(
-          (prefix) => toolCall.tool.startsWith(prefix) && toolCall.tool.includes(skillName),
+          (prefix) => toolName.startsWith(prefix) && toolName.includes(skillName),
         )
       ) {
         triggered = true;
-        evidence = `Read tool loaded skill file via tool name "${toolCall.tool}"`;
+        evidence = `Read tool loaded skill file via tool name "${toolName}"`;
         break;
       }
     }

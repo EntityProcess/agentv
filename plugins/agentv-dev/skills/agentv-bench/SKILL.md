@@ -1,13 +1,16 @@
 ---
 name: agentv-bench
 description: >-
-  Optimize agents through evaluation-driven iteration. Use when asked to evaluate an agent,
-  optimize prompts against evals, run EVAL.yaml or evals.json evaluations, benchmark agent
-  performance, compare agent outputs across providers, analyze eval results, or improve agent
-  performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn
-  conversations, code graders, tool trajectory scoring, and workspace file change tracking.
-  Use this skill whenever the user mentions evaluating, benchmarking, testing, or optimizing
-  any agent, prompt, or skill — even if they don't explicitly say "agentv".
+  Run AgentV evaluations and optimize agents through eval-driven iteration. Use when asked to
+  run `agentv eval`, execute an EVAL.yaml or evals.json file, benchmark agent performance across
+  providers, analyze eval results, compare agent outputs, optimize prompts against evals, or
+  improve agent performance. Also use for offline evaluation of recorded sessions (e.g.,
+  copilot-log transcripts) and deterministic-only evals that need no LLM API key.
+  Use this skill whenever the user mentions running evals, benchmarking, or optimizing any
+  agent, prompt, or skill — even if they don't explicitly say "agentv".
+  Do NOT use for writing or editing eval YAML files without running them — that belongs to
+  agentv-eval-writer. Do NOT use for analyzing existing trace files or result JSONL without
+  re-running evals — that belongs to agentv-trace-analyst.
 ---
 
 # AgentV Bench

@@ -12,6 +12,7 @@ import { ClaudeProvider } from './claude.js';
 import { CliProvider } from './cli.js';
 import { CodexProvider } from './codex.js';
 import { CopilotCliProvider } from './copilot-cli.js';
+import { CopilotLogProvider } from './copilot-log.js';
 import { CopilotSdkProvider } from './copilot-sdk.js';
 import { MockProvider } from './mock.js';
 import { PiCliProvider } from './pi-cli.js';
@@ -43,6 +44,7 @@ export type {
   ClaudeResolvedConfig,
   CliResolvedConfig,
   CopilotCliResolvedConfig,
+  CopilotLogResolvedConfig,
   CopilotSdkResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
@@ -82,6 +84,7 @@ export {
 } from './provider-registry.js';
 
 export { discoverProviders } from './provider-discovery.js';
+export { discoverCopilotSessions, type CopilotSession } from './copilot-session-discovery.js';
 
 /**
  * Create and return the default provider registry with all built-in providers.
@@ -99,6 +102,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('codex', (t) => new CodexProvider(t.name, t.config as never))
     .register('copilot-sdk', (t) => new CopilotSdkProvider(t.name, t.config as never))
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
+    .register('copilot-log', (t) => new CopilotLogProvider(t.name, t.config as never))
     .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
     .register('pi-cli', (t) => new PiCliProvider(t.name, t.config as never))
     // claude-cli is the new default subprocess provider; claude is an alias
