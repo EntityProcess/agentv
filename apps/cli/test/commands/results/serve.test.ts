@@ -322,5 +322,22 @@ describe('serve app', () => {
       expect(html).toContain('run-picker');
       expect(html).toContain('/api/runs');
     });
+
+    it('embeds INITIAL_SOURCE when sourceFile is provided', async () => {
+      const content = toJsonl(RESULT_A, RESULT_B);
+      const results = loadResults(content);
+      const app = createApp(results, tempDir, tempDir, '/some/path/results-2026.jsonl');
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('INITIAL_SOURCE');
+      expect(html).toContain('results-2026.jsonl');
+    });
+
+    it('sets INITIAL_SOURCE to null when no sourceFile', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('INITIAL_SOURCE = null');
+    });
   });
 });

@@ -136,13 +136,18 @@ function writeFeedback(cwd: string, data: FeedbackData): void {
  * Create a Hono app with dashboard, result picker, and feedback API routes.
  * Accepts an empty results array for the empty-state dashboard.
  */
-export function createApp(results: EvaluationResult[], resultDir: string, cwd?: string): Hono {
+export function createApp(
+  results: EvaluationResult[],
+  resultDir: string,
+  cwd?: string,
+  sourceFile?: string,
+): Hono {
   const searchDir = cwd ?? resultDir;
   const app = new Hono();
 
   // Dashboard HTML
   app.get('/', (c) => {
-    return c.html(generateServeHtml(results));
+    return c.html(generateServeHtml(results, sourceFile));
   });
 
   // List available result files (for the result picker)
@@ -262,7 +267,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function generateServeHtml(results: readonly EvaluationResult[]): string {
+function generateServeHtml(results: readonly EvaluationResult[], sourceFile?: string): string {
   const lightResults = results.map((r) => {
     const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
     const toolCalls =
@@ -314,6 +319,7 @@ ${SERVE_STYLES}
     <main id="app"></main>
     <script>
     var DATA = ${dataJson};
+    var INITIAL_SOURCE = ${sourceFile ? JSON.stringify(path.basename(sourceFile)).replace(/</g, '\\u003c').replace(/>/g, '\\u003e') : 'null'};
 ${SERVE_SCRIPT}
     </script>
 </body>
@@ -913,6 +919,10 @@ const SERVE_SCRIPT = `
         h+='<option value="'+esc(r.filename)+'">'+esc(label)+"</option>";
       }
       runPicker.innerHTML=h;
+      /* Pre-select the initially loaded run */
+      if(INITIAL_SOURCE&&runs.length>0){
+        runPicker.value=INITIAL_SOURCE;
+      }
     }).catch(function(){});
   }
 
@@ -1008,7 +1018,7 @@ export const resultsServeCommand = command({
 
       // Use the run directory for feedback storage (matches #764 behavior)
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
-      const app = createApp(results, resultDir, cwd);
+      const app = createApp(results, resultDir, cwd, sourceFile);
 
       if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
