@@ -29,10 +29,27 @@ export function extractJsonBlob(text: string): string | undefined {
   return match?.[0];
 }
 
+function repairSchemaNearBooleanFields(text: string): string {
+  return text.replace(
+    /("passed"\s*:\s*)(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_-]*))/gi,
+    (_match, prefix: string, quotedValue?: string, bareValue?: string) => {
+      const value = (quotedValue ?? bareValue ?? '').trim().toLowerCase();
+      if (value === 'true') {
+        return `${prefix}true`;
+      }
+      if (value === 'false') {
+        return `${prefix}false`;
+      }
+      return `${prefix}false`;
+    },
+  );
+}
+
 export function parseJsonFromText(text: string): unknown {
   const cleaned = typeof text === 'string' ? text.replace(/```json\n?|```/g, '').trim() : '';
   const blob = extractJsonBlob(cleaned) ?? cleaned;
-  return JSON.parse(blob);
+  const repaired = repairSchemaNearBooleanFields(blob);
+  return JSON.parse(repaired);
 }
 
 export function isNonEmptyString(value: unknown): value is string {
