@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -265,6 +265,96 @@ describe('serve app', () => {
         body: '"just a string"',
       });
       expect(res3.status).toBe(400);
+    });
+  });
+
+  // ── Empty state (no results) ────────────────────────────────────────
+
+  describe('empty state', () => {
+    it('serves dashboard HTML with empty results', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/');
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('AgentV');
+      expect(html).toContain('No results yet');
+      expect(html).toContain('Run an evaluation');
+    });
+
+    it('serves feedback API with empty results', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/api/feedback');
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual({ reviews: [] });
+    });
+  });
+
+  // ── GET /api/runs ───────────────────────────────────────────────────
+
+  describe('GET /api/runs', () => {
+    it('returns empty runs list for temp directory', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/api/runs');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { runs: unknown[] };
+      expect(data.runs).toEqual([]);
+    });
+  });
+
+  // ── GET /api/runs/:filename ─────────────────────────────────────────
+
+  describe('GET /api/runs/:filename', () => {
+    it('returns 404 for nonexistent run', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/api/runs/nonexistent');
+      expect(res.status).toBe(404);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toBe('Run not found');
+    });
+
+    it('loads results from an existing run file', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = 'eval_2026-03-25T10-00-00-000Z.jsonl';
+      writeFileSync(path.join(runsDir, filename), toJsonl(RESULT_A, RESULT_B));
+
+      const app = createApp([], tempDir, tempDir);
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { results: { testId: string }[]; source: string };
+      expect(data.results).toHaveLength(2);
+      expect(data.results[0].testId).toBe('test-greeting');
+      expect(data.source).toBe(filename);
+    });
+  });
+
+  // ── Run picker in HTML ──────────────────────────────────────────────
+
+  describe('run picker', () => {
+    it('includes run-picker select in dashboard HTML', async () => {
+      const app = makeApp();
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('run-picker');
+      expect(html).toContain('/api/runs');
+    });
+
+    it('embeds INITIAL_SOURCE when sourceFile is provided', async () => {
+      const content = toJsonl(RESULT_A, RESULT_B);
+      const results = loadResults(content);
+      const app = createApp(results, tempDir, tempDir, '/some/path/results-2026.jsonl');
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('INITIAL_SOURCE');
+      expect(html).toContain('results-2026.jsonl');
+    });
+
+    it('sets INITIAL_SOURCE to null when no sourceFile', async () => {
+      const app = createApp([], tempDir);
+      const res = await app.request('/');
+      const html = await res.text();
+      expect(html).toContain('INITIAL_SOURCE = null');
     });
   });
 });
