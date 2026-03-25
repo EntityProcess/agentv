@@ -175,6 +175,11 @@ export const evalRunCommand = command({
       description:
         'Number of trailing messages to include in results output (default: 1, or "all")',
     }),
+    threshold: option({
+      type: optional(number),
+      long: 'threshold',
+      description: 'Suite-level quality gate: exit 1 if mean score falls below this value (0-1)',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -217,7 +222,11 @@ export const evalRunCommand = command({
       graderTarget: args.graderTarget,
       model: args.model,
       outputMessages: args.outputMessages,
+      threshold: args.threshold,
     };
-    await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+    const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+    if (result?.thresholdFailed) {
+      process.exit(1);
+    }
   },
 });

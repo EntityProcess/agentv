@@ -15,6 +15,10 @@ export interface OutputWriter {
   close(): Promise<void>;
 }
 
+export interface WriterOptions {
+  readonly threshold?: number;
+}
+
 export async function createOutputWriter(
   filePath: string,
   format: OutputFormat,
@@ -35,7 +39,10 @@ export async function createOutputWriter(
 
 const SUPPORTED_EXTENSIONS = new Set(['.jsonl', '.json', '.xml', '.yaml', '.yml', '.html', '.htm']);
 
-export function createWriterFromPath(filePath: string): Promise<OutputWriter> {
+export function createWriterFromPath(
+  filePath: string,
+  options?: WriterOptions,
+): Promise<OutputWriter> {
   const ext = path.extname(filePath).toLowerCase();
   switch (ext) {
     case '.jsonl':
@@ -43,7 +50,7 @@ export function createWriterFromPath(filePath: string): Promise<OutputWriter> {
     case '.json':
       return JsonWriter.open(filePath);
     case '.xml':
-      return JunitWriter.open(filePath);
+      return JunitWriter.open(filePath, { threshold: options?.threshold });
     case '.yaml':
     case '.yml':
       return YamlWriter.open(filePath);
@@ -57,8 +64,11 @@ export function createWriterFromPath(filePath: string): Promise<OutputWriter> {
   }
 }
 
-export async function createMultiWriter(filePaths: readonly string[]): Promise<OutputWriter> {
-  const writers = await Promise.all(filePaths.map((fp) => createWriterFromPath(fp)));
+export async function createMultiWriter(
+  filePaths: readonly string[],
+  options?: WriterOptions,
+): Promise<OutputWriter> {
+  const writers = await Promise.all(filePaths.map((fp) => createWriterFromPath(fp, options)));
   return {
     async append(result: EvaluationResult): Promise<void> {
       await Promise.all(writers.map((w) => w.append(result)));

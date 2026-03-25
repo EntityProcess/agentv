@@ -328,6 +328,7 @@ const ExecutionSchema = z.object({
   totalBudgetUsd: z.number().min(0).optional(),
   fail_on_error: FailOnErrorSchema.optional(),
   failOnError: FailOnErrorSchema.optional(),
+  threshold: z.number().min(0).max(1).optional(),
 });
 
 // ---------------------------------------------------------------------------

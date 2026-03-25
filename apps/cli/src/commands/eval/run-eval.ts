@@ -45,6 +45,7 @@ import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
   formatMatrixSummary,
+  formatThresholdSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 
@@ -86,6 +87,7 @@ interface NormalizedOptions {
   readonly graderTarget?: string;
   readonly model?: string;
   readonly outputMessages: number | 'all';
+  readonly threshold?: number;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -301,6 +303,7 @@ function normalizeOptions(
     graderTarget: normalizeString(rawOptions.graderTarget),
     model: normalizeString(rawOptions.model),
     outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
+    threshold: normalizeOptionalNumber(rawOptions.threshold),
   } satisfies NormalizedOptions;
 }
 
@@ -430,6 +433,7 @@ async function prepareFileMetadata(params: {
   readonly yamlCachePath?: string;
   readonly totalBudgetUsd?: number;
   readonly failOnError?: FailOnError;
+  readonly threshold?: number;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -515,6 +519,7 @@ async function prepareFileMetadata(params: {
     yamlCachePath: suite.cacheConfig?.cachePath,
     totalBudgetUsd: suite.totalBudgetUsd,
     failOnError: suite.failOnError,
+    threshold: suite.threshold,
   };
 }
 
@@ -749,6 +754,8 @@ export interface RunEvalResult {
   readonly outputPath: string;
   readonly testFiles: readonly string[];
   readonly target?: string;
+  /** True when --threshold is set and mean score is below the threshold */
+  readonly thresholdFailed?: boolean;
 }
 
 export async function runEvalCommand(
@@ -901,12 +908,9 @@ export async function runEvalCommand(
     extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
   const uniqueReportedOutputPaths = [...new Set(reportedOutputPaths)];
 
-  let outputWriter: OutputWriter;
   if (uniqueOutputPaths.length === 1) {
-    outputWriter = await createOutputWriter(primaryWritePath, options.format);
     console.log(`Output path: ${outputPath}`);
   } else {
-    outputWriter = await createMultiWriter(uniqueOutputPaths);
     console.log('Output paths:');
     for (const p of uniqueReportedOutputPaths) {
       console.log(`  ${p}`);
@@ -951,6 +955,7 @@ export async function runEvalCommand(
       readonly yamlCachePath?: string;
       readonly totalBudgetUsd?: number;
       readonly failOnError?: FailOnError;
+      readonly threshold?: number;
     }
   >();
   // Separate TypeScript/JS eval files from YAML files.
@@ -1004,6 +1009,24 @@ export async function runEvalCommand(
 
   if (cacheEnabled) {
     console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
+  }
+
+  // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold
+  const yamlThreshold = firstMeta?.threshold;
+  const resolvedThreshold = options.threshold ?? yamlThreshold;
+  if (resolvedThreshold !== undefined && (resolvedThreshold < 0 || resolvedThreshold > 1)) {
+    throw new Error('--threshold must be between 0 and 1');
+  }
+
+  // Build the output writer (deferred until after threshold is resolved so JUnit
+  // writer can use the resolved threshold for per-test pass/fail decisions)
+  const writerOptions =
+    resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
+  let outputWriter: OutputWriter;
+  if (uniqueOutputPaths.length === 1) {
+    outputWriter = await createOutputWriter(primaryWritePath, options.format);
+  } else {
+    outputWriter = await createMultiWriter(uniqueOutputPaths, writerOptions);
   }
 
   // Detect matrix mode: multiple targets for any file
@@ -1152,6 +1175,14 @@ export async function runEvalCommand(
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
 
+    // Threshold quality gate check
+    let thresholdFailed = false;
+    if (resolvedThreshold !== undefined) {
+      const thresholdResult = formatThresholdSummary(summary.mean, resolvedThreshold);
+      console.log(`\n${thresholdResult.message}`);
+      thresholdFailed = !thresholdResult.passed;
+    }
+
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && allResults.length > 0) {
       console.log(formatMatrixSummary(allResults));
@@ -1246,6 +1277,7 @@ export async function runEvalCommand(
       outputPath,
       testFiles: resolvedTestFiles,
       target: options.target,
+      thresholdFailed,
     };
   } finally {
     unsubscribeCodexLogs();

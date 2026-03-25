@@ -518,11 +518,24 @@ execution:
 
 When halted, remaining tests get `executionStatus: 'execution_error'` with `failureReasonCode: 'error_threshold_exceeded'`.
 
+## Suite-Level Quality Threshold
+
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
+
+```yaml
+execution:
+  threshold: 0.8
+```
+
+CLI flag `--threshold 0.8` overrides the YAML value. Must be a number between 0 and 1. Mean score is computed from quality results only (execution errors excluded).
+
+The threshold also controls JUnit XML pass/fail: tests with scores below the threshold are marked as `<failure>`. When no threshold is set, JUnit defaults to 0.5.
+
 ## CLI Commands
 
 ```bash
 # Run evaluation (requires API keys)
-agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run]
+agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run] [--threshold <0-1>]
 
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json

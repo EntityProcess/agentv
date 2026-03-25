@@ -333,6 +333,32 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
   return undefined;
 }
 
+/**
+ * Extract `execution.threshold` from parsed eval suite.
+ * Accepts a number in [0, 1] range.
+ * Returns undefined when not specified.
+ */
+export function extractThreshold(suite: JsonObject): number | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const executionObj = execution as Record<string, unknown>;
+  const raw = executionObj.threshold;
+
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+
+  if (typeof raw === 'number' && raw >= 0 && raw <= 1) {
+    return raw;
+  }
+
+  logWarning(`Invalid execution.threshold: ${raw}. Must be a number between 0 and 1. Ignoring.`);
+  return undefined;
+}
+
 export function parseExecutionDefaults(
   raw: unknown,
   configPath: string,

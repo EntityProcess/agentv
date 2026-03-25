@@ -13,6 +13,7 @@ import {
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
+  extractThreshold,
   extractTotalBudgetUsd,
   extractTrialsConfig,
   extractWorkersFromSuite,
@@ -59,6 +60,7 @@ export {
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
+  extractThreshold,
   extractTrialsConfig,
   extractWorkersFromSuite,
   loadConfig,
@@ -180,6 +182,8 @@ export type EvalSuiteResult = {
   readonly totalBudgetUsd?: number;
   /** Execution error tolerance: true or false */
   readonly failOnError?: import('./types.js').FailOnError;
+  /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
+  readonly threshold?: number;
 };
 
 /**
@@ -201,6 +205,7 @@ export async function loadTestSuite(
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
+  const threshold = extractThreshold(parsed);
   return {
     tests,
     trials: extractTrialsConfig(parsed),
@@ -210,6 +215,7 @@ export async function loadTestSuite(
     totalBudgetUsd: extractTotalBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),
     ...(failOnError !== undefined && { failOnError }),
+    ...(threshold !== undefined && { threshold }),
   };
 }
 

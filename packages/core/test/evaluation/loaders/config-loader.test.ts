@@ -5,6 +5,7 @@ import {
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
+  extractThreshold,
   extractTotalBudgetUsd,
   extractTrialsConfig,
   parseExecutionDefaults,
@@ -299,6 +300,48 @@ describe('extractFailOnError', () => {
   it('supports camelCase failOnError alias', () => {
     const suite: JsonObject = { execution: { failOnError: true } };
     expect(extractFailOnError(suite)).toBe(true);
+  });
+});
+
+describe('extractThreshold', () => {
+  it('returns undefined when no execution block', () => {
+    const suite: JsonObject = { tests: [] };
+    expect(extractThreshold(suite)).toBeUndefined();
+  });
+
+  it('returns undefined when threshold not set', () => {
+    const suite: JsonObject = { execution: { target: 'default' } };
+    expect(extractThreshold(suite)).toBeUndefined();
+  });
+
+  it('parses valid threshold', () => {
+    const suite: JsonObject = { execution: { threshold: 0.8 } };
+    expect(extractThreshold(suite)).toBe(0.8);
+  });
+
+  it('accepts 0 as threshold', () => {
+    const suite: JsonObject = { execution: { threshold: 0 } };
+    expect(extractThreshold(suite)).toBe(0);
+  });
+
+  it('accepts 1 as threshold', () => {
+    const suite: JsonObject = { execution: { threshold: 1 } };
+    expect(extractThreshold(suite)).toBe(1);
+  });
+
+  it('returns undefined for negative threshold', () => {
+    const suite: JsonObject = { execution: { threshold: -0.1 } };
+    expect(extractThreshold(suite)).toBeUndefined();
+  });
+
+  it('returns undefined for threshold > 1', () => {
+    const suite: JsonObject = { execution: { threshold: 1.5 } };
+    expect(extractThreshold(suite)).toBeUndefined();
+  });
+
+  it('returns undefined for non-number threshold', () => {
+    const suite: JsonObject = { execution: { threshold: 'high' } };
+    expect(extractThreshold(suite)).toBeUndefined();
   });
 });
 
