@@ -1,6 +1,8 @@
-# Agent Species Taxonomy
+# Agentic Design Patterns
 
-## Species A: The Coding Harness
+Four foundational architectures for AI agent systems, based on Andrew Ng's agentic design patterns framework. Each pattern defines a management model, workflow structure, and set of anti-patterns.
+
+## Single-Agent Iterative Loop (Agentic IDE)
 
 **Use when:** Problem is software-shaped and scale is task-level.
 
@@ -19,16 +21,16 @@
 
 **Management model:** Human as manager. Human defines what to build, agent builds it, human reviews.
 
-**Example:** A developer using Claude Code to implement a feature. They describe what they want, Claude writes the code, developer reviews and iterates.
+**Example:** A developer using Claude Code to implement a feature. They describe what they want, the agent writes the code, developer reviews and iterates.
 
 **Anti-patterns:**
-- Using Species A for a project that needs 10+ coordinated agents
+- Using a single-agent loop for a project that needs 10+ coordinated agents
 - No decomposition — giving the agent one massive task instead of focused chunks
 - No verification step — trusting agent output without review
 
 ---
 
-## Species B: The Dark Factory
+## Autonomous Pipeline (Zero-Human Loop)
 
 **Use when:** Problem is software-shaped and high autonomy is required.
 
@@ -60,7 +62,7 @@
 
 ---
 
-## Species C: Auto Research
+## Optimization Loop (Self-Improving Agent)
 
 **Use when:** Problem is metric-shaped (optimization).
 
@@ -92,7 +94,7 @@
 
 ---
 
-## Species D: Orchestration Framework
+## Multi-Agent System (Hierarchical/Supervisor Pattern)
 
 **Use when:** Problem requires specialized roles and complex handoffs.
 
@@ -121,30 +123,30 @@
 **Anti-patterns:**
 - Over-engineering — using orchestration for a 3-step task one person could do
 - Poor handoffs — losing critical context between agents
-- No specialization — all agents doing the same thing (just use Species A)
+- No specialization — all agents doing the same thing (just use a single-agent loop)
 - Too many management layers — 3-level hierarchies are almost always slower than 2-level
 
 ---
 
-## Species Selection Decision Tree
+## Pattern Selection Decision Tree
 
 ```
 Is the goal working software or optimizing a metric?
 ├── Software-shaped
-│   ├── Single discrete task? → Species A (Coding Harness)
-│   ├── Needs full autonomy (spec → code → eval)? → Species B (Dark Factory)
-│   └── Multiple specialized roles needed at scale? → Species D (Orchestration)
+│   ├── Single discrete task? → Single-Agent Iterative Loop
+│   ├── Needs full autonomy (spec → code → eval)? → Autonomous Pipeline
+│   └── Multiple specialized roles needed at scale? → Multi-Agent System
 └── Metric-shaped
-    ├── Single metric to optimize? → Species C (Auto Research)
-    └── Multiple metrics across coordinated roles? → Species C + D (Hybrid)
+    ├── Single metric to optimize? → Optimization Loop
+    └── Multiple metrics across coordinated roles? → Optimization Loop + Multi-Agent System
 ```
 
 ## Hybrid Architectures
 
-Real systems often combine species:
+Real systems often combine patterns:
 
-- **B + C:** Dark Factory with optimization loop (auto-iterate on prompts using eval scores)
-- **A + D:** Individual coding harnesses orchestrated by a planner for large projects
-- **B + D:** Autonomous pipeline with specialized roles (validate-agent, design-agent, code-agent)
+- **Autonomous Pipeline + Optimization Loop:** Auto-iterate on prompts using eval scores
+- **Single-Agent Loop + Multi-Agent System:** Individual coding agents orchestrated by a planner for large projects
+- **Autonomous Pipeline + Multi-Agent System:** Autonomous pipeline with specialized roles (validate-agent, design-agent, code-agent)
 
 When combining, keep the management model simple. A 2-level structure (planner + workers) outperforms deeper hierarchies.

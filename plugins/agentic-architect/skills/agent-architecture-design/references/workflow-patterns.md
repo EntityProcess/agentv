@@ -1,12 +1,12 @@
 # Workflow Patterns by Framework
 
-Patterns from reference frameworks for designing agent workflows, organized by species.
+Patterns from reference frameworks for designing agent workflows, organized by agentic design pattern.
 
 ## OpenSpec (OPSX Conventions)
 
 **Source:** [OpenSpec](https://github.com/Fission-AI/OpenSpec)
 
-**Best for:** Species B (Dark Factory) and Species D (Orchestration)
+**Best for:** Autonomous Pipeline and Multi-Agent System
 
 **Core concept:** Artifact-driven dependency graph. Commands chain through file existence, not sequential phases.
 
@@ -42,7 +42,7 @@ Patterns from reference frameworks for designing agent workflows, organized by s
 
 **Source:** [Superpowers](https://github.com/obra/superpowers/)
 
-**Best for:** Species A (Coding Harness) and Species B (Dark Factory)
+**Best for:** Single-Agent Iterative Loop and Autonomous Pipeline
 
 **Core concept:** Skills as workflow phases with hard gates and mandatory skill checks.
 
@@ -67,7 +67,7 @@ Patterns from reference frameworks for designing agent workflows, organized by s
 
 **Source:** [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin)
 
-**Best for:** Species B (Dark Factory) with learning loop
+**Best for:** Autonomous Pipeline with learning loop
 
 **Core concept:** Four-phase repeating cycle where learnings compound across iterations.
 
@@ -86,16 +86,16 @@ Patterns from reference frameworks for designing agent workflows, organized by s
 
 ---
 
-## Pattern Selection by Species
+## Framework Selection by Design Pattern
 
-| Species | Primary Pattern | Secondary Pattern |
+| Agentic Design Pattern | Primary Framework | Secondary Framework |
 |---|---|---|
-| A (Coding Harness) | Superpowers (brainstorm → plan → TDD) | — |
-| B (Dark Factory) | OpenSpec (validate → propose → design → apply → verify) | Compound Engineering (learning loop) |
-| C (Auto Research) | Custom iteration loop (hypothesize → test → measure → decide) | — |
-| D (Orchestration) | OpenSpec artifact gates + Superpowers hard gates | Compound Engineering (per-role learning) |
+| Single-Agent Iterative Loop | Superpowers (brainstorm → plan → TDD) | — |
+| Autonomous Pipeline | OpenSpec (validate → propose → design → apply → verify) | Compound Engineering (learning loop) |
+| Optimization Loop | Custom iteration loop (hypothesize → test → measure → decide) | — |
+| Multi-Agent System | OpenSpec artifact gates + Superpowers hard gates | Compound Engineering (per-role learning) |
 
-## Universal Patterns (All Species)
+## Universal Patterns (All Architectures)
 
 1. **Hard gates** — Check prerequisites before proceeding. Never silently skip.
 2. **Artifact persistence** — Write phase outputs to disk, not just conversation context. Enables cross-session resumption.
