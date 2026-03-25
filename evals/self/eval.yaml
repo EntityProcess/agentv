@@ -1,8 +1,5 @@
 description: Evaluates whether proposed changes follow AGENTS.md design principles
 
-execution:
-  target: default
-
 tests:
   - id: violates-lightweight-core
     criteria: |
