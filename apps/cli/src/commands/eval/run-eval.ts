@@ -86,6 +86,7 @@ interface NormalizedOptions {
   readonly graderTarget?: string;
   readonly model?: string;
   readonly outputMessages: number | 'all';
+  readonly threshold?: number;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -301,6 +302,7 @@ function normalizeOptions(
     graderTarget: normalizeString(rawOptions.graderTarget),
     model: normalizeString(rawOptions.model),
     outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
+    threshold: normalizeOptionalNumber(rawOptions.threshold),
   } satisfies NormalizedOptions;
 }
 
@@ -430,6 +432,7 @@ async function prepareFileMetadata(params: {
   readonly yamlCachePath?: string;
   readonly totalBudgetUsd?: number;
   readonly failOnError?: FailOnError;
+  readonly threshold?: number;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -515,6 +518,7 @@ async function prepareFileMetadata(params: {
     yamlCachePath: suite.cacheConfig?.cachePath,
     totalBudgetUsd: suite.totalBudgetUsd,
     failOnError: suite.failOnError,
+    threshold: suite.threshold,
   };
 }
 
@@ -951,6 +955,7 @@ export async function runEvalCommand(
       readonly yamlCachePath?: string;
       readonly totalBudgetUsd?: number;
       readonly failOnError?: FailOnError;
+      readonly threshold?: number;
     }
   >();
   // Separate TypeScript/JS eval files from YAML files.
@@ -1005,6 +1010,10 @@ export async function runEvalCommand(
   if (cacheEnabled) {
     console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
   }
+
+  // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold
+  const yamlThreshold = firstMeta?.threshold;
+  const resolvedThreshold = options.threshold ?? yamlThreshold;
 
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
