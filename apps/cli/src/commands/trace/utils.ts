@@ -355,14 +355,25 @@ function loadOtlpTraceFile(filePath: string): RawResult[] {
       spans: traceSummary?.spans,
       output: stringAttr(rootAttrs.agentv_output_text),
       scores: root.events
-        ?.filter((event) => event.name?.startsWith('agentv.evaluator.'))
+        ?.filter(
+          (event) =>
+            event.name?.startsWith('agentv.grader.') || event.name?.startsWith('agentv.evaluator.'),
+        )
         .map((event) => {
           const attrs = parseOtlpAttributes(event.attributes);
-          const name = event.name?.replace(/^agentv\.evaluator\./, '') ?? 'unknown';
+          const name =
+            event.name?.replace(/^agentv\.grader\./, '').replace(/^agentv\.evaluator\./, '') ??
+            'unknown';
           return {
             name,
-            type: stringAttr(attrs.agentv_evaluator_type) ?? 'unknown',
-            score: numberAttr(attrs.agentv_evaluator_score) ?? 0,
+            type:
+              stringAttr(attrs.agentv_grader_type) ??
+              stringAttr(attrs.agentv_evaluator_type) ??
+              'unknown',
+            score:
+              numberAttr(attrs.agentv_grader_score) ??
+              numberAttr(attrs.agentv_evaluator_score) ??
+              0,
           };
         }),
     } satisfies RawResult;

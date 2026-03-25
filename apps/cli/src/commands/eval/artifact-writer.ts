@@ -72,10 +72,7 @@ export interface BenchmarkArtifact {
       readonly cost_usd?: { readonly mean: number; readonly stddev: number };
     }
   >;
-  readonly per_evaluator_summary?: Record<
-    string,
-    { readonly mean: number; readonly stddev: number }
-  >;
+  readonly per_grader_summary?: Record<string, { readonly mean: number; readonly stddev: number }>;
   readonly notes: readonly string[];
 }
 
@@ -411,7 +408,7 @@ export function buildBenchmarkArtifact(
       tests_run: testIds,
     },
     run_summary: runSummary,
-    per_evaluator_summary: perEvaluatorSummary,
+    per_grader_summary: perEvaluatorSummary,
     notes,
   };
 }

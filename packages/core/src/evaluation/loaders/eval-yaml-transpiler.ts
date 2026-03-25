@@ -169,9 +169,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
       return `Output ends with '${entry.value}'`;
 
     case 'llm-grader':
-    case 'llm_grader':
-    case 'llm-judge':
-    case 'llm_judge': {
+    case 'llm_grader': {
       // Expand each rubric item to its own assertion string
       // Return the first one — callers handle arrays via assertionToNaturalLanguageList
       if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
@@ -193,9 +191,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     }
 
     case 'code-grader':
-    case 'code_grader':
-    case 'code-judge':
-    case 'code_judge': {
+    case 'code_grader': {
       const graderName = entry.name ?? deriveGraderNameFromCommand(entry.command) ?? 'code-grader';
       const desc = typeof entry.description === 'string' ? entry.description : undefined;
       return codeGraderInstruction(graderName, desc);
@@ -250,12 +246,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
  * Most assertions produce exactly one string; llm-grader with rubrics expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
-  if (
-    entry.type === 'llm-grader' ||
-    entry.type === 'llm_grader' ||
-    entry.type === 'llm-judge' ||
-    entry.type === 'llm_judge'
-  ) {
+  if (entry.type === 'llm-grader' || entry.type === 'llm_grader') {
     if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
       return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)
         .map((r) => r.outcome ?? r.criteria ?? r.id)

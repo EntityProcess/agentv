@@ -64,11 +64,7 @@ export type AssertionType =
   | 'equals'
   | 'regex'
   | 'is-json'
-  // legacy aliases (still accepted)
-  | 'llm-judge'
-  | 'code-judge'
-  | 'llm_judge'
-  | 'code_judge'
+  // legacy snake_case aliases (still accepted)
   | 'llm_grader'
   | 'code_grader'
   | 'tool_trajectory'

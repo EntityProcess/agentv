@@ -3,7 +3,7 @@ name: agentv-eval-writer
 description: >-
   Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
   Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
-  configure evaluators (llm-judge, code-judge, rubrics), review whether an eval is correct or complete,
+  configure graders (`llm-grader`, `code-grader`, `rubrics`), review whether an eval is correct or complete,
   convert between EVAL.yaml and evals.json using `agentv convert`, or generate eval test cases
   from chat transcripts (markdown conversation or JSON messages).
   Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
@@ -35,7 +35,7 @@ agentv prompt eval --input evals.json --test-id 1
 agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
-The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (llm-grader), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
+The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (`llm-grader`), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code graders, rubrics, required gates).
 
 If you're running the lifecycle through `agentv-bench`, use `agentv convert` and `agentv prompt eval` directly — the Python scripts in `agentv-bench/scripts/` orchestrate these same commands.
 
@@ -120,7 +120,7 @@ tests:
 | `criteria` | yes | What the response should accomplish |
 | `input` / `input` | yes | Input to the agent |
 | `expected_output` / `expected_output` | no | Gold-standard reference answer |
-| `assertions` | no | Evaluators: assertions, rubrics, judges |
+| `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
 | `rubrics` | no | **Deprecated** — use `assertions: [{type: rubrics, criteria: [...]}]` instead |
 | `execution` | no | Per-case execution overrides |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
@@ -192,7 +192,7 @@ The external file can be YAML (array of test objects) or JSONL.
 
 ## Assertions Field
 
-`assertions` defines evaluators at the suite level or per-test level. It is the canonical field for all evaluators (replaces `execution.evaluators`):
+`assertions` defines graders at the suite level or per-test level. It is the canonical field for all graders:
 
 ```yaml
 # Suite-level (appended to every test)
@@ -212,33 +212,31 @@ tests:
         value: '{"status": "ok"}'
 ```
 
-`execution.evaluators` is deprecated. When both `assertions` and `execution.evaluators` are present, `assertions` takes precedence.
-
 ## How `criteria` and `assertions` Interact
 
-`criteria` is a **data field** — it describes what the response should accomplish. It is **not** an evaluator. How it gets evaluated depends on whether `assertions` is present:
+`criteria` is a **data field** — it describes what the response should accomplish. It is **not** a grader. How it gets evaluated depends on whether `assertions` is present:
 
 | Scenario | What happens | Warning? |
 |----------|-------------|----------|
-| `criteria` + **no `assertions`** | Implicit `llm-judge` runs automatically against `criteria` | No |
-| `criteria` + **`assertions` with only deterministic evaluators** (contains, regex, etc.) | Only declared evaluators run. `criteria` is **not evaluated**. | Yes — warns that no evaluator will consume criteria |
-| `criteria` + **`assertions` with a judge** (llm-judge, code-judge, rubrics) | Declared evaluators run. Judges receive `criteria` as input. | No |
+| `criteria` + **no `assertions`** | Implicit `llm-grader` runs automatically against `criteria` | No |
+| `criteria` + **`assertions` with only deterministic graders** (contains, regex, etc.) | Only declared graders run. `criteria` is **not evaluated**. | Yes — warns that no grader will consume criteria |
+| `criteria` + **`assertions` with a grader** (`llm-grader`, `code-grader`, `rubrics`) | Declared graders run. Graders receive `criteria` as input. | No |
 
-### No assertions → implicit llm-judge
+### No assertions → implicit llm-grader
 
-The simplest path. `criteria` is automatically evaluated by the default `llm-judge`:
+The simplest path. `criteria` is automatically evaluated by the default `llm-grader`:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assertions → default llm-judge evaluates against criteria
+    # No assertions → default llm-grader evaluates against criteria
 ```
 
-### assertions present → no implicit judge
+### assertions present → no implicit grader
 
-When `assertions` is defined, **only the declared evaluators run**. If you want an LLM judge alongside deterministic checks, declare it explicitly:
+When `assertions` is defined, **only the declared graders run**. If you want an LLM grader alongside deterministic checks, declare it explicitly:
 
 ```yaml
 tests:
@@ -246,27 +244,27 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-judge        # must be explicit when assertions is present
+      - type: llm-grader       # must be explicit when assertions is present
       - type: contains
         value: "fix"
 ```
 
-**Common mistake:** defining `criteria` with only deterministic evaluators. The criteria will be ignored and a warning is emitted:
+**Common mistake:** defining `criteria` with only deterministic graders. The criteria will be ignored and a warning is emitted:
 
 ```yaml
 tests:
   - id: bad-example
-    criteria: Gives a thoughtful answer    # ⚠ NOT evaluated — no judge in assertions
+    criteria: Gives a thoughtful answer    # ⚠ NOT evaluated — no grader in assertions
     input: "What is 2+2?"
     assertions:
       - type: contains
         value: "4"
-    # Warning: criteria is defined but no evaluator in assertions will evaluate it.
+    # Warning: criteria is defined but no grader in assertions will evaluate it.
 ```
 
 ## Required Gates
 
-Any evaluator can be marked `required` to enforce a minimum score:
+Any grader can be marked `required` to enforce a minimum score:
 
 ```yaml
 assertions:
@@ -281,7 +279,7 @@ assertions:
         weight: 5.0
 ```
 
-If a required evaluator scores below its threshold, the overall verdict is forced to `fail`.
+If a required grader scores below its threshold, the overall verdict is forced to `fail`.
 
 ## Workspace Setup/Teardown
 
@@ -351,14 +349,14 @@ workspace:
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
 
-## Evaluator Types
+## Grader Types
 
-Configure via `assertions` array. Multiple evaluators produce a weighted average score.
+Configure via `assertions` array. Multiple graders produce a weighted average score.
 
-### code_judge
+### code_grader
 ```yaml
 - name: format_check
-  type: code-judge
+  type: code-grader
   command: [uv, run, validate.py]
   cwd: ./scripts          # optional working directory
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
@@ -366,14 +364,14 @@ Configure via `assertions` array. Multiple evaluators produce a weighted average
 Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
 Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 When `workspace_template` is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
-See docs at https://agentv.dev/evaluators/code-judges/
+See docs at https://agentv.dev/evaluators/code-graders/
 
-### llm_judge
+### llm_grader
 ```yaml
 - name: quality
-  type: llm-judge
+  type: llm-grader
   prompt: ./prompts/eval.md     # markdown template or command config
-  target: judge_gpt_5_mini      # optional: override the judge target for this evaluator
+  target: grader_gpt_5_mini     # optional: override the grader target for this grader
   model: gpt-5-chat            # optional model override
   config:                       # passed to prompt templates as context.config
     strictness: high
@@ -381,7 +379,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
 Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
-- Use `target:` to run different `llm-judge` evaluators against different named LLM targets in the same eval (useful for judge panels / ensembles)
+- Use `target:` to run different `llm-grader` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
 
 ### composite
 ```yaml
@@ -389,16 +387,16 @@ Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`,
   type: composite
   assertions:
     - name: safety
-      type: llm-judge
+      type: llm-grader
       prompt: ./safety.md
     - name: quality
-      type: llm-judge
+      type: llm-grader
   aggregator:
     type: weighted_average
     weights: { safety: 0.3, quality: 0.7 }
 ```
 Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `safety_gate`
-- `safety_gate`: fails immediately if the named gate evaluator scores below threshold (default 1.0)
+- `safety_gate`: fails immediately if the named gate grader scores below threshold (default 1.0)
 
 ### tool_trajectory
 ```yaml
@@ -532,7 +530,7 @@ agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 # Agent-orchestrated evals (no API keys needed)
 agentv prompt eval --list <file.yaml>                               # enumerate test IDs
 agentv prompt eval --input <file.yaml> --test-id <id>               # task input JSON (file paths, not embedded content)
-agentv prompt eval --expected-output <file.yaml> --test-id <id>     # expected output + evaluator criteria
+agentv prompt eval --expected-output <file.yaml> --test-id <id>     # expected output + grader criteria
 
 # Re-run only execution errors from a previous output
 agentv eval <file.yaml> --retry-errors <previous-output.jsonl>
@@ -553,7 +551,7 @@ agentv validate <file.yaml>
 
 ## Code Judge SDK
 
-Use `@agentv/eval` to build custom evaluators in TypeScript/JavaScript:
+Use `@agentv/eval` to build custom graders in TypeScript/JavaScript:
 
 ### defineAssertion (recommended for custom checks)
 ```typescript
@@ -568,12 +566,12 @@ export default defineAssertion(({ answer, trace }) => ({
 
 Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass` is given, score is 1 (pass) or 0 (fail).
 
-### defineCodeJudge (full control)
+### defineCodeGrader (full control)
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace, answer }) => ({
+export default defineCodeGrader(({ trace, answer }) => ({
   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
   assertions: [
     { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
@@ -581,7 +579,7 @@ export default defineCodeJudge(({ trace, answer }) => ({
 }));
 ```
 
-Both are used via `type: code-judge` in YAML with `command: [bun, run, judge.ts]`.
+Both are used via `type: code-grader` in YAML with `command: [bun, run, grader.ts]`.
 
 ### Convention-Based Discovery
 
@@ -657,16 +655,16 @@ After running evals, perform a human review before iterating. Create `feedback.j
       "test_id": "test-id",
       "verdict": "acceptable | needs_improvement | incorrect | flaky",
       "notes": "Why this verdict",
-      "evaluator_overrides": { "code-judge:name": "Override note" },
+      "evaluator_overrides": { "code-grader:name": "Override note" },
       "workspace_notes": "Workspace state observations"
     }
   ]
 }
 ```
 
-Use `evaluator_overrides` for workspace evaluations to annotate specific evaluator results (e.g., "code-judge was too strict"). Use `workspace_notes` for observations about workspace state.
+Use `evaluator_overrides` for workspace evaluations to annotate specific grader results (e.g., "code-grader was too strict"). Use `workspace_notes` for observations about workspace state.
 
-Review workflow: run evals → inspect results (`agentv trace show`) → write feedback → tune prompts/evaluators → re-run.
+Review workflow: run evals → inspect results (`agentv trace show`) → write feedback → tune prompts/graders → re-run.
 
 Full guide: https://agentv.dev/guides/human-review/
 

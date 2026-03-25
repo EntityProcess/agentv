@@ -80,10 +80,8 @@ export class CompositeEvaluator implements Evaluator {
 
     switch (aggregator.type) {
       case 'code-grader':
-      case 'code-judge':
         return this.runCodeAggregator(results, aggregator.path, aggregator.cwd ?? this.cwd);
       case 'llm-grader':
-      case 'llm-judge':
         return this.runLlmAggregator(results, context, aggregator);
       case 'threshold':
         return this.runThreshold(results, aggregator.threshold);
@@ -312,9 +310,7 @@ export class CompositeEvaluator implements Evaluator {
   private async runLlmAggregator(
     results: readonly MemberResult[],
     context: EvaluationContext,
-    config:
-      | Extract<CompositeAggregatorConfig, { type: 'llm-grader' }>
-      | Extract<CompositeAggregatorConfig, { type: 'llm-judge' }>,
+    config: Extract<CompositeAggregatorConfig, { type: 'llm-grader' }>,
   ): Promise<EvaluationScore> {
     const graderProvider = context.graderProvider;
     if (!graderProvider) {

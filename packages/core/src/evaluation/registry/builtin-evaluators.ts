@@ -380,9 +380,7 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
 
   registry
     .register('llm-grader', llmGraderFactory)
-    .register('llm-judge', llmGraderFactory)
     .register('code-grader', codeFactory)
-    .register('code-judge', codeFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
     .register('field-accuracy', fieldAccuracyFactory)

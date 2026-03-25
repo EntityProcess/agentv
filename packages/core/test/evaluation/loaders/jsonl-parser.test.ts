@@ -150,14 +150,14 @@ describe('loadTestsFromJsonl', () => {
     );
     await writeFile(
       sidecarPath,
-      'description: Test dataset\nname: my-tests\nevaluator: llm_judge\n',
+      'description: Test dataset\nname: my-tests\nevaluator: llm_grader\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].eval_set).toBe('my-tests');
-    expect(cases[0].evaluator).toBe('llm-judge');
+    expect(cases[0].evaluator).toBe('llm-grader');
   });
 
   it('uses default dataset name from filename when no sidecar', async () => {
@@ -177,7 +177,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-evaluators.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);

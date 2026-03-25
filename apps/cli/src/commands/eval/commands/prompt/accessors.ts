@@ -105,20 +105,10 @@ export async function getPromptEvalGradingBrief(evalPath: string, testId: string
           if (item.outcome) criteria.push(item.outcome);
         }
       }
-    } else if (
-      type === 'llm-grader' ||
-      type === 'llm_grader' ||
-      type === 'llm-judge' ||
-      type === 'llm_judge'
-    ) {
+    } else if (type === 'llm-grader' || type === 'llm_grader') {
       const prompt = entry.prompt ?? bag.prompt ?? bag.criteria;
       criteria.push(`[llm-grader] ${typeof prompt === 'string' ? prompt : ''}`);
-    } else if (
-      type === 'code-grader' ||
-      type === 'code_grader' ||
-      type === 'code-judge' ||
-      type === 'code_judge'
-    ) {
+    } else if (type === 'code-grader' || type === 'code_grader') {
       const name = entry.name ?? type;
       const desc = bag.description ?? entry.description;
       criteria.push(`[code-grader] ${name}${desc ? `: ${desc}` : ''}`);

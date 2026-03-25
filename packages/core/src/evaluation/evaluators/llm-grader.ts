@@ -186,11 +186,7 @@ export class LlmGraderEvaluator implements Evaluator {
 
     // LLM mode: structured JSON evaluation
     const config = context.evaluator;
-    if (
-      (config?.type === 'llm-grader' || config?.type === 'llm-judge') &&
-      config.rubrics &&
-      config.rubrics.length > 0
-    ) {
+    if (config?.type === 'llm-grader' && config.rubrics && config.rubrics.length > 0) {
       return this.evaluateWithRubrics(context, graderProvider, config.rubrics);
     }
 
@@ -428,8 +424,7 @@ export class LlmGraderEvaluator implements Evaluator {
     const userPrompt = this.buildAgentUserPrompt(context);
 
     const config = context.evaluator;
-    const rubrics =
-      config?.type === 'llm-grader' || config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
 
     const fsTools = createFilesystemTools(workspacePath);
 
@@ -546,8 +541,7 @@ export class LlmGraderEvaluator implements Evaluator {
       }
 
       const config = context.evaluator;
-      const rubrics =
-        config?.type === 'llm-grader' || config?.type === 'llm-judge' ? config.rubrics : undefined;
+      const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
 
       const details: JsonObject = {
         mode: modeLabel,
@@ -591,8 +585,7 @@ export class LlmGraderEvaluator implements Evaluator {
    */
   private buildAgentSystemPrompt(context: EvaluationContext): string {
     const config = context.evaluator;
-    const rubrics =
-      config?.type === 'llm-grader' || config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
 
     const parts: string[] = [
       'You are an expert evaluator with access to the workspace filesystem.',
@@ -633,8 +626,7 @@ export class LlmGraderEvaluator implements Evaluator {
     }
 
     const config = context.evaluator;
-    const rubrics =
-      config?.type === 'llm-grader' || config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
 
     const parts: string[] = [
       'Evaluate the candidate answer by investigating the workspace.',
@@ -688,8 +680,7 @@ export class LlmGraderEvaluator implements Evaluator {
         : context.evalCase.question;
 
     const config = context.evaluator;
-    const rubrics =
-      config?.type === 'llm-grader' || config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
 
     if (this.evaluatorTemplate) {
       const variables: Record<string, string> = {

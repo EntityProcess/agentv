@@ -1,11 +1,11 @@
 ---
 title: Code Graders
-description: Deterministic code evaluators in Python or TypeScript
+description: Deterministic code graders in Python or TypeScript
 sidebar:
   order: 1
 ---
 
-Code graders (also accepts `code-judge` for backward compatibility) are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
+Code graders are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
 
 ## Contract
 
@@ -127,7 +127,7 @@ Code graders can call an LLM through a target proxy for metrics that require mul
 
 ### Configuration
 
-Add a `target` block to the evaluator config:
+Add a `target` block to the grader config:
 
 ```yaml
 assertions:

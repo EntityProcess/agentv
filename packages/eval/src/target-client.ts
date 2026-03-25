@@ -97,7 +97,7 @@ export class TargetInvocationError extends Error {
  *
  * This function reads the proxy URL and token from environment variables
  * that are automatically set by AgentV when a `target` config block is present
- * on a `code_grader` (or `code_judge`) evaluator.
+ * on a `code_grader` evaluator.
  *
  * @returns A target client if environment variables are set, otherwise undefined
  * @throws TargetNotAvailableError if token is missing when URL is present

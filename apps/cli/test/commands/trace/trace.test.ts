@@ -100,10 +100,10 @@ const OTLP_TRACE = JSON.stringify({
               status: { code: 1 },
               events: [
                 {
-                  name: 'agentv.evaluator.execution',
+                  name: 'agentv.grader.execution',
                   attributes: [
-                    { key: 'agentv.evaluator.type', value: { stringValue: 'execution-metrics' } },
-                    { key: 'agentv.evaluator.score', value: { doubleValue: 1 } },
+                    { key: 'agentv.grader.type', value: { stringValue: 'execution-metrics' } },
+                    { key: 'agentv.grader.score', value: { doubleValue: 1 } },
                   ],
                 },
               ],

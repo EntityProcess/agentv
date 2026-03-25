@@ -20,6 +20,10 @@ export function normalizeEvaluatorType(type: string): string {
   return type.replace(/_/g, '-');
 }
 
+function isDeprecatedJudgeType(type: string): boolean {
+  return type === 'code-judge' || type === 'llm-judge';
+}
+
 /**
  * Parse evaluators from eval case configuration.
  */
@@ -37,14 +41,14 @@ export async function parseEvaluators(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level evaluators priority: assertions > assert > execution.evaluators (deprecated) > top-level evaluators (deprecated)
+  // Case-level graders priority: assertions > assert > legacy execution/top-level assertion lists
   const caseEvaluators =
     rawEvalCase.assertions ??
     rawEvalCase.assert ??
     (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assertions
     rawEvalCase.evaluators; // deprecated: use assertions
 
-  // Root-level (default) evaluators: assertions > assert > execution.evaluators (deprecated)
+  // Root-level default graders: assertions > assert > legacy execution assertion list
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
@@ -133,6 +137,13 @@ async function parseEvaluatorList(
     // Normalize legacy snake_case YAML type names to internal kebab-case (e.g., 'llm_grader' -> 'llm-grader')
     const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
+    if (typeof typeValue === 'string' && isDeprecatedJudgeType(typeValue)) {
+      logWarning(
+        `Skipping evaluator '${rawName ?? '<unnamed>'}' in '${evalId}': '${rawType}' is deprecated. Use '${typeValue.replace('-judge', '-grader')}' instead`,
+      );
+      continue;
+    }
+
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
     const isCustomType = typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
     if (typeof typeValue !== 'string') {
@@ -177,7 +188,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'code-grader' || typeValue === 'code-judge') {
+    if (typeValue === 'code-grader') {
       let command: string[] | undefined;
       // Precedence: command > script (deprecated alias)
       if (rawEvaluator.script !== undefined && rawEvaluator.command === undefined) {
@@ -306,13 +317,26 @@ async function parseEvaluatorList(
       }
 
       const aggregatorType = asString(rawAggregator.type);
+      const normalizedAggregatorType =
+        typeof aggregatorType === 'string'
+          ? aggregatorType === 'weighted_average' || aggregatorType === 'threshold'
+            ? aggregatorType
+            : normalizeEvaluatorType(aggregatorType)
+          : aggregatorType;
       if (
-        aggregatorType !== 'weighted_average' &&
-        aggregatorType !== 'code-grader' &&
-        aggregatorType !== 'code-judge' &&
-        aggregatorType !== 'llm-grader' &&
-        aggregatorType !== 'llm-judge' &&
-        aggregatorType !== 'threshold'
+        typeof normalizedAggregatorType === 'string' &&
+        isDeprecatedJudgeType(normalizedAggregatorType)
+      ) {
+        logWarning(
+          `Skipping composite evaluator '${name}' in '${evalId}': aggregator type '${aggregatorType}' is deprecated. Use '${normalizedAggregatorType.replace('-judge', '-grader')}' instead`,
+        );
+        continue;
+      }
+      if (
+        normalizedAggregatorType !== 'weighted_average' &&
+        normalizedAggregatorType !== 'code-grader' &&
+        normalizedAggregatorType !== 'llm-grader' &&
+        normalizedAggregatorType !== 'threshold'
       ) {
         logWarning(
           `Skipping composite evaluator '${name}' in '${evalId}': invalid aggregator type '${aggregatorType}'`,
@@ -359,7 +383,7 @@ async function parseEvaluatorList(
       // Parse aggregator config
       let aggregator: import('../types.js').CompositeAggregatorConfig;
 
-      if (aggregatorType === 'weighted_average') {
+      if (normalizedAggregatorType === 'weighted_average') {
         const weights = isJsonObject(rawAggregator.weights)
           ? (rawAggregator.weights as Record<string, unknown>)
           : undefined;
@@ -375,7 +399,7 @@ async function parseEvaluatorList(
           type: 'weighted_average',
           ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
         };
-      } else if (aggregatorType === 'code-grader' || aggregatorType === 'code-judge') {
+      } else if (normalizedAggregatorType === 'code-grader') {
         const aggregatorPath = asString(rawAggregator.path);
         if (!aggregatorPath) {
           logWarning(
@@ -391,7 +415,7 @@ async function parseEvaluatorList(
           path: aggregatorPath,
           cwd: searchRoots[0],
         };
-      } else if (aggregatorType === 'threshold') {
+      } else if (normalizedAggregatorType === 'threshold') {
         const thresholdValue = rawAggregator.threshold;
         if (typeof thresholdValue !== 'number' || thresholdValue < 0 || thresholdValue > 1) {
           logWarning(
@@ -404,7 +428,7 @@ async function parseEvaluatorList(
           threshold: thresholdValue,
         };
       } else {
-        // llm-grader aggregator (accepts both 'llm-grader' and 'llm-judge')
+        // llm-grader aggregator
         const aggregatorPrompt = asString(rawAggregator.prompt);
         let promptPath: string | undefined;
 
@@ -1322,10 +1346,16 @@ export function coerceEvaluator(
   }
   // Normalize legacy snake_case to kebab-case
   const normalized = normalizeEvaluatorType(candidate);
+  if (isDeprecatedJudgeType(normalized)) {
+    logWarning(
+      `Unknown grader '${candidate}' in ${contextId}; use '${normalized.replace('-judge', '-grader')}' instead`,
+    );
+    return undefined;
+  }
   if (isEvaluatorKind(normalized)) {
     return normalized;
   }
-  logWarning(`Unknown evaluator '${candidate}' in ${contextId}, falling back to default`);
+  logWarning(`Unknown grader '${candidate}' in ${contextId}, falling back to default`);
   return undefined;
 }
 
