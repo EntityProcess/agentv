@@ -17,7 +17,6 @@ export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
 
 export type ExecutionDefaults = {
   readonly verbose?: boolean;
-  readonly trace_file?: string;
   readonly keep_workspaces?: boolean;
   readonly otel_file?: string;
   readonly export_otel?: boolean;
@@ -349,13 +348,6 @@ export function parseExecutionDefaults(
     result.verbose = obj.verbose;
   } else if (obj.verbose !== undefined) {
     logWarning(`Invalid execution.verbose in ${configPath}, expected boolean`);
-  }
-
-  const traceFile = obj.trace_file;
-  if (typeof traceFile === 'string' && traceFile.trim().length > 0) {
-    result.trace_file = traceFile.trim();
-  } else if (traceFile !== undefined) {
-    logWarning(`Invalid execution.trace_file in ${configPath}, expected non-empty string`);
   }
 
   if (typeof obj.keep_workspaces === 'boolean') {

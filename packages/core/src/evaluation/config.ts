@@ -42,8 +42,6 @@ const AgentVConfigSchema = z.object({
       agentTimeoutMs: z.number().int().min(0).optional(),
       /** Enable verbose logging */
       verbose: z.boolean().optional(),
-      /** Write human-readable trace JSONL to this path (supports {timestamp} placeholder) */
-      traceFile: z.string().optional(),
       /** Always keep temp workspaces after eval */
       keepWorkspaces: z.boolean().optional(),
       /** Write OTLP JSON trace to this path (supports {timestamp} placeholder) */

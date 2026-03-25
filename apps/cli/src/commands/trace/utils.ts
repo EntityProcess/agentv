@@ -103,7 +103,7 @@ export interface RawTraceSpan {
  *
  * Supported sources:
  * - Run workspace directories / index.jsonl manifests
- * - Simple trace JSONL files written via --trace-file
+ * - Legacy simple trace JSONL files
  * - OTLP JSON trace files written via --otel-file
  */
 export function loadResultFile(filePath: string): RawResult[] {
@@ -239,8 +239,10 @@ function loadOtlpTraceFile(filePath: string): RawResult[] {
   }
 
   const roots = spans.filter((span) => !span.parentSpanId || !spanMap.has(span.parentSpanId));
+  const supportedRoots = roots.filter(isAgentvEvalRoot);
+  const candidateRoots = supportedRoots.length > 0 ? supportedRoots : roots;
 
-  return roots.map((root, index) => {
+  return candidateRoots.map((root, index) => {
     const descendants = collectChildSpans(root.spanId, childMap);
     const rootAttrs = parseOtlpAttributes(root.attributes);
     const parsedDescendants = descendants.map((span) => ({
@@ -365,6 +367,15 @@ function loadOtlpTraceFile(filePath: string): RawResult[] {
         }),
     } satisfies RawResult;
   });
+}
+
+function isAgentvEvalRoot(span: OtlpSpan): boolean {
+  const attrs = parseOtlpAttributes(span.attributes);
+  return (
+    span.name === 'agentv.eval' ||
+    numberAttr(attrs.agentv_score) !== undefined ||
+    typeof stringAttr(attrs.agentv_test_id) === 'string'
+  );
 }
 
 function collectChildSpans(

@@ -116,14 +116,6 @@ export class OtelTraceExporter {
         );
       }
 
-      // Simple trace file exporter
-      if (this.options.traceFilePath) {
-        const { SimpleTraceFileExporter } = await import('./simple-trace-file-exporter.js');
-        processors.push(
-          new SimpleSpanProcessor(new SimpleTraceFileExporter(this.options.traceFilePath)),
-        );
-      }
-
       if (processors.length === 0) {
         return false;
       }

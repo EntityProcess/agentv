@@ -12,8 +12,6 @@ export interface OtelExportOptions {
   readonly groupTurns?: boolean;
   /** Path to write OTLP JSON file (importable by OTel backends) */
   readonly otlpFilePath?: string;
-  /** Path to write human-readable simple JSONL trace file */
-  readonly traceFilePath?: string;
 }
 
 /** Preset configuration for a known observability backend. */

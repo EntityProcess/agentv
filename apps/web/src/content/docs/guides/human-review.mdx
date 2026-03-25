@@ -38,7 +38,7 @@ For workspace evaluations (EVAL.yaml), use the trace viewer:
 
 ```bash
 # View traces from a specific run
-agentv trace show results/2026-03-14T10-32-00_claude/traces.jsonl
+agentv trace show results/2026-03-14T10-32-00_claude/index.jsonl
 
 # View the HTML report (if generated via #562)
 open results/2026-03-14T10-32-00_claude/report.html
@@ -62,7 +62,7 @@ Create a `feedback.json` file in the run workspace, alongside `index.jsonl`:
 results/
   2026-03-14T10-32-00_claude/
     index.jsonl            # run manifest
-    traces.jsonl           # execution traces
+    trace.otlp.json        # optional OTLP trace export
     feedback.json          # ← your review annotations
 ```
 

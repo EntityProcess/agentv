@@ -77,29 +77,23 @@ agentv eval evals/my-eval.yaml --out results/baseline.jsonl
 
 Export execution traces (tool calls, timing, spans) to files for debugging and analysis:
 
-When AgentV writes to its default per-run workspace, it also writes a human-readable trace file at
-`<run-dir>/trace.jsonl` so `agentv trace` has a full-fidelity local trace source even when
-`index.jsonl` is the primary run manifest.
+By default, AgentV writes a per-run workspace with `index.jsonl` as the canonical manifest for
+result-oriented workflows. For full-fidelity span inspection, export OTLP JSON explicitly.
 
 ```bash
-# Human-readable JSONL trace (one record per test case)
-agentv eval evals/my-eval.yaml --trace-file traces/eval.jsonl
+# Summary-level inspection from the run manifest
+agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl
 
-# OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
+# Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
 
-# Both formats simultaneously
-agentv eval evals/my-eval.yaml --trace-file traces/eval.jsonl --otel-file traces/eval.otlp.json
+# Inspect the OTLP trace export
+agentv trace show traces/eval.otlp.json --tree
 ```
 
-The `--trace-file` format writes JSONL records containing:
-- `test_id` - The test identifier
-- `target` / `score` - Target and evaluation score
-- `duration_ms` - Total execution duration
-- `spans` - Array of tool invocations with timing
-- `token_usage` / `cost_usd` - Resource consumption
-
-The `--otel-file` format writes standard OTLP JSON that can be imported into any OpenTelemetry-compatible backend.
+`index.jsonl` contains aggregate metrics such as score, latency, cost, token usage, and summary
+trace counters. `--otel-file` writes standard OTLP JSON that can be imported into any
+OpenTelemetry-compatible backend.
 
 ### Live OTel Export
 
@@ -367,7 +361,6 @@ Set default execution options so you don't have to pass them on every CLI invoca
 ```yaml
 execution:
   verbose: true
-  trace_file: .agentv/results/trace-{timestamp}.jsonl
   keep_workspaces: false
   otel_file: .agentv/results/otel-{timestamp}.json
 ```
@@ -375,7 +368,6 @@ execution:
 | Field | CLI equivalent | Type | Default | Description |
 |-------|---------------|------|---------|-------------|
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
-| `trace_file` | `--trace-file` | string | none | Write human-readable trace JSONL |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
 
@@ -387,7 +379,6 @@ import { defineConfig } from '@agentv/core';
 export default defineConfig({
   execution: {
     verbose: true,
-    traceFile: '.agentv/results/trace-{timestamp}.jsonl',
     keepWorkspaces: false,
     otelFile: '.agentv/results/otel-{timestamp}.json',
   },
