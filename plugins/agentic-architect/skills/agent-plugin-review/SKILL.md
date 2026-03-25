@@ -53,6 +53,7 @@ For each SKILL.md, check against `references/skill-quality-checklist.md`:
 - Cross-references use skill name with requirement markers, not `@` force-load syntax
 - Discipline-enforcing skills have rationalization tables, red flags lists, and explicit loophole closures
 - Consistency — no contradictions within or across files (tool names, filenames, commands, rules)
+- No manual routing workarounds — if AGENTS.md or instruction files contain heavy TRIGGER/ACTION routing tables or skill-chain logic, the skill descriptions are likely too weak. Good descriptions enable auto-discovery without manual routing.
 
 ### Step 4: Workflow architecture review (LLM judgment)
 
