@@ -1,8 +1,10 @@
-# Copilot Log + Skill-Trigger evaluation example.
+# Copilot Log evaluation example — deterministic + code-grader assertions.
 #
-# Reads a Copilot CLI session transcript from disk and checks which skills
-# were invoked. No LLM API key needed — both the provider (copilot-log)
-# and evaluator (skill-trigger) are deterministic.
+# Reads a Copilot CLI session transcript from disk and evaluates it with:
+#   1. skill-trigger  — deterministic check for skill invocation
+#   2. code-grader    — custom TypeScript grader inspecting full Message[]
+#
+# No LLM API key needed — all evaluators are deterministic.
 #
 # Prerequisites:
 #   1. Have at least one Copilot CLI session in ~/.copilot/session-state/
@@ -24,3 +26,6 @@ tests:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: false
+      - name: transcript-quality
+        type: code-grader
+        command: ["bun", "run", "../graders/transcript-quality.ts"]
