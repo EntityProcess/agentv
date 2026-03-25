@@ -394,7 +394,9 @@ Plans are temporary working materials. **Before merging the PR**, delete the pla
 
 #### Git Worktrees
 
-Use the `agentv.worktrees/` directory. After creating a worktree, always run setup:
+Use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
+
+After creating a worktree, always run setup:
 ```bash
 bun install                                    # worktrees do NOT share node_modules
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env    # required for e2e tests and LLM operations
