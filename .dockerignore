@@ -1,0 +1,14 @@
+.git
+node_modules
+dist
+*.md
+.env*
+.agentv/results
+**/*.test.ts
+**/*.spec.ts
+coverage
+.vscode
+.idea
+.claude
+.entire
+.opencode
