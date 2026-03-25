@@ -1,0 +1,48 @@
+description: Tests the deploy-execute skill
+
+tests:
+  - id: execute-plan
+    criteria: Executes deployment steps from deploy-plan.md
+    input:
+      - role: user
+        content:
+          - type: file
+            value: "/plugins/deploy-auto/skills/deploy-execute/SKILL.md"
+          - type: text
+            value: "Execute the deployment plan at ./output/deploy-plan.md"
+    assertions:
+      - type: rubrics
+        criteria:
+          - Reads the deployment plan file
+          - Executes steps in order
+          - Runs health checks after each step
+
+  - id: health-check-failure
+    criteria: Stops and rolls back on health check failure
+    input:
+      - role: user
+        content:
+          - type: file
+            value: "/plugins/deploy-auto/skills/deploy-execute/SKILL.md"
+          - type: text
+            value: "The API service health check is failing after deployment. What should happen?"
+    assertions:
+      - type: contains
+        value: rollback
+      - type: rubrics
+        criteria:
+          - Recommends executing the rollback command
+          - Stops the deployment pipeline
+
+  - id: run-tests
+    criteria: Runs integration tests after deployment
+    input:
+      - role: user
+        content:
+          - type: file
+            value: "/plugins/deploy-auto/skills/deploy-execute/SKILL.md"
+          - type: text
+            value: "Deployment is complete. Run the integration tests."
+    expected_output:
+      - role: assistant
+        content: "The agent should run the test suite using python -m unittest discover to verify the deployment."

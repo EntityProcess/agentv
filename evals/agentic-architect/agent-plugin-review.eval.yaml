@@ -1,0 +1,131 @@
+description: Evaluates that the agent-plugin-review skill is triggered and catches planted issues in a mock plugin
+
+execution:
+  targets:
+    - pi-cli
+
+workspace:
+  template: ./workspace-template
+
+tests:
+  - id: detect-missing-eval
+    criteria: Identifies that deploy-rollback skill has no corresponding eval file
+    input: |
+      Review the deploy-auto plugin in this repo for completeness.
+      Check that every skill has a corresponding eval file.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: contains
+        value: deploy-rollback
+      - type: rubrics
+        criteria:
+          - Flags that deploy-rollback skill has no corresponding eval file
+          - Does not flag deploy-plan or deploy-execute as missing evals
+
+  - id: detect-eval-naming
+    criteria: Identifies eval files using bare .yaml instead of .eval.yaml
+    input: |
+      Review the eval files under evals/deploy-auto/ for naming convention issues.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: contains
+        value: .eval.yaml
+      - type: rubrics
+        criteria:
+          - Flags deploy-plan.yaml as using wrong extension
+          - Recommends renaming to .eval.yaml
+          - Does not flag deploy-execute.eval.yaml
+
+  - id: detect-missing-assertions
+    criteria: Identifies eval tests without assertions that rely solely on expected_output prose
+    input: |
+      Review evals/deploy-auto/deploy-plan.yaml for eval quality issues.
+      Check assertion coverage and expected_output format.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Flags that no assertions are defined in deploy-plan.yaml
+          - Notes that expected_output contains evaluation criteria prose rather than sample responses
+          - Suggests adding deterministic assertions
+
+  - id: detect-relative-file-paths
+    criteria: Identifies eval file paths missing leading slash
+    input: |
+      Review evals/deploy-auto/deploy-plan.yaml for file path formatting issues.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Flags that file paths are missing a leading slash
+          - Shows the corrected path format with leading slash
+
+  - id: detect-repeated-inputs
+    criteria: Identifies eval files repeating the same file input in every test
+    input: |
+      Review evals/deploy-auto/deploy-plan.yaml for structural improvements.
+      Look at how inputs are organized across test cases.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Identifies the repeated SKILL.md file input across all 3 tests
+          - Recommends using top-level input for the shared file reference
+
+  - id: detect-missing-hard-gates
+    criteria: Identifies that deploy-execute has no hard gate checking for deploy-plan.md
+    input: |
+      Review the deploy-auto plugin's workflow architecture.
+      Check whether phases enforce prerequisites before proceeding.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Flags that deploy-execute does not check for deploy-plan.md before starting
+          - Recommends adding hard gates between phases
+          - Suggests stopping with a clear message if prerequisites are missing
+
+  - id: detect-factual-contradiction
+    criteria: Identifies that deploy-execute says pytest but its eval says python -m unittest
+    input: |
+      Review evals/deploy-auto/deploy-execute.eval.yaml for factual accuracy.
+      Cross-check expected outputs against what the skills actually document.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Flags the contradiction between pytest (skill) and python -m unittest (eval)
+          - Recommends updating the eval to match the skill
+
+  - id: detect-nonexistent-command-reference
+    criteria: Identifies that deploy-plan references /deploy-execute which is not a command
+    input: |
+      Review plugins/deploy-auto/skills/deploy-plan/SKILL.md for cross-reference issues.
+      Check that referenced commands and skills actually exist.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Flags that /deploy-execute is referenced but does not exist as a slash command
+          - Notes the distinction between skills and slash commands
+          - Suggests either creating the command or updating the handoff
+
+  - id: detect-hardcoded-paths
+    criteria: Identifies hardcoded local paths in deploy-execute skill
+    input: |
+      Review plugins/deploy-auto/skills/deploy-execute/SKILL.md for portability issues.
+    assertions:
+      - type: skill-trigger
+        value: agent-plugin-review
+      - type: rubrics
+        criteria:
+          - Flags the hardcoded path C:\Users\admin\.kube\config
+          - Recommends using environment variables or configurable defaults

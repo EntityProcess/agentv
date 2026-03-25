@@ -167,7 +167,7 @@ Most frameworks store ground-truth datasets in platform-internal formats (DataFr
 
 ### Why the scoring script stays outside core
 
-Per AgentV's [design principles](../../CLAUDE.md) — "Lightweight Core, Plugin Extensibility" — CLI wrappers that consume JSONL output for post-processing belong outside core. The scoring script composes existing primitives and serves a niche use case, consistent with "Built-ins for Primitives Only."
+Per AgentV's [design principles](../../../CLAUDE.md) — "Lightweight Core, Plugin Extensibility" — CLI wrappers that consume JSONL output for post-processing belong outside core. The scoring script composes existing primitives and serves a niche use case, consistent with "Built-ins for Primitives Only."
 
 ## Why this stays lightweight
 
