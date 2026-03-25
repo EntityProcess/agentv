@@ -23,13 +23,14 @@ RUN apt-get update \
 
 RUN addgroup --system agentv && adduser --system --ingroup agentv agentv
 
-# Install uv + Python (for Python-based providers/evaluators)
+# Install uv + Python to a shared location (not user-specific)
 COPY --from=ghcr.io/astral-sh/uv:0.6.12 /uv /usr/local/bin/uv
+ENV UV_PYTHON_INSTALL_DIR=/opt/python
 RUN uv python install 3.12
+ENV PATH="/opt/python/cpython-3.12.9-linux-aarch64-gnu/bin:${PATH}"
 
-# Copy only built artifacts — not the full build context
+# Copy only built artifacts — skip root node_modules (1.2GB of devDeps)
 COPY --from=build /app/package.json /app/bun.lock ./
-COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/core/package.json ./packages/core/
 COPY --from=build /app/packages/eval/dist ./packages/eval/dist
