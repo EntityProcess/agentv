@@ -1,5 +1,5 @@
 ---
-name: agentv-plugin-review
+name: agent-plugin-review
 description: >-
   Review AI plugin pull requests for skill quality, eval correctness, and workflow architecture.
   This skill should be used when asked to "review a plugin PR", "review skills in this PR",

@@ -16,6 +16,11 @@
       "name": "agentv-claude-trace",
       "description": "Session tracing plugin — exports Claude Code session traces via OpenTelemetry",
       "source": "./plugins/agentv-claude-trace"
+    },
+    {
+      "name": "agentic-architect",
+      "description": "Design and review AI agent architectures — species selection, workflow patterns, and plugin quality review",
+      "source": "./plugins/agentic-architect"
     }
   ]
 }
