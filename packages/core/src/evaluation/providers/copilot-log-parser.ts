@@ -2,16 +2,19 @@
  * Copilot CLI events.jsonl parser.
  *
  * Reads a Copilot CLI session transcript (events.jsonl) and converts it to
- * AgentV's Message[] format. Each line is a JSON object with a `type` field.
+ * AgentV's Message[] format. Each line is a JSON object with:
+ *   { type, data: { ...payload }, id, timestamp, parentId }
+ *
+ * All event-specific fields live under event.data.*, while type, id, timestamp,
+ * and parentId are at the top level.
  *
  * Supported event types:
- *   session.start    → session metadata (sessionId, model, cwd)
+ *   session.start    → session metadata (data.sessionId, data.context.cwd)
  *   user.message     → Message { role: 'user' }
- *   assistant.message → Message { role: 'assistant', toolCalls from toolRequests }
- *   skill.invoked    → ToolCall { tool: 'Skill', input: { skill: name } }
+ *   assistant.message → Message { role: 'assistant', toolCalls from data.toolRequests }
+ *   skill.invoked    → ToolCall { tool: 'Skill', input: { skill: data.name } }
  *   tool.execution_start + tool.execution_complete → ToolCall with output
- *   assistant.usage  → tokenUsage aggregation
- *   session.shutdown → session end timestamp
+ *   session.shutdown → token usage from data.modelMetrics, end timestamp
  *
  * To add a new event type:
  *   1. Add a case to the switch in parseCopilotEvents()
@@ -57,7 +60,6 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
 
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
-  let totalCost = 0;
   let hasUsage = false;
   let startTimestamp: string | undefined;
   let endTimestamp: string | undefined;
@@ -77,47 +79,50 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
     const eventType = event.type as string | undefined;
     if (!eventType) continue;
 
+    // All event payloads are nested under event.data
+    const data = (event.data ?? {}) as Record<string, unknown>;
+
     switch (eventType) {
       case 'session.start': {
-        meta.sessionId = String(event.sessionId ?? '');
-        meta.model = String(event.selectedModel ?? '');
-        const ctx = event.context as Record<string, unknown> | undefined;
+        meta.sessionId = String(data.sessionId ?? '');
+        const ctx = data.context as Record<string, unknown> | undefined;
         meta.cwd = String(ctx?.cwd ?? '');
         meta.repository = ctx?.repository ? String(ctx.repository) : undefined;
         meta.branch = ctx?.branch ? String(ctx.branch) : undefined;
-        meta.startedAt = event.timestamp ? String(event.timestamp) : undefined;
-        startTimestamp = event.timestamp ? String(event.timestamp) : undefined;
+        // timestamp is at event top level; startTime is in data
+        const ts = event.timestamp ?? data.startTime;
+        meta.startedAt = ts ? String(ts) : undefined;
+        startTimestamp = ts ? String(ts) : undefined;
         break;
       }
 
       case 'user.message': {
         messages.push({
           role: 'user',
-          content: event.content != null ? String(event.content) : '',
+          content: data.content != null ? String(data.content) : '',
         });
         break;
       }
 
       case 'assistant.message': {
-        const toolRequests = event.toolRequests as
-          | readonly { toolName: string; arguments?: unknown }[]
-          | undefined;
+        const toolRequests = data.toolRequests as readonly Record<string, unknown>[] | undefined;
 
         const toolCalls: ToolCall[] = (toolRequests ?? []).map((req) => ({
-          tool: req.toolName,
+          tool: String(req.name ?? req.toolName ?? ''),
           input: req.arguments,
+          id: req.toolCallId ? String(req.toolCallId) : undefined,
         }));
 
         messages.push({
           role: 'assistant',
-          content: event.content != null ? String(event.content) : undefined,
+          content: data.content != null ? String(data.content) : undefined,
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         });
         break;
       }
 
       case 'skill.invoked': {
-        const skillName = String(event.name ?? '');
+        const skillName = String(data.name ?? '');
         messages.push({
           role: 'assistant',
           toolCalls: [
@@ -131,11 +136,11 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
       }
 
       case 'tool.execution_start': {
-        const toolCallId = String(event.toolCallId ?? '');
+        const toolCallId = String(data.toolCallId ?? '');
         if (toolCallId) {
           toolCallsInProgress.set(toolCallId, {
-            toolName: String(event.toolName ?? ''),
-            input: event.arguments,
+            toolName: String(data.toolName ?? ''),
+            input: data.arguments,
             toolCallId,
           });
         }
@@ -143,7 +148,7 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
       }
 
       case 'tool.execution_complete': {
-        const toolCallId = String(event.toolCallId ?? '');
+        const toolCallId = String(data.toolCallId ?? '');
         const started = toolCallsInProgress.get(toolCallId);
         if (started) {
           toolCallsInProgress.delete(toolCallId);
@@ -153,7 +158,7 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
               {
                 tool: started.toolName,
                 input: started.input,
-                output: event.result,
+                output: data.result,
                 id: toolCallId,
               },
             ],
@@ -162,16 +167,28 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
         break;
       }
 
-      case 'assistant.usage': {
-        hasUsage = true;
-        totalInputTokens += Number(event.inputTokens ?? 0);
-        totalOutputTokens += Number(event.outputTokens ?? 0);
-        totalCost += Number(event.cost ?? 0);
-        break;
-      }
-
       case 'session.shutdown': {
         endTimestamp = event.timestamp ? String(event.timestamp) : undefined;
+
+        // Extract token usage from modelMetrics
+        const modelMetrics = data.modelMetrics as
+          | Record<string, { usage?: { inputTokens?: number; outputTokens?: number } }>
+          | undefined;
+        if (modelMetrics) {
+          for (const metrics of Object.values(modelMetrics)) {
+            if (metrics.usage) {
+              hasUsage = true;
+              totalInputTokens += Number(metrics.usage.inputTokens ?? 0);
+              totalOutputTokens += Number(metrics.usage.outputTokens ?? 0);
+            }
+          }
+        }
+
+        // Extract model name from currentModel
+        const currentModel = data.currentModel;
+        if (currentModel && !meta.model) {
+          meta.model = String(currentModel);
+        }
         break;
       }
     }
@@ -186,7 +203,6 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
     messages,
     meta,
     tokenUsage: hasUsage ? { input: totalInputTokens, output: totalOutputTokens } : undefined,
-    costUsd: hasUsage && totalCost > 0 ? totalCost : undefined,
     durationMs,
   };
 }

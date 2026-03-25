@@ -1,28 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import {
-  type ParsedCopilotSession,
-  parseCopilotEvents,
-} from '../../../src/evaluation/providers/copilot-log-parser.js';
+import { parseCopilotEvents } from '../../../src/evaluation/providers/copilot-log-parser.js';
 
-function eventLine(type: string, data: Record<string, unknown> = {}): string {
-  return JSON.stringify({ type, ...data });
+/**
+ * Build a single JSONL event line matching the real Copilot CLI format:
+ *   { type, data: { ...payload }, id, timestamp, parentId }
+ */
+function eventLine(
+  type: string,
+  data: Record<string, unknown> = {},
+  topLevel: Record<string, unknown> = {},
+): string {
+  return JSON.stringify({ type, data, id: 'evt-1', ...topLevel });
 }
 
 describe('parseCopilotEvents', () => {
   it('parses session.start into metadata', () => {
     const lines = [
-      eventLine('session.start', {
-        sessionId: 'abc-123',
-        selectedModel: 'gpt-4o',
-        context: { cwd: '/projects/app', repository: 'org/repo' },
-      }),
+      eventLine(
+        'session.start',
+        {
+          sessionId: 'abc-123',
+          startTime: '2026-03-25T10:00:00.000Z',
+          context: { cwd: '/projects/app', repository: 'org/repo', branch: 'main' },
+        },
+        { timestamp: '2026-03-25T10:00:00.000Z' },
+      ),
     ].join('\n');
 
     const result = parseCopilotEvents(lines);
     expect(result.meta.sessionId).toBe('abc-123');
-    expect(result.meta.model).toBe('gpt-4o');
     expect(result.meta.cwd).toBe('/projects/app');
     expect(result.meta.repository).toBe('org/repo');
+    expect(result.meta.branch).toBe('main');
+    expect(result.meta.startedAt).toBe('2026-03-25T10:00:00.000Z');
   });
 
   it('parses user.message into user Message', () => {
@@ -90,32 +100,45 @@ describe('parseCopilotEvents', () => {
     expect(assistantMsg?.toolCalls?.[0].output).toBe('file contents');
   });
 
-  it('extracts token usage from assistant.usage', () => {
+  it('extracts token usage from session.shutdown modelMetrics', () => {
     const lines = [
-      eventLine('assistant.usage', {
-        inputTokens: 1000,
-        outputTokens: 500,
-        model: 'gpt-4o',
-        cost: 0.025,
-      }),
+      eventLine(
+        'session.shutdown',
+        {
+          shutdownType: 'normal',
+          currentModel: 'gpt-4o',
+          modelMetrics: {
+            'gpt-4o': {
+              requests: { count: 3, cost: 1 },
+              usage: { inputTokens: 1000, outputTokens: 500 },
+            },
+          },
+        },
+        { timestamp: '2026-03-25T10:01:30.000Z' },
+      ),
     ].join('\n');
 
     const result = parseCopilotEvents(lines);
     expect(result.tokenUsage).toEqual({ input: 1000, output: 500 });
-    expect(result.costUsd).toBe(0.025);
+    expect(result.meta.model).toBe('gpt-4o');
   });
 
   it('computes durationMs from session.start to session.shutdown', () => {
     const lines = [
-      eventLine('session.start', {
-        sessionId: 's1',
-        selectedModel: 'gpt-4o',
-        context: { cwd: '/app' },
-        timestamp: '2026-03-25T10:00:00.000Z',
-      }),
-      eventLine('session.shutdown', {
-        timestamp: '2026-03-25T10:01:30.000Z',
-      }),
+      eventLine(
+        'session.start',
+        {
+          sessionId: 's1',
+          context: { cwd: '/app' },
+          startTime: '2026-03-25T10:00:00.000Z',
+        },
+        { timestamp: '2026-03-25T10:00:00.000Z' },
+      ),
+      eventLine(
+        'session.shutdown',
+        { shutdownType: 'normal' },
+        { timestamp: '2026-03-25T10:01:30.000Z' },
+      ),
     ].join('\n');
 
     const result = parseCopilotEvents(lines);
@@ -140,5 +163,21 @@ describe('parseCopilotEvents', () => {
     const result = parseCopilotEvents(lines);
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0].content).toBe('valid line');
+  });
+
+  it('aggregates token usage across multiple models', () => {
+    const lines = [
+      eventLine('session.shutdown', {
+        shutdownType: 'normal',
+        currentModel: 'gpt-4o',
+        modelMetrics: {
+          'gpt-4o': { usage: { inputTokens: 800, outputTokens: 200 } },
+          'gpt-4o-mini': { usage: { inputTokens: 200, outputTokens: 100 } },
+        },
+      }),
+    ].join('\n');
+
+    const result = parseCopilotEvents(lines);
+    expect(result.tokenUsage).toEqual({ input: 1000, output: 300 });
   });
 });

@@ -69,7 +69,6 @@ export class CopilotLogProvider implements Provider {
     return {
       output: parsed.messages,
       tokenUsage: parsed.tokenUsage,
-      costUsd: parsed.costUsd,
       durationMs: parsed.durationMs,
       startTime: parsed.meta.startedAt,
     };
