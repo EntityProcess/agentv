@@ -20,5 +20,4 @@ jobs:
             --no-progress
             --glob-ignore-case
             --root-dir .
-            --exclude-path apps/examples
             "**/*.md"
