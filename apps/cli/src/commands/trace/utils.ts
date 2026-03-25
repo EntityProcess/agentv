@@ -4,6 +4,7 @@ import type { EvaluationResult, TraceSummary } from '@agentv/core';
 import { toCamelCaseDeep } from '@agentv/core';
 import {
   RESULT_INDEX_FILENAME,
+  RESULT_RUNS_DIRNAME,
   resolveExistingRunPrimaryPath,
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
@@ -531,22 +532,22 @@ export interface ResultFileMeta {
 
 /**
  * Enumerate result files in the .agentv/results/ directory.
- * Scans raw/ for both directory-per-run layouts (index.jsonl preferred inside subdirs)
- * and legacy flat .jsonl files. Also scans the base directory for pre-raw/ files.
+ * Scans runs/ for both directory-per-run layouts (index.jsonl preferred inside subdirs)
+ * and legacy flat .jsonl files. Also scans the base directory for pre-runs/ files.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
   const baseDir = path.join(cwd, '.agentv', 'results');
-  const rawDir = path.join(baseDir, 'raw');
+  const runsDir = path.join(baseDir, RESULT_RUNS_DIRNAME);
 
   const files: { filePath: string; displayName: string }[] = [];
 
-  // Scan raw/ for both directory-based runs and flat JSONL files.
+  // Scan runs/ for both directory-based runs and flat JSONL files.
   // Process directories first so they take priority in dedup over flat files.
   try {
-    const entries = readdirSync(rawDir, { withFileTypes: true });
+    const entries = readdirSync(runsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const primaryPath = resolveExistingRunPrimaryPath(path.join(rawDir, entry.name));
+        const primaryPath = resolveExistingRunPrimaryPath(path.join(runsDir, entry.name));
         if (primaryPath) {
           files.push({ filePath: primaryPath, displayName: entry.name });
         }
@@ -554,11 +555,11 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
     }
     for (const entry of entries) {
       if (!entry.isDirectory() && entry.name.endsWith('.jsonl')) {
-        files.push({ filePath: path.join(rawDir, entry.name), displayName: entry.name });
+        files.push({ filePath: path.join(runsDir, entry.name), displayName: entry.name });
       }
     }
   } catch {
-    // raw/ doesn't exist yet
+    // runs/ doesn't exist yet
   }
 
   // Also scan base directory for legacy files (backward compat)

@@ -2,13 +2,14 @@ import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
+export const RESULT_RUNS_DIRNAME = 'runs';
 
 export function createRunDirName(timestamp = new Date()): string {
   return `eval_${timestamp.toISOString().replace(/[:.]/g, '-')}`;
 }
 
 export function buildDefaultRunDir(cwd: string): string {
-  return path.join(cwd, '.agentv', 'results', 'raw', createRunDirName());
+  return path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME, createRunDirName());
 }
 
 export function buildDefaultIndexPath(cwd: string): string {
