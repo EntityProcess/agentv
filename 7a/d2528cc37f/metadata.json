@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "7ad2528cc37f",
+  "strategy": "manual-commit",
+  "branch": "chore/enable-entire",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "biome.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7a/d2528cc37f/0/metadata.json",
+      "transcript": "/7a/d2528cc37f/0/full.jsonl",
+      "content_hash": "/7a/d2528cc37f/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5,
+    "cache_creation_tokens": 5028,
+    "cache_read_tokens": 200363,
+    "output_tokens": 664,
+    "api_call_count": 5
+  }
+}
