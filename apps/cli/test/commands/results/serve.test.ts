@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -309,6 +309,23 @@ describe('serve app', () => {
       const app = createApp([], tempDir);
       const res = await app.request('/api/runs/nonexistent');
       expect(res.status).toBe(404);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toBe('Run not found');
+    });
+
+    it('loads results from an existing run file', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = 'eval_2026-03-25T10-00-00-000Z.jsonl';
+      writeFileSync(path.join(runsDir, filename), toJsonl(RESULT_A, RESULT_B));
+
+      const app = createApp([], tempDir, tempDir);
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { results: { testId: string }[]; source: string };
+      expect(data.results).toHaveLength(2);
+      expect(data.results[0].testId).toBe('test-greeting');
+      expect(data.source).toBe(filename);
     });
   });
 

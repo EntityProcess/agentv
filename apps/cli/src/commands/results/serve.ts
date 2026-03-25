@@ -166,20 +166,22 @@ export function createApp(
     });
   });
 
-  // Load results from a specific run file
+  // Load results from a specific run file.
+  // Security: we look up the filename against the enumerated file list rather than
+  // constructing a path from user input, preventing path traversal.
   app.get('/api/runs/:filename', (c) => {
     const filename = c.req.param('filename');
     const metas = listResultFiles(searchDir);
     const meta = metas.find((m) => m.filename === filename);
     if (!meta) {
-      return c.json({ error: `Run not found: ${filename}` }, 404);
+      return c.json({ error: 'Run not found' }, 404);
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
       const lightResults = stripHeavyFields(loaded);
-      return c.json({ results: lightResults, source: meta.path });
+      return c.json({ results: lightResults, source: meta.filename });
     } catch (err) {
-      return c.json({ error: `Failed to load run: ${(err as Error).message}` }, 500);
+      return c.json({ error: 'Failed to load run' }, 500);
     }
   });
 
@@ -268,17 +270,7 @@ function escapeHtml(s: string): string {
 }
 
 function generateServeHtml(results: readonly EvaluationResult[], sourceFile?: string): string {
-  const lightResults = results.map((r) => {
-    const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
-    const toolCalls =
-      trace?.toolCalls && Object.keys(trace.toolCalls).length > 0 ? trace.toolCalls : undefined;
-    const graderDurationMs = (r.scores ?? []).reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
-    return {
-      ...rest,
-      ...(toolCalls && { _toolCalls: toolCalls }),
-      ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
-    };
-  });
+  const lightResults = stripHeavyFields(results);
   // Escape for safe embedding in <script>: prevent </script> breakout,
   // HTML comment injection, and Unicode line terminators.
   const dataJson = JSON.stringify(lightResults)
@@ -923,7 +915,7 @@ const SERVE_SCRIPT = `
       if(INITIAL_SOURCE&&runs.length>0){
         runPicker.value=INITIAL_SOURCE;
       }
-    }).catch(function(){});
+    }).catch(function(err){console.warn("Failed to refresh run list:",err);});
   }
 
   function loadRun(filename){
