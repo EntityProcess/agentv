@@ -1,0 +1,7 @@
+In PR we removed the details about how to claim issues. can you please restore it in AGENTS.md
+
+https://github.com/EntityProcess/agentv/pull/757/changes
+
+---
+
+pelase push directly to main
