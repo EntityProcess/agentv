@@ -1,6 +1,6 @@
 # Agentic Design Patterns
 
-Four foundational architectures for AI agent systems, based on Andrew Ng's agentic design patterns framework. Each pattern defines a management model, workflow structure, and set of anti-patterns.
+Four foundational architectures for AI agent systems. Each pattern defines a management model, workflow structure, and set of anti-patterns.
 
 ## Single-Agent Iterative Loop (Agentic IDE)
 
