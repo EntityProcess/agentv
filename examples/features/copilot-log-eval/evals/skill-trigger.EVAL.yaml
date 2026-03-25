@@ -16,6 +16,17 @@
 
 workspace:
   template: ../workspace/
+  hooks:
+    before_all:
+      command:
+        - node
+        - ../../workspace-setup-script/scripts/workspace-setup.mjs
+        - --from
+        - ../workspace/.allagents/workspace.yaml
+        - --marketplace-source
+        - ../../../../.claude-plugin
+        - --require
+        - .github/skills/agentv-bench/SKILL.md
 
 tests:
   # Negative case: csv-analyzer skill should NOT be triggered

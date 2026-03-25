@@ -31,12 +31,15 @@ copilot --model gpt-5-mini
 agentv eval evals/skill-trigger.EVAL.yaml --target copilot-log
 ```
 
-The `copilot-log` provider auto-discovers the latest session from
-`~/.copilot/session-state/` and runs both evaluators against the transcript.
+The `before_all` hook runs `allagents workspace init` to sync the agentv-dev
+plugin skills into the workspace. The `copilot-log` provider then auto-discovers
+the latest session from `~/.copilot/session-state/` and runs all evaluators.
 
 ## How it works
 
 ```
+allagents workspace init (before_all hook)
+  ↓ syncs agentv-dev plugin skills from marketplace
 ~/.copilot/session-state/{uuid}/events.jsonl
   ↓ copilot-log provider (reads from disk)
 Message[] with tool calls
@@ -56,8 +59,9 @@ Custom grader using `defineCodeGrader` from `@agentv/eval`. Validates:
 2. Tool calls were recorded (inspects `Message[].toolCalls`)
 3. Response addresses the CSV analysis question
 
-## Workspace template
+## Workspace
 
-The workspace includes skills in `.copilot/skills/`:
-- `csv-analyzer` — target skill for evaluation
-- `agentv-eval-writer`, `agentv-bench`, etc. — from agentv-dev plugin
+Skills are sourced in two ways:
+- **Bundled:** `csv-analyzer` in `.copilot/skills/` (example-specific)
+- **Plugin:** agentv-dev skills synced via `allagents workspace init` from the
+  `agentv` marketplace into `.github/skills/`

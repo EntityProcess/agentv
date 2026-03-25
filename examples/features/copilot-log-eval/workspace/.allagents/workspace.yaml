@@ -1,0 +1,11 @@
+repositories:
+  - path: .
+    owner: EntityProcess
+    repo: agentv
+    description: Copilot log eval workspace
+
+plugins:
+  - agentv-dev@agentv
+
+clients:
+  - copilot
