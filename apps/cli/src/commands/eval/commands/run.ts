@@ -120,11 +120,6 @@ export const evalRunCommand = command({
       long: 'otel-file',
       description: 'Write OTLP JSON trace to file (importable by OTel backends)',
     }),
-    traceFile: option({
-      type: optional(string),
-      long: 'trace-file',
-      description: 'Write human-readable trace JSONL to file',
-    }),
     exportOtel: flag({
       long: 'export-otel',
       description: 'Export evaluation traces via OTLP/HTTP to configured endpoint',
@@ -211,7 +206,6 @@ export const evalRunCommand = command({
       workspacePath: args.workspacePath,
       trace: false,
       otelFile: args.otelFile,
-      traceFile: args.traceFile,
       exportOtel: args.exportOtel,
       otelBackend: args.otelBackend,
       otelCaptureContent: args.otelCaptureContent,

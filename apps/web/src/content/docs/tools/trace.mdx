@@ -10,10 +10,10 @@ The `trace` command provides headless trace inspection and analysis — no serve
 Supported sources:
 
 - Run workspaces or `index.jsonl` manifests for summary-level fallback
-- Simple trace JSONL files written via `agentv eval --trace-file ...`
+- Legacy simple trace JSONL files for read-only migration scenarios
 - OTLP JSON files written via `agentv eval --otel-file ...`
 
-For full tool-call inspection, prefer exported trace files over eval manifests.
+For full tool-call inspection, prefer OTLP JSON exports over eval manifests.
 
 ## Subcommands
 
@@ -90,11 +90,11 @@ All commands support `--format json` for piping to `jq`:
 
 ```bash
 # Find tests costing more than $0.10
-agentv trace show trace.jsonl --format json \
+agentv trace show trace.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
-agentv trace stats trace.jsonl --group-by target --format json \
+agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```
 

@@ -74,7 +74,6 @@ interface NormalizedOptions {
   readonly noCache: boolean;
   readonly verbose: boolean;
   readonly otelFile?: string;
-  readonly traceFile?: string;
   readonly exportOtel: boolean;
   readonly otelBackend?: string;
   readonly otelCaptureContent: boolean;
@@ -286,14 +285,6 @@ function normalizeOptions(
         : undefined) ??
       (config?.execution?.otelFile
         ? resolveTimestampPlaceholder(config.execution.otelFile)
-        : undefined),
-    traceFile:
-      normalizeString(rawOptions.traceFile) ??
-      (yamlExecution?.trace_file
-        ? resolveTimestampPlaceholder(yamlExecution.trace_file)
-        : undefined) ??
-      (config?.execution?.traceFile
-        ? resolveTimestampPlaceholder(config.execution.traceFile)
         : undefined),
     exportOtel: normalizeBoolean(rawOptions.exportOtel) || yamlExecution?.export_otel === true,
     otelBackend: normalizeString(rawOptions.otelBackend) ?? yamlExecution?.otel_backend,
@@ -839,15 +830,10 @@ export async function runEvalCommand(
 
   const usesDefaultArtifactWorkspace = !options.outPath;
   const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
-  const defaultTraceFile =
-    usesDefaultArtifactWorkspace && !options.traceFile
-      ? path.join(path.dirname(outputPath), 'trace.jsonl')
-      : undefined;
-  const traceFilePath = options.traceFile ? path.resolve(options.traceFile) : defaultTraceFile;
 
   // Initialize OTel exporter if --export-otel flag is set or file export flags are used
   let otelExporter: OtelTraceExporterType | null = null;
-  const useFileExport = !!(options.otelFile || traceFilePath);
+  const useFileExport = !!options.otelFile;
 
   if (options.exportOtel || useFileExport) {
     try {
@@ -884,7 +870,6 @@ export async function runEvalCommand(
         captureContent,
         groupTurns: options.otelGroupTurns,
         otlpFilePath: options.otelFile ? path.resolve(options.otelFile) : undefined,
-        traceFilePath,
       });
 
       const initialized = await otelExporter.init();
@@ -932,9 +917,6 @@ export async function runEvalCommand(
   const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
   if (options.otelFile) {
     console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
-  }
-  if (traceFilePath) {
-    console.log(`Trace file: ${traceFilePath}`);
   }
 
   // Determine cache state after loading file metadata (need YAML config)

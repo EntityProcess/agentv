@@ -362,7 +362,7 @@ export const traceScoreCommand = command({
       );
       if (!hasTrace) {
         console.error(
-          `${c.red}Error:${c.reset} Source lacks trace metrics. Export a trace file with ${c.bold}--trace-file${c.reset} or ${c.bold}--otel-file${c.reset}.`,
+          `${c.red}Error:${c.reset} Source lacks trace metrics. Use an OTLP trace export via ${c.bold}--otel-file${c.reset} or a run manifest with summary metrics in ${c.bold}index.jsonl${c.reset}.`,
         );
         process.exit(1);
       }

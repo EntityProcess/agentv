@@ -526,9 +526,6 @@ When halted, remaining tests get `executionStatus: 'execution_error'` with `fail
 # Run evaluation (requires API keys)
 agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run]
 
-# Run with trace file (human-readable JSONL)
-agentv eval <file.yaml> --trace-file traces/eval.jsonl
-
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 

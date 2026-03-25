@@ -8,13 +8,6 @@ describe('defineConfig execution defaults', () => {
     expect(config.execution?.verbose).toBe(true);
   });
 
-  it('accepts traceFile string', () => {
-    const config = defineConfig({
-      execution: { traceFile: '.agentv/results/trace-{timestamp}.jsonl' },
-    });
-    expect(config.execution?.traceFile).toBe('.agentv/results/trace-{timestamp}.jsonl');
-  });
-
   it('accepts keepWorkspaces boolean', () => {
     const config = defineConfig({ execution: { keepWorkspaces: true } });
     expect(config.execution?.keepWorkspaces).toBe(true);
@@ -34,7 +27,6 @@ describe('defineConfig execution defaults', () => {
         maxRetries: 2,
         agentTimeoutMs: 120_000,
         verbose: true,
-        traceFile: 'trace.jsonl',
         keepWorkspaces: false,
         otelFile: 'otel.json',
       },
@@ -44,7 +36,6 @@ describe('defineConfig execution defaults', () => {
       maxRetries: 2,
       agentTimeoutMs: 120_000,
       verbose: true,
-      traceFile: 'trace.jsonl',
       keepWorkspaces: false,
       otelFile: 'otel.json',
     });
@@ -54,7 +45,8 @@ describe('defineConfig execution defaults', () => {
     expect(() => defineConfig({ execution: { verbose: 'yes' } } as never)).toThrow();
   });
 
-  it('rejects non-string traceFile', () => {
-    expect(() => defineConfig({ execution: { traceFile: 123 } } as never)).toThrow();
+  it('drops legacy traceFile fields from typed config', () => {
+    const config = defineConfig({ execution: { traceFile: 'trace.jsonl' } } as never);
+    expect(config.execution).toEqual({});
   });
 });

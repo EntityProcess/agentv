@@ -316,14 +316,6 @@ describe('parseExecutionDefaults', () => {
     expect(result?.verbose).toBe(true);
   });
 
-  it('parses trace_file string', () => {
-    const result = parseExecutionDefaults(
-      { trace_file: '.agentv/results/trace.jsonl' },
-      '/test/config.yaml',
-    );
-    expect(result?.trace_file).toBe('.agentv/results/trace.jsonl');
-  });
-
   it('parses keep_workspaces boolean', () => {
     const result = parseExecutionDefaults({ keep_workspaces: true }, '/test/config.yaml');
     expect(result?.keep_workspaces).toBe(true);
@@ -341,7 +333,6 @@ describe('parseExecutionDefaults', () => {
     const result = parseExecutionDefaults(
       {
         verbose: true,
-        trace_file: 'trace.jsonl',
         keep_workspaces: false,
         otel_file: 'otel.json',
       },
@@ -349,7 +340,6 @@ describe('parseExecutionDefaults', () => {
     );
     expect(result).toEqual({
       verbose: true,
-      trace_file: 'trace.jsonl',
       keep_workspaces: false,
       otel_file: 'otel.json',
     });
@@ -360,24 +350,22 @@ describe('parseExecutionDefaults', () => {
     expect(result?.verbose).toBeUndefined();
   });
 
-  it('ignores non-string trace_file', () => {
-    const result = parseExecutionDefaults({ trace_file: 123 }, '/test/config.yaml');
-    expect(result?.trace_file).toBeUndefined();
-  });
-
-  it('ignores empty trace_file', () => {
-    const result = parseExecutionDefaults({ trace_file: '  ' }, '/test/config.yaml');
-    expect(result?.trace_file).toBeUndefined();
-  });
-
   it('returns undefined when all fields are invalid', () => {
-    const result = parseExecutionDefaults({ verbose: 'yes', trace_file: 123 }, '/test/config.yaml');
+    const result = parseExecutionDefaults({ verbose: 'yes' }, '/test/config.yaml');
     expect(result).toBeUndefined();
   });
 
   it('ignores unknown fields', () => {
     const result = parseExecutionDefaults(
       { verbose: true, unknown_field: 'value' },
+      '/test/config.yaml',
+    );
+    expect(result).toEqual({ verbose: true });
+  });
+
+  it('ignores legacy trace_file fields', () => {
+    const result = parseExecutionDefaults(
+      { verbose: true, trace_file: '.agentv/results/trace.jsonl' },
       '/test/config.yaml',
     );
     expect(result).toEqual({ verbose: true });

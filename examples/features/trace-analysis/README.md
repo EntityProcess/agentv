@@ -8,30 +8,30 @@ Demonstrates `agentv trace` subcommands for headless trace inspection and analys
 # List result files
 bun agentv trace list
 
-# Show results with trace details from the default exported trace file
-bun agentv trace show .agentv/results/raw/eval_<timestamp>/trace.jsonl
+# Show summary trace details from the run manifest
+bun agentv trace show .agentv/results/raw/eval_<timestamp>/index.jsonl
 
-# Show hierarchical trace tree
-bun agentv trace show .agentv/results/raw/eval_<timestamp>/trace.jsonl --tree
+# Show hierarchical trace tree from an OTLP export
+bun agentv trace show traces/eval.otlp.json --tree
 
 # Filter to a specific test
-bun agentv trace show .agentv/results/raw/eval_<timestamp>/trace.jsonl --test-id research-question --tree
+bun agentv trace show traces/eval.otlp.json --test-id research-question --tree
 
 # Compute percentile statistics
-bun agentv trace stats .agentv/results/raw/eval_<timestamp>/trace.jsonl
+bun agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl
 
 # Group stats by target provider
-bun agentv trace stats .agentv/results/raw/eval_<timestamp>/trace.jsonl --group-by target
+bun agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl --group-by target
 
 # JSON output for piping to jq
-bun agentv trace stats .agentv/results/raw/eval_<timestamp>/trace.jsonl --format json | jq '.groups[].metrics'
+bun agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl --format json | jq '.groups[].metrics'
 ```
 
 ## What's in the Example Data
 
 The sample run workspace contains 5 test results from a multi-agent evaluation. `trace` accepts the
-workspace directory directly for summary fallback, but full tool-call inspection should read the
-exported `trace.jsonl` file.
+workspace directory directly for summary fallback. For full tool-call inspection, export OTLP JSON
+and inspect that file instead.
 
 | Test ID | Score | Target | Trace |
 |---|---|---|---|
@@ -49,10 +49,10 @@ Pipe JSON output to `jq` for complex queries:
 
 ```bash
 # Find tests that cost more than $0.10
-bun agentv trace show .agentv/results/raw/eval_<timestamp>/trace.jsonl --format json \
+bun agentv trace show traces/eval.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare scores by target provider
-bun agentv trace stats .agentv/results/raw/eval_<timestamp>/trace.jsonl --group-by target --format json \
+bun agentv trace stats .agentv/results/raw/eval_<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```

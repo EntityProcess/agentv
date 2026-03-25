@@ -140,7 +140,6 @@ export default defineConfig({
     workers: 5,
     maxRetries: 2,
     verbose: true,
-    traceFile: '.agentv/results/trace-{timestamp}.jsonl',
     otelFile: '.agentv/results/otel-{timestamp}.json',
   },
   output: { format: 'jsonl', dir: './results' },

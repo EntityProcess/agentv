@@ -32,11 +32,6 @@
           "description": "Enable verbose logging (equivalent to --verbose)",
           "default": false
         },
-        "trace_file": {
-          "type": "string",
-          "description": "Write human-readable trace JSONL to this path (equivalent to --trace-file). Supports {timestamp} placeholder.",
-          "examples": [".agentv/results/trace-{timestamp}.jsonl"]
-        },
         "keep_workspaces": {
           "type": "boolean",
           "description": "Always keep temp workspaces after eval (equivalent to --keep-workspaces)",

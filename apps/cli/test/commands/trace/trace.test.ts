@@ -77,6 +77,15 @@ const OTLP_TRACE = JSON.stringify({
         {
           spans: [
             {
+              traceId: 'orphan-trace',
+              spanId: 'orphan-chat',
+              name: 'chat unknown',
+              startTimeUnixNano: '900000000',
+              endTimeUnixNano: '950000000',
+              attributes: [{ key: 'gen_ai.operation.name', value: { stringValue: 'chat' } }],
+              status: { code: 1 },
+            },
+            {
               traceId: 'trace-abc',
               spanId: 'root-1',
               name: 'agentv.eval',
