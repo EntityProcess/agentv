@@ -14,12 +14,12 @@ Derived from [Superpowers writing-skills](https://github.com/obra/superpowers/) 
 
 ### Why description must not summarize workflow
 
-Testing revealed that when a description summarizes the skill's workflow, Claude may follow the description instead of reading the full SKILL.md content. A description saying "code review between tasks" caused Claude to do ONE review, even though the SKILL.md flowchart clearly showed TWO reviews. When the description was changed to just triggering conditions, Claude correctly read and followed the full skill.
+Testing revealed that when a description summarizes the skill's workflow, the agent may follow the description instead of reading the full SKILL.md content. A description saying "code review between tasks" caused the agent to do ONE review, even though the SKILL.md flowchart clearly showed TWO reviews. When the description was changed to just triggering conditions, the agent correctly read and followed the full skill.
 
 ### Description examples
 
 ```yaml
-# BAD: Summarizes workflow - Claude may follow this instead of reading skill
+# BAD: Summarizes workflow - the agent may follow this instead of reading skill
 description: Use when executing plans - dispatches subagent per task with code review between tasks
 
 # BAD: Too much process detail
@@ -43,12 +43,12 @@ description: Use when tests have race conditions, timing dependencies, or pass/f
 
 ## Content Quality
 
-### Conciseness (Claude Search Optimization)
+### Conciseness (Agent Search Optimization)
 
-- [ ] SKILL.md body is concise — only include what Claude doesn't already know
+- [ ] SKILL.md body is concise — only include what the agent doesn't already know
 - [ ] Content is domain-specific: technology preferences, internal conventions, business domain patterns, industry constraints, context explaining WHY rules exist
 - [ ] Universal concepts excluded: standard programming principles (SOLID, DRY, etc.), obvious examples, verbose explanations, best practices AI agents already know
-- [ ] Challenge each paragraph: "Does Claude really need this explanation?"
+- [ ] Challenge each paragraph: "Does the agent really need this explanation?"
 - [ ] Target word counts:
   - Frequently-loaded skills: < 200 words
   - Standard skills: < 500 words
@@ -114,7 +114,7 @@ Match specificity to the task's fragility:
 | Generic labels (helper1, step2) | No semantic meaning |
 | Version printing instructions | Fragile, rely on git history |
 | Hardcoded local paths | Machine-specific, not portable |
-| Description summarizes workflow | Claude follows description, skips SKILL.md body |
+| Description summarizes workflow | the agent follows description, skips SKILL.md body |
 
 ## Discipline-Enforcing Skills (Additional Checks)
 
