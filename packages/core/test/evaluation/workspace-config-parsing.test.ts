@@ -29,10 +29,10 @@ tests:
     workspace:
       hooks:
         before_all:
-          script: ["bun", "run", "setup.ts"]
+          command: ["bun", "run", "setup.ts"]
           timeout_ms: 120000
         after_each:
-          script: ["bun", "run", "teardown.ts"]
+          command: ["bun", "run", "teardown.ts"]
           timeout_ms: 30000
 `,
     );
@@ -81,7 +81,7 @@ tests:
 workspace:
   hooks:
     before_all:
-      script: ["bun", "run", "default-setup.ts"]
+      command: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-1
@@ -112,7 +112,7 @@ tests:
 workspace:
   hooks:
     before_all:
-      script: ["bun", "run", "default-setup.ts"]
+      command: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-override
@@ -121,7 +121,7 @@ tests:
     workspace:
       hooks:
         before_all:
-          script: ["bun", "run", "custom-setup.ts"]
+          command: ["bun", "run", "custom-setup.ts"]
   - id: case-default
     input: "Do something else"
     criteria: "Should work"
@@ -158,7 +158,7 @@ tests:
     workspace:
       hooks:
         before_all:
-          script: ["bun", "run", "setup.ts"]
+          command: ["bun", "run", "setup.ts"]
           cwd: ./scripts
 `,
     );
