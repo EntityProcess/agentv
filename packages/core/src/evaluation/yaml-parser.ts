@@ -540,6 +540,8 @@ function buildScriptConfig(
  * Parse a WorkspaceScriptConfig from raw YAML value.
  * Accepts both `command` (preferred) and `script` (deprecated alias).
  * Command can be an array of strings or a single string (auto-split on whitespace).
+ * Note: string commands are split naively on whitespace. For arguments containing
+ * spaces, use the array form: command: ["node", "path with spaces/setup.mjs"]
  */
 function parseWorkspaceScriptConfig(
   raw: unknown,
