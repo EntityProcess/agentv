@@ -29,10 +29,10 @@ tests:
     workspace:
       hooks:
         before_all:
-          script: ["bun", "run", "setup.ts"]
+          command: ["bun", "run", "setup.ts"]
           timeout_ms: 120000
         after_each:
-          script: ["bun", "run", "teardown.ts"]
+          command: ["bun", "run", "teardown.ts"]
           timeout_ms: 30000
 `,
     );
@@ -81,7 +81,7 @@ tests:
 workspace:
   hooks:
     before_all:
-      script: ["bun", "run", "default-setup.ts"]
+      command: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-1
@@ -112,7 +112,7 @@ tests:
 workspace:
   hooks:
     before_all:
-      script: ["bun", "run", "default-setup.ts"]
+      command: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-override
@@ -121,7 +121,7 @@ tests:
     workspace:
       hooks:
         before_all:
-          script: ["bun", "run", "custom-setup.ts"]
+          command: ["bun", "run", "custom-setup.ts"]
   - id: case-default
     input: "Do something else"
     criteria: "Should work"
@@ -158,7 +158,7 @@ tests:
     workspace:
       hooks:
         before_all:
-          script: ["bun", "run", "setup.ts"]
+          command: ["bun", "run", "setup.ts"]
           cwd: ./scripts
 `,
     );
@@ -335,6 +335,31 @@ tests:
     );
 
     await expect(loadTests(evalFile, testDir)).rejects.toThrow(/workspace\.pool has been removed/i);
+  });
+
+  it('should accept string command and auto-split on whitespace', async () => {
+    const evalFile = path.join(testDir, 'workspace-string-cmd.yaml');
+    await writeFile(
+      evalFile,
+      `
+tests:
+  - id: test-string-cmd
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      hooks:
+        before_all:
+          command: node scripts/setup.mjs
+          timeout_ms: 60000
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.hooks?.before_all).toEqual({
+      command: ['node', 'scripts/setup.mjs'],
+      timeout_ms: 60000,
+    });
   });
 
   it('should handle case with no workspace config', async () => {
