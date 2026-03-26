@@ -38,10 +38,7 @@
     "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts",
     "generate:schema": "bun scripts/generate-eval-schema.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
     "@agentv/eval": "workspace:*",

@@ -30,10 +30,7 @@
     "fix": "biome check --write .",
     "test": "bun test"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "dependencies": {
     "zod": "^3.23.8"
   }
