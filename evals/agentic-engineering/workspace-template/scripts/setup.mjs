@@ -19,8 +19,14 @@ try {
   repoRoot = resolve(__dirname, '..', '..', '..', '..');
 }
 
-const targetDir = join(process.cwd(), '.agents', 'skills');
-mkdirSync(targetDir, { recursive: true });
+// Copy to all skill discovery directories so any provider can find them
+const skillDirs = [
+  join(process.cwd(), '.agents', 'skills'),
+  join(process.cwd(), '.codex', 'skills'),
+];
+for (const dir of skillDirs) {
+  mkdirSync(dir, { recursive: true });
+}
 
 const skillSources = [
   join(repoRoot, 'plugins', 'agentic-engineering', 'skills', 'agent-plugin-review'),
@@ -30,10 +36,13 @@ const skillSources = [
 
 for (const src of skillSources) {
   const name = src.split(/[\\/]/).pop();
-  const dest = join(targetDir, name);
-  cpSync(src, dest, { recursive: true });
+  for (const dir of skillDirs) {
+    cpSync(src, join(dir, name), { recursive: true });
+  }
   console.log(`Copied ${name}`);
 }
 
-console.log(`\nSkills in ${targetDir}:`);
-console.log(readdirSync(targetDir).join(', '));
+for (const dir of skillDirs) {
+  console.log(`\nSkills in ${dir}:`);
+  console.log(readdirSync(dir).join(', '));
+}
