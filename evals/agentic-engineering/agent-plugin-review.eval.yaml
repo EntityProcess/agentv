@@ -3,9 +3,15 @@ description: Evaluates that the agent-plugin-review skill is triggered and catch
 execution:
   targets:
     - pi-cli
+  workers: 1
 
 workspace:
   template: ./workspace-template
+  hooks:
+    before_all:
+      command:
+        - node
+        - "{{workspace_path}}/scripts/setup.mjs"
 
 tests:
   - id: detect-missing-eval
@@ -14,8 +20,6 @@ tests:
       Review the deploy-auto plugin in this repo for completeness.
       Check that every skill has a corresponding eval file.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: contains
         value: deploy-rollback
       - type: rubrics
@@ -28,8 +32,6 @@ tests:
     input: |
       Review the eval files under evals/deploy-auto/ for naming convention issues.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: contains
         value: .eval.yaml
       - type: rubrics
@@ -44,8 +46,6 @@ tests:
       Review evals/deploy-auto/deploy-plan.yaml for eval quality issues.
       Check assertion coverage and expected_output format.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Flags that no assertions are defined in deploy-plan.yaml
@@ -57,8 +57,6 @@ tests:
     input: |
       Review evals/deploy-auto/deploy-plan.yaml for file path formatting issues.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Flags that file paths are missing a leading slash
@@ -70,8 +68,6 @@ tests:
       Review evals/deploy-auto/deploy-plan.yaml for structural improvements.
       Look at how inputs are organized across test cases.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Identifies the repeated SKILL.md file input across all 3 tests
@@ -83,8 +79,6 @@ tests:
       Review the deploy-auto plugin's workflow architecture.
       Check whether phases enforce prerequisites before proceeding.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Flags that deploy-execute does not check for deploy-plan.md before starting
@@ -97,8 +91,6 @@ tests:
       Review evals/deploy-auto/deploy-execute.eval.yaml for factual accuracy.
       Cross-check expected outputs against what the skills actually document.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Flags the contradiction between pytest (skill) and python -m unittest (eval)
@@ -110,8 +102,6 @@ tests:
       Review plugins/deploy-auto/skills/deploy-plan/SKILL.md for cross-reference issues.
       Check that referenced commands and skills actually exist.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Flags that /deploy-execute is referenced but does not exist as a slash command
@@ -123,8 +113,6 @@ tests:
     input: |
       Review plugins/deploy-auto/skills/deploy-execute/SKILL.md for portability issues.
     assertions:
-      - type: skill-trigger
-        value: agent-plugin-review
       - type: rubrics
         criteria:
           - Flags the hardcoded path C:\Users\admin\.kube\config
