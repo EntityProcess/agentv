@@ -46,6 +46,8 @@ description: Use when tests have race conditions, timing dependencies, or pass/f
 ### Conciseness (Claude Search Optimization)
 
 - [ ] SKILL.md body is concise — only include what Claude doesn't already know
+- [ ] Content is domain-specific: technology preferences, internal conventions, business domain patterns, industry constraints, context explaining WHY rules exist
+- [ ] Universal concepts excluded: standard programming principles (SOLID, DRY, etc.), obvious examples, verbose explanations, best practices AI agents already know
 - [ ] Challenge each paragraph: "Does Claude really need this explanation?"
 - [ ] Target word counts:
   - Frequently-loaded skills: < 200 words
