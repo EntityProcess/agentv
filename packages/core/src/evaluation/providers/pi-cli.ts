@@ -262,21 +262,32 @@ export class PiCliProvider implements Provider {
     // When a subprovider is explicitly configured, remove ambient env vars from
     // other providers that pi-cli auto-detects (e.g., AZURE_OPENAI_* vars override
     // --provider flags). This ensures the configured subprovider is actually used.
+    //
+    // To add a new provider: add an entry to PROVIDER_OWN_PREFIXES with the env
+    // var prefixes that provider uses. All other providers' vars are stripped
+    // automatically when that provider is selected.
     if (this.config.subprovider) {
       const provider = this.config.subprovider.toLowerCase();
-      const PROVIDER_ENV_PREFIXES: Record<string, readonly string[]> = {
-        openrouter: ['AZURE_OPENAI_', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY'],
-        anthropic: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY'],
-        openai: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY'],
-        google: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY'],
-        gemini: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY'],
+      const PROVIDER_OWN_PREFIXES: Record<string, readonly string[]> = {
+        openrouter: ['OPENROUTER_'],
+        anthropic: ['ANTHROPIC_'],
+        openai: ['OPENAI_'],
+        azure: ['AZURE_OPENAI_'],
+        google: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
+        gemini: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
+        groq: ['GROQ_'],
+        xai: ['XAI_'],
       };
-      const prefixesToRemove = PROVIDER_ENV_PREFIXES[provider];
-      if (prefixesToRemove) {
-        for (const key of Object.keys(env)) {
-          if (prefixesToRemove.some((prefix) => key.startsWith(prefix))) {
-            delete env[key];
-          }
+      const ownPrefixes = PROVIDER_OWN_PREFIXES[provider] ?? [];
+      const allOtherPrefixes = Object.entries(PROVIDER_OWN_PREFIXES)
+        .filter(([key]) => key !== provider)
+        .flatMap(([, prefixes]) => prefixes);
+      for (const key of Object.keys(env)) {
+        if (
+          allOtherPrefixes.some((prefix) => key.startsWith(prefix)) &&
+          !ownPrefixes.some((prefix) => key.startsWith(prefix))
+        ) {
+          delete env[key];
         }
       }
     }
