@@ -681,18 +681,18 @@ function injectEventToolCalls(messages: Message[], eventToolCalls: ToolCall[]): 
 
   if (missing.length === 0) return;
 
-  // Find the last assistant message to attach tool calls to
-  let target: Message | undefined;
+  // Find the last assistant message and replace it with an enriched copy
+  let targetIdx = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'assistant') {
-      target = messages[i];
+      targetIdx = i;
       break;
     }
   }
 
-  if (target) {
-    const existing = target.toolCalls ?? [];
-    (target as { toolCalls?: readonly ToolCall[] }).toolCalls = [...existing, ...missing];
+  if (targetIdx >= 0) {
+    const target = messages[targetIdx];
+    messages[targetIdx] = { ...target, toolCalls: [...(target.toolCalls ?? []), ...missing] };
   } else {
     // No assistant message — create a synthetic one
     messages.push({ role: 'assistant', content: '', toolCalls: missing });
