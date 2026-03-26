@@ -9,7 +9,7 @@ workspace:
   template: ./workspace-template
   hooks:
     before_all:
-      command: bash scripts/setup.sh
+      command: bun scripts/setup.ts
 
 tests:
   - id: detect-missing-eval
