@@ -20,9 +20,10 @@ try {
 }
 
 // Copy to all skill discovery directories so any provider can find them
+// Pi looks in .agents/skills/ and .pi/skills/ per docs
 const skillDirs = [
   join(process.cwd(), '.agents', 'skills'),
-  join(process.cwd(), '.codex', 'skills'),
+  join(process.cwd(), '.pi', 'skills'),
 ];
 for (const dir of skillDirs) {
   mkdirSync(dir, { recursive: true });
