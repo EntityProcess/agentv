@@ -11,7 +11,7 @@ workspace:
     before_all:
       command:
         - node
-        - scripts/setup.mjs
+        - "{{workspace_path}}/scripts/setup.mjs"
 
 tests:
   - id: detect-missing-eval
