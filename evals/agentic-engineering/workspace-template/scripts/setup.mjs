@@ -5,9 +5,9 @@
  * Runs with cwd = eval file directory (which is inside the repo).
  */
 
-import { cpSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { cpSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Read workspace_path from stdin (provided by AgentV orchestrator)
 let workspacePath;
@@ -32,10 +32,7 @@ console.log(`Workspace: ${workspacePath}`);
 console.log(`Repo root: ${repoRoot}`);
 
 // Copy to skill discovery directories in the workspace
-const skillDirs = [
-  join(workspacePath, '.agents', 'skills'),
-  join(workspacePath, '.pi', 'skills'),
-];
+const skillDirs = [join(workspacePath, '.agents', 'skills'), join(workspacePath, '.pi', 'skills')];
 for (const dir of skillDirs) {
   mkdirSync(dir, { recursive: true });
 }
