@@ -1,5 +1,0 @@
-plugins:
-  - source: ./plugins/agentic-engineering
-
-clients:
-  - pi
