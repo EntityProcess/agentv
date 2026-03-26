@@ -259,6 +259,28 @@ export class PiCliProvider implements Provider {
       }
     }
 
+    // When a subprovider is explicitly configured, remove ambient env vars from
+    // other providers that pi-cli auto-detects (e.g., AZURE_OPENAI_* vars override
+    // --provider flags). This ensures the configured subprovider is actually used.
+    if (this.config.subprovider) {
+      const provider = this.config.subprovider.toLowerCase();
+      const PROVIDER_ENV_PREFIXES: Record<string, readonly string[]> = {
+        openrouter: ['AZURE_OPENAI_', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY'],
+        anthropic: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY'],
+        openai: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY'],
+        google: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY'],
+        gemini: ['AZURE_OPENAI_', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY'],
+      };
+      const prefixesToRemove = PROVIDER_ENV_PREFIXES[provider];
+      if (prefixesToRemove) {
+        for (const key of Object.keys(env)) {
+          if (prefixesToRemove.some((prefix) => key.startsWith(prefix))) {
+            delete env[key];
+          }
+        }
+      }
+    }
+
     return env;
   }
 
