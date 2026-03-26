@@ -514,24 +514,13 @@ export async function loadTestById(
 export const loadEvalCaseById = loadTestById;
 
 /**
- * Parse a WorkspaceScriptConfig from raw YAML value.
- * Accepts both `command` (preferred) and `script` (deprecated alias).
+ * Build a WorkspaceScriptConfig from a parsed command array and raw YAML object.
  */
-function parseWorkspaceScriptConfig(
-  raw: unknown,
+function buildScriptConfig(
+  commandArr: string[],
+  obj: Record<string, unknown>,
   evalFileDir: string,
-): WorkspaceScriptConfig | undefined {
-  if (!isJsonObject(raw)) return undefined;
-  const obj = raw as Record<string, unknown>;
-  // Precedence: command > script (deprecated)
-  if (obj.script !== undefined && obj.command === undefined) {
-    logWarning("'script' is deprecated. Use 'command' instead.");
-  }
-  const commandSource = obj.command ?? obj.script;
-  if (!Array.isArray(commandSource) || commandSource.length === 0) return undefined;
-  const commandArr = commandSource.filter((s): s is string => typeof s === 'string');
-  if (commandArr.length === 0) return undefined;
-
+): WorkspaceScriptConfig {
   const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
   let cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
 
@@ -545,6 +534,37 @@ function parseWorkspaceScriptConfig(
     return { ...config, timeout_ms: timeoutMs, ...(cwd !== undefined && { cwd }) };
   }
   return cwd ? { ...config, cwd } : config;
+}
+
+/**
+ * Parse a WorkspaceScriptConfig from raw YAML value.
+ * Accepts both `command` (preferred) and `script` (deprecated alias).
+ * Command can be an array of strings or a single string (auto-split on whitespace).
+ */
+function parseWorkspaceScriptConfig(
+  raw: unknown,
+  evalFileDir: string,
+): WorkspaceScriptConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  // Precedence: command > script (deprecated)
+  if (obj.script !== undefined && obj.command === undefined) {
+    logWarning("'script' is deprecated. Use 'command' instead.");
+  }
+  const commandSource = obj.command ?? obj.script;
+
+  // Accept string commands by splitting on whitespace
+  if (typeof commandSource === 'string') {
+    const parts = commandSource.trim().split(/\s+/);
+    if (parts.length === 0 || parts[0] === '') return undefined;
+    return buildScriptConfig(parts, obj, evalFileDir);
+  }
+
+  if (!Array.isArray(commandSource) || commandSource.length === 0) return undefined;
+  const commandArr = commandSource.filter((s): s is string => typeof s === 'string');
+  if (commandArr.length === 0) return undefined;
+
+  return buildScriptConfig(commandArr, obj, evalFileDir);
 }
 
 function parseRepoSource(raw: unknown): RepoSource | undefined {
