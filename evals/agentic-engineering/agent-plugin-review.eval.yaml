@@ -3,7 +3,6 @@ description: Evaluates that the agent-plugin-review skill is triggered and catch
 execution:
   targets:
     - pi-cli
-  workers: 1
 
 workspace:
   template: ./workspace-template

@@ -13,6 +13,8 @@ targets:
   - name: pi-cli
     provider: pi-cli
     subprovider: openrouter
+    model: openai/gpt-5.1-codex
+    api_key: ${{ OPENROUTER_API_KEY }}
     grader_target: gemini-flash
 
   - name: pi-coding-agent
