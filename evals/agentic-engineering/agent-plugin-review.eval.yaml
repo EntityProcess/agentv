@@ -7,6 +7,9 @@ execution:
 
 workspace:
   template: ./workspace-template
+  hooks:
+    before_all:
+      command: bash scripts/setup.sh
 
 tests:
   - id: detect-missing-eval
