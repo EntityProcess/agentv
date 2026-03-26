@@ -38,6 +38,11 @@ Report findings grouped by severity (error > warning > info).
 
 If the PR includes eval files, invoke `agentv-eval-review` for AgentV-specific eval quality checks.
 
+Additionally, check each eval YAML for these structural patterns:
+
+- **File path format**: Every `type: file` input value MUST start with a leading `/` (workspace-root-relative). Paths like `plugins/foo/SKILL.md` are wrong — correct form is `/plugins/foo/SKILL.md`. Scan every `type: file` entry and flag any missing leading slash, showing the corrected path.
+- **Repeated inputs**: If the same file input (same `type: file` + `value`) appears identically in every test case, recommend extracting it to the top-level `input` field. AgentV eval files support a top-level `input` section that applies to all tests, eliminating per-test duplication.
+
 ### Step 3: Skill quality review (LLM judgment)
 
 For each SKILL.md, check against `references/skill-quality-checklist.md`:
@@ -68,6 +73,11 @@ For plugins with multi-phase workflows, check against `references/workflow-check
 - Trivial change escape hatch
 - Artifact self-correction with corrections log
 - Learning loop mechanism
+
+**Hard gate detection recipe** — For each phase skill after the first:
+1. Read the SKILL.md body
+2. Check whether it verifies that the previous phase's output artifact exists before doing any work
+3. If no such check exists, flag it as a missing hard gate. Recommend adding a gate at the top of the skill that checks for the prerequisite artifact (e.g., `deploy-plan.md`) and stops with a clear message telling the user which skill to run first if the artifact is missing
 
 ### Step 5: Post review
 

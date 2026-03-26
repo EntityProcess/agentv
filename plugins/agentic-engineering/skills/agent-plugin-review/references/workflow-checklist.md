@@ -28,10 +28,12 @@ From [Superpowers](https://github.com/obra/superpowers/) `<HARD-GATE>` pattern:
 - [ ] Gates cannot be silently bypassed
 - [ ] Gate checks happen at the start of the skill, before any work
 
+**How to detect missing hard gates:** For each phase skill beyond the first, read the SKILL.md and check whether it verifies the previous phase's output artifact exists (e.g., `deploy-plan.md`, `design.md`) before starting work. If a skill jumps straight into execution without checking prerequisites, it is missing a hard gate.
+
 Example gate:
 ```
-HARD GATE: `hld-review.md` MUST exist in {output_dir}/.
-If missing, inform the user: "Run the design-review skill first." STOP.
+HARD GATE: `deploy-plan.md` MUST exist in {output_dir}/.
+If missing, inform the user: "Run the deploy-plan skill first to generate a deployment plan." STOP.
 ```
 
 ## Artifact Contracts

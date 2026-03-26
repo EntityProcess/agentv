@@ -12,6 +12,7 @@ targets:
 
   - name: pi-cli
     provider: pi-cli
+    subprovider: openrouter
     grader_target: gemini-flash
 
   - name: pi-coding-agent
