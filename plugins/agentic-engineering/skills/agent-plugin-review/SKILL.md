@@ -45,6 +45,7 @@ For each SKILL.md, check against `references/skill-quality-checklist.md`:
 - Description starts with "Use when..." and describes triggering conditions only (not workflow)
 - Description does NOT summarize the skill's process — this causes agents to follow the description instead of reading the SKILL.md body
 - Body is concise — only include what the agent doesn't already know
+- Content is domain-specific (internal conventions, business patterns, context for WHY) — universal concepts AI agents already know are excluded
 - Imperative/infinitive form, not second person
 - Heavy reference (100+ lines) moved to `references/` files
 - One excellent code example beats many mediocre ones
