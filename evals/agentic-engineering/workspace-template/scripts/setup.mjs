@@ -1,29 +1,43 @@
 #!/usr/bin/env node
 /**
- * Workspace before_all hook: copy skills into .agents/skills/ for agent discovery.
- * Runs from the workspace root at eval startup.
+ * Workspace before_all hook: copy skills into the workspace for agent discovery.
+ * Receives workspace_path via stdin JSON from the AgentV orchestrator.
  */
 
-import { cpSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Read workspace_path from stdin (provided by AgentV orchestrator)
+let workspacePath;
+try {
+  const stdin = readFileSync(0, 'utf8');
+  const context = JSON.parse(stdin);
+  workspacePath = context.workspace_path;
+} catch {
+  // Fallback to cwd if stdin is not available
+  workspacePath = process.cwd();
+}
+
+console.log(`Workspace path: ${workspacePath}`);
+
 // Resolve repo root
 let repoRoot;
 try {
-  repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+  repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8', cwd: __dirname }).trim();
 } catch {
   repoRoot = resolve(__dirname, '..', '..', '..', '..');
 }
 
-// Copy to all skill discovery directories so any provider can find them
-// Pi looks in .agents/skills/ and .pi/skills/ per docs
+console.log(`Repo root: ${repoRoot}`);
+
+// Copy to skill discovery directories in the workspace
 const skillDirs = [
-  join(process.cwd(), '.agents', 'skills'),
-  join(process.cwd(), '.pi', 'skills'),
+  join(workspacePath, '.agents', 'skills'),
+  join(workspacePath, '.pi', 'skills'),
 ];
 for (const dir of skillDirs) {
   mkdirSync(dir, { recursive: true });
