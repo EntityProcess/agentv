@@ -2,14 +2,12 @@
 /**
  * Workspace before_all hook: copy skills into the workspace for agent discovery.
  * Receives workspace_path via stdin JSON from the AgentV orchestrator.
+ * Runs with cwd = eval file directory (which is inside the repo).
  */
 
 import { cpSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Read workspace_path from stdin (provided by AgentV orchestrator)
 let workspacePath;
@@ -18,20 +16,19 @@ try {
   const context = JSON.parse(stdin);
   workspacePath = context.workspace_path;
 } catch {
-  // Fallback to cwd if stdin is not available
   workspacePath = process.cwd();
 }
 
-console.log(`Workspace path: ${workspacePath}`);
-
-// Resolve repo root
+// Resolve repo root from cwd (eval dir is inside the repo)
 let repoRoot;
 try {
-  repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8', cwd: __dirname }).trim();
+  repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
 } catch {
-  repoRoot = resolve(__dirname, '..', '..', '..', '..');
+  console.error('Failed to resolve repo root from cwd:', process.cwd());
+  process.exit(1);
 }
 
+console.log(`Workspace: ${workspacePath}`);
 console.log(`Repo root: ${repoRoot}`);
 
 // Copy to skill discovery directories in the workspace
@@ -58,6 +55,5 @@ for (const src of skillSources) {
 }
 
 for (const dir of skillDirs) {
-  console.log(`\nSkills in ${dir}:`);
-  console.log(readdirSync(dir).join(', '));
+  console.log(`Skills in ${dir}: ${readdirSync(dir).join(', ')}`);
 }
