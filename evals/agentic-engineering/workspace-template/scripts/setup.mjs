@@ -1,19 +1,22 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * Workspace before_all hook: copy skills into .agents/skills/ for agent discovery.
  * Runs from the workspace root at eval startup.
  */
 
 import { cpSync, mkdirSync, readdirSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-// Resolve repo root (works whether run from workspace or repo root)
-let repoRoot: string;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Resolve repo root
+let repoRoot;
 try {
   repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
 } catch {
-  repoRoot = resolve(import.meta.dirname, '..', '..', '..', '..');
+  repoRoot = resolve(__dirname, '..', '..', '..', '..');
 }
 
 const targetDir = join(process.cwd(), '.agents', 'skills');
@@ -26,7 +29,7 @@ const skillSources = [
 ];
 
 for (const src of skillSources) {
-  const name = src.split(/[\\/]/).pop()!;
+  const name = src.split(/[\\/]/).pop();
   const dest = join(targetDir, name);
   cpSync(src, dest, { recursive: true });
   console.log(`Copied ${name}`);
