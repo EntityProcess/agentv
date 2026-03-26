@@ -514,26 +514,19 @@ export async function loadTestById(
 export const loadEvalCaseById = loadTestById;
 
 /**
- * Build a WorkspaceScriptConfig from a parsed command array and raw YAML object.
+ * Normalize a command value from YAML into a string array.
+ * Accepts a string (split on whitespace) or an array of strings.
  */
-function buildScriptConfig(
-  commandArr: string[],
-  obj: Record<string, unknown>,
-  evalFileDir: string,
-): WorkspaceScriptConfig {
-  const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
-  let cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
-
-  // Resolve relative cwd against eval file directory
-  if (cwd && !path.isAbsolute(cwd)) {
-    cwd = path.resolve(evalFileDir, cwd);
+function parseCommandArray(source: unknown): string[] | undefined {
+  if (typeof source === 'string') {
+    const parts = source.trim().split(/\s+/);
+    return parts.length > 0 && parts[0] !== '' ? parts : undefined;
   }
-
-  const config: WorkspaceScriptConfig = { command: commandArr };
-  if (timeoutMs !== undefined) {
-    return { ...config, timeout_ms: timeoutMs, ...(cwd !== undefined && { cwd }) };
+  if (Array.isArray(source)) {
+    const arr = source.filter((s): s is string => typeof s === 'string');
+    return arr.length > 0 ? arr : undefined;
   }
-  return cwd ? { ...config, cwd } : config;
+  return undefined;
 }
 
 /**
@@ -553,20 +546,23 @@ function parseWorkspaceScriptConfig(
   if (obj.script !== undefined && obj.command === undefined) {
     logWarning("'script' is deprecated. Use 'command' instead.");
   }
-  const commandSource = obj.command ?? obj.script;
 
-  // Accept string commands by splitting on whitespace
-  if (typeof commandSource === 'string') {
-    const parts = commandSource.trim().split(/\s+/);
-    if (parts.length === 0 || parts[0] === '') return undefined;
-    return buildScriptConfig(parts, obj, evalFileDir);
+  const command = parseCommandArray(obj.command ?? obj.script);
+  if (!command) return undefined;
+
+  const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
+  let cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
+
+  // Resolve relative cwd against eval file directory
+  if (cwd && !path.isAbsolute(cwd)) {
+    cwd = path.resolve(evalFileDir, cwd);
   }
 
-  if (!Array.isArray(commandSource) || commandSource.length === 0) return undefined;
-  const commandArr = commandSource.filter((s): s is string => typeof s === 'string');
-  if (commandArr.length === 0) return undefined;
-
-  return buildScriptConfig(commandArr, obj, evalFileDir);
+  const config: WorkspaceScriptConfig = { command };
+  if (timeoutMs !== undefined) {
+    return { ...config, timeout_ms: timeoutMs, ...(cwd !== undefined && { cwd }) };
+  }
+  return cwd ? { ...config, cwd } : config;
 }
 
 function parseRepoSource(raw: unknown): RepoSource | undefined {
