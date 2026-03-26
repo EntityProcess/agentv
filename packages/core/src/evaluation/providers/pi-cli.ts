@@ -539,6 +539,10 @@ function summarizePiEvent(event: unknown): string | undefined {
       }
       return `message_update: ${eventType}`;
     }
+    case 'tool_execution_start':
+      return `tool_start: ${record.toolName}`;
+    case 'tool_execution_end':
+      return `tool_end: ${record.toolName}`;
     default:
       return type;
   }
@@ -580,29 +584,119 @@ function parsePiJsonl(output: string): unknown[] {
 }
 
 function extractMessages(events: unknown[]): readonly Message[] {
+  let messages: Message[] | undefined;
+
   for (let i = events.length - 1; i >= 0; i--) {
     const event = events[i];
     if (!event || typeof event !== 'object') continue;
     const record = event as Record<string, unknown>;
     if (record.type !== 'agent_end') continue;
 
-    const messages = record.messages;
-    if (!Array.isArray(messages)) continue;
+    const msgs = record.messages;
+    if (!Array.isArray(msgs)) continue;
 
-    return messages.map(convertPiMessage).filter((m): m is Message => m !== undefined);
+    messages = msgs.map(convertPiMessage).filter((m): m is Message => m !== undefined);
+    break;
   }
 
-  const output: Message[] = [];
-  for (const event of events) {
-    if (!event || typeof event !== 'object') continue;
-    const record = event as Record<string, unknown>;
-    if (record.type === 'turn_end') {
-      const converted = convertPiMessage(record.message);
-      if (converted) output.push(converted);
+  if (!messages) {
+    messages = [];
+    for (const event of events) {
+      if (!event || typeof event !== 'object') continue;
+      const record = event as Record<string, unknown>;
+      if (record.type === 'turn_end') {
+        const converted = convertPiMessage(record.message);
+        if (converted) messages.push(converted);
+      }
     }
   }
 
-  return output;
+  // Pi CLI may emit tool_execution_start/tool_execution_end events whose tool
+  // calls are absent from the final agent_end messages. Reconstruct them and
+  // inject into the last assistant message so evaluators (e.g. skill-trigger)
+  // can detect them.
+  const eventToolCalls = extractToolCallsFromEvents(events);
+  if (eventToolCalls.length > 0) {
+    injectEventToolCalls(messages, eventToolCalls);
+  }
+
+  return messages;
+}
+
+/**
+ * Scan JSONL events for tool_execution_start / tool_execution_end pairs and
+ * reconstruct ToolCall objects from them.
+ */
+function extractToolCallsFromEvents(events: unknown[]): ToolCall[] {
+  const starts = new Map<string, { tool: string; input: unknown }>();
+  const results = new Map<string, unknown>();
+
+  for (const event of events) {
+    if (!event || typeof event !== 'object') continue;
+    const r = event as Record<string, unknown>;
+    const type = r.type;
+    if (type === 'tool_execution_start' && typeof r.toolName === 'string') {
+      const id = typeof r.toolCallId === 'string' ? r.toolCallId : undefined;
+      starts.set(id ?? `anon-${starts.size}`, { tool: r.toolName, input: r.args });
+    } else if (type === 'tool_execution_end') {
+      const id = typeof r.toolCallId === 'string' ? r.toolCallId : undefined;
+      if (id) results.set(id, r.result);
+    }
+  }
+
+  const toolCalls: ToolCall[] = [];
+  for (const [id, { tool, input }] of starts) {
+    toolCalls.push({
+      tool,
+      input: input as Record<string, unknown> | undefined,
+      id: id.startsWith('anon-') ? undefined : id,
+      output: results.get(id),
+    });
+  }
+  return toolCalls;
+}
+
+/**
+ * Merge event-sourced tool calls into messages. For each tool call, if it
+ * already exists (by id) in some message, skip it. Otherwise, append it to
+ * the last assistant message (creating one if needed).
+ */
+function injectEventToolCalls(messages: Message[], eventToolCalls: ToolCall[]): void {
+  const existingIds = new Set<string>();
+  const existingTools = new Set<string>();
+  for (const msg of messages) {
+    if (!msg.toolCalls) continue;
+    for (const tc of msg.toolCalls) {
+      if (tc.id) existingIds.add(tc.id);
+      // Track tool+input combos to avoid duplicates when there's no id
+      existingTools.add(`${tc.tool}:${JSON.stringify(tc.input)}`);
+    }
+  }
+
+  const missing = eventToolCalls.filter((tc) => {
+    if (tc.id && existingIds.has(tc.id)) return false;
+    if (existingTools.has(`${tc.tool}:${JSON.stringify(tc.input)}`)) return false;
+    return true;
+  });
+
+  if (missing.length === 0) return;
+
+  // Find the last assistant message and replace it with an enriched copy
+  let targetIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'assistant') {
+      targetIdx = i;
+      break;
+    }
+  }
+
+  if (targetIdx >= 0) {
+    const target = messages[targetIdx];
+    messages[targetIdx] = { ...target, toolCalls: [...(target.toolCalls ?? []), ...missing] };
+  } else {
+    // No assistant message — create a synthetic one
+    messages.push({ role: 'assistant', content: '', toolCalls: missing });
+  }
 }
 
 function extractTokenUsage(events: unknown[]): ProviderTokenUsage | undefined {
@@ -720,15 +814,13 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
         input: p.input,
         id: typeof p.id === 'string' ? p.id : undefined,
       });
-    }
-    if (p.type === 'toolCall' && typeof p.name === 'string') {
+    } else if ((p.type === 'toolCall' || p.type === 'tool_call') && typeof p.name === 'string') {
       toolCalls.push({
         tool: p.name,
-        input: p.arguments,
+        input: p.arguments ?? p.input,
         id: typeof p.id === 'string' ? p.id : undefined,
       });
-    }
-    if (p.type === 'tool_result' && typeof p.tool_use_id === 'string') {
+    } else if (p.type === 'tool_result' && typeof p.tool_use_id === 'string') {
       const existing = toolCalls.find((tc) => tc.id === p.tool_use_id);
       if (existing) {
         const idx = toolCalls.indexOf(existing);
@@ -830,3 +922,10 @@ async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
     });
   });
 }
+
+/** @internal Exported for testing only. */
+export const _internal = {
+  extractMessages,
+  extractToolCallsFromEvents,
+  parsePiJsonl,
+};

@@ -3,7 +3,6 @@ description: Evaluates that the agent-plugin-review skill is triggered and catch
 execution:
   targets:
     - pi-cli
-  workers: 1
 
 workspace:
   template: ./workspace-template
@@ -20,6 +19,8 @@ tests:
       Review the deploy-auto plugin in this repo for completeness.
       Check that every skill has a corresponding eval file.
     assertions:
+      - type: skill-trigger
+        skill: agent-plugin-review
       - type: contains
         value: deploy-rollback
       - type: rubrics
