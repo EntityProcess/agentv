@@ -78,15 +78,18 @@ export class PiCliProvider implements Provider {
     const startTime = new Date().toISOString();
     const startMs = Date.now();
 
-    const workspaceRoot = await this.createWorkspace();
+    // Use eval-materialized workspace (request.cwd) when available, consistent with copilot-cli.
+    // Only create a temp workspace when no cwd is provided.
+    const hasExternalCwd = !!(request.cwd || this.config.cwd);
+    const workspaceRoot = hasExternalCwd ? undefined : await this.createWorkspace();
+    const cwd = this.resolveCwd(workspaceRoot, request.cwd);
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
       // Save prompt to file for debugging/logging
-      const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
+      const promptFile = path.join(cwd, PROMPT_FILENAME);
       await writeFile(promptFile, request.question, 'utf8');
 
       const args = this.buildPiArgs(request.question, inputFiles);
-      const cwd = this.resolveCwd(workspaceRoot, request.cwd);
 
       const result = await this.executePi(args, cwd, request.signal, logger);
 
@@ -136,7 +139,7 @@ export class PiCliProvider implements Provider {
           args,
           executable: this.config.executable,
           promptFile,
-          workspace: workspaceRoot,
+          workspace: workspaceRoot ?? cwd,
           inputFiles,
           logFile: logger?.filePath,
         },
@@ -148,18 +151,23 @@ export class PiCliProvider implements Provider {
       };
     } finally {
       await logger?.close();
-      await this.cleanupWorkspace(workspaceRoot);
+      if (workspaceRoot) {
+        await this.cleanupWorkspace(workspaceRoot);
+      }
     }
   }
 
-  private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
+  private resolveCwd(workspaceRoot: string | undefined, cwdOverride?: string): string {
     if (cwdOverride) {
       return path.resolve(cwdOverride);
     }
-    if (!this.config.cwd) {
+    if (this.config.cwd) {
+      return path.resolve(this.config.cwd);
+    }
+    if (workspaceRoot) {
       return workspaceRoot;
     }
-    return path.resolve(this.config.cwd);
+    return process.cwd();
   }
 
   private buildPiArgs(prompt: string, inputFiles: readonly string[] | undefined): string[] {
