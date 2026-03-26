@@ -9,7 +9,9 @@ workspace:
   template: ./workspace-template
   hooks:
     before_all:
-      command: node scripts/setup.mjs
+      command:
+        - node
+        - scripts/setup.mjs
 
 tests:
   - id: detect-missing-eval
