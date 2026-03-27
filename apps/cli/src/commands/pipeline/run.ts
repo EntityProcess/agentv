@@ -21,6 +21,7 @@ import { executeScript, loadTestSuite } from '@agentv/core';
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 
+import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { selectTarget } from '../eval/targets.js';
 
@@ -57,9 +58,9 @@ export const evalRunCommand = command({
       description: 'Path to eval YAML file',
     }),
     out: option({
-      type: string,
+      type: optional(string),
       long: 'out',
-      description: 'Output directory for results',
+      description: 'Output directory for results (default: .agentv/results/runs/eval_<timestamp>)',
     }),
     workers: option({
       type: optional(number),
@@ -69,7 +70,7 @@ export const evalRunCommand = command({
   },
   handler: async ({ evalPath, out, workers }) => {
     const resolvedEvalPath = resolve(evalPath);
-    const outDir = resolve(out);
+    const outDir = resolve(out ?? buildDefaultRunDir(process.cwd()));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
     const evalDir = dirname(resolvedEvalPath);
 
@@ -232,6 +233,7 @@ export const evalRunCommand = command({
           await writeJson(join(testDir, 'timing.json'), {
             duration_ms: durationMs,
             total_duration_seconds: Math.round(durationMs / 10) / 100,
+            execution_status: 'ok',
           });
 
           console.log(`  ${testId}: OK (${durationMs}ms, ${response.length} chars)`);
@@ -243,6 +245,7 @@ export const evalRunCommand = command({
           await writeJson(join(testDir, 'timing.json'), {
             duration_ms: durationMs,
             total_duration_seconds: Math.round(durationMs / 10) / 100,
+            execution_status: 'execution_error',
           });
           console.error(`  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}`);
         } finally {
@@ -256,9 +259,18 @@ export const evalRunCommand = command({
         }
       };
 
-      // Run all targets in parallel
-      const allTasks = testIds.map((testId) => invokeTarget(testId));
-      await Promise.all(allTasks);
+      // Run targets with concurrency limit
+      const pending = new Set<Promise<void>>();
+      for (const testId of testIds) {
+        const task = invokeTarget(testId).then(() => {
+          pending.delete(task);
+        });
+        pending.add(task);
+        if (pending.size >= maxWorkers) {
+          await Promise.race(pending);
+        }
+      }
+      await Promise.all(pending);
     } else {
       console.log('Agent-as-target mode — skipping CLI invocation.');
     }

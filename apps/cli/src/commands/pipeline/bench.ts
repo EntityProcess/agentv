@@ -12,6 +12,7 @@
  * Stdin format (LLM scores):
  *   { "<test-id>": { "<grader-name>": { "score": 0.85, "assertions": [...] } } }
  */
+import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -150,15 +151,46 @@ export const evalBenchCommand = command({
         'utf8',
       );
 
-      // Build index entry
+      // Build index entry (match CLI-mode schema for dashboard compatibility)
+      const scores = evaluators.map((e) => ({
+        name: e.name,
+        type: e.type,
+        score: e.score,
+        weight: e.weight,
+        verdict: e.score >= 0.5 ? 'pass' : 'fail',
+        assertions: e.assertions.map((a) => ({
+          text: a.text,
+          passed: a.passed,
+          evidence: a.evidence ?? '',
+        })),
+      }));
+
+      // Read execution_status from timing.json (written by pipeline run)
+      let executionStatus = 'ok';
+      const timingPath = join(testDir, 'timing.json');
+      if (existsSync(timingPath)) {
+        try {
+          const timing = JSON.parse(await readFile(timingPath, 'utf8'));
+          if (typeof timing.execution_status === 'string') {
+            executionStatus = timing.execution_status;
+          }
+        } catch {
+          // Fall back to 'ok' if timing.json is unreadable
+        }
+      }
+
+      const hasResponse = existsSync(join(testDir, 'response.md'));
       indexLines.push(
         JSON.stringify({
           timestamp: manifest.timestamp,
           test_id: testId,
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,
+          scores,
+          execution_status: executionStatus,
           grading_path: `${testId}/grading.json`,
           timing_path: `${testId}/timing.json`,
+          response_path: hasResponse ? `${testId}/response.md` : null,
         }),
       );
     }
