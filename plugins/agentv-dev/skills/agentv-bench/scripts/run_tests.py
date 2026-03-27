@@ -36,13 +36,43 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-def _find_agentv() -> str:
-    """Resolve the agentv executable via PATH (handles .ps1/.cmd on Windows)."""
+def _find_env_key(key: str) -> str | None:
+    """Search up from cwd for .env and return a specific key value."""
+    current = Path(os.getcwd())
+    while True:
+        env_file = current / ".env"
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                line = line.strip()
+                if line.startswith(f"{key}="):
+                    return line[len(key) + 1:]
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
+
+def _find_agentv() -> list[str]:
+    """Resolve the agentv CLI command.
+
+    Checks AGENTV_CLI env var first (supports multi-word commands like
+    'bun /path/to/cli.ts' for running from source). If not in environment,
+    also searches the nearest .env file. Falls back to PATH lookup.
+    """
+    cli = os.environ.get("AGENTV_CLI") or _find_env_key("AGENTV_CLI")
+    if cli:
+        parts = cli.split()
+        if parts:
+            return parts
     path = shutil.which("agentv")
     if not path:
-        print("agentv CLI not found. Install: bun install -g agentv", file=sys.stderr)
+        print(
+            "agentv CLI not found. Set AGENTV_CLI in .env or install: bun install -g agentv",
+            file=sys.stderr,
+        )
         sys.exit(1)
-    return path
+    return [path]
 
 
 def _load_env(env_file: Path) -> dict:
@@ -62,7 +92,7 @@ def _load_env(env_file: Path) -> dict:
 def run_agentv_input(eval_path: str, out_dir: str) -> dict:
     """Call agentv pipeline input and return the manifest."""
     result = subprocess.run(
-        [_find_agentv(), "pipeline", "input", eval_path, "--out", out_dir],
+        [*_find_agentv(), "pipeline", "input", eval_path, "--out", out_dir],
         capture_output=True,
         text=True,
     )
