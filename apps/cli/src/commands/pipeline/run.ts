@@ -21,6 +21,7 @@ import { executeScript, loadTestSuite } from '@agentv/core';
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 
+import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { selectTarget } from '../eval/targets.js';
 
@@ -57,9 +58,9 @@ export const evalRunCommand = command({
       description: 'Path to eval YAML file',
     }),
     out: option({
-      type: string,
+      type: optional(string),
       long: 'out',
-      description: 'Output directory for results',
+      description: 'Output directory for results (default: .agentv/results/runs/eval_<timestamp>)',
     }),
     workers: option({
       type: optional(number),
@@ -69,7 +70,7 @@ export const evalRunCommand = command({
   },
   handler: async ({ evalPath, out, workers }) => {
     const resolvedEvalPath = resolve(evalPath);
-    const outDir = resolve(out);
+    const outDir = resolve(out ?? buildDefaultRunDir(process.cwd()));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
     const evalDir = dirname(resolvedEvalPath);
 

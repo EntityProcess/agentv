@@ -12,6 +12,7 @@
  * Stdin format (LLM scores):
  *   { "<test-id>": { "<grader-name>": { "score": 0.85, "assertions": [...] } } }
  */
+import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -150,15 +151,32 @@ export const evalBenchCommand = command({
         'utf8',
       );
 
-      // Build index entry
+      // Build index entry (match CLI-mode schema for dashboard compatibility)
+      const scores = evaluators.map((e) => ({
+        name: e.name,
+        type: e.type,
+        score: e.score,
+        weight: e.weight,
+        verdict: e.score >= 0.5 ? 'pass' : 'fail',
+        assertions: e.assertions.map((a) => ({
+          text: a.text,
+          passed: a.passed,
+          evidence: a.evidence ?? '',
+        })),
+      }));
+
+      const hasResponse = existsSync(join(testDir, 'response.md'));
       indexLines.push(
         JSON.stringify({
           timestamp: manifest.timestamp,
           test_id: testId,
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,
+          scores,
+          execution_status: 'ok',
           grading_path: `${testId}/grading.json`,
           timing_path: `${testId}/timing.json`,
+          response_path: hasResponse ? `${testId}/response.md` : undefined,
         }),
       );
     }

@@ -49,13 +49,17 @@ These scripts break the eval pipeline into discrete steps. The agent runs them i
 
 ```bash
 # 1. Extract inputs, invoke CLI targets, run code graders (one command):
-agentv pipeline run evals/repro.eval.yaml --out .agentv/results/export/run-1
+#    --out is optional; defaults to .agentv/results/runs/eval_<timestamp>
+agentv pipeline run evals/repro.eval.yaml
 
 # 2. Agent performs LLM grading (reads llm_graders/*.json, produces scores JSON)
 # ... agent reads prompts, grades responses, writes llm_scores.json ...
 
-# 3. Merge all scores and produce final artifacts
-agentv pipeline bench .agentv/results/export/run-1 --llm-scores llm_scores.json
+# 3. Merge all scores and produce final artifacts (writes index.jsonl for dashboard)
+agentv pipeline bench <run-dir> --llm-scores llm_scores.json
+
+# 4. Validate artifacts are dashboard-compatible
+agentv results validate <run-dir>
 ```
 
 ### Skill management scripts
@@ -168,11 +172,13 @@ Put results in a workspace directory organized by iteration (`iteration-1/`, `it
 
 ### Choosing a run mode
 
-Read the mode and CLI override from `.env` before doing anything:
+**User instruction takes priority.** If the user says "run in agent mode", "use agent mode", or "use CLI mode", use that mode directly — do not check `.env`.
+
+Only read `.env` when the user has not specified a mode:
 
 ```bash
-grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 grep AGENTV_CLI .env 2>/dev/null || echo "AGENTV_CLI=(not set, using global agentv)"
+grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 ```
 
 **`AGENTV_CLI` override:** If `AGENTV_CLI` is set in `.env`, use that value as the command prefix in place of `agentv` for every pipeline command. This lets you run from a local source checkout instead of the globally installed binary.
@@ -198,7 +204,7 @@ The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` a
 | `agent` (default) | **Agent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
 | `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
 
-Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
+Set `AGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `agent`. **User instruction always overrides this.**
 
 **`agent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. See "Agent mode: Running eval.yaml without CLI" below.
 
@@ -294,44 +300,45 @@ When `AGENT_EVAL_MODE=agent` (default), use the pipeline CLI subcommands (`pipel
 
 **Recommended: Single command for CLI targets**
 
-For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and code grading in one step:
+For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and code grading in one step. When `--out` is omitted, the output directory defaults to `.agentv/results/runs/eval_<timestamp>` (same convention as `agentv eval`):
 
 ```bash
 # Extract inputs, invoke all CLI targets in parallel, run code graders:
-agentv pipeline run evals/repro.eval.yaml --out .agentv/results/export/run-1
+# Output goes to .agentv/results/runs/eval_<timestamp>/ by default
+agentv pipeline run evals/repro.eval.yaml
 ```
 
-Then the agent performs LLM grading and merges scores:
+The run directory is printed to stdout. Then the agent performs LLM grading and merges scores:
 
 ```bash
-# bash:
-agentv pipeline bench .agentv/results/export/run-1 --llm-scores llm_scores.json
+agentv pipeline bench <run-dir> --llm-scores llm_scores.json
 
-# PowerShell (if --llm-scores is unavailable, pipe via Get-Content):
-# Get-Content llm_scores.json | agentv pipeline bench .agentv/results/export/run-1
+# Validate artifacts are dashboard-compatible:
+agentv results validate <run-dir>
 ```
 
-That's the entire pipeline: **2 commands** plus the agent's LLM grading step.
+That's the entire pipeline: **2 commands** + LLM grading + optional validation.
 
 **Alternative: Step-by-step (agent-as-target or fine-grained control)**
 
 Use individual commands when the agent IS the target or you need control over each step:
 
 ```bash
-# Step 1: Extract inputs
-agentv pipeline input evals/repro.eval.yaml --out .agentv/results/export/run-1
+# Step 1: Extract inputs (defaults to .agentv/results/runs/eval_<timestamp>)
+agentv pipeline input evals/repro.eval.yaml
 
 # Step 2: Agent invokes each test (reads input.json, writes response.md)
-#         For CLI targets, you can also use the Python wrapper:
-#         python scripts/run_tests.py evals/repro.eval.yaml --out .agentv/results/export/run-1
 
 # Step 3: Run code graders
-agentv pipeline grade .agentv/results/export/run-1
+agentv pipeline grade <run-dir>
 
 # Step 4: Agent does LLM grading, writes llm_scores.json
 
-# Step 5: Merge scores
-agentv pipeline bench .agentv/results/export/run-1 --llm-scores llm_scores.json
+# Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
+agentv pipeline bench <run-dir> --llm-scores llm_scores.json
+
+# Step 6: Validate
+agentv results validate <run-dir>
 ```
 
 This creates an export directory with per-test `input.json`, `invoke.json`, `criteria.md`, and grader configs (`code_graders/*.json`, `llm_graders/*.json`).
@@ -353,7 +360,9 @@ The agent reads `llm_graders/<name>.json` for each test, grades the response usi
 
 **Subagent environments (Claude Code):** Dispatch the `grader` subagent (read `agents/grader.md`) for this step.
 
-**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the export directory.
+**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the run directory.
+
+**Note:** `pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry, matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format directly — no separate conversion script is needed. Run `agentv results validate <run-dir>` to verify compatibility.
 
 **Note on Python wrapper scripts:** The `scripts/` directory contains Python wrappers (`run_tests.py`, `run_code_graders.py`, `bench.py`) that call the CLI commands. These are provided as an alternative but the direct CLI commands above are preferred — they work cross-platform without Python dependency issues.
 

@@ -4,6 +4,7 @@ import { resultsExportCommand } from './export.js';
 import { resultsFailuresCommand } from './failures.js';
 import { resultsShowCommand } from './show.js';
 import { resultsSummaryCommand } from './summary.js';
+import { resultsValidateCommand } from './validate.js';
 
 export const resultsCommand = subcommands({
   name: 'results',
@@ -13,5 +14,6 @@ export const resultsCommand = subcommands({
     summary: resultsSummaryCommand,
     failures: resultsFailuresCommand,
     show: resultsShowCommand,
+    validate: resultsValidateCommand,
   },
 });
