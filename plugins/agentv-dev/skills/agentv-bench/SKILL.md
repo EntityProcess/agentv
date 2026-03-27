@@ -358,9 +358,7 @@ The agent reads `llm_graders/<name>.json` for each test, grades the response usi
 }
 ```
 
-**Subagent environments (Claude Code):** Dispatch the `grader` subagent (read `agents/grader.md`) for this step.
-
-**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the run directory.
+Dispatch one `grader` subagent (read `agents/grader.md`) **per (test × LLM grader) pair**, all in parallel. For example, 5 tests × 2 LLM graders = 10 subagents launched simultaneously. Each subagent reads `<test-id>/llm_graders/<name>.json`, grades the corresponding `<test-id>/response.md` against the `prompt_content` criteria, and returns its score (0.0–1.0) and assertions. After all subagents complete, merge their results into a single `llm_scores.json` in the run directory.
 
 **Note:** `pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry, matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format directly — no separate conversion script is needed. Run `agentv results validate <run-dir>` to verify compatibility.
 
