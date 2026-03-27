@@ -2,8 +2,9 @@
  * `agentv pipeline bench` — Merge code-grader and LLM grader scores into final
  * benchmark artifacts.
  *
- * Reads code_grader_results from disk and LLM grader scores from stdin,
- * computes weighted pass_rate per test, and writes:
+ * Reads code_grader_results from disk and LLM grader scores from a file
+ * (`--llm-scores <path>`) or stdin, computes weighted pass_rate per test,
+ * and writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
  *   - index.jsonl             (one line per test)
  *   - benchmark.json          (aggregate statistics)
@@ -14,7 +15,7 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { command, positional, string } from 'cmd-ts';
+import { command, option, optional, positional, string } from 'cmd-ts';
 
 interface EvaluatorScore {
   readonly name: string;
@@ -33,14 +34,24 @@ export const evalBenchCommand = command({
       displayName: 'export-dir',
       description: 'Export directory from pipeline input/grade',
     }),
+    llmScores: option({
+      type: optional(string),
+      long: 'llm-scores',
+      description: 'Path to LLM scores JSON file (reads from stdin if omitted)',
+    }),
   },
-  handler: async ({ exportDir }) => {
+  handler: async ({ exportDir, llmScores: llmScoresPath }) => {
     const manifest = JSON.parse(await readFile(join(exportDir, 'manifest.json'), 'utf8'));
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
 
-    // Read LLM scores from stdin
-    const stdinData = await readStdin();
+    // Read LLM scores from file or stdin
+    let stdinData: string;
+    if (llmScoresPath) {
+      stdinData = await readFile(llmScoresPath, 'utf8');
+    } else {
+      stdinData = await readStdin();
+    }
     const llmScores: Record<
       string,
       Record<
