@@ -168,11 +168,30 @@ Put results in a workspace directory organized by iteration (`iteration-1/`, `it
 
 ### Choosing a run mode
 
-Read the mode from `.env` before doing anything:
+Read the mode and CLI override from `.env` before doing anything:
 
 ```bash
 grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
+grep AGENTV_CLI .env 2>/dev/null || echo "AGENTV_CLI=(not set, using global agentv)"
 ```
+
+**`AGENTV_CLI` override:** If `AGENTV_CLI` is set in `.env`, use that value as the command prefix in place of `agentv` for every pipeline command. This lets you run from a local source checkout instead of the globally installed binary.
+
+```bash
+# Example .env:
+# AGENTV_CLI=bun D:\GitHub\christso\agentv\apps\cli\src\cli.ts
+
+# With AGENTV_CLI set, replace 'agentv' with its value:
+# PowerShell:
+$cli = (Get-Content .env | Select-String "^AGENTV_CLI=" | ForEach-Object { $_ -replace "^AGENTV_CLI=","" })
+if (-not $cli) { $cli = "agentv" }
+# Then: Invoke-Expression "$cli pipeline run ..."
+
+# Bash/zsh:
+cli=$(grep '^AGENTV_CLI=' .env 2>/dev/null | sed 's/^AGENTV_CLI=//' || echo "agentv")
+```
+
+The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` automatically from `.env` — no extra steps needed when calling them.
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |-------------------|------|-----|
@@ -270,7 +289,7 @@ When `AGENT_EVAL_MODE=agent` (default), use the pipeline CLI subcommands (`pipel
 
 **Prerequisites:**
 - The eval.yaml file exists and contains valid test definitions
-- `agentv` CLI is installed (or run from source with `bun apps/cli/src/cli.ts`)
+- `agentv` CLI is installed (or run from source via `AGENTV_CLI=bun /path/to/cli.ts` in `.env`)
 - Read `references/eval-yaml-spec.md` for the full schema
 
 **Recommended: Single command for CLI targets**
