@@ -178,6 +178,13 @@ export const evalRunCommand = command({
     // ── Step 2: Invoke CLI targets in parallel ───────────────────────
     if (targetInfo) {
       const envVars = loadEnvFile(evalDir);
+      // Set AGENTV_RUN_TIMESTAMP so CLI targets group artifacts under one run folder.
+      if (!process.env.AGENTV_RUN_TIMESTAMP) {
+        process.env.AGENTV_RUN_TIMESTAMP = new Date()
+          .toISOString()
+          .replace(/:/g, '-')
+          .replace(/\./g, '-');
+      }
       const mergedEnv = { ...process.env, ...envVars };
       const maxWorkers = workers ?? testIds.length;
 
