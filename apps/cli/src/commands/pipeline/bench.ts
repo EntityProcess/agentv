@@ -165,6 +165,20 @@ export const evalBenchCommand = command({
         })),
       }));
 
+      // Read execution_status from timing.json (written by pipeline run)
+      let executionStatus = 'ok';
+      const timingPath = join(testDir, 'timing.json');
+      if (existsSync(timingPath)) {
+        try {
+          const timing = JSON.parse(await readFile(timingPath, 'utf8'));
+          if (typeof timing.execution_status === 'string') {
+            executionStatus = timing.execution_status;
+          }
+        } catch {
+          // Fall back to 'ok' if timing.json is unreadable
+        }
+      }
+
       const hasResponse = existsSync(join(testDir, 'response.md'));
       indexLines.push(
         JSON.stringify({
@@ -173,10 +187,10 @@ export const evalBenchCommand = command({
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,
           scores,
-          execution_status: 'ok',
+          execution_status: executionStatus,
           grading_path: `${testId}/grading.json`,
           timing_path: `${testId}/timing.json`,
-          response_path: hasResponse ? `${testId}/response.md` : undefined,
+          response_path: hasResponse ? `${testId}/response.md` : null,
         }),
       );
     }

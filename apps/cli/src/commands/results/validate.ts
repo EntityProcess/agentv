@@ -124,12 +124,39 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
           severity: 'warning',
           message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'scores[]' array — dashboard may not show per-evaluator breakdown`,
         });
+      } else {
+        for (let j = 0; j < entry.scores.length; j++) {
+          const s = entry.scores[j] as Record<string, unknown> | null;
+          if (!s || typeof s !== 'object') {
+            diagnostics.push({
+              severity: 'error',
+              message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): scores[${j}] is not an object`,
+            });
+            continue;
+          }
+          const missing: string[] = [];
+          if (typeof s.name !== 'string') missing.push('name');
+          if (typeof s.type !== 'string') missing.push('type');
+          if (typeof s.score !== 'number') missing.push('score');
+          if (typeof s.verdict !== 'string') missing.push('verdict');
+          if (missing.length > 0) {
+            diagnostics.push({
+              severity: 'warning',
+              message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): scores[${j}] missing fields: ${missing.join(', ')}`,
+            });
+          }
+        }
       }
 
       if (!entry.execution_status) {
         diagnostics.push({
           severity: 'warning',
           message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'execution_status'`,
+        });
+      } else if (!['ok', 'quality_failure', 'execution_error'].includes(entry.execution_status)) {
+        diagnostics.push({
+          severity: 'warning',
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): unknown execution_status '${entry.execution_status}' (expected: ok, quality_failure, execution_error)`,
         });
       }
     } catch {

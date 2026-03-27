@@ -233,6 +233,7 @@ export const evalRunCommand = command({
           await writeJson(join(testDir, 'timing.json'), {
             duration_ms: durationMs,
             total_duration_seconds: Math.round(durationMs / 10) / 100,
+            execution_status: 'ok',
           });
 
           console.log(`  ${testId}: OK (${durationMs}ms, ${response.length} chars)`);
@@ -244,6 +245,7 @@ export const evalRunCommand = command({
           await writeJson(join(testDir, 'timing.json'), {
             duration_ms: durationMs,
             total_duration_seconds: Math.round(durationMs / 10) / 100,
+            execution_status: 'execution_error',
           });
           console.error(`  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}`);
         } finally {
@@ -257,9 +259,18 @@ export const evalRunCommand = command({
         }
       };
 
-      // Run all targets in parallel
-      const allTasks = testIds.map((testId) => invokeTarget(testId));
-      await Promise.all(allTasks);
+      // Run targets with concurrency limit
+      const pending = new Set<Promise<void>>();
+      for (const testId of testIds) {
+        const task = invokeTarget(testId).then(() => {
+          pending.delete(task);
+        });
+        pending.add(task);
+        if (pending.size >= maxWorkers) {
+          await Promise.race(pending);
+        }
+      }
+      await Promise.all(pending);
     } else {
       console.log('Agent-as-target mode — skipping CLI invocation.');
     }
