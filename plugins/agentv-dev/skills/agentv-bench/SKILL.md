@@ -172,12 +172,14 @@ Put results in a workspace directory organized by iteration (`iteration-1/`, `it
 
 ### Choosing a run mode
 
-Default run mode is `agent` unless the user specifies otherwise.
+**User instruction takes priority.** If the user says "run in agent mode", "use agent mode", or "use CLI mode", use that mode directly — do not check `.env`.
 
-| Mode | How |
-|------|-----|
-| **`agent`** (default) | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. See "Agent mode: Running eval.yaml without CLI" below. |
-| **`cli`** | `agentv eval <path>` — end-to-end, multi-provider. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features. |
+Only read `.env` when the user has not specified a mode:
+
+```bash
+grep AGENTV_CLI .env 2>/dev/null || echo "AGENTV_CLI=(not set, using global agentv)"
+grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
+```
 
 ### CLI resolution
 
@@ -187,7 +189,22 @@ The Python wrapper `scripts/agentv_cli.py` resolves the `agentv` command determi
 2. `AGENTV_CLI` in nearest `.env` file (searching upward from cwd)
 3. `agentv` on PATH
 
-All pipeline scripts (`run_tests.py`, `run_code_graders.py`, `bench.py`) import from `agentv_cli.py` — no manual CLI resolution needed.
+# Bash/zsh:
+cli=$(grep '^AGENTV_CLI=' .env 2>/dev/null | sed 's/^AGENTV_CLI=//' || echo "agentv")
+```
+
+The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` automatically from `.env` — no extra steps needed when calling them.
+
+| `AGENT_EVAL_MODE` | Mode | How |
+|-------------------|------|-----|
+| `agent` (default) | **Agent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
+| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
+
+Set `AGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `agent`. **User instruction always overrides this.**
+
+**`agent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. See "Agent mode: Running eval.yaml without CLI" below.
+
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
 
 ### Running evaluations
 
@@ -338,6 +355,9 @@ The agent reads `llm_graders/<name>.json` for each test, grades the response usi
 ```
 
 Dispatch one `grader` subagent (read `agents/grader.md`) **per (test × LLM grader) pair**, all in parallel. For example, 5 tests × 2 LLM graders = 10 subagents launched simultaneously. Each subagent reads `<test-id>/llm_graders/<name>.json`, grades the corresponding `<test-id>/response.md` against the `prompt_content` criteria, and returns its score (0.0–1.0) and assertions. After all subagents complete, merge their results into a single `llm_scores.json` in the run directory.
+
+**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the run directory.
+
 
 **Note:** `pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry, matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format directly — no separate conversion script is needed. Run `agentv results validate <run-dir>` to verify compatibility.
 
