@@ -19,8 +19,18 @@ Output:
     <export-dir>/<test-id>/code_grader_results/<name>.json
 """
 import argparse
+import shutil
 import subprocess
 import sys
+
+
+def _find_agentv() -> str:
+    """Resolve the agentv executable via PATH (handles .ps1/.cmd on Windows)."""
+    path = shutil.which("agentv")
+    if not path:
+        print("agentv CLI not found. Install: bun install -g agentv", file=sys.stderr)
+        sys.exit(1)
+    return path
 
 
 def main():
@@ -29,7 +39,7 @@ def main():
     args = parser.parse_args()
 
     result = subprocess.run(
-        ["agentv", "pipeline", "grade", args.export_dir],
+        [_find_agentv(), "pipeline", "grade", args.export_dir],
         capture_output=False,
     )
     sys.exit(result.returncode)

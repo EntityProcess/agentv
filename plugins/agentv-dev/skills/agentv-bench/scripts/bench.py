@@ -29,8 +29,18 @@ Output:
     <export-dir>/<test-id>/grading.json <- merged grading per test
 """
 import argparse
+import shutil
 import subprocess
 import sys
+
+
+def _find_agentv() -> str:
+    """Resolve the agentv executable via PATH (handles .ps1/.cmd on Windows)."""
+    path = shutil.which("agentv")
+    if not path:
+        print("agentv CLI not found. Install: bun install -g agentv", file=sys.stderr)
+        sys.exit(1)
+    return path
 
 
 def main():
@@ -42,7 +52,7 @@ def main():
 
     # Pass stdin through to agentv pipeline bench
     result = subprocess.run(
-        ["agentv", "pipeline", "bench", args.export_dir],
+        [_find_agentv(), "pipeline", "bench", args.export_dir],
         stdin=sys.stdin,
     )
     sys.exit(result.returncode)

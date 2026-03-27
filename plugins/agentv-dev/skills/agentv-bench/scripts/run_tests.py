@@ -26,6 +26,7 @@ For agent-as-target mode (invoke.json has kind=agent), this script only runs
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,10 +36,33 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def _find_agentv() -> str:
+    """Resolve the agentv executable via PATH (handles .ps1/.cmd on Windows)."""
+    path = shutil.which("agentv")
+    if not path:
+        print("agentv CLI not found. Install: bun install -g agentv", file=sys.stderr)
+        sys.exit(1)
+    return path
+
+
+def _load_env(env_file: Path) -> dict:
+    """Read key=value pairs from a .env file, ignoring comments and blanks."""
+    env = {}
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        env[key.strip()] = value.strip()
+    return env
+
+
 def run_agentv_input(eval_path: str, out_dir: str) -> dict:
     """Call agentv pipeline input and return the manifest."""
     result = subprocess.run(
-        ["agentv", "pipeline", "input", eval_path, "--out", out_dir],
+        [_find_agentv(), "pipeline", "input", eval_path, "--out", out_dir],
         capture_output=True,
         text=True,
     )
@@ -49,7 +73,7 @@ def run_agentv_input(eval_path: str, out_dir: str) -> dict:
     return json.loads(manifest_path.read_text())
 
 
-def invoke_cli_target(test_dir: Path) -> None:
+def invoke_cli_target(test_dir: Path, extra_env: dict | None = None) -> None:
     """Read invoke.json and execute the CLI target command."""
     invoke_path = test_dir / "invoke.json"
     invoke = json.loads(invoke_path.read_text())
@@ -61,6 +85,7 @@ def invoke_cli_target(test_dir: Path) -> None:
     command_template = invoke["command"]
     cwd = invoke.get("cwd")
     timeout_s = invoke.get("timeout_ms", 30000) / 1000
+    merged_env = {**os.environ, **(extra_env or {})}
 
     # Write prompt to temp file for {PROMPT_FILE} placeholder
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as pf:
@@ -85,6 +110,7 @@ def invoke_cli_target(test_dir: Path) -> None:
             capture_output=True,
             text=True,
             timeout=timeout_s,
+            env=merged_env,
         )
         duration_ms = int((time.time() - start) * 1000)
 
@@ -130,6 +156,16 @@ def main():
         ts = datetime.now(timezone.utc).isoformat().replace(":", "-").replace(".", "-")
         os.environ["AGENTV_RUN_TIMESTAMP"] = ts
 
+    # Load .env from eval directory or any parent
+    eval_dir = Path(args.eval_path).resolve().parent
+    env_file = None
+    for p in [eval_dir] + list(eval_dir.parents):
+        candidate = p / ".env"
+        if candidate.exists():
+            env_file = candidate
+            break
+    extra_env = _load_env(env_file) if env_file else {}
+
     manifest = run_agentv_input(args.eval_path, args.out)
     out = Path(args.out)
 
@@ -149,7 +185,7 @@ def main():
 
     print(f"Running {len(cli_tests)} CLI target(s) with {args.workers} workers...")
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(invoke_cli_target, td): td.name for td in cli_tests}
+        futures = {pool.submit(invoke_cli_target, td, extra_env): td.name for td in cli_tests}
         for future in as_completed(futures):
             tid = futures[future]
             try:

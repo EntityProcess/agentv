@@ -3,6 +3,7 @@ import { subcommands } from 'cmd-ts';
 import { evalBenchCommand } from './bench.js';
 import { evalGradeCommand } from './grade.js';
 import { evalInputCommand } from './input.js';
+import { evalRunCommand } from './run.js';
 
 export const pipelineCommand = subcommands({
   name: 'pipeline',
@@ -11,5 +12,6 @@ export const pipelineCommand = subcommands({
     input: evalInputCommand,
     grade: evalGradeCommand,
     bench: evalBenchCommand,
+    run: evalRunCommand,
   },
 });
