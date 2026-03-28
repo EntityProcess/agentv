@@ -17,8 +17,8 @@ export const Route = createFileRoute('/runs/$runId_/category/$category')({
 });
 
 function CategoryPage() {
-  const { runId_, category } = Route.useParams();
-  const { data, isLoading, error } = useCategoryDatasets(runId_, category);
+  const { runId, category } = Route.useParams();
+  const { data, isLoading, error } = useCategoryDatasets(runId, category);
 
   if (isLoading) {
     return (
@@ -51,7 +51,7 @@ function CategoryPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">{category}</h1>
-        <p className="mt-1 text-sm text-gray-400">Category in run: {runId_}</p>
+        <p className="mt-1 text-sm text-gray-400">Category in run: {runId}</p>
       </div>
 
       <StatsCards total={total} passed={passed} failed={failed} passRate={passRate} />
@@ -68,7 +68,7 @@ function CategoryPage() {
               <Link
                 key={ds.name}
                 to="/runs/$runId/dataset/$dataset"
-                params={{ runId: runId_, dataset: ds.name }}
+                params={{ runId, dataset: ds.name }}
                 className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
               >
                 <div className="flex items-center justify-between">
