@@ -26,7 +26,7 @@
  *   - createApp(results, cwd) — Hono app factory
  */
 
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
@@ -178,9 +178,7 @@ export function createApp(
           const records = loadLightweightResults(m.path);
           if (records.length > 0) {
             target = records[0].target;
-            experiment = (records[0] as unknown as Record<string, unknown>).experiment as
-              | string
-              | undefined;
+            experiment = records[0].experiment;
           }
         } catch {
           // ignore enrichment errors
@@ -425,9 +423,7 @@ export function createApp(
     try {
       const content = readFileSync(meta.path, 'utf8');
       const records = parseResultManifest(content);
-      const record = records.find(
-        (r) => (r.test_id ?? r.eval_id) === evalId,
-      );
+      const record = records.find((r) => (r.test_id ?? r.eval_id) === evalId);
       if (!record) {
         return c.json({ error: 'Eval not found' }, 404);
       }
@@ -487,7 +483,10 @@ export function createApp(
     const absolutePath = path.resolve(baseDir, filePath);
 
     // Security: prevent path traversal — resolved path must be inside baseDir
-    if (!absolutePath.startsWith(path.resolve(baseDir) + path.sep) && absolutePath !== path.resolve(baseDir)) {
+    if (
+      !absolutePath.startsWith(path.resolve(baseDir) + path.sep) &&
+      absolutePath !== path.resolve(baseDir)
+    ) {
       return c.json({ error: 'Path traversal not allowed' }, 403);
     }
 
@@ -524,7 +523,7 @@ export function createApp(
       try {
         const records = loadLightweightResults(m.path);
         for (const r of records) {
-          const experiment = (r as Record<string, unknown>).experiment as string | undefined ?? 'default';
+          const experiment = r.experiment ?? 'default';
           const entry = experimentMap.get(experiment) ?? {
             targets: new Set<string>(),
             runFilenames: new Set<string>(),
@@ -584,8 +583,7 @@ export function createApp(
             passedCount: 0,
           };
           entry.runFilenames.add(m.filename);
-          const experiment = (r as Record<string, unknown>).experiment as string | undefined;
-          if (experiment) entry.experiments.add(experiment);
+          if (r.experiment) entry.experiments.add(r.experiment);
           entry.evalCount++;
           if (r.score >= 1) entry.passedCount++;
           targetMap.set(target, entry);
