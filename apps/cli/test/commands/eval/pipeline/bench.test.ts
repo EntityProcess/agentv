@@ -7,7 +7,7 @@ const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 
 describe('pipeline bench', () => {
   beforeEach(async () => {
-    const testDir = join(OUT_DIR, 'test-01');
+    const testDir = join(OUT_DIR, 'test-01', 'test-target');
     const codeResultsDir = join(testDir, 'code_grader_results');
     const llmGradersDir = join(testDir, 'llm_graders');
     const codeGradersDir = join(testDir, 'code_graders');
@@ -70,7 +70,9 @@ describe('pipeline bench', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
 
-    const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));
+    const grading = JSON.parse(
+      await readFile(join(OUT_DIR, 'test-01', 'test-target', 'grading.json'), 'utf8'),
+    );
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
     expect(grading.assertions.length).toBeGreaterThan(0);
     expect(grading.evaluators).toHaveLength(2);

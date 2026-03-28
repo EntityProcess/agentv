@@ -170,7 +170,6 @@ export const evalBenchCommand = command({
         })),
       }));
 
-
       const hasResponse = existsSync(join(testDir, 'response.md'));
       indexLines.push(
         JSON.stringify({

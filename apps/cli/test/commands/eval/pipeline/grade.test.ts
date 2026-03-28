@@ -7,7 +7,7 @@ const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 
 describe('pipeline grade', () => {
   beforeEach(async () => {
-    const testDir = join(OUT_DIR, 'test-01');
+    const testDir = join(OUT_DIR, 'test-01', 'test');
     const codeGradersDir = join(testDir, 'code_graders');
     await mkdir(codeGradersDir, { recursive: true });
 
@@ -52,7 +52,10 @@ describe('pipeline grade', () => {
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
 
     const result = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'always_pass.json'), 'utf8'),
+      await readFile(
+        join(OUT_DIR, 'test-01', 'test', 'code_grader_results', 'always_pass.json'),
+        'utf8',
+      ),
     );
     expect(result.score).toBe(1);
     expect(result.name).toBe('always_pass');
@@ -63,7 +66,10 @@ describe('pipeline grade', () => {
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
 
     const result = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'always_pass.json'), 'utf8'),
+      await readFile(
+        join(OUT_DIR, 'test-01', 'test', 'code_grader_results', 'always_pass.json'),
+        'utf8',
+      ),
     );
     expect(result.assertions).toHaveLength(1);
     expect(result.assertions[0].passed).toBe(true);
