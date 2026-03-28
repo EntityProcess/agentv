@@ -275,6 +275,22 @@ If you've been using the Agent Skills skill-creator workflow, AgentV reads your 
 
 **Key takeaway:** You do not need to rewrite your `evals.json`. AgentV reads it directly and adds a richer evaluation engine on top.
 
+## Using Experiments for Baseline vs Candidate
+
+The `--experiment` flag provides a structured way to label baseline and candidate runs without separate eval files:
+
+```bash
+# Baseline: run without skills installed
+agentv pipeline run evals/my-eval.yaml --experiment without_skills
+
+# Candidate: run with skills installed
+agentv pipeline run evals/my-eval.yaml --experiment with_skills
+```
+
+Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `index.jsonl`, making it easy to filter and compare in dashboards.
+
+This replaces the need for separate `--target baseline` / `--target candidate` configurations when the only difference between runs is the workspace setup (skills, config, etc.) rather than the target harness.
+
 ## Baseline Comparison Best Practices
 
 ### Discovery-path contamination

@@ -1,0 +1,30 @@
+name: coding-ability
+tests:
+  - id: review-null-check
+    input: |
+      Review this TypeScript function for bugs:
+
+      function getUser(users: Map<string, User>, id: string) {
+        return users.get(id).name;
+      }
+    criteria: Identifies the potential undefined access when the key is missing from the map
+    assertions:
+      - name: mentions_undefined
+        type: contains
+        value: "undefined"
+      - name: suggests_fix
+        type: llm-grader
+        prompt: Does the review identify that users.get(id) can return undefined and suggest a fix?
+
+  - id: review-clean-function
+    input: |
+      Review this TypeScript function for bugs:
+
+      function add(a: number, b: number): number {
+        return a + b;
+      }
+    criteria: Recognizes the function is correct and does not flag false issues
+    assertions:
+      - name: no_false_positives
+        type: llm-grader
+        prompt: Does the review correctly identify this function as simple and correct without flagging false issues?

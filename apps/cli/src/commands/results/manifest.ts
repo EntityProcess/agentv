@@ -12,6 +12,7 @@ export interface ResultManifestRecord {
   readonly test_id?: string;
   readonly eval_id?: string;
   readonly eval_set?: string;
+  readonly experiment?: string;
   readonly target?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
@@ -191,6 +192,7 @@ export function loadManifestResults(sourceFile: string): EvaluationResult[] {
 export interface LightweightResultRecord {
   readonly testId: string;
   readonly target?: string;
+  readonly experiment?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
   readonly executionStatus?: string;
@@ -206,6 +208,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
     return parseResultManifest(content).map((record) => ({
       testId: record.test_id ?? record.eval_id ?? 'unknown',
       target: record.target,
+      experiment: record.experiment,
       score: record.score,
       scores: record.scores,
       executionStatus: record.execution_status,

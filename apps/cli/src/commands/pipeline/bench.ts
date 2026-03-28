@@ -46,6 +46,7 @@ export const evalBenchCommand = command({
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
     const evalSet: string = manifest.eval_set ?? '';
+    const experiment: string | undefined = manifest.experiment;
     const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     // Read LLM scores from file or stdin
@@ -189,6 +190,7 @@ export const evalBenchCommand = command({
           timestamp: manifest.timestamp,
           test_id: testId,
           eval_set: evalSet || undefined,
+          experiment: experiment || undefined,
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,
           scores,
@@ -213,6 +215,7 @@ export const evalBenchCommand = command({
       metadata: {
         eval_file: manifest.eval_file,
         timestamp: manifest.timestamp,
+        experiment: experiment || undefined,
         targets: [targetName],
         tests_run: testIds,
       },
