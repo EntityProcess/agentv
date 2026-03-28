@@ -308,9 +308,7 @@ When `subagent_mode_allowed: false`, the target falls back to CLI invocation via
 - `agentv` CLI is installed (or run from source via `AGENTV_CLI=bun /path/to/cli.ts` in `.env`)
 - Read `references/eval-yaml-spec.md` for the full schema
 
-**Workspace detection:** The current workspace is the **target workspace** — where executor subagents perform tasks. This is typically a multi-repo workspace (e.g., set up by allagents) containing the agent's skills, repos, and tools. It is NOT the eval repo itself. Eval files and `.agentv/` artifacts may live in a different repo within the workspace. Always use absolute paths when referencing eval files (e.g., `../agentv/evals/test.eval.yaml`).
-
-If the current directory is the eval repo itself (e.g., the agentv repo) rather than the target workspace, warn the user — executor subagents won't have access to the agent's skills and repos.
+**Workspace matters when evals need it:** Some evals pass prompt files directly and don't require a specific workspace — those run fine from anywhere. But evals that test agent behavior in a workspace (accessing skills, modifying repos, using tools across multiple repos) require the user to be in the **target workspace** (e.g., a multi-repo workspace set up by allagents). If the eval references workspace files or expects the agent to use skills, check that the current directory is the target workspace, not just the eval repo — and warn the user if it's wrong.
 
 **CLI targets: Single command**
 
