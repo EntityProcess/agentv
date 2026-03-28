@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
-import { CLI_PLACEHOLDERS } from '../providers/targets.js';
+import { CLI_PLACEHOLDERS, COMMON_TARGET_SETTINGS } from '../providers/targets.js';
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -14,13 +14,9 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// Known settings properties for each provider type
-const COMMON_SETTINGS = new Set([
-  'provider_batching',
-  'providerBatching',
-  'subagent_mode_allowed',
-  'subagentModeAllowed',
-]);
+// Cross-provider settings derived from the schema source of truth in targets.ts.
+// Adding a field to COMMON_TARGET_SETTINGS automatically makes it valid here.
+const COMMON_SETTINGS = new Set<string>(COMMON_TARGET_SETTINGS);
 
 const RETRY_SETTINGS = new Set([
   'max_retries',

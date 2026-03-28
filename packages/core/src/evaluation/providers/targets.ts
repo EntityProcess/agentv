@@ -622,6 +622,18 @@ export type ResolvedTarget =
   | (ResolvedTargetBase & { readonly kind: 'agentv'; readonly config: AgentVResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig });
 
+/**
+ * Optional settings accepted on ALL target definitions regardless of provider.
+ * Exported so the targets validator can reuse the same list — adding a field
+ * here automatically makes it valid in targets.yaml without a separate update.
+ */
+export const COMMON_TARGET_SETTINGS = [
+  'provider_batching',
+  'providerBatching',
+  'subagent_mode_allowed',
+  'subagentModeAllowed',
+] as const;
+
 const BASE_TARGET_SCHEMA = z
   .object({
     name: z.string().min(1, 'target name is required'),
@@ -1890,6 +1902,14 @@ function resolveCopilotLogConfig(
   };
 }
 
+/**
+ * Resolve a string value from targets.yaml, supporting `${{ VARIABLE }}` env var syntax.
+ *
+ * Security: By default (`allowLiteral: false`), values MUST use the `${{ VARIABLE_NAME }}`
+ * syntax to reference environment variables. Literal strings are rejected to prevent
+ * secrets (API keys, tokens) from being committed in plaintext to targets.yaml.
+ * Only non-sensitive fields like `cwd` or `model` use `allowLiteral: true`.
+ */
 function resolveOptionalString(
   source: unknown,
   env: EnvLookup,
