@@ -47,7 +47,6 @@ export const evalBenchCommand = command({
     const targetName: string = manifest.target?.name ?? 'unknown';
     const evalSet: string = manifest.eval_set ?? '';
     const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
-    const safeTarget = targetName.replace(/[\/\\:*?"<>|]/g, '_');
 
     // Read LLM scores from file or stdin
     let stdinData: string;
@@ -68,7 +67,7 @@ export const evalBenchCommand = command({
     const allPassRates: number[] = [];
 
     for (const testId of testIds) {
-      const subpath = safeEvalSet ? [safeEvalSet, testId, safeTarget] : [testId, safeTarget];
+      const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
       const testDir = join(exportDir, ...subpath);
       const artifactSubdir = subpath.join('/');
       const evaluators: EvaluatorScore[] = [];

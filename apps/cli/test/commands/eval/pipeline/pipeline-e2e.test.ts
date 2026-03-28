@@ -21,23 +21,13 @@ describe('eval pipeline e2e', () => {
     expect(manifest.test_ids).toEqual(['test-01']);
 
     // Step 2: Write mock response.md (simulating target execution)
-    await writeFile(
-      join(OUT_DIR, 'input-test', 'test-01', 'default', 'response.md'),
-      'hello world response',
-    );
+    await writeFile(join(OUT_DIR, 'input-test', 'test-01', 'response.md'), 'hello world response');
 
     // Step 3: pipeline grade
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
     const gradeResult = JSON.parse(
       await readFile(
-        join(
-          OUT_DIR,
-          'input-test',
-          'test-01',
-          'default',
-          'code_grader_results',
-          'contains_hello.json',
-        ),
+        join(OUT_DIR, 'input-test', 'test-01', 'code_grader_results', 'contains_hello.json'),
         'utf8',
       ),
     );
@@ -56,7 +46,7 @@ describe('eval pipeline e2e', () => {
 
     // Verify final artifacts
     const grading = JSON.parse(
-      await readFile(join(OUT_DIR, 'input-test', 'test-01', 'default', 'grading.json'), 'utf8'),
+      await readFile(join(OUT_DIR, 'input-test', 'test-01', 'grading.json'), 'utf8'),
     );
     expect(grading.evaluators).toHaveLength(2);
     expect(grading.summary.pass_rate).toBeGreaterThan(0);

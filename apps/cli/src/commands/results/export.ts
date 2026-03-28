@@ -49,14 +49,17 @@ export async function exportResults(
 
 /**
  * Derive the default output directory from a JSONL source path.
- * Handles both directory-per-run manifests (eval_<ts>/index.jsonl) and legacy flat files.
+ * Handles both directory-per-run manifests (<ts>/index.jsonl) and legacy flat files.
  */
 function deriveOutputDir(cwd: string, sourceFile: string): string {
   const parentDir = path.basename(path.dirname(sourceFile));
+  // Directory-per-run: parent is the timestamp dir (or legacy eval_<ts> dir)
+  if (/^\d{4}-\d{2}-\d{2}T/.test(parentDir)) {
+    return path.join(cwd, '.agentv', 'results', 'export', parentDir);
+  }
   if (parentDir.startsWith('eval_')) {
-    // New directory-per-run: extract timestamp from parent dir name
-    const dirName = parentDir.slice(5);
-    return path.join(cwd, '.agentv', 'results', 'export', dirName);
+    // Legacy eval_ prefix: strip it
+    return path.join(cwd, '.agentv', 'results', 'export', parentDir.slice(5));
   }
   // Legacy flat file: extract timestamp from filename
   const basename = path.basename(sourceFile, '.jsonl');

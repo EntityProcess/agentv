@@ -1,6 +1,6 @@
 /**
  * `agentv pipeline input` — Extract eval inputs, target invocation info, and grader
- * configurations for agent-mode eval runs.
+ * configurations for subagent-mode eval runs.
  *
  * Reads an eval YAML file and writes a structured export directory that agents
  * and Python wrapper scripts can consume without re-parsing YAML or resolving
@@ -11,13 +11,12 @@
  *   ├── manifest.json
  *   └── <eval-set>/              (omitted if eval.yaml has no name)
  *       └── <test-id>/
- *           └── <target>/
- *               ├── input.json
- *               ├── invoke.json
- *               ├── criteria.md
- *               ├── expected_output.json    (if present)
- *               ├── llm_graders/<name>.json
- *               └── code_graders/<name>.json
+ *           ├── input.json
+ *           ├── invoke.json
+ *           ├── criteria.md
+ *           ├── expected_output.json    (if present)
+ *           ├── llm_graders/<name>.json
+ *           └── code_graders/<name>.json
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -33,7 +32,7 @@ import { selectTarget } from '../eval/targets.js';
 
 export const evalInputCommand = command({
   name: 'input',
-  description: 'Extract eval inputs, target commands, and grader prompts for agent-mode runs',
+  description: 'Extract eval inputs, target commands, and grader prompts for subagent-mode runs',
   args: {
     evalPath: positional({
       type: string,
@@ -44,7 +43,7 @@ export const evalInputCommand = command({
       type: optional(string),
       long: 'out',
       description:
-        'Output directory for extracted inputs (default: .agentv/results/runs/eval_<timestamp>)',
+        'Output directory for extracted inputs (default: .agentv/results/runs/<timestamp>)',
     }),
   },
   handler: async ({ evalPath, out }) => {
@@ -91,17 +90,16 @@ export const evalInputCommand = command({
         };
       }
     } catch {
-      // No targets file found — agent-as-target mode
+      // No targets file found — subagent-as-target mode
     }
 
     const evalSetName = suite.metadata?.name?.trim() ?? '';
     const safeEvalSet = evalSetName ? evalSetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
-    const safeTarget = targetName.replace(/[\/\\:*?"<>|]/g, '_');
 
     const testIds: string[] = [];
 
     for (const test of tests) {
-      const subpath = safeEvalSet ? [safeEvalSet, test.id, safeTarget] : [test.id, safeTarget];
+      const subpath = safeEvalSet ? [safeEvalSet, test.id] : [test.id];
       const testDir = join(outDir, ...subpath);
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
