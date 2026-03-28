@@ -113,4 +113,40 @@ describe('pipeline bench', () => {
     expect(benchmark.metadata.targets).toContain('test-target');
     expect(benchmark.run_summary['test-target']).toBeDefined();
   });
+
+  it('propagates experiment from manifest to index.jsonl and benchmark.json', async () => {
+    // Overwrite manifest with experiment field
+    await writeFile(
+      join(OUT_DIR, 'manifest.json'),
+      JSON.stringify({
+        eval_file: 'test.eval.yaml',
+        timestamp: new Date().toISOString(),
+        experiment: 'without_skills',
+        target: { name: 'test-target', kind: 'cli' },
+        test_ids: ['test-01'],
+      }),
+    );
+
+    const { execa } = await import('execa');
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: '{}' });
+
+    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
+    const entry = JSON.parse(indexContent.trim().split('\n')[0]);
+    expect(entry.experiment).toBe('without_skills');
+
+    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
+    expect(benchmark.metadata.experiment).toBe('without_skills');
+  });
+
+  it('omits experiment from output when manifest has no experiment', async () => {
+    const { execa } = await import('execa');
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: '{}' });
+
+    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
+    const entry = JSON.parse(indexContent.trim().split('\n')[0]);
+    expect(entry.experiment).toBeUndefined();
+
+    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
+    expect(benchmark.metadata.experiment).toBeUndefined();
+  });
 });

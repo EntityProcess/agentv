@@ -77,4 +77,29 @@ describe('pipeline input', () => {
     );
     expect(invoke.kind).toBeDefined();
   });
+
+  it('writes experiment to manifest when --experiment is provided', async () => {
+    const { execa } = await import('execa');
+    await execa('bun', [
+      CLI_ENTRY,
+      'pipeline',
+      'input',
+      EVAL_PATH,
+      '--out',
+      OUT_DIR,
+      '--experiment',
+      'without_skills',
+    ]);
+
+    const manifest = JSON.parse(await readFile(join(OUT_DIR, 'manifest.json'), 'utf8'));
+    expect(manifest.experiment).toBe('without_skills');
+  });
+
+  it('omits experiment from manifest when --experiment is not provided', async () => {
+    const { execa } = await import('execa');
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
+
+    const manifest = JSON.parse(await readFile(join(OUT_DIR, 'manifest.json'), 'utf8'));
+    expect(manifest.experiment).toBeUndefined();
+  });
 });

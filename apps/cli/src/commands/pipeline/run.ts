@@ -67,8 +67,13 @@ export const evalRunCommand = command({
       long: 'workers',
       description: 'Parallel workers for target invocation (default: all tests)',
     }),
+    experiment: option({
+      type: optional(string),
+      long: 'experiment',
+      description: 'Experiment label (e.g. with_skills, without_skills)',
+    }),
   },
-  handler: async ({ evalPath, out, workers }) => {
+  handler: async ({ evalPath, out, workers, experiment }) => {
     const resolvedEvalPath = resolve(evalPath);
     const outDir = resolve(out ?? buildDefaultRunDir(process.cwd()));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
@@ -174,6 +179,7 @@ export const evalRunCommand = command({
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
       eval_set: evalSetName || undefined,
+      experiment: experiment || undefined,
       timestamp: new Date().toISOString(),
       target: { name: targetName, kind: targetKind },
       test_ids: testIds,

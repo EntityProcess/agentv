@@ -11,7 +11,7 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/eval_<timestamp>.jsonl`. Each line is a JSON object with one result per test case.
+Results are written to `.agentv/results/<timestamp>.jsonl`. Each line is a JSON object with one result per test case.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -46,6 +46,17 @@ Run against a different target than specified in the eval file:
 ```bash
 agentv eval --target azure-base evals/**/*.yaml
 ```
+
+### Experiment Label
+
+Tag a pipeline run with an experiment name to track different conditions (e.g. with vs without skills):
+
+```bash
+agentv pipeline run evals/my-eval.yaml --experiment with_skills
+agentv pipeline run evals/my-eval.yaml --experiment without_skills
+```
+
+The experiment label is written to `manifest.json` and propagated to each entry in `index.jsonl` by `pipeline bench`. The eval file stays the same across experiments — what changes is the environment. Dashboards can filter and compare results by experiment.
 
 ### Run Specific Test
 
@@ -82,7 +93,7 @@ result-oriented workflows. For full-fidelity span inspection, export OTLP JSON e
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl
+agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
