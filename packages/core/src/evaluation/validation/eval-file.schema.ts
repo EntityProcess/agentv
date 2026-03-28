@@ -350,7 +350,6 @@ const EvalTestSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
   conversation_id: z.string().optional(),
   dataset: z.string().optional(),
-  eval_set: z.string().optional(), // deprecated alias for dataset
   note: z.string().optional(),
 });
 

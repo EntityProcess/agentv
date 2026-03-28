@@ -6390,9 +6390,6 @@
                   "dataset": {
                     "type": "string"
                   },
-                  "eval_set": {
-                    "type": "string"
-                  },
                   "note": {
                     "type": "string"
                   }
@@ -12702,9 +12699,6 @@
                     "type": "string"
                   },
                   "dataset": {
-                    "type": "string"
-                  },
-                  "eval_set": {
                     "type": "string"
                   },
                   "note": {
