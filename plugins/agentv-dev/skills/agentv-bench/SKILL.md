@@ -356,7 +356,7 @@ The agent reads `llm_graders/<name>.json` for each test, grades the response usi
 
 Dispatch one `grader` subagent (read `agents/grader.md`) **per (test × LLM grader) pair**, all in parallel. For example, 5 tests × 2 LLM graders = 10 subagents launched simultaneously. Each subagent reads `<test-id>/llm_graders/<name>.json`, grades the corresponding `<test-id>/response.md` against the `prompt_content` criteria, and returns its score (0.0–1.0) and assertions. After all subagents complete, merge their results into a single `llm_scores.json` in the run directory.
 
-**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the run directory.
+**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `<evalset-name>/<test-id>/<target>/llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the run directory.
 
 
 **Note:** `pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry, matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format directly — no separate conversion script is needed. Run `agentv results validate <run-dir>` to verify compatibility.
@@ -364,21 +364,26 @@ Dispatch one `grader` subagent (read `agents/grader.md`) **per (test × LLM grad
 **Note on Python wrapper scripts:** The `scripts/` directory contains Python wrappers (`run_tests.py`, `run_code_graders.py`, `bench.py`) that call the CLI commands. These are provided as an alternative but the direct CLI commands above are preferred — they work cross-platform without Python dependency issues.
 
 **Output structure:**
+
+The path hierarchy mirrors the CLI mode: `<evalset-name>` comes from the `name` field in the eval.yaml; `<target>` comes from `execution.target`. When multiple targets are configured, each gets its own subfolder under the test-id directory.
+
 ```
-.agentv/results/export/run-1/
+.agentv/results/runs/eval_<timestamp>/
 ├── manifest.json                    ← eval metadata + test_ids
 ├── index.jsonl                      ← per-test scores
 ├── benchmark.json                   ← aggregate statistics
-├── <test-id>/
-│   ├── input.json                   ← test input text + messages
-│   ├── invoke.json                  ← target command or agent instructions
-│   ├── criteria.md                  ← grading criteria
-│   ├── response.md                  ← target/agent output
-│   ├── timing.json                  ← execution timing
-│   ├── code_graders/<name>.json     ← code grader configs
-│   ├── llm_graders/<name>.json      ← LLM grader configs
-│   ├── code_grader_results/<name>.json ← code grader results
-│   └── grading.json                 ← merged grading
+└── <evalset-name>/                  ← from eval.yaml "name" field (omitted if absent)
+    └── <test-id>/                   ← test case id
+        └── <target>/                ← from execution.target
+            ├── input.json           ← test input text + messages
+            ├── invoke.json          ← target command or agent instructions
+            ├── criteria.md          ← grading criteria
+            ├── response.md          ← target/agent output
+            ├── timing.json          ← execution timing
+            ├── code_graders/<name>.json     ← code grader configs
+            ├── llm_graders/<name>.json      ← LLM grader configs
+            ├── code_grader_results/<name>.json ← code grader results
+            └── grading.json         ← merged grading
 ```
 
 ---

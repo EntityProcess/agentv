@@ -118,10 +118,15 @@ export const evalRunCommand = command({
       // No targets file — agent-as-target mode
     }
 
+    const evalSetName = suite.metadata?.name?.trim() ?? '';
+    const safeEvalSet = evalSetName ? evalSetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
+    const safeTarget = targetName.replace(/[\/\\:*?"<>|]/g, '_');
+
     const testIds: string[] = [];
 
     for (const test of tests) {
-      const testDir = join(outDir, test.id);
+      const subpath = safeEvalSet ? [safeEvalSet, test.id, safeTarget] : [test.id, safeTarget];
+      const testDir = join(outDir, ...subpath);
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
 
@@ -169,6 +174,7 @@ export const evalRunCommand = command({
 
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
+      eval_set: evalSetName || undefined,
       timestamp: new Date().toISOString(),
       target: { name: targetName, kind: targetKind },
       test_ids: testIds,
@@ -192,7 +198,8 @@ export const evalRunCommand = command({
       console.log(`Invoking ${testIds.length} CLI target(s) (${maxWorkers} workers)...`);
 
       const invokeTarget = async (testId: string): Promise<void> => {
-        const testDir = join(outDir, testId);
+        const subpath = safeEvalSet ? [safeEvalSet, testId, safeTarget] : [testId, safeTarget];
+        const testDir = join(outDir, ...subpath);
         const invoke = JSON.parse(await readFile(join(testDir, 'invoke.json'), 'utf8'));
         if (invoke.kind !== 'cli') return;
 
@@ -280,7 +287,8 @@ export const evalRunCommand = command({
     let totalPassed = 0;
 
     for (const testId of testIds) {
-      const testDir = join(outDir, testId);
+      const subpath = safeEvalSet ? [safeEvalSet, testId, safeTarget] : [testId, safeTarget];
+      const testDir = join(outDir, ...subpath);
       const codeGradersDir = join(testDir, 'code_graders');
       const resultsDir = join(testDir, 'code_grader_results');
 

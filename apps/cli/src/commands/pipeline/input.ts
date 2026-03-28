@@ -9,13 +9,15 @@
  * Export directory layout:
  *   <out-dir>/
  *   ├── manifest.json
- *   ├── <test-id>/
- *   │   ├── input.json
- *   │   ├── invoke.json
- *   │   ├── criteria.md
- *   │   ├── expected_output.json    (if present)
- *   │   ├── llm_graders/<name>.json
- *   │   └── code_graders/<name>.json
+ *   └── <eval-set>/              (omitted if eval.yaml has no name)
+ *       └── <test-id>/
+ *           └── <target>/
+ *               ├── input.json
+ *               ├── invoke.json
+ *               ├── criteria.md
+ *               ├── expected_output.json    (if present)
+ *               ├── llm_graders/<name>.json
+ *               └── code_graders/<name>.json
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -92,10 +94,15 @@ export const evalInputCommand = command({
       // No targets file found — agent-as-target mode
     }
 
+    const evalSetName = suite.metadata?.name?.trim() ?? '';
+    const safeEvalSet = evalSetName ? evalSetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
+    const safeTarget = targetName.replace(/[\/\\:*?"<>|]/g, '_');
+
     const testIds: string[] = [];
 
     for (const test of tests) {
-      const testDir = join(outDir, test.id);
+      const subpath = safeEvalSet ? [safeEvalSet, test.id, safeTarget] : [test.id, safeTarget];
+      const testDir = join(outDir, ...subpath);
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
 
@@ -149,6 +156,7 @@ export const evalInputCommand = command({
     // manifest.json
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
+      eval_set: evalSetName || undefined,
       timestamp: new Date().toISOString(),
       target: {
         name: targetName,
