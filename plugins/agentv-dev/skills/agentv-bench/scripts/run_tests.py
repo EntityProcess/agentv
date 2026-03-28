@@ -20,8 +20,9 @@ Output structure:
     │   ├── response.md        ← target output (written by this script)
     │   └── timing.json        ← execution timing (written by this script)
 
-For agent-as-target mode (invoke.json has kind=agent), this script only runs
-`agentv pipeline input`. The agent handles execution directly.
+For agent-as-target mode (invoke.json has kind=agent — all non-CLI providers
+unless subagent_mode_allowed=false in targets.yaml), this script only runs
+`agentv pipeline input`. Executor subagents handle execution directly.
 """
 import argparse
 import json

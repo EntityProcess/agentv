@@ -285,14 +285,14 @@ Extracts inputs, target commands, and grader configs from an eval YAML file.
 {
   "eval_file": "path/to/eval.yaml",
   "timestamp": "2026-03-24T...",
-  "target": {"name": "target-name", "kind": "cli"},
+  "target": {"name": "target-name", "kind": "cli", "subagent_mode_allowed": false},
   "test_ids": ["test-01", "test-02"]
 }
 ```
 
 **`invoke.json` kinds:**
 - `kind: "cli"` — has `command`, `cwd`, `timeout_ms`. Use the command to run the target.
-- `kind: "agent"` — agent executes directly, no CLI invocation needed.
+- `kind: "agent"` — non-CLI provider. Check `manifest.json` `target.subagent_mode_allowed` to decide whether to dispatch executor subagents or fall back to `agentv eval` CLI.
 
 ### `agentv pipeline grade <export-dir>`
 
