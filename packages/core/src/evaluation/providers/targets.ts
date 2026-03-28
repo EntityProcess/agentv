@@ -570,151 +570,69 @@ export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 // Note: CliResolvedConfig is a type alias derived from CliNormalizedConfig (see above),
 // which itself is inferred from CliTargetConfigSchema for type safety and single source of truth.
 
+/** Base fields shared by all resolved targets. */
+interface ResolvedTargetBase {
+  readonly name: string;
+  readonly graderTarget?: string;
+  readonly workers?: number;
+  readonly providerBatching?: boolean;
+  /**
+   * Whether this target can be executed via executor subagents in subagent mode.
+   * Defaults to `true` for all non-CLI providers. Set `false` in targets.yaml
+   * to force CLI invocation even in subagent mode.
+   */
+  readonly subagentModeAllowed?: boolean;
+}
+
 export type ResolvedTarget =
-  | {
-      readonly kind: 'openai';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: OpenAIResolvedConfig;
-    }
-  | {
+  | (ResolvedTargetBase & { readonly kind: 'openai'; readonly config: OpenAIResolvedConfig })
+  | (ResolvedTargetBase & {
       readonly kind: 'openrouter';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
       readonly config: OpenRouterResolvedConfig;
-    }
-  | {
-      readonly kind: 'azure';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: AzureResolvedConfig;
-    }
-  | {
-      readonly kind: 'anthropic';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: AnthropicResolvedConfig;
-    }
-  | {
-      readonly kind: 'gemini';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: GeminiResolvedConfig;
-    }
-  | {
-      readonly kind: 'codex';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: CodexResolvedConfig;
-    }
-  | {
+    })
+  | (ResolvedTargetBase & { readonly kind: 'azure'; readonly config: AzureResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'anthropic'; readonly config: AnthropicResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'gemini'; readonly config: GeminiResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'codex'; readonly config: CodexResolvedConfig })
+  | (ResolvedTargetBase & {
       readonly kind: 'copilot-sdk';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
       readonly config: CopilotSdkResolvedConfig;
-    }
-  | {
+    })
+  | (ResolvedTargetBase & {
       readonly kind: 'copilot-cli';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
       readonly config: CopilotCliResolvedConfig;
-    }
-  | {
+    })
+  | (ResolvedTargetBase & {
       readonly kind: 'copilot-log';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
       readonly config: CopilotLogResolvedConfig;
-    }
-  | {
+    })
+  | (ResolvedTargetBase & {
       readonly kind: 'pi-coding-agent';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
       readonly config: PiCodingAgentResolvedConfig;
-    }
-  | {
-      readonly kind: 'pi-cli';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: PiCliResolvedConfig;
-    }
-  | {
-      readonly kind: 'claude';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: ClaudeResolvedConfig;
-    }
-  | {
-      readonly kind: 'claude-cli';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: ClaudeResolvedConfig;
-    }
-  | {
-      readonly kind: 'claude-sdk';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: ClaudeResolvedConfig;
-    }
-  | {
-      readonly kind: 'mock';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: MockResolvedConfig;
-    }
-  | {
+    })
+  | (ResolvedTargetBase & { readonly kind: 'pi-cli'; readonly config: PiCliResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'claude'; readonly config: ClaudeResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'claude-cli'; readonly config: ClaudeResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'claude-sdk'; readonly config: ClaudeResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'mock'; readonly config: MockResolvedConfig })
+  | (ResolvedTargetBase & {
       readonly kind: 'vscode' | 'vscode-insiders';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
       readonly config: VSCodeResolvedConfig;
-    }
-  | {
-      readonly kind: 'agentv';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: AgentVResolvedConfig;
-    }
-  | {
-      readonly kind: 'cli';
-      readonly name: string;
-      readonly graderTarget?: string;
-      readonly workers?: number;
-      readonly providerBatching?: boolean;
-      readonly config: CliResolvedConfig;
-    };
+    })
+  | (ResolvedTargetBase & { readonly kind: 'agentv'; readonly config: AgentVResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig });
+
+/**
+ * Optional settings accepted on ALL target definitions regardless of provider.
+ * Exported so the targets validator can reuse the same list — adding a field
+ * here automatically makes it valid in targets.yaml without a separate update.
+ */
+export const COMMON_TARGET_SETTINGS = [
+  'provider_batching',
+  'providerBatching',
+  'subagent_mode_allowed',
+  'subagentModeAllowed',
+] as const;
 
 const BASE_TARGET_SCHEMA = z
   .object({
@@ -725,6 +643,7 @@ const BASE_TARGET_SCHEMA = z
     workers: z.number().int().min(1).optional(),
     workspace_template: z.string().optional(),
     workspaceTemplate: z.string().optional(),
+    subagent_mode_allowed: z.boolean().optional(),
   })
   .passthrough();
 
@@ -807,43 +726,43 @@ export function resolveTargetDefinition(
   const providerBatching = resolveOptionalBoolean(
     parsed.provider_batching ?? parsed.providerBatching,
   );
+  const subagentModeAllowed = resolveOptionalBoolean(
+    parsed.subagent_mode_allowed ?? parsed.subagentModeAllowed,
+  );
+
+  // Shared base fields for all resolved targets
+  const base = {
+    name: parsed.name,
+    graderTarget: parsed.grader_target ?? parsed.judge_target,
+    workers: parsed.workers,
+    providerBatching,
+    subagentModeAllowed,
+  } as const;
 
   switch (provider) {
     case 'openai':
       return {
         kind: 'openai',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveOpenAIConfig(parsed, env),
       };
     case 'openrouter':
       return {
         kind: 'openrouter',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveOpenRouterConfig(parsed, env),
       };
     case 'azure':
     case 'azure-openai':
       return {
         kind: 'azure',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveAzureConfig(parsed, env),
       };
     case 'anthropic':
       return {
         kind: 'anthropic',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveAnthropicConfig(parsed, env),
       };
     case 'gemini':
@@ -851,68 +770,47 @@ export function resolveTargetDefinition(
     case 'google-gemini':
       return {
         kind: 'gemini',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveGeminiConfig(parsed, env),
       };
     case 'codex':
     case 'codex-cli':
       return {
         kind: 'codex',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveCodexConfig(parsed, env, evalFilePath),
       };
     case 'copilot-sdk':
     case 'copilot_sdk':
       return {
         kind: 'copilot-sdk',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
       };
     case 'copilot':
     case 'copilot-cli':
       return {
         kind: 'copilot-cli',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveCopilotCliConfig(parsed, env, evalFilePath),
       };
     case 'copilot-log':
       return {
         kind: 'copilot-log',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveCopilotLogConfig(parsed, env),
       };
     case 'pi':
     case 'pi-coding-agent':
       return {
         kind: 'pi-coding-agent',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolvePiCodingAgentConfig(parsed, env, evalFilePath),
       };
     case 'pi-cli':
       return {
         kind: 'pi-cli',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
     case 'claude':
@@ -920,38 +818,26 @@ export function resolveTargetDefinition(
     case 'claude-cli':
       return {
         kind: 'claude-cli',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveClaudeConfig(parsed, env, evalFilePath),
       };
     case 'claude-sdk':
       return {
         kind: 'claude-sdk',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveClaudeConfig(parsed, env, evalFilePath),
       };
     case 'mock':
       return {
         kind: 'mock',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveMockConfig(parsed),
       };
     case 'vscode':
     case 'vscode-insiders':
       return {
         kind: provider as 'vscode' | 'vscode-insiders',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveVSCodeConfig(parsed, env, provider === 'vscode-insiders', evalFilePath),
       };
     case 'agentv': {
@@ -964,20 +850,15 @@ export function resolveTargetDefinition(
       const temperature = typeof parsed.temperature === 'number' ? parsed.temperature : 0;
       return {
         kind: 'agentv',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
+        ...base,
         workers: typeof parsed.workers === 'number' ? parsed.workers : undefined,
-        providerBatching,
         config: { model, temperature },
       };
     }
     case 'cli':
       return {
         kind: 'cli',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveCliConfig(parsed, env, evalFilePath),
       };
     default:
@@ -989,10 +870,7 @@ export function resolveTargetDefinition(
       // CliProvider with the discovered script path.
       return {
         kind: 'cli',
-        name: parsed.name,
-        graderTarget: parsed.grader_target ?? parsed.judge_target,
-        workers: parsed.workers,
-        providerBatching,
+        ...base,
         config: resolveDiscoveredProviderConfig(parsed, provider, env, evalFilePath),
       };
   }
@@ -2024,6 +1902,14 @@ function resolveCopilotLogConfig(
   };
 }
 
+/**
+ * Resolve a string value from targets.yaml, supporting `${{ VARIABLE }}` env var syntax.
+ *
+ * Security: By default (`allowLiteral: false`), values MUST use the `${{ VARIABLE_NAME }}`
+ * syntax to reference environment variables. Literal strings are rejected to prevent
+ * secrets (API keys, tokens) from being committed in plaintext to targets.yaml.
+ * Only non-sensitive fields like `cwd` or `model` use `allowLiteral: true`.
+ */
 function resolveOptionalString(
   source: unknown,
   env: EnvLookup,

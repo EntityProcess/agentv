@@ -65,10 +65,13 @@ export const evalInputCommand = command({
       process.exit(1);
     }
 
-    // Try to resolve target for CLI invocation info
+    // Try to resolve target for CLI invocation info.
+    // Non-CLI providers default to agent mode (executor subagents) unless
+    // subagent_mode_allowed: false is set in targets.yaml.
     let targetInfo: { kind: 'cli'; command: string; cwd: string; timeoutMs: number } | null = null;
     let targetName = 'agent';
     let targetKind = 'agent';
+    let subagentModeAllowed = true;
 
     try {
       const selection = await selectTarget({
@@ -83,16 +86,21 @@ export const evalInputCommand = command({
       });
 
       targetName = selection.targetName;
+      const resolved = selection.resolvedTarget;
+      subagentModeAllowed = resolved.subagentModeAllowed !== false;
 
-      if (selection.resolvedTarget.kind === 'cli') {
+      if (resolved.kind === 'cli') {
         targetKind = 'cli';
-        const config = selection.resolvedTarget.config;
+        subagentModeAllowed = false;
+        const config = resolved.config;
         targetInfo = {
           kind: 'cli',
           command: config.command,
           cwd: config.cwd ?? evalDir,
           timeoutMs: config.timeoutMs ?? 30000,
         };
+      } else {
+        targetKind = resolved.kind;
       }
     } catch {
       // No targets file found — subagent-as-target mode
@@ -122,7 +130,8 @@ export const evalInputCommand = command({
         metadata: test.metadata ?? {},
       });
 
-      // invoke.json
+      // invoke.json — CLI targets get command info; non-CLI targets get agent
+      // mode unless subagent_mode_allowed: false forces CLI-based evaluation.
       if (targetInfo) {
         await writeJson(join(testDir, 'invoke.json'), {
           kind: 'cli',
@@ -131,10 +140,19 @@ export const evalInputCommand = command({
           timeout_ms: targetInfo.timeoutMs,
           env: {},
         });
-      } else {
+      } else if (subagentModeAllowed) {
         await writeJson(join(testDir, 'invoke.json'), {
           kind: 'agent',
           instructions: 'Execute this task in the current workspace. The agent IS the target.',
+        });
+      } else {
+        // Non-CLI provider with subagent_mode_allowed: false — use agentv eval
+        // CLI runner instead of executor subagents.
+        await writeJson(join(testDir, 'invoke.json'), {
+          kind: targetKind,
+          subagent_mode_allowed: false,
+          instructions:
+            'This target has subagent_mode_allowed: false. Use `agentv eval` CLI to run this target.',
         });
       }
 
@@ -165,6 +183,7 @@ export const evalInputCommand = command({
       target: {
         name: targetName,
         kind: targetKind,
+        subagent_mode_allowed: subagentModeAllowed,
       },
       test_ids: testIds,
     });
