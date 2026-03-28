@@ -10,10 +10,14 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import type {
   CategoriesResponse,
   EvalDetailResponse,
+  ExperimentsResponse,
   FeedbackData,
+  FileContentResponse,
+  FileTreeResponse,
   IndexResponse,
   RunDetailResponse,
   RunListResponse,
+  TargetsResponse,
 } from './types';
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -70,6 +74,38 @@ export const feedbackOptions = queryOptions({
   queryFn: () => fetchJson<FeedbackData>('/api/feedback'),
 });
 
+export const experimentsOptions = queryOptions({
+  queryKey: ['experiments'],
+  queryFn: () => fetchJson<ExperimentsResponse>('/api/experiments'),
+});
+
+export const targetsOptions = queryOptions({
+  queryKey: ['targets'],
+  queryFn: () => fetchJson<TargetsResponse>('/api/targets'),
+});
+
+export function evalFilesOptions(runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['runs', runId, 'evals', evalId, 'files'],
+    queryFn: () =>
+      fetchJson<FileTreeResponse>(
+        `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`,
+      ),
+    enabled: !!runId && !!evalId,
+  });
+}
+
+export function evalFileContentOptions(runId: string, evalId: string, filePath: string) {
+  return queryOptions({
+    queryKey: ['runs', runId, 'evals', evalId, 'files', filePath],
+    queryFn: () =>
+      fetchJson<FileContentResponse>(
+        `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
+      ),
+    enabled: !!runId && !!evalId && !!filePath,
+  });
+}
+
 // ── Hooks ───────────────────────────────────────────────────────────────
 
 export function useRunList() {
@@ -94,4 +130,20 @@ export function useIndex() {
 
 export function useFeedback() {
   return useQuery(feedbackOptions);
+}
+
+export function useExperiments() {
+  return useQuery(experimentsOptions);
+}
+
+export function useTargets() {
+  return useQuery(targetsOptions);
+}
+
+export function useEvalFiles(runId: string, evalId: string) {
+  return useQuery(evalFilesOptions(runId, evalId));
+}
+
+export function useEvalFileContent(runId: string, evalId: string, filePath: string) {
+  return useQuery(evalFileContentOptions(runId, evalId, filePath));
 }

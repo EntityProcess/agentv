@@ -26,7 +26,7 @@
  *   - createApp(results, cwd) — Hono app factory
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
@@ -37,7 +37,12 @@ import { Hono } from 'hono';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
-import { loadManifestResults, resolveResultSourcePath } from './manifest.js';
+import {
+  loadLightweightResults,
+  loadManifestResults,
+  parseResultManifest,
+  resolveResultSourcePath,
+} from './manifest.js';
 import { patchTestIds } from './shared.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -165,15 +170,33 @@ export function createApp(
   app.get('/api/runs', (c) => {
     const metas = listResultFiles(searchDir);
     return c.json({
-      runs: metas.map((m) => ({
-        filename: m.filename,
-        path: m.path,
-        timestamp: m.timestamp,
-        test_count: m.testCount,
-        pass_rate: m.passRate,
-        avg_score: m.avgScore,
-        size_bytes: m.sizeBytes,
-      })),
+      runs: metas.map((m) => {
+        // Enrich with target/experiment from lightweight records
+        let target: string | undefined;
+        let experiment: string | undefined;
+        try {
+          const records = loadLightweightResults(m.path);
+          if (records.length > 0) {
+            target = records[0].target;
+            experiment = (records[0] as unknown as Record<string, unknown>).experiment as
+              | string
+              | undefined;
+          }
+        } catch {
+          // ignore enrichment errors
+        }
+        return {
+          filename: m.filename,
+          path: m.path,
+          timestamp: m.timestamp,
+          test_count: m.testCount,
+          pass_rate: m.passRate,
+          avg_score: m.avgScore,
+          size_bytes: m.sizeBytes,
+          ...(target && { target }),
+          ...(experiment && { experiment }),
+        };
+      }),
     });
   });
 
@@ -325,6 +348,263 @@ export function createApp(
       };
     });
     return c.json({ entries });
+  });
+
+  // ── File tree for eval artifacts ────────────────────────────────────────
+
+  interface FileNode {
+    name: string;
+    path: string;
+    type: 'file' | 'dir';
+    children?: FileNode[];
+  }
+
+  function buildFileTree(dirPath: string, relativeTo: string): FileNode[] {
+    if (!existsSync(dirPath) || !statSync(dirPath).isDirectory()) {
+      return [];
+    }
+    const entries = readdirSync(dirPath, { withFileTypes: true });
+    return entries
+      .sort((a, b) => {
+        // Directories first, then alphabetical
+        if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      })
+      .map((entry) => {
+        const fullPath = path.join(dirPath, entry.name);
+        const relPath = path.relative(relativeTo, fullPath);
+        if (entry.isDirectory()) {
+          return {
+            name: entry.name,
+            path: relPath,
+            type: 'dir' as const,
+            children: buildFileTree(fullPath, relativeTo),
+          };
+        }
+        return { name: entry.name, path: relPath, type: 'file' as const };
+      });
+  }
+
+  function inferLanguage(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+    const langMap: Record<string, string> = {
+      '.json': 'json',
+      '.jsonl': 'json',
+      '.ts': 'typescript',
+      '.tsx': 'typescript',
+      '.js': 'javascript',
+      '.jsx': 'javascript',
+      '.md': 'markdown',
+      '.yaml': 'yaml',
+      '.yml': 'yaml',
+      '.log': 'plaintext',
+      '.txt': 'plaintext',
+      '.py': 'python',
+      '.sh': 'shell',
+      '.bash': 'shell',
+      '.css': 'css',
+      '.html': 'html',
+      '.xml': 'xml',
+      '.svg': 'xml',
+      '.toml': 'toml',
+      '.diff': 'diff',
+      '.patch': 'diff',
+    };
+    return langMap[ext] ?? 'plaintext';
+  }
+
+  // File tree for a specific eval's artifact directory
+  app.get('/api/runs/:filename/evals/:evalId/files', (c) => {
+    const filename = c.req.param('filename');
+    const evalId = c.req.param('evalId');
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: 'Run not found' }, 404);
+    }
+    try {
+      const content = readFileSync(meta.path, 'utf8');
+      const records = parseResultManifest(content);
+      const record = records.find(
+        (r) => (r.test_id ?? r.eval_id) === evalId,
+      );
+      if (!record) {
+        return c.json({ error: 'Eval not found' }, 404);
+      }
+
+      const baseDir = path.dirname(meta.path);
+
+      // Derive the eval's artifact subdirectory from known paths
+      const knownPaths = [
+        record.grading_path,
+        record.timing_path,
+        record.input_path,
+        record.output_path,
+        record.response_path,
+      ].filter((p): p is string => !!p);
+
+      if (knownPaths.length === 0) {
+        return c.json({ files: [] });
+      }
+
+      // Find the common parent directory of all artifact paths
+      const artifactDirs = knownPaths.map((p) => path.dirname(p));
+      let commonDir = artifactDirs[0];
+      for (const dir of artifactDirs) {
+        while (!dir.startsWith(commonDir)) {
+          commonDir = path.dirname(commonDir);
+        }
+      }
+
+      const artifactAbsDir = path.join(baseDir, commonDir);
+      const files = buildFileTree(artifactAbsDir, baseDir);
+      return c.json({ files });
+    } catch {
+      return c.json({ error: 'Failed to load file tree' }, 500);
+    }
+  });
+
+  // File content for a specific artifact file
+  app.get('/api/runs/:filename/evals/:evalId/files/*', (c) => {
+    const filename = c.req.param('filename');
+    const evalId = c.req.param('evalId');
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: 'Run not found' }, 404);
+    }
+
+    // Extract the file path from the wildcard portion
+    const requestPath = c.req.path;
+    const prefix = `/api/runs/${filename}/evals/${evalId}/files/`;
+    const filePath = requestPath.slice(prefix.length);
+
+    if (!filePath) {
+      return c.json({ error: 'No file path specified' }, 400);
+    }
+
+    const baseDir = path.dirname(meta.path);
+    const absolutePath = path.resolve(baseDir, filePath);
+
+    // Security: prevent path traversal — resolved path must be inside baseDir
+    if (!absolutePath.startsWith(path.resolve(baseDir) + path.sep) && absolutePath !== path.resolve(baseDir)) {
+      return c.json({ error: 'Path traversal not allowed' }, 403);
+    }
+
+    if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+      return c.json({ error: 'File not found' }, 404);
+    }
+
+    try {
+      const fileContent = readFileSync(absolutePath, 'utf8');
+      const language = inferLanguage(absolutePath);
+      return c.json({ content: fileContent, language });
+    } catch {
+      return c.json({ error: 'Failed to read file' }, 500);
+    }
+  });
+
+  // ── Aggregate endpoints ─────────────────────────────────────────────────
+
+  // Experiments aggregate (group all runs by experiment)
+  app.get('/api/experiments', (c) => {
+    const metas = listResultFiles(searchDir);
+    const experimentMap = new Map<
+      string,
+      {
+        targets: Set<string>;
+        runFilenames: Set<string>;
+        evalCount: number;
+        passedCount: number;
+        lastTimestamp: string;
+      }
+    >();
+
+    for (const m of metas) {
+      try {
+        const records = loadLightweightResults(m.path);
+        for (const r of records) {
+          const experiment = (r as Record<string, unknown>).experiment as string | undefined ?? 'default';
+          const entry = experimentMap.get(experiment) ?? {
+            targets: new Set<string>(),
+            runFilenames: new Set<string>(),
+            evalCount: 0,
+            passedCount: 0,
+            lastTimestamp: '',
+          };
+          entry.runFilenames.add(m.filename);
+          if (r.target) entry.targets.add(r.target);
+          entry.evalCount++;
+          if (r.score >= 1) entry.passedCount++;
+          if (r.timestamp && r.timestamp > entry.lastTimestamp) {
+            entry.lastTimestamp = r.timestamp;
+          }
+          experimentMap.set(experiment, entry);
+        }
+      } catch {
+        // skip runs that fail to load
+      }
+    }
+
+    const experiments = [...experimentMap.entries()].map(([name, entry]) => ({
+      name,
+      run_count: entry.runFilenames.size,
+      target_count: entry.targets.size,
+      eval_count: entry.evalCount,
+      passed_count: entry.passedCount,
+      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+      last_run: entry.lastTimestamp || null,
+    }));
+
+    return c.json({ experiments });
+  });
+
+  // Targets aggregate (group all runs by target)
+  app.get('/api/targets', (c) => {
+    const metas = listResultFiles(searchDir);
+    const targetMap = new Map<
+      string,
+      {
+        experiments: Set<string>;
+        runFilenames: Set<string>;
+        evalCount: number;
+        passedCount: number;
+      }
+    >();
+
+    for (const m of metas) {
+      try {
+        const records = loadLightweightResults(m.path);
+        for (const r of records) {
+          const target = r.target ?? 'default';
+          const entry = targetMap.get(target) ?? {
+            experiments: new Set<string>(),
+            runFilenames: new Set<string>(),
+            evalCount: 0,
+            passedCount: 0,
+          };
+          entry.runFilenames.add(m.filename);
+          const experiment = (r as Record<string, unknown>).experiment as string | undefined;
+          if (experiment) entry.experiments.add(experiment);
+          entry.evalCount++;
+          if (r.score >= 1) entry.passedCount++;
+          targetMap.set(target, entry);
+        }
+      } catch {
+        // skip runs that fail to load
+      }
+    }
+
+    const targets = [...targetMap.entries()].map(([name, entry]) => ({
+      name,
+      run_count: entry.runFilenames.size,
+      experiment_count: entry.experiments.size,
+      eval_count: entry.evalCount,
+      passed_count: entry.passedCount,
+      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+    }));
+
+    return c.json({ targets });
   });
 
   // ── Static file serving for Studio SPA ────────────────────────────────

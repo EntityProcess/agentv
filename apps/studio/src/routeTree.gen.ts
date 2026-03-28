@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsRunIdRouteImport } from './routes/runs/$runId'
+import { Route as ExperimentsExperimentNameRouteImport } from './routes/experiments/$experimentName'
 import { Route as EvalsRunIdEvalIdRouteImport } from './routes/evals/$runId.$evalId'
+import { Route as RunsRunIdCategoryCategoryRouteImport } from './routes/runs/$runId_.category.$category'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,40 +25,76 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
   path: '/runs/$runId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExperimentsExperimentNameRoute =
+  ExperimentsExperimentNameRouteImport.update({
+    id: '/experiments/$experimentName',
+    path: '/experiments/$experimentName',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EvalsRunIdEvalIdRoute = EvalsRunIdEvalIdRouteImport.update({
   id: '/evals/$runId/$evalId',
   path: '/evals/$runId/$evalId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RunsRunIdCategoryCategoryRoute =
+  RunsRunIdCategoryCategoryRouteImport.update({
+    id: '/runs/$runId_/category/$category',
+    path: '/runs/$runId/category/$category',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
+  '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
+  '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
+  '/runs/$runId_/category/$category': typeof RunsRunIdCategoryCategoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/runs/$runId' | '/evals/$runId/$evalId'
+  fullPaths:
+    | '/'
+    | '/experiments/$experimentName'
+    | '/runs/$runId'
+    | '/evals/$runId/$evalId'
+    | '/runs/$runId/category/$category'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/runs/$runId' | '/evals/$runId/$evalId'
-  id: '__root__' | '/' | '/runs/$runId' | '/evals/$runId/$evalId'
+  to:
+    | '/'
+    | '/experiments/$experimentName'
+    | '/runs/$runId'
+    | '/evals/$runId/$evalId'
+    | '/runs/$runId/category/$category'
+  id:
+    | '__root__'
+    | '/'
+    | '/experiments/$experimentName'
+    | '/runs/$runId'
+    | '/evals/$runId/$evalId'
+    | '/runs/$runId_/category/$category'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExperimentsExperimentNameRoute: typeof ExperimentsExperimentNameRoute
   RunsRunIdRoute: typeof RunsRunIdRoute
   EvalsRunIdEvalIdRoute: typeof EvalsRunIdEvalIdRoute
+  RunsRunIdCategoryCategoryRoute: typeof RunsRunIdCategoryCategoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +113,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/experiments/$experimentName': {
+      id: '/experiments/$experimentName'
+      path: '/experiments/$experimentName'
+      fullPath: '/experiments/$experimentName'
+      preLoaderRoute: typeof ExperimentsExperimentNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/evals/$runId/$evalId': {
       id: '/evals/$runId/$evalId'
       path: '/evals/$runId/$evalId'
@@ -82,13 +127,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EvalsRunIdEvalIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/runs/$runId_/category/$category': {
+      id: '/runs/$runId_/category/$category'
+      path: '/runs/$runId/category/$category'
+      fullPath: '/runs/$runId/category/$category'
+      preLoaderRoute: typeof RunsRunIdCategoryCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExperimentsExperimentNameRoute: ExperimentsExperimentNameRoute,
   RunsRunIdRoute: RunsRunIdRoute,
   EvalsRunIdEvalIdRoute: EvalsRunIdEvalIdRoute,
+  RunsRunIdCategoryCategoryRoute: RunsRunIdCategoryCategoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

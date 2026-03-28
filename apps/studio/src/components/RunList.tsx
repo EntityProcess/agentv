@@ -48,6 +48,8 @@ export function RunList({ runs }: RunListProps) {
         <thead className="border-b border-gray-800 bg-gray-900/50">
           <tr>
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Target</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
             <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
             <th
@@ -76,6 +78,8 @@ export function RunList({ runs }: RunListProps) {
                   {run.filename}
                 </Link>
               </td>
+              <td className="px-4 py-3 text-gray-400">{run.target ?? '-'}</td>
+              <td className="px-4 py-3 text-gray-400">{run.experiment ?? '-'}</td>
               <td className="px-4 py-3 text-gray-400">{formatTimestamp(run.timestamp)}</td>
               <td className="px-4 py-3 text-right tabular-nums">{run.test_count}</td>
               <td className="px-4 py-3">

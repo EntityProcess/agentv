@@ -13,6 +13,8 @@ export interface RunMeta {
   pass_rate: number;
   avg_score: number;
   size_bytes: number;
+  target?: string;
+  experiment?: string;
 }
 
 export interface RunListResponse {
@@ -40,6 +42,7 @@ export interface AssertionEntry {
   text: string;
   passed: boolean;
   evidence?: string;
+  durationMs?: number;
 }
 
 export interface EvalResult {
@@ -105,4 +108,45 @@ export interface FeedbackReview {
 
 export interface FeedbackData {
   reviews: FeedbackReview[];
+}
+
+export interface ExperimentSummary {
+  name: string;
+  run_count: number;
+  target_count: number;
+  pass_rate: number;
+  last_run: string;
+}
+
+export interface ExperimentsResponse {
+  experiments: ExperimentSummary[];
+}
+
+export interface TargetSummary {
+  name: string;
+  run_count: number;
+  experiment_count: number;
+  pass_rate: number;
+  passed: number;
+  total: number;
+}
+
+export interface TargetsResponse {
+  targets: TargetSummary[];
+}
+
+export interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'dir';
+  children?: FileNode[];
+}
+
+export interface FileTreeResponse {
+  files: FileNode[];
+}
+
+export interface FileContentResponse {
+  content: string;
+  language: string;
 }
