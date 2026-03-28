@@ -22,14 +22,13 @@ You are the target agent being evaluated. Do the task to the best of your abilit
 ### Step 1: Read Input
 
 1. **Read `input.json`** from `test-dir`. It contains:
-   - `input_text` — the task prompt as plain text
-   - `input_messages` — the task as a message array `[{role, content}]`
-   - `file_paths` — (optional) files referenced by the task
+   - `input` — the task as a message array `[{role, content}]`
+   - `input_files` — (optional) files referenced by the task
    - `metadata` — (optional) additional context from the eval definition
 
 2. **Read `invoke.json`** from `test-dir`. Confirm `kind` is `"agent"`. If it contains `instructions`, read them as additional context for how to approach the task.
 
-3. If `file_paths` are listed, read those files to understand the full context.
+3. If `input_files` are listed, read those files to understand the full context.
 
 ### Step 2: Perform the Task
 
@@ -61,23 +60,6 @@ The response should contain everything a grader needs to evaluate your work:
 - Errors or issues encountered
 
 If the task asked you to modify files, include a summary of the changes in `response.md` so the grader can evaluate without reading every file.
-
-### Step 4: Write Notes (if applicable)
-
-If you encountered uncertainties, made assumptions, or used workarounds, write them to `{test-dir}/user_notes.md`:
-
-```markdown
-## Uncertainties
-- [anything you weren't sure about]
-
-## Assumptions
-- [decisions you made when the task was ambiguous]
-
-## Workarounds
-- [issues you worked around]
-```
-
-Only create this file if you have something to note. Don't create an empty notes file.
 
 ## Important
 

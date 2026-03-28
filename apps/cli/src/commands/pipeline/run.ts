@@ -25,6 +25,12 @@ import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { selectTarget } from '../eval/targets.js';
 
+/** Extract the first user message content as plain text from a Message[] array. */
+function extractInputText(input: Array<{ role: string; content: string }>): string {
+  const userMsg = input.find((m) => m.role === 'user');
+  return typeof userMsg?.content === 'string' ? userMsg.content : '';
+}
+
 /** Load key=value pairs from a .env file. Ignores comments and blank lines. */
 function loadEnvFile(dir: string): Record<string, string> {
   let current = resolve(dir);
@@ -134,15 +140,13 @@ export const evalRunCommand = command({
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
 
-      const inputText = test.question;
       const inputMessages = test.input.map((m) => ({
         role: m.role,
         content: typeof m.content === 'string' ? m.content : m.content,
       }));
       await writeJson(join(testDir, 'input.json'), {
-        input_text: inputText,
-        input_messages: inputMessages,
-        file_paths: test.file_paths,
+        input: inputMessages,
+        input_files: test.file_paths,
         metadata: test.metadata ?? {},
       });
 
@@ -216,12 +220,13 @@ export const evalRunCommand = command({
         // Write temp prompt file
         const promptFile = join(tmpdir(), `agentv-prompt-${testId}-${Date.now()}.txt`);
         const outputFile = join(tmpdir(), `agentv-output-${testId}-${Date.now()}.txt`);
-        await writeFile(promptFile, inputData.input_text, 'utf8');
+        const inputText = extractInputText(inputData.input);
+        await writeFile(promptFile, inputText, 'utf8');
 
         let rendered = template;
         rendered = rendered.replace('{PROMPT_FILE}', promptFile);
         rendered = rendered.replace('{OUTPUT_FILE}', outputFile);
-        rendered = rendered.replace('{PROMPT}', inputData.input_text);
+        rendered = rendered.replace('{PROMPT}', inputText);
 
         const start = performance.now();
         try {
@@ -313,14 +318,15 @@ export const evalRunCommand = command({
         const graderConfig = JSON.parse(await readFile(join(codeGradersDir, graderFile), 'utf8'));
         const graderName = graderConfig.name;
 
+        const questionText = extractInputText(inputData.input);
         const payload = JSON.stringify({
           output: [{ role: 'assistant', content: responseText }],
-          input: inputData.input_messages,
-          question: inputData.input_text,
+          input: inputData.input,
+          question: questionText,
           criteria: '',
           expected_output: [],
           reference_answer: '',
-          input_files: [],
+          input_files: inputData.input_files ?? [],
           trace: null,
           token_usage: null,
           cost_usd: null,
@@ -331,7 +337,7 @@ export const evalRunCommand = command({
           workspace_path: null,
           config: graderConfig.config ?? null,
           metadata: {},
-          input_text: inputData.input_text,
+          input_text: questionText,
           output_text: responseText,
           expected_output_text: '',
         });

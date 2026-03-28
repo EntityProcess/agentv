@@ -21,15 +21,15 @@ describe('pipeline input', () => {
     expect(manifest.eval_file).toContain('input-test.eval.yaml');
   });
 
-  it('writes per-test input.json with input_text', async () => {
+  it('writes per-test input.json with input and input_files', async () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
 
     const input = JSON.parse(
       await readFile(join(OUT_DIR, 'input-test', 'test-01', 'input.json'), 'utf8'),
     );
-    expect(input.input_text).toBe('hello world');
-    expect(input.input_messages).toHaveLength(1);
+    expect(input.input).toHaveLength(1);
+    expect(input.input[0].content).toBe('hello world');
   });
 
   it('writes code_graders/<name>.json with resolved command', async () => {

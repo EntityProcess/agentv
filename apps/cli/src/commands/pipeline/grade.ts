@@ -15,6 +15,12 @@ import { join } from 'node:path';
 import { executeScript } from '@agentv/core';
 import { command, positional, string } from 'cmd-ts';
 
+/** Extract the first user message content as plain text from a Message[] array. */
+function extractInputText(input: Array<{ role: string; content: string }>): string {
+  const userMsg = input.find((m) => m.role === 'user');
+  return typeof userMsg?.content === 'string' ? userMsg.content : '';
+}
+
 export const evalGradeCommand = command({
   name: 'grade',
   description: 'Run code-grader assertions on responses in an export directory',
@@ -60,14 +66,15 @@ export const evalGradeCommand = command({
         const graderName = graderConfig.name;
 
         // Build stdin payload matching CodeEvaluator format (snake_case)
+        const questionText = extractInputText(inputData.input);
         const payload = JSON.stringify({
           output: [{ role: 'assistant', content: responseText }],
-          input: inputData.input_messages,
-          question: inputData.input_text,
+          input: inputData.input,
+          question: questionText,
           criteria: '',
           expected_output: [],
           reference_answer: '',
-          input_files: [],
+          input_files: inputData.input_files ?? [],
           trace: null,
           token_usage: null,
           cost_usd: null,
@@ -78,7 +85,7 @@ export const evalGradeCommand = command({
           workspace_path: null,
           config: graderConfig.config ?? null,
           metadata: {},
-          input_text: inputData.input_text,
+          input_text: questionText,
           output_text: responseText,
           expected_output_text: '',
         });
