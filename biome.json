@@ -33,6 +33,7 @@
       ".turbo",
       ".cache",
       "**/generated/**",
+      "**/*.gen.ts",
       "**/__generated__/**",
       "**/test-output/**",
       "**/.agentv/**",

@@ -95,10 +95,13 @@ describe('serve app', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
+  /** Disable SPA serving in tests so inline HTML dashboard assertions pass */
+  const noStudio = { studioDir: false as const };
+
   function makeApp() {
     const content = toJsonl(RESULT_A, RESULT_B);
     const results = loadResults(content);
-    return createApp(results, tempDir);
+    return createApp(results, tempDir, undefined, undefined, noStudio);
   }
 
   // ── GET / ──────────────────────────────────────────────────────────────
@@ -272,7 +275,7 @@ describe('serve app', () => {
 
   describe('empty state', () => {
     it('serves dashboard HTML with empty results', async () => {
-      const app = createApp([], tempDir);
+      const app = createApp([], tempDir, undefined, undefined, noStudio);
       const res = await app.request('/');
       expect(res.status).toBe(200);
       const html = await res.text();
@@ -282,7 +285,7 @@ describe('serve app', () => {
     });
 
     it('serves feedback API with empty results', async () => {
-      const app = createApp([], tempDir);
+      const app = createApp([], tempDir, undefined, undefined, noStudio);
       const res = await app.request('/api/feedback');
       expect(res.status).toBe(200);
       const data = await res.json();
@@ -294,7 +297,7 @@ describe('serve app', () => {
 
   describe('GET /api/runs', () => {
     it('returns empty runs list for temp directory', async () => {
-      const app = createApp([], tempDir);
+      const app = createApp([], tempDir, undefined, undefined, noStudio);
       const res = await app.request('/api/runs');
       expect(res.status).toBe(200);
       const data = (await res.json()) as { runs: unknown[] };
@@ -306,7 +309,7 @@ describe('serve app', () => {
 
   describe('GET /api/runs/:filename', () => {
     it('returns 404 for nonexistent run', async () => {
-      const app = createApp([], tempDir);
+      const app = createApp([], tempDir, undefined, undefined, noStudio);
       const res = await app.request('/api/runs/nonexistent');
       expect(res.status).toBe(404);
       const data = (await res.json()) as { error: string };
@@ -319,7 +322,7 @@ describe('serve app', () => {
       const filename = 'eval_2026-03-25T10-00-00-000Z.jsonl';
       writeFileSync(path.join(runsDir, filename), toJsonl(RESULT_A, RESULT_B));
 
-      const app = createApp([], tempDir, tempDir);
+      const app = createApp([], tempDir, tempDir, undefined, noStudio);
       const res = await app.request(`/api/runs/${filename}`);
       expect(res.status).toBe(200);
       const data = (await res.json()) as { results: { testId: string }[]; source: string };
@@ -343,7 +346,7 @@ describe('serve app', () => {
     it('embeds INITIAL_SOURCE when sourceFile is provided', async () => {
       const content = toJsonl(RESULT_A, RESULT_B);
       const results = loadResults(content);
-      const app = createApp(results, tempDir, tempDir, '/some/path/results-2026.jsonl');
+      const app = createApp(results, tempDir, tempDir, '/some/path/results-2026.jsonl', noStudio);
       const res = await app.request('/');
       const html = await res.text();
       expect(html).toContain('INITIAL_SOURCE');
@@ -351,7 +354,7 @@ describe('serve app', () => {
     });
 
     it('sets INITIAL_SOURCE to null when no sourceFile', async () => {
-      const app = createApp([], tempDir);
+      const app = createApp([], tempDir, undefined, undefined, noStudio);
       const res = await app.request('/');
       const html = await res.text();
       expect(html).toContain('INITIAL_SOURCE = null');
