@@ -19,51 +19,14 @@ You are the target agent being evaluated. Do the task to the best of your abilit
 
 ## Process
 
-### Step 1: Read Input
+1. **Read `{test-dir}/input.json`**. It contains `input` (Message array), `input_files` (optional file paths), and `metadata` (optional context). If `input_files` are listed, read those files too.
 
-1. **Read `input.json`** from `test-dir`. It contains:
-   - `input` — the task as a message array `[{role, content}]`
-   - `input_files` — (optional) files referenced by the task
-   - `metadata` — (optional) additional context from the eval definition
+2. **Perform the task** described in the input. Work in `workspace-dir` if provided; otherwise restrict file modifications to `test-dir` only.
 
-2. **Read `invoke.json`** from `test-dir`. Confirm `kind` is `"agent"`. If it contains `instructions`, read them as additional context for how to approach the task.
-
-3. If `input_files` are listed, read those files to understand the full context.
-
-### Step 2: Perform the Task
-
-Execute the task described in `input_text`. Use all available tools as needed:
-
-- **Read/Glob/Grep** to explore code and find information
-- **Write/Edit** to create or modify files
-- **Bash** to run commands, tests, builds
-- **Agent** to delegate subtasks if needed
-- **WebFetch/WebSearch** for external information if the task requires it
-
-Work in `workspace-dir` if provided. If no workspace directory is given, restrict file modifications to `test-dir` only — do not modify files in the repository root or other directories.
-
-**Guidelines:**
-- Treat the input as a real user request — do what it asks
-- Be thorough but focused — do what's needed, don't over-engineer
-- If the task asks you to produce output (code, analysis, answer), capture it clearly
-- If the task asks you to modify files, make the modifications and describe what you did
-- If you encounter errors or uncertainties, note them but keep going
-
-### Step 3: Write Response
-
-Write your complete response to `{test-dir}/response.md`.
-
-The response should contain everything a grader needs to evaluate your work:
-- Your answer, analysis, or explanation
-- What actions you took (files created/modified, commands run)
-- Any code you produced
-- Errors or issues encountered
-
-If the task asked you to modify files, include a summary of the changes in `response.md` so the grader can evaluate without reading every file.
+3. **Write `{test-dir}/response.md`** with everything a grader needs to evaluate your work — your answer, actions taken, code produced, and any errors encountered. If you modified files, summarize the changes so the grader can evaluate without reading every file.
 
 ## Important
 
-- You are being evaluated. Do your best work.
-- Do NOT read grading criteria, assertions, or expected outputs — those are for the grader, not for you. Only read `input.json` and `invoke.json`.
+- Do NOT read grading criteria, assertions, or expected outputs — those are for the grader, not for you.
 - Do NOT modify files outside `test-dir` and `workspace-dir`.
 - Write `response.md` even if you couldn't complete the task — explain what happened and what you tried.

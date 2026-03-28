@@ -272,7 +272,7 @@ Extracts inputs, target commands, and grader configs from an eval YAML file.
 <out-dir>/
 ├── manifest.json
 ├── <test-id>/
-│   ├── input.json              ← {input_text, input_messages, file_paths}
+│   ├── input.json              ← {input, input_files, metadata}
 │   ├── invoke.json             ← {kind, command?, cwd?, timeout_ms?}
 │   ├── criteria.md             ← human-readable success criteria
 │   ├── expected_output.json    ← (if present)
