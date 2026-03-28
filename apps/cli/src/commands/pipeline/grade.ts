@@ -15,10 +15,15 @@ import { join } from 'node:path';
 import { executeScript } from '@agentv/core';
 import { command, positional, string } from 'cmd-ts';
 
-/** Extract the first user message content as plain text from a Message[] array. */
+/**
+ * Convert a Message[] array to plain text.
+ * Single message: returns content directly (no role prefix).
+ * Multiple messages: prefixes each with @role for clarity.
+ */
 function extractInputText(input: Array<{ role: string; content: string }>): string {
-  const userMsg = input.find((m) => m.role === 'user');
-  return typeof userMsg?.content === 'string' ? userMsg.content : '';
+  if (!input || input.length === 0) return '';
+  if (input.length === 1) return input[0].content;
+  return input.map((m) => `@${m.role}\n${m.content}`).join('\n\n');
 }
 
 export const evalGradeCommand = command({

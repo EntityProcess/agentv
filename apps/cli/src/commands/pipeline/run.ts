@@ -25,10 +25,15 @@ import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { selectTarget } from '../eval/targets.js';
 
-/** Extract the first user message content as plain text from a Message[] array. */
+/**
+ * Convert a Message[] array to plain text.
+ * Single message: returns content directly (no role prefix).
+ * Multiple messages: prefixes each with @role for clarity.
+ */
 function extractInputText(input: Array<{ role: string; content: string }>): string {
-  const userMsg = input.find((m) => m.role === 'user');
-  return typeof userMsg?.content === 'string' ? userMsg.content : '';
+  if (!input || input.length === 0) return '';
+  if (input.length === 1) return input[0].content;
+  return input.map((m) => `@${m.role}\n${m.content}`).join('\n\n');
 }
 
 /** Load key=value pairs from a .env file. Ignores comments and blank lines. */
