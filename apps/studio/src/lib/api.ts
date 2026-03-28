@@ -8,7 +8,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type {
-  CategoriesResponse,
+  DatasetsResponse,
   EvalDetailResponse,
   ExperimentsResponse,
   FeedbackData,
@@ -44,11 +44,10 @@ export function runDetailOptions(filename: string) {
   });
 }
 
-export function runCategoriesOptions(runId: string) {
+export function runDatasetsOptions(runId: string) {
   return queryOptions({
-    queryKey: ['runs', runId, 'categories'],
-    queryFn: () =>
-      fetchJson<CategoriesResponse>(`/api/runs/${encodeURIComponent(runId)}/categories`),
+    queryKey: ['runs', runId, 'datasets'],
+    queryFn: () => fetchJson<DatasetsResponse>(`/api/runs/${encodeURIComponent(runId)}/datasets`),
     enabled: !!runId,
   });
 }
@@ -116,8 +115,8 @@ export function useRunDetail(filename: string) {
   return useQuery(runDetailOptions(filename));
 }
 
-export function useRunCategories(runId: string) {
-  return useQuery(runCategoriesOptions(runId));
+export function useRunDatasets(runId: string) {
+  return useQuery(runDatasetsOptions(runId));
 }
 
 export function useEvalDetail(runId: string, evalId: string) {

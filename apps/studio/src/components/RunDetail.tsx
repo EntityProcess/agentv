@@ -24,21 +24,21 @@ export function RunDetail({ results, runId }: RunDetailProps) {
   const passRate = total > 0 ? passed / total : 0;
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
-  // Category breakdown: group by eval_set
-  const categoryMap = new Map<
+  // Dataset breakdown: group by dataset
+  const datasetMap = new Map<
     string,
     { passed: number; failed: number; total: number; scoreSum: number }
   >();
   for (const r of results) {
-    const cat = r.eval_set ?? 'Uncategorized';
-    const entry = categoryMap.get(cat) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
+    const ds = r.dataset ?? 'Uncategorized';
+    const entry = datasetMap.get(ds) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
     entry.total += 1;
     entry.scoreSum += r.score;
     if (r.score >= 1) entry.passed += 1;
     else entry.failed += 1;
-    categoryMap.set(cat, entry);
+    datasetMap.set(ds, entry);
   }
-  const categories = Array.from(categoryMap.entries())
+  const datasets = Array.from(datasetMap.entries())
     .map(([name, stats]) => ({
       name,
       ...stats,
@@ -68,16 +68,16 @@ export function RunDetail({ results, runId }: RunDetailProps) {
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
 
-      {/* Category breakdown */}
-      {categories.length >= 1 && (
+      {/* Dataset breakdown */}
+      {datasets.length >= 1 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400">Categories</h3>
+          <h3 className="text-sm font-medium text-gray-400">Datasets</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((cat) => (
+            {datasets.map((cat) => (
               <Link
                 key={cat.name}
-                to="/runs/$runId/category/$category"
-                params={{ runId, category: cat.name }}
+                to="/runs/$runId/dataset/$dataset"
+                params={{ runId, dataset: cat.name }}
                 className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
               >
                 <div className="flex items-center justify-between">

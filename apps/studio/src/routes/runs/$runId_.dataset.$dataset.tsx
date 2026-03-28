@@ -1,8 +1,8 @@
 /**
- * Category drill-down route: shows evals filtered to a single category.
+ * Dataset drill-down route: shows evals filtered to a single dataset.
  *
  * Uses the `$runId_` trailing-underscore convention so that
- * `/runs/:runId/category/:category` is a sibling of `/runs/:runId`,
+ * `/runs/:runId/dataset/:dataset` is a sibling of `/runs/:runId`,
  * not a child route.
  */
 
@@ -12,12 +12,12 @@ import { ScoreBar } from '~/components/ScoreBar';
 import { StatsCards } from '~/components/StatsCards';
 import { useRunDetail } from '~/lib/api';
 
-export const Route = createFileRoute('/runs/$runId_/category/$category')({
-  component: CategoryPage,
+export const Route = createFileRoute('/runs/$runId_/dataset/$dataset')({
+  component: DatasetPage,
 });
 
-function CategoryPage() {
-  const { runId, category } = Route.useParams();
+function DatasetPage() {
+  const { runId, dataset } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
 
   if (isLoading) {
@@ -41,7 +41,7 @@ function CategoryPage() {
     );
   }
 
-  const results = (data?.results ?? []).filter((r) => (r.eval_set ?? 'Uncategorized') === category);
+  const results = (data?.results ?? []).filter((r) => (r.dataset ?? 'Uncategorized') === dataset);
   const total = results.length;
   const passed = results.filter((r) => r.score >= 1).length;
   const failed = total - passed;
@@ -51,8 +51,8 @@ function CategoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">{category}</h1>
-        <p className="mt-1 text-sm text-gray-400">Category in run: {runId}</p>
+        <h1 className="text-2xl font-semibold text-white">{dataset}</h1>
+        <p className="mt-1 text-sm text-gray-400">Dataset in run: {runId}</p>
       </div>
 
       <StatsCards
@@ -65,7 +65,7 @@ function CategoryPage() {
 
       {total === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-lg text-gray-400">No evaluations in this category</p>
+          <p className="text-lg text-gray-400">No evaluations in this dataset</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-800">

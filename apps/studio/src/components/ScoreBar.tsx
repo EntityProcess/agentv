@@ -2,7 +2,7 @@
  * Gradient score bar component.
  *
  * Renders a horizontal bar from cyan-400 to blue-500, proportional to the
- * score value (0..1). Used in run lists, category breakdowns, and eval detail.
+ * score value (0..1). Used in run lists, dataset breakdowns, and eval detail.
  */
 
 interface ScoreBarProps {

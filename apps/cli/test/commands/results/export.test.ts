@@ -16,7 +16,7 @@ import { exportResults } from '../../../src/commands/results/export.js';
 const RESULT_FULL = {
   timestamp: '2026-03-18T10:00:01.000Z',
   test_id: 'test-greeting',
-  eval_set: 'demo',
+  dataset: 'demo',
   score: 1.0,
   assertions: [
     { text: 'Says hello', passed: true },
@@ -40,7 +40,7 @@ const RESULT_FULL = {
 const RESULT_PARTIAL = {
   timestamp: '2026-03-18T10:00:05.000Z',
   test_id: 'test-math',
-  eval_set: 'demo',
+  dataset: 'demo',
   score: 0.5,
   assertions: [
     { text: 'Correct formula', passed: true },
@@ -66,7 +66,7 @@ const RESULT_PARTIAL = {
 const RESULT_DIFFERENT_TARGET = {
   timestamp: '2026-03-18T10:00:10.000Z',
   test_id: 'test-greeting',
-  eval_set: 'demo',
+  dataset: 'demo',
   score: 0.75,
   assertions: [
     { text: 'Says hello', passed: true },
@@ -81,7 +81,7 @@ const RESULT_DIFFERENT_TARGET = {
 const RESULT_NO_TRACE = {
   timestamp: '2026-03-18T10:00:15.000Z',
   test_id: 'test-simple',
-  eval_set: 'demo',
+  dataset: 'demo',
   score: 1.0,
   assertions: [{ text: 'Correct', passed: true }],
   output: [{ role: 'assistant', content: 'Yes.' }],
@@ -97,12 +97,12 @@ function toJsonl(...records: object[]): string {
 
 function artifactDir(
   outputDir: string,
-  record: { eval_set?: string; test_id?: string; eval_id?: string; target?: string },
+  record: { dataset?: string; test_id?: string; eval_id?: string; target?: string },
 ): string {
   const testId = record.test_id ?? record.eval_id ?? 'unknown';
   return path.join(
     outputDir,
-    ...(record.eval_set ? [record.eval_set] : []),
+    ...(record.dataset ? [record.dataset] : []),
     testId,
     record.target ?? 'default',
   );

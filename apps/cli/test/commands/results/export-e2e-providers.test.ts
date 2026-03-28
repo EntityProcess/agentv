@@ -23,7 +23,7 @@ import { exportResults } from '../../../src/commands/results/export.js';
 const CLAUDE_CLI_RESULT = {
   timestamp: '2026-03-18T10:00:00.000Z',
   test_id: 'test-claude-reasoning',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 1.0,
   assertions: [
     { text: 'Correct answer', passed: true, evidence: 'Matched expected output' },
@@ -60,7 +60,7 @@ const CLAUDE_CLI_RESULT = {
 const CODEX_RESULT = {
   timestamp: '2026-03-18T10:01:00.000Z',
   test_id: 'test-codex-edit',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 0.9,
   assertions: [
     { text: 'File edited correctly', passed: true },
@@ -96,7 +96,7 @@ const CODEX_RESULT = {
 const COPILOT_RESULT = {
   timestamp: '2026-03-18T10:02:00.000Z',
   test_id: 'test-copilot-complete',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 0.85,
   assertions: [
     { text: 'Code completion correct', passed: true },
@@ -125,7 +125,7 @@ const COPILOT_RESULT = {
 const PI_RESULT = {
   timestamp: '2026-03-18T10:03:00.000Z',
   test_id: 'test-pi-refactor',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 0.75,
   assertions: [
     { text: 'Refactored correctly', passed: true },
@@ -143,7 +143,7 @@ const PI_RESULT = {
 const LLM_AZURE_RESULT = {
   timestamp: '2026-03-18T10:04:00.000Z',
   test_id: 'test-llm-analysis',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 1.0,
   assertions: [{ text: 'Analysis correct', passed: true }],
   output: [{ role: 'assistant', content: 'The code has a race condition in the connection pool.' }],
@@ -166,7 +166,7 @@ const LLM_AZURE_RESULT = {
 const LLM_GPT_RESULT = {
   timestamp: '2026-03-18T10:05:00.000Z',
   test_id: 'test-llm-analysis',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 0.8,
   assertions: [{ text: 'Analysis correct', passed: true }],
   output: [{ role: 'assistant', content: 'There might be a concurrency issue.' }],
@@ -181,7 +181,7 @@ const LLM_GPT_RESULT = {
 const MINIMAL_RESULT = {
   timestamp: '2026-03-18T10:06:00.000Z',
   test_id: 'test-minimal',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 0.5,
   assertions: [{ text: 'Exists', passed: true }],
   output: [{ role: 'assistant', content: 'Response.' }],
@@ -193,7 +193,7 @@ const MINIMAL_RESULT = {
 const ERROR_RESULT = {
   timestamp: '2026-03-18T10:07:00.000Z',
   test_id: 'test-error-case',
-  eval_set: 'multi-provider',
+  dataset: 'multi-provider',
   score: 0,
   assertions: [],
   output: [],
@@ -212,12 +212,12 @@ function toJsonl(...records: object[]): string {
 
 function artifactDir(
   outputDir: string,
-  record: { eval_set?: string; test_id?: string; eval_id?: string; target?: string },
+  record: { dataset?: string; test_id?: string; eval_id?: string; target?: string },
 ): string {
   const testId = record.test_id ?? record.eval_id ?? 'unknown';
   return path.join(
     outputDir,
-    ...(record.eval_set ? [record.eval_set] : []),
+    ...(record.dataset ? [record.dataset] : []),
     testId,
     record.target ?? 'default',
   );
@@ -642,7 +642,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       const record = {
         timestamp: '2026-03-18T10:00:00.000Z',
         test_id: 'test-case-convert',
-        eval_set: 'test',
+        dataset: 'test',
         score: 1.0,
         assertions: [{ text: 'ok', passed: true }],
         output_text: 'ok',
@@ -677,7 +677,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       const record = {
         timestamp: '2026-03-18T10:00:00.000Z',
         eval_id: 'legacy-test-id',
-        eval_set: 'test',
+        dataset: 'test',
         score: 1.0,
         assertions: [{ text: 'ok', passed: true }],
         output_text: 'ok',

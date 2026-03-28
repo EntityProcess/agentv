@@ -9,7 +9,7 @@ import type { EvalTest } from '../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
   id: 'case-1',
-  eval_set: 'test-dataset',
+  dataset: 'test-dataset',
   question: 'Test question',
   input: [{ role: 'user', content: 'Test input' }],
   expected_output: [],

@@ -471,7 +471,7 @@ async function loadTestsFromYaml(
 
     const testCase: EvalTest = {
       id,
-      eval_set: evalSetName,
+      dataset: evalSetName,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,

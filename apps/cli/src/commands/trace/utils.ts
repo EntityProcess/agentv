@@ -51,7 +51,7 @@ export interface RawResult {
   timestamp?: string;
   test_id?: string;
   eval_id?: string;
-  eval_set?: string;
+  dataset?: string;
   conversation_id?: string;
   score: number;
   assertions?: { text: string; passed: boolean; evidence?: string }[];
@@ -149,7 +149,7 @@ function toRawResult(result: EvaluationResult): RawResult {
   return {
     timestamp: result.timestamp,
     test_id: result.testId,
-    eval_set: result.eval_set,
+    dataset: result.dataset,
     conversation_id: result.conversationId,
     score: result.score,
     assertions: result.assertions?.map((assertion) => ({
@@ -334,7 +334,7 @@ function loadOtlpTraceFile(filePath: string): RawResult[] {
         stringAttr(rootAttrs.agentv_test_id) ??
         stringAttr(rootAttrs.agentv_eval_id) ??
         `trace-${index + 1}`,
-      eval_set: stringAttr(rootAttrs.agentv_eval_set),
+      dataset: stringAttr(rootAttrs.agentv_dataset),
       target: stringAttr(rootAttrs.agentv_target),
       score,
       error: root.status?.code === 2 ? root.status.message : undefined,

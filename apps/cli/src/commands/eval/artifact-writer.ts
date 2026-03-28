@@ -94,7 +94,7 @@ export interface AggregateGradingArtifact {
 export interface IndexArtifactEntry {
   readonly timestamp: string;
   readonly test_id: string;
-  readonly eval_set?: string;
+  readonly dataset?: string;
   readonly conversation_id?: string;
   readonly score: number;
   readonly target: string;
@@ -462,14 +462,14 @@ function safeTargetId(target: string | undefined): string {
   return safeArtifactPathSegment(target, 'default');
 }
 
-function getEvalSet(result: EvaluationResult): string | undefined {
-  const record = result as EvaluationResult & { evalSet?: string };
-  return result.eval_set ?? record.evalSet;
+function getDataset(result: EvaluationResult): string | undefined {
+  const record = result as EvaluationResult & { eval_set?: string; evalSet?: string };
+  return result.dataset ?? record.eval_set ?? record.evalSet;
 }
 
 function buildArtifactSubdir(result: EvaluationResult): string {
   const segments = [];
-  const evalSet = getEvalSet(result);
+  const evalSet = getDataset(result);
   if (evalSet) {
     segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
@@ -508,7 +508,7 @@ export function buildIndexArtifactEntry(
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
-    eval_set: getEvalSet(result),
+    dataset: getDataset(result),
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
@@ -539,7 +539,7 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
-    eval_set: getEvalSet(result),
+    dataset: getDataset(result),
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',

@@ -4,7 +4,7 @@
  * Adapts its content based on the current route:
  * - At root or run detail: shows list of runs
  * - At eval detail: shows list of evals in the current run with pass/fail indicators
- * - At category detail: shows evals filtered to that category
+ * - At dataset detail: shows evals filtered to that dataset
  * - At experiment detail: shows list of experiments
  */
 
@@ -15,8 +15,8 @@ import { useExperiments, useRunDetail, useRunList } from '~/lib/api';
 export function Sidebar() {
   const matchRoute = useMatchRoute();
   const evalMatch = matchRoute({ to: '/evals/$runId/$evalId', fuzzy: true });
-  const categoryMatch = matchRoute({
-    to: '/runs/$runId/category/$category',
+  const datasetMatch = matchRoute({
+    to: '/runs/$runId/dataset/$dataset',
     fuzzy: true,
   });
   const experimentMatch = matchRoute({
@@ -24,10 +24,10 @@ export function Sidebar() {
     fuzzy: true,
   });
 
-  // If on a category detail page, show evals filtered to that category
-  if (categoryMatch && typeof categoryMatch === 'object' && 'runId' in categoryMatch) {
-    const { runId, category } = categoryMatch as { runId: string; category: string };
-    return <CategorySidebar runId={runId} category={category} />;
+  // If on a dataset detail page, show evals filtered to that dataset
+  if (datasetMatch && typeof datasetMatch === 'object' && 'runId' in datasetMatch) {
+    const { runId, dataset } = datasetMatch as { runId: string; dataset: string };
+    return <DatasetSidebar runId={runId} dataset={dataset} />;
   }
 
   // If on an eval detail page, show the eval sidebar
@@ -152,10 +152,10 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
   );
 }
 
-function CategorySidebar({ runId, category }: { runId: string; category: string }) {
+function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) {
   const { data } = useRunDetail(runId);
-  const categoryResults = (data?.results ?? []).filter(
-    (r) => (r.eval_set ?? 'Uncategorized') === category,
+  const datasetResults = (data?.results ?? []).filter(
+    (r) => (r.dataset ?? 'Uncategorized') === dataset,
   );
 
   return (
@@ -176,7 +176,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
           &larr; Back to run
         </Link>
         <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
-        <p className="truncate text-xs text-gray-500">{category}</p>
+        <p className="truncate text-xs text-gray-500">{dataset}</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -184,7 +184,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
           Evaluations
         </div>
 
-        {categoryResults.map((result) => {
+        {datasetResults.map((result) => {
           const passed = result.score >= 1;
 
           return (
