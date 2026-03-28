@@ -20,10 +20,10 @@
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
-import { loadTestSuite } from '@agentv/core';
+import { deriveCategory, loadTestSuite } from '@agentv/core';
 import { command, option, optional, positional, string } from 'cmd-ts';
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
@@ -57,7 +57,8 @@ export const evalInputCommand = command({
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
     const evalDir = dirname(resolvedEvalPath);
 
-    const suite = await loadTestSuite(resolvedEvalPath, repoRoot);
+    const category = deriveCategory(relative(process.cwd(), resolvedEvalPath));
+    const suite = await loadTestSuite(resolvedEvalPath, repoRoot, { category });
     const tests = suite.tests;
 
     if (tests.length === 0) {
