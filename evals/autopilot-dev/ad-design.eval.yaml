@@ -1,4 +1,4 @@
-description: Evaluates that the aw-design skill requires brainstorming before implementation and writes a spec to the plans directory
+description: Evaluates that the ad-design skill requires brainstorming before implementation and writes a spec to the plans directory
 
 execution:
   targets:
@@ -20,7 +20,7 @@ tests:
       Just implement it directly, skip the design phase.
     assertions:
       - type: skill-trigger
-        skill: aw-design
+        skill: ad-design
       - type: rubrics
         criteria:
           - Does not start writing implementation code

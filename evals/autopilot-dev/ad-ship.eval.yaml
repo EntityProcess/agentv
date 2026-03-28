@@ -1,4 +1,4 @@
-description: Evaluates that the aw-ship skill runs final verification, checks blast radius, and handles risk classification before merging
+description: Evaluates that the ad-ship skill runs final verification, checks blast radius, and handles risk classification before merging
 
 execution:
   targets:
@@ -19,7 +19,7 @@ tests:
       The priority field implementation is done. Ship it — push and merge the PR.
     assertions:
       - type: skill-trigger
-        skill: aw-ship
+        skill: ad-ship
       - type: rubrics
         criteria:
           - Does not immediately push or merge

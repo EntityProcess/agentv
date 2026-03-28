@@ -1,5 +1,5 @@
 ---
-name: aw-ship
+name: ad-ship
 description: >-
   Use when implementation and verification are complete and you need to integrate the
   work, when asked to "ship it", "merge the PR", "mark ready for review", "clean up
@@ -15,7 +15,7 @@ Complete the development branch and integrate the work. Final verification gate,
 
 ## Hard Gate
 
-Must have passing verification evidence from aw-verify before shipping. If no verification has been done in this session, stop and tell the user to run aw-verify first.
+Must have passing verification evidence from ad-verify before shipping. If no verification has been done in this session, stop and tell the user to run ad-verify first.
 
 ## Process
 
@@ -27,7 +27,7 @@ Run the full check chain one last time:
 bun run build && bun run test && bun run lint
 ```
 
-All must pass with output as evidence. Do not skip this even if aw-verify ran recently — code may have changed since.
+All must pass with output as evidence. Do not skip this even if ad-verify ran recently — code may have changed since.
 
 ### Step 2: Final blast radius check
 

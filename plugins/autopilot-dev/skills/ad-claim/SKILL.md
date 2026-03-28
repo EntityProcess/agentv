@@ -1,5 +1,5 @@
 ---
-name: aw-claim
+name: ad-claim
 description: >-
   Use when starting work on a GitHub issue, setting up a development workspace,
   creating a worktree and branch, or when asked to "claim an issue", "start work on
@@ -66,9 +66,9 @@ gh pr create --draft --title "<type>(<scope>): <description>" --body "Closes #<n
 
 After claiming, determine which phases to run next:
 
-- **Trivial** (< 5 lines, docs, config): skip to aw-implement
-- **Bug fix with clear root cause**: proceed to aw-explore, then aw-implement
-- **Feature or complex change**: proceed to aw-explore → aw-design → aw-plan
+- **Trivial** (< 5 lines, docs, config): skip to ad-implement
+- **Bug fix with clear root cause**: proceed to ad-explore, then ad-implement
+- **Feature or complex change**: proceed to ad-explore → ad-design → ad-plan
 
 ## Hard Gates
 

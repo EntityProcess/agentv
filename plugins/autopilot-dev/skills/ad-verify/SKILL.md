@@ -1,5 +1,5 @@
 ---
-name: aw-verify
+name: ad-verify
 description: >-
   Use when implementation is complete and you need to prove it works before claiming
   completion, when asked to "verify", "test end-to-end", "run e2e", "check the blast
@@ -67,7 +67,7 @@ Dispatch an isolated reviewer subagent with:
 
 ### Step 5: Final evidence
 
-Before proceeding to aw-ship, confirm:
+Before proceeding to ad-ship, confirm:
 
 - [ ] Build passes (with output)
 - [ ] All tests pass (with output showing test count)

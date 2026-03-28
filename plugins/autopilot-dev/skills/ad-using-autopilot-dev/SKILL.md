@@ -1,5 +1,5 @@
 ---
-name: aw-using-agentic-workflows
+name: ad-using-autopilot-dev
 description: >-
   Use when starting any conversation or session to establish the agentic delivery
   lifecycle. Determines which phase skills to invoke and prevents rationalization
@@ -7,7 +7,7 @@ description: >-
   dispatched as a subagent to execute a specific task.
 ---
 
-# Using Agentic Workflows
+# Using Autopilot Dev
 
 ## Overview
 
@@ -20,18 +20,18 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 ## Lifecycle
 
 ```
-aw-claim → aw-explore → aw-design → aw-plan → aw-implement → aw-verify → aw-ship
+ad-claim → ad-explore → ad-design → ad-plan → ad-implement → ad-verify → ad-ship
 ```
 
 | Phase | Skill | What Happens |
 |---|---|---|
-| Claim | aw-claim | Claim issue, create worktree + branch + draft PR |
-| Explore | aw-explore | Understand the codebase and problem space |
-| Design | aw-design | Brainstorm approaches, write approved spec |
-| Plan | aw-plan | Convert spec into bite-sized implementation plan |
-| Implement | aw-implement | TDD execution with subagent dispatch |
-| Verify | aw-verify | E2E red/green testing, code review, blast radius check |
-| Ship | aw-ship | Mark PR ready, merge, clean up worktree |
+| Claim | ad-claim | Claim issue, create worktree + branch + draft PR |
+| Explore | ad-explore | Understand the codebase and problem space |
+| Design | ad-design | Brainstorm approaches, write approved spec |
+| Plan | ad-plan | Convert spec into bite-sized implementation plan |
+| Implement | ad-implement | TDD execution with subagent dispatch |
+| Verify | ad-verify | E2E red/green testing, code review, blast radius check |
+| Ship | ad-ship | Mark PR ready, merge, clean up worktree |
 
 ## Phase Skip Rules
 
@@ -54,23 +54,23 @@ These thoughts mean STOP — you are rationalizing your way out of a phase:
 | Thought | Reality |
 |---|---|
 | "This is just a simple question" | Questions are tasks. Check the lifecycle. |
-| "I need more context first" | That is what aw-explore does. |
-| "Let me just write the code quickly" | That is what aw-implement does, with TDD. |
+| "I need more context first" | That is what ad-explore does. |
+| "Let me just write the code quickly" | That is what ad-implement does, with TDD. |
 | "I can skip the design for this" | Every project needs a design, regardless of perceived simplicity. |
-| "Tests are passing, we're done" | Unit tests ≠ verified. That is what aw-verify does. |
-| "I'll clean up the PR later" | That is what aw-ship does, with blast radius checks. |
-| "Let me explore the code first" | Use aw-explore — it has structured output. |
-| "I know what needs to change" | Verify with aw-explore. Partial implementations may already exist. |
+| "Tests are passing, we're done" | Unit tests ≠ verified. That is what ad-verify does. |
+| "I'll clean up the PR later" | That is what ad-ship does, with blast radius checks. |
+| "Let me explore the code first" | Use ad-explore — it has structured output. |
+| "I know what needs to change" | Verify with ad-explore. Partial implementations may already exist. |
 
 ## Skill Priority
 
 When multiple skills could apply:
 
-1. **Process skills first** (aw-explore, aw-design) — determine HOW to approach
-2. **Execution skills second** (aw-implement, aw-verify) — guide what to do
+1. **Process skills first** (ad-explore, ad-design) — determine HOW to approach
+2. **Execution skills second** (ad-implement, ad-verify) — guide what to do
 
-"Let's build X" → aw-explore first, then aw-design, then aw-plan.
-"Fix this bug" → aw-explore first, then aw-implement.
+"Let's build X" → ad-explore first, then ad-design, then ad-plan.
+"Fix this bug" → ad-explore first, then ad-implement.
 
 ## Artifact Locations
 

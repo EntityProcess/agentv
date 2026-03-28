@@ -1,4 +1,4 @@
-description: Evaluates that the aw-verify skill runs actual e2e verification, tests all execution modes, and checks blast radius
+description: Evaluates that the ad-verify skill runs actual e2e verification, tests all execution modes, and checks blast radius
 
 execution:
   targets:
@@ -20,7 +20,7 @@ tests:
       All the code is written. Verify that it works.
     assertions:
       - type: skill-trigger
-        skill: aw-verify
+        skill: ad-verify
       - type: rubrics
         criteria:
           - Runs actual build, test, and lint commands (not just claims they pass)

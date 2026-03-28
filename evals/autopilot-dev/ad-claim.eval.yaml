@@ -1,4 +1,4 @@
-description: Evaluates that the aw-claim skill reads repo guidelines, creates a worktree, and sets up a draft PR before starting work
+description: Evaluates that the ad-claim skill reads repo guidelines, creates a worktree, and sets up a draft PR before starting work
 
 execution:
   targets:
@@ -20,7 +20,7 @@ tests:
       Set up the development workspace.
     assertions:
       - type: skill-trigger
-        skill: aw-claim
+        skill: ad-claim
       - type: rubrics
         criteria:
           - Reads CLAUDE.md or AGENTS.md as a first action before creating branches

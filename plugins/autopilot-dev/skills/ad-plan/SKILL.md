@@ -1,5 +1,5 @@
 ---
-name: aw-plan
+name: ad-plan
 description: >-
   Use when converting an approved design spec into an implementation plan, when the
   design is ready and you need step-by-step tasks with exact code and commands, or
@@ -15,7 +15,7 @@ Convert an approved design into a bite-sized implementation plan with exact file
 
 ## Hard Gate
 
-Must reference an approved design spec. If no spec exists at `.agents/plans/*-design.md` on the current branch, stop and tell the user to run aw-design first.
+Must reference an approved design spec. If no spec exists at `.agents/plans/*-design.md` on the current branch, stop and tell the user to run ad-design first.
 
 ## Process
 
