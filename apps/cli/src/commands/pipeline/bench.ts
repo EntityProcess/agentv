@@ -45,7 +45,7 @@ export const evalBenchCommand = command({
     const manifest = JSON.parse(await readFile(join(exportDir, 'manifest.json'), 'utf8'));
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
-    const evalSet: string = manifest.dataset ?? manifest.eval_set ?? '';
+    const evalSet: string = manifest.dataset ?? '';
     const experiment: string | undefined = manifest.experiment;
     const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
 

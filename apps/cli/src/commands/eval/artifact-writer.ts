@@ -463,8 +463,7 @@ function safeTargetId(target: string | undefined): string {
 }
 
 function getDataset(result: EvaluationResult): string | undefined {
-  const record = result as EvaluationResult & { eval_set?: string; evalSet?: string };
-  return result.dataset ?? record.eval_set ?? record.evalSet;
+  return result.dataset;
 }
 
 function buildArtifactSubdir(result: EvaluationResult): string {

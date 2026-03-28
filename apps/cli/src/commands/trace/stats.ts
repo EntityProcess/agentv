@@ -110,7 +110,6 @@ function groupResults(results: RawResult[], groupBy?: string): GroupedResults[] 
         key = result.target ?? 'unknown';
         break;
       case 'dataset':
-      case 'eval-set':
         key = result.dataset ?? 'unknown';
         break;
       case 'test-id':
