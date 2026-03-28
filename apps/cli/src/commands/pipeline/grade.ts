@@ -40,7 +40,7 @@ export const evalGradeCommand = command({
     const manifestPath = join(exportDir, 'manifest.json');
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
     const testIds: string[] = manifest.test_ids;
-    const evalSet: string = manifest.eval_set ?? '';
+    const evalSet: string = manifest.dataset ?? manifest.eval_set ?? '';
     const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     let totalGraders = 0;

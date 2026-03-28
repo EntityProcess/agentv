@@ -23,9 +23,9 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
 
     if (routeId === '/' || routeId === '/_layout') continue;
 
-    if (routeId.includes('/runs/$runId/category/$category')) {
+    if (routeId.includes('/runs/$runId/dataset/$dataset')) {
       segments.push({
-        label: params.category ?? 'Category',
+        label: params.dataset ?? 'Dataset',
         to: match.pathname,
       });
     } else if (routeId.includes('/runs/$runId')) {

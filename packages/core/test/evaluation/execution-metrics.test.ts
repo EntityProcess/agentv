@@ -243,7 +243,7 @@ describe('Execution Metrics', () => {
 describe('Code Grader Metrics Integration', () => {
   const baseTestCase: EvalTest = {
     id: 'metrics-test',
-    eval_set: 'test',
+    dataset: 'test',
     question: 'Test question',
     input: [{ role: 'user', content: 'Test' }],
     expected_output: [],

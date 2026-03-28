@@ -272,8 +272,8 @@ export function createApp(
 
   // ── New Studio API endpoints ──────────────────────────────────────────
 
-  // Categories for a specific run (grouped by eval_set or target)
-  app.get('/api/runs/:filename/categories', (c) => {
+  // Datasets for a specific run (grouped by dataset or target)
+  app.get('/api/runs/:filename/datasets', (c) => {
     const filename = c.req.param('filename');
     const metas = listResultFiles(searchDir);
     const meta = metas.find((m) => m.filename === filename);
@@ -282,25 +282,25 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
-      const categoryMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+      const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of loaded) {
-        const cat = r.eval_set ?? r.target ?? 'default';
-        const entry = categoryMap.get(cat) ?? { total: 0, passed: 0, scoreSum: 0 };
+        const ds = r.dataset ?? r.target ?? 'default';
+        const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
         if (r.score >= 1) entry.passed++;
         entry.scoreSum += r.score;
-        categoryMap.set(cat, entry);
+        datasetMap.set(ds, entry);
       }
-      const categories = [...categoryMap.entries()].map(([name, entry]) => ({
+      const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
         name,
         total: entry.total,
         passed: entry.passed,
         failed: entry.total - entry.passed,
         avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
       }));
-      return c.json({ categories });
+      return c.json({ datasets });
     } catch {
-      return c.json({ error: 'Failed to load categories' }, 500);
+      return c.json({ error: 'Failed to load datasets' }, 500);
     }
   });
 

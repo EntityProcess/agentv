@@ -167,7 +167,7 @@ export const evalInputCommand = command({
     // manifest.json
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
-      eval_set: evalSetName || undefined,
+      dataset: evalSetName || undefined,
       experiment: experiment || undefined,
       timestamp: new Date().toISOString(),
       target: {

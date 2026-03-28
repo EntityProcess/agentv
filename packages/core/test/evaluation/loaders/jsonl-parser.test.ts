@@ -156,7 +156,7 @@ describe('loadTestsFromJsonl', () => {
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].eval_set).toBe('my-tests');
+    expect(cases[0].dataset).toBe('my-tests');
     expect(cases[0].evaluator).toBe('llm-grader');
   });
 
@@ -188,7 +188,7 @@ describe('loadTestsFromJsonl', () => {
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].eval_set).toBe('my-dataset');
+    expect(cases[0].dataset).toBe('my-dataset');
   });
 
   it('supports per-case evaluators override', async () => {
@@ -411,7 +411,7 @@ tests:
     // Core fields should match
     expect(jsonlCases[0].id).toBe(yamlCases[0].id);
     expect(jsonlCases[0].criteria).toBe(yamlCases[0].criteria);
-    expect(jsonlCases[0].eval_set).toBe(yamlCases[0].eval_set);
+    expect(jsonlCases[0].dataset).toBe(yamlCases[0].dataset);
     expect(jsonlCases[0].input.length).toBe(yamlCases[0].input.length);
     expect(jsonlCases[0].input[0].role).toBe(yamlCases[0].input[0].role);
     expect(jsonlCases[0].input[0].content).toBe(yamlCases[0].input[0].content);

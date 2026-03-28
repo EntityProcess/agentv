@@ -11,7 +11,8 @@ export interface ResultManifestRecord {
   readonly timestamp?: string;
   readonly test_id?: string;
   readonly eval_id?: string;
-  readonly eval_set?: string;
+  readonly dataset?: string;
+  readonly eval_set?: string; // deprecated alias for dataset
   readonly experiment?: string;
   readonly target?: string;
   readonly score: number;
@@ -124,7 +125,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
   return {
     timestamp: record.timestamp,
     testId,
-    eval_set: record.eval_set,
+    dataset: record.dataset ?? record.eval_set,
     target: record.target,
     score: record.score,
     executionStatus: record.execution_status,

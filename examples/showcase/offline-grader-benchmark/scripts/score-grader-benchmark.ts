@@ -16,7 +16,8 @@ type ScoreRecord = {
 type EvalResult = {
   timestamp?: string;
   test_id?: string;
-  eval_set?: string;
+  dataset?: string;
+  eval_set?: string; // backward compat
   target?: string;
   input?: string;
   output_text?: string;
@@ -221,7 +222,7 @@ for (const line of rawResults) {
   const output = {
     timestamp: result.timestamp,
     test_id: result.test_id,
-    eval_set: result.eval_set,
+    dataset: result.dataset ?? result.eval_set,
     target: labelOverride ?? result.target ?? labelFromPath(resultsPath),
     input: result.input,
     output_text: result.output_text,

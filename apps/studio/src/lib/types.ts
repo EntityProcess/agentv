@@ -48,7 +48,7 @@ export interface AssertionEntry {
 export interface EvalResult {
   testId: string;
   timestamp?: string;
-  eval_set?: string;
+  dataset?: string;
   target?: string;
   experiment?: string;
   score: number;
@@ -70,7 +70,7 @@ export interface RunDetailResponse {
   source: string;
 }
 
-export interface CategorySummary {
+export interface DatasetSummary {
   name: string;
   total: number;
   passed: number;
@@ -78,8 +78,8 @@ export interface CategorySummary {
   avg_score: number;
 }
 
-export interface CategoriesResponse {
-  categories: CategorySummary[];
+export interface DatasetsResponse {
+  datasets: DatasetSummary[];
 }
 
 export interface EvalDetailResponse {

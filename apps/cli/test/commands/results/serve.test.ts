@@ -10,7 +10,7 @@ import { createApp, loadResults, resolveSourceFile } from '../../../src/commands
 const RESULT_A = {
   timestamp: '2026-03-18T10:00:01.000Z',
   test_id: 'test-greeting',
-  eval_set: 'demo',
+  dataset: 'demo',
   score: 1.0,
   assertions: [
     { text: 'Says hello', passed: true },
@@ -34,7 +34,7 @@ const RESULT_A = {
 const RESULT_B = {
   timestamp: '2026-03-18T10:00:05.000Z',
   test_id: 'test-math',
-  eval_set: 'demo',
+  dataset: 'demo',
   score: 0.5,
   assertions: [
     { text: 'Correct formula', passed: true },

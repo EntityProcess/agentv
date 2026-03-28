@@ -187,7 +187,7 @@ export const evalRunCommand = command({
 
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
-      eval_set: evalSetName || undefined,
+      dataset: evalSetName || undefined,
       experiment: experiment || undefined,
       timestamp: new Date().toISOString(),
       target: { name: targetName, kind: targetKind },

@@ -6387,6 +6387,9 @@
                   "conversation_id": {
                     "type": "string"
                   },
+                  "dataset": {
+                    "type": "string"
+                  },
                   "eval_set": {
                     "type": "string"
                   },
@@ -12696,6 +12699,9 @@
                     "additionalProperties": {}
                   },
                   "conversation_id": {
+                    "type": "string"
+                  },
+                  "dataset": {
                     "type": "string"
                   },
                   "eval_set": {

@@ -125,9 +125,9 @@ describe('JunitWriter', () => {
   it('should group results by dataset as testsuites', async () => {
     const writer = await JunitWriter.open(testFilePath);
 
-    await writer.append(makeResult({ testId: 'a-1', eval_set: 'suite-a', score: 1.0 }));
-    await writer.append(makeResult({ testId: 'a-2', eval_set: 'suite-a', score: 0.8 }));
-    await writer.append(makeResult({ testId: 'b-1', eval_set: 'suite-b', score: 0.5 }));
+    await writer.append(makeResult({ testId: 'a-1', dataset: 'suite-a', score: 1.0 }));
+    await writer.append(makeResult({ testId: 'a-2', dataset: 'suite-a', score: 0.8 }));
+    await writer.append(makeResult({ testId: 'b-1', dataset: 'suite-b', score: 0.5 }));
     await writer.close();
 
     const xml = await readFile(testFilePath, 'utf8');

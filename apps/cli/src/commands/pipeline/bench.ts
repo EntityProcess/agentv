@@ -45,7 +45,7 @@ export const evalBenchCommand = command({
     const manifest = JSON.parse(await readFile(join(exportDir, 'manifest.json'), 'utf8'));
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
-    const evalSet: string = manifest.eval_set ?? '';
+    const evalSet: string = manifest.dataset ?? manifest.eval_set ?? '';
     const experiment: string | undefined = manifest.experiment;
     const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
@@ -189,7 +189,7 @@ export const evalBenchCommand = command({
         JSON.stringify({
           timestamp: manifest.timestamp,
           test_id: testId,
-          eval_set: evalSet || undefined,
+          dataset: evalSet || undefined,
           experiment: experiment || undefined,
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,
