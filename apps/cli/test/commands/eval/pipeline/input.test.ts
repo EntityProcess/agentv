@@ -25,7 +25,9 @@ describe('pipeline input', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
 
-    const input = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'input.json'), 'utf8'));
+    const input = JSON.parse(
+      await readFile(join(OUT_DIR, 'input-test', 'test-01', 'input.json'), 'utf8'),
+    );
     expect(input.input_text).toBe('hello world');
     expect(input.input_messages).toHaveLength(1);
   });
@@ -35,7 +37,10 @@ describe('pipeline input', () => {
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
 
     const grader = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'code_graders', 'contains_hello.json'), 'utf8'),
+      await readFile(
+        join(OUT_DIR, 'input-test', 'test-01', 'code_graders', 'contains_hello.json'),
+        'utf8',
+      ),
     );
     expect(grader.command).toBeDefined();
     expect(grader.name).toBe('contains_hello');
@@ -46,7 +51,10 @@ describe('pipeline input', () => {
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
 
     const grader = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'llm_graders', 'relevance.json'), 'utf8'),
+      await readFile(
+        join(OUT_DIR, 'input-test', 'test-01', 'llm_graders', 'relevance.json'),
+        'utf8',
+      ),
     );
     expect(grader.prompt_content).toBeDefined();
     expect(grader.name).toBe('relevance');
@@ -56,7 +64,7 @@ describe('pipeline input', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
 
-    const criteria = await readFile(join(OUT_DIR, 'test-01', 'criteria.md'), 'utf8');
+    const criteria = await readFile(join(OUT_DIR, 'input-test', 'test-01', 'criteria.md'), 'utf8');
     expect(criteria).toContain('Response echoes the input');
   });
 
@@ -64,7 +72,9 @@ describe('pipeline input', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', EVAL_PATH, '--out', OUT_DIR]);
 
-    const invoke = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'invoke.json'), 'utf8'));
+    const invoke = JSON.parse(
+      await readFile(join(OUT_DIR, 'input-test', 'test-01', 'invoke.json'), 'utf8'),
+    );
     expect(invoke.kind).toBeDefined();
   });
 });

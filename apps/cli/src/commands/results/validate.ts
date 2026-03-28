@@ -3,7 +3,7 @@
  * artifacts compatible with the AgentV dashboard and results commands.
  *
  * Checks:
- *   1. Directory follows the `runs/eval_<timestamp>` naming convention
+ *   1. Directory follows the `runs/<timestamp>` naming convention
  *   2. index.jsonl exists and each line has required fields
  *   3. Per-test grading.json exists for every entry in the index
  *   4. Per-test timing.json exists (warning if missing)
@@ -53,10 +53,12 @@ function checkDirectoryNaming(runDir: string): Diagnostic[] {
     });
   }
 
-  if (!/^eval_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(dirName)) {
+  const isNewFormat = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(dirName);
+  const isLegacyFormat = /^eval_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(dirName);
+  if (!isNewFormat && !isLegacyFormat) {
     diagnostics.push({
       severity: 'warning',
-      message: `Directory name '${dirName}' does not match the expected pattern 'eval_<ISO-timestamp>'. Example: eval_2026-03-27T12-42-24-429Z`,
+      message: `Directory name '${dirName}' does not match the expected pattern '<ISO-timestamp>'. Example: 2026-03-27T12-42-24-429Z`,
     });
   }
 

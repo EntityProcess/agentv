@@ -45,6 +45,8 @@ export const evalBenchCommand = command({
     const manifest = JSON.parse(await readFile(join(exportDir, 'manifest.json'), 'utf8'));
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
+    const evalSet: string = manifest.eval_set ?? '';
+    const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     // Read LLM scores from file or stdin
     let stdinData: string;
@@ -65,7 +67,9 @@ export const evalBenchCommand = command({
     const allPassRates: number[] = [];
 
     for (const testId of testIds) {
-      const testDir = join(exportDir, testId);
+      const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
+      const testDir = join(exportDir, ...subpath);
+      const artifactSubdir = subpath.join('/');
       const evaluators: EvaluatorScore[] = [];
       const allAssertions: { text: string; passed: boolean; evidence: string }[] = [];
 
@@ -184,13 +188,14 @@ export const evalBenchCommand = command({
         JSON.stringify({
           timestamp: manifest.timestamp,
           test_id: testId,
+          eval_set: evalSet || undefined,
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,
           scores,
           execution_status: executionStatus,
-          grading_path: `${testId}/grading.json`,
-          timing_path: `${testId}/timing.json`,
-          response_path: hasResponse ? `${testId}/response.md` : null,
+          grading_path: `${artifactSubdir}/grading.json`,
+          timing_path: `${artifactSubdir}/timing.json`,
+          response_path: hasResponse ? `${artifactSubdir}/response.md` : undefined,
         }),
       );
     }

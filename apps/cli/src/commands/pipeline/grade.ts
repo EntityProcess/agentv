@@ -7,7 +7,7 @@
  * and writes results to code_grader_results/<name>.json.
  *
  * Export directory additions:
- *   <out-dir>/<test-id>/code_grader_results/<name>.json
+ *   <out-dir>/<eval-set>/<test-id>/code_grader_results/<name>.json
  */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,12 +29,15 @@ export const evalGradeCommand = command({
     const manifestPath = join(exportDir, 'manifest.json');
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
     const testIds: string[] = manifest.test_ids;
+    const evalSet: string = manifest.eval_set ?? '';
+    const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     let totalGraders = 0;
     let totalPassed = 0;
 
     for (const testId of testIds) {
-      const testDir = join(exportDir, testId);
+      const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
+      const testDir = join(exportDir, ...subpath);
       const codeGradersDir = join(testDir, 'code_graders');
       const resultsDir = join(testDir, 'code_grader_results');
 

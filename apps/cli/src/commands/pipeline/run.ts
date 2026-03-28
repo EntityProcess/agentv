@@ -7,7 +7,7 @@
  *   2. Invoking each CLI target in parallel (writing response.md + timing.json)
  *   3. `agentv pipeline grade <dir>`
  *
- * For `kind: agent` targets, steps 2 is skipped (agent handles execution).
+ * For `kind: agent` targets, step 2 is skipped (subagent handles execution).
  *
  * To add new features: extend the handler — all logic is self-contained.
  */
@@ -60,7 +60,7 @@ export const evalRunCommand = command({
     out: option({
       type: optional(string),
       long: 'out',
-      description: 'Output directory for results (default: .agentv/results/runs/eval_<timestamp>)',
+      description: 'Output directory for results (default: .agentv/results/runs/<timestamp>)',
     }),
     workers: option({
       type: optional(number),
@@ -115,13 +115,17 @@ export const evalRunCommand = command({
         };
       }
     } catch {
-      // No targets file — agent-as-target mode
+      // No targets file — subagent-as-target mode
     }
+
+    const evalSetName = suite.metadata?.name?.trim() ?? '';
+    const safeEvalSet = evalSetName ? evalSetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     const testIds: string[] = [];
 
     for (const test of tests) {
-      const testDir = join(outDir, test.id);
+      const subpath = safeEvalSet ? [safeEvalSet, test.id] : [test.id];
+      const testDir = join(outDir, ...subpath);
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
 
@@ -169,6 +173,7 @@ export const evalRunCommand = command({
 
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
+      eval_set: evalSetName || undefined,
       timestamp: new Date().toISOString(),
       target: { name: targetName, kind: targetKind },
       test_ids: testIds,
@@ -192,7 +197,8 @@ export const evalRunCommand = command({
       console.log(`Invoking ${testIds.length} CLI target(s) (${maxWorkers} workers)...`);
 
       const invokeTarget = async (testId: string): Promise<void> => {
-        const testDir = join(outDir, testId);
+        const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
+        const testDir = join(outDir, ...subpath);
         const invoke = JSON.parse(await readFile(join(testDir, 'invoke.json'), 'utf8'));
         if (invoke.kind !== 'cli') return;
 
@@ -272,7 +278,7 @@ export const evalRunCommand = command({
       }
       await Promise.all(pending);
     } else {
-      console.log('Agent-as-target mode — skipping CLI invocation.');
+      console.log('Subagent-as-target mode — skipping CLI invocation.');
     }
 
     // ── Step 3: Run code graders (same as pipeline grade) ────────────
@@ -280,7 +286,8 @@ export const evalRunCommand = command({
     let totalPassed = 0;
 
     for (const testId of testIds) {
-      const testDir = join(outDir, testId);
+      const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
+      const testDir = join(outDir, ...subpath);
       const codeGradersDir = join(testDir, 'code_graders');
       const resultsDir = join(testDir, 'code_grader_results');
 
