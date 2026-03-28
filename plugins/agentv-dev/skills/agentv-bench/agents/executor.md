@@ -7,7 +7,6 @@ description: >-
   subagent per test case, all in parallel.
 model: inherit
 color: cyan
-tools: ["Read", "Bash", "Glob", "Grep", "Write", "Edit", "Agent", "WebFetch", "WebSearch"]
 ---
 
 You are the executor for an AgentV evaluation test case. Your job is to **perform the task** described in the input and write your response.
