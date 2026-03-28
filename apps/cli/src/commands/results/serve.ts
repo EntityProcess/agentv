@@ -304,6 +304,82 @@ export function createApp(
     }
   });
 
+  // Category summaries for a run
+  app.get('/api/runs/:filename/categories', (c) => {
+    const filename = c.req.param('filename');
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: 'Run not found' }, 404);
+    }
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const categoryMap = new Map<
+        string,
+        { total: number; passed: number; scoreSum: number; datasets: Set<string> }
+      >();
+      for (const r of loaded) {
+        const cat = r.category ?? 'Uncategorized';
+        const entry = categoryMap.get(cat) ?? {
+          total: 0,
+          passed: 0,
+          scoreSum: 0,
+          datasets: new Set<string>(),
+        };
+        entry.total++;
+        if (r.score >= 1) entry.passed++;
+        entry.scoreSum += r.score;
+        entry.datasets.add(r.dataset ?? r.target ?? 'default');
+        categoryMap.set(cat, entry);
+      }
+      const categories = [...categoryMap.entries()].map(([name, entry]) => ({
+        name,
+        total: entry.total,
+        passed: entry.passed,
+        failed: entry.total - entry.passed,
+        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
+        dataset_count: entry.datasets.size,
+      }));
+      return c.json({ categories });
+    } catch {
+      return c.json({ error: 'Failed to load categories' }, 500);
+    }
+  });
+
+  // Datasets within a category for a run
+  app.get('/api/runs/:filename/categories/:category/datasets', (c) => {
+    const filename = c.req.param('filename');
+    const category = decodeURIComponent(c.req.param('category'));
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: 'Run not found' }, 404);
+    }
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const filtered = loaded.filter((r) => (r.category ?? 'Uncategorized') === category);
+      const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+      for (const r of filtered) {
+        const ds = r.dataset ?? r.target ?? 'default';
+        const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
+        entry.total++;
+        if (r.score >= 1) entry.passed++;
+        entry.scoreSum += r.score;
+        datasetMap.set(ds, entry);
+      }
+      const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
+        name,
+        total: entry.total,
+        passed: entry.passed,
+        failed: entry.total - entry.passed,
+        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
+      }));
+      return c.json({ datasets });
+    } catch {
+      return c.json({ error: 'Failed to load datasets' }, 500);
+    }
+  });
+
   // Full eval detail with hydrated artifacts
   app.get('/api/runs/:filename/evals/:evalId', (c) => {
     const filename = c.req.param('filename');
