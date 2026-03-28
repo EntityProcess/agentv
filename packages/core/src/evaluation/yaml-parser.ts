@@ -77,6 +77,8 @@ type LoadOptions = {
   readonly verbose?: boolean;
   /** Filter tests by ID pattern (glob supported, e.g., "summary-*") */
   readonly filter?: string;
+  /** Category derived from the eval file's directory path */
+  readonly category?: string;
 };
 
 type RawTestSuite = JsonObject & {
@@ -472,6 +474,7 @@ async function loadTestsFromYaml(
     const testCase: EvalTest = {
       id,
       dataset: evalSetName,
+      category: options?.category,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,
