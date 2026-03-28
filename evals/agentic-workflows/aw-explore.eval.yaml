@@ -1,0 +1,57 @@
+description: Evaluates that the aw-explore skill discovers existing implementations, finds all consumers of shared interfaces, and produces a structured summary
+
+execution:
+  targets:
+    - pi-cli
+
+workspace:
+  template: ./workspace-template
+  hooks:
+    before_all:
+      command:
+        - node
+        - "{{workspace_path}}/scripts/setup.mjs"
+
+tests:
+  - id: discovers-existing-implementation
+    criteria: Agent finds the existing derivePriority function before proposing new priority code
+    input: |
+      Explore the codebase for issue #50: "Add priority field to tasks with custom rules".
+      Understand what exists before proposing changes.
+    assertions:
+      - type: skill-trigger
+        skill: aw-explore
+      - type: contains
+        value: derivePriority
+      - type: rubrics
+        criteria:
+          - Discovers the existing derivePriority function in src/utils/format-task.ts
+          - Notes that a partial implementation already exists
+          - Identifies that derivePriority only handles basic cases and needs extension
+
+  - id: finds-all-consumers
+    criteria: Agent finds all 3 consumers of the formatTask shared utility
+    input: |
+      Explore the codebase to understand the impact of changing the formatTask function signature.
+      Find all files that use formatTask.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Finds formatTask usage in src/cli/index.ts
+          - Finds formatTask usage in src/api/index.ts
+          - Finds formatTask usage in src/reports/summary.ts
+          - Lists all 3 consumers in the exploration summary
+          - Notes that changes to formatTask signature affect all 3 files
+
+  - id: structured-summary
+    criteria: Agent produces a summary with what-exists, what-needs-to-change, consumers, risks
+    input: |
+      Explore the codebase for issue #50: "Add priority field to tasks with custom rules".
+      Produce a structured exploration summary.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Includes a "what exists" section identifying current code
+          - Includes a "what needs to change" section
+          - Lists all consumers of affected interfaces
+          - Identifies risks (backward compatibility, multiple entry points)

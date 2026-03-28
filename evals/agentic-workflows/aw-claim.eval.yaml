@@ -1,0 +1,54 @@
+description: Evaluates that the aw-claim skill reads repo guidelines, creates a worktree, and sets up a draft PR before starting work
+
+execution:
+  targets:
+    - pi-cli
+
+workspace:
+  template: ./workspace-template
+  hooks:
+    before_all:
+      command:
+        - node
+        - "{{workspace_path}}/scripts/setup.mjs"
+
+tests:
+  - id: reads-guidelines-first
+    criteria: Agent reads CLAUDE.md and AGENTS.md before creating any branch or worktree
+    input: |
+      Start work on issue #42: "Add due date field to tasks".
+      Set up the development workspace.
+    assertions:
+      - type: skill-trigger
+        skill: aw-claim
+      - type: rubrics
+        criteria:
+          - Reads CLAUDE.md or AGENTS.md as a first action before creating branches
+          - Identifies the repo conventions (worktree location, branch naming, commit format)
+          - Does not create a worktree or branch before reading guidelines
+
+  - id: reads-full-issue-body
+    criteria: Agent reads and extracts objective, constraints, and acceptance signals from the issue
+    input: |
+      Claim issue #42: "Add due date field to tasks".
+      The issue body says:
+      Objective: Add an optional dueDate field to the Task interface.
+      Acceptance: Tasks can be filtered by due date. Existing tasks without due dates still work.
+      Non-goals: No calendar UI, no recurring tasks.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Extracts the objective (add dueDate field)
+          - Identifies acceptance signals (filter by due date, backward compatibility)
+          - Identifies non-goals (no calendar UI, no recurring tasks)
+
+  - id: assesses-scope
+    criteria: Agent correctly classifies a trivial change and skips design/plan phases
+    input: |
+      Claim issue #99: "Fix typo in README.md — change 'taks' to 'tasks'".
+    assertions:
+      - type: rubrics
+        criteria:
+          - Classifies this as a trivial change (docs-only, single line)
+          - Recommends skipping explore, design, and plan phases
+          - Suggests going directly to implement then verify then ship

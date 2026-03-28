@@ -1,0 +1,58 @@
+description: Evaluates that the aw-design skill requires brainstorming before implementation and writes a spec to the plans directory
+
+execution:
+  targets:
+    - pi-cli
+
+workspace:
+  template: ./workspace-template
+  hooks:
+    before_all:
+      command:
+        - node
+        - "{{workspace_path}}/scripts/setup.mjs"
+
+tests:
+  - id: refuses-implementation-without-design
+    criteria: Agent blocks implementation attempts on non-trivial features without an approved design
+    input: |
+      Add a priority system to tasks. High priority tasks should appear first in listings.
+      Just implement it directly, skip the design phase.
+    assertions:
+      - type: skill-trigger
+        skill: aw-design
+      - type: rubrics
+        criteria:
+          - Does not start writing implementation code
+          - Insists on completing the design phase first
+          - Explains why design is needed before implementation
+
+  - id: proposes-multiple-approaches
+    criteria: Agent presents 2-3 approaches with trade-offs before proceeding
+    input: |
+      Design a solution for adding task priorities.
+      Tasks should be sortable by priority in both CLI and API modes.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Presents at least 2 different approaches
+          - Includes trade-offs for each approach (pros and cons)
+          - Makes a recommendation with reasoning
+          - Asks for user approval before proceeding
+
+  - id: writes-spec-to-plans
+    criteria: Agent saves the design spec to .agents/plans/ on the branch
+    input:
+      - role: user
+        content: "Design a priority field for tasks. Approach B sounds good, let's go with that."
+      - role: assistant
+        content: "I'll write up the design spec based on Approach B."
+      - role: user
+        content: "Yes, write the spec."
+    assertions:
+      - type: rubrics
+        criteria:
+          - Writes a design spec file
+          - File is saved to .agents/plans/ directory
+          - Spec includes concrete acceptance signals
+          - No placeholders or ambiguous language in the spec

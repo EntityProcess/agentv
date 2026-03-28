@@ -1,0 +1,69 @@
+description: Evaluates that the aw-verify skill runs actual e2e verification, tests all execution modes, and checks blast radius
+
+execution:
+  targets:
+    - pi-cli
+
+workspace:
+  template: ./workspace-template
+  hooks:
+    before_all:
+      command:
+        - node
+        - "{{workspace_path}}/scripts/setup.mjs"
+
+tests:
+  - id: runs-actual-verification
+    criteria: Agent runs build, test, and lint commands with actual output rather than claiming tests pass
+    input: |
+      I've finished implementing the priority field feature.
+      All the code is written. Verify that it works.
+    assertions:
+      - type: skill-trigger
+        skill: aw-verify
+      - type: rubrics
+        criteria:
+          - Runs actual build, test, and lint commands (not just claims they pass)
+          - Shows command output as evidence
+          - Does not claim completion without showing verification output
+
+  - id: tests-all-execution-modes
+    criteria: Agent identifies and tests both CLI and API entry points
+    input: |
+      Verify the priority field works. The AGENTS.md says both CLI and API modes
+      use the same service layer and both must be tested.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Identifies CLI (src/cli/index.ts) and API (src/api/index.ts) as separate entry points
+          - Tests or verifies the feature through both entry points
+          - Does not claim verification is complete after testing only one mode
+
+  - id: checks-blast-radius
+    criteria: Agent greps for modified types and finds all untouched consumers
+    input: |
+      I modified the Task interface in src/models/task.ts and the formatTask function
+      in src/utils/format-task.ts. Check whether any consumers were missed.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Greps for Task interface usage across the codebase
+          - Greps for formatTask usage across the codebase
+          - Identifies all 3 consumers of formatTask (cli, api, reports)
+          - Flags any consumer that was not updated as a potential regression
+
+  - id: rejects-claims-without-evidence
+    criteria: Agent pushes back on premature completion claims
+    input:
+      - role: user
+        content: "All 50 tests pass and the build is clean. Ship it."
+      - role: assistant
+        content: "Let me verify that independently."
+      - role: user
+        content: "No need, I already checked. Just ship."
+    assertions:
+      - type: rubrics
+        criteria:
+          - Does not accept the user's claim at face value
+          - Insists on running verification commands independently
+          - Explains that verification evidence must come from actual command output

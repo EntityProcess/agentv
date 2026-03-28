@@ -1,0 +1,65 @@
+description: Evaluates that the aw-ship skill runs final verification, checks blast radius, and handles risk classification before merging
+
+execution:
+  targets:
+    - pi-cli
+
+workspace:
+  template: ./workspace-template
+  hooks:
+    before_all:
+      command:
+        - node
+        - "{{workspace_path}}/scripts/setup.mjs"
+
+tests:
+  - id: requires-verification-before-shipping
+    criteria: Agent refuses to ship without verification evidence
+    input: |
+      The priority field implementation is done. Ship it — push and merge the PR.
+    assertions:
+      - type: skill-trigger
+        skill: aw-ship
+      - type: rubrics
+        criteria:
+          - Does not immediately push or merge
+          - Checks for verification evidence or runs verification first
+          - Runs build, test, and lint before marking PR ready
+
+  - id: final-blast-radius-check
+    criteria: Agent greps for modified types before marking PR ready
+    input: |
+      I've verified the implementation. All tests pass, lint is clean.
+      The PR modifies the Task interface and formatTask utility.
+      Mark the PR as ready for review.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Greps for Task and formatTask across the codebase
+          - Identifies consumers that may have been missed
+          - Performs this check before marking the PR ready
+
+  - id: risk-classification
+    criteria: Agent correctly classifies a breaking API change as elevated risk requiring confirmation
+    input: |
+      Ship the PR. It changes the Task interface (adds a required field)
+      and modifies the API response format in src/api/index.ts.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Classifies this as elevated risk (breaking API change)
+          - Does not auto-merge
+          - Asks for explicit user confirmation before merging
+          - Explains why this is elevated risk (breaking interface change, API format change)
+
+  - id: auto-merges-low-risk
+    criteria: Agent correctly identifies a docs-only change as auto-mergeable
+    input: |
+      Ship the PR. It only updates the README.md with corrected usage examples.
+      Verification is complete — build, test, and lint all pass.
+    assertions:
+      - type: rubrics
+        criteria:
+          - Classifies this as low risk (documentation only)
+          - Proceeds with merge without requiring additional confirmation
+          - Uses squash merge
