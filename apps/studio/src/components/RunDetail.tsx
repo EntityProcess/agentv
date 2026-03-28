@@ -76,7 +76,7 @@ export function RunDetail({ results, runId }: RunDetailProps) {
       />
 
       {/* Category breakdown */}
-      {categories.length > 1 && (
+      {categories.length >= 1 && (
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-400">Categories</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

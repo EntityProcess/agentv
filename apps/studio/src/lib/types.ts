@@ -32,7 +32,7 @@ export interface ScoreEntry {
   assertions?: AssertionEntry[];
   weight?: number;
   verdict?: string;
-  details?: string;
+  details?: string | Record<string, unknown>;
   durationMs?: number;
 }
 

@@ -117,8 +117,11 @@ function StepsTab({ result }: { result: EvalResult }) {
   // Also check per-evaluator scores for failure details
   if (result.scores) {
     for (const s of result.scores) {
-      if (s.score < 1 && s.details)
-        failureReasons.push(`[${s.name ?? s.type ?? 'evaluator'}] ${s.details}`);
+      if (s.score < 1 && s.details) {
+        const detailStr =
+          typeof s.details === 'string' ? s.details : JSON.stringify(s.details, null, 2);
+        failureReasons.push(`[${s.name ?? s.type ?? 'evaluator'}] ${detailStr}`);
+      }
       if (s.assertions) {
         for (const a of s.assertions) {
           if (!a.passed) {
