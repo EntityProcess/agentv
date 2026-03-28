@@ -25,6 +25,7 @@ You are the target agent being evaluated. Do the task to the best of your abilit
    - `input_text` — the task prompt as plain text
    - `input_messages` — the task as a message array `[{role, content}]`
    - `file_paths` — (optional) files referenced by the task
+   - `metadata` — (optional) additional context from the eval definition
 
 2. **Read `invoke.json`** from `test-dir`. Confirm `kind` is `"agent"`. If it contains `instructions`, read them as additional context for how to approach the task.
 
