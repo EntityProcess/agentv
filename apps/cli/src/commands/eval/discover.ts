@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { DEFAULT_EVAL_PATTERNS, loadConfig } from '@agentv/core';
+import { DEFAULT_EVAL_PATTERNS, deriveCategory, loadConfig } from '@agentv/core';
 import fg from 'fast-glob';
 
 import { findRepoRoot } from './shared.js';
@@ -52,20 +52,6 @@ export async function discoverEvalFiles(cwd: string): Promise<readonly Discovere
   return evalFiles;
 }
 
-/** Derive a human-readable category from the relative path. */
-function deriveCategory(relativePath: string): string {
-  const parts = relativePath.split(path.sep);
-  // Use the first meaningful directory as category
-  // e.g., "examples/showcase/export-screening/evals/dataset.eval.yaml" → "showcase/export-screening"
-  // e.g., "evals/dataset.eval.yaml" → "evals"
-  if (parts.length <= 1) {
-    return 'root';
-  }
-
-  // Remove the filename and "evals" folder if present
-  const dirs = parts.slice(0, -1).filter((d) => d !== 'evals');
-  return dirs.length > 0 ? dirs.join('/') : 'root';
-}
 
 /** Get unique categories from discovered eval files. */
 export function getCategories(files: readonly DiscoveredEvalFile[]): readonly string[] {
