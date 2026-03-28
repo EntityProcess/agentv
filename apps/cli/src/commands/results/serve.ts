@@ -31,7 +31,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 
-import type { EvaluationResult } from '@agentv/core';
+import { DEFAULT_CATEGORY, type EvaluationResult } from '@agentv/core';
 import { Hono } from 'hono';
 
 import { parseJsonlResults } from '../eval/artifact-writer.js';
@@ -319,7 +319,7 @@ export function createApp(
         { total: number; passed: number; scoreSum: number; datasets: Set<string> }
       >();
       for (const r of loaded) {
-        const cat = r.category ?? 'Uncategorized';
+        const cat = r.category ?? DEFAULT_CATEGORY;
         const entry = categoryMap.get(cat) ?? {
           total: 0,
           passed: 0,
@@ -357,7 +357,7 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
-      const filtered = loaded.filter((r) => (r.category ?? 'Uncategorized') === category);
+      const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
       const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of filtered) {
         const ds = r.dataset ?? r.target ?? 'default';

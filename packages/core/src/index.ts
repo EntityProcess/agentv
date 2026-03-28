@@ -54,7 +54,7 @@ export {
   getWorkspacePoolRoot,
 } from './paths.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
-export { deriveCategory } from './evaluation/category.js';
+export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';
 export * from './observability/index.js';
 
 // Registry exports
