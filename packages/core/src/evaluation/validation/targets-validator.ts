@@ -15,7 +15,12 @@ function isObject(value: unknown): value is JsonObject {
 }
 
 // Known settings properties for each provider type
-const COMMON_SETTINGS = new Set(['provider_batching', 'providerBatching']);
+const COMMON_SETTINGS = new Set([
+  'provider_batching',
+  'providerBatching',
+  'subagent_mode_allowed',
+  'subagentModeAllowed',
+]);
 
 const RETRY_SETTINGS = new Set([
   'max_retries',
