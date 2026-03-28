@@ -127,8 +127,8 @@ export interface TargetSummary {
   run_count: number;
   experiment_count: number;
   pass_rate: number;
-  passed: number;
-  total: number;
+  passed_count: number;
+  eval_count: number;
 }
 
 export interface TargetsResponse {

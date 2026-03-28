@@ -57,9 +57,9 @@ export function TargetsTab() {
                 <ScoreBar score={target.pass_rate} />
               </td>
               <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                <span className="text-emerald-400">{target.passed}</span>
+                <span className="text-emerald-400">{target.passed_count}</span>
                 <span className="text-gray-600">/</span>
-                <span>{target.total}</span>
+                <span>{target.eval_count}</span>
               </td>
             </tr>
           ))}
