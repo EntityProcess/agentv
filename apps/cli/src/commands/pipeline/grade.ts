@@ -15,6 +15,17 @@ import { join } from 'node:path';
 import { executeScript } from '@agentv/core';
 import { command, positional, string } from 'cmd-ts';
 
+/**
+ * Convert a Message[] array to plain text.
+ * Single message: returns content directly (no role prefix).
+ * Multiple messages: prefixes each with @role for clarity.
+ */
+function extractInputText(input: Array<{ role: string; content: string }>): string {
+  if (!input || input.length === 0) return '';
+  if (input.length === 1) return input[0].content;
+  return input.map((m) => `@[${m.role}]:\n${m.content}`).join('\n\n');
+}
+
 export const evalGradeCommand = command({
   name: 'grade',
   description: 'Run code-grader assertions on responses in an export directory',
@@ -60,14 +71,13 @@ export const evalGradeCommand = command({
         const graderName = graderConfig.name;
 
         // Build stdin payload matching CodeEvaluator format (snake_case)
+        const inputText = extractInputText(inputData.input);
         const payload = JSON.stringify({
           output: [{ role: 'assistant', content: responseText }],
-          input: inputData.input_messages,
-          question: inputData.input_text,
+          input: inputData.input,
           criteria: '',
           expected_output: [],
-          reference_answer: '',
-          input_files: [],
+          input_files: inputData.input_files ?? [],
           trace: null,
           token_usage: null,
           cost_usd: null,
@@ -77,8 +87,8 @@ export const evalGradeCommand = command({
           file_changes: null,
           workspace_path: null,
           config: graderConfig.config ?? null,
-          metadata: {},
-          input_text: inputData.input_text,
+          metadata: inputData.metadata ?? {},
+          input_text: inputText,
           output_text: responseText,
           expected_output_text: '',
         });

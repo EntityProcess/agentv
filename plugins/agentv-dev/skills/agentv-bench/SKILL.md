@@ -41,7 +41,7 @@ This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agent
 
 These scripts break the eval pipeline into discrete steps. The agent runs them in order, only handling LLM grading directly:
 
-- `scripts/run_tests.py <eval-path> --out <dir>` — Extract inputs and invoke CLI targets in parallel. Writes `response.md` per test. For agent-as-target, only extracts inputs (agent handles execution).
+- `scripts/run_tests.py <eval-path> --out <dir>` — Extract inputs and invoke CLI targets in parallel. Writes `response.md` per test. For agent-as-target (`kind: "agent"`), only extracts inputs — executor subagents handle execution.
 - `scripts/run_code_graders.py <dir>` — Run code-grader assertions on existing responses. Writes per-grader results.
 - `scripts/bench.py <dir> < llm_scores.json` — Merge code-grader + LLM scores, compute weighted pass_rate, write `grading.json` + `index.jsonl` + `benchmark.json`.
 
@@ -87,7 +87,7 @@ Before running or optimizing, understand what you're working with.
 
 2. **Identify success criteria** — what does "good" look like for this agent? What are the edge cases? What would a failure look like? Talk to the user if this isn't clear from the artifacts alone.
 
-3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what evaluator types are available and how to run tests.
+3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what evaluator types are available and how to run tests. Targets are configured in `.agentv/targets.yaml` (canonical location, searched from the eval file directory upward). Sensitive values like `api_key` must use `${{ ENV_VAR }}` syntax — literal secrets are rejected as a security guardrail.
 
 4. **Challenge assumptions** — if evals already exist, review their quality before running:
    - Are the test cases testing the right things?
@@ -287,14 +287,30 @@ Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
 ### Subagent mode: Running eval.yaml without CLI
 
-When `SUBAGENT_EVAL_MODE=subagent` (default), use the pipeline CLI subcommands (`pipeline input`, `pipeline grade`, `pipeline bench`) and Python wrapper scripts. This mode spends LLM tokens only on grading, not on YAML parsing or target invocation.
+When `SUBAGENT_EVAL_MODE=subagent` (default), use the pipeline CLI subcommands (`pipeline input`, `pipeline grade`, `pipeline bench`) and Python wrapper scripts. This mode dispatches `executor` subagents to perform each test case, then `grader` subagents to evaluate the outputs.
+
+**Executor subagent eligibility:** All providers except `cli` are eligible for executor subagents by default. To opt out a specific target, set `subagent_mode_allowed: false` in `.agentv/targets.yaml`:
+
+```yaml
+# .agentv/targets.yaml
+targets:
+  - name: my-target
+    provider: openai
+    model: ${{ OPENAI_MODEL }}
+    api_key: ${{ OPENAI_API_KEY }}
+    subagent_mode_allowed: false  # forces CLI invocation instead of executor subagent
+```
+
+When `subagent_mode_allowed: false`, the target falls back to CLI invocation via `agentv eval` even in subagent mode.
 
 **Prerequisites:**
 - The eval.yaml file exists and contains valid test definitions
 - `agentv` CLI is installed (or run from source via `AGENTV_CLI=bun /path/to/cli.ts` in `.env`)
 - Read `references/eval-yaml-spec.md` for the full schema
 
-**Recommended: Single command for CLI targets**
+**Workspace matters when evals need it:** Some evals pass prompt files directly and don't require a specific workspace — those run fine from anywhere. But evals that test agent behavior in a workspace (accessing skills, modifying repos, using tools across multiple repos) require the user to be in the **target workspace** (e.g., a multi-repo workspace set up by allagents). If the eval references workspace files or expects the agent to use skills, check that the current directory is the target workspace, not just the eval repo — and warn the user if it's wrong.
+
+**CLI targets: Single command**
 
 For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and code grading in one step. When `--out` is omitted, the output directory defaults to `.agentv/results/runs/<timestamp>` (same convention as `agentv eval`):
 
@@ -315,15 +331,52 @@ agentv results validate <run-dir>
 
 That's the entire pipeline: **2 commands** + LLM grading + optional validation.
 
-**Alternative: Step-by-step (subagent-as-target or fine-grained control)**
+**Non-CLI targets: Executor subagents**
 
-Use individual commands when the subagent IS the target or you need control over each step:
+When the target provider is not `cli`, check `manifest.json` → `target.subagent_mode_allowed`. If `true` (default for all non-CLI providers), the subagent IS the target. If `false` (user opted out via `subagent_mode_allowed: false` in `.agentv/targets.yaml`), fall back to `agentv eval` CLI mode instead.
+
+For executor subagent targets, use `pipeline input` to extract inputs, then dispatch `executor` subagents to perform each test case:
+
+```bash
+# Step 1: Extract inputs (defaults to .agentv/results/runs/<timestamp>)
+agentv pipeline input evals/repro.eval.yaml
+```
+
+This creates a run directory with per-test `input.json`, `invoke.json` (with `kind: "agent"`), `criteria.md`, and grader configs.
+
+**Step 2: Dispatch executor subagents** — read `agents/executor.md`. Launch one `executor` subagent **per test case**, all in parallel. Each subagent receives the test directory path, reads `input.json`, performs the task using its own tools, and writes `response.md`. For example, 5 tests = 5 executor subagents launched simultaneously.
+
+```
+# Per executor subagent:
+#   - Reads <run-dir>/<test-id>/input.json
+#   - Performs the task
+#   - Writes <run-dir>/<test-id>/response.md
+```
+
+**Step 3 onward: Grade and merge** — same as CLI targets:
+
+```bash
+# Step 3: Run code graders
+agentv pipeline grade <run-dir>
+
+# Step 4: Subagent does LLM grading, writes llm_scores.json (see below)
+
+# Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
+agentv pipeline bench <run-dir> --llm-scores llm_scores.json
+
+# Step 6: Validate
+agentv results validate <run-dir>
+```
+
+**Step-by-step (fine-grained control for CLI targets)**
+
+Use individual commands when you need control over each step with CLI targets:
 
 ```bash
 # Step 1: Extract inputs (defaults to .agentv/results/runs/<timestamp>)
 agentv pipeline input evals/repro.eval.yaml
 
-# Step 2: Subagent invokes each test (reads input.json, writes response.md)
+# Step 2: run_tests.py invokes CLI targets (or use pipeline run instead)
 
 # Step 3: Run code graders
 agentv pipeline grade <run-dir>
@@ -336,8 +389,6 @@ agentv pipeline bench <run-dir> --llm-scores llm_scores.json
 # Step 6: Validate
 agentv results validate <run-dir>
 ```
-
-This creates an export directory with per-test `input.json`, `invoke.json`, `criteria.md`, and grader configs (`code_graders/*.json`, `llm_graders/*.json`).
 
 **Step 3 (LLM grading): agent performs directly**
 
@@ -641,6 +692,7 @@ The `agents/` directory contains instructions for specialized subagents. Read th
 
 | Agent | File | Purpose | When to dispatch |
 |-------|------|---------|-----------------|
+| executor | `agents/executor.md` | Perform test case tasks as the target agent | Step 3 (agent targets — one per test case) |
 | grader | `agents/grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
 | comparator | `agents/comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
 | analyzer | `agents/analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |

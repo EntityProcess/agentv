@@ -117,16 +117,14 @@ export const evalInputCommand = command({
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
 
-      // input.json
-      const inputText = test.question;
+      // input.json — aligned with eval YAML schema and code grader SDK field names
       const inputMessages = test.input.map((m) => ({
         role: m.role,
         content: typeof m.content === 'string' ? m.content : m.content,
       }));
       await writeJson(join(testDir, 'input.json'), {
-        input_text: inputText,
-        input_messages: inputMessages,
-        file_paths: test.file_paths,
+        input: inputMessages,
+        input_files: test.file_paths,
         metadata: test.metadata ?? {},
       });
 

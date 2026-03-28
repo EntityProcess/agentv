@@ -76,9 +76,9 @@ export const CodeGraderInputSchema = z.object({
   fileChanges: z.string().nullable().optional(),
   workspacePath: z.string().nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
-  /** First user message content as string. */
+  /** All input messages as plain text. Single message: content only. Multiple: @role prefixed. */
   inputText: z.string(),
-  /** Expected output content as string. */
+  /** Last expected output message content as plain text. */
   expectedOutputText: z.string().optional(),
 });
 

@@ -15,9 +15,8 @@ describe('pipeline grade', () => {
     await writeFile(
       join(testDir, 'input.json'),
       JSON.stringify({
-        input_text: 'say hello',
-        input_messages: [{ role: 'user', content: 'say hello' }],
-        file_paths: [],
+        input: [{ role: 'user', content: 'say hello' }],
+        input_files: [],
       }),
     );
     await writeFile(

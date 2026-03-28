@@ -20,8 +20,9 @@ Output structure:
     │   ├── response.md        ← target output (written by this script)
     │   └── timing.json        ← execution timing (written by this script)
 
-For agent-as-target mode (invoke.json has kind=agent), this script only runs
-`agentv pipeline input`. The agent handles execution directly.
+For agent-as-target mode (invoke.json has kind=agent — all non-CLI providers
+unless subagent_mode_allowed=false in targets.yaml), this script only runs
+`agentv pipeline input`. Executor subagents handle execution directly.
 """
 import argparse
 import json
@@ -80,9 +81,15 @@ def invoke_cli_target(test_dir: Path, extra_env: dict | None = None) -> None:
     timeout_s = invoke.get("timeout_ms", 30000) / 1000
     merged_env = {**os.environ, **(extra_env or {})}
 
+    # Extract prompt text from input messages
+    prompt_text = next(
+        (m["content"] for m in input_data.get("input", []) if m.get("role") == "user"),
+        "",
+    )
+
     # Write prompt to temp file for {PROMPT_FILE} placeholder
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as pf:
-        pf.write(input_data["input_text"])
+        pf.write(prompt_text)
         prompt_file = pf.name
 
     # Create output file path for {OUTPUT_FILE} placeholder
@@ -90,7 +97,7 @@ def invoke_cli_target(test_dir: Path, extra_env: dict | None = None) -> None:
 
     # Render template
     rendered = command_template
-    rendered = rendered.replace("{PROMPT}", input_data["input_text"])
+    rendered = rendered.replace("{PROMPT}", prompt_text)
     rendered = rendered.replace("{PROMPT_FILE}", prompt_file)
     rendered = rendered.replace("{OUTPUT_FILE}", output_file)
 
