@@ -1,4 +1,4 @@
-import { cpSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'tsup';
 
@@ -45,5 +45,16 @@ export default defineConfig({
     });
 
     console.log('✓ Template files copied to dist/templates');
+
+    // Copy studio dist if available (built by apps/studio)
+    const studioDistDir = path.resolve('..', 'studio', 'dist');
+    const cliStudioDir = path.join('dist', 'studio');
+    if (existsSync(studioDistDir)) {
+      rmSync(cliStudioDir, { recursive: true, force: true });
+      cpSync(studioDistDir, cliStudioDir, { recursive: true });
+      console.log('✓ Studio dist copied to dist/studio');
+    } else {
+      console.log('⚠ Studio dist not found at', studioDistDir, '— skipping');
+    }
   },
 });

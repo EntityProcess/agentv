@@ -28,6 +28,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
@@ -141,12 +142,22 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
+  options?: { studioDir?: string | false },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const app = new Hono();
 
-  // Dashboard HTML
+  // Dashboard HTML — serve Studio SPA if available, otherwise inline HTML.
+  // Pass studioDir: false to disable SPA serving (used in tests).
+  const studioDistPath =
+    options?.studioDir === false ? undefined : (options?.studioDir ?? resolveStudioDistDir());
   app.get('/', (c) => {
+    if (studioDistPath) {
+      const indexPath = path.join(studioDistPath, 'index.html');
+      if (existsSync(indexPath)) {
+        return c.html(readFileSync(indexPath, 'utf8'));
+      }
+    }
     return c.html(generateServeHtml(results, sourceFile));
   });
 
@@ -238,7 +249,158 @@ export function createApp(
     return c.json(existing);
   });
 
+  // ── New Studio API endpoints ──────────────────────────────────────────
+
+  // Categories for a specific run (grouped by eval_set or target)
+  app.get('/api/runs/:filename/categories', (c) => {
+    const filename = c.req.param('filename');
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: 'Run not found' }, 404);
+    }
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const categoryMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+      for (const r of loaded) {
+        const cat = r.eval_set ?? r.target ?? 'default';
+        const entry = categoryMap.get(cat) ?? { total: 0, passed: 0, scoreSum: 0 };
+        entry.total++;
+        if (r.score >= 1) entry.passed++;
+        entry.scoreSum += r.score;
+        categoryMap.set(cat, entry);
+      }
+      const categories = [...categoryMap.entries()].map(([name, entry]) => ({
+        name,
+        total: entry.total,
+        passed: entry.passed,
+        failed: entry.total - entry.passed,
+        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
+      }));
+      return c.json({ categories });
+    } catch {
+      return c.json({ error: 'Failed to load categories' }, 500);
+    }
+  });
+
+  // Full eval detail with hydrated artifacts
+  app.get('/api/runs/:filename/evals/:evalId', (c) => {
+    const filename = c.req.param('filename');
+    const evalId = c.req.param('evalId');
+    const metas = listResultFiles(searchDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) {
+      return c.json({ error: 'Run not found' }, 404);
+    }
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const result = loaded.find((r) => r.testId === evalId);
+      if (!result) {
+        return c.json({ error: 'Eval not found' }, 404);
+      }
+      return c.json({ eval: result });
+    } catch {
+      return c.json({ error: 'Failed to load eval' }, 500);
+    }
+  });
+
+  // Aggregated index across all runs (for leaderboard)
+  app.get('/api/index', (c) => {
+    const metas = listResultFiles(searchDir);
+    const entries = metas.map((m) => {
+      let totalCostUsd = 0;
+      try {
+        const loaded = patchTestIds(loadManifestResults(m.path));
+        totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
+      } catch {
+        // ignore load errors for aggregate
+      }
+      return {
+        run_filename: m.filename,
+        test_count: m.testCount,
+        pass_rate: m.passRate,
+        avg_score: m.avgScore,
+        total_cost_usd: totalCostUsd,
+        timestamp: m.timestamp,
+      };
+    });
+    return c.json({ entries });
+  });
+
+  // ── Static file serving for Studio SPA ────────────────────────────────
+
+  if (studioDistPath) {
+    // Serve static assets from studio dist
+    app.get('/assets/*', (c) => {
+      const assetPath = c.req.path;
+      const filePath = path.join(studioDistPath, assetPath);
+      if (!existsSync(filePath)) {
+        return c.notFound();
+      }
+      const content = readFileSync(filePath);
+      const ext = path.extname(filePath);
+      const mimeTypes: Record<string, string> = {
+        '.js': 'application/javascript',
+        '.css': 'text/css',
+        '.html': 'text/html',
+        '.json': 'application/json',
+        '.svg': 'image/svg+xml',
+        '.png': 'image/png',
+        '.woff2': 'font/woff2',
+        '.woff': 'font/woff',
+      };
+      const contentType = mimeTypes[ext] ?? 'application/octet-stream';
+      return new Response(content, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    });
+
+    // SPA fallback: serve index.html for any non-API route that isn't matched
+    app.get('*', (c) => {
+      if (c.req.path.startsWith('/api/')) {
+        return c.json({ error: 'Not found' }, 404);
+      }
+      const indexPath = path.join(studioDistPath, 'index.html');
+      if (existsSync(indexPath)) {
+        return c.html(readFileSync(indexPath, 'utf8'));
+      }
+      return c.notFound();
+    });
+  }
+
   return app;
+}
+
+/**
+ * Resolve the path to the studio dist directory.
+ *
+ * Searches several candidate locations covering:
+ *   - Running from TypeScript source (`bun apps/cli/src/cli.ts`)
+ *   - Running from built dist (`bun apps/cli/dist/cli.js`)
+ *   - Published npm package (studio bundled inside `dist/studio/`)
+ */
+function resolveStudioDistDir(): string | undefined {
+  const currentDir =
+    typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    // From src/commands/results/ → sibling apps/studio/dist
+    path.resolve(currentDir, '../../../../studio/dist'),
+    // From dist/ → sibling apps/studio/dist (monorepo dev)
+    path.resolve(currentDir, '../../studio/dist'),
+    // Bundled inside CLI dist (published package)
+    path.resolve(currentDir, '../studio'),
+    // From dist/ in monorepo root context
+    path.resolve(currentDir, '../../../apps/studio/dist'),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate) && existsSync(path.join(candidate, 'index.html'))) {
+      return candidate;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -952,8 +1114,8 @@ const SERVE_SCRIPT = `
 // ── CLI command ──────────────────────────────────────────────────────────
 
 export const resultsServeCommand = command({
-  name: 'serve',
-  description: 'Start a local HTTP server to review evaluation results',
+  name: 'studio',
+  description: 'Start AgentV Studio — a local dashboard for reviewing evaluation results',
   args: {
     source: positional({
       type: optional(string),
