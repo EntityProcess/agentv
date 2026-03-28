@@ -130,8 +130,9 @@ export const evalInputCommand = command({
         metadata: test.metadata ?? {},
       });
 
-      // invoke.json — CLI targets get command info; non-CLI targets get agent
-      // mode unless subagent_mode_allowed: false forces CLI-based evaluation.
+      // invoke.json — CLI targets get command info; non-CLI targets get agent mode.
+      // The manifest carries subagent_mode_allowed so consumers (the bench skill)
+      // can decide whether to dispatch executor subagents or use `agentv eval`.
       if (targetInfo) {
         await writeJson(join(testDir, 'invoke.json'), {
           kind: 'cli',
@@ -140,19 +141,10 @@ export const evalInputCommand = command({
           timeout_ms: targetInfo.timeoutMs,
           env: {},
         });
-      } else if (subagentModeAllowed) {
+      } else {
         await writeJson(join(testDir, 'invoke.json'), {
           kind: 'agent',
           instructions: 'Execute this task in the current workspace. The agent IS the target.',
-        });
-      } else {
-        // Non-CLI provider with subagent_mode_allowed: false — use agentv eval
-        // CLI runner instead of executor subagents.
-        await writeJson(join(testDir, 'invoke.json'), {
-          kind: targetKind,
-          subagent_mode_allowed: false,
-          instructions:
-            'This target has subagent_mode_allowed: false. Use `agentv eval` CLI to run this target.',
         });
       }
 
