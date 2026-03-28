@@ -318,11 +318,11 @@ export const evalRunCommand = command({
         const graderConfig = JSON.parse(await readFile(join(codeGradersDir, graderFile), 'utf8'));
         const graderName = graderConfig.name;
 
-        const questionText = extractInputText(inputData.input);
+        const inputText = extractInputText(inputData.input);
         const payload = JSON.stringify({
           output: [{ role: 'assistant', content: responseText }],
           input: inputData.input,
-          question: questionText,
+          question: inputText,
           criteria: '',
           expected_output: [],
           reference_answer: '',
@@ -337,7 +337,7 @@ export const evalRunCommand = command({
           workspace_path: null,
           config: graderConfig.config ?? null,
           metadata: {},
-          input_text: questionText,
+          input_text: inputText,
           output_text: responseText,
           expected_output_text: '',
         });

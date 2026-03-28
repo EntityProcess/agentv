@@ -66,11 +66,11 @@ export const evalGradeCommand = command({
         const graderName = graderConfig.name;
 
         // Build stdin payload matching CodeEvaluator format (snake_case)
-        const questionText = extractInputText(inputData.input);
+        const inputText = extractInputText(inputData.input);
         const payload = JSON.stringify({
           output: [{ role: 'assistant', content: responseText }],
           input: inputData.input,
-          question: questionText,
+          question: inputText,
           criteria: '',
           expected_output: [],
           reference_answer: '',
@@ -85,7 +85,7 @@ export const evalGradeCommand = command({
           workspace_path: null,
           config: graderConfig.config ?? null,
           metadata: {},
-          input_text: questionText,
+          input_text: inputText,
           output_text: responseText,
           expected_output_text: '',
         });
