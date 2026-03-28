@@ -172,43 +172,22 @@ Put results in a workspace directory organized by iteration (`iteration-1/`, `it
 
 ### Choosing a run mode
 
-**User instruction takes priority.** If the user says "run in agent mode", "use agent mode", or "use CLI mode", use that mode directly — do not check `.env`.
+Default run mode is `agent` unless the user specifies otherwise.
 
-Only read `.env` when the user has not specified a mode:
+| Mode | How |
+|------|-----|
+| **`agent`** (default) | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. See "Agent mode: Running eval.yaml without CLI" below. |
+| **`cli`** | `agentv eval <path>` — end-to-end, multi-provider. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features. |
 
-```bash
-grep AGENTV_CLI .env 2>/dev/null || echo "AGENTV_CLI=(not set, using global agentv)"
-grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
-```
+### CLI resolution
 
-**`AGENTV_CLI` override:** If `AGENTV_CLI` is set in `.env`, use that value as the command prefix in place of `agentv` for every pipeline command. This lets you run from a local source checkout instead of the globally installed binary.
+The Python wrapper `scripts/agentv_cli.py` resolves the `agentv` command deterministically:
 
-```bash
-# Example .env:
-# AGENTV_CLI=bun D:\GitHub\christso\agentv\apps\cli\src\cli.ts
+1. `AGENTV_CLI` environment variable (supports multi-word, e.g. `bun /path/to/cli.ts`)
+2. `AGENTV_CLI` in nearest `.env` file (searching upward from cwd)
+3. `agentv` on PATH
 
-# With AGENTV_CLI set, replace 'agentv' with its value:
-# PowerShell:
-$cli = (Get-Content .env | Select-String "^AGENTV_CLI=" | ForEach-Object { $_ -replace "^AGENTV_CLI=","" })
-if (-not $cli) { $cli = "agentv" }
-# Then: Invoke-Expression "$cli pipeline run ..."
-
-# Bash/zsh:
-cli=$(grep '^AGENTV_CLI=' .env 2>/dev/null | sed 's/^AGENTV_CLI=//' || echo "agentv")
-```
-
-The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` automatically from `.env` — no extra steps needed when calling them.
-
-| `AGENT_EVAL_MODE` | Mode | How |
-|-------------------|------|-----|
-| `agent` (default) | **Agent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
-| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
-
-Set `AGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `agent`. **User instruction always overrides this.**
-
-**`agent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. See "Agent mode: Running eval.yaml without CLI" below.
-
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
+All pipeline scripts (`run_tests.py`, `run_code_graders.py`, `bench.py`) import from `agentv_cli.py` — no manual CLI resolution needed.
 
 ### Running evaluations
 
