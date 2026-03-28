@@ -16,11 +16,14 @@ interface RunListProps {
   runs: RunMeta[];
 }
 
-function formatTimestamp(ts: string): string {
+function formatTimestamp(ts: string | undefined | null): string {
+  if (!ts) return 'N/A';
   try {
-    return new Date(ts).toLocaleString();
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleString();
   } catch {
-    return ts;
+    return 'N/A';
   }
 }
 
@@ -47,8 +50,18 @@ export function RunList({ runs }: RunListProps) {
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
             <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
-            <th className="w-48 px-4 py-3 font-medium text-gray-400">Pass Rate</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-400">Avg Score</th>
+            <th
+              className="w-48 px-4 py-3 font-medium text-gray-400"
+              title="Percentage of tests with a perfect score (1.0)"
+            >
+              Tests Passing
+            </th>
+            <th
+              className="px-4 py-3 text-right font-medium text-gray-400"
+              title="Mean score across all tests (0-100%)"
+            >
+              Mean Score
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800/50">

@@ -5,6 +5,8 @@
  * status, duration, and cost. Clicking a row navigates to eval detail.
  */
 
+import { useState } from 'react';
+
 import { Link } from '@tanstack/react-router';
 
 import type { EvalResult } from '~/lib/types';
@@ -24,6 +26,45 @@ export function RunDetail({ results, runId }: RunDetailProps) {
   const passRate = total > 0 ? passed / total : 0;
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
+  // Category breakdown: group by eval_set
+  const categoryMap = new Map<
+    string,
+    { passed: number; failed: number; total: number; scoreSum: number }
+  >();
+  for (const r of results) {
+    const cat = r.eval_set ?? 'Uncategorized';
+    const entry = categoryMap.get(cat) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
+    entry.total += 1;
+    entry.scoreSum += r.score;
+    if (r.score >= 1) entry.passed += 1;
+    else entry.failed += 1;
+    categoryMap.set(cat, entry);
+  }
+  const categories = Array.from(categoryMap.entries())
+    .map(([name, stats]) => ({
+      name,
+      ...stats,
+      avgScore: stats.total > 0 ? stats.scoreSum / stats.total : 0,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const filteredResults = categoryFilter
+    ? results.filter((r) => (r.eval_set ?? 'Uncategorized') === categoryFilter)
+    : results;
+
+  if (total === 0) {
+    return (
+      <div className="space-y-6">
+        <StatsCards total={0} passed={0} failed={0} passRate={0} />
+        <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
+          <p className="text-lg text-gray-400">No evaluations found</p>
+          <p className="mt-2 text-sm text-gray-500">This run has no results yet.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <StatsCards
@@ -33,6 +74,53 @@ export function RunDetail({ results, runId }: RunDetailProps) {
         passRate={passRate}
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
+
+      {/* Category breakdown */}
+      {categories.length > 1 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-400">Categories</h3>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {categories.map((cat) => {
+              const isActive = categoryFilter === cat.name;
+              return (
+                <button
+                  type="button"
+                  key={cat.name}
+                  onClick={() => setCategoryFilter(isActive ? null : cat.name)}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    isActive
+                      ? 'border-cyan-500/50 bg-cyan-950/20'
+                      : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-200 truncate">{cat.name}</span>
+                    <span className="ml-2 text-xs text-gray-500">
+                      {cat.passed}/{cat.total}
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <ScoreBar score={cat.avgScore} />
+                  </div>
+                  <div className="mt-1 flex gap-3 text-xs">
+                    <span className="text-emerald-400">{cat.passed} passed</span>
+                    {cat.failed > 0 && <span className="text-red-400">{cat.failed} failed</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {categoryFilter && (
+            <button
+              type="button"
+              onClick={() => setCategoryFilter(null)}
+              className="text-xs text-cyan-400 hover:text-cyan-300"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-lg border border-gray-800">
         <table className="w-full text-left text-sm">
@@ -47,7 +135,7 @@ export function RunDetail({ results, runId }: RunDetailProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
-            {results.map((result, idx) => (
+            {filteredResults.map((result, idx) => (
               <tr
                 key={`${result.testId}-${idx}`}
                 className="transition-colors hover:bg-gray-900/30"

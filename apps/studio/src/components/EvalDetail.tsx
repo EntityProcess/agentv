@@ -99,29 +99,79 @@ export function EvalDetail({ eval: result }: EvalDetailProps) {
 
 function StepsTab({ result }: { result: EvalResult }) {
   const assertions = result.assertions ?? [];
+  const hasFailed =
+    result.score < 1 || result.executionStatus === 'error' || result.executionStatus === 'failed';
 
-  if (assertions.length === 0) {
-    return <p className="text-sm text-gray-500">No assertion steps recorded.</p>;
+  // Collect failure reasons from multiple sources
+  const failureReasons: string[] = [];
+  if (result.error) failureReasons.push(result.error);
+  if (result.executionStatus === 'error' || result.executionStatus === 'failed') {
+    failureReasons.push(`Execution status: ${result.executionStatus}`);
+  }
+  // Add failed assertion details
+  const failedAssertions = assertions.filter((a) => !a.passed);
+  for (const a of failedAssertions) {
+    const msg = a.evidence ? `${a.text}: ${a.evidence}` : a.text;
+    failureReasons.push(msg);
+  }
+  // Also check per-evaluator scores for failure details
+  if (result.scores) {
+    for (const s of result.scores) {
+      if (s.score < 1 && s.details)
+        failureReasons.push(`[${s.name ?? s.type ?? 'evaluator'}] ${s.details}`);
+      if (s.assertions) {
+        for (const a of s.assertions) {
+          if (!a.passed) {
+            const msg = a.evidence ? `${a.text}: ${a.evidence}` : a.text;
+            if (!failureReasons.includes(msg)) failureReasons.push(msg);
+          }
+        }
+      }
+    }
   }
 
   return (
-    <div className="space-y-2">
-      {assertions.map((a) => (
-        <div
-          key={`${a.text}-${a.passed}`}
-          className={`flex items-start gap-3 rounded-lg border p-3 ${
-            a.passed ? 'border-emerald-900/50 bg-emerald-950/20' : 'border-red-900/50 bg-red-950/20'
-          }`}
-        >
-          <span className={`mt-0.5 text-lg ${a.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-            {a.passed ? '\u2713' : '\u2717'}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-gray-200">{a.text}</p>
-            {a.evidence && <p className="mt-1 text-xs text-gray-400">{a.evidence}</p>}
+    <div className="space-y-4">
+      {assertions.length === 0 && (
+        <p className="text-sm text-gray-500">No assertion steps recorded.</p>
+      )}
+
+      {assertions.length > 0 && (
+        <div className="space-y-2">
+          {assertions.map((a) => (
+            <div
+              key={`${a.text}-${a.passed}`}
+              className={`flex items-start gap-3 rounded-lg border p-3 ${
+                a.passed
+                  ? 'border-emerald-900/50 bg-emerald-950/20'
+                  : 'border-red-900/50 bg-red-950/20'
+              }`}
+            >
+              <span className={`mt-0.5 text-lg ${a.passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                {a.passed ? '\u2713' : '\u2717'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-200">{a.text}</p>
+                {a.evidence && <p className="mt-1 text-xs text-gray-400">{a.evidence}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Failure reason section */}
+      {hasFailed && failureReasons.length > 0 && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+          <h4 className="mb-2 text-sm font-medium text-red-400">Failure Reason</h4>
+          <div className="space-y-2">
+            {failureReasons.map((reason) => (
+              <p key={reason} className="text-sm text-gray-300">
+                {reason}
+              </p>
+            ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
