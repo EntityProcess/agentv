@@ -772,6 +772,7 @@ export type EvaluatorConfig =
 export interface EvalTest {
   readonly id: string;
   readonly dataset?: string;
+  readonly category?: string;
   readonly conversation_id?: string;
   readonly question: string;
   readonly input: readonly TestMessage[];
@@ -894,6 +895,7 @@ export interface EvaluationResult {
   readonly timestamp: string;
   readonly testId: string;
   readonly dataset?: string;
+  readonly category?: string;
   readonly conversationId?: string;
   readonly score: number;
   readonly assertions: readonly AssertionEntry[];
