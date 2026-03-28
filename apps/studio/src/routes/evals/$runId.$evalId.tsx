@@ -57,7 +57,7 @@ function EvalDetailPage() {
         </p>
         <h1 className="text-2xl font-semibold text-white">{evalId}</h1>
       </div>
-      <EvalDetail eval={result} />
+      <EvalDetail eval={result} runId={runId} />
     </div>
   );
 }

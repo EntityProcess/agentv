@@ -2,23 +2,40 @@
  * Three-tab eval detail view: Steps (assertions), Output, and Task (input).
  *
  * Shows the full evaluation result with score breakdown, assertions list,
- * and Monaco viewers for output/input content.
+ * and Monaco viewers for output/input content. Output and Task tabs include
+ * a file tree sidebar when artifact files are available.
  */
 
 import { useState } from 'react';
 
+import { useEvalFileContent, useEvalFiles } from '~/lib/api';
 import type { EvalResult } from '~/lib/types';
 
+import type { FileNode } from './FileTree';
+import { FileTree } from './FileTree';
 import { MonacoViewer } from './MonacoViewer';
 import { ScoreBar } from './ScoreBar';
 
 interface EvalDetailProps {
   eval: EvalResult;
+  runId: string;
 }
 
 type Tab = 'steps' | 'output' | 'task';
 
-export function EvalDetail({ eval: result }: EvalDetailProps) {
+/** Recursively find the first file node in the tree. */
+function findFirstFile(nodes: FileNode[]): string | null {
+  for (const node of nodes) {
+    if (node.type === 'file') return node.path;
+    if (node.children) {
+      const found = findFirstFile(node.children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('steps');
 
   const tabs: { id: Tab; label: string }[] = [
@@ -90,8 +107,8 @@ export function EvalDetail({ eval: result }: EvalDetailProps) {
       {/* Tab content */}
       <div>
         {activeTab === 'steps' && <StepsTab result={result} />}
-        {activeTab === 'output' && <OutputTab result={result} />}
-        {activeTab === 'task' && <TaskTab result={result} />}
+        {activeTab === 'output' && <OutputTab result={result} runId={runId} />}
+        {activeTab === 'task' && <TaskTab result={result} runId={runId} />}
       </div>
     </div>
   );
@@ -154,7 +171,14 @@ function StepsTab({ result }: { result: EvalResult }) {
                 {a.passed ? '\u2713' : '\u2717'}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-200">{a.text}</p>
+                <p className="text-sm text-gray-200">
+                  {a.text}
+                  {a.durationMs != null && (
+                    <span className="ml-2 text-xs text-gray-500">
+                      ({(a.durationMs / 1000).toFixed(1)}s)
+                    </span>
+                  )}
+                </p>
                 {a.evidence && <p className="mt-1 text-xs text-gray-400">{a.evidence}</p>}
               </div>
             </div>
@@ -179,26 +203,93 @@ function StepsTab({ result }: { result: EvalResult }) {
   );
 }
 
-function OutputTab({ result }: { result: EvalResult }) {
-  const output = result.output;
+function OutputTab({ result, runId }: { result: EvalResult; runId: string }) {
+  const evalId = result.testId;
+  const { data: filesData } = useEvalFiles(runId, evalId);
+  const files = filesData?.files ?? [];
+  const hasFiles = files.length > 0;
 
-  if (!output || output.length === 0) {
-    return <p className="text-sm text-gray-500">No output available.</p>;
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+  // Resolve effective path: selected, or first file, or null
+  const effectivePath = selectedPath ?? (hasFiles ? findFirstFile(files) : null);
+
+  const { data: fileContentData, isLoading: isLoadingContent } = useEvalFileContent(
+    runId,
+    evalId,
+    effectivePath ?? '',
+  );
+
+  const output = result.output;
+  const fallbackText =
+    output && output.length > 0 ? output.map((m) => `[${m.role}]\n${m.content}`).join('\n\n') : '';
+
+  if (!hasFiles) {
+    if (!output || output.length === 0) {
+      return <p className="text-sm text-gray-500">No output available.</p>;
+    }
+    return <MonacoViewer value={fallbackText} language="markdown" />;
   }
 
-  const text = output.map((m) => `[${m.role}]\n${m.content}`).join('\n\n');
+  const displayValue = effectivePath
+    ? isLoadingContent
+      ? 'Loading...'
+      : (fileContentData?.content ?? fallbackText)
+    : fallbackText;
 
-  return <MonacoViewer value={text} language="markdown" />;
+  const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'markdown';
+
+  return (
+    <div className="flex h-[500px] gap-4">
+      <FileTree files={files} selectedPath={effectivePath} onSelect={setSelectedPath} />
+      <div className="flex-1">
+        <MonacoViewer value={displayValue} language={displayLanguage} />
+      </div>
+    </div>
+  );
 }
 
-function TaskTab({ result }: { result: EvalResult }) {
-  const input = result.input;
+function TaskTab({ result, runId }: { result: EvalResult; runId: string }) {
+  const evalId = result.testId;
+  const { data: filesData } = useEvalFiles(runId, evalId);
+  const files = filesData?.files ?? [];
+  const hasFiles = files.length > 0;
 
-  if (!input || input.length === 0) {
-    return <p className="text-sm text-gray-500">No task input available.</p>;
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+  const effectivePath = selectedPath ?? (hasFiles ? findFirstFile(files) : null);
+
+  const { data: fileContentData, isLoading: isLoadingContent } = useEvalFileContent(
+    runId,
+    evalId,
+    effectivePath ?? '',
+  );
+
+  const input = result.input;
+  const fallbackText =
+    input && input.length > 0 ? input.map((m) => `[${m.role}]\n${m.content}`).join('\n\n') : '';
+
+  if (!hasFiles) {
+    if (!input || input.length === 0) {
+      return <p className="text-sm text-gray-500">No task input available.</p>;
+    }
+    return <MonacoViewer value={fallbackText} language="markdown" />;
   }
 
-  const text = input.map((m) => `[${m.role}]\n${m.content}`).join('\n\n');
+  const displayValue = effectivePath
+    ? isLoadingContent
+      ? 'Loading...'
+      : (fileContentData?.content ?? fallbackText)
+    : fallbackText;
 
-  return <MonacoViewer value={text} language="markdown" />;
+  const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'markdown';
+
+  return (
+    <div className="flex h-[500px] gap-4">
+      <FileTree files={files} selectedPath={effectivePath} onSelect={setSelectedPath} />
+      <div className="flex-1">
+        <MonacoViewer value={displayValue} language={displayLanguage} />
+      </div>
+    </div>
+  );
 }

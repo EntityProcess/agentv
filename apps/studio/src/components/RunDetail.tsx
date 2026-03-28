@@ -5,8 +5,6 @@
  * status, duration, and cost. Clicking a row navigates to eval detail.
  */
 
-import { useState } from 'react';
-
 import { Link } from '@tanstack/react-router';
 
 import type { EvalResult } from '~/lib/types';
@@ -48,11 +46,6 @@ export function RunDetail({ results, runId }: RunDetailProps) {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const filteredResults = categoryFilter
-    ? results.filter((r) => (r.eval_set ?? 'Uncategorized') === categoryFilter)
-    : results;
-
   if (total === 0) {
     return (
       <div className="space-y-6">
@@ -80,45 +73,29 @@ export function RunDetail({ results, runId }: RunDetailProps) {
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-400">Categories</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((cat) => {
-              const isActive = categoryFilter === cat.name;
-              return (
-                <button
-                  type="button"
-                  key={cat.name}
-                  onClick={() => setCategoryFilter(isActive ? null : cat.name)}
-                  className={`rounded-lg border p-3 text-left transition-colors ${
-                    isActive
-                      ? 'border-cyan-500/50 bg-cyan-950/20'
-                      : 'border-gray-800 bg-gray-900 hover:border-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-200 truncate">{cat.name}</span>
-                    <span className="ml-2 text-xs text-gray-500">
-                      {cat.passed}/{cat.total}
-                    </span>
-                  </div>
-                  <div className="mt-2">
-                    <ScoreBar score={cat.avgScore} />
-                  </div>
-                  <div className="mt-1 flex gap-3 text-xs">
-                    <span className="text-emerald-400">{cat.passed} passed</span>
-                    {cat.failed > 0 && <span className="text-red-400">{cat.failed} failed</span>}
-                  </div>
-                </button>
-              );
-            })}
+            {categories.map((cat) => (
+              <Link
+                key={cat.name}
+                to="/runs/$runId/category/$category"
+                params={{ runId, category: cat.name }}
+                className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-200 truncate">{cat.name}</span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    {cat.passed}/{cat.total}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <ScoreBar score={cat.avgScore} />
+                </div>
+                <div className="mt-1 flex gap-3 text-xs">
+                  <span className="text-emerald-400">{cat.passed} passed</span>
+                  {cat.failed > 0 && <span className="text-red-400">{cat.failed} failed</span>}
+                </div>
+              </Link>
+            ))}
           </div>
-          {categoryFilter && (
-            <button
-              type="button"
-              onClick={() => setCategoryFilter(null)}
-              className="text-xs text-cyan-400 hover:text-cyan-300"
-            >
-              Clear filter
-            </button>
-          )}
         </div>
       )}
 
@@ -135,7 +112,7 @@ export function RunDetail({ results, runId }: RunDetailProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
-            {filteredResults.map((result, idx) => (
+            {results.map((result, idx) => (
               <tr
                 key={`${result.testId}-${idx}`}
                 className="transition-colors hover:bg-gray-900/30"
