@@ -586,14 +586,26 @@ interface ResolvedTargetBase {
 
 export type ResolvedTarget =
   | (ResolvedTargetBase & { readonly kind: 'openai'; readonly config: OpenAIResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'openrouter'; readonly config: OpenRouterResolvedConfig })
+  | (ResolvedTargetBase & {
+      readonly kind: 'openrouter';
+      readonly config: OpenRouterResolvedConfig;
+    })
   | (ResolvedTargetBase & { readonly kind: 'azure'; readonly config: AzureResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'anthropic'; readonly config: AnthropicResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'gemini'; readonly config: GeminiResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'codex'; readonly config: CodexResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'copilot-sdk'; readonly config: CopilotSdkResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'copilot-cli'; readonly config: CopilotCliResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'copilot-log'; readonly config: CopilotLogResolvedConfig })
+  | (ResolvedTargetBase & {
+      readonly kind: 'copilot-sdk';
+      readonly config: CopilotSdkResolvedConfig;
+    })
+  | (ResolvedTargetBase & {
+      readonly kind: 'copilot-cli';
+      readonly config: CopilotCliResolvedConfig;
+    })
+  | (ResolvedTargetBase & {
+      readonly kind: 'copilot-log';
+      readonly config: CopilotLogResolvedConfig;
+    })
   | (ResolvedTargetBase & {
       readonly kind: 'pi-coding-agent';
       readonly config: PiCodingAgentResolvedConfig;
