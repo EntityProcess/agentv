@@ -23,7 +23,7 @@ import { command, positional, string } from 'cmd-ts';
 function extractInputText(input: Array<{ role: string; content: string }>): string {
   if (!input || input.length === 0) return '';
   if (input.length === 1) return input[0].content;
-  return input.map((m) => `@[${m.role}]\n${m.content}`).join('\n\n');
+  return input.map((m) => `@[${m.role}]:\n${m.content}`).join('\n\n');
 }
 
 export const evalGradeCommand = command({
