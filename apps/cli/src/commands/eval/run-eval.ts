@@ -16,6 +16,7 @@ import {
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
   loadConfig,
+  deriveCategory,
   loadTestSuite,
   loadTsConfig,
   shouldEnableCache,
@@ -444,9 +445,13 @@ async function prepareFileMetadata(params: {
     verbose: options.verbose,
   });
 
+  const relativePath = path.relative(cwd, testFilePath);
+  const category = deriveCategory(relativePath);
+
   const suite = await loadTestSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: options.filter,
+    category,
   });
   const filteredIds = suite.tests.map((value) => value.id);
 
