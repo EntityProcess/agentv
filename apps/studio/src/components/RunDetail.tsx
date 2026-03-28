@@ -5,8 +5,8 @@
  * Categories are shown as collapsible sections with dataset cards inside.
  */
 
-import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import type { EvalResult } from '~/lib/types';
 
@@ -45,6 +45,7 @@ function buildCategoryGroups(results: EvalResult[]): CategoryGroup[] {
     const cat = r.category ?? 'Uncategorized';
     const ds = r.dataset ?? 'Uncategorized';
     if (!categoryMap.has(cat)) categoryMap.set(cat, new Map());
+    // biome-ignore lint/style/noNonNullAssertion: map entry guaranteed by line above
     const dsMap = categoryMap.get(cat)!;
     const entry = dsMap.get(ds) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
     entry.total += 1;

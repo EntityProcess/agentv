@@ -52,7 +52,6 @@ export async function discoverEvalFiles(cwd: string): Promise<readonly Discovere
   return evalFiles;
 }
 
-
 /** Get unique categories from discovered eval files. */
 export function getCategories(files: readonly DiscoveredEvalFile[]): readonly string[] {
   const categories = new Set<string>();
