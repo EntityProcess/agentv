@@ -308,6 +308,10 @@ When `subagent_mode_allowed: false`, the target falls back to CLI invocation via
 - `agentv` CLI is installed (or run from source via `AGENTV_CLI=bun /path/to/cli.ts` in `.env`)
 - Read `references/eval-yaml-spec.md` for the full schema
 
+**Workspace detection:** The current workspace is the **target workspace** — where executor subagents perform tasks. This is typically a multi-repo workspace (e.g., set up by allagents) containing the agent's skills, repos, and tools. It is NOT the eval repo itself. Eval files and `.agentv/` artifacts may live in a different repo within the workspace. Always use absolute paths when referencing eval files (e.g., `../agentv/evals/test.eval.yaml`).
+
+If the current directory is the eval repo itself (e.g., the agentv repo) rather than the target workspace, warn the user — executor subagents won't have access to the agent's skills and repos.
+
 **CLI targets: Single command**
 
 For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and code grading in one step. When `--out` is omitted, the output directory defaults to `.agentv/results/runs/<timestamp>` (same convention as `agentv eval`):
