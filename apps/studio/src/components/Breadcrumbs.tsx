@@ -23,7 +23,18 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
 
     if (routeId === '/' || routeId === '/_layout') continue;
 
-    if (routeId.includes('/runs/$runId/dataset/$dataset')) {
+    if (routeId.includes('/runs/$runId/category/$category')) {
+      if (!segments.some((s) => s.label === params.runId)) {
+        segments.push({
+          label: params.runId ?? 'Run',
+          to: `/runs/${encodeURIComponent(params.runId)}`,
+        });
+      }
+      segments.push({
+        label: params.category ?? 'Category',
+        to: match.pathname,
+      });
+    } else if (routeId.includes('/runs/$runId/dataset/$dataset')) {
       segments.push({
         label: params.dataset ?? 'Dataset',
         to: match.pathname,

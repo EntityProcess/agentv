@@ -12,6 +12,7 @@ export interface ResultManifestRecord {
   readonly test_id?: string;
   readonly eval_id?: string;
   readonly dataset?: string;
+  readonly category?: string;
   readonly experiment?: string;
   readonly target?: string;
   readonly score: number;
@@ -125,6 +126,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
     timestamp: record.timestamp,
     testId,
     dataset: record.dataset,
+    category: record.category,
     target: record.target,
     score: record.score,
     executionStatus: record.execution_status,

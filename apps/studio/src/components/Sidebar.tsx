@@ -10,11 +10,15 @@
 
 import { Link, useMatchRoute } from '@tanstack/react-router';
 
-import { useExperiments, useRunDetail, useRunList } from '~/lib/api';
+import { useCategoryDatasets, useExperiments, useRunDetail, useRunList } from '~/lib/api';
 
 export function Sidebar() {
   const matchRoute = useMatchRoute();
   const evalMatch = matchRoute({ to: '/evals/$runId/$evalId', fuzzy: true });
+  const categoryMatch = matchRoute({
+    to: '/runs/$runId/category/$category',
+    fuzzy: true,
+  });
   const datasetMatch = matchRoute({
     to: '/runs/$runId/dataset/$dataset',
     fuzzy: true,
@@ -23,6 +27,12 @@ export function Sidebar() {
     to: '/experiments/$experimentName',
     fuzzy: true,
   });
+
+  // If on a category detail page, show the category sidebar
+  if (categoryMatch && typeof categoryMatch === 'object' && 'runId' in categoryMatch) {
+    const { runId, category } = categoryMatch as { runId: string; category: string };
+    return <CategorySidebar runId={runId} category={category} />;
+  }
 
   // If on a dataset detail page, show evals filtered to that dataset
   if (datasetMatch && typeof datasetMatch === 'object' && 'runId' in datasetMatch) {
@@ -201,6 +211,55 @@ function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) 
             </Link>
           );
         })}
+      </nav>
+    </aside>
+  );
+}
+
+function CategorySidebar({ runId, category }: { runId: string; category: string }) {
+  const { data } = useCategoryDatasets(runId, category);
+  const datasets = data?.datasets ?? [];
+
+  return (
+    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
+          AgentV Studio
+        </Link>
+      </div>
+
+      <div className="border-b border-gray-800 px-4 py-2">
+        <Link
+          to="/runs/$runId"
+          params={{ runId }}
+          className="text-xs text-gray-400 hover:text-cyan-400"
+        >
+          &larr; Back to run
+        </Link>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
+        <p className="truncate text-xs text-gray-500">{category}</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          Datasets
+        </div>
+
+        {datasets.map((ds) => (
+          <Link
+            key={ds.name}
+            to="/runs/$runId/dataset/$dataset"
+            params={{ runId, dataset: ds.name }}
+            className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
+          >
+            <span
+              className={`text-xs ${ds.passed === ds.total ? 'text-emerald-400' : 'text-red-400'}`}
+            >
+              {ds.passed === ds.total ? '\u2713' : '\u2717'}
+            </span>
+            <span className="truncate">{ds.name}</span>
+          </Link>
+        ))}
       </nav>
     </aside>
   );

@@ -14,6 +14,7 @@ import { Route as RunsRunIdRouteImport } from './routes/runs/$runId'
 import { Route as ExperimentsExperimentNameRouteImport } from './routes/experiments/$experimentName'
 import { Route as EvalsRunIdEvalIdRouteImport } from './routes/evals/$runId.$evalId'
 import { Route as RunsRunIdDatasetDatasetRouteImport } from './routes/runs/$runId_.dataset.$dataset'
+import { Route as RunsRunIdCategoryCategoryRouteImport } from './routes/runs/$runId_.category.$category'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,12 +42,19 @@ const RunsRunIdDatasetDatasetRoute = RunsRunIdDatasetDatasetRouteImport.update({
   path: '/runs/$runId/dataset/$dataset',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RunsRunIdCategoryCategoryRoute =
+  RunsRunIdCategoryCategoryRouteImport.update({
+    id: '/runs/$runId_/category/$category',
+    path: '/runs/$runId/category/$category',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
+  '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId/dataset/$dataset': typeof RunsRunIdDatasetDatasetRoute
 }
 export interface FileRoutesByTo {
@@ -54,6 +62,7 @@ export interface FileRoutesByTo {
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
+  '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId/dataset/$dataset': typeof RunsRunIdDatasetDatasetRoute
 }
 export interface FileRoutesById {
@@ -62,6 +71,7 @@ export interface FileRoutesById {
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
+  '/runs/$runId_/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId_/dataset/$dataset': typeof RunsRunIdDatasetDatasetRoute
 }
 export interface FileRouteTypes {
@@ -71,6 +81,7 @@ export interface FileRouteTypes {
     | '/experiments/$experimentName'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
+    | '/runs/$runId/category/$category'
     | '/runs/$runId/dataset/$dataset'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -78,6 +89,7 @@ export interface FileRouteTypes {
     | '/experiments/$experimentName'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
+    | '/runs/$runId/category/$category'
     | '/runs/$runId/dataset/$dataset'
   id:
     | '__root__'
@@ -85,6 +97,7 @@ export interface FileRouteTypes {
     | '/experiments/$experimentName'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
+    | '/runs/$runId_/category/$category'
     | '/runs/$runId_/dataset/$dataset'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +106,7 @@ export interface RootRouteChildren {
   ExperimentsExperimentNameRoute: typeof ExperimentsExperimentNameRoute
   RunsRunIdRoute: typeof RunsRunIdRoute
   EvalsRunIdEvalIdRoute: typeof EvalsRunIdEvalIdRoute
+  RunsRunIdCategoryCategoryRoute: typeof RunsRunIdCategoryCategoryRoute
   RunsRunIdDatasetDatasetRoute: typeof RunsRunIdDatasetDatasetRoute
 }
 
@@ -133,6 +147,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsRunIdDatasetDatasetRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/runs/$runId_/category/$category': {
+      id: '/runs/$runId_/category/$category'
+      path: '/runs/$runId/category/$category'
+      fullPath: '/runs/$runId/category/$category'
+      preLoaderRoute: typeof RunsRunIdCategoryCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -141,6 +162,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExperimentsExperimentNameRoute: ExperimentsExperimentNameRoute,
   RunsRunIdRoute: RunsRunIdRoute,
   EvalsRunIdEvalIdRoute: EvalsRunIdEvalIdRoute,
+  RunsRunIdCategoryCategoryRoute: RunsRunIdCategoryCategoryRoute,
   RunsRunIdDatasetDatasetRoute: RunsRunIdDatasetDatasetRoute,
 }
 export const routeTree = rootRouteImport

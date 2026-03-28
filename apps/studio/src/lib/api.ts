@@ -8,6 +8,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type {
+  CategoriesResponse,
   DatasetsResponse,
   EvalDetailResponse,
   ExperimentsResponse,
@@ -105,6 +106,26 @@ export function evalFileContentOptions(runId: string, evalId: string, filePath: 
   });
 }
 
+export function runCategoriesOptions(runId: string) {
+  return queryOptions({
+    queryKey: ['runs', runId, 'categories'],
+    queryFn: () =>
+      fetchJson<CategoriesResponse>(`/api/runs/${encodeURIComponent(runId)}/categories`),
+    enabled: !!runId,
+  });
+}
+
+export function categoryDatasetsOptions(runId: string, category: string) {
+  return queryOptions({
+    queryKey: ['runs', runId, 'categories', category, 'datasets'],
+    queryFn: () =>
+      fetchJson<DatasetsResponse>(
+        `/api/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/datasets`,
+      ),
+    enabled: !!runId && !!category,
+  });
+}
+
 // ── Hooks ───────────────────────────────────────────────────────────────
 
 export function useRunList() {
@@ -145,4 +166,12 @@ export function useEvalFiles(runId: string, evalId: string) {
 
 export function useEvalFileContent(runId: string, evalId: string, filePath: string) {
   return useQuery(evalFileContentOptions(runId, evalId, filePath));
+}
+
+export function useRunCategories(runId: string) {
+  return useQuery(runCategoriesOptions(runId));
+}
+
+export function useCategoryDatasets(runId: string, category: string) {
+  return useQuery(categoryDatasetsOptions(runId, category));
 }

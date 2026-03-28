@@ -95,6 +95,7 @@ export interface IndexArtifactEntry {
   readonly timestamp: string;
   readonly test_id: string;
   readonly dataset?: string;
+  readonly category?: string;
   readonly conversation_id?: string;
   readonly score: number;
   readonly target: string;
@@ -508,6 +509,7 @@ export function buildIndexArtifactEntry(
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
     dataset: getDataset(result),
+    category: result.category,
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
@@ -539,6 +541,7 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
     dataset: getDataset(result),
+    category: result.category,
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',

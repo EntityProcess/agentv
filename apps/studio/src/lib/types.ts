@@ -49,6 +49,7 @@ export interface EvalResult {
   testId: string;
   timestamp?: string;
   dataset?: string;
+  category?: string;
   target?: string;
   experiment?: string;
   score: number;
@@ -149,4 +150,17 @@ export interface FileTreeResponse {
 export interface FileContentResponse {
   content: string;
   language: string;
+}
+
+export interface CategorySummary {
+  name: string;
+  total: number;
+  passed: number;
+  failed: number;
+  avg_score: number;
+  dataset_count: number;
+}
+
+export interface CategoriesResponse {
+  categories: CategorySummary[];
 }

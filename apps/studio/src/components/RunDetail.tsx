@@ -1,11 +1,12 @@
 /**
  * Run detail component showing per-eval breakdown with score bars.
  *
- * Displays each eval result as a row with test ID, target, score bar,
- * status, duration, and cost. Clicking a row navigates to eval detail.
+ * Groups results by category (from file path), then by dataset within each category.
+ * Categories are shown as collapsible sections with dataset cards inside.
  */
 
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import type { EvalResult } from '~/lib/types';
 
@@ -17,6 +18,70 @@ interface RunDetailProps {
   runId: string;
 }
 
+interface DatasetStats {
+  name: string;
+  passed: number;
+  failed: number;
+  total: number;
+  avgScore: number;
+}
+
+interface CategoryGroup {
+  name: string;
+  datasets: DatasetStats[];
+  total: number;
+  passed: number;
+  failed: number;
+  avgScore: number;
+}
+
+function buildCategoryGroups(results: EvalResult[]): CategoryGroup[] {
+  const categoryMap = new Map<
+    string,
+    Map<string, { passed: number; failed: number; total: number; scoreSum: number }>
+  >();
+
+  for (const r of results) {
+    const cat = r.category ?? 'Uncategorized';
+    const ds = r.dataset ?? 'Uncategorized';
+    if (!categoryMap.has(cat)) categoryMap.set(cat, new Map());
+    // biome-ignore lint/style/noNonNullAssertion: map entry guaranteed by line above
+    const dsMap = categoryMap.get(cat)!;
+    const entry = dsMap.get(ds) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
+    entry.total += 1;
+    entry.scoreSum += r.score;
+    if (r.score >= 1) entry.passed += 1;
+    else entry.failed += 1;
+    dsMap.set(ds, entry);
+  }
+
+  return Array.from(categoryMap.entries())
+    .map(([catName, dsMap]) => {
+      const datasets = Array.from(dsMap.entries())
+        .map(([dsName, stats]) => ({
+          name: dsName,
+          ...stats,
+          avgScore: stats.total > 0 ? stats.scoreSum / stats.total : 0,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const total = datasets.reduce((s, d) => s + d.total, 0);
+      const passed = datasets.reduce((s, d) => s + d.passed, 0);
+      const failed = datasets.reduce((s, d) => s + d.failed, 0);
+      const scoreSum = datasets.reduce((s, d) => s + d.avgScore * d.total, 0);
+
+      return {
+        name: catName,
+        datasets,
+        total,
+        passed,
+        failed,
+        avgScore: total > 0 ? scoreSum / total : 0,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function RunDetail({ results, runId }: RunDetailProps) {
   const total = results.length;
   const passed = results.filter((r) => r.score >= 1).length;
@@ -24,27 +89,8 @@ export function RunDetail({ results, runId }: RunDetailProps) {
   const passRate = total > 0 ? passed / total : 0;
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
-  // Dataset breakdown: group by dataset
-  const datasetMap = new Map<
-    string,
-    { passed: number; failed: number; total: number; scoreSum: number }
-  >();
-  for (const r of results) {
-    const ds = r.dataset ?? 'Uncategorized';
-    const entry = datasetMap.get(ds) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
-    entry.total += 1;
-    entry.scoreSum += r.score;
-    if (r.score >= 1) entry.passed += 1;
-    else entry.failed += 1;
-    datasetMap.set(ds, entry);
-  }
-  const datasets = Array.from(datasetMap.entries())
-    .map(([name, stats]) => ({
-      name,
-      ...stats,
-      avgScore: stats.total > 0 ? stats.scoreSum / stats.total : 0,
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const categories = buildCategoryGroups(results);
+  const hasMultipleCategories = categories.length > 1;
 
   if (total === 0) {
     return (
@@ -68,32 +114,19 @@ export function RunDetail({ results, runId }: RunDetailProps) {
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
 
-      {/* Dataset breakdown */}
-      {datasets.length >= 1 && (
+      {hasMultipleCategories ? (
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-gray-400">Categories</h3>
+          {categories.map((cat) => (
+            <CategorySection key={cat.name} category={cat} runId={runId} />
+          ))}
+        </div>
+      ) : (
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-400">Datasets</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {datasets.map((cat) => (
-              <Link
-                key={cat.name}
-                to="/runs/$runId/dataset/$dataset"
-                params={{ runId, dataset: cat.name }}
-                className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-200 truncate">{cat.name}</span>
-                  <span className="ml-2 text-xs text-gray-500">
-                    {cat.passed}/{cat.total}
-                  </span>
-                </div>
-                <div className="mt-2">
-                  <ScoreBar score={cat.avgScore} />
-                </div>
-                <div className="mt-1 flex gap-3 text-xs">
-                  <span className="text-emerald-400">{cat.passed} passed</span>
-                  {cat.failed > 0 && <span className="text-red-400">{cat.failed} failed</span>}
-                </div>
-              </Link>
+            {categories[0]?.datasets.map((ds) => (
+              <DatasetCard key={ds.name} dataset={ds} runId={runId} />
             ))}
           </div>
         </div>
@@ -145,6 +178,68 @@ export function RunDetail({ results, runId }: RunDetailProps) {
         </table>
       </div>
     </div>
+  );
+}
+
+function CategorySection({ category, runId }: { category: CategoryGroup; runId: string }) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="rounded-lg border border-gray-800">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-900/50"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">{expanded ? '\u25BC' : '\u25B6'}</span>
+          <span className="text-sm font-medium text-gray-200">{category.name}</span>
+          <span className="text-xs text-gray-500">
+            {category.datasets.length} dataset{category.datasets.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-emerald-400">{category.passed} passed</span>
+          {category.failed > 0 && <span className="text-red-400">{category.failed} failed</span>}
+          <span className="text-gray-500">
+            {category.passed}/{category.total}
+          </span>
+        </div>
+      </button>
+      {expanded && (
+        <div className="border-t border-gray-800 p-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {category.datasets.map((ds) => (
+              <DatasetCard key={ds.name} dataset={ds} runId={runId} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DatasetCard({ dataset, runId }: { dataset: DatasetStats; runId: string }) {
+  return (
+    <Link
+      to="/runs/$runId/dataset/$dataset"
+      params={{ runId, dataset: dataset.name }}
+      className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-200 truncate">{dataset.name}</span>
+        <span className="ml-2 text-xs text-gray-500">
+          {dataset.passed}/{dataset.total}
+        </span>
+      </div>
+      <div className="mt-2">
+        <ScoreBar score={dataset.avgScore} />
+      </div>
+      <div className="mt-1 flex gap-3 text-xs">
+        <span className="text-emerald-400">{dataset.passed} passed</span>
+        {dataset.failed > 0 && <span className="text-red-400">{dataset.failed} failed</span>}
+      </div>
+    </Link>
   );
 }
 

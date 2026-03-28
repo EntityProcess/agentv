@@ -15,9 +15,9 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 
-import { executeScript, loadTestSuite } from '@agentv/core';
+import { deriveCategory, executeScript, loadTestSuite } from '@agentv/core';
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 
@@ -91,7 +91,8 @@ export const evalRunCommand = command({
     const evalDir = dirname(resolvedEvalPath);
 
     // ── Step 1: Extract inputs (same as pipeline input) ──────────────
-    const suite = await loadTestSuite(resolvedEvalPath, repoRoot);
+    const category = deriveCategory(relative(process.cwd(), resolvedEvalPath));
+    const suite = await loadTestSuite(resolvedEvalPath, repoRoot, { category });
     const tests = suite.tests;
 
     if (tests.length === 0) {
