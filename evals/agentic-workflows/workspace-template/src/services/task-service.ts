@@ -1,5 +1,5 @@
-import type { Task, TaskFilter } from "../models/task";
-import { formatTask } from "../utils/format-task";
+import type { Task, TaskFilter } from '../models/task';
+import { formatTask } from '../utils/format-task';
 
 const tasks: Task[] = [];
 
@@ -7,7 +7,7 @@ export function addTask(title: string): Task {
   const task: Task = {
     id: `task-${tasks.length + 1}`,
     title,
-    status: "todo",
+    status: 'todo',
     createdAt: new Date(),
     updatedAt: new Date(),
   };
