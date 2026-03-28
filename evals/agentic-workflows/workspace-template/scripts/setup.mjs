@@ -33,7 +33,15 @@ console.log(`Workspace: ${workspacePath}`);
 console.log(`Repo root: ${repoRoot}`);
 
 // Copy to skill discovery directories in the workspace
-const skillDirs = [join(workspacePath, '.agents', 'skills'), join(workspacePath, '.pi', 'skills')];
+// Each provider discovers skills from a different path:
+//   Claude CLI: .claude/skills/
+//   Pi CLI / Pi Coding Agent: .agents/skills/
+//   Codex: .agents/skills/ or .codex/skills/
+const skillDirs = [
+  join(workspacePath, '.claude', 'skills'),
+  join(workspacePath, '.agents', 'skills'),
+  join(workspacePath, '.pi', 'skills'),
+];
 for (const dir of skillDirs) {
   mkdirSync(dir, { recursive: true });
 }
