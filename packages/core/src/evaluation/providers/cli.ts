@@ -6,6 +6,8 @@ import { promisify } from 'node:util';
 
 import { z } from 'zod';
 
+import type { Content } from '../content.js';
+import { isContentArray } from '../content.js';
 import { readTextFile } from '../file-utils.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
@@ -124,7 +126,11 @@ function convertMessages(
   return messages.map((msg) => ({
     role: msg.role,
     name: msg.name,
-    content: msg.content,
+    content: isContentArray(msg.content)
+      ? (msg.content as Content[])
+      : typeof msg.content === 'string'
+        ? msg.content
+        : undefined,
     toolCalls: msg.tool_calls?.map((tc) => ({
       tool: tc.tool,
       input: tc.input,
