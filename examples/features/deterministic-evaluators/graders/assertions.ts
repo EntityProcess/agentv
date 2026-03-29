@@ -36,7 +36,27 @@ function runAssertion(type: AssertionType, candidate: string, value?: string): b
   }
 }
 
-export default defineCodeGrader(({ outputText, criteria, config }) => {
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
+export default defineCodeGrader(({ output, criteria, config }) => {
+  const outputText = getMessageText(output ?? []);
   const type = (config?.type as AssertionType) ?? 'contains';
   const value = config?.value as string | undefined;
   const negated = (config?.negated as boolean) ?? false;

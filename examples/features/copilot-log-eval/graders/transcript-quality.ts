@@ -17,7 +17,27 @@
  */
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ output, outputText }) => {
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
+export default defineCodeGrader(({ output }) => {
+  const outputText = getMessageText(output ?? []);
   const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
   // Check 1: At least one assistant message

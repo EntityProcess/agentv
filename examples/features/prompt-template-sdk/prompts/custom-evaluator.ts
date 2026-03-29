@@ -7,15 +7,36 @@
  */
 import { definePromptTemplate } from '@agentv/eval';
 
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
 export default definePromptTemplate((ctx) => {
+  const inputText = getMessageText(ctx.input, 'user');
+  const outputText = getMessageText(ctx.output ?? []);
+  const expectedOutputText = getMessageText(ctx.expectedOutput);
+
   // Access typed config from YAML
   const rubric = ctx.config?.rubric as string | undefined;
   const strictMode = ctx.config?.strictMode as boolean | undefined;
 
   // Build conditional sections
-  const referenceSection = ctx.expectedOutputText
-    ? `\n## Reference Answer\n${ctx.expectedOutputText}`
-    : '';
+  const referenceSection = expectedOutputText ? `\n## Reference Answer\n${expectedOutputText}` : '';
 
   const rubricSection = rubric ? `\n## Evaluation Rubric\n${rubric}` : '';
 
@@ -26,10 +47,10 @@ export default definePromptTemplate((ctx) => {
   return `You are evaluating an AI assistant's response.
 
 ## Question
-${ctx.inputText}
+${inputText}
 
 ## Candidate Answer
-${ctx.outputText}
+${outputText}
 ${referenceSection}
 ${rubricSection}
 ${strictWarning}

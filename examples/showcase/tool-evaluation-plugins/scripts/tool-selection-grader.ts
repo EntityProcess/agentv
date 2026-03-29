@@ -49,7 +49,27 @@ const toolTaskMappings: Record<string, string[]> = {
   validate: ['check', 'validate', 'verify', 'confirm'],
 };
 
-export default defineCodeGrader(({ inputText, criteria, output }) => {
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
+export default defineCodeGrader(({ input, criteria, output }) => {
+  const inputText = getMessageText(input, 'user');
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   const toolCalls = extractToolCalls(output ?? []);
