@@ -136,12 +136,6 @@ matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads t
 directly — no separate conversion script is needed. Run `agentv results validate <run-dir>`
 to verify compatibility.
 
-## Python Wrapper Scripts
-
-The `scripts/` directory contains Python wrappers (`run_tests.py`, `run_code_graders.py`,
-`bench.py`) that call the CLI commands. These are provided as an alternative but the direct
-CLI commands above are preferred — they work cross-platform without Python dependency issues.
-
 ## Output Structure
 
 The path hierarchy mirrors the CLI mode: `<evalset-name>` comes from the `name` field in

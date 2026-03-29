@@ -33,40 +33,6 @@ Be flexible. If the user says "I don't need a full benchmark, just help me debug
 
 After the agent is working well, you can also run description optimization to improve skill triggering accuracy (see `references/description-optimization.md`).
 
-## Bundled scripts layer
-
-This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agentv-bench/scripts/`. Requires Python 3.11+ and the `agentv` CLI installed. No extra dependencies — all scripts use the stdlib only.
-
-### Eval pipeline scripts (subagent mode)
-
-These scripts break the eval pipeline into discrete steps. The agent runs them in order, only handling LLM grading directly:
-
-- `scripts/run_tests.py <eval-path> --out <dir>` — Extract inputs and invoke CLI targets in parallel. Writes `response.md` per test. For non-CLI targets, only extracts inputs — executor subagents handle execution.
-- `scripts/run_code_graders.py <dir>` — Run code-grader assertions on existing responses. Writes per-grader results.
-- `scripts/bench.py <dir> < llm_scores.json` — Merge code-grader + LLM scores, compute weighted pass_rate, write `grading.json` + `index.jsonl` + `benchmark.json`.
-
-### Subagent-mode workflow
-
-```bash
-# 1. Extract inputs, invoke CLI targets, run code graders (one command):
-#    --out is optional; defaults to .agentv/results/runs/<timestamp>
-agentv pipeline run evals/repro.eval.yaml
-
-# 2. Subagent performs LLM grading (reads llm_graders/*.json, produces scores JSON)
-# ... subagent reads prompts, grades responses, writes llm_scores.json ...
-
-# 3. Merge all scores and produce final artifacts (writes index.jsonl for dashboard)
-agentv pipeline bench <run-dir> --llm-scores llm_scores.json
-
-# 4. Validate artifacts are dashboard-compatible
-agentv results validate <run-dir>
-```
-
-### Skill management scripts
-- `scripts/quick_validate.py` — validate SKILL.md structure and frontmatter
-- `scripts/package_skill.py` — package skill into a distributable `.skill` zip
-- `scripts/aggregate_benchmark.py` — aggregate grading results into benchmark statistics
-
 ## Communicating with the user
 
 This skill is used by people across a wide range of familiarity with evaluation tooling. Pay attention to context cues:
@@ -169,16 +135,6 @@ Each run produces a new `.agentv/results/runs/<timestamp>/` directory automatica
 **User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly.
 
 If the user has not specified a mode, default to `subagent`.
-
-### CLI resolution
-
-The Python wrapper `scripts/agentv_cli.py` resolves the `agentv` command deterministically:
-
-1. `AGENTV_CLI` environment variable (supports multi-word, e.g. `bun /path/to/cli.ts`)
-2. `AGENTV_CLI` in nearest `.env` file (searching upward from cwd)
-3. `agentv` on PATH
-
-Use `scripts/agentv_cli.py` (or the wrapper scripts that call it) to invoke the CLI. The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` automatically — no extra steps needed when calling them.
 
 | `SUBAGENT_EVAL_MODE` | Mode | How |
 |----------------------|------|-----|
