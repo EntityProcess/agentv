@@ -4,6 +4,7 @@ import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import { extractTextContent, toContentArray } from './claude-content.js';
 import { recordClaudeLogEntry } from './claude-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { ClaudeResolvedConfig } from './targets.js';
@@ -139,12 +140,13 @@ export class ClaudeProvider implements Provider {
             if (betaMessage && typeof betaMessage === 'object') {
               const msg = betaMessage as Record<string, unknown>;
               const content = msg.content;
+              const structuredContent = toContentArray(content);
               const textContent = extractTextContent(content);
               const toolCalls = extractToolCalls(content);
 
               const outputMsg: Message = {
                 role: 'assistant',
-                content: textContent,
+                content: structuredContent ?? textContent,
                 toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
               };
               output.push(outputMsg);
@@ -276,30 +278,6 @@ export class ClaudeProvider implements Provider {
       return undefined;
     }
   }
-}
-
-/**
- * Extract text content from Claude's content array format.
- * Claude uses: content: [{ type: "text", text: "..." }, ...]
- */
-function extractTextContent(content: unknown): string | undefined {
-  if (typeof content === 'string') {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
-  const textParts: string[] = [];
-  for (const part of content) {
-    if (!part || typeof part !== 'object') {
-      continue;
-    }
-    const p = part as Record<string, unknown>;
-    if (p.type === 'text' && typeof p.text === 'string') {
-      textParts.push(p.text);
-    }
-  }
-  return textParts.length > 0 ? textParts.join('\n') : undefined;
 }
 
 /**
