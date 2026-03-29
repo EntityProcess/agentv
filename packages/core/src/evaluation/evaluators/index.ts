@@ -10,6 +10,7 @@ export type {
 
 // Scoring utilities
 export {
+  PASS_THRESHOLD,
   clampScore,
   deepEqual,
   extractJsonBlob,

@@ -9,13 +9,7 @@ import type {
 } from '../types.js';
 import { executeScript } from './code-evaluator.js';
 import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
-import {
-  clampScore,
-  isNonEmptyString,
-  parseJsonFromText,
-  parseJsonSafe,
-  scoreToVerdict,
-} from './scoring.js';
+import { clampScore, parseJsonFromText, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type {
   ChildEvaluatorResult,
   EvaluationContext,
