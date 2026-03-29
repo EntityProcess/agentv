@@ -4,7 +4,9 @@ import path from 'node:path';
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 
-import type { Provider, ProviderResponse } from '../providers/types.js';
+import type { ContentImage } from '../content.js';
+import { isContentArray } from '../content.js';
+import type { Message, Provider, ProviderResponse } from '../providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
 import { DEPRECATED_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
@@ -242,6 +244,9 @@ export class LlmGraderEvaluator implements Evaluator {
       systemPrompt,
     };
 
+    // Extract image blocks from agent output for multimodal grading
+    const images = context.output ? extractImageBlocks(context.output) : [];
+
     try {
       const { data, tokenUsage } = await this.runWithRetry({
         context,
@@ -249,6 +254,7 @@ export class LlmGraderEvaluator implements Evaluator {
         systemPrompt,
         userPrompt,
         schema: freeformEvaluationSchema,
+        images,
       });
 
       const score = clampScore(data.score);
@@ -309,6 +315,9 @@ export class LlmGraderEvaluator implements Evaluator {
       systemPrompt,
     };
 
+    // Extract image blocks from agent output for multimodal grading
+    const images = context.output ? extractImageBlocks(context.output) : [];
+
     try {
       const { data, tokenUsage } = await this.runWithRetry({
         context,
@@ -316,6 +325,7 @@ export class LlmGraderEvaluator implements Evaluator {
         systemPrompt,
         userPrompt: prompt,
         schema: rubricEvaluationSchema,
+        images,
       });
 
       const { score, verdict, assertions } = calculateRubricScore(data, rubrics);
@@ -361,6 +371,9 @@ export class LlmGraderEvaluator implements Evaluator {
       systemPrompt,
     };
 
+    // Extract image blocks from agent output for multimodal grading
+    const images = context.output ? extractImageBlocks(context.output) : [];
+
     try {
       const { data, tokenUsage } = await this.runWithRetry({
         context,
@@ -368,6 +381,7 @@ export class LlmGraderEvaluator implements Evaluator {
         systemPrompt,
         userPrompt: prompt,
         schema: scoreRangeEvaluationSchema,
+        images,
       });
 
       const { score, verdict, assertions, details } = calculateScoreRangeResult(data, rubrics);
@@ -936,8 +950,9 @@ export class LlmGraderEvaluator implements Evaluator {
     readonly systemPrompt: string;
     readonly userPrompt: string;
     readonly schema: z.ZodSchema<T>;
+    readonly images?: readonly ContentImage[];
   }): Promise<{ data: T; providerResponse?: ProviderResponse; tokenUsage?: TokenUsage }> {
-    const { context, graderProvider, systemPrompt, userPrompt, schema } = options;
+    const { context, graderProvider, systemPrompt, userPrompt, schema, images } = options;
 
     let lastError: Error | undefined;
 
@@ -946,13 +961,34 @@ export class LlmGraderEvaluator implements Evaluator {
         // Prefer Vercel AI SDK language model if available.
         const model = graderProvider.asLanguageModel?.();
         if (model) {
-          const result = await generateText({
-            model,
-            system: systemPrompt,
-            prompt: userPrompt,
+          const modelOptions = {
             ...(this.maxOutputTokens ? { maxTokens: this.maxOutputTokens } : {}),
             ...(typeof this.temperature === 'number' ? { temperature: this.temperature } : {}),
-          });
+          };
+
+          // When images are present, use multi-part messages instead of plain prompt
+          const hasImages = images && images.length > 0;
+          const result = hasImages
+            ? await generateText({
+                model,
+                system: systemPrompt,
+                messages: [
+                  {
+                    role: 'user' as const,
+                    content: [
+                      { type: 'text' as const, text: userPrompt },
+                      ...toAiSdkImageParts(images),
+                    ],
+                  },
+                ],
+                ...modelOptions,
+              })
+            : await generateText({
+                model,
+                system: systemPrompt,
+                prompt: userPrompt,
+                ...modelOptions,
+              });
 
           const data = schema.parse(parseJsonFromText(result.text));
           const rawUsage = result.usage;
@@ -1198,6 +1234,48 @@ function calculateScoreRangeResult(
       aggregation: 'weighted_average',
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Multimodal helpers — extract image blocks from agent output messages
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract all `ContentImage` blocks from assistant messages.
+ *
+ * Scans `messages` for assistant-role entries whose `content` is a `Content[]`
+ * array and collects every `ContentImage` block.  Non-assistant messages and
+ * plain-string content are skipped.
+ */
+export function extractImageBlocks(messages: readonly Message[]): ContentImage[] {
+  const images: ContentImage[] = [];
+  for (const msg of messages) {
+    if (msg.role !== 'assistant') continue;
+    if (!isContentArray(msg.content)) continue;
+    for (const block of msg.content) {
+      if (block.type === 'image') {
+        images.push(block);
+      }
+    }
+  }
+  return images;
+}
+
+/**
+ * Convert AgentV `ContentImage` blocks to Vercel AI SDK image content parts.
+ *
+ * The AI SDK `ImagePart` expects `{ type: 'image', image: string | URL, mediaType?: string }`.
+ * `ContentImage.source` may be a URL, data URI, or base64 string — all are passed through
+ * as the `image` field which the SDK handles natively.
+ */
+function toAiSdkImageParts(
+  images: readonly ContentImage[],
+): Array<{ type: 'image'; image: string; mediaType?: string }> {
+  return images.map((img) => ({
+    type: 'image' as const,
+    image: img.source,
+    mediaType: img.media_type || undefined,
+  }));
 }
 
 // ---------------------------------------------------------------------------

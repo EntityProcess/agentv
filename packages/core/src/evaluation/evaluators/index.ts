@@ -47,6 +47,7 @@ export {
   buildScoreRangeOutputSchema,
   calculateRubricScore,
   DEFAULT_EVALUATOR_TEMPLATE,
+  extractImageBlocks,
   substituteVariables,
   freeformEvaluationSchema,
   rubricEvaluationSchema,
