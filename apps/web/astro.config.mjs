@@ -9,6 +9,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'agent v',
+      disable404Route: true,
       head: [
         {
           tag: 'link',

@@ -1,0 +1,124 @@
+---
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 - Page Not Found | AgentV</title>
+    <meta name="description" content="The page you're looking for doesn't exist." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body {
+        height: 100%;
+        background: hsl(240, 10%, 8%);
+        color: hsl(0, 0%, 85%);
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 1.5rem;
+      }
+
+      .card {
+        border: 1px solid hsl(0, 0%, 18%);
+        border-radius: 12px;
+        padding: 3rem 3.5rem;
+        text-align: center;
+        max-width: 420px;
+        width: 100%;
+        background: hsl(240, 8%, 10%);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-bottom: 2.5rem;
+      }
+
+      .wordmark {
+        font-size: 1.35rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: hsl(0, 0%, 85%);
+      }
+
+      .wordmark-v {
+        color: #06b6d4;
+      }
+
+      .error-text {
+        font-size: 0.85rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        color: hsl(0, 0%, 50%);
+        text-transform: uppercase;
+        margin-bottom: 2.5rem;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+      }
+
+      .nav-links a {
+        color: #06b6d4;
+        text-decoration: none;
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0 1.25rem;
+        transition: color 0.15s ease;
+      }
+
+      .nav-links a:hover {
+        color: #22d3ee;
+      }
+
+      .nav-links a + a {
+        border-left: 1px solid hsl(0, 0%, 22%);
+      }
+
+      @media (max-width: 480px) {
+        .card {
+          padding: 2rem 1.5rem;
+        }
+        .nav-links a {
+          padding: 0 0.75rem;
+          font-size: 0.7rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="32" height="32">
+          <rect width="120" height="120" rx="24" fill="#06b6d4"/>
+          <text x="60" y="82" text-anchor="middle" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-weight="bold" font-size="64" fill="#0a2a30">v</text>
+        </svg>
+        <span class="wordmark">agent<span class="wordmark-v">v</span></span>
+      </div>
+      <p class="error-text">404 - Page Not Found</p>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="https://github.com/EntityProcess/agentv" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </body>
+</html>
