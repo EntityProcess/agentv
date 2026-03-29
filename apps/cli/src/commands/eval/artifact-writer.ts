@@ -459,10 +459,6 @@ function safeTestId(testId: string | undefined): string {
   return safeArtifactPathSegment(testId, 'unknown');
 }
 
-function safeTargetId(target: string | undefined): string {
-  return safeArtifactPathSegment(target, 'default');
-}
-
 function getDataset(result: EvaluationResult): string | undefined {
   return result.dataset;
 }
@@ -473,7 +469,7 @@ function buildArtifactSubdir(result: EvaluationResult): string {
   if (evalSet) {
     segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
-  segments.push(safeTestId(result.testId), safeTargetId(result.target));
+  segments.push(safeTestId(result.testId));
   return path.posix.join(...segments);
 }
 

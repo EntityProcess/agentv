@@ -589,11 +589,11 @@ describe('writeArtifactsFromResults', () => {
     ]);
 
     const alphaEntries = await readdir(path.join(paths.testArtifactDir, 'alpha'));
-    expect(alphaEntries).toEqual(['test-target']);
+    expect(alphaEntries.sort()).toEqual(['grading.json', 'outputs', 'timing.json']);
 
     const alphaGrading: GradingArtifact = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, 'alpha', 'test-target', 'grading.json'),
+        path.join(paths.testArtifactDir, 'alpha', 'grading.json'),
         'utf8',
       ),
     );
@@ -602,7 +602,7 @@ describe('writeArtifactsFromResults', () => {
 
     const alphaTiming: TimingArtifact = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, 'alpha', 'test-target', 'timing.json'),
+        path.join(paths.testArtifactDir, 'alpha', 'timing.json'),
         'utf8',
       ),
     );
@@ -622,8 +622,8 @@ describe('writeArtifactsFromResults', () => {
       .split('\n')
       .map((line) => JSON.parse(line) as IndexArtifactEntry);
     expect(indexLines).toHaveLength(2);
-    expect(indexLines[0]?.grading_path).toBe('alpha/test-target/grading.json');
-    expect(indexLines[0]?.timing_path).toBe('alpha/test-target/timing.json');
+    expect(indexLines[0]?.grading_path).toBe('alpha/grading.json');
+    expect(indexLines[0]?.timing_path).toBe('alpha/timing.json');
   });
 
   it('handles empty results array', async () => {
@@ -658,13 +658,13 @@ describe('writeArtifactsFromResults', () => {
     await writeArtifactsFromResults(results, testDir);
 
     const gradingOne: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-1', 'test-target', 'grading.json'), 'utf8'),
+      await readFile(path.join(testDir, 'test-1', 'grading.json'), 'utf8'),
     );
     const gradingTwo: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-2', 'test-target', 'grading.json'), 'utf8'),
+      await readFile(path.join(testDir, 'test-2', 'grading.json'), 'utf8'),
     );
     const timingOne: TimingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-1', 'test-target', 'timing.json'), 'utf8'),
+      await readFile(path.join(testDir, 'test-1', 'timing.json'), 'utf8'),
     );
 
     expect(gradingOne.summary.total).toBe(1);
@@ -682,7 +682,7 @@ describe('writeArtifactsFromResults', () => {
     expect(artifactEntries).toContain('path_to_test_1');
   });
 
-  it('keeps duplicate test IDs isolated by target subdirectory', async () => {
+  it('writes artifacts without target subdirectory (one run = one target)', async () => {
     const results = [
       makeResult({
         testId: 'shared-id',
@@ -691,30 +691,18 @@ describe('writeArtifactsFromResults', () => {
         input: [{ role: 'user' as const, content: 'baseline input' }],
         output: [{ role: 'assistant' as const, content: 'baseline output' }],
       }),
-      makeResult({
-        testId: 'shared-id',
-        target: 'candidate',
-        assertions: [{ text: 'candidate-check', passed: false, evidence: 'candidate evidence' }],
-        input: [{ role: 'user' as const, content: 'candidate input' }],
-        output: [{ role: 'assistant' as const, content: 'candidate output' }],
-      }),
     ];
 
     const paths = await writeArtifactsFromResults(results, testDir);
     const indexLines = (await readFile(paths.indexPath, 'utf8')).trim().split('\n').map(JSON.parse);
 
-    expect(indexLines[0].grading_path).toBe('shared-id/baseline/grading.json');
-    expect(indexLines[1].grading_path).toBe('shared-id/candidate/grading.json');
+    expect(indexLines[0].grading_path).toBe('shared-id/grading.json');
 
-    const baselineGrading: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'shared-id', 'baseline', 'grading.json'), 'utf8'),
-    );
-    const candidateGrading: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'shared-id', 'candidate', 'grading.json'), 'utf8'),
+    const grading: GradingArtifact = JSON.parse(
+      await readFile(path.join(testDir, 'shared-id', 'grading.json'), 'utf8'),
     );
 
-    expect(baselineGrading.assertions[0].text).toBe('baseline-check');
-    expect(candidateGrading.assertions[0].text).toBe('candidate-check');
+    expect(grading.assertions[0].text).toBe('baseline-check');
   });
 
   it('prefixes artifact paths with dataset when present', async () => {
@@ -727,7 +715,7 @@ describe('writeArtifactsFromResults', () => {
       .trim()
       .split('\n')
       .map(JSON.parse);
-    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/baseline/grading.json');
+    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/grading.json');
   });
 });
 
