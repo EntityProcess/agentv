@@ -24,9 +24,9 @@ describe('validateTemplateVariables', () => {
   });
 
   it('throws when no required or deprecated variables are present', () => {
-    expect(() =>
-      validateTemplateVariables('No variables here', 'test.txt'),
-    ).toThrow('Missing required fields');
+    expect(() => validateTemplateVariables('No variables here', 'test.txt')).toThrow(
+      'Missing required fields',
+    );
   });
 
   it('throws when only non-required variables are present', () => {
