@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { getTextContent } from '../../../src/evaluation/content.js';
-import type { Content } from '../../../src/evaluation/content.js';
 import {
   extractTextContent,
   toContentArray,
@@ -10,6 +9,7 @@ import {
   extractPiTextContent,
   toPiContentArray,
 } from '../../../src/evaluation/providers/pi-utils.js';
+import type { Content } from '../../../src/evaluation/content.js';
 import type { Message } from '../../../src/evaluation/providers/types.js';
 
 // ---------------------------------------------------------------------------
@@ -42,8 +42,8 @@ describe('toContentArray', () => {
     const result = toContentArray(content);
     expect(result).toBeDefined();
     expect(result).toHaveLength(2);
-    expect(result?.[0]).toEqual({ type: 'text', text: 'Here is an image:' });
-    expect(result?.[1]).toEqual({
+    expect(result![0]).toEqual({ type: 'text', text: 'Here is an image:' });
+    expect(result![1]).toEqual({
       type: 'image',
       media_type: 'image/png',
       source: 'data:image/png;base64,abc123',
@@ -61,7 +61,7 @@ describe('toContentArray', () => {
     ];
     const result = toContentArray(content);
     expect(result).toBeDefined();
-    expect(result?.[0]).toEqual({
+    expect(result![0]).toEqual({
       type: 'image',
       media_type: 'image/png',
       source: 'https://example.com/img.png',
@@ -81,8 +81,8 @@ describe('toContentArray', () => {
     const result = toContentArray(content);
     expect(result).toBeDefined();
     expect(result).toHaveLength(2);
-    expect(result?.[0]).toEqual({ type: 'text', text: 'hi' });
-    expect(result?.[1].type).toBe('image');
+    expect(result![0]).toEqual({ type: 'text', text: 'hi' });
+    expect(result![1].type).toBe('image');
   });
 
   it('handles invalid parts gracefully', () => {
@@ -159,8 +159,8 @@ describe('toPiContentArray', () => {
     const result = toPiContentArray(content);
     expect(result).toBeDefined();
     expect(result).toHaveLength(2);
-    expect(result?.[0]).toEqual({ type: 'text', text: 'Here is an image:' });
-    expect(result?.[1]).toEqual({
+    expect(result![0]).toEqual({ type: 'text', text: 'Here is an image:' });
+    expect(result![1]).toEqual({
       type: 'image',
       media_type: 'image/png',
       source: 'data:image/png;base64,abc123',
@@ -177,7 +177,7 @@ describe('toPiContentArray', () => {
     ];
     const result = toPiContentArray(content);
     expect(result).toBeDefined();
-    expect(result?.[0]).toEqual({
+    expect(result![0]).toEqual({
       type: 'image',
       media_type: 'image/png',
       source: 'https://example.com/img.png',
@@ -198,8 +198,8 @@ describe('toPiContentArray', () => {
     const result = toPiContentArray(content);
     expect(result).toBeDefined();
     expect(result).toHaveLength(2);
-    expect(result?.[0]).toEqual({ type: 'text', text: 'hi' });
-    expect(result?.[1].type).toBe('image');
+    expect(result![0]).toEqual({ type: 'text', text: 'hi' });
+    expect(result![1].type).toBe('image');
   });
 });
 
@@ -269,7 +269,9 @@ describe('End-to-end content preservation', () => {
   });
 
   it('text-only content falls back to string', () => {
-    const rawClaudeContent = [{ type: 'text', text: 'Just text' }];
+    const rawClaudeContent = [
+      { type: 'text', text: 'Just text' },
+    ];
 
     const structuredContent = toContentArray(rawClaudeContent);
     const textContent = extractTextContent(rawClaudeContent);
