@@ -31,7 +31,7 @@ Your job when using this skill is to figure out where the user is in this proces
 
 Be flexible. If the user says "I don't need a full benchmark, just help me debug this failure", do that instead.
 
-After the agent is working well, you can also run description optimization to improve skill triggering accuracy (see the Description Optimization section).
+After the agent is working well, you can also run description optimization to improve skill triggering accuracy (see `references/description-optimization.md`).
 
 ## Bundled scripts layer
 
@@ -152,13 +152,7 @@ Start with 2-3 realistic test cases — the kind of thing a real user would actu
 
 Good assertions are objectively verifiable and have descriptive names. Subjective quality ("the output is good") is better evaluated qualitatively — don't force assertions onto things that need human judgment.
 
-**Evaluator types** (from cheapest to most expensive):
-- `exact`, `contains`, `regex`, `is-json` — deterministic, zero cost, instant
-- `field-accuracy` — checks JSON field values against expected
-- `composite` — weighted combination of multiple evaluators
-- `code-grader` — Python/TypeScript scripts via `defineCodeGrader()` (→ see `agentv-eval-writer` skill)
-- `tool-trajectory` — evaluate tool call sequences and patterns
-- `llm-grader` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
+**Evaluator types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `code-grader`, `tool-trajectory`, `llm-grader`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
 
 Prefer deterministic evaluators over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-grader`.
 
@@ -193,7 +187,7 @@ Use `scripts/agentv_cli.py` (or the wrapper scripts that call it) to invoke the 
 
 Set `SUBAGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `subagent`. **User instruction always overrides this.**
 
-**`subagent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. See "Subagent mode: Running eval.yaml without CLI" below.
+**`subagent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. Read `references/subagent-pipeline.md` for the detailed procedure.
 
 **`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
 
@@ -204,7 +198,7 @@ Set `SUBAGENT_EVAL_MODE` in `.env` at the project root as the default when no mo
 agentv eval <eval-path> --artifacts .agentv/artifacts/
 ```
 
-**Subagent mode** — see "Subagent mode: Running eval.yaml without CLI" below. Parses eval.yaml directly and spawns executor/grader subagents. No CLI required.
+**Subagent mode** — read `references/subagent-pipeline.md` for the detailed procedure. In brief: use `pipeline input` to extract inputs, dispatch one `executor` subagent per test case (all in parallel), then proceed to grading below.
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
 
@@ -226,38 +220,54 @@ Good assertions are *discriminating* — they pass when the agent genuinely succ
 
 ### As runs complete, capture timing data
 
-When each subagent task completes, you receive a notification containing `total_tokens` and `duration_ms`. **Save this data immediately** to `timing.json` in the run directory:
-
-```json
-{
-  "total_tokens": 84852,
-  "duration_ms": 23332,
-  "total_duration_seconds": 23.3
-}
-```
+When each subagent task completes, you receive a notification containing `total_tokens` and `duration_ms`. **Save this data immediately** to `timing.json` in the run directory. See `references/schemas.md` for the timing.json schema.
 
 This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
 
 ### Grading
 
-Once runs complete:
+Grading has three phases. **All three are required — do not stop after phase 1.**
 
-**Subagent mode grading** — dispatch `grader` subagent (read `agents/grader.md`). The grader evaluates all assertion types natively: deterministic checks (contains, regex, is-json, etc.) via direct string operations, LLM-graded assertions via Claude's own reasoning, and `code-grader` via Bash script execution. No CLI call required.
+**Phase 1: Code graders** (deterministic, zero-cost)
 
-**CLI mode grading** — deterministic evaluators run automatically via CLI. LLM-graded assertions are handled by the configured LLM provider.
-
-Both modes write **grading.json** per test with this structure:
-```json
-{
-  "assertions": [
-    {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
-    {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
-  ],
-  "summary": {"passed": 1, "failed": 1, "total": 2, "pass_rate": 0.5}
-}
+```bash
+agentv pipeline grade <run-dir>
 ```
 
-The grading.json `assertions` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
+This runs all `code-grader` assertions against the `response.md` files. Results are written to `<test-id>/code_grader_results/<name>.json`.
+
+**Phase 2: LLM grading** (semantic — do NOT skip this phase)
+
+Dispatch one `grader` subagent per (test × LLM grader) pair, **all in parallel**.
+Example: 5 tests × 2 LLM graders = 10 grader subagents launched simultaneously.
+
+**Do NOT dispatch a single grader for multiple tests.** Each subagent grades exactly one (test, grader) pair.
+
+Each grader subagent (read `agents/grader.md`):
+1. Reads `<test-id>/llm_graders/<name>.json` for the grading prompt
+2. Reads `<test-id>/response.md` for the candidate output
+3. Grades the response against the prompt criteria
+4. Returns score (0.0–1.0) and per-assertion evidence
+
+After **all** grader subagents complete, merge their results into a single `llm_scores.json` in the run directory.
+
+**Phase 3: Merge and validate**
+
+```bash
+agentv pipeline bench <run-dir> --llm-scores llm_scores.json
+agentv results validate <run-dir>
+```
+
+This merges code-grader + LLM scores, computes weighted pass_rate, writes `grading.json` + `index.jsonl` + `benchmark.json`.
+
+### Artifacts
+
+All artifacts use established schemas — see `references/schemas.md` for the full definitions. Do not modify the structure. Key artifacts per run:
+- **grading.json**: per-test assertions with `{text, passed, evidence}`, plus summary
+- **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
+- **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}`
+
+Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
 ### Workspace features (EVAL.yaml only)
 
@@ -265,164 +275,6 @@ The grading.json `assertions` array must use the fields `text`, `passed`, and `e
 - **Materialization modes** — `pooled` (reuse slots), `temp` (fresh per run), `static` (existing dir)
 - **Multi-repo** — clone multiple repos with sparse checkout and shallow clone support
 - **File change tracking** — grade by diffing workspace files before/after agent execution
-
-### Artifacts
-
-All artifacts use established schemas — do not modify the structure:
-
-- **grading.json**: per-test `assertions` with `{text, passed, evidence}`, plus `summary`
-- **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
-- **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}` with `mean ± stddev`
-
-Write artifacts to `.agentv/artifacts/` or the iteration directory.
-
-### Subagent mode: Running eval.yaml without CLI
-
-When `SUBAGENT_EVAL_MODE=subagent` (default), use the pipeline CLI subcommands (`pipeline input`, `pipeline grade`, `pipeline bench`) and Python wrapper scripts. This mode dispatches `executor` subagents to perform each test case, then `grader` subagents to evaluate the outputs.
-
-**Executor subagent eligibility:** All providers except `cli` are eligible for executor subagents by default. To opt out a specific target, set `subagent_mode_allowed: false` in `.agentv/targets.yaml`:
-
-```yaml
-# .agentv/targets.yaml
-targets:
-  - name: my-target
-    provider: openai
-    model: ${{ OPENAI_MODEL }}
-    api_key: ${{ OPENAI_API_KEY }}
-    subagent_mode_allowed: false  # forces CLI invocation instead of executor subagent
-```
-
-When `subagent_mode_allowed: false`, the target falls back to CLI invocation via `agentv eval` even in subagent mode.
-
-**Prerequisites:**
-- The eval.yaml file exists and contains valid test definitions
-- `agentv` CLI is installed (or run from source via `AGENTV_CLI=bun /path/to/cli.ts` in `.env`)
-- Read `references/eval-yaml-spec.md` for the full schema
-
-**Workspace matters when evals need it:** Some evals pass prompt files directly and don't require a specific workspace — those run fine from anywhere. But evals that test agent behavior in a workspace (accessing skills, modifying repos, using tools across multiple repos) require the user to be in the **target workspace** (e.g., a multi-repo workspace set up by allagents). If the eval references workspace files or expects the agent to use skills, check that the current directory is the target workspace, not just the eval repo — and warn the user if it's wrong.
-
-**CLI targets: Single command**
-
-For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and code grading in one step. When `--out` is omitted, the output directory defaults to `.agentv/results/runs/<timestamp>` (same convention as `agentv eval`):
-
-```bash
-# Extract inputs, invoke all CLI targets in parallel, run code graders:
-# Output goes to .agentv/results/runs/<timestamp>/ by default
-agentv pipeline run evals/repro.eval.yaml
-```
-
-The run directory is printed to stdout. Then the agent performs LLM grading and merges scores:
-
-```bash
-agentv pipeline bench <run-dir> --llm-scores llm_scores.json
-
-# Validate artifacts are dashboard-compatible:
-agentv results validate <run-dir>
-```
-
-That's the entire pipeline: **2 commands** + LLM grading + optional validation.
-
-**Non-CLI targets: Executor subagents**
-
-When the target provider is not `cli`, check `manifest.json` → `target.subagent_mode_allowed`. If `true` (default for all non-CLI providers), the subagent IS the target. If `false` (user opted out via `subagent_mode_allowed: false` in `.agentv/targets.yaml`), fall back to `agentv eval` CLI mode instead.
-
-For executor subagent targets, use `pipeline input` to extract inputs, then dispatch `executor` subagents to perform each test case:
-
-```bash
-# Step 1: Extract inputs (defaults to .agentv/results/runs/<timestamp>)
-agentv pipeline input evals/repro.eval.yaml
-```
-
-This creates a run directory with per-test `input.json`, `invoke.json` (with `kind: "agent"`), `criteria.md`, and grader configs.
-
-**Step 2: Dispatch executor subagents** — read `agents/executor.md`. Launch one `executor` subagent **per test case**, all in parallel. Each subagent receives the test directory path, reads `input.json`, performs the task using its own tools, and writes `response.md`. For example, 5 tests = 5 executor subagents launched simultaneously.
-
-```
-# Per executor subagent:
-#   - Reads <run-dir>/<test-id>/input.json
-#   - Performs the task
-#   - Writes <run-dir>/<test-id>/response.md
-```
-
-**Step 3 onward: Grade and merge** — same as CLI targets:
-
-```bash
-# Step 3: Run code graders
-agentv pipeline grade <run-dir>
-
-# Step 4: Subagent does LLM grading, writes llm_scores.json (see below)
-
-# Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
-agentv pipeline bench <run-dir> --llm-scores llm_scores.json
-
-# Step 6: Validate
-agentv results validate <run-dir>
-```
-
-**Step-by-step (fine-grained control for CLI targets)**
-
-Use individual commands when you need control over each step with CLI targets:
-
-```bash
-# Step 1: Extract inputs (defaults to .agentv/results/runs/<timestamp>)
-agentv pipeline input evals/repro.eval.yaml
-
-# Step 2: run_tests.py invokes CLI targets (or use pipeline run instead)
-
-# Step 3: Run code graders
-agentv pipeline grade <run-dir>
-
-# Step 4: Subagent does LLM grading, writes llm_scores.json
-
-# Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
-agentv pipeline bench <run-dir> --llm-scores llm_scores.json
-
-# Step 6: Validate
-agentv results validate <run-dir>
-```
-
-**Step 3 (LLM grading): agent performs directly**
-
-The agent reads `llm_graders/<name>.json` for each test, grades the response using the prompt content, and produces a scores JSON:
-
-```json
-{
-  "test-01": {
-    "relevance": {
-      "score": 0.85,
-      "assertions": [{"text": "Response is relevant", "passed": true, "evidence": "..."}]
-    }
-  }
-}
-```
-
-Dispatch one `grader` subagent (read `agents/grader.md`) **per (test × LLM grader) pair**, all in parallel. For example, 5 tests × 2 LLM graders = 10 subagents launched simultaneously. Each subagent reads `<test-id>/llm_graders/<name>.json`, grades the corresponding `<test-id>/response.md` against the `prompt_content` criteria, and returns its score (0.0–1.0) and assertions. After all subagents complete, merge their results into a single `llm_scores.json` in the run directory.
-
-**Note:** `pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry, matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format directly — no separate conversion script is needed. Run `agentv results validate <run-dir>` to verify compatibility.
-
-**Note on Python wrapper scripts:** The `scripts/` directory contains Python wrappers (`run_tests.py`, `run_code_graders.py`, `bench.py`) that call the CLI commands. These are provided as an alternative but the direct CLI commands above are preferred — they work cross-platform without Python dependency issues.
-
-**Output structure:**
-
-The path hierarchy mirrors the CLI mode: `<evalset-name>` comes from the `name` field in the eval.yaml. The target is recorded in `manifest.json` — one run = one target.
-
-```
-.agentv/results/runs/<timestamp>/
-├── manifest.json                    ← eval metadata, target, test_ids
-├── index.jsonl                      ← per-test scores
-├── benchmark.json                   ← aggregate statistics
-└── <evalset-name>/                  ← from eval.yaml "name" field (omitted if absent)
-    └── <test-id>/                   ← test case id
-        ├── input.json               ← test input text + messages
-        ├── invoke.json              ← target command or agent instructions
-        ├── criteria.md              ← grading criteria
-        ├── response.md              ← target/agent output
-        ├── timing.json              ← execution timing
-        ├── code_graders/<name>.json     ← code grader configs
-        ├── llm_graders/<name>.json      ← LLM grader configs
-        ├── code_grader_results/<name>.json ← code grader results
-        └── grading.json             ← merged grading
-```
 
 ---
 
@@ -548,118 +400,13 @@ This is optional and requires subagents. The human review loop is usually suffic
 
 ## Description Optimization
 
-The `description` field in a skill's SKILL.md frontmatter is the primary mechanism that determines whether Claude invokes the skill. After the agent/skill is working well, offer to optimize the description for better triggering accuracy.
-
-**Provider compatibility**: Description optimization is specific to agents with skill-discovery mechanisms (e.g., Claude Code). Agents like Copilot and Codex don't have skill systems, so description optimization doesn't apply to them. The `skill-trigger` evaluator still works for these providers — it just checks whether the agent invoked the right tools, not whether it discovered the skill via description matching.
-
-### Step 1: Generate trigger EVAL.yaml
-
-Create 20 test cases:
-- **10 should-trigger**: realistic prompts where this skill should activate — different phrasings, casual speech, uncommon use cases, edge cases where this skill competes with another but should win
-- **10 should-not-trigger**: near-miss prompts that share keywords but actually need something different — adjacent domains, ambiguous phrasing where naive matching would trigger but shouldn't
-
-Prompts must be realistic — include file paths, personal context, typos, casual speech. Not abstract requests like "format data" but concrete ones like "ok so my boss sent me Q4-sales-FINAL-v2.xlsx and she wants me to add a profit margin column..."
-
-The should-not-trigger cases are the most valuable. "Write a fibonacci function" as a negative test for an eval skill is useless — it doesn't test anything. The negative cases should be genuinely tricky near-misses.
-
-Write as EVAL.yaml with top-level input (the user prompt doesn't specify the skill name — it's a natural utterance):
-
-```yaml
-# trigger-eval.eval.yaml
-tests:
-  - id: should-trigger-casual-optimize
-    input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
-    assertions:
-      - type: contains
-        value: "agentv-bench"
-  - id: should-not-trigger-build-error
-    input: "my TypeScript build is failing with type errors in src/auth.ts"
-    assertions:
-      - type: not-contains
-        value: "agentv-bench"
-```
-
-### Step 2: Review with user
-
-Present the eval set. The user adjusts queries, toggles should-trigger, adds/removes cases. This step matters — bad eval queries lead to bad descriptions.
-
-### Step 3: Iterate on description
-
-Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations. Select best description by held-out test accuracy (split 60% train / 40% test) to avoid overfitting.
-
-Use the grader and analyzer subagents to identify trigger failures and propose description improvements — the same eval → grade → analyze → improve loop used for agent output quality.
-
-### Step 4: Apply
-
-Update the skill's SKILL.md frontmatter with the optimized description. Show the user before/after with accuracy scores.
+After the agent is working well, offer to optimize the skill's `description` field for better triggering accuracy. Read `references/description-optimization.md` for the full procedure (generate trigger EVAL.yaml, review with user, iterate, apply).
 
 ---
 
 ## Environment Adaptation
 
-**CI/headless mode**: Skip interactive prompts. Exit with pass/fail status code. Always generate artifacts for downstream consumption.
-
-**No subagents available** (e.g., Claude.ai): Run test cases serially. Skip blind comparison. Present results directly in conversation — for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking (it relies on baseline comparisons that aren't meaningful without subagents).
-
-**Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from evaluation for testing whether they invoke the right tools.
-
-**Provider-specific notes**:
-- **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
-- **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
-- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution` and `file_change` tool calls.
-- **Custom CLI**: Needs `command` and output file pattern in target config
-- **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
-
-### Unsupported providers: use a code-grader
-
-The built-in `skill-trigger` evaluator covers Claude, Copilot, Pi, Codex and VS Code out of the box. For providers with different tool-call formats, write a code-grader that inspects the agent's tool call trace.
-
-A code-grader receives the full evaluation context including the agent's output messages and tool calls. You can inspect these to determine whether the skill was invoked:
-
-```yaml
-# Example: code-grader for Codex skill-trigger detection
-tests:
-  - id: should-trigger-codex
-    input: "Analyze this CSV file"
-    assertions:
-      - type: code-grader
-        path: ./judges/codex-skill-trigger.ts
-```
-
-```typescript
-// judges/codex-skill-trigger.ts
-import { defineCodeGrader } from '@agentv/eval';
-
-export default defineCodeGrader(({ output }) => {
-  const skillName = 'csv-analyzer';
-  const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
-  const firstTool = toolCalls[0];
-
-  if (!firstTool) {
-    return { score: 0, reason: 'No tool calls recorded' };
-  }
-
-  // Codex reads skill files via shell commands
-  if (firstTool.tool === 'command_execution') {
-    const cmd = String(firstTool.input ?? '');
-    if (cmd.includes(skillName)) {
-      return { score: 1, reason: `Skill "${skillName}" triggered via command: ${cmd}` };
-    }
-  }
-
-  // Check if skill file was read via file_change or other tools
-  if (firstTool.tool === 'file_change') {
-    const path = String((firstTool.input as Record<string, unknown>)?.path ?? '');
-    if (path.includes(skillName)) {
-      return { score: 1, reason: `Skill file accessed: ${path}` };
-    }
-  }
-
-  return { score: 0, reason: `First tool was "${firstTool.tool}" — not a skill invocation for "${skillName}"` };
-});
-```
-
-This approach is more flexible than config overrides — you can match any tool-call pattern, check multiple fields, and add provider-specific logic as needed.
+For provider-specific notes (Copilot, Codex, Claude SDK, custom CLI), CI/headless mode behavior, and fallback strategies when subagents aren't available, read `references/environment-adaptation.md`.
 
 ---
 
@@ -670,12 +417,16 @@ The `agents/` directory contains instructions for specialized subagents. Read th
 | Agent | File | Purpose | When to dispatch |
 |-------|------|---------|-----------------|
 | executor | `agents/executor.md` | Perform test case tasks as the target agent | Step 3 (agent targets — one per test case) |
-| grader | `agents/grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
+| grader | `agents/grader.md` | Grade responses with per-assertion evidence | Step 3 (grading — one per test × LLM grader pair) |
 | comparator | `agents/comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
 | analyzer | `agents/analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
 
 The `references/` directory has additional documentation:
-- `references/eval-yaml-spec.md` — Eval YAML schema and assertion grading recipes (read when running subagent-mode evals)
+- `references/eval-yaml-spec.md` — Eval YAML schema and assertion grading recipes
+- `references/subagent-pipeline.md` — Detailed subagent-mode pipeline commands and output structure
+- `references/description-optimization.md` — Skill description optimization workflow
+- `references/environment-adaptation.md` — Provider-specific notes and CI/headless behavior
+- `references/schemas.md` — JSON schemas for all artifacts (grading.json, benchmark.json, etc.)
 - `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
 
 ---
