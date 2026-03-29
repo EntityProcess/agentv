@@ -8,9 +8,12 @@
  * #!/usr/bin/env bun
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ outputText }) => ({
- *   pass: outputText.includes('hello'),
- *   assertions: [{ text: 'Checks greeting', passed: outputText.includes('hello') }],
+ * export default defineAssertion(({ output, criteria }) => {
+ *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
+ *   return {
+ *     pass: text.includes('hello'),
+ *     assertions: [{ text: 'Checks greeting', passed: text.includes('hello') }],
+ *   };
  * }));
  * ```
  *
@@ -19,31 +22,13 @@
  * #!/usr/bin/env bun
  * import { defineCodeGrader } from '@agentv/eval';
  *
- * export default defineCodeGrader(({ trace, outputText }) => ({
- *   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
- *   assertions: [{ text: 'Efficient tool usage', passed: trace?.eventCount <= 5 }],
+ * export default defineCodeGrader(({ trace, output }) => {
+ *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
+ *   return {
+ *     score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+ *     assertions: [{ text: 'Efficient tool usage', passed: trace?.eventCount <= 5 }],
+ *   };
  * }));
- * ```
- *
- * @example Code grader with target access (requires `target` config in YAML)
- * ```typescript
- * #!/usr/bin/env bun
- * import { defineCodeGrader, createTargetClient } from '@agentv/eval';
- *
- * export default defineCodeGrader(async ({ inputText }) => {
- *   const target = createTargetClient();
- *   if (!target) {
- *     return { score: 0, assertions: [{ text: 'Target not available', passed: false }] };
- *   }
- *
- *   const response = await target.invoke({
- *     question: `Evaluate: ${inputText}`,
- *     systemPrompt: 'Respond with JSON: { "score": 0-1 }'
- *   });
- *
- *   const result = JSON.parse(response.rawText ?? '{}');
- *   return { score: result.score ?? 0 };
- * });
  * ```
  *
  * @packageDocumentation
@@ -60,7 +45,6 @@ export {
   PromptTemplateInputSchema,
   type CodeGraderInput,
   type CodeGraderResult,
-  type EnrichedCodeGraderInput,
   type TraceSummary,
   type Message,
   type ToolCall,
@@ -161,25 +145,10 @@ export function defineCodeGrader(handler: CodeGraderHandler): void {
  * ```typescript
  * import { definePromptTemplate } from '@agentv/eval';
  *
- * export default definePromptTemplate((ctx) => `
- *   Question: ${ctx.inputText}
- *   Answer: ${ctx.outputText}
- *
- *   ${ctx.expectedOutputText ? `Reference: ${ctx.expectedOutputText}` : ''}
- * `);
- * ```
- *
- * @example With conditional logic
- * ```typescript
- * import { definePromptTemplate } from '@agentv/eval';
- *
  * export default definePromptTemplate((ctx) => {
- *   const rubric = ctx.config?.rubric as string | undefined;
- *   return `
- *     Question: ${ctx.inputText}
- *     Candidate Answer: ${ctx.outputText}
- *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
- *   `;
+ *   const question = ctx.input.map(m => String(m.content ?? '')).join('\n');
+ *   const answer = ctx.output?.map(m => String(m.content ?? '')).join('\n') ?? '';
+ *   return `Question: ${question}\nAnswer: ${answer}`;
  * });
  * ```
  */
@@ -209,9 +178,12 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * ```typescript
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ outputText }) => ({
- *   pass: outputText.toLowerCase().includes('hello'),
- *   assertions: [{ text: 'Checks for greeting', passed: outputText.toLowerCase().includes('hello') }],
+ * export default defineAssertion(({ output }) => {
+ *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
+ *   return {
+ *     pass: text.toLowerCase().includes('hello'),
+ *     assertions: [{ text: 'Checks for greeting', passed: text.toLowerCase().includes('hello') }],
+ *   };
  * }));
  * ```
  *
@@ -219,8 +191,9 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * ```typescript
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ outputText, trace }) => {
- *   const hasContent = outputText.length > 0 ? 0.5 : 0;
+ * export default defineAssertion(({ output, trace }) => {
+ *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
+ *   const hasContent = text.length > 0 ? 0.5 : 0;
  *   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
  *   return {
  *     score: hasContent + isEfficient,
@@ -229,7 +202,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  *       { text: 'Efficient', passed: !!isEfficient },
  *     ],
  *   };
- * });
+ * }));
  * ```
  */
 export function defineAssertion(handler: AssertionHandler): void {

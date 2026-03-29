@@ -4,12 +4,15 @@
  */
 import { defineCodeGrader } from '../../../eval/src/index.js';
 
-export default defineCodeGrader(({ outputText, criteria }) => {
+export default defineCodeGrader(({ output, criteria }) => {
   const assertions: { text: string; passed: boolean }[] = [];
+
+  // Extract text from the output message array
+  const candidateText = (output ?? []).map((m) => String(m.content ?? '')).join(' ');
 
   // Simple check: does candidate mention the criteria keywords?
   const outcomeWords = criteria.toLowerCase().split(/\s+/);
-  const candidateWords = outputText.toLowerCase().split(/\s+/);
+  const candidateWords = candidateText.toLowerCase().split(/\s+/);
 
   for (const word of outcomeWords) {
     if (word.length > 3 && candidateWords.includes(word)) {

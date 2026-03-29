@@ -64,7 +64,6 @@ export class CodeEvaluator implements Evaluator {
     const payload = {
       criteria: context.evalCase.criteria,
       expectedOutput: context.evalCase.expected_output,
-      outputText: context.candidate,
       output: outputForPayload,
       outputPath,
       inputFiles: context.evalCase.file_paths,
@@ -78,8 +77,6 @@ export class CodeEvaluator implements Evaluator {
       fileChanges: context.fileChanges ?? null,
       workspacePath: context.workspacePath ?? null,
       config: this.config ?? null,
-      inputText: context.evalCase.question,
-      expectedOutputText: context.evalCase.reference_answer ?? '',
     };
 
     const inputPayload = JSON.stringify(toSnakeCaseDeep(payload), null, 2);

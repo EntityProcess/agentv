@@ -45,12 +45,10 @@ describe('LlmGraderEvaluator Variable Substitution', () => {
   it('substitutes template variables in custom prompt', async () => {
     const formattedQuestion = '@[User]: What is the status?\n\n@[Assistant]: Requesting more info.';
     const customPrompt = `
-Question: {{input_text}}
+Question: {{input}}
 Outcome: {{criteria}}
-Reference: {{expected_output_text}}
-Candidate: {{output_text}}
-Input Messages: {{input}}
-Expected Messages: {{expected_output}}
+Reference: {{expected_output}}
+Candidate: {{output}}
 File Changes: {{file_changes}}
 `;
 
@@ -82,21 +80,12 @@ File Changes: {{file_changes}}
     const request = graderProvider.lastRequest;
     expect(request).toBeDefined();
 
-    // When custom evaluatorTemplate is provided, it goes in the user prompt (question)
-    // System prompt only contains the output schema
+    // Primary variables resolve to human-readable text
     expect(request?.question).toContain(`Question: ${formattedQuestion}`);
     expect(request?.question).not.toContain('Original Question Text');
     expect(request?.question).toContain('Outcome: Expected Outcome Text');
     expect(request?.question).toContain('Reference: Reference Answer Text');
     expect(request?.question).toContain('Candidate: Candidate Answer Text');
-
-    // Verify input JSON stringification
-    expect(request?.question).toContain('Input Messages: [');
-    expect(request?.question).toContain('"value": "Input Message"');
-
-    // Verify expected_output JSON stringification
-    expect(request?.question).toContain('Expected Messages: [');
-    expect(request?.question).toContain('"value": "Expected Output Message"');
 
     // Verify file_changes substitution
     expect(request?.question).toContain('File Changes: diff --git a/test.txt b/test.txt');
@@ -105,6 +94,45 @@ File Changes: {{file_changes}}
     // System prompt only has output schema, not custom template
     expect(request?.systemPrompt).toContain('You must respond with a single JSON object');
     expect(request?.systemPrompt).not.toContain(`Question: ${formattedQuestion}`);
+  });
+
+  it('deprecated _text aliases still resolve correctly', async () => {
+    const formattedQuestion = 'What is 2+2?';
+    const customPrompt = `
+Question: {{input_text}}
+Reference: {{expected_output_text}}
+Candidate: {{output_text}}
+`;
+
+    const graderProvider = new CapturingProvider({
+      text: JSON.stringify({
+        score: 0.9,
+        assertions: [{ text: 'OK', passed: true }],
+      }),
+    });
+
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
+      evaluatorTemplate: customPrompt,
+    });
+
+    await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Four',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: formattedQuestion },
+      now: new Date(),
+    });
+
+    const request = graderProvider.lastRequest;
+    expect(request).toBeDefined();
+
+    // Deprecated aliases resolve to the same text values as the primary variables
+    expect(request?.question).toContain(`Question: ${formattedQuestion}`);
+    expect(request?.question).toContain('Reference: Reference Answer Text');
+    expect(request?.question).toContain('Candidate: Four');
   });
 
   it('does not substitute if no variables are present', async () => {
@@ -143,12 +171,10 @@ File Changes: {{file_changes}}
   it('substitutes template variables with whitespace inside braces', async () => {
     const formattedQuestion = 'What is the status?';
     const customPrompt = `
-Question: {{ input_text }}
+Question: {{ input }}
 Outcome: {{ criteria }}
-Reference: {{ expected_output_text }}
-Candidate: {{ output_text }}
-Input Messages: {{ input }}
-Expected Messages: {{ expected_output }}
+Reference: {{ expected_output }}
+Candidate: {{ output }}
 `;
 
     const graderProvider = new CapturingProvider({
@@ -183,12 +209,6 @@ Expected Messages: {{ expected_output }}
     expect(request?.question).toContain('Outcome: Expected Outcome Text');
     expect(request?.question).toContain('Reference: Reference Answer Text');
     expect(request?.question).toContain('Candidate: Candidate Answer Text');
-
-    // Verify JSON stringified variables were also substituted
-    expect(request?.question).toContain('Input Messages: [');
-    expect(request?.question).toContain('"value": "Input Message"');
-    expect(request?.question).toContain('Expected Messages: [');
-    expect(request?.question).toContain('"value": "Expected Output Message"');
 
     // Verify no unreplaced template markers remain
     expect(request?.question).not.toMatch(/\{\{\s*\w+\s*\}\}/);
