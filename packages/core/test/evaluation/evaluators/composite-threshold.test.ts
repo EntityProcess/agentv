@@ -51,9 +51,7 @@ function makeResult(verdict: 'pass' | 'fail', score: number): EvaluationScore {
     score,
     verdict,
     assertions:
-      verdict === 'pass'
-        ? [{ text: 'passed', passed: true }]
-        : [{ text: 'failed', passed: false }],
+      verdict === 'pass' ? [{ text: 'passed', passed: true }] : [{ text: 'failed', passed: false }],
     expectedAspectCount: 1,
   };
 }
