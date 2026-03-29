@@ -2,18 +2,15 @@
 
 Practical guidance for writing workspace-based evals that work reliably across providers.
 
-## Reproducibility: Claude CLI Runs in Bare Mode
+## Reproducibility: Claude CLI Session Isolation
 
-When AgentV spawns `claude -p` for eval tests, it passes `--bare` and `--no-session-persistence` automatically. This means:
+When AgentV spawns `claude -p` for eval tests, it automatically:
 
-- **No hooks** — SessionStart/PreToolUse/PostToolUse hooks from `~/.claude/settings.json` or plugins are skipped
-- **No plugin sync** — locally installed plugins don't affect eval results
-- **No LSP** — no language server overhead
-- **No session persistence** — no session state leaks between tests
+- Passes `--no-session-persistence` — no session state leaks between tests
+- Sets `TRACE_TO_BRAINTRUST=false` — disables the Braintrust trace plugin's SessionStart hook, which has a race condition in its shared cache file under concurrent access
+- Removes `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` env vars — allows nested Claude sessions
 
-This is hardcoded in the `ClaudeCliProvider`, not configurable in `targets.yaml`. The rationale: eval results must be reproducible regardless of what plugins, hooks, or local configuration a developer has installed. Without `--bare`, a globally installed plugin (e.g., Braintrust trace) can cause race conditions that crash tests after ~4 invocations.
-
-Skills, system prompts, and tool use still work — `--bare` only disables ambient session infrastructure. If your eval needs specific context, provide it via the eval YAML's `input` field or workspace template files.
+Hooks, plugins, and CLAUDE.md discovery still run normally. If a plugin causes eval failures, disable it per-target in `targets.yaml` or report it as a plugin bug.
 
 ## Workspace Setup: Skill Discovery Paths (#834)
 
