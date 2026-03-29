@@ -170,14 +170,12 @@ export class ClaudeCliProvider implements Provider {
 
   private buildArgs(): string[] {
     // --verbose is required when combining -p with --output-format stream-json
-    // --no-session-persistence prevents session state from leaking between tests
     const args = [
       '-p',
       '--output-format',
       'stream-json',
       '--include-partial-messages',
       '--verbose',
-      '--no-session-persistence',
     ];
 
     if (this.config.model) {
@@ -538,10 +536,6 @@ function sanitizeEnvForClaude(braintrustSpanIds?: {
   // Remove all Claude Code session markers to allow nested sessions
   env.CLAUDECODE = undefined;
   env.CLAUDE_CODE_ENTRYPOINT = undefined;
-  // Disable the Braintrust trace-claude-code plugin's SessionStart hook.
-  // Its non-atomic cache file writes race under concurrent eval runs.
-  // AgentV handles its own Braintrust tracing via braintrustSpanIds below.
-  env.TRACE_TO_BRAINTRUST = 'false';
   // Inject Braintrust trace IDs so the trace-claude-code plugin can attach
   // Claude Code session traces to the AgentV eval span
   if (braintrustSpanIds) {

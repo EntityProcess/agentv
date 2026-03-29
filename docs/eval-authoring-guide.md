@@ -2,16 +2,6 @@
 
 Practical guidance for writing workspace-based evals that work reliably across providers.
 
-## Reproducibility: Claude CLI Session Isolation
-
-When AgentV spawns `claude -p` for eval tests, it automatically:
-
-- Passes `--no-session-persistence` — no session state leaks between tests
-- Sets `TRACE_TO_BRAINTRUST=false` — disables the Braintrust trace plugin's SessionStart hook, which has a race condition in its shared cache file under concurrent access
-- Removes `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` env vars — allows nested Claude sessions
-
-Hooks, plugins, and CLAUDE.md discovery still run normally. If a plugin causes eval failures, disable it per-target in `targets.yaml` or report it as a plugin bug.
-
 ## Workspace Setup: Skill Discovery Paths (#834)
 
 The `before_all` setup hook must copy skills to **all** provider discovery paths. Each provider searches a different directory:
