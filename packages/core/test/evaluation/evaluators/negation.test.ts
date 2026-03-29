@@ -34,25 +34,6 @@ describe('negateScore', () => {
     expect(negated.assertions).toEqual([{ text: 'criterion not met', passed: true }]);
   });
 
-  it('keeps borderline verdict as borderline', () => {
-    const original: EvaluationScore = {
-      score: 0.7,
-      verdict: 'borderline',
-      assertions: [
-        { text: 'partial', passed: true },
-        { text: 'incomplete', passed: false },
-      ],
-      expectedAspectCount: 2,
-    };
-
-    const negated = negateScore(original);
-
-    expect(negated.score).toBeCloseTo(0.3, 10);
-    expect(negated.verdict).toBe('borderline');
-    expect(negated.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['incomplete']);
-    expect(negated.assertions.filter((a) => !a.passed).map((a) => a.text)).toEqual(['partial']);
-  });
-
   it('flips passed on each assertion', () => {
     const original: EvaluationScore = {
       score: 1.0,

@@ -436,7 +436,7 @@ describe('ExecutionMetricsEvaluator', () => {
 
       // 3 passed (tool_calls, tokens, duration), 2 failed (llm_calls, cost)
       expect(result.score).toBeCloseTo(0.6); // 3 / 5
-      expect(result.verdict).toBe('borderline');
+      expect(result.verdict).toBe('fail');
       expect(result.assertions.filter((a) => a.passed)).toHaveLength(3);
       expect(result.assertions.filter((a) => !a.passed)).toHaveLength(2);
     });

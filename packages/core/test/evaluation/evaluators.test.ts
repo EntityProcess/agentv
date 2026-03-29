@@ -149,7 +149,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     });
 
     expect(result.score).toBeCloseTo(0.75);
-    expect(result.verdict).toBe('borderline');
+    expect(result.verdict).toBe('fail');
     expect(result.assertions.filter((a) => a.passed)).toHaveLength(2);
     expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
@@ -188,7 +188,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     });
 
     expect(result.score).toBeCloseTo(0.65);
-    expect(result.verdict).toBe('borderline');
+    expect(result.verdict).toBe('fail');
     expect(result.assertions).toEqual([
       {
         text: 'Addressed the core request',
@@ -321,7 +321,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     });
 
     expect(result.score).toBeCloseTo(0.7);
-    expect(result.verdict).toBe('borderline');
+    expect(result.verdict).toBe('fail');
 
     // Custom template goes in user prompt (question), system prompt only has output schema
     expect(graderProvider.lastRequest?.question).toContain(customPrompt);
@@ -1065,7 +1065,7 @@ describe('FieldAccuracyEvaluator', () => {
 
     // Score should be (1.0 * 2.0 + 0.0 * 1.0) / (2.0 + 1.0) = 2/3 ≈ 0.667
     expect(result.score).toBeCloseTo(0.667, 2);
-    expect(result.verdict).toBe('borderline');
+    expect(result.verdict).toBe('fail');
   });
 
   it('supports all_or_nothing aggregation', () => {

@@ -46,16 +46,14 @@ function createContext(): EvaluationContext {
   };
 }
 
-function makeResult(verdict: 'pass' | 'fail' | 'borderline', score: number): EvaluationScore {
+function makeResult(verdict: 'pass' | 'fail', score: number): EvaluationScore {
   return {
     score,
     verdict,
     assertions:
       verdict === 'pass'
         ? [{ text: 'passed', passed: true }]
-        : verdict === 'fail'
-          ? [{ text: 'failed', passed: false }]
-          : [],
+        : [{ text: 'failed', passed: false }],
     expectedAspectCount: 1,
   };
 }
@@ -157,10 +155,10 @@ describe('CompositeEvaluator threshold aggregation', () => {
     expect(result.verdict).toBe('fail');
   });
 
-  it('borderline child counts as passing (lenient)', async () => {
+  it('score 0.7 child is fail (not passing), only pass verdicts count', async () => {
     const factory = createMockFactory({
       a: makeResult('pass', 1.0),
-      b: makeResult('borderline', 0.7),
+      b: makeResult('fail', 0.7),
       c: makeResult('fail', 0.3),
       d: makeResult('fail', 0.1),
     });
@@ -181,64 +179,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
     });
 
     const result = await evaluator.evaluate(createContext());
-    expect(result.score).toBe(0.5);
-    expect(result.verdict).toBe('pass');
-  });
-
-  it('warning includes borderline count when borderline contributes to pass', async () => {
-    const factory = createMockFactory({
-      a: makeResult('pass', 1.0),
-      b: makeResult('borderline', 0.7),
-      c: makeResult('fail', 0.3),
-      d: makeResult('fail', 0.1),
-    });
-
-    const evaluator = new CompositeEvaluator({
-      config: {
-        name: 'gate',
-        type: 'composite',
-        assertions: [
-          { name: 'a', type: 'latency', threshold: 5000 },
-          { name: 'b', type: 'latency', threshold: 5000 },
-          { name: 'c', type: 'latency', threshold: 5000 },
-          { name: 'd', type: 'latency', threshold: 5000 },
-        ],
-        aggregator: { type: 'threshold', threshold: 0.5 },
-      },
-      evaluatorFactory: factory,
-    });
-
-    const result = await evaluator.evaluate(createContext());
-    // Borderline member counts as passing — verify the summary assertion
-    const summaryAssertion = result.assertions.find((a) => a.text.includes('evaluators passed'));
-    expect(summaryAssertion).toBeDefined();
-    expect(summaryAssertion?.text).toContain('2/4 evaluators passed');
-  });
-
-  it('no warning when borderline present but result fails', async () => {
-    const factory = createMockFactory({
-      a: makeResult('borderline', 0.7),
-      b: makeResult('fail', 0.3),
-      c: makeResult('fail', 0.2),
-      d: makeResult('fail', 0.1),
-    });
-
-    const evaluator = new CompositeEvaluator({
-      config: {
-        name: 'gate',
-        type: 'composite',
-        assertions: [
-          { name: 'a', type: 'latency', threshold: 5000 },
-          { name: 'b', type: 'latency', threshold: 5000 },
-          { name: 'c', type: 'latency', threshold: 5000 },
-          { name: 'd', type: 'latency', threshold: 5000 },
-        ],
-        aggregator: { type: 'threshold', threshold: 0.5 },
-      },
-      evaluatorFactory: factory,
-    });
-
-    const result = await evaluator.evaluate(createContext());
+    expect(result.score).toBe(0.25);
     expect(result.verdict).toBe('fail');
   });
 
