@@ -100,9 +100,28 @@ function compareResponses(
   return { winner: 'TIE', aAdvantages, bAdvantages };
 }
 
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
 export default defineCodeGrader((input) => {
-  const candidate = input.outputText ?? '';
-  const reference = input.expectedOutputText ?? '';
+  const candidate = getMessageText(input.output ?? []);
+  const reference = getMessageText(input.expectedOutput);
 
   // If no reference, we can't do pairwise comparison
   if (!reference) {
@@ -113,7 +132,7 @@ export default defineCodeGrader((input) => {
         {
           text: 'No reference for comparison',
           passed: false,
-          evidence: 'Pairwise comparison requires expectedOutputText field',
+          evidence: 'Pairwise comparison requires expected output messages',
         },
       ],
     };

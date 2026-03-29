@@ -31,12 +31,28 @@ function levenshteinDistance(a: string, b: string): number {
   return prev[n] ?? 0;
 }
 
-export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutput }) => {
-  const reference =
-    expectedOutputText ||
-    (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
-      ? expectedOutput[0].content
-      : '');
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
+export default defineCodeGrader(({ output, expectedOutput }) => {
+  const outputText = getMessageText(output ?? []);
+  const reference = getMessageText(expectedOutput);
 
   if (!reference) {
     return {

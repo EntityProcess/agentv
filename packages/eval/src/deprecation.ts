@@ -1,26 +1,20 @@
 /**
  * Input enrichment utilities for code grader and assertion runtimes.
- * Populates text convenience accessors on validated input objects.
+ *
+ * With the removal of text convenience accessors (`inputText`, `outputText`,
+ * `expectedOutputText`) from CodeGraderInput, this module is a no-op pass-through.
+ * Kept for backward compatibility — existing runtimes call `enrichInput()` and
+ * the call is harmless.
  */
 import type { CodeGraderInput } from './schemas.js';
 
 /**
- * Populate `inputText`, `outputText`, and `expectedOutputText` accessors
- * on the validated input object.
+ * Enrich a validated CodeGraderInput.
  *
- * Text accessors are always strings. Structured fields (`input`, `output`, `expectedOutput`)
- * remain `Message[]` always.
+ * Previously populated text convenience accessors; now a no-op pass-through since
+ * those fields were removed. Code graders should extract text from `Message.content`
+ * using `getTextContent()` from `@agentv/core` instead.
  */
 export function enrichInput(input: CodeGraderInput): CodeGraderInput {
-  // Ensure expectedOutputText is always a string (may be undefined from schema)
-  if (input.expectedOutputText === undefined) {
-    Object.defineProperty(input, 'expectedOutputText', {
-      value: '',
-      writable: false,
-      configurable: true,
-      enumerable: true,
-    });
-  }
-
   return input;
 }

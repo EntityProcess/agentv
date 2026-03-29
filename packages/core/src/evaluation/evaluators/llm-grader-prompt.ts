@@ -68,11 +68,12 @@ function assembleFreeform(
       : evalCase.question;
 
   const variables = {
-    [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(evalCase.input, null, 2),
-    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(evalCase.expected_output, null, 2),
-    [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify([], null, 2),
+    [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT]: candidate.trim(),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (evalCase.reference_answer ?? '').trim(),
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
+    // Deprecated aliases
     [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.OUTPUT_TEXT]: candidate.trim(),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (evalCase.reference_answer ?? '').trim(),

@@ -14,17 +14,12 @@ import {
   CodeGraderInputSchema,
   type CodeGraderResult,
   CodeGraderResultSchema,
-  type EnrichedCodeGraderInput,
 } from './schemas.js';
 
 /**
  * Context provided to assertion handlers.
- *
- * Same shape as CodeGraderInput but with `inputText`, `outputText`, and
- * `expectedOutputText` guaranteed to be strings (populated by the runtime
- * before the handler is called).
  */
-export type AssertionContext = EnrichedCodeGraderInput;
+export type AssertionContext = CodeGraderInput;
 
 /**
  * Known built-in assertion types. Custom types are extensible via string.
@@ -193,11 +188,11 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
       });
     }
 
-    // Enrich input with text accessors and deprecation warnings
+    // Enrich input — no-op pass-through
     enrichInput(input);
 
-    // After enrichment, text accessors are guaranteed to be strings
-    const rawResult = await handler(input as EnrichedCodeGraderInput);
+    // Run handler
+    const rawResult = await handler(input);
     const normalized = normalizeScore(rawResult);
     const result = CodeGraderResultSchema.parse(normalized);
     console.log(JSON.stringify(result, null, 2));

@@ -8,7 +8,28 @@
  */
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ outputText, expectedOutputText, criteria }) => {
+function getMessageText(
+  messages: readonly { role: string; content?: unknown }[],
+  role = 'assistant',
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === role) {
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) {
+        return msg.content
+          .filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text)
+          .join('\n');
+      }
+    }
+  }
+  return '';
+}
+
+export default defineCodeGrader(({ output, expectedOutput, criteria }) => {
+  const outputText = getMessageText(output ?? []);
+  const expectedOutputText = getMessageText(expectedOutput);
   const candidate = (outputText ?? '').toLowerCase().trim();
   const expected = (expectedOutputText ?? '').toLowerCase().trim();
 

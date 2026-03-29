@@ -975,9 +975,12 @@ describe('runEvalCase trace integration', () => {
         `import { readFileSync } from 'fs';
 const stdin = readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
-console.log(\`Question: \${input.input_text}
-Answer: \${input.output_text}
-Reference: \${input.expected_output_text ?? 'none'}\`);
+const question = (input.input || []).map((m) => String(m.content ?? '')).join('\\n');
+const answer = (input.output || []).map((m) => String(m.content ?? '')).join('\\n');
+const ref = (input.expected_output || []).map((m) => String(m.content ?? '')).join('\\n') || 'none';
+console.log(\`Question: \${question}
+Answer: \${answer}
+Reference: \${ref}\`);
 `,
       );
 
@@ -1009,7 +1012,9 @@ Reference: \${input.expected_output_text ?? 'none'}\`);
         evalCase: {
           ...baseTestCase,
           question: 'What is 2+2?',
+          input: [{ role: 'user', content: 'What is 2+2?' }],
           reference_answer: 'The sum is 4',
+          expected_output: [{ role: 'assistant', content: 'The sum is 4' }],
           assertions: [
             {
               name: 'ts-prompt-eval',
@@ -1040,7 +1045,9 @@ Reference: \${input.expected_output_text ?? 'none'}\`);
         `const fs = require('fs');
 const stdin = fs.readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
-console.log('Question: ' + input.input_text + '\\nAnswer: ' + input.output_text);
+const question = (input.input || []).map((m) => String(m.content || '')).join('\\n');
+const answer = (input.output || []).map((m) => String(m.content || '')).join('\\n');
+console.log('Question: ' + question + '\\nAnswer: ' + answer);
 `,
       );
 
@@ -1070,6 +1077,7 @@ console.log('Question: ' + input.input_text + '\\nAnswer: ' + input.output_text)
         evalCase: {
           ...baseTestCase,
           question: 'Test question',
+          input: [{ role: 'user', content: 'Test question' }],
           assertions: [
             {
               name: 'js-prompt-eval',

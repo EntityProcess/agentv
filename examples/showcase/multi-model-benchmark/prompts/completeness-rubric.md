@@ -8,9 +8,9 @@ Assess whether the candidate response addresses every part of the question and i
 
 ## Input
 
-- Question: {{ input_text }}
-- Reference Answer: {{ expected_output_text }}
-- Answer: {{ output_text }}
+- Question: {{ input }}
+- Reference Answer: {{ expected_output }}
+- Answer: {{ output }}
 
 ## Scoring
 

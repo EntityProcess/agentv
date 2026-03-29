@@ -54,14 +54,12 @@ export const MessageSchema = z.object({
 /**
  * Code grader input schema (camelCase, converted from snake_case wire format).
  *
- * Text convenience accessors (`inputText`, `outputText`, `expectedOutputText`) are always
- * strings. Structured fields (`input`, `output`, `expectedOutput`) are always `Message[]`.
+ * Structured fields (`input`, `output`, `expectedOutput`) are always `Message[]`.
+ * To extract plain text from message content, use `getTextContent()` from `@agentv/core`.
  */
 export const CodeGraderInputSchema = z.object({
   criteria: z.string(),
   expectedOutput: z.array(MessageSchema),
-  /** Last assistant message content as string. */
-  outputText: z.string(),
   output: z.array(MessageSchema).nullable().optional(),
   /** Path to a temp file containing the output JSON (used for large payloads). */
   outputPath: z.string().optional(),
@@ -76,10 +74,6 @@ export const CodeGraderInputSchema = z.object({
   fileChanges: z.string().nullable().optional(),
   workspacePath: z.string().nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
-  /** All input messages as plain text. Single message: content only. Multiple: @role prefixed. */
-  inputText: z.string(),
-  /** Last expected output message content as plain text. */
-  expectedOutputText: z.string().optional(),
 });
 
 /**
@@ -107,20 +101,6 @@ export const CodeGraderResultSchema = z.object({
 export type CodeGraderInput = z.infer<typeof CodeGraderInputSchema>;
 export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
 
-/**
- * CodeGraderInput after `enrichInput()` has run.
- *
- * The text accessors (`inputText`, `outputText`, `expectedOutputText`)
- * are always populated by the runtime before the handler is called, so they are
- * guaranteed to be `string` (never `undefined`).
- *
- * Handler function signatures (`CodeGraderHandler`, `AssertionHandler`) use this
- * type so that user code can destructure `{ outputText }` without null-checks.
- */
-export type EnrichedCodeGraderInput = Omit<CodeGraderInput, 'expectedOutputText'> & {
-  /** Expected output content as string. */
-  readonly expectedOutputText: string;
-};
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;

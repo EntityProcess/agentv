@@ -30,4 +30,4 @@ Your overall `score` should be the average of per-turn scores.
 {{ input }}
 
 [[ ## agent response (final turn) ## ]]
-{{ output_text }}
+{{ output }}

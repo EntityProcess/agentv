@@ -6,16 +6,13 @@ import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
 import { enrichInput } from './deprecation.js';
-import { type EnrichedCodeGraderInput, PromptTemplateInputSchema } from './schemas.js';
+import { type CodeGraderInput, PromptTemplateInputSchema } from './schemas.js';
 
 /**
  * Handler function type for prompt templates.
  * Returns the prompt string to use for evaluation.
- *
- * The input is enriched at runtime: `inputText`, `outputText`, and
- * `expectedOutputText` are always populated before the handler is called.
  */
-export type PromptTemplateHandler = (input: EnrichedCodeGraderInput) => string | Promise<string>;
+export type PromptTemplateHandler = (input: CodeGraderInput) => string | Promise<string>;
 
 /**
  * Read stdin synchronously (works in both Node.js and Bun).
@@ -42,11 +39,11 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
     // 4. Validate input with Zod
     const input = PromptTemplateInputSchema.parse(camelInput);
 
-    // 5. Enrich input with text accessors and deprecation warnings
+    // 5. Enrich input — no-op pass-through
     enrichInput(input);
 
-    // 6. Run handler (input is now enriched with guaranteed text accessors)
-    const prompt = await handler(input as EnrichedCodeGraderInput);
+    // 6. Run handler
+    const prompt = await handler(input);
 
     // 6. Output raw string (not JSON) - the prompt itself
     console.log(prompt);
@@ -71,37 +68,13 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *
  * @example
  * ```typescript
- * import { definePromptTemplate } from '@agentv/eval';
+ * import { definePromptTemplate, type CodeGraderInput } from '@agentv/eval';
+ * import { getTextContent } from '@agentv/core';
  *
- * export default definePromptTemplate((ctx) => `
- *   Question: ${ctx.inputText}
- *   Answer: ${ctx.outputText}
- *
- *   ${ctx.expectedOutputText ? `Reference: ${ctx.expectedOutputText}` : ''}
- * `);
- * ```
- *
- * @example With conditional logic
- * ```typescript
- * import { definePromptTemplate } from '@agentv/eval';
- *
- * export default definePromptTemplate((ctx) => {
- *   const rubric = ctx.config?.rubric as string | undefined;
- *   return `
- *     Question: ${ctx.inputText}
- *     Candidate Answer: ${ctx.outputText}
- *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
- *   `;
- * });
- * ```
- *
- * @example Async handler
- * ```typescript
- * import { definePromptTemplate } from '@agentv/eval';
- *
- * export default definePromptTemplate(async (ctx) => {
- *   // Async operations are supported
- *   return `Question: ${ctx.inputText}\nAnswer: ${ctx.outputText}`;
+ * export default definePromptTemplate((ctx: CodeGraderInput) => {
+ *   const question = ctx.input.map(m => getTextContent(m.content)).join('\n');
+ *   const answer = ctx.output?.map(m => getTextContent(m.content)).join('\n') ?? '';
+ *   return `Question: ${question}\nAnswer: ${answer}`;
  * });
  * ```
  */

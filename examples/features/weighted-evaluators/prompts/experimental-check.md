@@ -6,9 +6,9 @@ An experimental evaluator for collecting additional metrics without affecting sc
 This is an experimental evaluator used to test new evaluation criteria. Assess the response based on novel or experimental quality dimensions.
 
 ## Input
-- Question: {{ input_text }}
-- Reference Answer: {{ expected_output_text }}
-- Answer: {{ output_text }}
+- Question: {{ input }}
+- Reference Answer: {{ expected_output }}
+- Answer: {{ output }}
 
 ## Output Format
 Return a JSON object with:
