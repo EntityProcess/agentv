@@ -1,5 +1,5 @@
 ---
-name: ad-design
+name: ap-design
 description: >-
   Use when a feature or change needs a design before implementation, when the scope
   is non-trivial, when asked to "brainstorm", "design this", "write a spec", "propose

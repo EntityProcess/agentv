@@ -1,4 +1,4 @@
-description: Evaluates that the ad-claim skill reads repo guidelines, extracts issue details, and assesses scope
+description: Evaluates that the ap-claim skill reads repo guidelines, extracts issue details, and assesses scope
 
 execution:
   targets:
@@ -16,7 +16,7 @@ input:
   - role: user
     content:
       - type: file
-        value: "/plugins/autopilot-dev/skills/ad-claim/SKILL.md"
+        value: "/plugins/autopilot-dev/skills/ap-claim/SKILL.md"
 
 tests:
   - id: reads-guidelines-first
@@ -29,7 +29,7 @@ tests:
           the branch is already created.
     assertions:
       - type: skill-trigger
-        skill: ad-claim
+        skill: ap-claim
       - type: rubrics
         criteria:
           - Reads CLAUDE.md or AGENTS.md before doing other work

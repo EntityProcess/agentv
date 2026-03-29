@@ -1,4 +1,4 @@
-description: Evaluates that the ad-design skill requires brainstorming before implementation and writes a spec to the plans directory
+description: Evaluates that the ap-design skill requires brainstorming before implementation and writes a spec to the plans directory
 
 execution:
   targets:
@@ -16,7 +16,7 @@ input:
   - role: user
     content:
       - type: file
-        value: "/plugins/autopilot-dev/skills/ad-design/SKILL.md"
+        value: "/plugins/autopilot-dev/skills/ap-design/SKILL.md"
 
 tests:
   - id: refuses-implementation-without-design
@@ -29,7 +29,7 @@ tests:
           Just go ahead and implement it.
     assertions:
       - type: skill-trigger
-        skill: ad-design
+        skill: ap-design
       - type: rubrics
         criteria:
           - Does not start writing implementation code

@@ -1,4 +1,4 @@
-description: Evaluates that the ad-verify skill runs actual e2e verification, tests all execution modes, and checks blast radius
+description: Evaluates that the ap-verify skill runs actual e2e verification, tests all execution modes, and checks blast radius
 
 execution:
   targets:
@@ -16,7 +16,7 @@ input:
   - role: user
     content:
       - type: file
-        value: "/plugins/autopilot-dev/skills/ad-verify/SKILL.md"
+        value: "/plugins/autopilot-dev/skills/ap-verify/SKILL.md"
 
 tests:
   - id: runs-actual-verification
@@ -29,7 +29,7 @@ tests:
           and lint commands listed in package.json.
     assertions:
       - type: skill-trigger
-        skill: ad-verify
+        skill: ap-verify
       - type: rubrics
         criteria:
           - Runs or attempts to run build, test, or lint commands

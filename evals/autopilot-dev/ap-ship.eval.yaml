@@ -1,4 +1,4 @@
-description: Evaluates that the ad-ship skill applies verification gates, blast radius checks, and risk classification before merging
+description: Evaluates that the ap-ship skill applies verification gates, blast radius checks, and risk classification before merging
 
 execution:
   targets:
@@ -16,7 +16,7 @@ input:
   - role: user
     content:
       - type: file
-        value: "/plugins/autopilot-dev/skills/ad-ship/SKILL.md"
+        value: "/plugins/autopilot-dev/skills/ap-ship/SKILL.md"
 
 tests:
   - id: requires-verification-before-shipping
@@ -29,7 +29,7 @@ tests:
           What should I do before merging?
     assertions:
       - type: skill-trigger
-        skill: ad-ship
+        skill: ap-ship
       - type: rubrics
         criteria:
           - Does not agree to merge without verification

@@ -1,5 +1,5 @@
 ---
-name: ad-using-autopilot-dev
+name: ap-using-autopilot-dev
 description: >-
   Use when starting any conversation or session to establish the agentic delivery
   lifecycle. Determines which phase skills to invoke and prevents rationalization
@@ -20,18 +20,18 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 ## Lifecycle
 
 ```
-ad-claim → ad-explore → ad-design → ad-plan → ad-implement → ad-verify → ad-ship
+ap-claim → ap-explore → ap-design → ap-plan → ap-implement → ap-verify → ap-ship
 ```
 
 | Phase | Skill | What Happens |
 |---|---|---|
-| Claim | ad-claim | Claim issue, create worktree + branch + draft PR |
-| Explore | ad-explore | Understand the codebase and problem space |
-| Design | ad-design | Brainstorm approaches, write approved spec |
-| Plan | ad-plan | Convert spec into bite-sized implementation plan |
-| Implement | ad-implement | TDD execution with subagent dispatch |
-| Verify | ad-verify | E2E red/green testing, code review, blast radius check |
-| Ship | ad-ship | Mark PR ready, merge, clean up worktree |
+| Claim | ap-claim | Claim issue, create worktree + branch + draft PR |
+| Explore | ap-explore | Understand the codebase and problem space |
+| Design | ap-design | Brainstorm approaches, write approved spec |
+| Plan | ap-plan | Convert spec into bite-sized implementation plan |
+| Implement | ap-implement | TDD execution with subagent dispatch |
+| Verify | ap-verify | E2E red/green testing, code review, blast radius check |
+| Ship | ap-ship | Mark PR ready, merge, clean up worktree |
 
 ## Phase Skip Rules
 
@@ -54,23 +54,23 @@ These thoughts mean STOP — you are rationalizing your way out of a phase:
 | Thought | Reality |
 |---|---|
 | "This is just a simple question" | Questions are tasks. Check the lifecycle. |
-| "I need more context first" | That is what ad-explore does. |
-| "Let me just write the code quickly" | That is what ad-implement does, with TDD. |
+| "I need more context first" | That is what ap-explore does. |
+| "Let me just write the code quickly" | That is what ap-implement does, with TDD. |
 | "I can skip the design for this" | Every project needs a design, regardless of perceived simplicity. |
-| "Tests are passing, we're done" | Unit tests ≠ verified. That is what ad-verify does. |
-| "I'll clean up the PR later" | That is what ad-ship does, with blast radius checks. |
-| "Let me explore the code first" | Use ad-explore — it has structured output. |
-| "I know what needs to change" | Verify with ad-explore. Partial implementations may already exist. |
+| "Tests are passing, we're done" | Unit tests ≠ verified. That is what ap-verify does. |
+| "I'll clean up the PR later" | That is what ap-ship does, with blast radius checks. |
+| "Let me explore the code first" | Use ap-explore — it has structured output. |
+| "I know what needs to change" | Verify with ap-explore. Partial implementations may already exist. |
 
 ## Skill Priority
 
 When multiple skills could apply:
 
-1. **Process skills first** (ad-explore, ad-design) — determine HOW to approach
-2. **Execution skills second** (ad-implement, ad-verify) — guide what to do
+1. **Process skills first** (ap-explore, ap-design) — determine HOW to approach
+2. **Execution skills second** (ap-implement, ap-verify) — guide what to do
 
-"Let's build X" → ad-explore first, then ad-design, then ad-plan.
-"Fix this bug" → ad-explore first, then ad-implement.
+"Let's build X" → ap-explore first, then ap-design, then ap-plan.
+"Fix this bug" → ap-explore first, then ap-implement.
 
 ## Artifact Locations
 
