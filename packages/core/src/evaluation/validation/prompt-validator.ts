@@ -45,9 +45,7 @@ export function validateTemplateVariables(content: string, source: string): void
   const hasCandidateAnswer =
     foundVariables.has(TEMPLATE_VARIABLES.OUTPUT) ||
     foundVariables.has(TEMPLATE_VARIABLES.OUTPUT_TEXT);
-  const hasExpectedOutput =
-    foundVariables.has(TEMPLATE_VARIABLES.EXPECTED_OUTPUT) ||
-    foundVariables.has(TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT);
+  const hasExpectedOutput = foundVariables.has(TEMPLATE_VARIABLES.EXPECTED_OUTPUT);
   const hasRequiredFields = hasCandidateAnswer || hasExpectedOutput;
 
   // ERROR: Missing required fields - throw error to skip this evaluator/eval case
