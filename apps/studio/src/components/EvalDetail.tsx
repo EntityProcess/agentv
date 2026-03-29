@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useEvalFileContent, useEvalFiles } from '~/lib/api';
 import type { EvalResult } from '~/lib/types';
 
+import { FeedbackPanel } from './FeedbackPanel';
 import type { FileNode } from './FileTree';
 import { FileTree } from './FileTree';
 import { MonacoViewer } from './MonacoViewer';
@@ -110,6 +111,9 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
         {activeTab === 'output' && <OutputTab result={result} runId={runId} />}
         {activeTab === 'task' && <TaskTab result={result} runId={runId} />}
       </div>
+
+      {/* Feedback */}
+      <FeedbackPanel testId={result.testId} />
     </div>
   );
 }

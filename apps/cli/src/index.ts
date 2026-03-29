@@ -33,7 +33,6 @@ export const app = subcommands({
     results: resultsCommand,
     self: selfCommand,
     studio: resultsServeCommand,
-    serve: resultsServeCommand, // hidden alias for backward compatibility
     trace: traceCommand,
     transpile: transpileCommand,
     trim: trimCommand,
@@ -61,7 +60,6 @@ const TOP_LEVEL_COMMANDS = new Set([
   'pipeline',
   'results',
   'self',
-  'serve',
   'studio',
   'trace',
   'transpile',
