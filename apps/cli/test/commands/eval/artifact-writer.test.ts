@@ -592,19 +592,13 @@ describe('writeArtifactsFromResults', () => {
     expect(alphaEntries.sort()).toEqual(['grading.json', 'outputs', 'timing.json']);
 
     const alphaGrading: GradingArtifact = JSON.parse(
-      await readFile(
-        path.join(paths.testArtifactDir, 'alpha', 'grading.json'),
-        'utf8',
-      ),
+      await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
     );
     expect(alphaGrading.summary).toBeDefined();
     expect(alphaGrading.execution_metrics).toBeDefined();
 
     const alphaTiming: TimingArtifact = JSON.parse(
-      await readFile(
-        path.join(paths.testArtifactDir, 'alpha', 'timing.json'),
-        'utf8',
-      ),
+      await readFile(path.join(paths.testArtifactDir, 'alpha', 'timing.json'), 'utf8'),
     );
     expect(alphaTiming.duration_ms).toBe(5000);
 

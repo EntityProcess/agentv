@@ -59,12 +59,8 @@ export function toPiContentArray(content: unknown): Content[] | undefined {
       let source = '';
       if (typeof p.source === 'object' && p.source !== null) {
         const src = p.source as Record<string, unknown>;
-        const srcMediaType =
-          typeof src.media_type === 'string' ? src.media_type : mediaType;
-        source =
-          typeof src.data === 'string'
-            ? `data:${srcMediaType};base64,${src.data}`
-            : '';
+        const srcMediaType = typeof src.media_type === 'string' ? src.media_type : mediaType;
+        source = typeof src.data === 'string' ? `data:${srcMediaType};base64,${src.data}` : '';
       }
       if (!source && typeof p.url === 'string') {
         source = p.url;
