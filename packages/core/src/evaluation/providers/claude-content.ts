@@ -52,13 +52,15 @@ export function toContentArray(content: unknown): Content[] | undefined {
             ? src.media_type
             : 'application/octet-stream';
       const data =
-        typeof src.data === 'string'
+        typeof src.data === 'string' && src.data.length > 0
           ? `data:${mediaType};base64,${src.data}`
-          : typeof p.url === 'string'
+          : typeof p.url === 'string' && (p.url as string).length > 0
             ? (p.url as string)
             : '';
-      blocks.push({ type: 'image', media_type: mediaType, source: data });
-      hasNonText = true;
+      if (data) {
+        blocks.push({ type: 'image', media_type: mediaType, source: data });
+        hasNonText = true;
+      }
     } else if (p.type === 'tool_use') {
       // tool_use blocks are handled separately as ToolCall — skip
     } else if (p.type === 'tool_result') {
