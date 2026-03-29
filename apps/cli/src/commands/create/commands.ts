@@ -6,9 +6,23 @@ const ASSERTION_TEMPLATES: Record<string, string> = {
   default: `#!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ outputText }) => {
+/** Extract text from the last message with the given role. */
+function getMessageText(messages: Array<{ role: string; content?: unknown }>, role = 'assistant'): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== role) continue;
+    if (typeof msg.content === 'string') return msg.content;
+    if (Array.isArray(msg.content)) {
+      return msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\\n');
+    }
+  }
+  return '';
+}
+
+export default defineAssertion(({ output }) => {
   // TODO: Implement your assertion logic
-  const pass = outputText.length > 0;
+  const text = getMessageText(output ?? []);
+  const pass = text.length > 0;
   return {
     pass,
     reasoning: pass ? 'Output has content' : 'Output is empty',
@@ -18,9 +32,23 @@ export default defineAssertion(({ outputText }) => {
   score: `#!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ outputText }) => {
+/** Extract text from the last message with the given role. */
+function getMessageText(messages: Array<{ role: string; content?: unknown }>, role = 'assistant'): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== role) continue;
+    if (typeof msg.content === 'string') return msg.content;
+    if (Array.isArray(msg.content)) {
+      return msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\\n');
+    }
+  }
+  return '';
+}
+
+export default defineAssertion(({ output }) => {
   // TODO: Implement your scoring logic (0.0 to 1.0)
-  const score = outputText.length > 0 ? 1.0 : 0.0;
+  const text = getMessageText(output ?? []);
+  const score = text.length > 0 ? 1.0 : 0.0;
   return {
     pass: score >= 0.5,
     score,
