@@ -86,7 +86,8 @@ export const evalRunCommand = command({
     graderType: option({
       type: optional(oneOf(['code', 'none'])),
       long: 'grader-type',
-      description: 'Which grading phase to run: "code" runs code-graders inline, omit to skip grading (use pipeline grade separately)',
+      description:
+        'Which grading phase to run: "code" runs code-graders inline, omit to skip grading (use pipeline grade separately)',
     }),
   },
   handler: async ({ evalPath, out, workers, experiment, graderType }) => {
@@ -306,7 +307,9 @@ export const evalRunCommand = command({
     // ── Step 3: Run code graders (only when explicitly requested) ─────
     if (graderType !== 'code') {
       console.log(`\nDone. Results in ${outDir}`);
-      console.log('To run code graders: agentv pipeline grade <run-dir>  (or re-run with --grader-type code)');
+      console.log(
+        'To run code graders: agentv pipeline grade <run-dir>  (or re-run with --grader-type code)',
+      );
       return;
     }
 
