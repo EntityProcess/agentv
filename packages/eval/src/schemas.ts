@@ -1,6 +1,22 @@
 /**
  * Zod schemas for code grader input/output validation.
  * Provides both compile-time types and runtime validation.
+ *
+ * ## Content model
+ *
+ * `Message.content` accepts `string | Content[]`:
+ * - `string` — backward-compatible plain text (most common case)
+ * - `Content[]` — typed content blocks for multimodal messages
+ *
+ * Content variants:
+ * - `ContentText`  — `{ type: 'text', text: string }`
+ * - `ContentImage` — `{ type: 'image', media_type: string, path: string }` (file path, not base64)
+ * - `ContentFile`  — `{ type: 'file', media_type: string, path: string }`
+ *
+ * To add a new content variant:
+ * 1. Define a new Zod schema with a unique `type` literal
+ * 2. Add it to `ContentSchema` discriminated union
+ * 3. Re-export from `index.ts`
  */
 import { z } from 'zod';
 
@@ -37,12 +53,49 @@ export const ToolCallSchema = z.object({
   durationMs: z.number().optional(),
 });
 
+// ---------------------------------------------------------------------------
+// Content block schemas (discriminated union on `type`)
+// ---------------------------------------------------------------------------
+
+/** Text content block. */
+export const ContentTextSchema = z.object({
+  type: z.literal('text'),
+  text: z.string(),
+});
+
+/**
+ * Image content block.
+ * `path` is a filesystem path — never inline base64.
+ */
+export const ContentImageSchema = z.object({
+  type: z.literal('image'),
+  media_type: z.string(),
+  path: z.string(),
+});
+
+/** File content block. */
+export const ContentFileSchema = z.object({
+  type: z.literal('file'),
+  media_type: z.string(),
+  path: z.string(),
+});
+
+/** Discriminated union of all content block types. */
+export const ContentSchema = z.discriminatedUnion('type', [
+  ContentTextSchema,
+  ContentImageSchema,
+  ContentFileSchema,
+]);
+
 /**
  * Unified message schema for input, expected, and output messages.
+ *
+ * `content` is either a plain string or a `Content[]` array of typed blocks.
+ * Use `getTextContent()` from `@agentv/core` to extract plain text from either form.
  */
 export const MessageSchema = z.object({
   role: z.enum(['assistant', 'user', 'system', 'tool']),
-  content: z.union([z.string(), z.record(z.unknown()), z.array(z.record(z.unknown()))]).optional(),
+  content: z.union([z.string(), z.array(ContentSchema)]).optional(),
   toolCalls: z.array(ToolCallSchema).optional(),
   name: z.string().optional(),
   startTime: z.string().optional(),
@@ -105,6 +158,11 @@ export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+
+export type ContentText = z.infer<typeof ContentTextSchema>;
+export type ContentImage = z.infer<typeof ContentImageSchema>;
+export type ContentFile = z.infer<typeof ContentFileSchema>;
+export type Content = z.infer<typeof ContentSchema>;
 
 /**
  * Prompt template input schema (camelCase, converted from snake_case wire format).

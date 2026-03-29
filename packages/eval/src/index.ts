@@ -43,6 +43,10 @@ export {
   ToolCallSchema,
   TokenUsageSchema,
   PromptTemplateInputSchema,
+  ContentTextSchema,
+  ContentImageSchema,
+  ContentFileSchema,
+  ContentSchema,
   type CodeGraderInput,
   type CodeGraderResult,
   type TraceSummary,
@@ -50,6 +54,10 @@ export {
   type ToolCall,
   type TokenUsage,
   type PromptTemplateInput,
+  type ContentText,
+  type ContentImage,
+  type ContentFile,
+  type Content,
 } from './schemas.js';
 
 // Re-export target client

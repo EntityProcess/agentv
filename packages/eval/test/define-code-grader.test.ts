@@ -7,7 +7,131 @@ import {
   // Backward-compat aliases
   CodeJudgeInputSchema,
   CodeJudgeResultSchema,
+  ContentFileSchema,
+  ContentImageSchema,
+  ContentSchema,
+  ContentTextSchema,
+  MessageSchema,
 } from '../src/schemas.js';
+
+// ---------------------------------------------------------------------------
+// Content schemas
+// ---------------------------------------------------------------------------
+
+describe('ContentSchema', () => {
+  it('parses ContentText', () => {
+    const result = ContentTextSchema.parse({ type: 'text', text: 'hello' });
+    expect(result).toEqual({ type: 'text', text: 'hello' });
+  });
+
+  it('parses ContentImage with path', () => {
+    const result = ContentImageSchema.parse({
+      type: 'image',
+      media_type: 'image/png',
+      path: '/workspace/chart.png',
+    });
+    expect(result).toEqual({
+      type: 'image',
+      media_type: 'image/png',
+      path: '/workspace/chart.png',
+    });
+  });
+
+  it('parses ContentFile', () => {
+    const result = ContentFileSchema.parse({
+      type: 'file',
+      media_type: 'text/csv',
+      path: '/workspace/data.csv',
+    });
+    expect(result).toEqual({ type: 'file', media_type: 'text/csv', path: '/workspace/data.csv' });
+  });
+
+  it('discriminated union resolves correct variant', () => {
+    const text = ContentSchema.parse({ type: 'text', text: 'hi' });
+    expect(text.type).toBe('text');
+
+    const image = ContentSchema.parse({
+      type: 'image',
+      media_type: 'image/jpeg',
+      path: '/img.jpg',
+    });
+    expect(image.type).toBe('image');
+
+    const file = ContentSchema.parse({
+      type: 'file',
+      media_type: 'application/pdf',
+      path: '/doc.pdf',
+    });
+    expect(file.type).toBe('file');
+  });
+
+  it('rejects unknown content type', () => {
+    expect(() => ContentSchema.parse({ type: 'audio', data: '...' })).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MessageSchema with Content[]
+// ---------------------------------------------------------------------------
+
+describe('MessageSchema content variants', () => {
+  it('accepts string content (backward compat)', () => {
+    const msg = MessageSchema.parse({ role: 'assistant', content: 'Hello' });
+    expect(msg.content).toBe('Hello');
+  });
+
+  it('accepts Content[] with text blocks', () => {
+    const msg = MessageSchema.parse({
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'paragraph 1' },
+        { type: 'text', text: 'paragraph 2' },
+      ],
+    });
+    expect(Array.isArray(msg.content)).toBe(true);
+    expect(msg.content as unknown[]).toHaveLength(2);
+  });
+
+  it('accepts Content[] with image blocks', () => {
+    const msg = MessageSchema.parse({
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'Chart:' },
+        { type: 'image', media_type: 'image/png', path: '/chart.png' },
+      ],
+    });
+    const content = msg.content as { type: string }[];
+    expect(content[1].type).toBe('image');
+  });
+
+  it('accepts Content[] with file blocks', () => {
+    const msg = MessageSchema.parse({
+      role: 'assistant',
+      content: [{ type: 'file', media_type: 'text/csv', path: '/data.csv' }],
+    });
+    const content = msg.content as { type: string }[];
+    expect(content[0].type).toBe('file');
+  });
+
+  it('accepts mixed Content[] (text + image + file)', () => {
+    const msg = MessageSchema.parse({
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'Analysis results:' },
+        { type: 'image', media_type: 'image/png', path: '/chart.png' },
+        { type: 'file', media_type: 'text/csv', path: '/data.csv' },
+      ],
+    });
+    const content = msg.content as { type: string }[];
+    expect(content).toHaveLength(3);
+    expect(content.map((c) => c.type)).toEqual(['text', 'image', 'file']);
+  });
+
+  it('accepts undefined content', () => {
+    const msg = MessageSchema.parse({ role: 'tool' });
+    expect(msg.content).toBeUndefined();
+  });
+});
 
 describe('CodeGraderInputSchema', () => {
   const validInput = {
@@ -67,6 +191,44 @@ describe('CodeGraderInputSchema', () => {
     };
     const result = CodeGraderInputSchema.parse(inputWithOutput);
     expect(result.output?.[0].toolCalls?.[0].tool).toBe('read');
+  });
+
+  it('accepts output with Content[] containing image blocks', () => {
+    const inputWithImages = {
+      ...validInput,
+      output: [
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Generated chart:' },
+            { type: 'image', media_type: 'image/png', path: '/workspace/chart.png' },
+          ],
+        },
+      ],
+    };
+    const result = CodeGraderInputSchema.parse(inputWithImages);
+    const content = result.output?.[0].content as { type: string; path?: string }[];
+    expect(content).toHaveLength(2);
+    expect(content[1].type).toBe('image');
+    expect(content[1].path).toBe('/workspace/chart.png');
+  });
+
+  it('accepts input with Content[] messages', () => {
+    const inputWithContentArray = {
+      ...validInput,
+      input: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Describe this image:' },
+            { type: 'image', media_type: 'image/jpeg', path: '/workspace/photo.jpg' },
+          ],
+        },
+      ],
+    };
+    const result = CodeGraderInputSchema.parse(inputWithContentArray);
+    const content = result.input[0].content as { type: string }[];
+    expect(content).toHaveLength(2);
   });
 });
 
