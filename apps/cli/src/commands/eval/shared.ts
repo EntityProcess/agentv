@@ -13,7 +13,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
   const results = new Set<string>();
 
   for (const pattern of normalizedInputs) {
-    // If the pattern points to an existing file, short-circuit globbing
+    // If the pattern points to an existing file or directory, short-circuit globbing
     const candidatePath = path.isAbsolute(pattern)
       ? path.normalize(pattern)
       : path.resolve(cwd, pattern);
@@ -21,6 +21,28 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       const stats = await stat(candidatePath);
       if (stats.isFile() && /\.(ya?ml|jsonl|json)$/i.test(candidatePath)) {
         results.add(candidatePath);
+        continue;
+      }
+      if (stats.isDirectory()) {
+        // Auto-expand directory to recursive eval file glob
+        const dirGlob = path.posix.join(
+          candidatePath.replace(/\\/g, '/'),
+          '**/*.eval.{yaml,yml}',
+        );
+        const dirMatches = await fg(dirGlob, {
+          absolute: true,
+          onlyFiles: true,
+          unique: true,
+          dot: true,
+          followSymbolicLinks: true,
+        });
+        if (dirMatches.length === 0) {
+          unmatched.push(pattern);
+        } else {
+          for (const filePath of dirMatches) {
+            results.add(path.normalize(filePath));
+          }
+        }
         continue;
       }
     } catch {

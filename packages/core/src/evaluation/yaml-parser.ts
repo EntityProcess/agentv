@@ -268,7 +268,9 @@ async function loadTestsFromYaml(
 
   const suite = interpolated as RawTestSuite;
   const evalSetNameFromSuite = asString(suite.name)?.trim();
-  const fallbackEvalSet = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, '') || 'eval';
+  const fallbackEvalSet =
+    path.basename(absoluteTestPath).replace(/\.eval\.ya?ml$/i, '').replace(/\.ya?ml$/i, '') ||
+    'eval';
   const evalSetName =
     evalSetNameFromSuite && evalSetNameFromSuite.length > 0
       ? evalSetNameFromSuite

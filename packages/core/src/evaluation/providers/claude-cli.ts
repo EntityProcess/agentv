@@ -170,12 +170,15 @@ export class ClaudeCliProvider implements Provider {
 
   private buildArgs(): string[] {
     // --verbose is required when combining -p with --output-format stream-json
+    // --no-session-persistence prevents session state conflicts when running
+    // multiple sequential tests (each test gets a clean session)
     const args = [
       '-p',
       '--output-format',
       'stream-json',
       '--include-partial-messages',
       '--verbose',
+      '--no-session-persistence',
     ];
 
     if (this.config.model) {
