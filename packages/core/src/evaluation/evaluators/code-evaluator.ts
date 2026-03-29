@@ -9,90 +9,12 @@ import {
   createTargetProxy,
 } from '../../runtime/target-proxy.js';
 import { toSnakeCaseDeep } from '../case-conversion.js';
-import { type ContentImage, isContentArray } from '../content.js';
 import type { AssertionEntry, JsonObject, TargetAccessConfig } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
 /** Threshold in bytes above which output is written to a temp file instead of inlined. */
 const FILE_BACKED_OUTPUT_THRESHOLD = 50_000;
-
-/** Regex matching `data:<mediaType>;base64,<data>` URIs. */
-const DATA_URI_RE = /^data:([^;]+);base64,(.+)$/s;
-
-/**
- * Convert ContentImage blocks in message arrays for code grader consumption.
- *
- * - Data URI images (`data:image/png;base64,...`) → decoded, written to temp file, replaced with file path.
- * - Non-URI images (already a path or URL) → `source` carried through as `path`.
- * - ContentText, ContentFile blocks → passed through unchanged.
- * - Messages with plain string content → passed through unchanged.
- *
- * Returns the original array when no image blocks exist (zero-copy fast path).
- */
-export async function materializeContentForGrader(
-  messages: readonly Record<string, unknown>[] | null | undefined,
-  getWorkDir: () => Promise<string>,
-): Promise<readonly Record<string, unknown>[] | null> {
-  if (!messages || messages.length === 0) return messages ?? null;
-
-  // Fast path: skip if no image blocks exist
-  let hasAnyImage = false;
-  for (const msg of messages) {
-    if (isContentArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === 'image') {
-          hasAnyImage = true;
-          break;
-        }
-      }
-    }
-    if (hasAnyImage) break;
-  }
-  if (!hasAnyImage) return messages;
-
-  let counter = 0;
-  const result: Record<string, unknown>[] = [];
-
-  for (const msg of messages) {
-    if (!isContentArray(msg.content)) {
-      result.push(msg);
-      continue;
-    }
-
-    if (!msg.content.some((b) => b.type === 'image')) {
-      result.push(msg);
-      continue;
-    }
-
-    const blocks: Record<string, unknown>[] = [];
-    for (const block of msg.content) {
-      if (block.type !== 'image') {
-        blocks.push({ ...block });
-        continue;
-      }
-
-      const img = block as ContentImage;
-      const match = DATA_URI_RE.exec(img.source);
-
-      if (match) {
-        const [, mediaType, base64Data] = match;
-        const ext = mediaType.split('/')[1] === 'jpeg' ? 'jpg' : (mediaType.split('/')[1] ?? 'bin');
-        const dir = await getWorkDir();
-        const filePath = join(dir, `img-${counter++}.${ext}`);
-        await writeFile(filePath, Buffer.from(base64Data, 'base64'));
-        blocks.push({ type: 'image', media_type: img.media_type, path: filePath });
-      } else {
-        // Already a path or URL → carry through as path
-        blocks.push({ type: 'image', media_type: img.media_type, path: img.source });
-      }
-    }
-
-    result.push({ ...msg, content: blocks });
-  }
-
-  return result;
-}
 
 export interface CodeEvaluatorOptions {
   readonly command: readonly string[];
@@ -124,23 +46,8 @@ export class CodeEvaluator implements Evaluator {
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
-    // Lazy temp dir for materialized image files
-    let imageTmpDir: string | undefined;
-    const getImageDir = async () => {
-      if (!imageTmpDir) {
-        imageTmpDir = await mkdtemp(join(tmpdir(), 'agentv-img-'));
-      }
-      return imageTmpDir;
-    };
-
-    // Materialize multimodal content (data URIs → temp files, source → path)
-    const materializedOutput = await materializeContentForGrader(
-      context.output as readonly Record<string, unknown>[] | undefined,
-      getImageDir,
-    );
-
     // Determine whether to use file-backed output for large payloads
-    let outputForPayload: readonly Record<string, unknown>[] | null = materializedOutput;
+    let outputForPayload = context.output ?? null;
     let outputPath: string | undefined;
 
     if (outputForPayload) {
@@ -156,17 +63,11 @@ export class CodeEvaluator implements Evaluator {
     // Build payload (camelCase internally, converted to snake_case for graders)
     const payload = {
       criteria: context.evalCase.criteria,
-      expectedOutput: await materializeContentForGrader(
-        context.evalCase.expected_output as readonly Record<string, unknown>[],
-        getImageDir,
-      ),
+      expectedOutput: context.evalCase.expected_output,
       output: outputForPayload,
       outputPath,
       inputFiles: context.evalCase.file_paths,
-      input: await materializeContentForGrader(
-        context.evalCase.input as readonly Record<string, unknown>[],
-        getImageDir,
-      ),
+      input: context.evalCase.input,
       trace: context.trace ?? null,
       tokenUsage: context.tokenUsage ?? null,
       costUsd: context.costUsd ?? null,
@@ -294,10 +195,6 @@ export class CodeEvaluator implements Evaluator {
       // Clean up temp file for file-backed output
       if (outputPath) {
         await rm(dirname(outputPath), { recursive: true, force: true }).catch(() => {});
-      }
-      // Clean up temp dir for materialized images
-      if (imageTmpDir) {
-        await rm(imageTmpDir, { recursive: true, force: true }).catch(() => {});
       }
     }
   }
