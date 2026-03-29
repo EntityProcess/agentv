@@ -1,0 +1,126 @@
+---
+title: Comparison
+description: How AgentV compares to other evaluation frameworks.
+---
+
+## Quick Comparison
+
+| Aspect | **AgentV** | **Braintrust** | **Langfuse** | **LangSmith** | **LangWatch** | **Google ADK** | **Mastra** | **OpenCode Bench** |
+|--------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+| **Primary Focus** | Agent evaluation & testing | Evaluation + logging | Observability + evaluation | Observability + evaluation | LLM ops & evaluation | Agent development | Agent/workflow development | Coding agent benchmarking |
+| **Language** | TypeScript/CLI | Python/TypeScript | Python/JavaScript | Python/JavaScript | Python/JavaScript | Python | TypeScript | Python/CLI |
+| **Deployment** | Local (CLI-first) | Cloud | Cloud/self-hosted | Cloud only | Cloud/self-hosted/hybrid | Local/Cloud Run | Local/server | Benchmarking service |
+| **Self-contained** | Yes | No (cloud) | No (requires server) | No (cloud-only) | No (requires server) | Yes | Yes (optional) | No (requires service) |
+| **Evaluation Focus** | Core feature | Core feature | Yes | Yes | Core feature | Minimal | Secondary | Core feature |
+| **Judge Types** | Code + LLM (custom prompts) | Code + LLM (custom) | LLM-as-judge only | LLM-based + custom | LLM + real-time | Built-in metrics | Built-in (minimal) | Multi-judge LLM (3 judges) |
+| **CLI-First** | Yes | No (SDK-first) | Dashboard-first | Dashboard-first | Dashboard-first | Code-first | Code-first | Service-based |
+| **Open Source** | MIT | Closed source | Apache 2.0 | Closed | Closed | Apache 2.0 | MIT | Open source |
+| **Setup Time** | &lt; 2 min | 5+ min | 15+ min | 10+ min | 20+ min | 30+ min | 10+ min | 5-10 min |
+
+## AgentV vs. Braintrust
+
+| Feature | AgentV | Braintrust |
+|---------|--------|-----------|
+| **Evaluation** | Code + LLM (custom prompts) | Code + LLM (Autoevals library) |
+| **Deployment** | Local (no server) | Cloud-only (managed) |
+| **Open source** | MIT | Closed source |
+| **Pricing** | Free | Free tier + paid plans |
+| **CLI-first** | Yes | SDK-first (Python/TS) |
+| **Custom judge prompts** | Markdown files (Git) | SDK-based |
+| **Observability** | No | Yes (logging, tracing) |
+| **Datasets** | YAML/JSONL in Git | Managed in platform |
+| **CI/CD** | Native (exit codes) | API-based |
+| **Collaboration** | Git-based | Web dashboard |
+
+**Choose AgentV if:** You want local-first evaluation, open source, version-controlled evals in Git.
+**Choose Braintrust if:** You want a managed platform with built-in logging, datasets, and team collaboration.
+
+## AgentV vs. Langfuse
+
+| Feature | AgentV | Langfuse |
+|---------|--------|----------|
+| **Evaluation** | Code + LLM (custom prompts) | LLM only |
+| **Local execution** | Yes | No (requires server) |
+| **Speed** | Fast (no network) | Slower (API round-trips) |
+| **Setup** | `npm install` | Docker + database |
+| **Cost** | Free | Free + $299+/mo for production |
+| **Observability** | No | Full tracing |
+| **Custom judge prompts** | Version in Git | API-based |
+| **CI/CD ready** | Yes | Requires API calls |
+
+**Choose AgentV if:** You iterate locally on evals, need deterministic + subjective judges together.
+**Choose Langfuse if:** You need production observability + team dashboards.
+
+## AgentV vs. LangSmith
+
+| Feature | AgentV | LangSmith |
+|---------|--------|-----------|
+| **Evaluation** | Code + LLM custom | LLM-based (SDK) |
+| **Deployment** | Local (no server) | Cloud only |
+| **Framework lock-in** | None | LangChain ecosystem |
+| **Open source** | MIT | Closed |
+| **Local execution** | Yes | No (requires API calls) |
+| **Observability** | No | Full tracing |
+
+**Choose AgentV if:** You want local evaluation, deterministic judges, open source.
+**Choose LangSmith if:** You're LangChain-heavy, need production tracing.
+
+## AgentV vs. LangWatch
+
+| Feature | AgentV | LangWatch |
+|---------|--------|-----------|
+| **Evaluation focus** | Development-first | Team collaboration first |
+| **Execution** | Local | Cloud/self-hosted server |
+| **Custom judge prompts** | Markdown files (Git) | UI-based |
+| **Code judges** | Yes | LLM-focused |
+| **Setup** | &lt; 2 min | 20+ min |
+| **Team features** | No | Annotation, roles, review |
+
+**Choose AgentV if:** You develop locally, want fast iteration, prefer code judges.
+**Choose LangWatch if:** You need team collaboration, managed optimization, on-prem deployment.
+
+## AgentV vs. Google ADK
+
+| Feature | AgentV | Google ADK |
+|---------|--------|-----------|
+| **Purpose** | Evaluation | Agent development |
+| **Evaluation capability** | Comprehensive | Built-in metrics only |
+| **Setup** | &lt; 2 min | 30+ min |
+| **Code-first** | YAML-first | Python-first |
+
+**Choose AgentV if:** You need to evaluate agents (not build them).
+**Choose Google ADK if:** You're building multi-agent systems.
+
+## AgentV vs. Mastra
+
+| Feature | AgentV | Mastra |
+|---------|--------|--------|
+| **Purpose** | Agent evaluation & testing | Agent/workflow development framework |
+| **Evaluation** | Core focus (code + LLM judges) | Secondary, built-in only |
+| **Agent Building** | No (tests agents) | Yes (builds agents with tools, workflows) |
+| **Open Source** | MIT | MIT |
+
+**Choose AgentV if:** You need to test/evaluate agents.
+**Choose Mastra if:** You're building TypeScript AI agents and need orchestration.
+
+## When to Use AgentV
+
+**Best for:** Individual developers and teams that evaluate locally before deploying, and need custom evaluation criteria.
+
+**Use something else for:**
+- Production observability → Langfuse or LangWatch
+- Team dashboards → LangWatch, Langfuse, or Braintrust
+- Building agents → Mastra (TypeScript) or Google ADK (Python)
+- Standardized benchmarking → OpenCode Bench
+
+## Ecosystem Recommendation
+
+```
+Build agents (Mastra / Google ADK)
+    ↓
+Evaluate locally (AgentV)
+    ↓
+Block regressions in CI/CD (AgentV)
+    ↓
+Monitor in production (Langfuse / LangWatch / Braintrust)
+```
