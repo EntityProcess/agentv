@@ -1,6 +1,7 @@
 ---
 ---
 
+<div class="av-root">
 <!-- Floating Nav -->
 <nav class="av-nav" id="av-nav">
   <div class="av-nav-inner">
@@ -280,12 +281,13 @@ tests:
     </div>
   </section>
 </div>
+</div>
 
 <style>
 /* ============================================
    Variables & Foundations
    ============================================ */
-.av-lander {
+.av-root {
   --av-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
   --av-bg: hsl(240, 10%, 8%);
   --av-surface: hsl(240, 8%, 11%);
@@ -300,7 +302,9 @@ tests:
   --av-red: #ef4444;
   --av-glow: 0 0 30px rgba(6, 182, 212, 0.15);
   --av-glow-strong: 0 0 60px rgba(6, 182, 212, 0.2);
+}
 
+.av-lander {
   font-family: system-ui, -apple-system, sans-serif;
   color: var(--av-text);
   background: var(--av-bg);
