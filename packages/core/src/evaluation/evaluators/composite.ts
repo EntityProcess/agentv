@@ -34,7 +34,7 @@ const DEFAULT_COMPOSITE_AGGREGATOR_PROMPT = `Review the following evaluation res
 {{EVALUATOR_RESULTS_JSON}}
 
 Decide the final score and verdict based on all evaluator results.
-Return a JSON object with: score (0.0-1.0), verdict (pass/fail/borderline), and reasoning.`;
+Return a JSON object with: score (0.0-1.0), verdict (pass/fail), and reasoning.`;
 
 export interface CompositeEvaluatorOptions {
   readonly config: CompositeEvaluatorConfig;
@@ -186,7 +186,7 @@ export class CompositeEvaluator implements Evaluator {
       }
 
       evaluatedCount++;
-      const isPassing = member.result.verdict === 'pass' || member.result.verdict === 'borderline';
+      const isPassing = member.result.verdict === 'pass';
       if (isPassing) {
         passingCount++;
       }
@@ -275,7 +275,7 @@ export class CompositeEvaluator implements Evaluator {
         : [];
       const verdict =
         typeof parsed?.verdict === 'string' &&
-        (parsed.verdict === 'pass' || parsed.verdict === 'fail' || parsed.verdict === 'borderline')
+        (parsed.verdict === 'pass' || parsed.verdict === 'fail')
           ? parsed.verdict
           : scoreToVerdict(score);
 

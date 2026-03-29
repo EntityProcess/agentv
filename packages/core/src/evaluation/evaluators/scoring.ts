@@ -5,9 +5,6 @@ export function scoreToVerdict(score: number): EvaluationVerdict {
   if (score >= 0.8) {
     return 'pass';
   }
-  if (score >= 0.6) {
-    return 'borderline';
-  }
   return 'fail';
 }
 
@@ -91,7 +88,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 export function negateScore(score: EvaluationScore): EvaluationScore {
   const negatedScore = clampScore(1 - score.score);
   const negatedVerdict: EvaluationVerdict =
-    score.verdict === 'pass' ? 'fail' : score.verdict === 'fail' ? 'pass' : 'borderline';
+    score.verdict === 'pass' ? 'fail' : score.verdict === 'fail' ? 'pass' : 'skip';
   return {
     ...score,
     score: negatedScore,
