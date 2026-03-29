@@ -172,14 +172,9 @@ Put results in a workspace directory organized by iteration (`iteration-1/`, `it
 
 ### Choosing a run mode
 
-**User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly — do not check `.env`.
+**User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly.
 
-Only read `.env` when the user has not specified a mode:
-
-```bash
-grep AGENTV_CLI .env 2>/dev/null || echo "AGENTV_CLI=(not set, using global agentv)"
-grep SUBAGENT_EVAL_MODE .env 2>/dev/null || echo "SUBAGENT_EVAL_MODE=subagent"
-```
+If the user has not specified a mode, default to `subagent`.
 
 ### CLI resolution
 
@@ -189,11 +184,7 @@ The Python wrapper `scripts/agentv_cli.py` resolves the `agentv` command determi
 2. `AGENTV_CLI` in nearest `.env` file (searching upward from cwd)
 3. `agentv` on PATH
 
-# Bash/zsh:
-cli=$(grep '^AGENTV_CLI=' .env 2>/dev/null | sed 's/^AGENTV_CLI=//' || echo "agentv")
-```
-
-The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` automatically from `.env` — no extra steps needed when calling them.
+Use `scripts/agentv_cli.py` (or the wrapper scripts that call it) to invoke the CLI. The Python wrapper scripts (`scripts/run_tests.py`, etc.) pick up `AGENTV_CLI` automatically — no extra steps needed when calling them.
 
 | `SUBAGENT_EVAL_MODE` | Mode | How |
 |----------------------|------|-----|
