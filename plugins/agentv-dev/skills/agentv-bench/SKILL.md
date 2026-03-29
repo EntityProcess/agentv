@@ -187,7 +187,7 @@ This is the only opportunity to capture this data — it comes through the task 
 agentv pipeline grade <run-dir>
 ```
 
-This runs all `code-grader` assertions against the `response.md` files. Results are written to `<test-id>/code_grader_results/<name>.json`.
+This runs all `code-grader` assertions against the `response.md` files. Results are written to `<test-id>/code_grader_results/<name>.json`. If using `pipeline run`, code grading runs automatically unless `--grader-type none` is passed.
 
 **Phase 2: LLM grading** (semantic — do NOT skip this phase)
 
