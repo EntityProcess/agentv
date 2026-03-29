@@ -44,6 +44,7 @@ export default defineConfig({
         { label: 'Tools', autogenerate: { directory: 'docs/tools' } },
         { label: 'Guides', autogenerate: { directory: 'docs/guides' } },
         { label: 'Integrations', autogenerate: { directory: 'docs/integrations' } },
+        { label: 'Reference', autogenerate: { directory: 'docs/reference' } },
       ],
       editLink: {
         baseUrl: 'https://github.com/EntityProcess/agentv/edit/main/apps/web/',
