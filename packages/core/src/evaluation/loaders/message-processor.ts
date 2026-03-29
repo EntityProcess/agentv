@@ -7,6 +7,29 @@ import type { JsonObject, TestMessage } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { resolveFileReference } from './file-resolver.js';
 
+/**
+ * Maps image file extensions to MIME types.
+ * To add a new image format: add the extension (with leading dot) and its MIME type.
+ */
+const IMAGE_MEDIA_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+};
+
+/**
+ * Detect image MIME type from file extension.
+ * Returns undefined for unsupported extensions.
+ */
+export function detectImageMediaType(filePath: string): string | undefined {
+  const ext = path.extname(filePath).toLowerCase();
+  return IMAGE_MEDIA_TYPES[ext];
+}
+
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
@@ -99,6 +122,56 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
         } catch (error) {
           const context = messageType === 'input' ? '' : ' expected output';
           logWarning(`Could not read${context} file ${resolvedPath}: ${(error as Error).message}`);
+        }
+        continue;
+      }
+
+      if (segmentType === 'image') {
+        const rawValue = asString(rawSegment.value);
+        if (!rawValue) {
+          continue;
+        }
+
+        const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+          rawValue,
+          searchRoots,
+        );
+
+        if (!resolvedPath) {
+          const attempts = attempted.length
+            ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
+            : undefined;
+          const context = messageType === 'input' ? '' : ' in expected_output';
+          logWarning(`Image file not found${context}: ${displayPath}`, attempts);
+          continue;
+        }
+
+        const mediaType = detectImageMediaType(resolvedPath);
+        if (!mediaType) {
+          logWarning(
+            `Unsupported image extension for ${displayPath}. Supported: ${Object.keys(IMAGE_MEDIA_TYPES).join(', ')}`,
+          );
+          continue;
+        }
+
+        try {
+          const imageBuffer = await readFile(resolvedPath);
+          const base64 = imageBuffer.toString('base64');
+
+          processedContent.push({
+            type: 'image',
+            media_type: mediaType,
+            source: `data:${mediaType};base64,${base64}`,
+          });
+
+          if (verbose) {
+            const label = messageType === 'input' ? '[Image]' : '[Expected Output Image]';
+            console.log(`  ${label} Found: ${displayPath}`);
+            console.log(`    Resolved to: ${resolvedPath} (${mediaType})`);
+          }
+        } catch (error) {
+          const context = messageType === 'input' ? '' : ' expected output';
+          logWarning(`Could not read${context} image ${resolvedPath}: ${(error as Error).message}`);
         }
         continue;
       }
@@ -301,6 +374,54 @@ export async function processExpectedMessages(
           } catch (error) {
             logWarning(
               `Could not read expected output file ${resolvedPath}: ${(error as Error).message}`,
+            );
+          }
+          continue;
+        }
+
+        if (segmentType === 'image') {
+          const rawValue = asString(rawSegment.value);
+          if (!rawValue) {
+            continue;
+          }
+
+          const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+            rawValue,
+            searchRoots,
+          );
+
+          if (!resolvedPath) {
+            const attempts = attempted.length
+              ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
+              : undefined;
+            logWarning(`Image file not found in expected_output: ${displayPath}`, attempts);
+            continue;
+          }
+
+          const mediaType = detectImageMediaType(resolvedPath);
+          if (!mediaType) {
+            logWarning(
+              `Unsupported image extension for ${displayPath}. Supported: ${Object.keys(IMAGE_MEDIA_TYPES).join(', ')}`,
+            );
+            continue;
+          }
+
+          try {
+            const imageBuffer = await readFile(resolvedPath);
+            const base64 = imageBuffer.toString('base64');
+            processedContent.push({
+              type: 'image',
+              media_type: mediaType,
+              source: `data:${mediaType};base64,${base64}`,
+            });
+
+            if (verbose) {
+              console.log(`  [Expected Output Image] Found: ${displayPath}`);
+              console.log(`    Resolved to: ${resolvedPath} (${mediaType})`);
+            }
+          } catch (error) {
+            logWarning(
+              `Could not read expected output image ${resolvedPath}: ${(error as Error).message}`,
             );
           }
           continue;

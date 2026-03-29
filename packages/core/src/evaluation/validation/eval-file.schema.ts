@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 /** Message content: string or structured array */
 const ContentItemSchema = z.object({
-  type: z.enum(['text', 'file']),
+  type: z.enum(['text', 'file', 'image']),
   value: z.string(),
 });
 
