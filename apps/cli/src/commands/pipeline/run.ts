@@ -17,13 +17,15 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 
-import { deriveCategory, executeScript, loadTestSuite } from '@agentv/core';
+import { deriveCategory, loadTestSuite } from '@agentv/core';
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { selectTarget } from '../eval/targets.js';
+import type { GraderTask } from './grade.js';
+import { runCodeGraders } from './grade.js';
 
 /**
  * Convert a Message[] array to plain text.
@@ -313,8 +315,8 @@ export const evalRunCommand = command({
       return;
     }
 
-    let totalGraders = 0;
-    let totalPassed = 0;
+    // Collect grader tasks and run concurrently with progress feedback
+    const graderTasks: GraderTask[] = [];
 
     for (const testId of testIds) {
       const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
@@ -335,84 +337,12 @@ export const evalRunCommand = command({
       const inputData = JSON.parse(await readFile(join(testDir, 'input.json'), 'utf8'));
 
       for (const graderFile of graderFiles) {
-        const graderConfig = JSON.parse(await readFile(join(codeGradersDir, graderFile), 'utf8'));
-        const graderName = graderConfig.name;
-
-        const inputText = extractInputText(inputData.input);
-        const payload = JSON.stringify({
-          output: [{ role: 'assistant', content: responseText }],
-          input: inputData.input,
-          criteria: '',
-          expected_output: [],
-          input_files: inputData.input_files ?? [],
-          trace: null,
-          token_usage: null,
-          cost_usd: null,
-          duration_ms: null,
-          start_time: null,
-          end_time: null,
-          file_changes: null,
-          workspace_path: null,
-          config: graderConfig.config ?? null,
-          metadata: inputData.metadata ?? {},
-          input_text: inputText,
-          output_text: responseText,
-          expected_output_text: '',
-        });
-
-        try {
-          const stdout = await executeScript(
-            graderConfig.command,
-            payload,
-            undefined,
-            graderConfig.cwd,
-          );
-          const parsed = JSON.parse(stdout);
-          const score = typeof parsed.score === 'number' ? parsed.score : 0;
-          const assertions = Array.isArray(parsed.assertions) ? parsed.assertions : [];
-
-          await writeFile(
-            join(resultsDir, `${graderName}.json`),
-            `${JSON.stringify(
-              {
-                name: graderName,
-                type: 'code-grader',
-                score,
-                weight: graderConfig.weight ?? 1.0,
-                assertions,
-                details: parsed.details ?? {},
-              },
-              null,
-              2,
-            )}\n`,
-            'utf8',
-          );
-          totalGraders++;
-          if (score >= 0.5) totalPassed++;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(`  ${testId}/${graderName}: ERROR — ${message}`);
-          await writeFile(
-            join(resultsDir, `${graderName}.json`),
-            `${JSON.stringify(
-              {
-                name: graderName,
-                type: 'code-grader',
-                score: 0,
-                weight: graderConfig.weight ?? 1.0,
-                assertions: [{ text: `Error: ${message}`, passed: false }],
-                details: { error: message },
-              },
-              null,
-              2,
-            )}\n`,
-            'utf8',
-          );
-          totalGraders++;
-        }
+        graderTasks.push({ testId, testDir, resultsDir, graderFile, responseText, inputData });
       }
     }
 
+    const graderConcurrency = workers ?? 10;
+    const { totalGraders, totalPassed } = await runCodeGraders(graderTasks, graderConcurrency);
     console.log(`Graded ${totalGraders} code-grader(s): ${totalPassed} passed`);
     console.log(`\nDone. Agent can now perform LLM grading on responses in ${outDir}`);
   },
