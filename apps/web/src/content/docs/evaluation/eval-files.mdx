@@ -35,7 +35,7 @@ tests:
 | `description` | Human-readable description of the evaluation |
 | `dataset` | Optional dataset identifier |
 | `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
-| `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config) |
+| `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/guides/workspace-pool/#external-workspace-config) |
 | `tests` | Array of individual tests, or a string path to an external file |
 | `assertions` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
@@ -88,7 +88,7 @@ tests:
     input: Check API health
 ```
 
-`assertions` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
+`assertions` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
 
 ### Suite-level Input
 
