@@ -19,7 +19,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 
 import { deriveCategory, executeScript, loadTestSuite } from '@agentv/core';
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
-import { command, number, option, optional, positional, string } from 'cmd-ts';
+import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
@@ -83,8 +83,13 @@ export const evalRunCommand = command({
       long: 'experiment',
       description: 'Experiment label (e.g. with_skills, without_skills)',
     }),
+    graderType: option({
+      type: optional(oneOf(['code', 'none'])),
+      long: 'grader-type',
+      description: 'Which grading phase to run: "code" runs code-graders inline, omit to skip grading (use pipeline grade separately)',
+    }),
   },
-  handler: async ({ evalPath, out, workers, experiment }) => {
+  handler: async ({ evalPath, out, workers, experiment, graderType }) => {
     const resolvedEvalPath = resolve(evalPath);
     const outDir = resolve(out ?? buildDefaultRunDir(process.cwd()));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
@@ -298,7 +303,13 @@ export const evalRunCommand = command({
       console.log('Subagent-as-target mode — skipping CLI invocation.');
     }
 
-    // ── Step 3: Run code graders (same as pipeline grade) ────────────
+    // ── Step 3: Run code graders (only when explicitly requested) ─────
+    if (graderType !== 'code') {
+      console.log(`\nDone. Results in ${outDir}`);
+      console.log('To run code graders: agentv pipeline grade <run-dir>  (or re-run with --grader-type code)');
+      return;
+    }
+
     let totalGraders = 0;
     let totalPassed = 0;
 
