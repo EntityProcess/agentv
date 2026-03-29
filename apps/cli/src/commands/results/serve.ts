@@ -733,8 +733,8 @@ function resolveStudioDistDir(): string | undefined {
     path.resolve(currentDir, '../../../../studio/dist'),
     // From dist/ → sibling apps/studio/dist (monorepo dev)
     path.resolve(currentDir, '../../studio/dist'),
-    // Bundled inside CLI dist (published package)
-    path.resolve(currentDir, '../studio'),
+    // Bundled inside CLI dist (published package: dist/studio/)
+    path.resolve(currentDir, 'studio'),
     // From dist/ in monorepo root context
     path.resolve(currentDir, '../../../apps/studio/dist'),
   ];
