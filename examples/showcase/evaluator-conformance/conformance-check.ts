@@ -205,9 +205,8 @@ function variance(values: number[]): number {
   return values.reduce((sum, v) => sum + (v - m) ** 2, 0) / values.length;
 }
 
-function toVerdict(score: number): 'pass' | 'borderline' | 'fail' {
+function toVerdict(score: number): 'pass' | 'fail' {
   if (score >= 0.8) return 'pass';
-  if (score >= 0.6) return 'borderline';
   return 'fail';
 }
 

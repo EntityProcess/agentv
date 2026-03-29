@@ -21,7 +21,7 @@ The harness runs an evaluator N times against a labeled fixture dataset:
 
 It then computes per-fixture metrics:
 
-- **Flip rate** — fraction of runs where the verdict (pass/borderline/fail) differs from the first run
+- **Flip rate** — fraction of runs where the verdict (pass/fail) differs from the first run
 - **Mean / Variance** — statistical summary of scores across runs
 - **Bound violations** — scores outside the expected range for ambiguous fixtures
 

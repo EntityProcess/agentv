@@ -53,8 +53,6 @@ try {
 
     if (finalScore >= 0.8) {
       verdict = 'pass';
-    } else if (finalScore >= 0.6) {
-      verdict = 'borderline';
     } else {
       verdict = 'fail';
     }

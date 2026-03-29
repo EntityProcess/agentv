@@ -217,7 +217,7 @@ index fcc60ea..e183d5c 100644
 +| `evalId` | `string` | Test ID |
  | `dataset` | `string` | EVAL name |
  | `score` | `number` | Final score (0-1) |
- | `verdict` | `string` | pass / borderline / fail |
+ | `verdict` | `string` | pass / fail |
 @@ -135,7 +135,7 @@ cat results.jsonl | jq -s 'group_by(.verdict) | map({verdict: .[0].verdict, coun
  # Average score
  cat results.jsonl | jq -s 'map(.score) | add / length'
@@ -1045,7 +1045,7 @@ index b5737e7..0791c70 100644
 -| [Case Schema](/specification/evalcase-schema/) | Within EVAL.yaml | Individual test case definition |
 +| [Test Schema](/specification/case-schema/) | Within EVAL.yaml | Individual test definition |
  | [Evaluators](/specification/evaluators/) | Referenced | Assessment components |
- | [Verdicts](/specification/verdicts/) | Results | Pass/borderline/fail determination |
+ | [Verdicts](/specification/verdicts/) | Results | Pass/fail determination |
  | [Organization](/specification/organization/) | Directory | File organization patterns |
 @@ -46,7 +46,7 @@ execution:
        type: llm_judge
