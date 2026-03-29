@@ -74,16 +74,7 @@ try {
     encoding: 'utf8',
     stdio: 'pipe',
   });
-  // Add a simulated change on the feat branch so ship tests have something to ship
-  execSync(
-    `echo '// Priority field added' >> src/models/task.ts && git add -A && git commit -m "feat: add priority field"`,
-    {
-      cwd: workspacePath,
-      encoding: 'utf8',
-      stdio: 'pipe',
-    },
-  );
-  console.log('Git repo initialized with feat branch and simulated change');
+  console.log('Git repo initialized with feat branch');
 } catch (e) {
   console.error('Git init failed:', e.message);
 }

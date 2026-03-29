@@ -1,4 +1,4 @@
-description: Evaluates that the ad-ship skill runs final verification, checks blast radius, and handles risk classification before merging
+description: Evaluates that the ad-ship skill applies verification gates, blast radius checks, and risk classification before merging
 
 execution:
   targets:
@@ -24,61 +24,65 @@ tests:
     input:
       - role: user
         content: |
-          The priority field implementation is done. Ship it — push and merge the PR.
-          I haven't run any tests yet.
+          I've finished implementing the priority field. The code changes are done.
+          Ship it — I haven't run any tests yet but I'm confident it works.
+          What should I do before merging?
     assertions:
       - type: skill-trigger
         skill: ad-ship
       - type: rubrics
         criteria:
-          - Does not immediately push or merge
-          - Checks for verification evidence or insists on running verification first
-          - Runs or attempts to run build, test, and lint commands
+          - Does not agree to merge without verification
+          - Insists on running build, test, and lint first
+          - Explains that confidence is not a substitute for verification evidence
 
   - id: final-blast-radius-check
-    criteria: Agent greps for modified types before marking PR ready
+    criteria: Agent checks for consumers of modified interfaces before shipping
     input:
       - role: user
         content: |
-          I've verified the implementation — all tests pass, lint is clean.
           The PR modifies the Task interface in src/models/task.ts and the formatTask
-          utility in src/utils/format-task.ts. Mark the PR as ready for review.
+          utility in src/utils/format-task.ts. All tests pass.
+          Before I mark this ready for review, what checks should I run?
     assertions:
       - type: rubrics
         criteria:
-          - Searches for Task or formatTask usage across the codebase
-          - Identifies files that consume the modified interfaces
-          - Performs this check before marking the PR ready
+          - Recommends searching for all consumers of Task or formatTask across the codebase
+          - Identifies that consumers in cli, api, and reports may be affected
+          - Recommends verifying all consumers are updated before marking ready
 
   - id: risk-classification
     criteria: Agent correctly classifies a breaking API change as elevated risk requiring confirmation
     input:
       - role: user
         content: |
-          Ship the PR. The changes add a required field to the Task interface
-          and modify the API response format in src/api/index.ts.
-          All tests pass and verification is complete.
+          Here is what the PR changes:
+          - Adds a required `priority` field to the Task interface (breaking change)
+          - Modifies the API response format in src/api/index.ts to include priority
+          - All tests pass and verification is complete.
+
+          Should I auto-merge this or get review first?
     assertions:
       - type: rubrics
         criteria:
           - Classifies this as elevated risk due to breaking interface or API changes
-          - Does not auto-merge without user confirmation
-          - Asks for explicit user confirmation before merging
-          - Explains why this is elevated risk
+          - Recommends review or explicit confirmation before merging
+          - Explains why breaking changes are elevated risk
 
   - id: auto-merges-low-risk
-    criteria: Agent correctly identifies a docs-only change as auto-mergeable
+    criteria: Agent correctly identifies a docs-only change as low risk
     input:
       - role: user
         content: |
-          Ship the PR. It only updates the README.md with corrected usage examples.
-          Verification is complete — build, test, and lint all pass. Here is the output:
-          $ npm run build — 0 errors
-          $ npm test — 5 passed, 0 failed
-          $ npm run lint — no issues found
+          Here is what the PR changes:
+          - Updated README.md to fix usage examples (typo corrections only)
+          - No code changes, no interface changes, no API changes
+          - Build, test, and lint all pass.
+
+          Should I auto-merge this or get review first?
     assertions:
       - type: rubrics
         criteria:
-          - Classifies this as low risk (documentation only)
-          - Proceeds toward merge without requiring additional confirmation
-          - Uses squash merge strategy
+          - Classifies this as low risk (documentation only, no code changes)
+          - Indicates this is safe to merge without additional review
+          - Recommends squash merge
