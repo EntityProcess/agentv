@@ -87,6 +87,8 @@ Tracks version progression in Improve mode. Located at workspace root.
 
 Output from the grader agent. Located at `<run-dir>/grading.json`.
 
+**Important:** The `assertions` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
+
 ```json
 {
   "assertions": [

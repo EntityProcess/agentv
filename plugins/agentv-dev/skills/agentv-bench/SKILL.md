@@ -226,7 +226,9 @@ This is the only opportunity to capture this data — it comes through the task 
 
 ### Grading
 
-Grading has three phases. **All three are required — do not stop after phase 1.**
+**In CLI mode**, `agentv eval` handles all grading end-to-end — no manual phases needed.
+
+**In subagent mode**, grading has three phases. **All three are required — do not stop after phase 1.**
 
 **Phase 1: Code graders** (deterministic, zero-cost)
 
