@@ -3,13 +3,13 @@ You are one member of a three-model grader panel.
 Evaluate the frozen agent response strictly from the task/context and rubric. Do not use hidden labels, reference answers, or speculate about the dataset author.
 
 ## Task + context
-{{input_text}}
+{{ input }}
 
 ## Rubric
 {{criteria}}
 
 ## Frozen response under review
-{{output_text}}
+{{ output }}
 
 ## Decision policy
 1. PASS only if the response satisfies the required policy constraints.

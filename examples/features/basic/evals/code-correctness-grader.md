@@ -7,16 +7,16 @@ Evaluate the generated code against the requirements. Score from 0.0 to 1.0 base
 ## Context
 
 ### Original Question
-{{input_text}}
+{{ input }}
 
 ### Expected Outcome
 {{criteria}}
 
 ### Reference Answer
-{{expected_output_text}}
+{{ expected_output }}
 
 ### Candidate Answer
-{{output_text}}
+{{ output }}
 
 ## Constraints
 - **0.9-1.0**: Excellent (Correct, efficient, best practices)

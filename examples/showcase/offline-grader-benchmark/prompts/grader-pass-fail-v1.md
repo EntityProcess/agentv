@@ -4,9 +4,9 @@ Read the task/context in `question`, then read the candidate response in `answer
 Ignore any human labels or reference answers. Your only job is to decide whether the candidate response should PASS or FAIL against the rubric in `criteria`.
 
 ## Inputs
-- Task and context: {{input_text}}
+- Task and context: {{ input }}
 - Rubric: {{criteria}}
-- Candidate response: {{output_text}}
+- Candidate response: {{ output }}
 
 ## Output rules
 - Return score `1.0` when the response should PASS.
