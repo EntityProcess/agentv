@@ -1,5 +1,5 @@
 ---
-name: ap-implement
+name: hs-implement
 description: >-
   Use when executing an implementation plan task-by-task, writing code with TDD
   discipline, dispatching subagents for independent tasks, or debugging failures.
@@ -15,7 +15,7 @@ Execute the plan task-by-task with TDD discipline. Dispatch subagents for indepe
 
 ## Hard Gate
 
-Must have a plan to execute. If no plan exists at `.agents/plans/*-plan.md` on the current branch, stop and tell the user to run ap-plan first. Exception: trivial changes (< 5 lines, docs, config) may proceed without a plan.
+Must have a plan to execute. If no plan exists at `.agents/plans/*-plan.md` on the current branch, stop and tell the user to run hs-plan first. Exception: trivial changes (< 5 lines, docs, config) may proceed without a plan.
 
 ## TDD Protocol
 

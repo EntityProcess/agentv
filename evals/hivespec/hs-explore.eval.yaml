@@ -1,4 +1,4 @@
-description: Evaluates that the ap-explore skill discovers existing implementations, finds all consumers of shared interfaces, and produces a structured summary
+description: Evaluates that the hs-explore skill discovers existing implementations, finds all consumers of shared interfaces, and produces a structured summary
 
 execution:
   targets:
@@ -20,7 +20,7 @@ tests:
       Understand what exists before proposing changes.
     assertions:
       - type: skill-trigger
-        skill: ap-explore
+        skill: hs-explore
       - type: contains
         value: derivePriority
       - type: rubrics

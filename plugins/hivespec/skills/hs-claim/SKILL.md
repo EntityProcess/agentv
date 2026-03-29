@@ -1,5 +1,5 @@
 ---
-name: ap-claim
+name: hs-claim
 description: >-
   Use when starting work on a GitHub issue, setting up a development workspace,
   creating a worktree and branch, or when asked to "claim an issue", "start work on
@@ -66,9 +66,9 @@ gh pr create --draft --title "<type>(<scope>): <description>" --body "Closes #<n
 
 After claiming, determine which phases to run next:
 
-- **Trivial** (< 5 lines, docs, config): skip to ap-implement
-- **Bug fix with clear root cause**: proceed to ap-explore, then ap-implement
-- **Feature or complex change**: proceed to ap-explore → ap-design → ap-plan
+- **Trivial** (< 5 lines, docs, config): skip to hs-implement
+- **Bug fix with clear root cause**: proceed to hs-explore, then hs-implement
+- **Feature or complex change**: proceed to hs-explore → hs-design → hs-plan
 
 ## Hard Gates
 

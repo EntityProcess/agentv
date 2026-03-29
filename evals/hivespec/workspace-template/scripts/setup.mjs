@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Workspace before_all hook: copy autopilot-dev skills into the workspace
+ * Workspace before_all hook: copy hivespec skills into the workspace
  * for agent discovery. Receives workspace_path via stdin JSON from AgentV.
  */
 
@@ -46,8 +46,8 @@ for (const dir of skillDirs) {
   mkdirSync(dir, { recursive: true });
 }
 
-// Copy all autopilot-dev skills
-const pluginSkillsDir = join(repoRoot, 'plugins', 'autopilot-dev', 'skills');
+// Copy all hivespec skills
+const pluginSkillsDir = join(repoRoot, 'plugins', 'hivespec', 'skills');
 const skillNames = readdirSync(pluginSkillsDir);
 
 for (const name of skillNames) {

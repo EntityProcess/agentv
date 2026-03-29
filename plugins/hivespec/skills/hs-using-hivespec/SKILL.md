@@ -1,5 +1,5 @@
 ---
-name: ap-using-autopilot-dev
+name: hs-using-hivespec
 description: >-
   Use when starting any conversation or session to establish the agentic delivery
   lifecycle. Determines which phase skills to invoke and prevents rationalization
@@ -7,7 +7,7 @@ description: >-
   dispatched as a subagent to execute a specific task.
 ---
 
-# Using Autopilot Dev
+# Using HiveSpec
 
 ## Overview
 
@@ -20,18 +20,18 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 ## Lifecycle
 
 ```
-ap-claim → ap-explore → ap-design → ap-plan → ap-implement → ap-verify → ap-ship
+hs-claim → hs-explore → hs-design → hs-plan → hs-implement → hs-verify → hs-ship
 ```
 
 | Phase | Skill | What Happens |
 |---|---|---|
-| Claim | ap-claim | Claim issue, create worktree + branch + draft PR |
-| Explore | ap-explore | Understand the codebase and problem space |
-| Design | ap-design | Brainstorm approaches, write approved spec |
-| Plan | ap-plan | Convert spec into bite-sized implementation plan |
-| Implement | ap-implement | TDD execution with subagent dispatch |
-| Verify | ap-verify | E2E red/green testing, code review, blast radius check |
-| Ship | ap-ship | Mark PR ready, merge, clean up worktree |
+| Claim | hs-claim | Claim issue, create worktree + branch + draft PR |
+| Explore | hs-explore | Understand the codebase and problem space |
+| Design | hs-design | Brainstorm approaches, write approved spec |
+| Plan | hs-plan | Convert spec into bite-sized implementation plan |
+| Implement | hs-implement | TDD execution with subagent dispatch |
+| Verify | hs-verify | E2E red/green testing, code review, blast radius check |
+| Ship | hs-ship | Mark PR ready, merge, clean up worktree |
 
 ## Phase Skip Rules
 
@@ -54,23 +54,23 @@ These thoughts mean STOP — you are rationalizing your way out of a phase:
 | Thought | Reality |
 |---|---|
 | "This is just a simple question" | Questions are tasks. Check the lifecycle. |
-| "I need more context first" | That is what ap-explore does. |
-| "Let me just write the code quickly" | That is what ap-implement does, with TDD. |
+| "I need more context first" | That is what hs-explore does. |
+| "Let me just write the code quickly" | That is what hs-implement does, with TDD. |
 | "I can skip the design for this" | Every project needs a design, regardless of perceived simplicity. |
-| "Tests are passing, we're done" | Unit tests ≠ verified. That is what ap-verify does. |
-| "I'll clean up the PR later" | That is what ap-ship does, with blast radius checks. |
-| "Let me explore the code first" | Use ap-explore — it has structured output. |
-| "I know what needs to change" | Verify with ap-explore. Partial implementations may already exist. |
+| "Tests are passing, we're done" | Unit tests ≠ verified. That is what hs-verify does. |
+| "I'll clean up the PR later" | That is what hs-ship does, with blast radius checks. |
+| "Let me explore the code first" | Use hs-explore — it has structured output. |
+| "I know what needs to change" | Verify with hs-explore. Partial implementations may already exist. |
 
 ## Skill Priority
 
 When multiple skills could apply:
 
-1. **Process skills first** (ap-explore, ap-design) — determine HOW to approach
-2. **Execution skills second** (ap-implement, ap-verify) — guide what to do
+1. **Process skills first** (hs-explore, hs-design) — determine HOW to approach
+2. **Execution skills second** (hs-implement, hs-verify) — guide what to do
 
-"Let's build X" → ap-explore first, then ap-design, then ap-plan.
-"Fix this bug" → ap-explore first, then ap-implement.
+"Let's build X" → hs-explore first, then hs-design, then hs-plan.
+"Fix this bug" → hs-explore first, then hs-implement.
 
 ## Artifact Locations
 
