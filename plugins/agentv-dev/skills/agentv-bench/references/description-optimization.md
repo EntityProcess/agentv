@@ -36,13 +36,14 @@ tests:
   - id: should-trigger-casual-optimize
     input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
     assertions:
-      - type: contains
-        value: "agentv-bench"
+      - type: skill-trigger
+        skill_name: agentv-bench
   - id: should-not-trigger-build-error
     input: "my TypeScript build is failing with type errors in src/auth.ts"
     assertions:
-      - type: not-contains
-        value: "agentv-bench"
+      - type: skill-trigger
+        skill_name: agentv-bench
+        negate: true
 ```
 
 ## Step 2: Review with User
