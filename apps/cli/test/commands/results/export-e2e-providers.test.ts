@@ -212,15 +212,10 @@ function toJsonl(...records: object[]): string {
 
 function artifactDir(
   outputDir: string,
-  record: { dataset?: string; test_id?: string; eval_id?: string; target?: string },
+  record: { dataset?: string; test_id?: string; eval_id?: string },
 ): string {
   const testId = record.test_id ?? record.eval_id ?? 'unknown';
-  return path.join(
-    outputDir,
-    ...(record.dataset ? [record.dataset] : []),
-    testId,
-    record.target ?? 'default',
-  );
+  return path.join(outputDir, ...(record.dataset ? [record.dataset] : []), testId);
 }
 
 describe('export e2e — multi-provider metrics verification', () => {

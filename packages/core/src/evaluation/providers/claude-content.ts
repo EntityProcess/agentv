@@ -52,11 +52,12 @@ export function toContentArray(content: unknown): Content[] | undefined {
             ? src.media_type
             : 'application/octet-stream';
       const data =
-        typeof src.data === 'string'
+        typeof src.data === 'string' && src.data !== ''
           ? `data:${mediaType};base64,${src.data}`
-          : typeof p.url === 'string'
+          : typeof p.url === 'string' && p.url !== ''
             ? (p.url as string)
             : '';
+      if (!data) continue;
       blocks.push({ type: 'image', media_type: mediaType, source: data });
       hasNonText = true;
     } else if (p.type === 'tool_use') {

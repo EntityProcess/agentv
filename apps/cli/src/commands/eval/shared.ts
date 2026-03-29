@@ -25,10 +25,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       }
       if (stats.isDirectory()) {
         // Auto-expand directory to recursive eval file glob
-        const dirGlob = path.posix.join(
-          candidatePath.replace(/\\/g, '/'),
-          '**/*.eval.{yaml,yml}',
-        );
+        const dirGlob = path.posix.join(candidatePath.replace(/\\/g, '/'), '**/*.eval.{yaml,yml}');
         const dirMatches = await fg(dirGlob, {
           absolute: true,
           onlyFiles: true,

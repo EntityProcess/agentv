@@ -9,10 +9,10 @@
  * - Images in non-assistant messages are ignored
  */
 
-import { describe, expect, it, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
-import type { Message } from '../../src/evaluation/providers/types.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { Message } from '../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 // ---------------------------------------------------------------------------
@@ -220,8 +220,8 @@ describe('LlmGraderEvaluator multimodal', () => {
     expect(capturedGenerateTextArgs).toBeDefined();
 
     // When no images, generateText should receive `prompt` (string), not `messages`
-    expect(capturedGenerateTextArgs!.prompt).toBeTypeOf('string');
-    expect(capturedGenerateTextArgs!.messages).toBeUndefined();
+    expect(capturedGenerateTextArgs?.prompt).toBeTypeOf('string');
+    expect(capturedGenerateTextArgs?.messages).toBeUndefined();
   });
 
   it('sends multi-part messages when output contains images', async () => {
@@ -256,10 +256,10 @@ describe('LlmGraderEvaluator multimodal', () => {
     expect(capturedGenerateTextArgs).toBeDefined();
 
     // When images exist, generateText should receive `messages` with multi-part content
-    expect(capturedGenerateTextArgs!.messages).toBeDefined();
-    expect(capturedGenerateTextArgs!.prompt).toBeUndefined();
+    expect(capturedGenerateTextArgs?.messages).toBeDefined();
+    expect(capturedGenerateTextArgs?.prompt).toBeUndefined();
 
-    const messages = capturedGenerateTextArgs!.messages as Array<Record<string, unknown>>;
+    const messages = capturedGenerateTextArgs?.messages as Array<Record<string, unknown>>;
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe('user');
 
@@ -307,7 +307,7 @@ describe('LlmGraderEvaluator multimodal', () => {
     });
 
     expect(capturedGenerateTextArgs).toBeDefined();
-    const messages = capturedGenerateTextArgs!.messages as Array<Record<string, unknown>>;
+    const messages = capturedGenerateTextArgs?.messages as Array<Record<string, unknown>>;
     const content = messages[0].content as Array<Record<string, unknown>>;
 
     const imageParts = content.filter((p) => p.type === 'image');
@@ -350,7 +350,7 @@ describe('LlmGraderEvaluator multimodal', () => {
     expect(capturedGenerateTextArgs).toBeDefined();
 
     // No images in assistant messages → should use plain prompt
-    expect(capturedGenerateTextArgs!.prompt).toBeTypeOf('string');
-    expect(capturedGenerateTextArgs!.messages).toBeUndefined();
+    expect(capturedGenerateTextArgs?.prompt).toBeTypeOf('string');
+    expect(capturedGenerateTextArgs?.messages).toBeUndefined();
   });
 });

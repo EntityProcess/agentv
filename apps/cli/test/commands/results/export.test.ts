@@ -97,15 +97,10 @@ function toJsonl(...records: object[]): string {
 
 function artifactDir(
   outputDir: string,
-  record: { dataset?: string; test_id?: string; eval_id?: string; target?: string },
+  record: { dataset?: string; test_id?: string; eval_id?: string },
 ): string {
   const testId = record.test_id ?? record.eval_id ?? 'unknown';
-  return path.join(
-    outputDir,
-    ...(record.dataset ? [record.dataset] : []),
-    testId,
-    record.target ?? 'default',
-  );
+  return path.join(outputDir, ...(record.dataset ? [record.dataset] : []), testId);
 }
 
 describe('results export', () => {
@@ -165,10 +160,10 @@ describe('results export', () => {
       test_id: 'test-greeting',
       target: 'gpt-4o',
       execution_status: 'ok',
-      grading_path: 'demo/test-greeting/gpt-4o/grading.json',
-      timing_path: 'demo/test-greeting/gpt-4o/timing.json',
-      output_path: 'demo/test-greeting/gpt-4o/outputs/response.md',
-      input_path: 'demo/test-greeting/gpt-4o/input.md',
+      grading_path: 'demo/test-greeting/grading.json',
+      timing_path: 'demo/test-greeting/timing.json',
+      output_path: 'demo/test-greeting/outputs/response.md',
+      input_path: 'demo/test-greeting/input.md',
     });
   });
 
