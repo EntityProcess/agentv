@@ -1,3 +1,5 @@
+import type { Content } from '../content.js';
+import { getTextContent, isContentArray } from '../content.js';
 import type { JsonObject } from '../types.js';
 
 export type ChatMessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'function';
@@ -169,8 +171,8 @@ export interface Message {
   readonly role: string;
   /** Optional name for the message sender */
   readonly name?: string;
-  /** Message content */
-  readonly content?: unknown;
+  /** Message content — plain string or structured content blocks for multimodal data. */
+  readonly content?: string | Content[];
   /** Tool calls made in this message */
   readonly toolCalls?: readonly ToolCall[];
   /** ISO 8601 timestamp when the message started */
@@ -222,6 +224,8 @@ export interface ProviderResponse {
 /**
  * Extract the content from the last assistant message in an output message array.
  * Returns empty string if no assistant message found.
+ *
+ * Handles both plain-string content and Content[] (extracts text blocks).
  */
 export function extractLastAssistantContent(messages: readonly Message[] | undefined): string {
   if (!messages || messages.length === 0) {
@@ -234,6 +238,9 @@ export function extractLastAssistantContent(messages: readonly Message[] | undef
     if (msg.role === 'assistant' && msg.content !== undefined) {
       if (typeof msg.content === 'string') {
         return msg.content;
+      }
+      if (isContentArray(msg.content)) {
+        return getTextContent(msg.content);
       }
       return JSON.stringify(msg.content);
     }

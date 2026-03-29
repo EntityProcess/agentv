@@ -37,6 +37,8 @@ export type {
   ToolCall,
 } from './types.js';
 
+export { extractLastAssistantContent } from './types.js';
+
 export type {
   AgentVResolvedConfig,
   AnthropicResolvedConfig,

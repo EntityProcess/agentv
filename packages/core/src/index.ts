@@ -1,3 +1,4 @@
+export * from './evaluation/content.js';
 export * from './evaluation/types.js';
 export * from './evaluation/trace.js';
 export * from './evaluation/yaml-parser.js';
