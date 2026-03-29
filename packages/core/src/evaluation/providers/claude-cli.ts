@@ -170,8 +170,10 @@ export class ClaudeCliProvider implements Provider {
 
   private buildArgs(): string[] {
     // --verbose is required when combining -p with --output-format stream-json
-    // --no-session-persistence prevents session state conflicts when running
-    // multiple sequential tests (each test gets a clean session)
+    // --bare skips hooks, LSP, plugin sync, and session overhead that is
+    // unnecessary for eval workloads and causes race conditions when multiple
+    // tests run sequentially (e.g., Braintrust trace plugin's SessionStart
+    // hook corrupts a shared cache file under concurrent access)
     const args = [
       '-p',
       '--output-format',
@@ -179,6 +181,7 @@ export class ClaudeCliProvider implements Provider {
       '--include-partial-messages',
       '--verbose',
       '--no-session-persistence',
+      '--bare',
     ];
 
     if (this.config.model) {
