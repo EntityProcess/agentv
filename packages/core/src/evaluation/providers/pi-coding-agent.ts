@@ -18,7 +18,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
-import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
+import { extractPiTextContent, toFiniteNumber, toPiContentArray } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
 import type {
@@ -564,7 +564,8 @@ function convertAgentMessage(
 
   const msg = message as Record<string, unknown>;
   const role = typeof msg.role === 'string' ? msg.role : 'unknown';
-  const content = extractPiTextContent(msg.content);
+  const structuredContent = toPiContentArray(msg.content);
+  const content = structuredContent ?? extractPiTextContent(msg.content);
   const toolCalls = extractToolCalls(msg.content, toolTrackers, completedToolResults);
   const startTimeVal =
     typeof msg.timestamp === 'number'
