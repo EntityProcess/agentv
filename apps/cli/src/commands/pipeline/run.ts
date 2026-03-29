@@ -86,7 +86,7 @@ export const evalRunCommand = command({
     graderType: option({
       type: optional(oneOf(['code', 'none'])),
       long: 'grader-type',
-      description: 'Which grading phase to run: "code" (default) runs code-graders, "none" skips grading',
+      description: 'Which grading phase to run: "code" runs code-graders inline, omit to skip grading (use pipeline grade separately)',
     }),
   },
   handler: async ({ evalPath, out, workers, experiment, graderType }) => {
@@ -303,10 +303,10 @@ export const evalRunCommand = command({
       console.log('Subagent-as-target mode — skipping CLI invocation.');
     }
 
-    // ── Step 3: Run code graders (same as pipeline grade) ────────────
-    if (graderType === 'none') {
-      console.log('Skipping code graders (--grader-type none).');
-      console.log(`\nDone. Agent can now perform grading on responses in ${outDir}`);
+    // ── Step 3: Run code graders (only when explicitly requested) ─────
+    if (graderType !== 'code') {
+      console.log(`\nDone. Results in ${outDir}`);
+      console.log('To run code graders: agentv pipeline grade <run-dir>  (or re-run with --grader-type code)');
       return;
     }
 

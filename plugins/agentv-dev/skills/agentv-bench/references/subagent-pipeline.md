@@ -46,15 +46,15 @@ code grading in one step. When `--out` is omitted, the output directory defaults
 `.agentv/results/runs/<timestamp>` (same convention as `agentv eval`):
 
 ```bash
-# Extract inputs, invoke all CLI targets in parallel, run code graders:
+# Extract inputs and invoke all CLI targets in parallel:
 agentv pipeline run evals/repro.eval.yaml
 
-# Skip code grading (useful when agent handles all grading via subagents):
-agentv pipeline run evals/repro.eval.yaml --grader-type none
+# Also run code graders inline (instead of using pipeline grade separately):
+agentv pipeline run evals/repro.eval.yaml --grader-type code
 ```
 
-The `--grader-type` flag controls which grading phase runs: `code` (default) runs code-graders,
-`none` skips grading entirely.
+By default, `pipeline run` extracts inputs and invokes targets only. Pass `--grader-type code`
+to also run code-graders inline, or use `agentv pipeline grade <run-dir>` as a separate step.
 
 The run directory is printed to stdout. Then continue to the grading and merge phases
 described in SKILL.md Step 3.
