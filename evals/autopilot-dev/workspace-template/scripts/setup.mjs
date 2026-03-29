@@ -64,7 +64,7 @@ for (const dir of skillDirs) {
 
 // Initialize git repo in workspace so ship/claim tests can use git commands
 try {
-  execSync('git init && git add -A && git commit -m "initial commit" --allow-empty', {
+  execSync('git init && git add -A && git commit -m "initial commit"', {
     cwd: workspacePath,
     encoding: 'utf8',
     stdio: 'pipe',
@@ -74,7 +74,16 @@ try {
     encoding: 'utf8',
     stdio: 'pipe',
   });
-  console.log('Git repo initialized with feat branch');
+  // Add a simulated change on the feat branch so ship tests have something to ship
+  execSync(
+    `echo '// Priority field added' >> src/models/task.ts && git add -A && git commit -m "feat: add priority field"`,
+    {
+      cwd: workspacePath,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    },
+  );
+  console.log('Git repo initialized with feat branch and simulated change');
 } catch (e) {
   console.error('Git init failed:', e.message);
 }

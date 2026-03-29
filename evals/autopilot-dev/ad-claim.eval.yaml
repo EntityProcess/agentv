@@ -1,4 +1,4 @@
-description: Evaluates that the ad-claim skill reads repo guidelines, creates a worktree, and sets up a draft PR before starting work
+description: Evaluates that the ad-claim skill reads repo guidelines, extracts issue details, and assesses scope
 
 execution:
   targets:
@@ -24,27 +24,31 @@ tests:
     input:
       - role: user
         content: |
-          Start work on issue #42: "Add due date field to tasks".
-          Set up the development workspace.
+          I want to start work on adding a due date field to tasks.
+          Read the repo guidelines and set up the workspace. No need to use GitHub —
+          the branch is already created.
     assertions:
       - type: skill-trigger
         skill: ad-claim
       - type: rubrics
         criteria:
-          - Reads CLAUDE.md or AGENTS.md as a first action before creating branches
+          - Reads CLAUDE.md or AGENTS.md before doing other work
           - Identifies the repo conventions (worktree location, branch naming, commit format)
-          - Does not create a worktree or branch before reading guidelines
+          - Does not start coding before reading guidelines
 
   - id: reads-full-issue-body
     criteria: Agent reads and extracts objective, constraints, and acceptance signals from the issue
     input:
       - role: user
         content: |
-          Claim issue #42: "Add due date field to tasks".
-          The issue body says:
+          I'm claiming this issue. Here is the full issue body — no need to fetch from GitHub:
+
+          **Issue #42: Add due date field to tasks**
           Objective: Add an optional dueDate field to the Task interface.
           Acceptance: Tasks can be filtered by due date. Existing tasks without due dates still work.
           Non-goals: No calendar UI, no recurring tasks.
+
+          Extract the key details from this issue and tell me what you understand.
     assertions:
       - type: rubrics
         criteria:
@@ -57,8 +61,12 @@ tests:
     input:
       - role: user
         content: |
-          Claim issue #99: "Fix typo in README.md — change 'taks' to 'tasks'".
-          The README.md file is in the repo root.
+          I'm claiming this issue. Here is the full issue body:
+
+          **Issue #99: Fix typo in README.md — change 'taks' to 'tasks'**
+
+          The README.md file is in the repo root. Assess the scope of this change
+          and tell me which lifecycle phases are needed.
     assertions:
       - type: rubrics
         criteria:
