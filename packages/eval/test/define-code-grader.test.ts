@@ -11,18 +11,15 @@ import {
 
 describe('CodeGraderInputSchema', () => {
   const validInput = {
-    inputText: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
-    outputText: 'The answer is 4',
     inputFiles: [],
     input: [{ role: 'user', content: 'What is 2+2?' }],
   };
 
   it('parses valid input', () => {
     const result = CodeGraderInputSchema.parse(validInput);
-    expect(result.inputText).toBe('What is 2+2?');
-    expect(result.outputText).toBe('The answer is 4');
+    expect(result.criteria).toBe('The answer should be 4');
   });
 
   it('accepts optional trace', () => {
@@ -173,15 +170,13 @@ describe('CodeGraderResultSchema', () => {
 describe('CodeJudgeInputSchema (backward-compat alias)', () => {
   it('parses valid input via deprecated alias', () => {
     const validInput = {
-      inputText: 'What is 2+2?',
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
-      outputText: 'The answer is 4',
       inputFiles: [],
       input: [{ role: 'user', content: 'What is 2+2?' }],
     };
     const result = CodeJudgeInputSchema.parse(validInput);
-    expect(result.inputText).toBe('What is 2+2?');
+    expect(result.criteria).toBe('The answer should be 4');
   });
 });
 

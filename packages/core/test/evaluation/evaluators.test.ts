@@ -715,6 +715,7 @@ describe('CodeEvaluator', () => {
     const result = await evaluator.evaluate({
       evalCase: evalCaseWithExpectedMessages,
       candidate: expectedCandidate,
+      output: [{ role: 'assistant', content: '{"decision":"ACCEPT"}' }],
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
@@ -765,6 +766,7 @@ describe('CodeEvaluator', () => {
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'Added logging to the implementation',
+      output: [{ role: 'assistant', content: 'Added logging to the implementation' }],
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
@@ -791,6 +793,7 @@ describe('CodeEvaluator', () => {
         expected_output: [{ role: 'assistant', content: 'test' }],
       },
       candidate: 'Test candidate',
+      output: [{ role: 'assistant', content: 'Test candidate' }],
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
@@ -848,6 +851,7 @@ describe('CodeEvaluator', () => {
         expected_output: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
       },
       candidate: '{"decision":"ACCEPT"}',
+      output: [{ role: 'assistant', content: '{"decision":"ACCEPT"}' }],
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,

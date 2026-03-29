@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import type { Provider, ProviderResponse } from '../providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
-import { TEMPLATE_VARIABLES } from '../template-variables.js';
+import { DEPRECATED_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
 import type { AssertionEntry, JsonObject, RubricItem } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
@@ -74,13 +74,13 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 {{${TEMPLATE_VARIABLES.CRITERIA}}}
 
 [[ ## question ## ]]
-{{${TEMPLATE_VARIABLES.INPUT_TEXT}}}
+{{${TEMPLATE_VARIABLES.INPUT}}}
 
 [[ ## reference_answer ## ]]
-{{${TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT}}}
+{{${TEMPLATE_VARIABLES.EXPECTED_OUTPUT}}}
 
 [[ ## answer ## ]]
-{{${TEMPLATE_VARIABLES.OUTPUT_TEXT}}}`;
+{{${TEMPLATE_VARIABLES.OUTPUT}}}`;
 
 type GraderProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
@@ -206,17 +206,15 @@ export class LlmGraderEvaluator implements Evaluator {
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    // Prepare template variables for substitution
+    // Prepare template variables for substitution.
+    // Primary variables resolve to human-readable text; deprecated _text aliases map to the same values.
     const variables = {
-      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input, null, 2),
-      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(
-        context.evalCase.expected_output,
-        null,
-        2,
-      ),
-      [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify(context.output ?? [], null, 2),
+      [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+      // Deprecated aliases — same values as the primary variables above
       [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
@@ -228,6 +226,10 @@ export class LlmGraderEvaluator implements Evaluator {
     // Build user prompt based on custom template or default template
     const evaluatorTemplate =
       context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
+
+    // Warn once per run when custom templates use deprecated _text variable names
+    warnDeprecatedTemplateVars(evaluatorTemplate);
+
     let userPrompt = substituteVariables(evaluatorTemplate, variables);
 
     // Append file_changes section to default template only when present
@@ -615,13 +617,18 @@ export class LlmGraderEvaluator implements Evaluator {
 
     const variables: Record<string, string> = {
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
+      [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
+      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+      // Deprecated aliases
       [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
-      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     };
 
     if (this.evaluatorTemplate) {
+      warnDeprecatedTemplateVars(this.evaluatorTemplate);
       return substituteVariables(this.evaluatorTemplate, variables);
     }
 
@@ -685,11 +692,16 @@ export class LlmGraderEvaluator implements Evaluator {
     if (this.evaluatorTemplate) {
       const variables: Record<string, string> = {
         [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
+        [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
+        [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
+        [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
+        [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+        // Deprecated aliases
         [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
         [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
         [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
-        [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
       };
+      warnDeprecatedTemplateVars(this.evaluatorTemplate);
       const customPrompt = substituteVariables(this.evaluatorTemplate, variables);
 
       const outputSchema =
@@ -1016,6 +1028,34 @@ export function substituteVariables(template: string, variables: Record<string, 
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
+}
+
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RESET = '\u001b[0m';
+
+/** Set of templates that have already emitted a deprecation warning (one-time per template). */
+const warnedTemplateStrings = new Set<string>();
+
+/**
+ * Emit a one-time stderr warning when a template uses deprecated _text variable names.
+ * Skips the default template (which uses the new names and should never trigger warnings).
+ */
+export function warnDeprecatedTemplateVars(template: string): void {
+  if (warnedTemplateStrings.has(template)) return;
+
+  const used: string[] = [];
+  for (const [deprecated, replacement] of DEPRECATED_TEMPLATE_VARIABLES) {
+    if (new RegExp(`\\{\\{\\s*${deprecated}\\s*\\}\\}`).test(template)) {
+      used.push(`{{ ${deprecated} }} → {{ ${replacement} }}`);
+    }
+  }
+
+  if (used.length > 0) {
+    warnedTemplateStrings.add(template);
+    console.warn(
+      `${ANSI_YELLOW}⚠ Deprecated template variables detected (they still work but will be removed in a future version):\n  ${used.join('\n  ')}\n  Update your custom evaluator template to use the new names.${ANSI_RESET}`,
+    );
+  }
 }
 
 export function calculateRubricScore(

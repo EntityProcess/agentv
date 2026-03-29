@@ -4,11 +4,14 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasExpected = Array.isArray(input.expected_output);
-const hasCandidate = typeof input.output_text === 'string';
+// Extract candidate text from the output message array
+const outputMessages = Array.isArray(input.output) ? input.output : [];
+const candidateText = outputMessages.map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('');
+const hasCandidate = candidateText.length > 0;
 let candidateDecisionOk = false;
 
 try {
-  const obj = JSON.parse(input.output_text);
+  const obj = JSON.parse(candidateText);
   candidateDecisionOk = obj && obj.decision === 'ACCEPT';
 } catch {}
 

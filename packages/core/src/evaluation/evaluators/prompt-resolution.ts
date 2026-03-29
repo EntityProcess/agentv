@@ -75,7 +75,6 @@ async function executePromptTemplate(
   const payload = {
     criteria: context.evalCase.criteria,
     expectedOutput: context.evalCase.expected_output,
-    outputText: context.candidate,
     output: context.output ?? null,
     inputFiles: context.evalCase.file_paths,
     input: context.evalCase.input,
@@ -83,8 +82,6 @@ async function executePromptTemplate(
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,
     config: config ?? context.config ?? null,
-    inputText: context.evalCase.question,
-    expectedOutputText: context.evalCase.reference_answer ?? '',
   };
 
   const inputJson = JSON.stringify(toSnakeCaseDeep(payload), null, 2);

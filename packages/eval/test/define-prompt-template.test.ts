@@ -5,18 +5,14 @@ import { PromptTemplateInputSchema } from '../src/schemas.js';
 describe('PromptTemplateInputSchema', () => {
   // Minimal valid input with all required fields
   const validInput = {
-    inputText: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [],
-    outputText: 'The answer is 4',
     inputFiles: [],
     input: [],
   };
 
   it('parses valid input with all required fields', () => {
     const result = PromptTemplateInputSchema.parse(validInput);
-    expect(result.inputText).toBe('What is 2+2?');
-    expect(result.outputText).toBe('The answer is 4');
     expect(result.criteria).toBe('The answer should be 4');
     expect(result.expectedOutput).toEqual([]);
     expect(result.inputFiles).toEqual([]);
@@ -28,15 +24,6 @@ describe('PromptTemplateInputSchema', () => {
       inputText: 'What is 2+2?',
     };
     expect(() => PromptTemplateInputSchema.parse(minimalInput)).toThrow();
-  });
-
-  it('accepts optional expectedOutputText', () => {
-    const inputWithReference = {
-      ...validInput,
-      expectedOutputText: 'The sum of 2 and 2 is 4',
-    };
-    const result = PromptTemplateInputSchema.parse(inputWithReference);
-    expect(result.expectedOutputText).toBe('The sum of 2 and 2 is 4');
   });
 
   it('accepts optional trace', () => {
@@ -115,11 +102,8 @@ describe('PromptTemplateInputSchema', () => {
 
   it('accepts full input with all fields', () => {
     const fullInput = {
-      inputText: 'What is 2+2?',
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
-      expectedOutputText: 'The sum is 4',
-      outputText: 'The answer is 4',
       output: [{ role: 'assistant', content: 'The answer is 4' }],
       inputFiles: ['/path/to/input.txt'],
       input: [{ role: 'user', content: 'What is 2+2?' }],
@@ -131,10 +115,7 @@ describe('PromptTemplateInputSchema', () => {
       config: { rubric: 'Check correctness' },
     };
     const result = PromptTemplateInputSchema.parse(fullInput);
-    expect(result.inputText).toBe('What is 2+2?');
     expect(result.criteria).toBe('The answer should be 4');
-    expect(result.expectedOutputText).toBe('The sum is 4');
-    expect(result.outputText).toBe('The answer is 4');
     expect(result.config).toEqual({ rubric: 'Check correctness' });
   });
 });
