@@ -12,12 +12,20 @@ workspace:
         - node
         - "{{workspace_path}}/scripts/setup.mjs"
 
+input:
+  - role: user
+    content:
+      - type: file
+        value: "/plugins/autopilot-dev/skills/ad-claim/SKILL.md"
+
 tests:
   - id: reads-guidelines-first
     criteria: Agent reads CLAUDE.md and AGENTS.md before creating any branch or worktree
-    input: |
-      Start work on issue #42: "Add due date field to tasks".
-      Set up the development workspace.
+    input:
+      - role: user
+        content: |
+          Start work on issue #42: "Add due date field to tasks".
+          Set up the development workspace.
     assertions:
       - type: skill-trigger
         skill: ad-claim
@@ -29,12 +37,14 @@ tests:
 
   - id: reads-full-issue-body
     criteria: Agent reads and extracts objective, constraints, and acceptance signals from the issue
-    input: |
-      Claim issue #42: "Add due date field to tasks".
-      The issue body says:
-      Objective: Add an optional dueDate field to the Task interface.
-      Acceptance: Tasks can be filtered by due date. Existing tasks without due dates still work.
-      Non-goals: No calendar UI, no recurring tasks.
+    input:
+      - role: user
+        content: |
+          Claim issue #42: "Add due date field to tasks".
+          The issue body says:
+          Objective: Add an optional dueDate field to the Task interface.
+          Acceptance: Tasks can be filtered by due date. Existing tasks without due dates still work.
+          Non-goals: No calendar UI, no recurring tasks.
     assertions:
       - type: rubrics
         criteria:
@@ -44,8 +54,11 @@ tests:
 
   - id: assesses-scope
     criteria: Agent correctly classifies a trivial change and skips design/plan phases
-    input: |
-      Claim issue #99: "Fix typo in README.md — change 'taks' to 'tasks'".
+    input:
+      - role: user
+        content: |
+          Claim issue #99: "Fix typo in README.md — change 'taks' to 'tasks'".
+          The README.md file is in the repo root.
     assertions:
       - type: rubrics
         criteria:

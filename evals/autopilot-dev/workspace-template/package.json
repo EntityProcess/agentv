@@ -1,0 +1,15 @@
+{
+  "name": "task-tracker",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "biome check ."
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0",
+    "@biomejs/biome": "^1.9.0"
+  }
+}

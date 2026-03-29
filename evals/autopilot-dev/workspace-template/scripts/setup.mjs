@@ -61,3 +61,20 @@ for (const name of skillNames) {
 for (const dir of skillDirs) {
   console.log(`Skills in ${dir}: ${readdirSync(dir).join(', ')}`);
 }
+
+// Initialize git repo in workspace so ship/claim tests can use git commands
+try {
+  execSync('git init && git add -A && git commit -m "initial commit" --allow-empty', {
+    cwd: workspacePath,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  execSync('git checkout -b feat/42-add-priority', {
+    cwd: workspacePath,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  console.log('Git repo initialized with feat branch');
+} catch (e) {
+  console.error('Git init failed:', e.message);
+}

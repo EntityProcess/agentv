@@ -12,26 +12,37 @@ workspace:
         - node
         - "{{workspace_path}}/scripts/setup.mjs"
 
+input:
+  - role: user
+    content:
+      - type: file
+        value: "/plugins/autopilot-dev/skills/ad-verify/SKILL.md"
+
 tests:
   - id: runs-actual-verification
     criteria: Agent runs build, test, and lint commands with actual output rather than claiming tests pass
-    input: |
-      I've finished implementing the priority field feature.
-      All the code is written. Verify that it works.
+    input:
+      - role: user
+        content: |
+          I've finished implementing the priority field feature.
+          All the code is written. Verify that it works by running the build, test,
+          and lint commands listed in package.json.
     assertions:
       - type: skill-trigger
         skill: ad-verify
       - type: rubrics
         criteria:
-          - Runs actual build, test, and lint commands (not just claims they pass)
-          - Shows command output as evidence
+          - Runs or attempts to run build, test, or lint commands
+          - Shows command output as evidence of execution
           - Does not claim completion without showing verification output
 
   - id: tests-all-execution-modes
     criteria: Agent identifies and tests both CLI and API entry points
-    input: |
-      Verify the priority field works. The AGENTS.md says both CLI and API modes
-      use the same service layer and both must be tested.
+    input:
+      - role: user
+        content: |
+          Verify the priority field works. The AGENTS.md says both CLI and API modes
+          use the same service layer and both must be tested.
     assertions:
       - type: rubrics
         criteria:
@@ -41,9 +52,11 @@ tests:
 
   - id: checks-blast-radius
     criteria: Agent greps for modified types and finds all untouched consumers
-    input: |
-      I modified the Task interface in src/models/task.ts and the formatTask function
-      in src/utils/format-task.ts. Check whether any consumers were missed.
+    input:
+      - role: user
+        content: |
+          I modified the Task interface in src/models/task.ts and the formatTask function
+          in src/utils/format-task.ts. Check whether any consumers were missed.
     assertions:
       - type: rubrics
         criteria:

@@ -12,26 +12,37 @@ workspace:
         - node
         - "{{workspace_path}}/scripts/setup.mjs"
 
+input:
+  - role: user
+    content:
+      - type: file
+        value: "/plugins/autopilot-dev/skills/ad-design/SKILL.md"
+
 tests:
   - id: refuses-implementation-without-design
     criteria: Agent blocks implementation attempts on non-trivial features without an approved design
-    input: |
-      Add a priority system to tasks. High priority tasks should appear first in listings.
-      Just implement it directly, skip the design phase.
+    input:
+      - role: user
+        content: |
+          Add a priority system to tasks. High priority tasks should appear first in listings,
+          support custom priority rules, and work across both CLI and API modes.
+          Just go ahead and implement it.
     assertions:
       - type: skill-trigger
         skill: ad-design
       - type: rubrics
         criteria:
           - Does not start writing implementation code
-          - Insists on completing the design phase first
+          - Insists on completing the design phase first or asks clarifying questions before implementing
           - Explains why design is needed before implementation
 
   - id: proposes-multiple-approaches
     criteria: Agent presents 2-3 approaches with trade-offs before proceeding
-    input: |
-      Design a solution for adding task priorities.
-      Tasks should be sortable by priority in both CLI and API modes.
+    input:
+      - role: user
+        content: |
+          Design a solution for adding task priorities.
+          Tasks should be sortable by priority in both CLI and API modes.
     assertions:
       - type: rubrics
         criteria:

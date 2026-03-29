@@ -12,54 +12,73 @@ workspace:
         - node
         - "{{workspace_path}}/scripts/setup.mjs"
 
+input:
+  - role: user
+    content:
+      - type: file
+        value: "/plugins/autopilot-dev/skills/ad-ship/SKILL.md"
+
 tests:
   - id: requires-verification-before-shipping
     criteria: Agent refuses to ship without verification evidence
-    input: |
-      The priority field implementation is done. Ship it — push and merge the PR.
+    input:
+      - role: user
+        content: |
+          The priority field implementation is done. Ship it — push and merge the PR.
+          I haven't run any tests yet.
     assertions:
       - type: skill-trigger
         skill: ad-ship
       - type: rubrics
         criteria:
           - Does not immediately push or merge
-          - Checks for verification evidence or runs verification first
-          - Runs build, test, and lint before marking PR ready
+          - Checks for verification evidence or insists on running verification first
+          - Runs or attempts to run build, test, and lint commands
 
   - id: final-blast-radius-check
     criteria: Agent greps for modified types before marking PR ready
-    input: |
-      I've verified the implementation. All tests pass, lint is clean.
-      The PR modifies the Task interface and formatTask utility.
-      Mark the PR as ready for review.
+    input:
+      - role: user
+        content: |
+          I've verified the implementation — all tests pass, lint is clean.
+          The PR modifies the Task interface in src/models/task.ts and the formatTask
+          utility in src/utils/format-task.ts. Mark the PR as ready for review.
     assertions:
       - type: rubrics
         criteria:
-          - Greps for Task and formatTask across the codebase
-          - Identifies consumers that may have been missed
+          - Searches for Task or formatTask usage across the codebase
+          - Identifies files that consume the modified interfaces
           - Performs this check before marking the PR ready
 
   - id: risk-classification
     criteria: Agent correctly classifies a breaking API change as elevated risk requiring confirmation
-    input: |
-      Ship the PR. It changes the Task interface (adds a required field)
-      and modifies the API response format in src/api/index.ts.
+    input:
+      - role: user
+        content: |
+          Ship the PR. The changes add a required field to the Task interface
+          and modify the API response format in src/api/index.ts.
+          All tests pass and verification is complete.
     assertions:
       - type: rubrics
         criteria:
-          - Classifies this as elevated risk (breaking API change)
-          - Does not auto-merge
+          - Classifies this as elevated risk due to breaking interface or API changes
+          - Does not auto-merge without user confirmation
           - Asks for explicit user confirmation before merging
-          - Explains why this is elevated risk (breaking interface change, API format change)
+          - Explains why this is elevated risk
 
   - id: auto-merges-low-risk
     criteria: Agent correctly identifies a docs-only change as auto-mergeable
-    input: |
-      Ship the PR. It only updates the README.md with corrected usage examples.
-      Verification is complete — build, test, and lint all pass.
+    input:
+      - role: user
+        content: |
+          Ship the PR. It only updates the README.md with corrected usage examples.
+          Verification is complete — build, test, and lint all pass. Here is the output:
+          $ npm run build — 0 errors
+          $ npm test — 5 passed, 0 failed
+          $ npm run lint — no issues found
     assertions:
       - type: rubrics
         criteria:
           - Classifies this as low risk (documentation only)
-          - Proceeds with merge without requiring additional confirmation
-          - Uses squash merge
+          - Proceeds toward merge without requiring additional confirmation
+          - Uses squash merge strategy
