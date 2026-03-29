@@ -41,7 +41,7 @@ This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agent
 
 These scripts break the eval pipeline into discrete steps. The agent runs them in order, only handling LLM grading directly:
 
-- `scripts/run_tests.py <eval-path> --out <dir>` — Extract inputs and invoke CLI targets in parallel. Writes `response.md` per test. For agent-as-target (`kind: "agent"`), only extracts inputs — executor subagents handle execution.
+- `scripts/run_tests.py <eval-path> --out <dir>` — Extract inputs and invoke CLI targets in parallel. Writes `response.md` per test. For non-CLI targets, only extracts inputs — executor subagents handle execution.
 - `scripts/run_code_graders.py <dir>` — Run code-grader assertions on existing responses. Writes per-grader results.
 - `scripts/bench.py <dir> < llm_scores.json` — Merge code-grader + LLM scores, compute weighted pass_rate, write `grading.json` + `index.jsonl` + `benchmark.json`.
 

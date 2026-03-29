@@ -68,7 +68,7 @@ opted out via `subagent_mode_allowed: false` in `.agentv/targets.yaml`), fall ba
 agentv pipeline input evals/repro.eval.yaml
 ```
 
-This creates a run directory with per-test `input.json`, `invoke.json` (with `kind: "agent"`),
+This creates a run directory with per-test `input.json`, `invoke.json`,
 `criteria.md`, and grader configs.
 
 ### Step 2: Dispatch executor subagents
