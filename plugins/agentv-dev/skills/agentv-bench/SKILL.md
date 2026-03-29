@@ -168,7 +168,7 @@ Prefer deterministic evaluators over LLM graders whenever possible. If an assert
 
 This section is one continuous sequence — don't stop partway through.
 
-Put results in a workspace directory organized by iteration (`iteration-1/`, `iteration-2/`, etc.). Don't create all of this upfront — just create directories as you go.
+Each run produces a new `.agentv/results/runs/<timestamp>/` directory automatically. Use timestamps to identify iterations when comparing runs.
 
 ### Choosing a run mode
 
@@ -398,9 +398,6 @@ The agent reads `llm_graders/<name>.json` for each test, grades the response usi
 
 Dispatch one `grader` subagent (read `agents/grader.md`) **per (test × LLM grader) pair**, all in parallel. For example, 5 tests × 2 LLM graders = 10 subagents launched simultaneously. Each subagent reads `<test-id>/llm_graders/<name>.json`, grades the corresponding `<test-id>/response.md` against the `prompt_content` criteria, and returns its score (0.0–1.0) and assertions. After all subagents complete, merge their results into a single `llm_scores.json` in the run directory.
 
-**Non-subagent environments (VS Code Copilot, Codex, etc.):** Perform LLM grading inline. Read each `<evalset-name>/<test-id>/llm_graders/<name>.json`, grade the response against the `prompt_content` criteria, score 0.0–1.0 with evidence, and write the result to `llm_scores.json` in the run directory.
-
-
 **Note:** `pipeline bench` merges LLM scores into `index.jsonl` with a full `scores[]` array per entry, matching the CLI-mode schema. The web dashboard (`agentv results serve`) reads this format directly — no separate conversion script is needed. Run `agentv results validate <run-dir>` to verify compatibility.
 
 **Note on Python wrapper scripts:** The `scripts/` directory contains Python wrappers (`run_tests.py`, `run_code_graders.py`, `bench.py`) that call the CLI commands. These are provided as an alternative but the direct CLI commands above are preferred — they work cross-platform without Python dependency issues.
@@ -511,7 +508,7 @@ If a prompt file is referenced in both task input and evaluator configs, optimiz
 After improving:
 
 1. Apply your changes to the agent's prompts/skills/config
-2. Re-run all test cases into a new `iteration-<N+1>/` directory, including baseline runs
+2. Re-run all test cases (agentv creates a new `.agentv/results/runs/<timestamp>/` directory automatically)
 3. Compare against the previous iteration (Step 4)
 4. Present results to the user
 5. Stop when ANY of:
@@ -604,17 +601,6 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 
 **No subagents available** (e.g., Claude.ai): Run test cases serially. Skip blind comparison. Present results directly in conversation — for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking (it relies on baseline comparisons that aren't meaningful without subagents).
 
-**Provider support matrix**:
-
-| Provider | Tool Calls | `skill-trigger` Evaluator | Description Optimization |
-|----------|-----------|---------------------------|-------------------------|
-| Claude CLI/SDK | Yes | Built-in (Skill, Read) | Yes (skill discovery) |
-| Copilot CLI/SDK | Yes (ACP) | Built-in (Skill, Read File, readFile) | No (no skill discovery) |
-| Pi Coding Agent | Yes | Built-in (same as Claude) | Possible (same format) |
-| VS Code / VS Code Insiders | Yes | Built-in (Copilot tools) | No |
-| Codex | Yes (command_execution, file_change) | Use code-grader (see below) | Yes (.agents/.codex folders) |
-| Other providers | Varies | Use code-grader (see below) | No |
-
 **Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from evaluation for testing whether they invoke the right tools.
 
 **Provider-specific notes**:
@@ -626,7 +612,7 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 
 ### Unsupported providers: use a code-grader
 
-The built-in `skill-trigger` evaluator covers Claude, Copilot, Pi, and VS Code out of the box. For providers with different tool-call formats (Codex, custom agents, etc.), write a code-grader that inspects the agent's tool call trace.
+The built-in `skill-trigger` evaluator covers Claude, Copilot, Pi, Codex and VS Code out of the box. For providers with different tool-call formats, write a code-grader that inspects the agent's tool call trace.
 
 A code-grader receives the full evaluation context including the agent's output messages and tool calls. You can inspect these to determine whether the skill was invoked:
 
