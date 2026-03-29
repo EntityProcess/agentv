@@ -1176,7 +1176,7 @@ describe('runEvaluation with trials', () => {
           callIndex += 1;
           return {
             score,
-            verdict: (score >= 0.8 ? 'pass' : score >= 0.6 ? 'borderline' : 'fail') as const,
+            verdict: (score >= 0.8 ? 'pass' : 'fail') as const,
             assertions:
               score >= 0.8
                 ? [{ text: 'passed', passed: true }]
@@ -2002,7 +2002,7 @@ describe('required gates', () => {
         async evaluate() {
           return {
             score: 0.7,
-            verdict: 'borderline' as const,
+            verdict: 'fail' as const,
             assertions: [
               { text: 'partial', passed: true },
               { text: 'incomplete', passed: false },

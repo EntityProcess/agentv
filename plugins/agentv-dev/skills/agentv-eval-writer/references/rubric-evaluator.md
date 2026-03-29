@@ -108,7 +108,6 @@ Ranges must be integers 0-10, non-overlapping, covering all values 0-10.
 | Verdict | Condition |
 |---------|-----------|
 | `pass` | score >= 0.8 AND all gating criteria satisfied |
-| `borderline` | score >= 0.6 AND all gating criteria satisfied |
-| `fail` | score < 0.6 OR any gating criterion failed |
+| `fail` | score < 0.8 OR any gating criterion failed |
 
 Gating: checklist uses `required: true`, score-range uses `required_min_score: N`.

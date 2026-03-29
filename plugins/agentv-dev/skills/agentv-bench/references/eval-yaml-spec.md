@@ -242,7 +242,7 @@ Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, f
 - `score` (number, 0.0-1.0)
 - `assertions` (array of `{text, passed, evidence?}`)
 - `weight` (number, optional)
-- `verdict` (string: `pass` | `fail` | `borderline` | `skip`)
+- `verdict` (string: `pass` | `fail` | `skip`)
 - `details` (object, optional — structured data from code graders)
 - `reasoning` (string, optional)
 

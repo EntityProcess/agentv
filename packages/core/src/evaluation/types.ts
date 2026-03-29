@@ -958,7 +958,7 @@ export interface EvaluationResult {
   readonly executionError?: ExecutionError;
 }
 
-export type EvaluationVerdict = 'pass' | 'fail' | 'borderline' | 'skip';
+export type EvaluationVerdict = 'pass' | 'fail' | 'skip';
 
 export interface EvaluatorResult {
   readonly name: string;

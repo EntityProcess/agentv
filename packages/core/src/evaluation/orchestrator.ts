@@ -10,6 +10,7 @@ import {
   type EvaluationScore,
   type Evaluator,
   LlmGraderEvaluator,
+  PASS_THRESHOLD,
   negateScore,
   scoreToVerdict,
 } from './evaluators.js';
@@ -76,11 +77,8 @@ import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.j
 
 type MaybePromise<T> = T | Promise<T>;
 
-/** Threshold for classifying ok vs quality_failure (score >= threshold → ok). */
-const QUALITY_PASS_THRESHOLD = 0.8;
-
 function classifyQualityStatus(score: number): ExecutionStatus {
-  return score >= QUALITY_PASS_THRESHOLD ? 'ok' : 'quality_failure';
+  return score >= PASS_THRESHOLD ? 'ok' : 'quality_failure';
 }
 
 function buildSkippedEvaluatorError(
@@ -2423,7 +2421,6 @@ async function runEvaluatorList(options: {
   }
 
   // Required gate: if any evaluator with `required` flag fails its threshold, aggregate becomes 0
-  const PASS_THRESHOLD = 0.8;
   const hasRequiredFailure = scored.some((entry) => {
     if (!entry.required) return false;
     const minScore = typeof entry.required === 'number' ? entry.required : PASS_THRESHOLD;

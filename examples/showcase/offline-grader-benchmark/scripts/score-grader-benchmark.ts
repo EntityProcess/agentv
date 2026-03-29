@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-type Verdict = 'pass' | 'fail' | 'borderline' | 'skip';
+type Verdict = 'pass' | 'fail' | 'skip';
 
 type ScoreRecord = {
   name?: string;
@@ -63,7 +63,7 @@ function normalizeGraderVote(
   verdict: Verdict | undefined,
   score: number | undefined,
 ): 'pass' | 'fail' {
-  if (verdict === 'pass' || verdict === 'borderline') return 'pass';
+  if (verdict === 'pass') return 'pass';
   if (verdict === 'fail') return 'fail';
   return (score ?? 0) >= 0.5 ? 'pass' : 'fail';
 }
@@ -191,12 +191,10 @@ for (const line of rawResults) {
 
   let passVotes = 0;
   let failVotes = 0;
-  let borderlineVotes = 0;
   const graderVotes = graders.map((grader) => {
     const normalizedVote = normalizeGraderVote(grader.verdict, grader.score);
     if (normalizedVote === 'pass') passVotes += 1;
     else failVotes += 1;
-    if (grader.verdict === 'borderline') borderlineVotes += 1;
 
     const graderCorrect = normalizedVote === truth.label;
     const stats = perGrader.get(grader.name ?? 'unnamed') ?? { correct: 0, total: 0 };
@@ -233,7 +231,6 @@ for (const line of rawResults) {
     vote_counts: {
       pass: passVotes,
       fail: failVotes,
-      borderline: borderlineVotes,
     },
     grader_votes: graderVotes,
     reasoning: `${panel.name ?? 'grader-panel'} majority=${majorityVerdict} (${passVotes} pass-ish vs ${failVotes} fail) vs human=${truth.label}`,

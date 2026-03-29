@@ -1,14 +1,26 @@
+/**
+ * Scoring primitives for the evaluation engine.
+ *
+ * Scoring model:
+ *   score  ∈ [0, 1]  — continuous quality signal
+ *   verdict           — binary classification derived from score via PASS_THRESHOLD
+ *
+ *   score >= PASS_THRESHOLD  →  'pass'
+ *   score <  PASS_THRESHOLD  →  'fail'
+ *   (infrastructure skip)    →  'skip'
+ *
+ * To change the pass/fail boundary, update PASS_THRESHOLD.
+ * All verdict derivation flows through scoreToVerdict().
+ */
+
 import type { EvaluationVerdict } from '../types.js';
 import type { EvaluationScore } from './types.js';
 
+/** Score threshold for pass verdict. Scores below this are fail. */
+export const PASS_THRESHOLD = 0.8;
+
 export function scoreToVerdict(score: number): EvaluationVerdict {
-  if (score >= 0.8) {
-    return 'pass';
-  }
-  if (score >= 0.6) {
-    return 'borderline';
-  }
-  return 'fail';
+  return score >= PASS_THRESHOLD ? 'pass' : 'fail';
 }
 
 export function clampScore(value: number): number {
@@ -84,18 +96,22 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   return aKeys.every((key) => Object.hasOwn(bObj, key) && deepEqual(aObj[key], bObj[key]));
 }
 
+/** Verdict inversion map: pass↔fail, skip stays skip. */
+const NEGATED_VERDICT: Record<EvaluationVerdict, EvaluationVerdict> = {
+  pass: 'fail',
+  fail: 'pass',
+  skip: 'skip',
+};
+
 /**
  * Negate an evaluation score: inverts score (1 - score), swaps pass/fail verdict,
  * and flips passed on each assertion.
  */
 export function negateScore(score: EvaluationScore): EvaluationScore {
-  const negatedScore = clampScore(1 - score.score);
-  const negatedVerdict: EvaluationVerdict =
-    score.verdict === 'pass' ? 'fail' : score.verdict === 'fail' ? 'pass' : 'borderline';
   return {
     ...score,
-    score: negatedScore,
-    verdict: negatedVerdict,
+    score: clampScore(1 - score.score),
+    verdict: NEGATED_VERDICT[score.verdict],
     assertions: score.assertions.map((a) => ({
       ...a,
       passed: !a.passed,

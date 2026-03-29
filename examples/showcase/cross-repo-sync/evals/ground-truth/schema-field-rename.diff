@@ -521,7 +521,7 @@ index 10e7a1c..fcc60ea 100644
 +| `evalId` | `string` | Case ID |
  | `dataset` | `string` | EVAL name |
  | `score` | `number` | Final score (0-1) |
- | `verdict` | `string` | pass / borderline / fail |
+ | `verdict` | `string` | pass / fail |
 diff --git a/docs/src/content/docs/integration/targets.mdx b/docs/src/content/docs/integration/targets.mdx
 index 68218db..9699aeb 100644
 --- a/docs/src/content/docs/integration/targets.mdx
@@ -1172,7 +1172,7 @@ index 1ae8b33..b5737e7 100644
 -| [Evalcase Schema](/specification/evalcase-schema/) | Within EVAL.yaml | Individual test case definition |
 +| [Case Schema](/specification/evalcase-schema/) | Within EVAL.yaml | Individual test case definition |
  | [Evaluators](/specification/evaluators/) | Referenced | Assessment components |
- | [Verdicts](/specification/verdicts/) | Results | Pass/borderline/fail determination |
+ | [Verdicts](/specification/verdicts/) | Results | Pass/fail determination |
  | [Organization](/specification/organization/) | Directory | File organization patterns |
 @@ -46,9 +46,9 @@ execution:
        type: llm_judge

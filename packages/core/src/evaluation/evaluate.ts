@@ -61,6 +61,7 @@ import path from 'node:path';
 import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
 import type { AssertFn } from './assertions.js';
+import { PASS_THRESHOLD } from './evaluators/scoring.js';
 import { runEvaluation } from './orchestrator.js';
 import { createFunctionProvider } from './providers/function-provider.js';
 import { readTargetDefinitions } from './providers/targets-file.js';
@@ -165,12 +166,10 @@ export interface EvalConfig {
 export interface EvalSummary {
   /** Total number of test cases */
   readonly total: number;
-  /** Number of passing test cases (score >= 0.8) */
+  /** Number of passing test cases (score >= PASS_THRESHOLD) */
   readonly passed: number;
-  /** Number of failing test cases (score < 0.5) */
+  /** Number of failing test cases (score < PASS_THRESHOLD) */
   readonly failed: number;
-  /** Number of borderline test cases (0.5 <= score < 0.8) */
-  readonly borderline: number;
   /** Total duration in milliseconds */
   readonly durationMs: number;
   /** Mean score across all cases */
@@ -373,26 +372,19 @@ function mapAssertionType(type: string): string {
 function computeSummary(results: readonly EvaluationResult[], durationMs: number): EvalSummary {
   const total = results.length;
   let passed = 0;
-  let failed = 0;
-  let borderline = 0;
   let scoreSum = 0;
 
   for (const r of results) {
     scoreSum += r.score;
-    if (r.score >= 0.8) {
+    if (r.score >= PASS_THRESHOLD) {
       passed++;
-    } else if (r.score < 0.5) {
-      failed++;
-    } else {
-      borderline++;
     }
   }
 
   return {
     total,
     passed,
-    failed,
-    borderline,
+    failed: total - passed,
     durationMs,
     meanScore: total > 0 ? scoreSum / total : 0,
   };

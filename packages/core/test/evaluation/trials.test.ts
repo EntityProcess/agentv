@@ -52,7 +52,7 @@ describe('aggregateTrials', () => {
   describe('mean strategy', () => {
     it('averages scores correctly', () => {
       const trials: TrialResult[] = [
-        { attempt: 0, score: 0.7, verdict: 'borderline' },
+        { attempt: 0, score: 0.7, verdict: 'fail' },
         { attempt: 1, score: 0.9, verdict: 'pass' },
         { attempt: 2, score: 1.0, verdict: 'pass' },
       ];
@@ -70,8 +70,8 @@ describe('aggregateTrials', () => {
 
     it('handles all same scores', () => {
       const trials: TrialResult[] = [
-        { attempt: 0, score: 0.7, verdict: 'borderline' },
-        { attempt: 1, score: 0.7, verdict: 'borderline' },
+        { attempt: 0, score: 0.7, verdict: 'fail' },
+        { attempt: 1, score: 0.7, verdict: 'fail' },
       ];
       const config: TrialsConfig = { count: 2, strategy: 'mean' };
 
@@ -84,7 +84,7 @@ describe('aggregateTrials', () => {
   describe('confidence_interval strategy', () => {
     it('computes CI bounds', () => {
       const trials: TrialResult[] = [
-        { attempt: 0, score: 0.7, verdict: 'borderline' },
+        { attempt: 0, score: 0.7, verdict: 'fail' },
         { attempt: 1, score: 0.8, verdict: 'pass' },
         { attempt: 2, score: 0.9, verdict: 'pass' },
       ];
