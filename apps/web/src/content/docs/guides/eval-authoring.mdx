@@ -1,8 +1,11 @@
-# Eval Authoring Guide
+---
+title: Eval Authoring Guide
+description: Practical guidance for writing workspace-based evals that work reliably across providers.
+sidebar:
+  order: 7
+---
 
-Practical guidance for writing workspace-based evals that work reliably across providers.
-
-## Workspace Setup: Skill Discovery Paths (#834)
+## Workspace Setup: Skill Discovery Paths
 
 The `before_all` setup hook must copy skills to **all** provider discovery paths. Each provider searches a different directory:
 
@@ -56,7 +59,7 @@ workspace:
         - ../scripts/setup.mjs
 ```
 
-## Workspace Limitations: No GitHub Remote (#835)
+## Workspace Limitations: No GitHub Remote
 
 Workspace-based evals are sandboxed — there is no GitHub remote, no PRs, and no issue tracker. Tests that ask agents to interact with GitHub will fail.
 
@@ -95,7 +98,7 @@ Test **decision-making discipline**, not git infrastructure operations:
     Should this be shipped? What risks do you see?
 ```
 
-## Workspace State Consistency: Git Diff Verification (#836)
+## Workspace State Consistency: Git Diff Verification
 
 Agents verify `git diff` against prompt claims. If your prompt says "The PR modifies `auth.ts`" but the workspace has no such change, the agent will flag the mismatch. This is **correct agent behavior** — don't try to suppress it.
 
