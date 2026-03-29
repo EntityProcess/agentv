@@ -67,7 +67,7 @@
                           "properties": {
                             "type": {
                               "type": "string",
-                              "enum": ["text", "file"]
+                              "enum": ["text", "file", "image"]
                             },
                             "value": {
                               "type": "string"
@@ -135,7 +135,7 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": ["text", "file"]
+                                        "enum": ["text", "file", "image"]
                                       },
                                       "value": {
                                         "type": "string"
@@ -190,7 +190,7 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": ["text", "file"]
+                                        "enum": ["text", "file", "image"]
                                       },
                                       "value": {
                                         "type": "string"
@@ -6446,7 +6446,7 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": ["text", "file"]
+                                        "enum": ["text", "file", "image"]
                                       },
                                       "value": {
                                         "type": "string"
@@ -6501,7 +6501,7 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": ["text", "file"]
+                                        "enum": ["text", "file", "image"]
                                       },
                                       "value": {
                                         "type": "string"
