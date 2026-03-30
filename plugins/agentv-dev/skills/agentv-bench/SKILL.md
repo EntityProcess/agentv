@@ -191,7 +191,7 @@ This runs all `code-grader` assertions against the `response.md` files. Results 
 
 **Phase 2: LLM grading** (semantic — do NOT skip this phase)
 
-Dispatch one `grader` subagent per (test × LLM grader) pair, **all in parallel**.
+Dispatch one `grader` subagent per (test × LLM grader) pair, **all in parallel**. Do not write a script to call an LLM API instead — the grader subagents use their own reasoning, which IS the LLM grading.
 Example: 5 tests × 2 LLM graders = 10 grader subagents launched simultaneously.
 
 **Do NOT dispatch a single grader for multiple tests.** Each subagent grades exactly one (test, grader) pair.
