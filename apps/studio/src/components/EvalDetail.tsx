@@ -1,5 +1,6 @@
 /**
- * Two-tab eval detail view: Steps (assertions) and Files (artifact browser).
+ * Three-tab eval detail view: Checks (assertions), Files (artifact browser),
+ * and Feedback (review comments).
  *
  * Shows the full evaluation result with score breakdown, assertions list,
  * and a file tree browser for artifact files (input, output, grading, timing).
@@ -21,7 +22,7 @@ interface EvalDetailProps {
   runId: string;
 }
 
-type Tab = 'steps' | 'files';
+type Tab = 'checks' | 'files' | 'feedback';
 
 /** Recursively find the first file node in the tree. */
 function findFirstFile(nodes: FileNode[]): string | null {
@@ -36,15 +37,16 @@ function findFirstFile(nodes: FileNode[]): string | null {
 }
 
 export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('steps');
+  const [activeTab, setActiveTab] = useState<Tab>('checks');
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'steps', label: 'Steps' },
+    { id: 'checks', label: 'Checks' },
     { id: 'files', label: 'Files' },
+    { id: 'feedback', label: 'Feedback' },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-full flex-col gap-6">
       {/* Score summary */}
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="flex items-center justify-between">
@@ -104,13 +106,11 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
       </div>
 
       {/* Tab content */}
-      <div>
-        {activeTab === 'steps' && <StepsTab result={result} />}
+      <div className="min-h-0 flex-1">
+        {activeTab === 'checks' && <StepsTab result={result} />}
         {activeTab === 'files' && <FilesTab result={result} runId={runId} />}
+        {activeTab === 'feedback' && <FeedbackPanel testId={result.testId} />}
       </div>
-
-      {/* Feedback */}
-      <FeedbackPanel testId={result.testId} />
     </div>
   );
 }
@@ -236,10 +236,10 @@ function FilesTab({ result, runId }: { result: EvalResult; runId: string }) {
   const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'plaintext';
 
   return (
-    <div className="flex h-[500px] gap-4">
+    <div className="flex h-full min-h-[400px] gap-4">
       <FileTree files={files} selectedPath={effectivePath} onSelect={setSelectedPath} />
       <div className="flex-1">
-        <MonacoViewer value={displayValue} language={displayLanguage} />
+        <MonacoViewer value={displayValue} language={displayLanguage} height="100%" />
       </div>
     </div>
   );

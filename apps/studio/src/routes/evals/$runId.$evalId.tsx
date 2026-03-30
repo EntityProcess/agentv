@@ -50,7 +50,7 @@ function EvalDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col gap-6">
       <div>
         <p className="text-sm text-gray-400">
           Run: {runId} / Eval: {evalId}
