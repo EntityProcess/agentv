@@ -293,12 +293,13 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
+      const { pass_threshold } = loadStudioConfig(agentvDir);
       const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of loaded) {
         const ds = r.dataset ?? r.target ?? 'default';
         const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
-        if (r.score >= loadStudioConfig(agentvDir).pass_threshold) entry.passed++;
+        if (r.score >= pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
@@ -325,6 +326,7 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
+      const { pass_threshold } = loadStudioConfig(agentvDir);
       const categoryMap = new Map<
         string,
         { total: number; passed: number; scoreSum: number; datasets: Set<string> }
@@ -338,7 +340,7 @@ export function createApp(
           datasets: new Set<string>(),
         };
         entry.total++;
-        if (r.score >= loadStudioConfig(agentvDir).pass_threshold) entry.passed++;
+        if (r.score >= pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         entry.datasets.add(r.dataset ?? r.target ?? 'default');
         categoryMap.set(cat, entry);
@@ -368,13 +370,14 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
+      const { pass_threshold } = loadStudioConfig(agentvDir);
       const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
       const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of filtered) {
         const ds = r.dataset ?? r.target ?? 'default';
         const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
-        if (r.score >= loadStudioConfig(agentvDir).pass_threshold) entry.passed++;
+        if (r.score >= pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
@@ -595,6 +598,7 @@ export function createApp(
   // Experiments aggregate (group all runs by experiment)
   app.get('/api/experiments', (c) => {
     const metas = listResultFiles(searchDir);
+    const { pass_threshold } = loadStudioConfig(agentvDir);
     const experimentMap = new Map<
       string,
       {
@@ -621,7 +625,7 @@ export function createApp(
           entry.runFilenames.add(m.filename);
           if (r.target) entry.targets.add(r.target);
           entry.evalCount++;
-          if (r.score >= loadStudioConfig(agentvDir).pass_threshold) entry.passedCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
           if (r.timestamp && r.timestamp > entry.lastTimestamp) {
             entry.lastTimestamp = r.timestamp;
           }
@@ -648,6 +652,7 @@ export function createApp(
   // Targets aggregate (group all runs by target)
   app.get('/api/targets', (c) => {
     const metas = listResultFiles(searchDir);
+    const { pass_threshold } = loadStudioConfig(agentvDir);
     const targetMap = new Map<
       string,
       {
@@ -672,7 +677,7 @@ export function createApp(
           entry.runFilenames.add(m.filename);
           if (r.experiment) entry.experiments.add(r.experiment);
           entry.evalCount++;
-          if (r.score >= loadStudioConfig(agentvDir).pass_threshold) entry.passedCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
           targetMap.set(target, entry);
         }
       } catch {
