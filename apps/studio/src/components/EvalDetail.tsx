@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 
-import { useEvalFileContent, useEvalFiles } from '~/lib/api';
+import { useEvalFileContent, useEvalFiles, useStudioConfig, isPassing } from '~/lib/api';
 import type { EvalResult } from '~/lib/types';
 
 import { FeedbackPanel } from './FeedbackPanel';
@@ -119,9 +119,11 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
 }
 
 function StepsTab({ result }: { result: EvalResult }) {
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
   const assertions = result.assertions ?? [];
   const hasFailed =
-    result.score < 1 || result.executionStatus === 'error' || result.executionStatus === 'failed';
+    !isPassing(result.score, passThreshold) || result.executionStatus === 'error' || result.executionStatus === 'failed';
 
   // Collect failure reasons from multiple sources
   const failureReasons: string[] = [];
@@ -138,7 +140,7 @@ function StepsTab({ result }: { result: EvalResult }) {
   // Also check per-evaluator scores for failure details
   if (result.scores) {
     for (const s of result.scores) {
-      if (s.score < 1 && s.details) {
+      if (!isPassing(s.score, passThreshold) && s.details) {
         const detailStr =
           typeof s.details === 'string' ? s.details : JSON.stringify(s.details, null, 2);
         failureReasons.push(`[${s.name ?? s.type ?? 'evaluator'}] ${detailStr}`);
