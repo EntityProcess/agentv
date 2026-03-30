@@ -1,0 +1,51 @@
+# Demo eval for the compare example.
+# Run against two targets to generate baseline and candidate result files:
+#   agentv eval evals/dataset.eval.yaml --target baseline
+#   agentv eval evals/dataset.eval.yaml --target candidate
+# Then compare:
+#   agentv compare evals/baseline-results.jsonl evals/candidate-results.jsonl
+
+name: compare-demo
+description: Demo eval for generating baseline and candidate results to compare
+
+tests:
+  - id: code-review-001
+    input: Review the following code for bugs and suggest improvements.
+    criteria: Identifies at least one issue and suggests a fix
+    assertions:
+      - type: contains
+        value: bug
+      - type: contains
+        value: fix
+
+  - id: code-review-002
+    input: Explain what this function does and how it could be optimized.
+    criteria: Provides a clear explanation and at least one optimization suggestion
+    assertions:
+      - type: contains
+        value: function
+      - type: contains
+        value: optim
+
+  - id: code-review-003
+    input: Review this error handling code for edge cases and missing checks.
+    criteria: Identifies missing error handling or edge cases
+    assertions:
+      - type: contains
+        value: error
+      - type: regex
+        value: "edge.?case|missing|exception|null"
+
+  - id: code-gen-001
+    input: Write a function that checks if a string is a palindrome.
+    criteria: Returns working code that handles basic palindrome cases
+    assertions:
+      - type: contains
+        value: palindrome
+
+  - id: code-gen-002
+    input: Write a function that finds the longest common subsequence of two strings.
+    criteria: Returns a correct implementation with reasonable time complexity
+    assertions:
+      - type: regex
+        value: "subsequence|lcs|LCS"

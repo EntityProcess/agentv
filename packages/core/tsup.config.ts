@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts', 'src/evaluation/validation/index.ts'],
   format: ['esm', 'cjs'],
+  shims: true,
   sourcemap: true,
   clean: true,
   dts: {

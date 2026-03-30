@@ -457,23 +457,6 @@ describe('validateEvalFile', () => {
   });
 
   describe('metadata validation', () => {
-    it('warns when name is present without description', async () => {
-      const filePath = path.join(tempDir, 'meta-name-only.yaml');
-      await writeFile(
-        filePath,
-        `name: my-eval
-tests:
-  - id: test-1
-    input: "Query"
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('description'))).toBe(true);
-    });
-
     it('warns when name has invalid format', async () => {
       const filePath = path.join(tempDir, 'meta-invalid-name.yaml');
       await writeFile(

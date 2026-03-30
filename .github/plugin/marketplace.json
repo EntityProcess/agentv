@@ -8,9 +8,9 @@
   },
   "plugins": [
     {
-      "name": "agentv-dev",
-      "description": "Development skills for building and optimizing AgentV evaluations",
-      "source": "./plugins/agentv-dev"
+      "name": "agentic-engineering",
+      "description": "Design and review AI agent systems — architecture patterns, workflow design, and plugin quality review",
+      "source": "./plugins/agentic-engineering"
     },
     {
       "name": "agentv-claude-trace",
@@ -18,9 +18,9 @@
       "source": "./plugins/agentv-claude-trace"
     },
     {
-      "name": "agentic-engineering",
-      "description": "Design and review AI agent systems — architecture patterns, workflow design, and plugin quality review",
-      "source": "./plugins/agentic-engineering"
+      "name": "agentv-dev",
+      "description": "Development skills for building and optimizing AgentV evaluations",
+      "source": "./plugins/agentv-dev"
     }
   ]
 }
