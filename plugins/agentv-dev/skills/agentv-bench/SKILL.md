@@ -210,7 +210,7 @@ The result file format is:
 { "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
 ```
 
-After **all** grader subagents complete, run Phase 3 directly — no manual `llm_scores.json` assembly needed when results are on disk.
+After **all** grader subagents complete, run Phase 3 directly.
 
 **Phase 3: Merge and validate**
 
@@ -219,9 +219,7 @@ agentv pipeline bench <run-dir>
 agentv results validate <run-dir>
 ```
 
-`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically. Pass `--llm-scores <path>` only if you have a pre-assembled scores file (takes precedence over disk results).
-
-This merges code-grader + LLM scores, computes weighted pass_rate, writes `grading.json` + `index.jsonl` + `benchmark.json`.
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `benchmark.json`.
 
 ### Artifacts
 
