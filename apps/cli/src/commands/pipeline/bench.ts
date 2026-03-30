@@ -81,7 +81,9 @@ export const evalBenchCommand = command({
           const graderName = graderMeta.name;
 
           const diskResultPath = join(testDir, 'llm_grader_results', `${graderName}.json`);
-          let llmResult: { score: number; assertions?: { text: string; passed: boolean; evidence?: string }[] } | undefined;
+          let llmResult:
+            | { score: number; assertions?: { text: string; passed: boolean; evidence?: string }[] }
+            | undefined;
           try {
             llmResult = JSON.parse(await readFile(diskResultPath, 'utf8'));
           } catch {
