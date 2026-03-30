@@ -1,8 +1,10 @@
 /**
  * Studio configuration loader.
  *
- * Reads an optional `config.yaml` from the runs directory to configure
+ * Reads an optional `config.yaml` from the `.agentv/` directory to configure
  * AgentV Studio behavior (e.g., pass/fail threshold).
+ *
+ * Location: `.agentv/config.yaml`
  *
  * config.yaml format:
  *   pass_threshold: 0.8   # score >= this value is considered "pass"
@@ -25,12 +27,12 @@ const DEFAULTS: StudioConfig = {
 };
 
 /**
- * Load studio config from `config.yaml` in the given runs directory.
+ * Load studio config from `config.yaml` in the given `.agentv/` directory.
  * Returns defaults when the file does not exist or is empty.
  * Clamps `pass_threshold` to [0, 1].
  */
-export function loadStudioConfig(runsDir: string): StudioConfig {
-  const configPath = path.join(runsDir, 'config.yaml');
+export function loadStudioConfig(agentvDir: string): StudioConfig {
+  const configPath = path.join(agentvDir, 'config.yaml');
 
   if (!existsSync(configPath)) {
     return { ...DEFAULTS };
