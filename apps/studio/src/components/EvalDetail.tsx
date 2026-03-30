@@ -8,7 +8,9 @@
 
 import { useState } from 'react';
 
+import { useQuery } from '@tanstack/react-query';
 import { isPassing, useEvalFileContent, useEvalFiles, useStudioConfig } from '~/lib/api';
+import { projectEvalFileContentOptions, projectEvalFilesOptions } from '~/lib/api';
 import type { EvalResult } from '~/lib/types';
 
 import { FeedbackPanel } from './FeedbackPanel';
@@ -20,6 +22,7 @@ import { ScoreBar } from './ScoreBar';
 interface EvalDetailProps {
   eval: EvalResult;
   runId: string;
+  projectId?: string;
 }
 
 type Tab = 'checks' | 'files' | 'feedback';
@@ -36,7 +39,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
   return null;
 }
 
-export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
+export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('checks');
 
   const tabs: { id: Tab; label: string }[] = [
@@ -108,7 +111,7 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
       {/* Tab content */}
       <div className="min-h-0 flex-1">
         {activeTab === 'checks' && <StepsTab result={result} />}
-        {activeTab === 'files' && <FilesTab result={result} runId={runId} />}
+        {activeTab === 'files' && <FilesTab result={result} runId={runId} projectId={projectId} />}
         {activeTab === 'feedback' && <FeedbackPanel testId={result.testId} />}
       </div>
     </div>
@@ -208,20 +211,26 @@ function StepsTab({ result }: { result: EvalResult }) {
   );
 }
 
-function FilesTab({ result, runId }: { result: EvalResult; runId: string }) {
+function FilesTab({
+  result,
+  runId,
+  projectId,
+}: { result: EvalResult; runId: string; projectId?: string }) {
   const evalId = result.testId;
-  const { data: filesData } = useEvalFiles(runId, evalId);
+
+  // Use project-scoped API hooks when projectId is present
+  const { data: filesData } = projectId
+    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId))
+    : useEvalFiles(runId, evalId);
   const files = filesData?.files ?? [];
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
   const effectivePath = selectedPath ?? (files.length > 0 ? findFirstFile(files) : null);
 
-  const { data: fileContentData, isLoading: isLoadingContent } = useEvalFileContent(
-    runId,
-    evalId,
-    effectivePath ?? '',
-  );
+  const { data: fileContentData, isLoading: isLoadingContent } = projectId
+    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? ''))
+    : useEvalFileContent(runId, evalId, effectivePath ?? '');
 
   if (files.length === 0) {
     return <p className="text-sm text-gray-500">No artifact files available.</p>;

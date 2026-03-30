@@ -14,6 +14,7 @@ import { ScoreBar } from './ScoreBar';
 
 interface RunListProps {
   runs: RunMeta[];
+  projectId?: string;
 }
 
 function formatTimestamp(ts: string | undefined | null): string {
@@ -27,7 +28,7 @@ function formatTimestamp(ts: string | undefined | null): string {
   }
 }
 
-export function RunList({ runs }: RunListProps) {
+export function RunList({ runs, projectId }: RunListProps) {
   if (runs.length === 0) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
@@ -70,13 +71,23 @@ export function RunList({ runs }: RunListProps) {
           {runs.map((run) => (
             <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
               <td className="px-4 py-3">
-                <Link
-                  to="/runs/$runId"
-                  params={{ runId: run.filename }}
-                  className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                >
-                  {run.filename}
-                </Link>
+                {projectId ? (
+                  <Link
+                    to="/projects/$projectId/runs/$runId"
+                    params={{ projectId, runId: run.filename }}
+                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                  >
+                    {run.filename}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/runs/$runId"
+                    params={{ runId: run.filename }}
+                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                  >
+                    {run.filename}
+                  </Link>
+                )}
               </td>
               <td className="px-4 py-3 text-gray-400">{run.target ?? '-'}</td>
               <td className="px-4 py-3 text-gray-400">{run.experiment ?? '-'}</td>

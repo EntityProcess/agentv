@@ -168,3 +168,28 @@ export interface CategoriesResponse {
 export interface StudioConfigResponse {
   pass_threshold: number;
 }
+
+// ── Project types ────────────────────────────────────────────────────────
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  path: string;
+  added_at: string;
+  last_opened_at: string;
+  run_count: number;
+  pass_rate: number;
+  last_run: string | null;
+}
+
+export interface ProjectListResponse {
+  projects: ProjectSummary[];
+}
+
+export interface ProjectEntry {
+  id: string;
+  name: string;
+  path: string;
+  added_at: string;
+  last_opened_at: string;
+}

@@ -1,15 +1,20 @@
 /**
- * Home route: tabbed landing page with Recent Runs, Experiments, and Targets.
+ * Home route: shows Projects Dashboard when projects are registered,
+ * or the existing tabbed landing page (Runs, Experiments, Targets)
+ * when in single-project mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
 
 import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
+import { useState } from 'react';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
+import { ProjectCard } from '~/components/ProjectCard';
 import { RunList } from '~/components/RunList';
 import { TargetsTab } from '~/components/TargetsTab';
-import { useRunList } from '~/lib/api';
+import { addProjectApi, discoverProjectsApi, useProjectList, useRunList } from '~/lib/api';
 
 type TabId = 'runs' | 'experiments' | 'targets';
 
@@ -24,6 +29,128 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
+  const { data: projectData, isLoading: projectsLoading } = useProjectList();
+  const hasProjects = (projectData?.projects.length ?? 0) > 0;
+
+  if (projectsLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (hasProjects) {
+    return <ProjectsDashboard />;
+  }
+
+  return <SingleProjectHome />;
+}
+
+// ── Projects Dashboard ──────────────────────────────────────────────────
+
+function ProjectsDashboard() {
+  const { data } = useProjectList();
+  const queryClient = useQueryClient();
+  const [addPath, setAddPath] = useState('');
+  const [discoverPath, setDiscoverPath] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const projects = data?.projects ?? [];
+
+  async function handleAddProject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!addPath.trim()) return;
+    setError(null);
+    try {
+      await addProjectApi(addPath.trim());
+      setAddPath('');
+      setShowAddForm(false);
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDiscover(e: React.FormEvent) {
+    e.preventDefault();
+    if (!discoverPath.trim()) return;
+    setError(null);
+    try {
+      const discovered = await discoverProjectsApi(discoverPath.trim());
+      setDiscoverPath('');
+      if (discovered.length === 0) {
+        setError('No projects with .agentv/ found in that directory.');
+      }
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-white">Projects</h1>
+        <button
+          type="button"
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
+        >
+          {showAddForm ? 'Cancel' : 'Add Project'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-3 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      {showAddForm && (
+        <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+          <form onSubmit={handleAddProject} className="flex gap-2">
+            <input
+              type="text"
+              value={addPath}
+              onChange={(e) => setAddPath(e.target.value)}
+              placeholder="Project path (e.g., /home/user/projects/my-app)"
+              className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
+            >
+              Add
+            </button>
+          </form>
+          <form onSubmit={handleDiscover} className="flex gap-2">
+            <input
+              type="text"
+              value={discoverPath}
+              onChange={(e) => setDiscoverPath(e.target.value)}
+              placeholder="Discover projects in directory..."
+              className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-gray-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-600"
+            >
+              Discover
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {projects.map((project) => (
+          <ProjectCard key={project.id} project={project} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Single-project home (existing behavior) ─────────────────────────────
+
+function SingleProjectHome() {
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
