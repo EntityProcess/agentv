@@ -11,7 +11,9 @@ import type { ProjectSummary } from '~/lib/types';
 
 function formatTimeAgo(timestamp: string | null): string {
   if (!timestamp) return 'No runs';
-  const diff = Date.now() - new Date(timestamp).getTime();
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  const diff = Date.now() - date.getTime();
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
