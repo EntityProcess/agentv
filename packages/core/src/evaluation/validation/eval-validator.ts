@@ -48,7 +48,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'target',
   'execution',
   'assertions',
-  'assert',
   'evaluators',
   'workspace',
 ]);
@@ -57,12 +56,10 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
 const KNOWN_TEST_FIELDS = new Set([
   'id',
   'criteria',
-  'expected_outcome',
   'input',
   'input_files',
   'expected_output',
   'assertions',
-  'assert',
   'evaluators',
   'execution',
   'workspace',
@@ -258,17 +255,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    // Optional: criteria (with backward-compat alias expected_outcome)
-    let criteria: JsonValue | undefined = evalCase.criteria;
-    if (criteria === undefined && 'expected_outcome' in evalCase) {
-      criteria = evalCase.expected_outcome;
-      errors.push({
-        severity: 'warning',
-        filePath: absolutePath,
-        location: `${location}.expected_outcome`,
-        message: "'expected_outcome' is deprecated. Use 'criteria' instead.",
-      });
-    }
+    // Optional: criteria
+    const criteria = evalCase.criteria;
     if (criteria !== undefined && (typeof criteria !== 'string' || criteria.trim().length === 0)) {
       errors.push({
         severity: 'error',
@@ -334,8 +322,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       }
     }
 
-    // assertions field (array of assertion objects); also accept legacy `assert`
-    const assertField = evalCase.assertions ?? evalCase.assert;
+    // assertions field (array of assertion objects)
+    const assertField = evalCase.assertions;
     if (assertField !== undefined) {
       validateAssertArray(assertField, location, absolutePath, errors);
     }
