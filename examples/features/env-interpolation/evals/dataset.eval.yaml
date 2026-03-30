@@ -4,12 +4,10 @@
 # Missing variables resolve to empty string.
 #
 # Usage:
-#   export EVAL_CRITERIA="Responds with a friendly greeting"
 #   export CUSTOM_SYSTEM_PROMPT="You are a helpful assistant who always greets warmly."
 #   agentv eval examples/features/env-interpolation/evals/dataset.eval.yaml
 #
 # Or use a .env file in the project root:
-#   EVAL_CRITERIA=Responds with a friendly greeting
 #   CUSTOM_SYSTEM_PROMPT=You are a helpful assistant who always greets warmly.
 
 description: Demonstrates ${{ VAR }} interpolation in eval fields
@@ -20,13 +18,13 @@ execution:
 tests:
   # Full-value interpolation: entire field value from env var
   - id: full-value
-    criteria: "${{ EVAL_CRITERIA }}"
+    criteria: Responds with a friendly greeting
     input: "Hello!"
-    expected_output: "Hello! How can I help you today?"
+    expected_output: "${{ EXPECTED_GREETING }}"
 
   # Partial/inline interpolation: env var embedded in a larger string
   - id: partial-value
-    criteria: "Response uses the system prompt persona and ${{ EVAL_CRITERIA }}"
+    criteria: Response uses the system prompt persona
     input:
       - role: system
         content: "${{ CUSTOM_SYSTEM_PROMPT }}"
