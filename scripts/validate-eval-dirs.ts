@@ -17,14 +17,6 @@ import { join, relative, resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const featuresDir = resolve(root, 'examples/features');
 
-// Feature dirs whose evals/ folder intentionally holds only support files
-// (result JSONL, baselines) rather than eval definitions. Remove entries here
-// once they gain proper eval YAML files.
-const KNOWN_EXCEPTIONS = new Set([
-  'compare', // evals/ holds baseline/candidate result JSONL for agentv compare
-  'trace-analysis', // evals/ holds pre-recorded trace results
-]);
-
 const errors: string[] = [];
 const entries = readdirSync(featuresDir, { withFileTypes: true });
 
@@ -54,11 +46,7 @@ for (const entry of entries) {
   );
 
   if (evalFilesInEvalsDir.length === 0 && evalFilesAtRoot.length === 0) {
-    if (KNOWN_EXCEPTIONS.has(entry.name)) {
-      console.warn(`WARN: ${relative(root, evalsDir)} has no eval files (known exception)`);
-    } else {
-      errors.push(relative(root, evalsDir));
-    }
+    errors.push(relative(root, evalsDir));
   }
 }
 
