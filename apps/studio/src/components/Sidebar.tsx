@@ -10,7 +10,14 @@
 
 import { Link, useMatchRoute } from '@tanstack/react-router';
 
-import { isPassing, useCategoryDatasets, useExperiments, useRunDetail, useRunList, useStudioConfig } from '~/lib/api';
+import {
+  isPassing,
+  useCategoryDatasets,
+  useExperiments,
+  useRunDetail,
+  useRunList,
+  useStudioConfig,
+} from '~/lib/api';
 
 export function Sidebar() {
   const matchRoute = useMatchRoute();

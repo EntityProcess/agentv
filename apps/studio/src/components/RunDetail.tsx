@@ -10,7 +10,7 @@ import { useState } from 'react';
 
 import type { EvalResult } from '~/lib/types';
 
-import { useStudioConfig, isPassing } from '~/lib/api';
+import { isPassing, useStudioConfig } from '~/lib/api';
 import { ScoreBar } from './ScoreBar';
 import { StatsCards } from './StatsCards';
 

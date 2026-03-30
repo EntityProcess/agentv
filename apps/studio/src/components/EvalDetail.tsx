@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 
-import { useEvalFileContent, useEvalFiles, useStudioConfig, isPassing } from '~/lib/api';
+import { isPassing, useEvalFileContent, useEvalFiles, useStudioConfig } from '~/lib/api';
 import type { EvalResult } from '~/lib/types';
 
 import { FeedbackPanel } from './FeedbackPanel';
@@ -123,7 +123,9 @@ function StepsTab({ result }: { result: EvalResult }) {
   const passThreshold = config?.pass_threshold ?? 0.8;
   const assertions = result.assertions ?? [];
   const hasFailed =
-    !isPassing(result.score, passThreshold) || result.executionStatus === 'error' || result.executionStatus === 'failed';
+    !isPassing(result.score, passThreshold) ||
+    result.executionStatus === 'error' ||
+    result.executionStatus === 'failed';
 
   // Collect failure reasons from multiple sources
   const failureReasons: string[] = [];
