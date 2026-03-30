@@ -14,6 +14,8 @@ import {
   isPassing,
   useCategoryDatasets,
   useExperiments,
+  useProjectRunDetail,
+  useProjectRunList,
   useRunDetail,
   useRunList,
   useStudioConfig,
@@ -21,6 +23,44 @@ import {
 
 export function Sidebar() {
   const matchRoute = useMatchRoute();
+
+  // ── Project-scoped route matching ────────────────────────────────────
+  const projectEvalMatch = matchRoute({
+    to: '/projects/$projectId/evals/$runId/$evalId',
+    fuzzy: true,
+  });
+  const projectRunMatch = matchRoute({
+    to: '/projects/$projectId/runs/$runId',
+    fuzzy: true,
+  });
+  const projectMatch = matchRoute({
+    to: '/projects/$projectId',
+    fuzzy: true,
+  });
+
+  // Project-scoped eval detail
+  if (projectEvalMatch && typeof projectEvalMatch === 'object' && 'projectId' in projectEvalMatch) {
+    const { projectId, runId, evalId } = projectEvalMatch as {
+      projectId: string;
+      runId: string;
+      evalId: string;
+    };
+    return <ProjectEvalSidebar projectId={projectId} runId={runId} currentEvalId={evalId} />;
+  }
+
+  // Project-scoped run detail
+  if (projectRunMatch && typeof projectRunMatch === 'object' && 'projectId' in projectRunMatch) {
+    const { projectId, runId } = projectRunMatch as { projectId: string; runId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} currentRunId={runId} />;
+  }
+
+  // Project home (runs/experiments/targets)
+  if (projectMatch && typeof projectMatch === 'object' && 'projectId' in projectMatch) {
+    const { projectId } = projectMatch as { projectId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} />;
+  }
+
+  // ── Unscoped route matching ──────────────────────────────────────────
   const evalMatch = matchRoute({ to: '/evals/$runId/$evalId', fuzzy: true });
   const categoryMatch = matchRoute({
     to: '/runs/$runId/category/$category',
@@ -35,25 +75,21 @@ export function Sidebar() {
     fuzzy: true,
   });
 
-  // If on a category detail page, show the category sidebar
   if (categoryMatch && typeof categoryMatch === 'object' && 'runId' in categoryMatch) {
     const { runId, category } = categoryMatch as { runId: string; category: string };
     return <CategorySidebar runId={runId} category={category} />;
   }
 
-  // If on a dataset detail page, show evals filtered to that dataset
   if (datasetMatch && typeof datasetMatch === 'object' && 'runId' in datasetMatch) {
     const { runId, dataset } = datasetMatch as { runId: string; dataset: string };
     return <DatasetSidebar runId={runId} dataset={dataset} />;
   }
 
-  // If on an eval detail page, show the eval sidebar
   if (evalMatch && typeof evalMatch === 'object' && 'runId' in evalMatch) {
     const { runId, evalId } = evalMatch as { runId: string; evalId: string };
     return <EvalSidebar runId={runId} currentEvalId={evalId} />;
   }
 
-  // If on an experiment detail page, show the experiment list
   if (
     experimentMatch &&
     typeof experimentMatch === 'object' &&
@@ -281,6 +317,120 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
             <span className="truncate">{ds.name}</span>
           </Link>
         ))}
+      </nav>
+    </aside>
+  );
+}
+
+// ── Project-scoped sidebars ──────────────────────────────────────────────
+
+function ProjectRunDetailSidebar({
+  projectId,
+  currentRunId,
+}: {
+  projectId: string;
+  currentRunId?: string;
+}) {
+  const { data } = useProjectRunList(projectId);
+
+  return (
+    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
+          AgentV Studio
+        </Link>
+      </div>
+
+      <div className="border-b border-gray-800 px-4 py-2">
+        <Link to="/" className="text-xs text-gray-400 hover:text-cyan-400">
+          &larr; All Projects
+        </Link>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{projectId}</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          Runs
+        </div>
+        {data?.runs.map((run) => {
+          const isActive = currentRunId === run.filename;
+          return (
+            <Link
+              key={run.filename}
+              to="/projects/$projectId/runs/$runId"
+              params={{ projectId, runId: run.filename }}
+              className={`mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
+                isActive
+                  ? 'bg-gray-800 text-cyan-400'
+                  : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+              }`}
+            >
+              {run.filename}
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+function ProjectEvalSidebar({
+  projectId,
+  runId,
+  currentEvalId,
+}: {
+  projectId: string;
+  runId: string;
+  currentEvalId: string;
+}) {
+  const { data } = useProjectRunDetail(projectId, runId);
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
+
+  return (
+    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
+          AgentV Studio
+        </Link>
+      </div>
+
+      <div className="border-b border-gray-800 px-4 py-2">
+        <Link
+          to="/projects/$projectId/runs/$runId"
+          params={{ projectId, runId }}
+          className="text-xs text-gray-400 hover:text-cyan-400"
+        >
+          &larr; Back to run
+        </Link>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          Evaluations
+        </div>
+        {data?.results.map((result) => {
+          const isActive = result.testId === currentEvalId;
+          const passed = isPassing(result.score, passThreshold);
+          return (
+            <Link
+              key={result.testId}
+              to="/projects/$projectId/evals/$runId/$evalId"
+              params={{ projectId, runId, evalId: result.testId }}
+              className={`mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                isActive
+                  ? 'bg-gray-800 text-cyan-400'
+                  : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+              }`}
+            >
+              <span className={`text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                {passed ? '\u2713' : '\u2717'}
+              </span>
+              <span className="truncate">{result.testId}</span>
+            </Link>
+          );
+        })}
       </nav>
     </aside>
   );

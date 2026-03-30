@@ -16,6 +16,8 @@ import type {
   FileContentResponse,
   FileTreeResponse,
   IndexResponse,
+  ProjectEntry,
+  ProjectListResponse,
   RunDetailResponse,
   RunListResponse,
   StudioConfigResponse,
@@ -192,6 +194,183 @@ export const DEFAULT_PASS_THRESHOLD = 0.8;
 
 export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_THRESHOLD): boolean {
   return score >= passThreshold;
+}
+
+// ── Project API ─────────────────────────────────────────────────────────
+
+export const projectListOptions = queryOptions({
+  queryKey: ['projects'],
+  queryFn: () => fetchJson<ProjectListResponse>('/api/projects'),
+  refetchInterval: 10_000,
+});
+
+export function useProjectList() {
+  return useQuery(projectListOptions);
+}
+
+export async function addProjectApi(projectPath: string): Promise<ProjectEntry> {
+  const res = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: projectPath }),
+  });
+  if (!res.ok) {
+    const err = (await res.json()) as { error: string };
+    throw new Error(err.error || `Failed to add project: ${res.status}`);
+  }
+  return res.json() as Promise<ProjectEntry>;
+}
+
+export async function removeProjectApi(projectId: string): Promise<void> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to remove project: ${res.status}`);
+  }
+}
+
+export async function discoverProjectsApi(dirPath: string): Promise<ProjectEntry[]> {
+  const res = await fetch('/api/projects/discover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: dirPath }),
+  });
+  if (!res.ok) {
+    const err = (await res.json()) as { error: string };
+    throw new Error(err.error || `Failed to discover: ${res.status}`);
+  }
+  const data = (await res.json()) as { discovered: ProjectEntry[] };
+  return data.discovered;
+}
+
+/** Build the API base URL for a project-scoped request. */
+function projectApiBase(projectId: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}`;
+}
+
+export function projectRunListOptions(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs'],
+    queryFn: () => fetchJson<RunListResponse>(`${projectApiBase(projectId)}/runs`),
+    enabled: !!projectId,
+    refetchInterval: 5_000,
+  });
+}
+
+export function useProjectRunList(projectId: string) {
+  return useQuery(projectRunListOptions(projectId));
+}
+
+export function projectRunDetailOptions(projectId: string, filename: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', filename],
+    queryFn: () =>
+      fetchJson<RunDetailResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(filename)}`,
+      ),
+    enabled: !!projectId && !!filename,
+  });
+}
+
+export function useProjectRunDetail(projectId: string, filename: string) {
+  return useQuery(projectRunDetailOptions(projectId, filename));
+}
+
+export function projectRunDatasetsOptions(projectId: string, runId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'datasets'],
+    queryFn: () =>
+      fetchJson<DatasetsResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/datasets`,
+      ),
+    enabled: !!projectId && !!runId,
+  });
+}
+
+export function projectRunCategoriesOptions(projectId: string, runId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'categories'],
+    queryFn: () =>
+      fetchJson<CategoriesResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories`,
+      ),
+    enabled: !!projectId && !!runId,
+  });
+}
+
+export function projectCategoryDatasetsOptions(projectId: string, runId: string, category: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'categories', category, 'datasets'],
+    queryFn: () =>
+      fetchJson<DatasetsResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/datasets`,
+      ),
+    enabled: !!projectId && !!runId && !!category,
+  });
+}
+
+export function projectEvalDetailOptions(projectId: string, runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId],
+    queryFn: () =>
+      fetchJson<EvalDetailResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`,
+      ),
+    enabled: !!projectId && !!runId && !!evalId,
+  });
+}
+
+export function projectEvalFilesOptions(projectId: string, runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files'],
+    queryFn: () =>
+      fetchJson<FileTreeResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`,
+      ),
+    enabled: !!projectId && !!runId && !!evalId,
+  });
+}
+
+export function projectEvalFileContentOptions(
+  projectId: string,
+  runId: string,
+  evalId: string,
+  filePath: string,
+) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files', filePath],
+    queryFn: () =>
+      fetchJson<FileContentResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
+      ),
+    enabled: !!projectId && !!runId && !!evalId && !!filePath,
+  });
+}
+
+export function projectExperimentsOptions(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'experiments'],
+    queryFn: () => fetchJson<ExperimentsResponse>(`${projectApiBase(projectId)}/experiments`),
+    enabled: !!projectId,
+  });
+}
+
+export function projectTargetsOptions(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'targets'],
+    queryFn: () => fetchJson<TargetsResponse>(`${projectApiBase(projectId)}/targets`),
+    enabled: !!projectId,
+  });
+}
+
+export function projectConfigOptions(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'config'],
+    queryFn: () => fetchJson<StudioConfigResponse>(`${projectApiBase(projectId)}/config`),
+    enabled: !!projectId,
+    staleTime: 5_000,
+  });
 }
 
 export async function saveStudioConfig(

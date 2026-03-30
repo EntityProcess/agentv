@@ -21,9 +21,18 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { command, number, option, optional, positional, string } from 'cmd-ts';
+import { command, flag, number, option, optional, positional, string } from 'cmd-ts';
 
-import { DEFAULT_CATEGORY, type EvaluationResult } from '@agentv/core';
+import {
+  DEFAULT_CATEGORY,
+  type EvaluationResult,
+  addProject,
+  discoverProjects,
+  getProject,
+  loadProjectRegistry,
+  removeProject,
+  touchProject,
+} from '@agentv/core';
 import { Hono } from 'hono';
 
 import { parseJsonlResults } from '../eval/artifact-writer.js';
@@ -162,6 +171,472 @@ export function createApp(
     } catch {
       return c.json({ error: 'Failed to save config' }, 500);
     }
+  });
+
+  // ── Project management endpoints ─────────────────────────────────────
+
+  /** List all registered projects with summary stats. */
+  app.get('/api/projects', (c) => {
+    const registry = loadProjectRegistry();
+    const projects = registry.projects.map((p) => {
+      let runCount = 0;
+      let passRate = 0;
+      let lastRun: string | null = null;
+      try {
+        const metas = listResultFiles(p.path);
+        runCount = metas.length;
+        if (metas.length > 0) {
+          const totalPassRate = metas.reduce((sum, m) => sum + m.passRate, 0);
+          passRate = totalPassRate / metas.length;
+          lastRun = metas[0].timestamp;
+        }
+      } catch {
+        // Project path may be missing or inaccessible
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        path: p.path,
+        added_at: p.addedAt,
+        last_opened_at: p.lastOpenedAt,
+        run_count: runCount,
+        pass_rate: passRate,
+        last_run: lastRun,
+      };
+    });
+    return c.json({ projects });
+  });
+
+  /** Register a new project by path. */
+  app.post('/api/projects', async (c) => {
+    try {
+      const body = await c.req.json<{ path: string }>();
+      if (!body.path) {
+        return c.json({ error: 'Missing path' }, 400);
+      }
+      const entry = addProject(body.path);
+      return c.json(entry, 201);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+  });
+
+  /** Unregister a project. */
+  app.delete('/api/projects/:projectId', (c) => {
+    const projectId = c.req.param('projectId');
+    const removed = removeProject(projectId);
+    if (!removed) {
+      return c.json({ error: 'Project not found' }, 404);
+    }
+    return c.json({ ok: true });
+  });
+
+  /** Quick stats for a project. */
+  app.get('/api/projects/:projectId/summary', (c) => {
+    const projectId = c.req.param('projectId');
+    const project = getProject(projectId);
+    if (!project) {
+      return c.json({ error: 'Project not found' }, 404);
+    }
+    try {
+      const metas = listResultFiles(project.path);
+      const runCount = metas.length;
+      const passRate = runCount > 0 ? metas.reduce((s, m) => s + m.passRate, 0) / runCount : 0;
+      const lastRun = metas.length > 0 ? metas[0].timestamp : null;
+      return c.json({
+        id: project.id,
+        name: project.name,
+        path: project.path,
+        run_count: runCount,
+        pass_rate: passRate,
+        last_run: lastRun,
+      });
+    } catch {
+      return c.json({ error: 'Failed to read project' }, 500);
+    }
+  });
+
+  /** Scan a directory tree for repos with `.agentv/`. */
+  app.post('/api/projects/discover', async (c) => {
+    try {
+      const body = await c.req.json<{ path: string }>();
+      if (!body.path) {
+        return c.json({ error: 'Missing path' }, 400);
+      }
+      const discovered = discoverProjects(body.path);
+      const registered = discovered.map((p) => addProject(p));
+      return c.json({ discovered: registered });
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+  });
+
+  // ── Project-scoped data endpoints ────────────────────────────────────
+  // These mirror the unscoped /api/runs etc. but resolve searchDir from the project registry.
+
+  /** Helper: resolve a project's searchDir, or 404. */
+  function resolveProjectDir(projectId: string): string | null {
+    const project = getProject(projectId);
+    if (!project || !existsSync(project.path)) return null;
+    touchProject(projectId);
+    return project.path;
+  }
+
+  app.get('/api/projects/:projectId/runs', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const metas = listResultFiles(projDir);
+    return c.json({
+      runs: metas.map((m) => {
+        let target: string | undefined;
+        let experiment: string | undefined;
+        try {
+          const records = loadLightweightResults(m.path);
+          if (records.length > 0) {
+            target = records[0].target;
+            experiment = records[0].experiment;
+          }
+        } catch {
+          /* ignore */
+        }
+        return {
+          filename: m.filename,
+          path: m.path,
+          timestamp: m.timestamp,
+          test_count: m.testCount,
+          pass_rate: m.passRate,
+          avg_score: m.avgScore,
+          size_bytes: m.sizeBytes,
+          ...(target && { target }),
+          ...(experiment && { experiment }),
+        };
+      }),
+    });
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      return c.json({ results: stripHeavyFields(loaded), source: meta.filename });
+    } catch {
+      return c.json({ error: 'Failed to load run' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename/datasets', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const projAgentvDir = path.join(projDir, '.agentv');
+      const { pass_threshold } = loadStudioConfig(projAgentvDir);
+      const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+      for (const r of loaded) {
+        const ds = r.dataset ?? r.target ?? 'default';
+        const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
+        entry.total++;
+        if (r.score >= pass_threshold) entry.passed++;
+        entry.scoreSum += r.score;
+        datasetMap.set(ds, entry);
+      }
+      const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
+        name,
+        total: entry.total,
+        passed: entry.passed,
+        failed: entry.total - entry.passed,
+        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
+      }));
+      return c.json({ datasets });
+    } catch {
+      return c.json({ error: 'Failed to load datasets' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename/categories', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const projAgentvDir = path.join(projDir, '.agentv');
+      const { pass_threshold } = loadStudioConfig(projAgentvDir);
+      const categoryMap = new Map<
+        string,
+        { total: number; passed: number; scoreSum: number; datasets: Set<string> }
+      >();
+      for (const r of loaded) {
+        const cat = r.category ?? DEFAULT_CATEGORY;
+        const entry = categoryMap.get(cat) ?? {
+          total: 0,
+          passed: 0,
+          scoreSum: 0,
+          datasets: new Set<string>(),
+        };
+        entry.total++;
+        if (r.score >= pass_threshold) entry.passed++;
+        entry.scoreSum += r.score;
+        entry.datasets.add(r.dataset ?? r.target ?? 'default');
+        categoryMap.set(cat, entry);
+      }
+      const categories = [...categoryMap.entries()].map(([name, entry]) => ({
+        name,
+        total: entry.total,
+        passed: entry.passed,
+        failed: entry.total - entry.passed,
+        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
+        dataset_count: entry.datasets.size,
+      }));
+      return c.json({ categories });
+    } catch {
+      return c.json({ error: 'Failed to load categories' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename/categories/:category/datasets', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const category = decodeURIComponent(c.req.param('category'));
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const projAgentvDir = path.join(projDir, '.agentv');
+      const { pass_threshold } = loadStudioConfig(projAgentvDir);
+      const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
+      const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+      for (const r of filtered) {
+        const ds = r.dataset ?? r.target ?? 'default';
+        const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
+        entry.total++;
+        if (r.score >= pass_threshold) entry.passed++;
+        entry.scoreSum += r.score;
+        datasetMap.set(ds, entry);
+      }
+      const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
+        name,
+        total: entry.total,
+        passed: entry.passed,
+        failed: entry.total - entry.passed,
+        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
+      }));
+      return c.json({ datasets });
+    } catch {
+      return c.json({ error: 'Failed to load datasets' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const evalId = c.req.param('evalId');
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    try {
+      const loaded = patchTestIds(loadManifestResults(meta.path));
+      const result = loaded.find((r) => r.testId === evalId);
+      if (!result) return c.json({ error: 'Eval not found' }, 404);
+      return c.json({ eval: result });
+    } catch {
+      return c.json({ error: 'Failed to load eval' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const evalId = c.req.param('evalId');
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    try {
+      const content = readFileSync(meta.path, 'utf8');
+      const records = parseResultManifest(content);
+      const record = records.find((r) => (r.test_id ?? r.eval_id) === evalId);
+      if (!record) return c.json({ error: 'Eval not found' }, 404);
+      const baseDir = path.dirname(meta.path);
+      const knownPaths = [
+        record.grading_path,
+        record.timing_path,
+        record.input_path,
+        record.output_path,
+        record.response_path,
+      ].filter((p): p is string => !!p);
+      if (knownPaths.length === 0) return c.json({ files: [] });
+      const artifactDirs = knownPaths.map((p) => path.dirname(p));
+      let commonDir = artifactDirs[0];
+      for (const dir of artifactDirs) {
+        while (!dir.startsWith(commonDir)) {
+          commonDir = path.dirname(commonDir);
+        }
+      }
+      const artifactAbsDir = path.join(baseDir, commonDir);
+      const files = buildFileTree(artifactAbsDir, baseDir);
+      return c.json({ files });
+    } catch {
+      return c.json({ error: 'Failed to load file tree' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files/*', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const filename = c.req.param('filename');
+    const evalId = c.req.param('evalId');
+    const projectId = c.req.param('projectId');
+    const metas = listResultFiles(projDir);
+    const meta = metas.find((m) => m.filename === filename);
+    if (!meta) return c.json({ error: 'Run not found' }, 404);
+    const requestPath = c.req.path;
+    const prefix = `/api/projects/${projectId}/runs/${filename}/evals/${evalId}/files/`;
+    const filePath = requestPath.slice(prefix.length);
+    if (!filePath) return c.json({ error: 'No file path specified' }, 400);
+    const baseDir = path.dirname(meta.path);
+    const absolutePath = path.resolve(baseDir, filePath);
+    if (
+      !absolutePath.startsWith(path.resolve(baseDir) + path.sep) &&
+      absolutePath !== path.resolve(baseDir)
+    ) {
+      return c.json({ error: 'Path traversal not allowed' }, 403);
+    }
+    if (!existsSync(absolutePath) || !statSync(absolutePath).isFile())
+      return c.json({ error: 'File not found' }, 404);
+    try {
+      const fileContent = readFileSync(absolutePath, 'utf8');
+      const language = inferLanguage(absolutePath);
+      return c.json({ content: fileContent, language });
+    } catch {
+      return c.json({ error: 'Failed to read file' }, 500);
+    }
+  });
+
+  app.get('/api/projects/:projectId/experiments', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const metas = listResultFiles(projDir);
+    const projAgentvDir = path.join(projDir, '.agentv');
+    const { pass_threshold } = loadStudioConfig(projAgentvDir);
+    const experimentMap = new Map<
+      string,
+      {
+        targets: Set<string>;
+        runFilenames: Set<string>;
+        evalCount: number;
+        passedCount: number;
+        lastTimestamp: string;
+      }
+    >();
+    for (const m of metas) {
+      try {
+        const records = loadLightweightResults(m.path);
+        for (const r of records) {
+          const experiment = r.experiment ?? 'default';
+          const entry = experimentMap.get(experiment) ?? {
+            targets: new Set(),
+            runFilenames: new Set(),
+            evalCount: 0,
+            passedCount: 0,
+            lastTimestamp: '',
+          };
+          entry.runFilenames.add(m.filename);
+          if (r.target) entry.targets.add(r.target);
+          entry.evalCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
+          if (r.timestamp && r.timestamp > entry.lastTimestamp) entry.lastTimestamp = r.timestamp;
+          experimentMap.set(experiment, entry);
+        }
+      } catch {
+        /* skip */
+      }
+    }
+    const experiments = [...experimentMap.entries()].map(([name, entry]) => ({
+      name,
+      run_count: entry.runFilenames.size,
+      target_count: entry.targets.size,
+      eval_count: entry.evalCount,
+      passed_count: entry.passedCount,
+      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+      last_run: entry.lastTimestamp || null,
+    }));
+    return c.json({ experiments });
+  });
+
+  app.get('/api/projects/:projectId/targets', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    const metas = listResultFiles(projDir);
+    const projAgentvDir = path.join(projDir, '.agentv');
+    const { pass_threshold } = loadStudioConfig(projAgentvDir);
+    const targetMap = new Map<
+      string,
+      {
+        experiments: Set<string>;
+        runFilenames: Set<string>;
+        evalCount: number;
+        passedCount: number;
+      }
+    >();
+    for (const m of metas) {
+      try {
+        const records = loadLightweightResults(m.path);
+        for (const r of records) {
+          const target = r.target ?? 'default';
+          const entry = targetMap.get(target) ?? {
+            experiments: new Set(),
+            runFilenames: new Set(),
+            evalCount: 0,
+            passedCount: 0,
+          };
+          entry.runFilenames.add(m.filename);
+          if (r.experiment) entry.experiments.add(r.experiment);
+          entry.evalCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
+          targetMap.set(target, entry);
+        }
+      } catch {
+        /* skip */
+      }
+    }
+    const targets = [...targetMap.entries()].map(([name, entry]) => ({
+      name,
+      run_count: entry.runFilenames.size,
+      experiment_count: entry.experiments.size,
+      eval_count: entry.evalCount,
+      passed_count: entry.passedCount,
+      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+    }));
+    return c.json({ targets });
+  });
+
+  app.get('/api/projects/:projectId/config', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    return c.json(loadStudioConfig(path.join(projDir, '.agentv')));
+  });
+
+  app.get('/api/projects/:projectId/feedback', (c) => {
+    const projDir = resolveProjectDir(c.req.param('projectId'));
+    if (!projDir) return c.json({ error: 'Project not found' }, 404);
+    // Feedback is stored in the .agentv/results/ directory
+    const resultsDir = path.join(projDir, '.agentv', 'results');
+    return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : projDir));
   });
 
   // Dashboard HTML — serve Studio SPA (React app).
@@ -812,10 +1287,70 @@ export const resultsServeCommand = command({
       short: 'd',
       description: 'Working directory (default: current directory)',
     }),
+    multi: flag({
+      long: 'multi',
+      description: 'Launch in multi-project dashboard mode',
+    }),
+    add: option({
+      type: optional(string),
+      long: 'add',
+      description: 'Register a project by path',
+    }),
+    remove: option({
+      type: optional(string),
+      long: 'remove',
+      description: 'Unregister a project by ID',
+    }),
+    discover: option({
+      type: optional(string),
+      long: 'discover',
+      description: 'Scan a directory tree for repos with .agentv/',
+    }),
   },
-  handler: async ({ source, port, dir }) => {
+  handler: async ({ source, port, dir, multi, add, remove, discover }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
+
+    // ── Project management commands (non-server) ─────────────────────
+    if (add) {
+      try {
+        const entry = addProject(add);
+        console.log(`Registered project: ${entry.name} (${entry.id}) at ${entry.path}`);
+      } catch (err) {
+        console.error(`Error: ${(err as Error).message}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (remove) {
+      const removed = removeProject(remove);
+      if (removed) {
+        console.log(`Unregistered project: ${remove}`);
+      } else {
+        console.error(`Project not found: ${remove}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (discover) {
+      const discovered = discoverProjects(discover);
+      if (discovered.length === 0) {
+        console.log(`No projects with .agentv/ found under ${discover}`);
+        return;
+      }
+      for (const p of discovered) {
+        const entry = addProject(p);
+        console.log(`Registered: ${entry.name} (${entry.id}) at ${entry.path}`);
+      }
+      console.log(`\nDiscovered ${discovered.length} project(s).`);
+      return;
+    }
+
+    // ── Determine multi-project mode ────────────────────────────────
+    const registry = loadProjectRegistry();
+    const isMultiProject = multi || registry.projects.length > 0;
 
     try {
       let results: EvaluationResult[] = [];
@@ -852,16 +1387,16 @@ export const resultsServeCommand = command({
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
       const app = createApp(results, resultDir, cwd, sourceFile);
 
-      if (results.length > 0 && sourceFile) {
+      if (isMultiProject) {
+        console.log(`Multi-project mode: ${registry.projects.length} project(s) registered`);
+      } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {
         console.log('No results found. Dashboard will show an empty state.');
         console.log('Run an evaluation to see results: agentv eval <eval-file>');
       }
       console.log(`Dashboard: http://localhost:${listenPort}`);
-      console.log(`Feedback API: http://localhost:${listenPort}/api/feedback`);
-      console.log(`Result picker API: http://localhost:${listenPort}/api/runs`);
-      console.log(`Feedback file: ${feedbackPath(resultDir)}`);
+      console.log(`Projects API: http://localhost:${listenPort}/api/projects`);
       console.log('Press Ctrl+C to stop');
 
       const { serve: startServer } = await import('@hono/node-server');

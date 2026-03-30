@@ -17,6 +17,7 @@ import { StatsCards } from './StatsCards';
 interface RunDetailProps {
   results: EvalResult[];
   runId: string;
+  projectId?: string;
 }
 
 interface DatasetStats {
@@ -83,7 +84,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function RunDetail({ results, runId }: RunDetailProps) {
+export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const { data: config } = useStudioConfig();
   const passThreshold = config?.pass_threshold ?? 0.8;
 
@@ -155,13 +156,23 @@ export function RunDetail({ results, runId }: RunDetailProps) {
                 className="transition-colors hover:bg-gray-900/30"
               >
                 <td className="px-4 py-3">
-                  <Link
-                    to="/evals/$runId/$evalId"
-                    params={{ runId, evalId: result.testId }}
-                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                  >
-                    {result.testId}
-                  </Link>
+                  {projectId ? (
+                    <Link
+                      to="/projects/$projectId/evals/$runId/$evalId"
+                      params={{ projectId, runId, evalId: result.testId }}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {result.testId}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/evals/$runId/$evalId"
+                      params={{ runId, evalId: result.testId }}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {result.testId}
+                    </Link>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
                 <td className="px-4 py-3">
