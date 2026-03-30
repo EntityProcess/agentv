@@ -31,7 +31,6 @@ import {
   getProject,
   loadProjectRegistry,
   removeProject,
-  touchProject,
 } from '@agentv/core';
 import { Hono } from 'hono';
 
@@ -207,6 +206,23 @@ export function createApp(
     return c.json({ projects });
   });
 
+  /** Convert a ProjectEntry to snake_case wire format. */
+  function projectEntryToWire(entry: {
+    id: string;
+    name: string;
+    path: string;
+    addedAt: string;
+    lastOpenedAt: string;
+  }) {
+    return {
+      id: entry.id,
+      name: entry.name,
+      path: entry.path,
+      added_at: entry.addedAt,
+      last_opened_at: entry.lastOpenedAt,
+    };
+  }
+
   /** Register a new project by path. */
   app.post('/api/projects', async (c) => {
     try {
@@ -215,7 +231,7 @@ export function createApp(
         return c.json({ error: 'Missing path' }, 400);
       }
       const entry = addProject(body.path);
-      return c.json(entry, 201);
+      return c.json(projectEntryToWire(entry), 201);
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
@@ -264,7 +280,7 @@ export function createApp(
         return c.json({ error: 'Missing path' }, 400);
       }
       const discovered = discoverProjects(body.path);
-      const registered = discovered.map((p) => addProject(p));
+      const registered = discovered.map((p) => projectEntryToWire(addProject(p)));
       return c.json({ discovered: registered });
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
@@ -272,13 +288,13 @@ export function createApp(
   });
 
   // ── Project-scoped data endpoints ────────────────────────────────────
-  // These mirror the unscoped /api/runs etc. but resolve searchDir from the project registry.
+  // TODO: Refactor to share handler logic with unscoped endpoints below.
+  // Currently duplicated for each route pattern with only searchDir resolution differing.
 
-  /** Helper: resolve a project's searchDir, or 404. */
+  /** Helper: resolve a project's searchDir, or null if not found. */
   function resolveProjectDir(projectId: string): string | null {
     const project = getProject(projectId);
     if (!project || !existsSync(project.path)) return null;
-    touchProject(projectId);
     return project.path;
   }
 
@@ -318,8 +334,7 @@ export function createApp(
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
     const filename = c.req.param('filename');
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === filename);
     if (!meta) return c.json({ error: 'Run not found' }, 404);
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
@@ -332,14 +347,11 @@ export function createApp(
   app.get('/api/projects/:projectId/runs/:filename/datasets', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
-    const filename = c.req.param('filename');
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === c.req.param('filename'));
     if (!meta) return c.json({ error: 'Run not found' }, 404);
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
-      const projAgentvDir = path.join(projDir, '.agentv');
-      const { pass_threshold } = loadStudioConfig(projAgentvDir);
+      const { pass_threshold } = loadStudioConfig(path.join(projDir, '.agentv'));
       const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of loaded) {
         const ds = r.dataset ?? r.target ?? 'default';
@@ -349,14 +361,15 @@ export function createApp(
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
-      const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
-        name,
-        total: entry.total,
-        passed: entry.passed,
-        failed: entry.total - entry.passed,
-        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-      }));
-      return c.json({ datasets });
+      return c.json({
+        datasets: [...datasetMap.entries()].map(([name, e]) => ({
+          name,
+          total: e.total,
+          passed: e.passed,
+          failed: e.total - e.passed,
+          avg_score: e.total > 0 ? e.scoreSum / e.total : 0,
+        })),
+      });
     } catch {
       return c.json({ error: 'Failed to load datasets' }, 500);
     }
@@ -365,41 +378,39 @@ export function createApp(
   app.get('/api/projects/:projectId/runs/:filename/categories', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
-    const filename = c.req.param('filename');
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === c.req.param('filename'));
     if (!meta) return c.json({ error: 'Run not found' }, 404);
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
-      const projAgentvDir = path.join(projDir, '.agentv');
-      const { pass_threshold } = loadStudioConfig(projAgentvDir);
-      const categoryMap = new Map<
+      const { pass_threshold } = loadStudioConfig(path.join(projDir, '.agentv'));
+      const catMap = new Map<
         string,
         { total: number; passed: number; scoreSum: number; datasets: Set<string> }
       >();
       for (const r of loaded) {
         const cat = r.category ?? DEFAULT_CATEGORY;
-        const entry = categoryMap.get(cat) ?? {
+        const e = catMap.get(cat) ?? {
           total: 0,
           passed: 0,
           scoreSum: 0,
           datasets: new Set<string>(),
         };
-        entry.total++;
-        if (r.score >= pass_threshold) entry.passed++;
-        entry.scoreSum += r.score;
-        entry.datasets.add(r.dataset ?? r.target ?? 'default');
-        categoryMap.set(cat, entry);
+        e.total++;
+        if (r.score >= pass_threshold) e.passed++;
+        e.scoreSum += r.score;
+        e.datasets.add(r.dataset ?? r.target ?? 'default');
+        catMap.set(cat, e);
       }
-      const categories = [...categoryMap.entries()].map(([name, entry]) => ({
-        name,
-        total: entry.total,
-        passed: entry.passed,
-        failed: entry.total - entry.passed,
-        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-        dataset_count: entry.datasets.size,
-      }));
-      return c.json({ categories });
+      return c.json({
+        categories: [...catMap.entries()].map(([name, e]) => ({
+          name,
+          total: e.total,
+          passed: e.passed,
+          failed: e.total - e.passed,
+          avg_score: e.total > 0 ? e.scoreSum / e.total : 0,
+          dataset_count: e.datasets.size,
+        })),
+      });
     } catch {
       return c.json({ error: 'Failed to load categories' }, 500);
     }
@@ -408,33 +419,31 @@ export function createApp(
   app.get('/api/projects/:projectId/runs/:filename/categories/:category/datasets', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
-    const filename = c.req.param('filename');
-    const category = decodeURIComponent(c.req.param('category'));
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === c.req.param('filename'));
     if (!meta) return c.json({ error: 'Run not found' }, 404);
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
-      const projAgentvDir = path.join(projDir, '.agentv');
-      const { pass_threshold } = loadStudioConfig(projAgentvDir);
+      const { pass_threshold } = loadStudioConfig(path.join(projDir, '.agentv'));
+      const category = decodeURIComponent(c.req.param('category'));
       const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
-      const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+      const dsMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of filtered) {
         const ds = r.dataset ?? r.target ?? 'default';
-        const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
-        entry.total++;
-        if (r.score >= pass_threshold) entry.passed++;
-        entry.scoreSum += r.score;
-        datasetMap.set(ds, entry);
+        const e = dsMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
+        e.total++;
+        if (r.score >= pass_threshold) e.passed++;
+        e.scoreSum += r.score;
+        dsMap.set(ds, e);
       }
-      const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
-        name,
-        total: entry.total,
-        passed: entry.passed,
-        failed: entry.total - entry.passed,
-        avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-      }));
-      return c.json({ datasets });
+      return c.json({
+        datasets: [...dsMap.entries()].map(([name, e]) => ({
+          name,
+          total: e.total,
+          passed: e.passed,
+          failed: e.total - e.passed,
+          avg_score: e.total > 0 ? e.scoreSum / e.total : 0,
+        })),
+      });
     } catch {
       return c.json({ error: 'Failed to load datasets' }, 500);
     }
@@ -443,14 +452,11 @@ export function createApp(
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
-    const filename = c.req.param('filename');
-    const evalId = c.req.param('evalId');
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === c.req.param('filename'));
     if (!meta) return c.json({ error: 'Run not found' }, 404);
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
-      const result = loaded.find((r) => r.testId === evalId);
+      const result = loaded.find((r) => r.testId === c.req.param('evalId'));
       if (!result) return c.json({ error: 'Eval not found' }, 404);
       return c.json({ eval: result });
     } catch {
@@ -461,14 +467,12 @@ export function createApp(
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
-    const filename = c.req.param('filename');
-    const evalId = c.req.param('evalId');
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === c.req.param('filename'));
     if (!meta) return c.json({ error: 'Run not found' }, 404);
     try {
       const content = readFileSync(meta.path, 'utf8');
       const records = parseResultManifest(content);
+      const evalId = c.req.param('evalId');
       const record = records.find((r) => (r.test_id ?? r.eval_id) === evalId);
       if (!record) return c.json({ error: 'Eval not found' }, 404);
       const baseDir = path.dirname(meta.path);
@@ -487,9 +491,7 @@ export function createApp(
           commonDir = path.dirname(commonDir);
         }
       }
-      const artifactAbsDir = path.join(baseDir, commonDir);
-      const files = buildFileTree(artifactAbsDir, baseDir);
-      return c.json({ files });
+      return c.json({ files: buildFileTree(path.join(baseDir, commonDir), baseDir) });
     } catch {
       return c.json({ error: 'Failed to load file tree' }, 500);
     }
@@ -501,12 +503,11 @@ export function createApp(
     const filename = c.req.param('filename');
     const evalId = c.req.param('evalId');
     const projectId = c.req.param('projectId');
-    const metas = listResultFiles(projDir);
-    const meta = metas.find((m) => m.filename === filename);
+    const meta = listResultFiles(projDir).find((m) => m.filename === filename);
     if (!meta) return c.json({ error: 'Run not found' }, 404);
-    const requestPath = c.req.path;
-    const prefix = `/api/projects/${projectId}/runs/${filename}/evals/${evalId}/files/`;
-    const filePath = requestPath.slice(prefix.length);
+    const filePath = c.req.path.slice(
+      `/api/projects/${projectId}/runs/${filename}/evals/${evalId}/files/`.length,
+    );
     if (!filePath) return c.json({ error: 'No file path specified' }, 400);
     const baseDir = path.dirname(meta.path);
     const absolutePath = path.resolve(baseDir, filePath);
@@ -519,9 +520,10 @@ export function createApp(
     if (!existsSync(absolutePath) || !statSync(absolutePath).isFile())
       return c.json({ error: 'File not found' }, 404);
     try {
-      const fileContent = readFileSync(absolutePath, 'utf8');
-      const language = inferLanguage(absolutePath);
-      return c.json({ content: fileContent, language });
+      return c.json({
+        content: readFileSync(absolutePath, 'utf8'),
+        language: inferLanguage(absolutePath),
+      });
     } catch {
       return c.json({ error: 'Failed to read file' }, 500);
     }
@@ -531,9 +533,8 @@ export function createApp(
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
     const metas = listResultFiles(projDir);
-    const projAgentvDir = path.join(projDir, '.agentv');
-    const { pass_threshold } = loadStudioConfig(projAgentvDir);
-    const experimentMap = new Map<
+    const { pass_threshold } = loadStudioConfig(path.join(projDir, '.agentv'));
+    const expMap = new Map<
       string,
       {
         targets: Set<string>;
@@ -545,46 +546,45 @@ export function createApp(
     >();
     for (const m of metas) {
       try {
-        const records = loadLightweightResults(m.path);
-        for (const r of records) {
-          const experiment = r.experiment ?? 'default';
-          const entry = experimentMap.get(experiment) ?? {
+        for (const r of loadLightweightResults(m.path)) {
+          const exp = r.experiment ?? 'default';
+          const e = expMap.get(exp) ?? {
             targets: new Set(),
             runFilenames: new Set(),
             evalCount: 0,
             passedCount: 0,
             lastTimestamp: '',
           };
-          entry.runFilenames.add(m.filename);
-          if (r.target) entry.targets.add(r.target);
-          entry.evalCount++;
-          if (r.score >= pass_threshold) entry.passedCount++;
-          if (r.timestamp && r.timestamp > entry.lastTimestamp) entry.lastTimestamp = r.timestamp;
-          experimentMap.set(experiment, entry);
+          e.runFilenames.add(m.filename);
+          if (r.target) e.targets.add(r.target);
+          e.evalCount++;
+          if (r.score >= pass_threshold) e.passedCount++;
+          if (r.timestamp && r.timestamp > e.lastTimestamp) e.lastTimestamp = r.timestamp;
+          expMap.set(exp, e);
         }
       } catch {
         /* skip */
       }
     }
-    const experiments = [...experimentMap.entries()].map(([name, entry]) => ({
-      name,
-      run_count: entry.runFilenames.size,
-      target_count: entry.targets.size,
-      eval_count: entry.evalCount,
-      passed_count: entry.passedCount,
-      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
-      last_run: entry.lastTimestamp || null,
-    }));
-    return c.json({ experiments });
+    return c.json({
+      experiments: [...expMap.entries()].map(([name, e]) => ({
+        name,
+        run_count: e.runFilenames.size,
+        target_count: e.targets.size,
+        eval_count: e.evalCount,
+        passed_count: e.passedCount,
+        pass_rate: e.evalCount > 0 ? e.passedCount / e.evalCount : 0,
+        last_run: e.lastTimestamp || null,
+      })),
+    });
   });
 
   app.get('/api/projects/:projectId/targets', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
     const metas = listResultFiles(projDir);
-    const projAgentvDir = path.join(projDir, '.agentv');
-    const { pass_threshold } = loadStudioConfig(projAgentvDir);
-    const targetMap = new Map<
+    const { pass_threshold } = loadStudioConfig(path.join(projDir, '.agentv'));
+    const tgtMap = new Map<
       string,
       {
         experiments: Set<string>;
@@ -595,34 +595,34 @@ export function createApp(
     >();
     for (const m of metas) {
       try {
-        const records = loadLightweightResults(m.path);
-        for (const r of records) {
-          const target = r.target ?? 'default';
-          const entry = targetMap.get(target) ?? {
+        for (const r of loadLightweightResults(m.path)) {
+          const tgt = r.target ?? 'default';
+          const e = tgtMap.get(tgt) ?? {
             experiments: new Set(),
             runFilenames: new Set(),
             evalCount: 0,
             passedCount: 0,
           };
-          entry.runFilenames.add(m.filename);
-          if (r.experiment) entry.experiments.add(r.experiment);
-          entry.evalCount++;
-          if (r.score >= pass_threshold) entry.passedCount++;
-          targetMap.set(target, entry);
+          e.runFilenames.add(m.filename);
+          if (r.experiment) e.experiments.add(r.experiment);
+          e.evalCount++;
+          if (r.score >= pass_threshold) e.passedCount++;
+          tgtMap.set(tgt, e);
         }
       } catch {
         /* skip */
       }
     }
-    const targets = [...targetMap.entries()].map(([name, entry]) => ({
-      name,
-      run_count: entry.runFilenames.size,
-      experiment_count: entry.experiments.size,
-      eval_count: entry.evalCount,
-      passed_count: entry.passedCount,
-      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
-    }));
-    return c.json({ targets });
+    return c.json({
+      targets: [...tgtMap.entries()].map(([name, e]) => ({
+        name,
+        run_count: e.runFilenames.size,
+        experiment_count: e.experiments.size,
+        eval_count: e.evalCount,
+        passed_count: e.passedCount,
+        pass_rate: e.evalCount > 0 ? e.passedCount / e.evalCount : 0,
+      })),
+    });
   });
 
   app.get('/api/projects/:projectId/config', (c) => {
@@ -634,7 +634,6 @@ export function createApp(
   app.get('/api/projects/:projectId/feedback', (c) => {
     const projDir = resolveProjectDir(c.req.param('projectId'));
     if (!projDir) return c.json({ error: 'Project not found' }, 404);
-    // Feedback is stored in the .agentv/results/ directory
     const resultsDir = path.join(projDir, '.agentv', 'results');
     return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : projDir));
   });

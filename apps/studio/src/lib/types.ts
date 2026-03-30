@@ -190,6 +190,6 @@ export interface ProjectEntry {
   id: string;
   name: string;
   path: string;
-  addedAt: string;
-  lastOpenedAt: string;
+  added_at: string;
+  last_opened_at: string;
 }
