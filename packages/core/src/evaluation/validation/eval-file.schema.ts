@@ -118,7 +118,6 @@ const CompositeSchema: z.ZodType = z.lazy(() =>
   EvaluatorCommonSchema.extend({
     type: z.literal('composite'),
     assertions: z.array(EvaluatorSchema).optional(),
-    assert: z.array(EvaluatorSchema).optional(),
     evaluators: z.array(EvaluatorSchema).optional(),
     aggregator: AggregatorSchema,
   }),
@@ -319,7 +318,6 @@ const ExecutionSchema = z.object({
   targets: z.array(z.string()).optional(),
   workers: z.number().int().min(1).max(50).optional(),
   assertions: z.array(EvaluatorSchema).optional(),
-  assert: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
@@ -338,12 +336,10 @@ const ExecutionSchema = z.object({
 const EvalTestSchema = z.object({
   id: z.string().min(1),
   criteria: z.string().optional(),
-  expected_outcome: z.string().optional(),
   input: InputSchema.optional(),
   input_files: z.array(z.string()).optional(),
   expected_output: ExpectedOutputSchema.optional(),
   assertions: z.array(EvaluatorSchema).optional(),
-  assert: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   execution: ExecutionSchema.optional(),
   workspace: WorkspaceSchema.optional(),
@@ -384,8 +380,6 @@ export const EvalFileSchema = z.object({
   execution: ExecutionSchema.optional(),
   // Suite-level assertions
   assertions: z.array(EvaluatorSchema).optional(),
-  /** @deprecated Use `assertions` instead */
-  assert: z.array(EvaluatorSchema).optional(),
   // Workspace (inline object or path to external workspace YAML file)
   workspace: z.union([WorkspaceSchema, z.string()]).optional(),
 });

@@ -31,6 +31,44 @@ const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
 /** Valid file extensions for external test files. */
 const VALID_TEST_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.jsonl']);
 
+/** Known fields at the top level of an eval file. */
+const KNOWN_TOP_LEVEL_FIELDS = new Set([
+  '$schema',
+  'name',
+  'description',
+  'version',
+  'author',
+  'tags',
+  'license',
+  'requires',
+  'input',
+  'input_files',
+  'tests',
+  'eval_cases',
+  'target',
+  'execution',
+  'assertions',
+  'evaluators',
+  'workspace',
+]);
+
+/** Known fields at the test level. */
+const KNOWN_TEST_FIELDS = new Set([
+  'id',
+  'criteria',
+  'input',
+  'input_files',
+  'expected_output',
+  'assertions',
+  'evaluators',
+  'execution',
+  'workspace',
+  'metadata',
+  'conversation_id',
+  'dataset',
+  'note',
+]);
+
 /** Name field pattern: lowercase alphanumeric with hyphens. */
 const NAME_PATTERN = /^[a-z0-9-]+$/;
 
@@ -79,6 +117,18 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
+
+  // Warn on unknown top-level fields
+  for (const key of Object.keys(parsed)) {
+    if (!KNOWN_TOP_LEVEL_FIELDS.has(key)) {
+      errors.push({
+        severity: 'warning',
+        filePath: absolutePath,
+        location: key,
+        message: `Unknown field '${key}'. This field will be ignored.`,
+      });
+    }
+  }
 
   // Validate suite-level input (optional: string shorthand or message array)
   const suiteInput = parsed.input;
@@ -182,6 +232,18 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       continue;
     }
 
+    // Warn on unknown test-level fields
+    for (const key of Object.keys(evalCase)) {
+      if (!KNOWN_TEST_FIELDS.has(key)) {
+        errors.push({
+          severity: 'warning',
+          filePath: absolutePath,
+          location: `${location}.${key}`,
+          message: `Unknown field '${key}'. This field will be ignored.`,
+        });
+      }
+    }
+
     // Required fields: id, input
     const id = evalCase.id;
     if (typeof id !== 'string' || id.trim().length === 0) {
@@ -193,17 +255,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    // Optional: criteria (with backward-compat alias expected_outcome)
-    let criteria: JsonValue | undefined = evalCase.criteria;
-    if (criteria === undefined && 'expected_outcome' in evalCase) {
-      criteria = evalCase.expected_outcome;
-      errors.push({
-        severity: 'warning',
-        filePath: absolutePath,
-        location: `${location}.expected_outcome`,
-        message: "'expected_outcome' is deprecated. Use 'criteria' instead.",
-      });
-    }
+    // Optional: criteria
+    const criteria = evalCase.criteria;
     if (criteria !== undefined && (typeof criteria !== 'string' || criteria.trim().length === 0)) {
       errors.push({
         severity: 'error',
@@ -269,8 +322,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       }
     }
 
-    // assertions field (array of assertion objects); also accept legacy `assert`
-    const assertField = evalCase.assertions ?? evalCase.assert;
+    // assertions field (array of assertion objects)
+    const assertField = evalCase.assertions;
     if (assertField !== undefined) {
       validateAssertArray(assertField, location, absolutePath, errors);
     }
