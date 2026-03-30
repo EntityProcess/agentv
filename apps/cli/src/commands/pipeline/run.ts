@@ -11,7 +11,7 @@
  *
  * To add new features: extend the handler — all logic is self-contained.
  */
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -216,9 +216,16 @@ export const evalRunCommand = command({
           .replace(/\./g, '-');
       }
       const mergedEnv = { ...process.env, ...envVars };
-      const maxWorkers = workers ?? testIds.length;
+      const maxWorkers = workers ?? 5;
+      let invCompleted = 0;
+      const invTotal = testIds.length;
 
-      console.log(`Invoking ${testIds.length} CLI target(s) (${maxWorkers} workers)...`);
+      const writeInvProgress = () => {
+        process.stderr.write(`\rInvoking: ${invCompleted}/${invTotal} done`);
+      };
+
+      console.log(`Invoking ${invTotal} CLI target(s) (${maxWorkers} workers)...`);
+      writeInvProgress();
 
       const invokeTarget = async (testId: string): Promise<void> => {
         const subpath = safeEvalSet ? [safeEvalSet, testId] : [testId];
@@ -244,12 +251,16 @@ export const evalRunCommand = command({
 
         const start = performance.now();
         try {
-          execSync(rendered, {
-            cwd,
-            timeout: timeoutMs,
-            env: mergedEnv,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            maxBuffer: 10 * 1024 * 1024,
+          await new Promise<void>((resolveP, rejectP) => {
+            exec(rendered, {
+              cwd,
+              timeout: timeoutMs,
+              env: mergedEnv,
+              maxBuffer: 10 * 1024 * 1024,
+            }, (error) => {
+              if (error) rejectP(error);
+              else resolveP();
+            });
           });
           const durationMs = Math.round(performance.now() - start);
 
@@ -267,7 +278,7 @@ export const evalRunCommand = command({
             execution_status: 'ok',
           });
 
-          console.log(`  ${testId}: OK (${durationMs}ms, ${response.length} chars)`);
+          process.stderr.write(`\n  ${testId}: OK (${durationMs}ms, ${response.length} chars)\n`);
         } catch (error) {
           const durationMs = Math.round(performance.now() - start);
           const message = error instanceof Error ? error.message : String(error);
@@ -278,8 +289,10 @@ export const evalRunCommand = command({
             total_duration_seconds: Math.round(durationMs / 10) / 100,
             execution_status: 'execution_error',
           });
-          console.error(`  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}`);
+          process.stderr.write(`\n  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}\n`);
         } finally {
+          invCompleted++;
+          writeInvProgress();
           // Cleanup temp files
           try {
             if (existsSync(promptFile)) unlinkSync(promptFile);
@@ -302,6 +315,7 @@ export const evalRunCommand = command({
         }
       }
       await Promise.all(pending);
+      process.stderr.write('\n');
     } else {
       console.log('Subagent-as-target mode — skipping CLI invocation.');
     }
