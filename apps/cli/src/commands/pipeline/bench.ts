@@ -95,7 +95,7 @@ export const evalBenchCommand = command({
         // No code grader results
       }
 
-      // Collect LLM grader scores (from stdin data)
+      // Collect LLM grader scores (from --llm-scores file or per-test disk results)
       const testLlmScores = llmScores[testId] ?? {};
       // Read LLM grader metadata for weights
       const llmGradersDir = join(testDir, 'llm_graders');
@@ -104,7 +104,17 @@ export const evalBenchCommand = command({
         for (const file of graderFiles) {
           const graderMeta = JSON.parse(await readFile(join(llmGradersDir, file), 'utf8'));
           const graderName = graderMeta.name;
-          const llmResult = testLlmScores[graderName];
+
+          // Prefer in-memory llm_scores, then fall back to per-test disk result
+          let llmResult = testLlmScores[graderName];
+          if (!llmResult) {
+            const diskResultPath = join(testDir, 'llm_grader_results', `${graderName}.json`);
+            try {
+              llmResult = JSON.parse(await readFile(diskResultPath, 'utf8'));
+            } catch {
+              // No disk result either
+            }
+          }
 
           if (llmResult) {
             evaluators.push({
@@ -133,7 +143,11 @@ export const evalBenchCommand = command({
       const passed = allAssertions.filter((a) => a.passed).length;
       const failed = allAssertions.filter((a) => !a.passed).length;
       const passRate =
-        allAssertions.length > 0 ? Math.round((passed / allAssertions.length) * 1000) / 1000 : 0;
+        allAssertions.length > 0
+          ? Math.round((passed / allAssertions.length) * 1000) / 1000
+          : weightedScore >= 0.5
+            ? 1.0
+            : 0.0;
 
       allPassRates.push(passRate);
 

@@ -200,16 +200,26 @@ Each grader subagent (read `agents/grader.md`):
 1. Reads `<test-id>/llm_graders/<name>.json` for the grading prompt
 2. Reads `<test-id>/response.md` for the candidate output
 3. Grades the response against the prompt criteria
-4. Returns score (0.0–1.0) and per-assertion evidence
+4. **Writes its result to disk**: `<run-dir>/<evalset>/<test-id>/llm_grader_results/<name>.json`
+5. Returns score (0.0–1.0) and per-assertion evidence to the orchestrator
 
-After **all** grader subagents complete, merge their results into a single `llm_scores.json` in the run directory.
+**Writing to disk is critical.** Assertion arrays are lost if accumulated only in the orchestrator's context across multiple batches (context summarization drops detail). Writing per-test results to `llm_grader_results/<name>.json` makes grading resumable and assertion evidence durable.
+
+The result file format is:
+```json
+{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
+```
+
+After **all** grader subagents complete, run Phase 3 directly — no manual `llm_scores.json` assembly needed when results are on disk.
 
 **Phase 3: Merge and validate**
 
 ```bash
-agentv pipeline bench <run-dir> --llm-scores llm_scores.json
+agentv pipeline bench <run-dir>
 agentv results validate <run-dir>
 ```
+
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically. Pass `--llm-scores <path>` only if you have a pre-assembled scores file (takes precedence over disk results).
 
 This merges code-grader + LLM scores, computes weighted pass_rate, writes `grading.json` + `index.jsonl` + `benchmark.json`.
 

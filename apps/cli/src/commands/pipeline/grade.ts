@@ -104,7 +104,15 @@ export async function runCodeGraders(
       );
       const parsed = JSON.parse(stdout);
       const score = typeof parsed.score === 'number' ? parsed.score : 0;
-      const assertions = Array.isArray(parsed.assertions) ? parsed.assertions : [];
+      // TODO: Remove hits/misses fallback once all grader scripts emit assertions natively.
+      // The hits/misses format is deprecated; graders should output { assertions: [...] } directly.
+      const assertions: { text: string; passed: boolean }[] =
+        Array.isArray(parsed.assertions) && parsed.assertions.length > 0
+          ? parsed.assertions
+          : [
+              ...(parsed.hits ?? []).map((h: string) => ({ text: h, passed: true })),
+              ...(parsed.misses ?? []).map((m: string) => ({ text: m, passed: false })),
+            ];
 
       const result = {
         name: graderName,
