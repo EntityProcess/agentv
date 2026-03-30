@@ -78,7 +78,7 @@ export const evalRunCommand = command({
     workers: option({
       type: optional(number),
       long: 'workers',
-      description: 'Parallel workers for target invocation (default: all tests)',
+      description: 'Parallel workers for target invocation (default: targets.yaml workers, then 5)',
     }),
     experiment: option({
       type: optional(string),
@@ -116,6 +116,7 @@ export const evalRunCommand = command({
     } | null = null;
     let targetName = 'agent';
     let targetKind = 'agent';
+    let targetWorkers: number | undefined;
 
     try {
       const selection = await selectTarget({
@@ -129,6 +130,7 @@ export const evalRunCommand = command({
         env: process.env,
       });
       targetName = selection.targetName;
+      targetWorkers = selection.resolvedTarget.workers;
       if (selection.resolvedTarget.kind === 'cli') {
         targetKind = 'cli';
         const config = selection.resolvedTarget.config;
@@ -216,7 +218,7 @@ export const evalRunCommand = command({
           .replace(/\./g, '-');
       }
       const mergedEnv = { ...process.env, ...envVars };
-      const maxWorkers = workers ?? 5;
+      const maxWorkers = workers ?? targetWorkers ?? 5;
       let invCompleted = 0;
       const invTotal = testIds.length;
 
