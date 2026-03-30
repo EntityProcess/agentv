@@ -1,5 +1,3 @@
-$schema: agentv-eval-v2
-
 # Demo eval for the trace-analysis example.
 # Run this eval to generate result traces, then analyze with:
 #   agentv trace evals/multi-agent.eval.results.jsonl

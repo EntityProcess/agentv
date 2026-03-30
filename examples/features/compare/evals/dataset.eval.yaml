@@ -1,5 +1,3 @@
-$schema: agentv-eval-v2
-
 # Demo eval for the compare example.
 # Run against two targets to generate baseline and candidate result files:
 #   agentv eval evals/dataset.eval.yaml --target baseline
@@ -29,11 +27,25 @@ tests:
       - type: contains
         value: optim
 
+  - id: code-review-003
+    input: Review this error handling code for edge cases and missing checks.
+    criteria: Identifies missing error handling or edge cases
+    assertions:
+      - type: contains
+        value: error
+      - type: regex
+        value: "edge.?case|missing|exception|null"
+
   - id: code-gen-001
     input: Write a function that checks if a string is a palindrome.
     criteria: Returns working code that handles basic palindrome cases
     assertions:
       - type: contains
         value: palindrome
-      - type: is-json
-        required: false
+
+  - id: code-gen-002
+    input: Write a function that finds the longest common subsequence of two strings.
+    criteria: Returns a correct implementation with reasonable time complexity
+    assertions:
+      - type: regex
+        value: "subsequence|lcs|LCS"
