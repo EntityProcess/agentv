@@ -10,6 +10,7 @@ import { useState } from 'react';
 
 import type { EvalResult } from '~/lib/types';
 
+import { useStudioConfig, isPassing } from '~/lib/api';
 import { ScoreBar } from './ScoreBar';
 import { StatsCards } from './StatsCards';
 
@@ -35,7 +36,7 @@ interface CategoryGroup {
   avgScore: number;
 }
 
-function buildCategoryGroups(results: EvalResult[]): CategoryGroup[] {
+function buildCategoryGroups(results: EvalResult[], passThreshold: number): CategoryGroup[] {
   const categoryMap = new Map<
     string,
     Map<string, { passed: number; failed: number; total: number; scoreSum: number }>
@@ -50,7 +51,7 @@ function buildCategoryGroups(results: EvalResult[]): CategoryGroup[] {
     const entry = dsMap.get(ds) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
     entry.total += 1;
     entry.scoreSum += r.score;
-    if (r.score >= 1) entry.passed += 1;
+    if (isPassing(r.score, passThreshold)) entry.passed += 1;
     else entry.failed += 1;
     dsMap.set(ds, entry);
   }
@@ -83,13 +84,16 @@ function buildCategoryGroups(results: EvalResult[]): CategoryGroup[] {
 }
 
 export function RunDetail({ results, runId }: RunDetailProps) {
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
+
   const total = results.length;
-  const passed = results.filter((r) => r.score >= 1).length;
+  const passed = results.filter((r) => isPassing(r.score, passThreshold)).length;
   const failed = total - passed;
   const passRate = total > 0 ? passed / total : 0;
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
-  const categories = buildCategoryGroups(results);
+  const categories = buildCategoryGroups(results, passThreshold);
   const hasMultipleCategories = categories.length > 1;
 
   if (total === 0) {
