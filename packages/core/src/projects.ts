@@ -163,7 +163,7 @@ export function touchProject(projectId: string): void {
 // ── Discovery ───────────────────────────────────────────────────────────
 
 /**
- * Scan a directory tree (1 level deep) for directories containing `.agentv/`.
+ * Scan a directory tree (up to maxDepth levels) for directories containing `.agentv/`.
  * Returns absolute paths of discovered project directories.
  */
 export function discoverProjects(rootDir: string, maxDepth = 2): string[] {
