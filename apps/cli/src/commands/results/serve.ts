@@ -143,7 +143,8 @@ export function createApp(
   options?: { studioDir?: string },
 ): Hono {
   const searchDir = cwd ?? resultDir;
-  const config = loadStudioConfig(searchDir);
+  const runsDir = path.join(searchDir, '.agentv', 'results', 'runs');
+  const config = loadStudioConfig(runsDir);
   const app = new Hono();
 
   // Studio configuration
