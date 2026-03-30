@@ -1,14 +1,13 @@
 /**
- * Three-tab eval detail view: Steps (assertions), Output, and Task (input).
+ * Two-tab eval detail view: Steps (assertions) and Files (artifact browser).
  *
  * Shows the full evaluation result with score breakdown, assertions list,
- * and Monaco viewers for output/input content. Output and Task tabs include
- * a file tree sidebar when artifact files are available.
+ * and a file tree browser for artifact files (input, output, grading, timing).
  */
 
 import { useState } from 'react';
 
-import { useEvalFileContent, useEvalFiles } from '~/lib/api';
+import { isPassing, useEvalFileContent, useEvalFiles, useStudioConfig } from '~/lib/api';
 import type { EvalResult } from '~/lib/types';
 
 import { FeedbackPanel } from './FeedbackPanel';
@@ -22,7 +21,7 @@ interface EvalDetailProps {
   runId: string;
 }
 
-type Tab = 'steps' | 'output' | 'task';
+type Tab = 'steps' | 'files';
 
 /** Recursively find the first file node in the tree. */
 function findFirstFile(nodes: FileNode[]): string | null {
@@ -41,8 +40,7 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'steps', label: 'Steps' },
-    { id: 'output', label: 'Output' },
-    { id: 'task', label: 'Task' },
+    { id: 'files', label: 'Files' },
   ];
 
   return (
@@ -108,8 +106,7 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
       {/* Tab content */}
       <div>
         {activeTab === 'steps' && <StepsTab result={result} />}
-        {activeTab === 'output' && <OutputTab result={result} runId={runId} />}
-        {activeTab === 'task' && <TaskTab result={result} runId={runId} />}
+        {activeTab === 'files' && <FilesTab result={result} runId={runId} />}
       </div>
 
       {/* Feedback */}
@@ -119,9 +116,13 @@ export function EvalDetail({ eval: result, runId }: EvalDetailProps) {
 }
 
 function StepsTab({ result }: { result: EvalResult }) {
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
   const assertions = result.assertions ?? [];
   const hasFailed =
-    result.score < 1 || result.executionStatus === 'error' || result.executionStatus === 'failed';
+    !isPassing(result.score, passThreshold) ||
+    result.executionStatus === 'error' ||
+    result.executionStatus === 'failed';
 
   // Collect failure reasons from multiple sources
   const failureReasons: string[] = [];
@@ -138,7 +139,7 @@ function StepsTab({ result }: { result: EvalResult }) {
   // Also check per-evaluator scores for failure details
   if (result.scores) {
     for (const s of result.scores) {
-      if (s.score < 1 && s.details) {
+      if (!isPassing(s.score, passThreshold) && s.details) {
         const detailStr =
           typeof s.details === 'string' ? s.details : JSON.stringify(s.details, null, 2);
         failureReasons.push(`[${s.name ?? s.type ?? 'evaluator'}] ${detailStr}`);
@@ -207,16 +208,14 @@ function StepsTab({ result }: { result: EvalResult }) {
   );
 }
 
-function OutputTab({ result, runId }: { result: EvalResult; runId: string }) {
+function FilesTab({ result, runId }: { result: EvalResult; runId: string }) {
   const evalId = result.testId;
   const { data: filesData } = useEvalFiles(runId, evalId);
   const files = filesData?.files ?? [];
-  const hasFiles = files.length > 0;
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
-  // Resolve effective path: selected, or first file, or null
-  const effectivePath = selectedPath ?? (hasFiles ? findFirstFile(files) : null);
+  const effectivePath = selectedPath ?? (files.length > 0 ? findFirstFile(files) : null);
 
   const { data: fileContentData, isLoading: isLoadingContent } = useEvalFileContent(
     runId,
@@ -224,69 +223,17 @@ function OutputTab({ result, runId }: { result: EvalResult; runId: string }) {
     effectivePath ?? '',
   );
 
-  const output = result.output;
-  const fallbackText =
-    output && output.length > 0 ? output.map((m) => `[${m.role}]\n${m.content}`).join('\n\n') : '';
-
-  if (!hasFiles) {
-    if (!output || output.length === 0) {
-      return <p className="text-sm text-gray-500">No output available.</p>;
-    }
-    return <MonacoViewer value={fallbackText} language="markdown" />;
+  if (files.length === 0) {
+    return <p className="text-sm text-gray-500">No artifact files available.</p>;
   }
 
   const displayValue = effectivePath
     ? isLoadingContent
       ? 'Loading...'
-      : (fileContentData?.content ?? fallbackText)
-    : fallbackText;
+      : (fileContentData?.content ?? '')
+    : '';
 
-  const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'markdown';
-
-  return (
-    <div className="flex h-[500px] gap-4">
-      <FileTree files={files} selectedPath={effectivePath} onSelect={setSelectedPath} />
-      <div className="flex-1">
-        <MonacoViewer value={displayValue} language={displayLanguage} />
-      </div>
-    </div>
-  );
-}
-
-function TaskTab({ result, runId }: { result: EvalResult; runId: string }) {
-  const evalId = result.testId;
-  const { data: filesData } = useEvalFiles(runId, evalId);
-  const files = filesData?.files ?? [];
-  const hasFiles = files.length > 0;
-
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-
-  const effectivePath = selectedPath ?? (hasFiles ? findFirstFile(files) : null);
-
-  const { data: fileContentData, isLoading: isLoadingContent } = useEvalFileContent(
-    runId,
-    evalId,
-    effectivePath ?? '',
-  );
-
-  const input = result.input;
-  const fallbackText =
-    input && input.length > 0 ? input.map((m) => `[${m.role}]\n${m.content}`).join('\n\n') : '';
-
-  if (!hasFiles) {
-    if (!input || input.length === 0) {
-      return <p className="text-sm text-gray-500">No task input available.</p>;
-    }
-    return <MonacoViewer value={fallbackText} language="markdown" />;
-  }
-
-  const displayValue = effectivePath
-    ? isLoadingContent
-      ? 'Loading...'
-      : (fileContentData?.content ?? fallbackText)
-    : fallbackText;
-
-  const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'markdown';
+  const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'plaintext';
 
   return (
     <div className="flex h-[500px] gap-4">

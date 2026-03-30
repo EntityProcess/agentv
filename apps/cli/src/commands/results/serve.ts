@@ -36,6 +36,7 @@ import {
   resolveResultSourcePath,
 } from './manifest.js';
 import { patchTestIds } from './shared.js';
+import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
 
@@ -142,7 +143,26 @@ export function createApp(
   options?: { studioDir?: string },
 ): Hono {
   const searchDir = cwd ?? resultDir;
+  const agentvDir = path.join(searchDir, '.agentv');
   const app = new Hono();
+
+  // Studio configuration (re-read on each request so external edits are picked up)
+  app.get('/api/config', (c) => c.json(loadStudioConfig(agentvDir)));
+
+  app.post('/api/config', async (c) => {
+    try {
+      const body = await c.req.json<Partial<StudioConfig>>();
+      const current = loadStudioConfig(agentvDir);
+      const updated = { ...current, ...body };
+      if (typeof updated.pass_threshold === 'number') {
+        updated.pass_threshold = Math.min(1, Math.max(0, updated.pass_threshold));
+      }
+      saveStudioConfig(agentvDir, updated);
+      return c.json(updated);
+    } catch {
+      return c.json({ error: 'Failed to save config' }, 500);
+    }
+  });
 
   // Dashboard HTML — serve Studio SPA (React app).
   const studioDistPath = options?.studioDir ?? resolveStudioDistDir();
@@ -273,12 +293,13 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
+      const { pass_threshold } = loadStudioConfig(agentvDir);
       const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of loaded) {
         const ds = r.dataset ?? r.target ?? 'default';
         const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
-        if (r.score >= 1) entry.passed++;
+        if (r.score >= pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
@@ -305,6 +326,7 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
+      const { pass_threshold } = loadStudioConfig(agentvDir);
       const categoryMap = new Map<
         string,
         { total: number; passed: number; scoreSum: number; datasets: Set<string> }
@@ -318,7 +340,7 @@ export function createApp(
           datasets: new Set<string>(),
         };
         entry.total++;
-        if (r.score >= 1) entry.passed++;
+        if (r.score >= pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         entry.datasets.add(r.dataset ?? r.target ?? 'default');
         categoryMap.set(cat, entry);
@@ -348,13 +370,14 @@ export function createApp(
     }
     try {
       const loaded = patchTestIds(loadManifestResults(meta.path));
+      const { pass_threshold } = loadStudioConfig(agentvDir);
       const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
       const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
       for (const r of filtered) {
         const ds = r.dataset ?? r.target ?? 'default';
         const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
-        if (r.score >= 1) entry.passed++;
+        if (r.score >= pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
@@ -575,6 +598,7 @@ export function createApp(
   // Experiments aggregate (group all runs by experiment)
   app.get('/api/experiments', (c) => {
     const metas = listResultFiles(searchDir);
+    const { pass_threshold } = loadStudioConfig(agentvDir);
     const experimentMap = new Map<
       string,
       {
@@ -601,7 +625,7 @@ export function createApp(
           entry.runFilenames.add(m.filename);
           if (r.target) entry.targets.add(r.target);
           entry.evalCount++;
-          if (r.score >= 1) entry.passedCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
           if (r.timestamp && r.timestamp > entry.lastTimestamp) {
             entry.lastTimestamp = r.timestamp;
           }
@@ -628,6 +652,7 @@ export function createApp(
   // Targets aggregate (group all runs by target)
   app.get('/api/targets', (c) => {
     const metas = listResultFiles(searchDir);
+    const { pass_threshold } = loadStudioConfig(agentvDir);
     const targetMap = new Map<
       string,
       {
@@ -652,7 +677,7 @@ export function createApp(
           entry.runFilenames.add(m.filename);
           if (r.experiment) entry.experiments.add(r.experiment);
           entry.evalCount++;
-          if (r.score >= 1) entry.passedCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
           targetMap.set(target, entry);
         }
       } catch {

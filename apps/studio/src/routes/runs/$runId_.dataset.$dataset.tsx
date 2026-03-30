@@ -10,7 +10,7 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 
 import { ScoreBar } from '~/components/ScoreBar';
 import { StatsCards } from '~/components/StatsCards';
-import { useRunDetail } from '~/lib/api';
+import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/runs/$runId_/dataset/$dataset')({
   component: DatasetPage,
@@ -19,6 +19,8 @@ export const Route = createFileRoute('/runs/$runId_/dataset/$dataset')({
 function DatasetPage() {
   const { runId, dataset } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
 
   if (isLoading) {
     return (
@@ -43,7 +45,7 @@ function DatasetPage() {
 
   const results = (data?.results ?? []).filter((r) => (r.dataset ?? 'Uncategorized') === dataset);
   const total = results.length;
-  const passed = results.filter((r) => r.score >= 1).length;
+  const passed = results.filter((r) => isPassing(r.score, passThreshold)).length;
   const failed = total - passed;
   const passRate = total > 0 ? passed / total : 0;
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
