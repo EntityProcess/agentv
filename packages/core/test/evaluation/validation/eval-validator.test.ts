@@ -940,6 +940,116 @@ tests: ./cases.yaml
     });
   });
 
+  describe('unknown field detection', () => {
+    it('warns on unknown test-level fields', async () => {
+      const filePath = path.join(tempDir, 'unknown-test-field.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    input: "Hello"
+    criteria: Some criteria
+    asserts:
+      - type: contains
+        value: "hello"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(warnings.some((e) => e.message.includes("Unknown field 'asserts'"))).toBe(true);
+    });
+
+    it('warns on unknown top-level fields', async () => {
+      const filePath = path.join(tempDir, 'unknown-top-field.yaml');
+      await writeFile(
+        filePath,
+        `description: Test eval
+provider: openai
+tests:
+  - id: test-1
+    input: "Hello"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(warnings.some((e) => e.message.includes("Unknown field 'provider'"))).toBe(true);
+    });
+
+    it('does not warn on known test-level fields', async () => {
+      const filePath = path.join(tempDir, 'known-test-fields.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    input: "Hello"
+    criteria: Some criteria
+    expected_output: "World"
+    assertions:
+      - type: contains
+        value: "world"
+    metadata:
+      tag: test
+    note: A note
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const unknownWarnings = result.errors.filter(
+        (e) => e.severity === 'warning' && e.message.includes('Unknown field'),
+      );
+      expect(unknownWarnings).toHaveLength(0);
+    });
+
+    it('does not warn on known top-level fields', async () => {
+      const filePath = path.join(tempDir, 'known-top-fields.yaml');
+      await writeFile(
+        filePath,
+        `name: my-eval
+description: A test
+version: "1.0"
+target: my-target
+tests:
+  - id: test-1
+    input: "Hello"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const unknownWarnings = result.errors.filter(
+        (e) => e.severity === 'warning' && e.message.includes('Unknown field'),
+      );
+      expect(unknownWarnings).toHaveLength(0);
+    });
+
+    it('warns on multiple unknown fields in one test', async () => {
+      const filePath = path.join(tempDir, 'multiple-unknown-fields.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    input: "Hello"
+    foo: bar
+    baz: qux
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      const unknownWarnings = result.errors.filter(
+        (e) => e.severity === 'warning' && e.message.includes('Unknown field'),
+      );
+      expect(unknownWarnings).toHaveLength(2);
+      expect(unknownWarnings.some((e) => e.message.includes("'foo'"))).toBe(true);
+      expect(unknownWarnings.some((e) => e.message.includes("'baz'"))).toBe(true);
+    });
+  });
+
   describe('backward-compat aliases', () => {
     it('accepts expected_outcome as deprecated alias for criteria (with warning)', async () => {
       const filePath = path.join(tempDir, 'expected-outcome-alias.yaml');

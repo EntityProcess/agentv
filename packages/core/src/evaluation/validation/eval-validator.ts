@@ -31,6 +31,47 @@ const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
 /** Valid file extensions for external test files. */
 const VALID_TEST_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.jsonl']);
 
+/** Known fields at the top level of an eval file. */
+const KNOWN_TOP_LEVEL_FIELDS = new Set([
+  '$schema',
+  'name',
+  'description',
+  'version',
+  'author',
+  'tags',
+  'license',
+  'requires',
+  'input',
+  'input_files',
+  'tests',
+  'eval_cases',
+  'target',
+  'execution',
+  'assertions',
+  'assert',
+  'evaluators',
+  'workspace',
+]);
+
+/** Known fields at the test level. */
+const KNOWN_TEST_FIELDS = new Set([
+  'id',
+  'criteria',
+  'expected_outcome',
+  'input',
+  'input_files',
+  'expected_output',
+  'assertions',
+  'assert',
+  'evaluators',
+  'execution',
+  'workspace',
+  'metadata',
+  'conversation_id',
+  'dataset',
+  'note',
+]);
+
 /** Name field pattern: lowercase alphanumeric with hyphens. */
 const NAME_PATTERN = /^[a-z0-9-]+$/;
 
@@ -79,6 +120,18 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
+
+  // Warn on unknown top-level fields
+  for (const key of Object.keys(parsed)) {
+    if (!KNOWN_TOP_LEVEL_FIELDS.has(key)) {
+      errors.push({
+        severity: 'warning',
+        filePath: absolutePath,
+        location: key,
+        message: `Unknown field '${key}'. This field will be ignored.`,
+      });
+    }
+  }
 
   // Validate suite-level input (optional: string shorthand or message array)
   const suiteInput = parsed.input;
@@ -180,6 +233,18 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         message: 'Eval case must be an object',
       });
       continue;
+    }
+
+    // Warn on unknown test-level fields
+    for (const key of Object.keys(evalCase)) {
+      if (!KNOWN_TEST_FIELDS.has(key)) {
+        errors.push({
+          severity: 'warning',
+          filePath: absolutePath,
+          location: `${location}.${key}`,
+          message: `Unknown field '${key}'. This field will be ignored.`,
+        });
+      }
     }
 
     // Required fields: id, input
