@@ -48,11 +48,8 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Install agentv globally
-        run: bun install -g agentv
-
       - name: Check evals directories have eval files
         run: bun scripts/validate-eval-dirs.ts
 
       - name: Validate eval schemas
-        run: agentv validate 'examples/features/**/evals/**/*.eval.yaml' 'examples/features/**/*.EVAL.yaml'
+        run: bun apps/cli/dist/cli.js validate 'examples/features/**/evals/**/*.eval.yaml' 'examples/features/**/*.EVAL.yaml'

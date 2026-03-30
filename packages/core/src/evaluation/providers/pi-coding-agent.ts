@@ -15,7 +15,6 @@ import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import { extractPiTextContent, toFiniteNumber, toPiContentArray } from './pi-utils.js';
@@ -53,9 +52,9 @@ async function promptInstall(): Promise<boolean> {
 
 /** Resolve agentv's own package root (where bun add should install peer deps). */
 function findAgentvRoot(): string {
-  const thisFile = fileURLToPath(import.meta.url);
-  let dir = path.dirname(thisFile);
-  // Walk up until we find a package.json (covers both src and dist layouts)
+  // Walk up from this file's directory until we find a package.json.
+  // Works in both ESM (__dirname via Node/Bun polyfill) and CJS (__dirname native).
+  let dir = __dirname;
   for (let i = 0; i < 10; i++) {
     try {
       const pkg = path.join(dir, 'package.json');
@@ -68,8 +67,7 @@ function findAgentvRoot(): string {
       dir = parent;
     }
   }
-  // Fallback: current file's directory
-  return path.dirname(thisFile);
+  return __dirname;
 }
 
 async function doLoadSdkModules(): Promise<void> {
