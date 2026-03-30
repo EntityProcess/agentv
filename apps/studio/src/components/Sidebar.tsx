@@ -110,6 +110,16 @@ function RunSidebar() {
           );
         })}
       </nav>
+
+      {/* Settings link at bottom */}
+      <div className="border-t border-gray-800 px-4 py-3">
+        <Link
+          to="/settings"
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-cyan-400"
+        >
+          Settings
+        </Link>
+      </div>
     </aside>
   );
 }

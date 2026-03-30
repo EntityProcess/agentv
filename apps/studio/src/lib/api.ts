@@ -130,7 +130,7 @@ export function categoryDatasetsOptions(runId: string, category: string) {
 export const studioConfigOptions = queryOptions({
   queryKey: ['config'],
   queryFn: () => fetchJson<StudioConfigResponse>('/api/config'),
-  staleTime: 60_000,
+  staleTime: 5_000,
 });
 
 // ── Hooks ───────────────────────────────────────────────────────────────
@@ -192,4 +192,18 @@ export const DEFAULT_PASS_THRESHOLD = 0.8;
 
 export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_THRESHOLD): boolean {
   return score >= passThreshold;
+}
+
+export async function saveStudioConfig(
+  config: Partial<StudioConfigResponse>,
+): Promise<StudioConfigResponse> {
+  const res = await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to save config: ${res.status}`);
+  }
+  return res.json() as Promise<StudioConfigResponse>;
 }

@@ -12,11 +12,11 @@
  * If no config.yaml exists, defaults are used.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { PASS_THRESHOLD } from '@agentv/core';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export interface StudioConfig {
   pass_threshold: number;
@@ -51,4 +51,17 @@ export function loadStudioConfig(agentvDir: string): StudioConfig {
   return {
     pass_threshold: Math.min(1, Math.max(0, threshold)),
   };
+}
+
+/**
+ * Save studio config to `config.yaml` in the given `.agentv/` directory.
+ * Creates the directory if it does not exist.
+ */
+export function saveStudioConfig(agentvDir: string, config: StudioConfig): void {
+  if (!existsSync(agentvDir)) {
+    mkdirSync(agentvDir, { recursive: true });
+  }
+  const configPath = path.join(agentvDir, 'config.yaml');
+  const yamlStr = stringifyYaml(config);
+  writeFileSync(configPath, yamlStr, 'utf-8');
 }
