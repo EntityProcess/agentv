@@ -10,7 +10,7 @@
 
 import { Link, useMatchRoute } from '@tanstack/react-router';
 
-import { useCategoryDatasets, useExperiments, useRunDetail, useRunList } from '~/lib/api';
+import { isPassing, useCategoryDatasets, useExperiments, useRunDetail, useRunList, useStudioConfig } from '~/lib/api';
 
 export function Sidebar() {
   const matchRoute = useMatchRoute();
@@ -109,6 +109,8 @@ function RunSidebar() {
 
 function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: string }) {
   const { data } = useRunDetail(runId);
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
 
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
@@ -137,7 +139,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
 
         {data?.results.map((result) => {
           const isActive = result.testId === currentEvalId;
-          const passed = result.score >= 1;
+          const passed = isPassing(result.score, passThreshold);
 
           return (
             <Link
@@ -164,6 +166,8 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
 
 function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) {
   const { data } = useRunDetail(runId);
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.pass_threshold ?? 0.8;
   const datasetResults = (data?.results ?? []).filter(
     (r) => (r.dataset ?? 'Uncategorized') === dataset,
   );
@@ -195,7 +199,7 @@ function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) 
         </div>
 
         {datasetResults.map((result) => {
-          const passed = result.score >= 1;
+          const passed = isPassing(result.score, passThreshold);
 
           return (
             <Link
