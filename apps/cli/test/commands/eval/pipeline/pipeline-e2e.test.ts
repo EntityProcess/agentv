@@ -1,4 +1,4 @@
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -33,16 +33,17 @@ describe('eval pipeline e2e', () => {
     );
     expect(gradeResult.score).toBe(1);
 
-    // Step 4: pipeline bench with mock LLM scores
-    const llmScores = JSON.stringify({
-      'test-01': {
-        relevance: {
-          score: 0.9,
-          assertions: [{ text: 'Response is relevant', passed: true, evidence: 'echoes input' }],
-        },
-      },
-    });
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
+    // Step 4: Write mock LLM grader result to disk, then run pipeline bench
+    const llmResultsDir = join(OUT_DIR, 'input-test', 'test-01', 'llm_grader_results');
+    await mkdir(llmResultsDir, { recursive: true });
+    await writeFile(
+      join(llmResultsDir, 'relevance.json'),
+      JSON.stringify({
+        score: 0.9,
+        assertions: [{ text: 'Response is relevant', passed: true, evidence: 'echoes input' }],
+      }),
+    );
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     // Verify final artifacts
     const grading = JSON.parse(

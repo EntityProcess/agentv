@@ -10,9 +10,11 @@ describe('pipeline bench', () => {
     const testDir = join(OUT_DIR, 'test-01');
     const codeResultsDir = join(testDir, 'code_grader_results');
     const llmGradersDir = join(testDir, 'llm_graders');
+    const llmResultsDir = join(testDir, 'llm_grader_results');
     const codeGradersDir = join(testDir, 'code_graders');
     await mkdir(codeResultsDir, { recursive: true });
     await mkdir(llmGradersDir, { recursive: true });
+    await mkdir(llmResultsDir, { recursive: true });
     await mkdir(codeGradersDir, { recursive: true });
 
     await writeFile(
@@ -58,17 +60,17 @@ describe('pipeline bench', () => {
   });
 
   it('writes grading.json with merged scores and pass_rate', async () => {
-    const llmScores = JSON.stringify({
-      'test-01': {
-        relevance: {
-          score: 0.8,
-          assertions: [{ text: 'Relevant response', passed: true, evidence: 'matches criteria' }],
-        },
-      },
-    });
+    // Write LLM grader result to disk (the default flow)
+    await writeFile(
+      join(OUT_DIR, 'test-01', 'llm_grader_results', 'relevance.json'),
+      JSON.stringify({
+        score: 0.8,
+        assertions: [{ text: 'Relevant response', passed: true, evidence: 'matches criteria' }],
+      }),
+    );
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
@@ -77,17 +79,16 @@ describe('pipeline bench', () => {
   });
 
   it('writes index.jsonl with one entry per test', async () => {
-    const llmScores = JSON.stringify({
-      'test-01': {
-        relevance: {
-          score: 0.8,
-          assertions: [{ text: 'Relevant', passed: true }],
-        },
-      },
-    });
+    await writeFile(
+      join(OUT_DIR, 'test-01', 'llm_grader_results', 'relevance.json'),
+      JSON.stringify({
+        score: 0.8,
+        assertions: [{ text: 'Relevant', passed: true }],
+      }),
+    );
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const lines = indexContent
@@ -100,14 +101,16 @@ describe('pipeline bench', () => {
   });
 
   it('writes benchmark.json with run_summary', async () => {
-    const llmScores = JSON.stringify({
-      'test-01': {
-        relevance: { score: 0.8, assertions: [{ text: 'ok', passed: true }] },
-      },
-    });
+    await writeFile(
+      join(OUT_DIR, 'test-01', 'llm_grader_results', 'relevance.json'),
+      JSON.stringify({
+        score: 0.8,
+        assertions: [{ text: 'ok', passed: true }],
+      }),
+    );
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: llmScores });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
     expect(benchmark.metadata.targets).toContain('test-target');
@@ -128,7 +131,7 @@ describe('pipeline bench', () => {
     );
 
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: '{}' });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
@@ -140,7 +143,7 @@ describe('pipeline bench', () => {
 
   it('omits experiment from output when manifest has no experiment', async () => {
     const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR], { input: '{}' });
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);

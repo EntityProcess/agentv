@@ -313,18 +313,13 @@ Runs code-grader assertions against `response.md` files in each test directory.
 
 ### `agentv pipeline bench <export-dir>`
 
-Merges code-grader results with LLM grader scores (read from stdin) and produces final artifacts.
+Merges code-grader results with LLM grader scores and produces final artifacts.
 
-**Stdin format (LLM grader scores):**
+LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.json` per test.
+
+**LLM grader result file format** (`llm_grader_results/<name>.json`):
 ```json
-{
-  "<test-id>": {
-    "<grader-name>": {
-      "score": 0.85,
-      "assertions": [{"text": "...", "passed": true, "evidence": "..."}]
-    }
-  }
-}
+{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
 ```
 
 **Output:**

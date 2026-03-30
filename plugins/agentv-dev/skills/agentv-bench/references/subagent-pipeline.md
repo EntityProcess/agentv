@@ -109,10 +109,10 @@ agentv pipeline input evals/repro.eval.yaml
 # Step 3: Run code graders
 agentv pipeline grade <run-dir>
 
-# Step 4: Subagent does LLM grading, writes llm_scores.json
+# Step 4: Subagent does LLM grading, writes results to llm_grader_results/<name>.json per test
 
 # Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
-agentv pipeline bench <run-dir> --llm-scores llm_scores.json
+agentv pipeline bench <run-dir>
 
 # Step 6: Validate
 agentv results validate <run-dir>

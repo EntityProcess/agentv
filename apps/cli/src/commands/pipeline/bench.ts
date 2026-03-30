@@ -2,21 +2,18 @@
  * `agentv pipeline bench` — Merge code-grader and LLM grader scores into final
  * benchmark artifacts.
  *
- * Reads code_grader_results from disk and LLM grader scores from a file
- * (`--llm-scores <path>`) or stdin, computes weighted pass_rate per test,
- * and writes:
+ * Reads code_grader_results and llm_grader_results from disk per test.
+ *
+ * Writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
  *   - index.jsonl             (one line per test)
  *   - benchmark.json          (aggregate statistics)
- *
- * Stdin format (LLM scores):
- *   { "<test-id>": { "<grader-name>": { "score": 0.85, "assertions": [...] } } }
  */
 import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { command, option, optional, positional, string } from 'cmd-ts';
+import { command, positional, string } from 'cmd-ts';
 
 interface EvaluatorScore {
   readonly name: string;
@@ -35,34 +32,14 @@ export const evalBenchCommand = command({
       displayName: 'export-dir',
       description: 'Export directory from pipeline input/grade',
     }),
-    llmScores: option({
-      type: optional(string),
-      long: 'llm-scores',
-      description: 'Path to LLM scores JSON file (reads from stdin if omitted)',
-    }),
   },
-  handler: async ({ exportDir, llmScores: llmScoresPath }) => {
+  handler: async ({ exportDir }) => {
     const manifest = JSON.parse(await readFile(join(exportDir, 'manifest.json'), 'utf8'));
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
     const evalSet: string = manifest.dataset ?? '';
     const experiment: string | undefined = manifest.experiment;
     const safeEvalSet = evalSet ? evalSet.replace(/[\/\\:*?"<>|]/g, '_') : '';
-
-    // Read LLM scores from file or stdin
-    let stdinData: string;
-    if (llmScoresPath) {
-      stdinData = await readFile(llmScoresPath, 'utf8');
-    } else {
-      stdinData = await readStdin();
-    }
-    const llmScores: Record<
-      string,
-      Record<
-        string,
-        { score: number; assertions: { text: string; passed: boolean; evidence?: string }[] }
-      >
-    > = stdinData ? JSON.parse(stdinData) : {};
 
     const indexLines: string[] = [];
     const allPassRates: number[] = [];
@@ -95,16 +72,23 @@ export const evalBenchCommand = command({
         // No code grader results
       }
 
-      // Collect LLM grader scores (from stdin data)
-      const testLlmScores = llmScores[testId] ?? {};
-      // Read LLM grader metadata for weights
+      // Collect LLM grader scores from per-test disk results
       const llmGradersDir = join(testDir, 'llm_graders');
       try {
         const graderFiles = (await readdir(llmGradersDir)).filter((f) => f.endsWith('.json'));
         for (const file of graderFiles) {
           const graderMeta = JSON.parse(await readFile(join(llmGradersDir, file), 'utf8'));
           const graderName = graderMeta.name;
-          const llmResult = testLlmScores[graderName];
+
+          const diskResultPath = join(testDir, 'llm_grader_results', `${graderName}.json`);
+          let llmResult:
+            | { score: number; assertions?: { text: string; passed: boolean; evidence?: string }[] }
+            | undefined;
+          try {
+            llmResult = JSON.parse(await readFile(diskResultPath, 'utf8'));
+          } catch {
+            // No result for this grader
+          }
 
           if (llmResult) {
             evaluators.push({
@@ -133,7 +117,11 @@ export const evalBenchCommand = command({
       const passed = allAssertions.filter((a) => a.passed).length;
       const failed = allAssertions.filter((a) => !a.passed).length;
       const passRate =
-        allAssertions.length > 0 ? Math.round((passed / allAssertions.length) * 1000) / 1000 : 0;
+        allAssertions.length > 0
+          ? Math.round((passed / allAssertions.length) * 1000) / 1000
+          : weightedScore >= 0.5
+            ? 1.0
+            : 0.0;
 
       allPassRates.push(passRate);
 
@@ -237,14 +225,6 @@ export const evalBenchCommand = command({
     console.log(`Benchmark: ${testIds.length} test(s), pass_rate=${passRateStats.mean}`);
   },
 });
-
-async function readStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks).toString('utf8').trim();
-}
 
 function computeStats(values: readonly number[]): { mean: number; stddev: number } {
   if (values.length === 0) return { mean: 0, stddev: 0 };
