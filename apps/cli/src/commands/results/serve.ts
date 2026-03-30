@@ -36,6 +36,7 @@ import {
   resolveResultSourcePath,
 } from './manifest.js';
 import { patchTestIds } from './shared.js';
+import { loadStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
 
@@ -142,7 +143,11 @@ export function createApp(
   options?: { studioDir?: string },
 ): Hono {
   const searchDir = cwd ?? resultDir;
+  const config = loadStudioConfig(searchDir);
   const app = new Hono();
+
+  // Studio configuration
+  app.get('/api/config', (c) => c.json(config));
 
   // Dashboard HTML — serve Studio SPA (React app).
   const studioDistPath = options?.studioDir ?? resolveStudioDistDir();
@@ -278,7 +283,7 @@ export function createApp(
         const ds = r.dataset ?? r.target ?? 'default';
         const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
-        if (r.score >= 1) entry.passed++;
+        if (r.score >= config.pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
@@ -318,7 +323,7 @@ export function createApp(
           datasets: new Set<string>(),
         };
         entry.total++;
-        if (r.score >= 1) entry.passed++;
+        if (r.score >= config.pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         entry.datasets.add(r.dataset ?? r.target ?? 'default');
         categoryMap.set(cat, entry);
@@ -354,7 +359,7 @@ export function createApp(
         const ds = r.dataset ?? r.target ?? 'default';
         const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
         entry.total++;
-        if (r.score >= 1) entry.passed++;
+        if (r.score >= config.pass_threshold) entry.passed++;
         entry.scoreSum += r.score;
         datasetMap.set(ds, entry);
       }
@@ -601,7 +606,7 @@ export function createApp(
           entry.runFilenames.add(m.filename);
           if (r.target) entry.targets.add(r.target);
           entry.evalCount++;
-          if (r.score >= 1) entry.passedCount++;
+          if (r.score >= config.pass_threshold) entry.passedCount++;
           if (r.timestamp && r.timestamp > entry.lastTimestamp) {
             entry.lastTimestamp = r.timestamp;
           }
@@ -652,7 +657,7 @@ export function createApp(
           entry.runFilenames.add(m.filename);
           if (r.experiment) entry.experiments.add(r.experiment);
           entry.evalCount++;
-          if (r.score >= 1) entry.passedCount++;
+          if (r.score >= config.pass_threshold) entry.passedCount++;
           targetMap.set(target, entry);
         }
       } catch {
