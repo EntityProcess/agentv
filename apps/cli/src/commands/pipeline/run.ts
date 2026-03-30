@@ -252,15 +252,19 @@ export const evalRunCommand = command({
         const start = performance.now();
         try {
           await new Promise<void>((resolveP, rejectP) => {
-            exec(rendered, {
-              cwd,
-              timeout: timeoutMs,
-              env: mergedEnv,
-              maxBuffer: 10 * 1024 * 1024,
-            }, (error) => {
-              if (error) rejectP(error);
-              else resolveP();
-            });
+            exec(
+              rendered,
+              {
+                cwd,
+                timeout: timeoutMs,
+                env: mergedEnv,
+                maxBuffer: 10 * 1024 * 1024,
+              },
+              (error) => {
+                if (error) rejectP(error);
+                else resolveP();
+              },
+            );
           });
           const durationMs = Math.round(performance.now() - start);
 
@@ -289,7 +293,9 @@ export const evalRunCommand = command({
             total_duration_seconds: Math.round(durationMs / 10) / 100,
             execution_status: 'execution_error',
           });
-          process.stderr.write(`\n  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}\n`);
+          process.stderr.write(
+            `\n  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}\n`,
+          );
         } finally {
           invCompleted++;
           writeInvProgress();
