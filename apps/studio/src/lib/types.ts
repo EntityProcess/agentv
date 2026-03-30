@@ -164,3 +164,7 @@ export interface CategorySummary {
 export interface CategoriesResponse {
   categories: CategorySummary[];
 }
+
+export interface StudioConfigResponse {
+  pass_threshold: number;
+}

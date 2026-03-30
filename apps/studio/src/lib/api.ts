@@ -18,6 +18,7 @@ import type {
   IndexResponse,
   RunDetailResponse,
   RunListResponse,
+  StudioConfigResponse,
   TargetsResponse,
 } from './types';
 
@@ -126,6 +127,12 @@ export function categoryDatasetsOptions(runId: string, category: string) {
   });
 }
 
+export const studioConfigOptions = queryOptions({
+  queryKey: ['config'],
+  queryFn: () => fetchJson<StudioConfigResponse>('/api/config'),
+  staleTime: 60_000,
+});
+
 // ── Hooks ───────────────────────────────────────────────────────────────
 
 export function useRunList() {
@@ -174,4 +181,15 @@ export function useRunCategories(runId: string) {
 
 export function useCategoryDatasets(runId: string, category: string) {
   return useQuery(categoryDatasetsOptions(runId, category));
+}
+
+export function useStudioConfig() {
+  return useQuery(studioConfigOptions);
+}
+
+/** Default pass threshold matching @agentv/core PASS_THRESHOLD */
+export const DEFAULT_PASS_THRESHOLD = 0.8;
+
+export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_THRESHOLD): boolean {
+  return score >= passThreshold;
 }
