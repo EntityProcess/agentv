@@ -523,16 +523,6 @@ function validateMetadata(parsed: JsonObject, filePath: string, errors: Validati
         });
       }
     }
-
-    // Warn if name is present but description is missing
-    if (!('description' in parsed) || parsed.description === undefined) {
-      errors.push({
-        severity: 'warning',
-        filePath,
-        location: 'name',
-        message: "When 'name' is present, 'description' should also be provided.",
-      });
-    }
   }
 }
 
