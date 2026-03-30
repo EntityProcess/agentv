@@ -94,7 +94,8 @@ export function saveStudioConfig(agentvDir: string, config: StudioConfig): void 
   }
 
   // Remove legacy root-level pass_threshold
-  delete existing.pass_threshold;
+  const { pass_threshold: _, ...rest } = existing;
+  existing = rest;
 
   // Merge studio section
   existing.studio = { ...config };
