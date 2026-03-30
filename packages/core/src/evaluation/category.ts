@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 /** Default category for eval files without subdirectory structure. */
 export const DEFAULT_CATEGORY = 'Uncategorized';
 
@@ -11,7 +9,7 @@ export const DEFAULT_CATEGORY = 'Uncategorized';
  * at the root level.
  */
 export function deriveCategory(relativePath: string): string {
-  const parts = relativePath.split(path.sep);
+  const parts = relativePath.split(/[/\\]/);
   if (parts.length <= 1) {
     return DEFAULT_CATEGORY;
   }
