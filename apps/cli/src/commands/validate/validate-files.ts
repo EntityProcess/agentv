@@ -10,6 +10,7 @@ import {
   validateFileReferences,
   validateTargetsFile,
 } from '@agentv/core/evaluation/validation';
+import fg from 'fast-glob';
 
 /**
  * Validate YAML files for AgentV schema compliance.
@@ -67,34 +68,50 @@ async function validateSingleFile(filePath: string): Promise<ValidationResult> {
 }
 
 async function expandPaths(paths: readonly string[]): Promise<readonly string[]> {
-  const expanded: string[] = [];
+  const expanded = new Set<string>();
 
   for (const inputPath of paths) {
     const absolutePath = path.resolve(inputPath);
 
-    // Check if path exists
+    // Try as literal file or directory first
     try {
       await access(absolutePath, constants.F_OK);
-    } catch {
-      console.warn(`Warning: Path not found: ${inputPath}`);
-      continue;
-    }
+      const stats = await stat(absolutePath);
 
-    const stats = await stat(absolutePath);
-
-    if (stats.isFile()) {
-      // Only include YAML files
-      if (isYamlFile(absolutePath)) {
-        expanded.push(absolutePath);
+      if (stats.isFile()) {
+        if (isYamlFile(absolutePath)) expanded.add(absolutePath);
+        continue;
       }
-    } else if (stats.isDirectory()) {
-      // Recursively find all YAML files in directory
-      const yamlFiles = await findYamlFiles(absolutePath);
-      expanded.push(...yamlFiles);
+      if (stats.isDirectory()) {
+        const yamlFiles = await findYamlFiles(absolutePath);
+        for (const f of yamlFiles) expanded.add(f);
+        continue;
+      }
+    } catch {
+      // Not a literal path — fall through to glob matching
     }
+
+    // Treat as glob pattern
+    const globPattern = inputPath.includes('\\') ? inputPath.replace(/\\/g, '/') : inputPath;
+    const matches = await fg(globPattern, {
+      cwd: process.cwd(),
+      absolute: true,
+      onlyFiles: true,
+      unique: true,
+      dot: false,
+      followSymbolicLinks: true,
+    });
+
+    const yamlMatches = matches.filter((f) => isYamlFile(f));
+    if (yamlMatches.length === 0) {
+      console.warn(`Warning: No YAML files matched pattern: ${inputPath}`);
+    }
+    for (const f of yamlMatches) expanded.add(path.normalize(f));
   }
 
-  return expanded;
+  const sorted = Array.from(expanded);
+  sorted.sort();
+  return sorted;
 }
 
 async function findYamlFiles(dirPath: string): Promise<readonly string[]> {

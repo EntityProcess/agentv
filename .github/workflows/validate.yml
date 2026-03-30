@@ -21,3 +21,38 @@ jobs:
             --glob-ignore-case
             --root-dir .
             "**/*.md"
+
+  marketplace:
+    name: Validate Marketplace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bun
+
+      - name: Validate marketplace.json (schema + sync)
+        run: bun scripts/marketplace/validate-marketplace.ts
+
+      - name: Check marketplace sorted
+        run: bun scripts/marketplace/check-sorted.ts
+
+      - name: Validate frontmatter
+        run: bun scripts/marketplace/validate-frontmatter.ts
+
+  evals:
+    name: Validate Evals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bun
+
+      - name: Build
+        run: bun run build
+
+      - name: Install agentv globally
+        run: bun install -g agentv
+
+      - name: Check evals directories have eval files
+        run: bun scripts/validate-eval-dirs.ts
+
+      - name: Validate eval schemas
+        run: agentv validate 'examples/features/**/evals/**/*.eval.yaml' 'examples/features/**/*.EVAL.yaml'
