@@ -84,6 +84,7 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
 
 export function calculateEvaluationSummary(
   results: readonly EvaluationResult[],
+  options?: { threshold?: number },
 ): EvaluationSummary {
   const total = results.length;
 
@@ -132,10 +133,19 @@ export function calculateEvaluationSummary(
   const topResults = sortedResults.slice(0, Math.min(3, sortedResults.length));
   const bottomResults = sortedResults.slice(-Math.min(3, sortedResults.length));
 
-  // Count by execution status
+  // Count by execution status. When a custom threshold is provided,
+  // recompute passed/failed from raw scores instead of executionStatus
+  // (which uses the hardcoded PASS_THRESHOLD of 0.8).
   const executionErrorCount = executionErrors.length;
-  const qualityFailureCount = results.filter((r) => r.executionStatus === 'quality_failure').length;
-  const passedCount = results.filter((r) => r.executionStatus === 'ok').length;
+  const scoreThreshold = options?.threshold;
+  const passedCount =
+    scoreThreshold !== undefined
+      ? qualityResults.filter((r) => r.score >= scoreThreshold).length
+      : results.filter((r) => r.executionStatus === 'ok').length;
+  const qualityFailureCount =
+    scoreThreshold !== undefined
+      ? qualityResults.filter((r) => r.score < scoreThreshold).length
+      : results.filter((r) => r.executionStatus === 'quality_failure').length;
 
   // Aggregate by failure stage and reason (execution errors only)
   const byFailureStage: Record<string, number> = {};
@@ -174,7 +184,10 @@ function formatScore(value: number): string {
   return value.toFixed(3);
 }
 
-export function formatEvaluationSummary(summary: EvaluationSummary): string {
+export function formatEvaluationSummary(
+  summary: EvaluationSummary,
+  options?: { threshold?: number },
+): string {
   if (summary.total === 0) {
     return '\nNo results to summarize';
   }
@@ -193,16 +206,16 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
     lines.push('');
   }
 
-  // Overall verdict: all non-error cases must score >= PASS_THRESHOLD (0.8).
+  // Overall verdict: all non-error cases must score >= per-test threshold.
   const gradedCount = summary.total - summary.executionErrorCount;
+  const threshold = options?.threshold ?? 0.8;
   const overallPassed =
     summary.passedCount === gradedCount ||
     (summary.qualityFailureCount === 0 && summary.executionErrorCount === 0);
   const overallVerdict = overallPassed ? 'PASS' : 'FAIL';
   const useColor = !(process.env.NO_COLOR !== undefined) && (process.stdout.isTTY ?? false);
   const verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-  const failedCount = gradedCount - summary.passedCount;
-  const verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount} passed, ${failedCount} failed, mean score: ${formatScore(summary.mean)})`;
+  const verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${gradedCount} scored >= ${threshold}, mean: ${formatScore(summary.mean)})`;
 
   lines.push('\n==================================================');
   if (useColor) {
@@ -335,21 +348,4 @@ export function formatMatrixSummary(results: readonly EvaluationResult[]): strin
   lines.push(`${'Average'.padEnd(testIdColWidth)}  ${avgCells.join('  ')}`);
 
   return lines.join('\n');
-}
-
-/**
- * Format a threshold check summary line.
- * Uses pass rate (fraction of cases scoring >= PASS_THRESHOLD) against the
- * user-supplied threshold, consistent with the RESULT verdict logic.
- */
-export function formatThresholdSummary(
-  summary: EvaluationSummary,
-  threshold: number,
-): { passed: boolean; message: string } {
-  const gradedCount = summary.total - summary.executionErrorCount;
-  const passRate = gradedCount > 0 ? summary.passedCount / gradedCount : 0;
-  const passed = passRate >= threshold;
-  const verdict = passed ? 'PASS' : 'FAIL';
-  const message = `Suite pass rate: ${(passRate * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(1)}%) — ${verdict}`;
-  return { passed, message };
 }

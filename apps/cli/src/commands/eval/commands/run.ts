@@ -178,7 +178,8 @@ export const evalRunCommand = command({
     threshold: option({
       type: optional(number),
       long: 'threshold',
-      description: 'Suite-level quality gate: exit 1 if pass rate falls below this value (0-1)',
+      description:
+        'Per-test score threshold (0-1, default 0.8). Exit 1 if any test scores below this value',
     }),
   },
   handler: async (args) => {

@@ -46,7 +46,6 @@ import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
   formatMatrixSummary,
-  formatThresholdSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 
@@ -1185,16 +1184,13 @@ export async function runEvalCommand(
       );
     }
 
-    const summary = calculateEvaluationSummary(allResults);
-    console.log(formatEvaluationSummary(summary));
+    const thresholdOpts =
+      resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
+    const summary = calculateEvaluationSummary(allResults, thresholdOpts);
+    console.log(formatEvaluationSummary(summary, thresholdOpts));
 
-    // Threshold quality gate check
-    let thresholdFailed = false;
-    if (resolvedThreshold !== undefined) {
-      const thresholdResult = formatThresholdSummary(summary, resolvedThreshold);
-      console.log(`\n${thresholdResult.message}`);
-      thresholdFailed = !thresholdResult.passed;
-    }
+    // Exit code matches RESULT verdict: fail if any test scored below threshold.
+    const thresholdFailed = resolvedThreshold !== undefined && summary.qualityFailureCount > 0;
 
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && allResults.length > 0) {

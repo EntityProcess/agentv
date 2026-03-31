@@ -1,64 +1,49 @@
 import { describe, expect, it } from 'bun:test';
 
-import {
-  type EvaluationSummary,
-  formatThresholdSummary,
-} from '../../../src/commands/eval/statistics.js';
+import type { EvaluationResult } from '@agentv/core';
 
-function makeSummary(passed: number, total: number): EvaluationSummary {
+import { calculateEvaluationSummary } from '../../../src/commands/eval/statistics.js';
+
+function makeResult(testId: string, score: number): EvaluationResult {
   return {
-    total,
-    mean: 0,
-    median: 0,
-    min: 0,
-    max: 0,
-    histogram: [],
-    topResults: [],
-    bottomResults: [],
-    errorCount: 0,
-    errors: [],
-    executionErrorCount: 0,
-    qualityFailureCount: total - passed,
-    passedCount: passed,
-    byFailureStage: {},
-    byFailureReason: {},
-  };
+    testId,
+    score,
+    executionStatus: score >= 0.8 ? 'ok' : 'quality_failure',
+  } as EvaluationResult;
 }
 
-describe('formatThresholdSummary', () => {
-  it('returns PASS when pass rate meets threshold', () => {
-    const result = formatThresholdSummary(makeSummary(9, 10), 0.6);
-    expect(result.passed).toBe(true);
-    expect(result.message).toContain('90.0%');
-    expect(result.message).toContain('60.0%');
-    expect(result.message).toContain('PASS');
+describe('calculateEvaluationSummary with threshold', () => {
+  const results: EvaluationResult[] = [
+    makeResult('test-1', 1.0),
+    makeResult('test-2', 0.6),
+    makeResult('test-3', 0.9),
+    makeResult('test-4', 0.4),
+  ];
+
+  it('uses default 0.8 threshold when no threshold provided', () => {
+    const summary = calculateEvaluationSummary(results);
+    // test-1 (1.0) and test-3 (0.9) pass at 0.8
+    expect(summary.passedCount).toBe(2);
+    expect(summary.qualityFailureCount).toBe(2);
   });
 
-  it('returns FAIL when pass rate is below threshold', () => {
-    const result = formatThresholdSummary(makeSummary(5, 10), 0.6);
-    expect(result.passed).toBe(false);
-    expect(result.message).toContain('50.0%');
-    expect(result.message).toContain('60.0%');
-    expect(result.message).toContain('FAIL');
+  it('recomputes passed/failed with custom threshold', () => {
+    const summary = calculateEvaluationSummary(results, { threshold: 0.5 });
+    // test-1 (1.0), test-2 (0.6), test-3 (0.9) pass at 0.5
+    expect(summary.passedCount).toBe(3);
+    expect(summary.qualityFailureCount).toBe(1);
   });
 
-  it('returns PASS when pass rate exactly equals threshold', () => {
-    const result = formatThresholdSummary(makeSummary(6, 10), 0.6);
-    expect(result.passed).toBe(true);
+  it('stricter threshold reduces pass count', () => {
+    const summary = calculateEvaluationSummary(results, { threshold: 0.95 });
+    // only test-1 (1.0) passes at 0.95
+    expect(summary.passedCount).toBe(1);
+    expect(summary.qualityFailureCount).toBe(3);
   });
 
-  it('returns PASS for threshold 0 with any pass rate', () => {
-    const result = formatThresholdSummary(makeSummary(0, 10), 0);
-    expect(result.passed).toBe(true);
-  });
-
-  it('excludes execution errors from pass rate calculation', () => {
-    const summary = makeSummary(8, 10);
-    // 2 execution errors, so graded = 10 - 2 = 8, pass rate = 8/8 = 100%
-    (summary as { executionErrorCount: number }).executionErrorCount = 2;
-    (summary as { qualityFailureCount: number }).qualityFailureCount = 0;
-    const result = formatThresholdSummary(summary, 1.0);
-    expect(result.passed).toBe(true);
-    expect(result.message).toContain('100.0%');
+  it('threshold 0 passes everything', () => {
+    const summary = calculateEvaluationSummary(results, { threshold: 0 });
+    expect(summary.passedCount).toBe(4);
+    expect(summary.qualityFailureCount).toBe(0);
   });
 });
