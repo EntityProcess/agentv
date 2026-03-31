@@ -173,9 +173,18 @@ export class PiCodingAgentProvider implements Provider {
       // Set provider-specific API key env var so the SDK can find it
       this.setApiKeyEnv(providerName);
 
-      // Build model using pi-ai's getModel (requires type assertion for runtime strings)
+      // Build model using pi-ai's getModel (requires type assertion for runtime strings).
+      // getModel returns undefined when the provider+model combo isn't in the registry,
+      // which causes the SDK to silently fall back to azure-openai-responses.
       // biome-ignore lint/suspicious/noExplicitAny: runtime string config requires any cast
       const model = (sdk.getModel as any)(providerName, modelId);
+      if (!model) {
+        throw new Error(
+          `pi-coding-agent: getModel('${providerName}', '${modelId}') returned undefined. ` +
+            `The model '${modelId}' is not registered for provider '${providerName}' in pi-ai. ` +
+            `Check that subprovider and model are correct in your target config.`,
+        );
+      }
 
       // Select tools based on config
       const tools = this.resolveTools(sdk);
@@ -325,6 +334,27 @@ export class PiCodingAgentProvider implements Provider {
 
         // Extract messages from agent state
         const agentMessages = session.agent.state.messages;
+
+        // Detect SDK errors: check if the last assistant message ended with stopReason "error".
+        // Without this, the provider silently returns empty/echoed content as a quality failure
+        // instead of reporting the actual execution error.
+        const lastAssistant = [...agentMessages]
+          .reverse()
+          .find(
+            (m): m is Record<string, unknown> =>
+              !!m && typeof m === 'object' && (m as Record<string, unknown>).role === 'assistant',
+          ) as Record<string, unknown> | undefined;
+        if (lastAssistant?.stopReason === 'error') {
+          const errorMsg =
+            typeof lastAssistant.errorMessage === 'string'
+              ? lastAssistant.errorMessage
+              : 'unknown SDK error';
+          throw new Error(
+            `pi-coding-agent SDK error (provider: ${lastAssistant.provider ?? providerName}, ` +
+              `model: ${lastAssistant.model ?? modelId}): ${errorMsg}`,
+          );
+        }
+
         const output: Message[] = [];
         for (const msg of agentMessages) {
           output.push(convertAgentMessage(msg, toolTrackers, completedToolResults));
