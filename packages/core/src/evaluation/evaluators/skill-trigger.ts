@@ -178,6 +178,20 @@ export class SkillTriggerEvaluator implements Evaluator {
         evidence = `Read tool loaded skill file via tool name "${toolName}"`;
         break;
       }
+
+      // Fallback: check if a tool's output contains a skill file path.
+      // Some providers (e.g., copilot-sdk) discover skill content via search
+      // tools (grep/glob) whose inputs don't reference the skill name, but
+      // whose outputs include skill file paths like ".agents/skills/<name>/SKILL.md".
+      if (!triggered && toolCall.output != null) {
+        const outputStr =
+          typeof toolCall.output === 'string' ? toolCall.output : JSON.stringify(toolCall.output);
+        if (outputStr.includes(`skills/${skillName}/`)) {
+          triggered = true;
+          evidence = `Tool "${toolName}" output referenced skill file for "${skillName}"`;
+          break;
+        }
+      }
     }
 
     const pass = triggered === shouldTrigger;

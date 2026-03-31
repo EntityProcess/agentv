@@ -7,5 +7,6 @@ Check for a relevant skill before responding to any task.
 
 Available skills:
 
-- **csv-analyzer** — use when the user asks to analyze, summarize, or extract
-  insights from CSV data or files. Skill file: `.agents/skills/csv-analyzer/SKILL.md`
+- **acme-deploy** — use when the user asks about deploying services, checking
+  deployment status, rollback procedures, or release management at Acme Corp.
+  Skill file: `.agents/skills/acme-deploy/SKILL.md`

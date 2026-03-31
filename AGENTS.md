@@ -198,6 +198,22 @@ Use `agent-browser` for visual verification of docs site changes. Environment-sp
 - **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
 - **Never use `--headed`** — no display server available; headless (default) works correctly
 
+### Agent Provider Eval Concurrency
+
+When running evals against agent provider targets (claude, claude-sdk, codex, copilot, copilot-sdk, pi, pi-cli), **limit concurrency to 3 targets at a time**. Each agent provider spawns heavyweight subprocesses (CLI binaries, SDK sessions) that consume significant memory and CPU. Running more than 3 in parallel can exhaust system resources.
+
+```bash
+# Good: batch targets in groups of 2-3
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target claude &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target codex &
+wait
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target copilot &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target pi &
+wait
+```
+
+This does not apply to lightweight LLM-only targets (azure, openai, gemini, openrouter) which can run with higher concurrency.
+
 ### Verifying Evaluator Changes
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:

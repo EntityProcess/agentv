@@ -2,8 +2,13 @@
 #
 # Uses an isolated workspace template (workspace/) so no global skill installation
 # is needed. The workspace contains:
-#   .claude/skills/csv-analyzer/  — for claude/copilot providers
-#   .agents/skills/csv-analyzer/  — for codex provider
+#   .claude/skills/acme-deploy/  — for claude/copilot providers
+#   .agents/skills/acme-deploy/  — for codex/pi providers
+#   .codex/skills/acme-deploy/   — for codex provider (fallback)
+#
+# The skill contains proprietary deployment procedures (internal CLI, service
+# registry, approval rules) that no agent can answer from built-in knowledge.
+# This ensures agents must invoke/read the skill to respond correctly.
 #
 # The same EVAL.yaml works with any provider — just change --target:
 #
@@ -21,17 +26,17 @@ tests:
   # === Positive cases: skill should trigger ===
 
   - id: should-trigger-direct-request
-    input: "Analyze this CSV file and tell me the top 5 months by revenue"
+    input: "How do I deploy payments-api to production?"
     assertions:
       - type: skill-trigger
-        skill: csv-analyzer
+        skill: acme-deploy
         should_trigger: true
 
   - id: should-trigger-casual-phrasing
-    input: "hey can you look at sales-data.csv and figure out which quarter had the most growth"
+    input: "I need to roll back user-service in staging, what's the Acme deploy procedure for that?"
     assertions:
       - type: skill-trigger
-        skill: csv-analyzer
+        skill: acme-deploy
         should_trigger: true
 
   # === Negative cases: skill should NOT trigger ===
@@ -40,12 +45,12 @@ tests:
     input: "What time is it in Tokyo right now?"
     assertions:
       - type: skill-trigger
-        skill: csv-analyzer
+        skill: acme-deploy
         should_trigger: false
 
   - id: should-not-trigger-near-miss
-    input: "Help me write a Python script that reads CSV files using pandas"
+    input: "Write a Python function that parses JSON logs and extracts error messages"
     assertions:
       - type: skill-trigger
-        skill: csv-analyzer
+        skill: acme-deploy
         should_trigger: false
