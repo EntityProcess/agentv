@@ -301,6 +301,20 @@ The `--file` option reads a JSON file with `{ "output": "...", "input": "..." }`
 
 This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assertions` instructions for code graders so external grading agents can execute them directly.
 
+## Offline Grading
+
+Grade existing agent sessions without re-running them. Import a transcript, then run deterministic evaluators:
+
+```bash
+# Import a Claude Code session
+agentv import claude --discover latest
+
+# Run evaluators against the imported transcript
+agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl
+```
+
+See the [Import tool docs](/docs/tools/import/) for all providers and options.
+
 ## Version Requirements
 
 Declare the minimum AgentV version needed by your eval project in `.agentv/config.yaml`:

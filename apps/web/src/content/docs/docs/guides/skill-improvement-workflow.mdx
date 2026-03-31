@@ -131,17 +131,6 @@ agentv eval evals.json --target copilot-log
 
 Offline grading is useful when you want to evaluate skills with agents that don't have a direct API integration — import the session transcript and run deterministic evaluators.
 
-If you're using the `agentv-bench` skill bundle, the equivalent wrappers are:
-
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-bun install
-bun scripts/quick-validate.ts --scope wrappers
-bun scripts/prompt-eval.ts --list evals.json
-bun scripts/prompt-eval.ts --input evals.json --test-id 1
-bun scripts/prompt-eval.ts --expected-output evals.json --test-id 1
-```
-
 ## Step 4: Compare Results
 
 Compare the baseline and candidate runs:

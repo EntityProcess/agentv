@@ -30,14 +30,9 @@ agentv convert evals.json
 
 # Run directly without converting (all commands accept evals.json)
 agentv eval evals.json
-agentv prompt eval --list evals.json
-agentv prompt eval --input evals.json --test-id 1
-agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
 The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (`llm-grader`), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code graders, rubrics, required gates).
-
-If you're running the lifecycle through `agentv-bench`, use `agentv convert` and `agentv prompt eval` directly — the Python scripts in `agentv-bench/scripts/` orchestrate these same commands.
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -540,10 +535,11 @@ agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run] [--thresh
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
-# Agent-orchestrated evals (no API keys needed)
-agentv prompt eval --list <file.yaml>                               # enumerate test IDs
-agentv prompt eval --input <file.yaml> --test-id <id>               # task input JSON (file paths, not embedded content)
-agentv prompt eval --expected-output <file.yaml> --test-id <id>     # expected output + grader criteria
+# Run a single assertion in isolation (no API keys needed)
+agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
+
+# Import agent transcripts for offline grading
+agentv import claude --discover latest
 
 # Re-run only execution errors from a previous output
 agentv eval <file.yaml> --retry-errors <previous-output.jsonl>
