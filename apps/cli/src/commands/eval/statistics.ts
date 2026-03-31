@@ -194,16 +194,15 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   }
 
   // Overall verdict: all non-error cases must score >= PASS_THRESHOLD (0.8).
-  // Pass rate shows what fraction met the threshold; mean score is informational.
   const gradedCount = summary.total - summary.executionErrorCount;
-  const passRate = gradedCount > 0 ? summary.passedCount / gradedCount : 0;
   const overallPassed =
     summary.passedCount === gradedCount ||
     (summary.qualityFailureCount === 0 && summary.executionErrorCount === 0);
   const overallVerdict = overallPassed ? 'PASS' : 'FAIL';
   const useColor = !(process.env.NO_COLOR !== undefined) && (process.stdout.isTTY ?? false);
   const verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-  const verdictText = `RESULT: ${overallVerdict}  (pass rate: ${(passRate * 100).toFixed(1)}%, ${summary.passedCount}/${gradedCount} passed, mean score: ${formatScore(summary.mean)})`;
+  const failedCount = gradedCount - summary.passedCount;
+  const verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount} passed, ${failedCount} failed, mean score: ${formatScore(summary.mean)})`;
 
   lines.push('\n==================================================');
   if (useColor) {
