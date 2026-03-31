@@ -242,7 +242,7 @@ When halted, remaining tests are recorded with `failureReasonCode: 'error_thresh
 
 ### Suite-Level Quality Threshold
 
-Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
+Set a per-test score threshold for the eval suite. Each test case must score at or above this value to pass. If any test scores below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
 
 **CLI flag:**
 
@@ -257,12 +257,12 @@ execution:
   threshold: 0.8
 ```
 
-The CLI `--threshold` flag overrides the YAML value. The threshold is a number between 0 and 1. Mean score is computed from quality results only (execution errors are excluded).
+The CLI `--threshold` flag overrides the YAML value. The threshold is a number between 0 and 1 (default: 0.8). Execution errors are excluded from the count.
 
-When active, a summary line is printed after the eval results:
+When active, the summary line shows how many tests met the threshold:
 
 ```
-Suite score: 0.85 (threshold: 0.80) — PASS
+RESULT: PASS  (28/31 scored >= 0.8, mean: 0.927)
 ```
 
 The threshold also controls JUnit XML pass/fail: tests with scores below the threshold are marked as `<failure>` in JUnit output. When no threshold is set, JUnit defaults to 0.5.

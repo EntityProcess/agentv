@@ -1,31 +1,49 @@
 import { describe, expect, it } from 'bun:test';
 
-import { formatThresholdSummary } from '../../../src/commands/eval/statistics.js';
+import type { EvaluationResult } from '@agentv/core';
 
-describe('formatThresholdSummary', () => {
-  it('returns PASS when mean score meets threshold', () => {
-    const result = formatThresholdSummary(0.85, 0.6);
-    expect(result.passed).toBe(true);
-    expect(result.message).toContain('0.85');
-    expect(result.message).toContain('0.60');
-    expect(result.message).toContain('PASS');
+import { calculateEvaluationSummary } from '../../../src/commands/eval/statistics.js';
+
+function makeResult(testId: string, score: number): EvaluationResult {
+  return {
+    testId,
+    score,
+    executionStatus: score >= 0.8 ? 'ok' : 'quality_failure',
+  } as EvaluationResult;
+}
+
+describe('calculateEvaluationSummary with threshold', () => {
+  const results: EvaluationResult[] = [
+    makeResult('test-1', 1.0),
+    makeResult('test-2', 0.6),
+    makeResult('test-3', 0.9),
+    makeResult('test-4', 0.4),
+  ];
+
+  it('uses default 0.8 threshold when no threshold provided', () => {
+    const summary = calculateEvaluationSummary(results);
+    // test-1 (1.0) and test-3 (0.9) pass at 0.8
+    expect(summary.passedCount).toBe(2);
+    expect(summary.qualityFailureCount).toBe(2);
   });
 
-  it('returns FAIL when mean score is below threshold', () => {
-    const result = formatThresholdSummary(0.53, 0.6);
-    expect(result.passed).toBe(false);
-    expect(result.message).toContain('0.53');
-    expect(result.message).toContain('0.60');
-    expect(result.message).toContain('FAIL');
+  it('recomputes passed/failed with custom threshold', () => {
+    const summary = calculateEvaluationSummary(results, { threshold: 0.5 });
+    // test-1 (1.0), test-2 (0.6), test-3 (0.9) pass at 0.5
+    expect(summary.passedCount).toBe(3);
+    expect(summary.qualityFailureCount).toBe(1);
   });
 
-  it('returns PASS when mean score exactly equals threshold', () => {
-    const result = formatThresholdSummary(0.6, 0.6);
-    expect(result.passed).toBe(true);
+  it('stricter threshold reduces pass count', () => {
+    const summary = calculateEvaluationSummary(results, { threshold: 0.95 });
+    // only test-1 (1.0) passes at 0.95
+    expect(summary.passedCount).toBe(1);
+    expect(summary.qualityFailureCount).toBe(3);
   });
 
-  it('returns PASS for threshold 0 with any score', () => {
-    const result = formatThresholdSummary(0, 0);
-    expect(result.passed).toBe(true);
+  it('threshold 0 passes everything', () => {
+    const summary = calculateEvaluationSummary(results, { threshold: 0 });
+    expect(summary.passedCount).toBe(4);
+    expect(summary.qualityFailureCount).toBe(0);
   });
 });

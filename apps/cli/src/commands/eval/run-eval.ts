@@ -46,7 +46,6 @@ import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
   formatMatrixSummary,
-  formatThresholdSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 
@@ -568,6 +567,7 @@ async function runSingleEvalFile(params: {
   readonly matrixMode?: boolean;
   readonly totalBudgetUsd?: number;
   readonly failOnError?: FailOnError;
+  readonly threshold?: number;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -685,6 +685,7 @@ async function runSingleEvalFile(params: {
     failOnError,
     graderTarget: options.graderTarget,
     model: options.model,
+    threshold: options.threshold,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
       (
@@ -1162,6 +1163,7 @@ export async function runEvalCommand(
             matrixMode: targetPrep.selections.length > 1,
             totalBudgetUsd: targetPrep.totalBudgetUsd,
             failOnError: targetPrep.failOnError,
+            threshold: resolvedThreshold,
           });
 
           return result.results;
@@ -1185,16 +1187,13 @@ export async function runEvalCommand(
       );
     }
 
-    const summary = calculateEvaluationSummary(allResults);
-    console.log(formatEvaluationSummary(summary));
+    const thresholdOpts =
+      resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
+    const summary = calculateEvaluationSummary(allResults, thresholdOpts);
+    console.log(formatEvaluationSummary(summary, thresholdOpts));
 
-    // Threshold quality gate check
-    let thresholdFailed = false;
-    if (resolvedThreshold !== undefined) {
-      const thresholdResult = formatThresholdSummary(summary.mean, resolvedThreshold);
-      console.log(`\n${thresholdResult.message}`);
-      thresholdFailed = !thresholdResult.passed;
-    }
+    // Exit code matches RESULT verdict: fail if any test scored below threshold.
+    const thresholdFailed = resolvedThreshold !== undefined && summary.qualityFailureCount > 0;
 
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && allResults.length > 0) {

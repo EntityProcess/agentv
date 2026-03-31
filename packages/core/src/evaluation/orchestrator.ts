@@ -77,8 +77,8 @@ import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.j
 
 type MaybePromise<T> = T | Promise<T>;
 
-function classifyQualityStatus(score: number): ExecutionStatus {
-  return score >= PASS_THRESHOLD ? 'ok' : 'quality_failure';
+function classifyQualityStatus(score: number, threshold = PASS_THRESHOLD): ExecutionStatus {
+  return score >= threshold ? 'ok' : 'quality_failure';
 }
 
 function buildSkippedEvaluatorError(
@@ -194,6 +194,8 @@ export interface RunEvalCaseOptions {
   readonly evalDir?: string;
   /** Include verbose request details in results (e.g. agent input text) */
   readonly verbose?: boolean;
+  /** Per-test score threshold for pass/fail (default: 0.8) */
+  readonly threshold?: number;
 }
 
 export interface ProgressEvent {
@@ -261,6 +263,8 @@ export interface RunEvaluationOptions {
   readonly graderTarget?: string;
   /** CLI override: model for grader target (e.g., "openai:gpt-5-mini") */
   readonly model?: string;
+  /** Per-test score threshold for pass/fail (default: 0.8) */
+  readonly threshold?: number;
 }
 
 export async function runEvaluation(
@@ -299,6 +303,7 @@ export async function runEvaluation(
     retainOnFailure,
     graderTarget: cliGraderTarget,
     model: cliModel,
+    threshold: scoreThreshold,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -475,6 +480,7 @@ export async function runEvaluation(
         agentTimeoutMs,
         targetResolver,
         availableTargets,
+        threshold: scoreThreshold,
       });
     } catch (error) {
       if (verbose) {
@@ -933,6 +939,7 @@ export async function runEvaluation(
             repoManager,
             evalDir,
             verbose,
+            threshold: scoreThreshold,
           };
           let result =
             trials && trials.count > 1
@@ -1123,6 +1130,7 @@ async function runBatchEvaluation(options: {
   readonly agentTimeoutMs?: number;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
+  readonly threshold?: number;
 }): Promise<readonly EvaluationResult[]> {
   const {
     evalCases,
@@ -1138,6 +1146,7 @@ async function runBatchEvaluation(options: {
     agentTimeoutMs,
     targetResolver,
     availableTargets,
+    threshold: batchThreshold,
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
@@ -1246,6 +1255,7 @@ async function runBatchEvaluation(options: {
         targetResolver,
         availableTargets,
         verbose,
+        threshold: batchThreshold,
       });
 
       if (providerError) {
@@ -1337,6 +1347,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     repoManager,
     evalDir,
     verbose,
+    threshold: caseThreshold,
   } = options;
   const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
@@ -1767,6 +1778,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       fileChanges,
       workspacePath,
       verbose,
+      threshold: caseThreshold,
     });
 
     const totalDurationMs = Date.now() - caseStartMs;
@@ -1796,7 +1808,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const executionStatus: ExecutionStatus =
       providerError || skippedEvaluatorError
         ? 'execution_error'
-        : classifyQualityStatus(result.score);
+        : classifyQualityStatus(result.score, caseThreshold);
 
     const finalResult = providerError
       ? {
@@ -2017,6 +2029,7 @@ async function evaluateCandidate(options: {
   readonly fileChanges?: string;
   readonly workspacePath?: string;
   readonly verbose?: boolean;
+  readonly threshold?: number;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -2041,6 +2054,7 @@ async function evaluateCandidate(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    threshold: evalThreshold,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -2124,7 +2138,7 @@ async function evaluateCandidate(options: {
     scores: scores,
     trace: trace,
     fileChanges,
-    executionStatus: classifyQualityStatus(score.score),
+    executionStatus: classifyQualityStatus(score.score, evalThreshold),
   };
 }
 
