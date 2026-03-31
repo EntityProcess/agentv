@@ -87,6 +87,9 @@ export {
   discoverGraders as discoverJudges,
 } from './evaluation/registry/grader-discovery.js';
 
+// Import pipeline
+export * from './import/index.js';
+
 export type AgentKernel = {
   status: string;
 };
