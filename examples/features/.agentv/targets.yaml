@@ -48,7 +48,7 @@ targets:
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
-  # Pi Coding Agent - autonomous coding agent from pi-mono
+  # Pi Coding Agent - autonomous coding agent from pi-mono (SDK)
   - name: pi
     provider: pi-coding-agent
     subprovider: openrouter
@@ -59,9 +59,18 @@ targets:
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
+  # Pi CLI - subprocess-based Pi agent
+  - name: pi-cli
+    provider: pi-cli
+    subprovider: openrouter
+    model: openai/gpt-5.4
+    api_key: ${{ OPENROUTER_API_KEY }}
+    grader_target: gemini-llm
+    log_format: json
+
   # GitHub Copilot (uses copilot CLI)
   - name: copilot
-    provider: copilot
+    provider: copilot-cli
     model: gpt-5-mini
     grader_target: gemini-llm
     log_format: json

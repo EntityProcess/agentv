@@ -49,7 +49,7 @@ tests:
         should_trigger: false
 
   - id: should-not-trigger-near-miss
-    input: "Explain the difference between blue-green and canary deployment strategies"
+    input: "Write a Python function that parses JSON logs and extracts error messages"
     assertions:
       - type: skill-trigger
         skill: acme-deploy
