@@ -68,9 +68,19 @@ targets:
     grader_target: gemini-llm
     log_format: json
 
-  # GitHub Copilot (uses copilot CLI)
+  # GitHub Copilot - CLI subprocess
   - name: copilot
     provider: copilot-cli
+    model: gpt-5-mini
+    grader_target: gemini-llm
+    log_format: json
+
+  # GitHub Copilot - SDK
+  # Note: copilot-sdk discovers skills via grep (keyword search) rather than
+  # reading skill files directly. The skill-trigger evaluator only checks tool
+  # inputs for the skill name, so copilot-sdk may fail positive trigger cases.
+  - name: copilot-sdk
+    provider: copilot-sdk
     model: gpt-5-mini
     grader_target: gemini-llm
     log_format: json
