@@ -208,6 +208,16 @@ export function useProjectList() {
   return useQuery(projectListOptions);
 }
 
+export const allProjectRunsOptions = queryOptions({
+  queryKey: ['projects', 'all-runs'],
+  queryFn: () => fetchJson<RunListResponse>('/api/projects/all-runs'),
+  refetchInterval: 5_000,
+});
+
+export function useAllProjectRuns() {
+  return useQuery(allProjectRunsOptions);
+}
+
 export async function addProjectApi(projectPath: string): Promise<ProjectEntry> {
   const res = await fetch('/api/projects', {
     method: 'POST',

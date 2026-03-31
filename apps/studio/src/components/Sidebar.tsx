@@ -12,8 +12,10 @@ import { Link, useMatchRoute } from '@tanstack/react-router';
 
 import {
   isPassing,
+  useAllProjectRuns,
   useCategoryDatasets,
   useExperiments,
+  useProjectList,
   useProjectRunDetail,
   useProjectRunList,
   useRunDetail,
@@ -104,10 +106,18 @@ export function Sidebar() {
 
 function RunSidebar() {
   const matchRoute = useMatchRoute();
-  const { data } = useRunList();
+  const { data: projectData } = useProjectList();
+  const hasProjects = (projectData?.projects.length ?? 0) > 0;
 
   const isHome = matchRoute({ to: '/' });
   const runMatch = matchRoute({ to: '/runs/$runId', fuzzy: true });
+
+  // On the projects landing page, show aggregated runs from all projects
+  const useAggregated = hasProjects && isHome !== false;
+
+  const { data: localData } = useRunList();
+  const { data: aggregatedData } = useAllProjectRuns();
+  const data = useAggregated ? aggregatedData : localData;
 
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
@@ -129,6 +139,21 @@ function RunSidebar() {
             typeof runMatch === 'object' &&
             'runId' in runMatch &&
             (runMatch as { runId: string }).runId === run.filename;
+
+          // Aggregated runs link to their project's run detail
+          if (run.project_id) {
+            return (
+              <Link
+                key={`${run.project_id}/${run.filename}`}
+                to="/projects/$projectId/runs/$runId"
+                params={{ projectId: run.project_id, runId: run.filename }}
+                className="mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
+                title={run.project_name}
+              >
+                {run.filename}
+              </Link>
+            );
+          }
 
           return (
             <Link
