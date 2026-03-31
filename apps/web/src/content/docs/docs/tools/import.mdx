@@ -1,0 +1,111 @@
+---
+title: Import
+description: Import agent session transcripts for offline grading
+sidebar:
+  order: 3
+---
+
+The `import` command converts agent session transcripts into AgentV's `Message[]` format for offline grading — no re-running the agent, no API keys needed.
+
+## Supported Providers
+
+| Provider | Command | Source |
+|----------|---------|--------|
+| Claude Code | `agentv import claude` | `~/.claude/projects/<path>/<uuid>.jsonl` |
+
+Codex and Copilot importers are planned for future releases.
+
+## `import claude`
+
+Import a Claude Code session transcript.
+
+### Discover available sessions
+
+```bash
+agentv import claude --list
+```
+
+Output:
+
+```
+Found 5 session(s):
+
+  4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22  2m ago  -home-user-myproject
+  087b801a-7a63-48ff-b348-62563a290b23  1h ago  -home-user-myproject
+  ed8b8c62-4414-49fb-8739-006d809c8588  3h ago  -home-user-other-project
+```
+
+### Import latest session
+
+```bash
+agentv import claude --discover latest
+```
+
+### Import a specific session
+
+```bash
+agentv import claude --session-id 4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22
+```
+
+### Filter by project path
+
+```bash
+agentv import claude --discover latest --project-path /home/user/myproject
+```
+
+### Custom output path
+
+```bash
+agentv import claude --discover latest -o transcripts/my-session.jsonl
+```
+
+Default output: `.agentv/transcripts/claude-<session-id-short>.jsonl`
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `--session-id <uuid>` | Import a specific session by UUID |
+| `--discover latest` | Import the most recent session |
+| `--project-path <path>` | Filter sessions by project path |
+| `--output, -o <path>` | Custom output file path |
+| `--projects-dir <dir>` | Override `~/.claude/projects` directory |
+| `--list` | List available sessions instead of importing |
+
+## Output Format
+
+The imported transcript is written as JSONL — one `Message` object per line:
+
+```json
+{"role":"user","content":"Fix the bug in auth.ts"}
+{"role":"assistant","content":"I'll fix the authentication bug.","toolCalls":[{"tool":"Read","input":{"file_path":"src/auth.ts"},"id":"toolu_01...","output":"...file contents..."}]}
+```
+
+Each message follows AgentV's standard `Message` interface with `role`, `content`, and optional `toolCalls` (including tool outputs paired from subsequent events).
+
+## What Gets Parsed
+
+| Claude Event | AgentV Message |
+|-------------|----------------|
+| `user` | `{ role: 'user', content }` |
+| `assistant` | `{ role: 'assistant', content, toolCalls }` |
+| `tool_use` blocks | `ToolCall { tool, input, id }` |
+| `tool_result` blocks | Paired with matching `tool_use` by ID |
+| `progress`, `system` | Skipped |
+| Subagent events | Filtered out (v1) |
+
+Token usage is aggregated from the final cumulative value per LLM request. Duration is computed from first-to-last event timestamp.
+
+## Workflow
+
+Import a session, then run evaluators against it:
+
+```bash
+# 1. Import the latest Claude Code session
+agentv import claude --discover latest
+
+# 2. Run evaluators against the imported transcript
+agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.jsonl
+```
+
+See `examples/features/import-claude/` for a complete working example.

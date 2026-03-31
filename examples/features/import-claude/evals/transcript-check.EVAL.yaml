@@ -1,0 +1,8 @@
+tests:
+  - id: transcript-quality
+    input: "Analyze the imported Claude Code transcript"
+    criteria: "Transcript contains meaningful assistant messages with tool calls"
+    assertions:
+      - name: transcript-quality
+        type: code-grader
+        command: [bun, graders/transcript-quality.ts]
