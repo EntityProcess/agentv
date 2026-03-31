@@ -7,6 +7,7 @@ sidebar:
 
 import { Image } from 'astro:assets';
 import studioRuns from '../../../../assets/screenshots/studio-runs.png';
+import studioProjects from '../../../../assets/screenshots/studio-projects.png';
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores.
 
@@ -79,6 +80,8 @@ agentv studio --multi
 ```
 
 If you have any registered projects, `--multi` is automatically enabled. The landing page shows a card for each project with run count, pass rate, and last run time. Click a project to view its runs.
+
+<Image src={studioProjects} alt="AgentV Studio multi-project dashboard showing project cards with pass rates" />
 
 ### Removing Projects
 
