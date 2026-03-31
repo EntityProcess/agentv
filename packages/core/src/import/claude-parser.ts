@@ -210,9 +210,10 @@ function extractTextContent(
 /**
  * Extract text and tool calls from an assistant message's content array.
  */
-function extractAssistantContent(
-  content: string | readonly ClaudeContentBlock[] | undefined,
-): { text: string | undefined; toolCalls: ToolCall[] } {
+function extractAssistantContent(content: string | readonly ClaudeContentBlock[] | undefined): {
+  text: string | undefined;
+  toolCalls: ToolCall[];
+} {
   if (content === undefined || content === null) {
     return { text: undefined, toolCalls: [] };
   }
@@ -248,7 +249,7 @@ function extractAssistantContent(
       case 'tool_result': {
         const toolUseId = block.tool_use_id;
         if (toolUseId && toolUseIndex.has(toolUseId)) {
-          const idx = toolUseIndex.get(toolUseId)!;
+          const idx = toolUseIndex.get(toolUseId) ?? -1;
           const existing = toolCalls[idx];
           const output = extractToolResultContent(block.content);
           toolCalls[idx] = { ...existing, output };

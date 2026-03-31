@@ -13,8 +13,7 @@ describe('preprocessArgv', () => {
       const result = preprocessArgv(['node', 'agentv', 'eval', 'file.yaml', '--eval-id=case-1']);
       expect(result).toEqual(['node', 'agentv', 'eval', 'run', 'file.yaml', '--test-id=case-1']);
     });
-
-});
+  });
 
   describe('eval implicit run subcommand', () => {
     it('inserts `run` when eval is followed by a file path', () => {

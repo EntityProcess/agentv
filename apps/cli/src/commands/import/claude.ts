@@ -1,11 +1,7 @@
-import { command, flag, option, optional, string } from 'cmd-ts';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  discoverClaudeSessions,
-  parseClaudeSession,
-  readTranscriptFile,
-} from '@agentv/core';
+import { discoverClaudeSessions, parseClaudeSession, readTranscriptFile } from '@agentv/core';
+import { command, flag, option, optional, string } from 'cmd-ts';
 
 export const importClaudeCommand = command({
   name: 'claude',
@@ -95,9 +91,7 @@ export const importClaudeCommand = command({
       sessionId = sessions[0].sessionId;
       console.log(`Discovered latest session: ${sessionId}`);
     } else {
-      console.error(
-        'Error: specify --session-id <uuid> or --discover latest to select a session.',
-      );
+      console.error('Error: specify --session-id <uuid> or --discover latest to select a session.');
       process.exit(1);
     }
 
@@ -114,13 +108,10 @@ export const importClaudeCommand = command({
 
     // Write transcript as JSONL (one message per line)
     const outputLines = transcript.messages.map((msg) => JSON.stringify(msg));
-    await writeFile(outputPath, outputLines.join('\n') + '\n', 'utf8');
+    await writeFile(outputPath, `${outputLines.join('\n')}\n`, 'utf8');
 
     const msgCount = transcript.messages.length;
-    const toolCount = transcript.messages.reduce(
-      (sum, m) => sum + (m.toolCalls?.length ?? 0),
-      0,
-    );
+    const toolCount = transcript.messages.reduce((sum, m) => sum + (m.toolCalls?.length ?? 0), 0);
 
     console.log(`Imported ${msgCount} messages (${toolCount} tool calls) → ${outputPath}`);
 
