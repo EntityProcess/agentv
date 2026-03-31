@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -100,6 +101,9 @@ export class CopilotSdkProvider implements Provider {
     const cwd = this.resolveCwd(request.cwd);
     if (cwd) {
       sessionOptions.workingDirectory = cwd;
+      // Auto-discover skill directories from the workspace so the SDK loads
+      // SKILL.md files into the session context (see copilot-sdk docs/features/skills.md).
+      sessionOptions.skillDirectories = resolveSkillDirectories(cwd);
     }
 
     const systemPrompt = this.config.systemPrompt;
@@ -367,6 +371,19 @@ export class CopilotSdkProvider implements Provider {
       return undefined;
     }
   }
+}
+
+/**
+ * Auto-discover skill directories from a workspace.
+ * Checks standard skill directory locations and returns any that exist.
+ */
+function resolveSkillDirectories(cwd: string): string[] {
+  const candidates = [
+    path.join(cwd, '.claude', 'skills'),
+    path.join(cwd, '.agents', 'skills'),
+    path.join(cwd, '.codex', 'skills'),
+  ];
+  return candidates.filter((dir) => existsSync(dir));
 }
 
 function summarizeSdkEvent(eventType: string, data: unknown): string | undefined {
