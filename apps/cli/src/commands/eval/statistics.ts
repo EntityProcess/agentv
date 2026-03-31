@@ -193,13 +193,17 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
     lines.push('');
   }
 
-  // Overall verdict line — use mean score against PASS_THRESHOLD (0.8),
-  // consistent with --threshold behavior.
-  const overallPassed = summary.mean >= 0.8;
+  // Overall verdict: all non-error cases must score >= PASS_THRESHOLD (0.8).
+  // Pass rate shows what fraction met the threshold; mean score is informational.
+  const gradedCount = summary.total - summary.executionErrorCount;
+  const passRate = gradedCount > 0 ? summary.passedCount / gradedCount : 0;
+  const overallPassed =
+    summary.passedCount === gradedCount ||
+    (summary.qualityFailureCount === 0 && summary.executionErrorCount === 0);
   const overallVerdict = overallPassed ? 'PASS' : 'FAIL';
   const useColor = !(process.env.NO_COLOR !== undefined) && (process.stdout.isTTY ?? false);
   const verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-  const verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} passed, mean score: ${formatScore(summary.mean)})`;
+  const verdictText = `RESULT: ${overallVerdict}  (pass rate: ${(passRate * 100).toFixed(1)}%, ${summary.passedCount}/${gradedCount} passed, mean score: ${formatScore(summary.mean)})`;
 
   lines.push('\n==================================================');
   if (useColor) {
@@ -336,14 +340,17 @@ export function formatMatrixSummary(results: readonly EvaluationResult[]): strin
 
 /**
  * Format a threshold check summary line.
- * Returns whether the threshold was met and the formatted message.
+ * Uses pass rate (fraction of cases scoring >= PASS_THRESHOLD) against the
+ * user-supplied threshold, consistent with the RESULT verdict logic.
  */
 export function formatThresholdSummary(
-  meanScore: number,
+  summary: EvaluationSummary,
   threshold: number,
 ): { passed: boolean; message: string } {
-  const passed = meanScore >= threshold;
+  const gradedCount = summary.total - summary.executionErrorCount;
+  const passRate = gradedCount > 0 ? summary.passedCount / gradedCount : 0;
+  const passed = passRate >= threshold;
   const verdict = passed ? 'PASS' : 'FAIL';
-  const message = `Suite score: ${meanScore.toFixed(2)} (threshold: ${threshold.toFixed(2)}) — ${verdict}`;
+  const message = `Suite pass rate: ${(passRate * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(1)}%) — ${verdict}`;
   return { passed, message };
 }

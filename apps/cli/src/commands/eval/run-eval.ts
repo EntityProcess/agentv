@@ -1191,7 +1191,7 @@ export async function runEvalCommand(
     // Threshold quality gate check
     let thresholdFailed = false;
     if (resolvedThreshold !== undefined) {
-      const thresholdResult = formatThresholdSummary(summary.mean, resolvedThreshold);
+      const thresholdResult = formatThresholdSummary(summary, resolvedThreshold);
       console.log(`\n${thresholdResult.message}`);
       thresholdFailed = !thresholdResult.passed;
     }
