@@ -66,10 +66,16 @@ targets:
     grader_target: gemini-llm
     log_format: json
 
-  # Claude - Anthropic's Claude Agent SDK
+  # Claude - CLI subprocess
   - name: claude
     provider: claude
     grader_target: gemini-llm
     # model: claude-sonnet-4-20250514          # Optional: override model
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
+
+  # Claude SDK - direct SDK invocation (requires @anthropic-ai/claude-agent-sdk)
+  - name: claude-sdk
+    provider: claude-sdk
+    grader_target: gemini-llm
+    log_format: json
