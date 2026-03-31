@@ -567,6 +567,7 @@ async function runSingleEvalFile(params: {
   readonly matrixMode?: boolean;
   readonly totalBudgetUsd?: number;
   readonly failOnError?: FailOnError;
+  readonly threshold?: number;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -684,6 +685,7 @@ async function runSingleEvalFile(params: {
     failOnError,
     graderTarget: options.graderTarget,
     model: options.model,
+    threshold: options.threshold,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
       (
@@ -1161,6 +1163,7 @@ export async function runEvalCommand(
             matrixMode: targetPrep.selections.length > 1,
             totalBudgetUsd: targetPrep.totalBudgetUsd,
             failOnError: targetPrep.failOnError,
+            threshold: resolvedThreshold,
           });
 
           return result.results;
