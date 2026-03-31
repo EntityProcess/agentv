@@ -180,9 +180,7 @@ export class PiCodingAgentProvider implements Provider {
       const model = (sdk.getModel as any)(providerName, modelId);
       if (!model) {
         throw new Error(
-          `pi-coding-agent: getModel('${providerName}', '${modelId}') returned undefined. ` +
-            `The model '${modelId}' is not registered for provider '${providerName}' in pi-ai. ` +
-            `Check that subprovider and model are correct in your target config.`,
+          `pi-coding-agent: getModel('${providerName}', '${modelId}') returned undefined. The model '${modelId}' is not registered for provider '${providerName}' in pi-ai. Check that subprovider and model are correct in your target config.`,
         );
       }
 
@@ -350,8 +348,7 @@ export class PiCodingAgentProvider implements Provider {
               ? lastAssistant.errorMessage
               : 'unknown SDK error';
           throw new Error(
-            `pi-coding-agent SDK error (provider: ${lastAssistant.provider ?? providerName}, ` +
-              `model: ${lastAssistant.model ?? modelId}): ${errorMsg}`,
+            `pi-coding-agent SDK error (provider: ${lastAssistant.provider ?? providerName}, model: ${lastAssistant.model ?? modelId}): ${errorMsg}`,
           );
         }
 
