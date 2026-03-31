@@ -15,6 +15,8 @@ export interface RunMeta {
   size_bytes: number;
   target?: string;
   experiment?: string;
+  project_id?: string;
+  project_name?: string;
 }
 
 export interface RunListResponse {

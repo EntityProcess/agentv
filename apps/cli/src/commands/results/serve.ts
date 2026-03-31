@@ -725,6 +725,61 @@ export function createApp(
     }
   });
 
+  /** Aggregate runs from all registered projects, sorted by timestamp descending. */
+  app.get('/api/projects/all-runs', (c) => {
+    const registry = loadProjectRegistry();
+    const allRuns: Array<{
+      filename: string;
+      path: string;
+      timestamp: string;
+      test_count: number;
+      pass_rate: number;
+      avg_score: number;
+      size_bytes: number;
+      target?: string;
+      experiment?: string;
+      project_id: string;
+      project_name: string;
+    }> = [];
+
+    for (const p of registry.projects) {
+      try {
+        const metas = listResultFiles(p.path);
+        for (const m of metas) {
+          let target: string | undefined;
+          let experiment: string | undefined;
+          try {
+            const records = loadLightweightResults(m.path);
+            if (records.length > 0) {
+              target = records[0].target;
+              experiment = records[0].experiment;
+            }
+          } catch {
+            // ignore enrichment errors
+          }
+          allRuns.push({
+            filename: m.filename,
+            path: m.path,
+            timestamp: m.timestamp,
+            test_count: m.testCount,
+            pass_rate: m.passRate,
+            avg_score: m.avgScore,
+            size_bytes: m.sizeBytes,
+            ...(target && { target }),
+            ...(experiment && { experiment }),
+            project_id: p.id,
+            project_name: p.name,
+          });
+        }
+      } catch {
+        // skip inaccessible projects
+      }
+    }
+
+    allRuns.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    return c.json({ runs: allRuns });
+  });
+
   // ── Data routes (unscoped) ────────────────────────────────────────────
 
   app.get('/api/config', (c) => handleConfig(c, defaultCtx));
