@@ -4,8 +4,8 @@ import packageJson from '../package.json' with { type: 'json' };
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
-import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
 import { evalCommand } from './commands/eval/index.js';
+import { importCommand } from './commands/import/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { pipelineCommand } from './commands/pipeline/index.js';
 import { resultsCommand } from './commands/results/index.js';
@@ -24,7 +24,7 @@ export const app = subcommands({
   version: packageJson.version,
   cmds: {
     eval: evalCommand,
-    prompt: evalPromptCommand,
+    import: importCommand,
     compare: compareCommand,
     convert: convertCommand,
     create: createCommand,
@@ -45,14 +45,14 @@ export const app = subcommands({
  * Known eval subcommand names — used to decide whether to inject the
  * implicit `run` subcommand for backward-compatible `agentv eval <paths>`.
  */
-const EVAL_SUBCOMMANDS = new Set(['run', 'prompt', 'assert']);
+const EVAL_SUBCOMMANDS = new Set(['run', 'assert']);
 
 /**
  * Top-level CLI command names (excluding `eval` itself).
- * Used to distinguish `agentv eval …` from `agentv prompt eval …`.
+ * Used to ensure `eval` is the top-level subcommand, not nested.
  */
 const TOP_LEVEL_COMMANDS = new Set([
-  'prompt',
+  'import',
   'compare',
   'convert',
   'create',
@@ -89,13 +89,12 @@ export function preprocessArgv(argv: string[]): string[] {
   // Implicit `run` subcommand: `agentv eval <arg>` → `agentv eval run <arg>`
   // when the first arg after `eval` is not a known eval subcommand.
   // This preserves backward compatibility now that `eval` is a subcommands group.
-  // Only applies when `eval` is the top-level subcommand, NOT when it appears
-  // inside another command (e.g. `agentv prompt eval …`).
+  // Only applies when `eval` is the top-level subcommand.
   // Exception: `--help` / `-h` should show the eval group help, not run's help.
   const evalIdx = result.indexOf('eval');
   if (evalIdx !== -1) {
     // Ensure no top-level command appears before `eval` in the argv —
-    // if one does, `eval` is a nested subcommand (e.g. `prompt eval`).
+    // if one does, `eval` is a nested subcommand.
     const isTopLevel = !result.slice(0, evalIdx).some((arg) => TOP_LEVEL_COMMANDS.has(arg));
     if (isTopLevel) {
       const nextArg = result[evalIdx + 1];

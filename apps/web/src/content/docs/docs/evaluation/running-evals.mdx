@@ -301,70 +301,19 @@ The `--file` option reads a JSON file with `{ "output": "...", "input": "..." }`
 
 This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assertions` instructions for code graders so external grading agents can execute them directly.
 
-## Agent-Orchestrated Evals
+## Offline Grading
 
-Run evaluations without API keys by letting an external agent (e.g., Claude Code, Copilot CLI) orchestrate the eval pipeline.
-
-### Overview
+Grade existing agent sessions without re-running them. Import a transcript, then run deterministic evaluators:
 
 ```bash
-agentv eval prompt eval --list evals/my-eval.yaml
+# Import a Claude Code session
+agentv import claude --discover latest
+
+# Run evaluators against the imported transcript
+agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl
 ```
 
-Returns JSON listing the available `test_ids` for the eval file.
-
-### Get Task Input
-
-```bash
-agentv eval prompt eval --input evals/my-eval.yaml --test-id case-123
-```
-
-Returns JSON with:
-- `input` — `[{role, content}]` array. File references use absolute paths (`{type: "file", path: "/abs/path"}`) that the agent can read directly from the filesystem.
-- `criteria` — grading criteria for the orchestrator's reference (do not pass to the candidate).
-
-### Get Grading Context
-
-```bash
-agentv eval prompt eval --expected-output evals/my-eval.yaml --test-id case-123
-```
-
-Returns JSON with the data an external grader needs:
-
-- `expected_output` — reference assistant messages
-- `reference_answer` — flattened reference text when available
-- `criteria` — high-level success criteria
-- `assertions` — evaluator configs for the test
-
-### Get Grading Brief
-
-Output a human-readable summary of the grading criteria for a specific test, with type-prefixed assertion tags:
-
-```bash
-agentv eval prompt eval --grading-brief evals/my-eval.yaml --test-id case-123
-```
-
-Example output:
-
-```
-Input: "Summarise the following article in one sentence."
-Expected: "The quick brown fox jumps over the lazy dog near the river bank."
-Criteria:
-  - [code-grader] rouge-score: Measures n-gram recall and F1
-  - [llm-grader] Summary captures key points
-  - [skill-trigger] should_trigger: true for summariser
-```
-
-This is useful for agents orchestrating evals to understand what criteria a test is evaluated against before running it.
-
-### When to Use
-
-| Scenario | Command |
-|----------|---------|
-| Have API keys, want end-to-end automation | `agentv eval` |
-| Run a single assertion in isolation | `agentv eval assert <name>` |
-| No API keys, external agent can orchestrate the run | `agentv eval prompt eval --list/--input/--expected-output` |
-| Inspect grading criteria before running | `agentv eval prompt eval --grading-brief` |
+See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 ## Version Requirements
 

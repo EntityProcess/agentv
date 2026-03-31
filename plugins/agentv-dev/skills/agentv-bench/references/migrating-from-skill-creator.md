@@ -10,10 +10,8 @@ AgentV runs skill-creator's evals.json directly — no conversion required:
 # Run evals.json with AgentV
 agentv eval evals.json
 
-# Or in agent mode (no API keys)
-agentv prompt eval --list evals.json
-agentv prompt eval --input evals.json --test-id 1
-agentv prompt eval --expected-output evals.json --test-id 1
+# Or run a single assertion offline (no API keys)
+agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 ```
 
 AgentV automatically:
@@ -22,18 +20,7 @@ AgentV automatically:
 - Converts `assertions` → LLM-grader evaluators
 - Resolves `files[]` paths relative to the evals.json directory
 
-If you're using the `agentv-bench` skill, the bundled Bun scripts wrap these same commands and artifacts instead of inventing a second format:
-
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-bun install
-bun scripts/run-eval.ts --eval-path ../../../../examples/features/agent-skills-evals/evals.json --dry-run
-bun scripts/prompt-eval.ts --list ../../../../examples/features/agent-skills-evals/evals.json
-bun scripts/convert-evals.ts --eval-path ../../../../examples/features/agent-skills-evals/evals.json --out /tmp/eval.yaml
-bun scripts/generate-report.ts --artifacts .agentv/artifacts --out /tmp/agentv-review.html
-```
-
-These scripts still call `agentv` wherever possible. Code graders, grading, and artifact generation remain in AgentV core; the scripts just orchestrate and summarize the existing outputs.
+If you're using the `agentv-bench` skill, it orchestrates these same AgentV commands. Code graders, grading, and artifact generation remain in AgentV core; the skill just orchestrates and summarizes the existing outputs.
 
 ## What You Gain
 

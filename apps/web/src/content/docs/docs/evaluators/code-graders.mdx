@@ -14,10 +14,10 @@ Code graders communicate via stdin/stdout JSON:
 **Input (stdin):**
 ```json
 {
-  "input_text": "What is 15 + 27?",
+  "input": "What is 15 + 27?",
   "criteria": "Correctly calculates 15 + 27 = 42",
-  "output_text": "The answer is 42.",
-  "expected_output_text": "42"
+  "output": "The answer is 42.",
+  "expected_output": "42"
 }
 
 **Output (stdout):**
@@ -41,7 +41,7 @@ Code graders communicate via stdin/stdout JSON:
 # validators/check_answer.py
 import json, sys
 data = json.load(sys.stdin)
-output_text = data.get("output_text", "")
+output_text = data.get("output", "")
 
 assertions = []
 
@@ -66,7 +66,7 @@ print(json.dumps({
 import { readFileSync } from "fs";
 
 const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
-const outputText: string = data.output_text ?? "";
+const outputText: string = data.output ?? "";
 
 const assertions: Array<{ text: string; passed: boolean }> = [];
 
@@ -102,7 +102,8 @@ The `@agentv/eval` package provides a declarative API with automatic stdin/stdou
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ outputText, criteria }) => {
+export default defineCodeGrader(({ output, criteria }) => {
+  const outputText = output?.[0]?.content ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (outputText.includes(criteria)) {
@@ -146,7 +147,9 @@ Use `createTargetClient` from the SDK:
 #!/usr/bin/env bun
 import { createTargetClient, defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(async ({ inputText, outputText }) => {
+export default defineCodeGrader(async ({ input, output }) => {
+  const inputText = input?.[0]?.content ?? '';
+  const outputText = output?.[0]?.content ?? '';
   const target = createTargetClient();
   if (!target) return { score: 0, assertions: [{ text: 'Target not configured', passed: false }] };
 
@@ -171,14 +174,14 @@ Use `target.invokeBatch(requests)` for multiple calls in parallel.
 
 ## Advanced Input Fields
 
-Beyond the basic text fields (`input_text`, `output_text`, `expected_output_text`, `criteria`), code graders receive additional structured context:
+Beyond the basic text fields (`input`, `output`, `expected_output`, `criteria`), code graders receive additional structured context:
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `input` | `string \| Message[]` | Input text or full resolved input message array |
+| `output` | `string \| Message[]` | Agent output text or full execution trace with tool calls |
+| `expected_output` | `string \| Message[]` | Expected output text or expected agent behavior including tool calls |
 | `input_files` | `string[]` | Paths to input files referenced in the eval |
-| `input` | `Message[]` | Full resolved input message array |
-| `expected_output` | `Message[]` | Expected agent behavior including tool calls |
-| `output` | `Message[]` | Actual agent execution trace with tool calls |
 | `trace` | `TraceSummary` | Lightweight execution metrics (tool calls, errors) |
 | `token_usage` | `{input, output}` | Token consumption |
 | `cost_usd` | `number` | Estimated cost in USD |
@@ -293,7 +296,7 @@ agentv eval assert rouge-score --file result.json
 
 The command:
 1. Discovers the grader script by walking up directories looking for `.agentv/graders/<name>.{ts,js,mts,mjs}`
-2. Passes `{ output_text, output, input, input_text }` to the script via stdin
+2. Passes `{ output, input, criteria }` to the script via stdin
 3. Prints the grader's JSON result to stdout
 4. Exits 0 if score >= 0.5, exit 1 otherwise
 
@@ -304,5 +307,5 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 Pipe JSON directly to the grader script for full control:
 
 ```bash
-echo '{"input_text":"What is 2+2?","criteria":"4","output_text":"4","expected_output_text":"4"}' | python validators/check_answer.py
+echo '{"input":"What is 2+2?","criteria":"4","output":"4","expected_output":"4"}' | python validators/check_answer.py
 ```
