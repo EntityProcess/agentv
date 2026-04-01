@@ -10,6 +10,9 @@
 
 description: Verify file_changes diffs are accessible to LLM grader (rubrics, built-in, and copilot-cli)
 
+workspace:
+  template: ../workspace-template
+
 execution:
   target: mock_agent
 
