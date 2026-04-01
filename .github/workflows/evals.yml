@@ -31,6 +31,7 @@ jobs:
           cat > .env <<EOF
           GH_MODELS_TOKEN=${{ secrets.GH_MODELS_TOKEN || secrets.GITHUB_TOKEN }}
           GH_MODELS_MODEL=${{ vars.GH_MODELS_MODEL || 'openai/gpt-5-mini' }}
+          COPILOT_MODEL=${{ vars.COPILOT_MODEL || 'gpt-5-mini' }}
           EOF
 
       - name: Resolve filter and threshold

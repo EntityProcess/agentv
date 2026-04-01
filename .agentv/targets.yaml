@@ -11,13 +11,13 @@ targets:
 
   - name: copilot-cli
     provider: copilot-cli
-    model: ${{ GH_MODELS_MODEL }}
+    model: ${{ COPILOT_MODEL }}
     grader_target: default
     log_format: json
 
   - name: copilot-sdk
     provider: copilot-sdk
-    model: ${{ GH_MODELS_MODEL }}
+    model: ${{ COPILOT_MODEL }}
     grader_target: default
     log_format: json
 
