@@ -30,7 +30,9 @@ workspace:
       clone:
         depth: 1
 execution:
-  target: vscode
+  target: agent
+
+tags: [agent]
 
 tests:
   - id: verify-workspace

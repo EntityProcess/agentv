@@ -15,6 +15,7 @@
 # ~/.copilot/session-state/ and parses events.jsonl into Message[].
 
 target: copilot-log
+tags: [agent]
 
 workspace:
   template: ../workspace/

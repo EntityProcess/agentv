@@ -3,7 +3,8 @@ description: >-
   Demonstrates workspace config reuse across eval files in different directories.
 
 workspace: ../../workspace.yaml
-target: default
+target: agent
+tags: [agent]
 
 tests:
   - id: verify-readme-exists

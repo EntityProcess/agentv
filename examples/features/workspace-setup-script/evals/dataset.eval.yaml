@@ -28,7 +28,9 @@ workspace:
       clone:
         depth: 1
 execution:
-  target: copilot
+  target: agent
+
+tags: [agent]
 
 tests:
   - id: verify-workspace

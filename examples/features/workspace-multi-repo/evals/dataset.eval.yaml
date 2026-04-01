@@ -1,7 +1,6 @@
 description: >-
-  Demonstrates a multi-repo workspace with VSCode. Two repos (agentv and
-  allagents) are cloned into the workspace and opened as separate folders
-  in a single VSCode window via the .code-workspace file.
+  Demonstrates a multi-repo workspace. Two repos (agentv and
+  allagents) are cloned into the workspace.
 
 workspace:
   template: ../workspace-template
@@ -27,10 +26,9 @@ workspace:
         resolve: remote
       clone:
         depth: 1
-execution:
-  targets:
-    - vscode
-    - copilot
+
+target: agent
+tags: [agent]
 
 tests:
   - id: verify-multi-repo

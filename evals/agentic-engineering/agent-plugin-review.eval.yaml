@@ -4,6 +4,8 @@ execution:
   targets:
     - pi-cli
 
+tags: [agent]
+
 workspace:
   template: ./workspace-template
   hooks:

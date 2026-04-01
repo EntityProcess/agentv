@@ -3,7 +3,8 @@ description: >-
   The workspace is defined once in workspace.yaml and reused across eval files.
 
 workspace: ../../workspace.yaml
-target: default
+target: agent
+tags: [agent]
 
 tests:
   - id: verify-repo-exists

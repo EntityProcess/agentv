@@ -15,7 +15,9 @@ workspace:
         depth: 1
 
 execution:
-  target: copilot
+  target: agent
+
+tags: [agent]
 
 tests:
   - id: describe-package

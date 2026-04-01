@@ -20,15 +20,18 @@ targets:
     api_key: ${{ GH_MODELS_TOKEN }}
     model: ${{ GH_MODELS_MODEL }}
 
-  # ── Agent targets ──────────────────────────────────────────────────
-  - name: copilot-cli
-    provider: copilot-cli
-    model: ${{ COPILOT_MODEL }}
+  # ── Agent target (env-var-driven) ───────────────────────────────────
+  # Generic "agent" target — evals use `target: agent` and CI/local dev
+  # sets AGENT_PROVIDER + AGENT_MODEL to control which agent runs.
+  # Example: AGENT_PROVIDER=copilot-cli AGENT_MODEL=gpt-5-mini
+  - name: agent
+    provider: ${{ AGENT_PROVIDER }}
+    model: ${{ AGENT_MODEL }}
     grader_target: grader
     log_format: json
 
-  # Alias so evals with `target: copilot` resolve to copilot-cli.
-  - name: copilot
+  # ── Named agent targets ───────────────────────────────────────────
+  - name: copilot-cli
     provider: copilot-cli
     model: ${{ COPILOT_MODEL }}
     grader_target: grader
@@ -72,14 +75,6 @@ targets:
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json
-
-  - name: vscode
-    provider: vscode
-    grader_target: grader
-
-  - name: copilot-log
-    provider: copilot-log
-    discover: latest
 
   # ── LLM targets (direct model access) ─────────────────────────────
   - name: azure-llm

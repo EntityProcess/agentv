@@ -16,8 +16,10 @@ workspace:
         depth: 1
 
 execution:
-  target: copilot
+  target: agent
   workers: 2
+
+tags: [agent]
 
 tests:
   - id: test-1-core-name

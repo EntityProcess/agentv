@@ -1,30 +1,20 @@
 # Matrix Evaluation Example
 #
-# Runs tests against multiple targets and displays
-# a cross-target comparison matrix.
-#
-# Usage:
-#   agentv eval examples/features/matrix-evaluation/evals/dataset.eval.yaml
-#
-# Or with CLI override:
+# Runs tests against the configured agent target.
+# Override with CLI for multi-target comparison:
 #   agentv eval examples/features/matrix-evaluation/evals/dataset.eval.yaml --target copilot --target claude
 
-execution:
-  targets:
-    - copilot
-    - claude
+tags: [agent]
+target: agent
 
 tests:
   - id: general-greeting
     input: "Say hello"
     criteria: "The response should contain a greeting"
 
-  - id: copilot-only-task
+  - id: github-task
     input: "Create a GitHub issue"
     criteria: "The response should reference GitHub"
-    execution:
-      targets:
-        - copilot
 
   - id: code-generation
     input: "Write a fibonacci function in Python"
