@@ -54,12 +54,6 @@ targets:
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json
 
-  - name: azure
-    provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-
   - name: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
