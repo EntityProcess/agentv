@@ -93,7 +93,7 @@ jobs:
             "${TARGET_FLAG[@]}" \
             --workers 3 \
             --threshold ${{ steps.filter.outputs.threshold }} \
-            -o .agentv/ci-results/junit.xml \
+            --output .agentv/ci-results/junit.xml \
             --benchmark-json .agentv/ci-results/benchmark.json \
             --artifacts .agentv/ci-results/artifacts \
             2>&1 | tee .agentv/ci-results/eval-output.log
