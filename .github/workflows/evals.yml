@@ -61,6 +61,7 @@ jobs:
 
           # shellcheck disable=SC2086
           bun apps/cli/dist/cli.js eval run ${{ steps.filter.outputs.patterns }} \
+            --targets .agentv/targets.yaml \
             --target ${{ steps.filter.outputs.target }} \
             --workers 1 \
             --threshold ${{ steps.filter.outputs.threshold }} \
