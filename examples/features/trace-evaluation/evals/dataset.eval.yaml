@@ -7,7 +7,6 @@
 #   bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry-run
 
 description: Trace-based evaluation of agent internals using code graders
-target: default
 
 tests:
   # ==========================================

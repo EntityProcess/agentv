@@ -14,9 +14,6 @@ workspace:
       clone:
         depth: 1
 
-execution:
-  target: agent
-
 tags: [agent]
 
 tests:

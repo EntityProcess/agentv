@@ -12,7 +12,6 @@
 #   bun agentv eval evals/dataset.eval.yaml --dry-run
 
 description: Tool-call F1 scoring examples
-target: default
 
 tests:
   # ==========================================

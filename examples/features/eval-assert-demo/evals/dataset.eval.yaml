@@ -4,7 +4,6 @@
 #   agentv eval assert keyword-check --agent-output "..." --agent-input "..."
 
 description: Code graders with eval assert CLI integration
-target: default
 
 tests:
   - id: capital-of-france

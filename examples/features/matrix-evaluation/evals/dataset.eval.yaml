@@ -5,8 +5,6 @@
 #   agentv eval examples/features/matrix-evaluation/evals/dataset.eval.yaml --target copilot --target claude
 
 tags: [agent]
-target: agent
-
 tests:
   - id: general-greeting
     input: "Say hello"

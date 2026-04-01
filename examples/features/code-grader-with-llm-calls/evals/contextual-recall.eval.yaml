@@ -21,8 +21,6 @@
 #   partial-recall: ~0.333 (only 1 of 3 statements attributable to retrieval)
 #   zero-recall: ~0.000 (no retrieval context supports the expected answer)
 
-target: default
-
 assertions:
   - name: contextual_recall
     type: code-grader

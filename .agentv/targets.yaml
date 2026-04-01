@@ -6,29 +6,23 @@
 # grader_target so eval execution and grading use separate models.
 
 targets:
-  # ── Grader (LLM-as-judge) ──────────────────────────────────────────
-  # "default" is an alias so example evals with `target: default` work.
+  # ── Default target (env-var-driven) ──────────────────────────────────
+  # Evals without an explicit target resolve to "default". Controlled via
+  # AGENT_PROVIDER + AGENT_MODEL env vars so CI and local dev can swap
+  # the agent without editing eval files.
+  # Example: AGENT_PROVIDER=copilot-cli AGENT_MODEL=gpt-5-mini
   - name: default
-    provider: openai
-    base_url: https://models.github.ai/inference/v1
-    api_key: ${{ GH_MODELS_TOKEN }}
-    model: ${{ GH_MODELS_MODEL }}
+    provider: ${{ AGENT_PROVIDER }}
+    model: ${{ AGENT_MODEL }}
+    grader_target: grader
+    log_format: json
 
+  # ── Grader (LLM-as-judge) ──────────────────────────────────────────
   - name: grader
     provider: openai
     base_url: https://models.github.ai/inference/v1
     api_key: ${{ GH_MODELS_TOKEN }}
     model: ${{ GH_MODELS_MODEL }}
-
-  # ── Agent target (env-var-driven) ───────────────────────────────────
-  # Generic "agent" target — evals use `target: agent` and CI/local dev
-  # sets AGENT_PROVIDER + AGENT_MODEL to control which agent runs.
-  # Example: AGENT_PROVIDER=copilot-cli AGENT_MODEL=gpt-5-mini
-  - name: agent
-    provider: ${{ AGENT_PROVIDER }}
-    model: ${{ AGENT_MODEL }}
-    grader_target: grader
-    log_format: json
 
   # ── Named agent targets ───────────────────────────────────────────
   - name: copilot-cli

@@ -1,5 +1,4 @@
 name: coding-ability
-target: default
 tests:
   - id: review-null-check
     input: |

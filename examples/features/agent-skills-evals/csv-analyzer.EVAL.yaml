@@ -1,5 +1,3 @@
-target: default
-
 tests:
   - id: csv-top-months
     criteria: Agent finds the top 3 months by revenue

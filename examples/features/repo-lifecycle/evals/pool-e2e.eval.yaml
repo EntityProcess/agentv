@@ -16,7 +16,6 @@ workspace:
         depth: 1
 
 execution:
-  target: agent
   workers: 2
 
 tags: [agent]

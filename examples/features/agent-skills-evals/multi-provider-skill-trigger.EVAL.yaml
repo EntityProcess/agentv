@@ -19,8 +19,6 @@
 # The evaluator automatically resolves the correct tool names for each
 # provider. No provider-specific config needed in test cases.
 
-target: default
-
 workspace:
   template: workspace/
 

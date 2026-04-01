@@ -14,8 +14,10 @@
 # The copilot-log provider discovers the latest session from
 # ~/.copilot/session-state/ and parses events.jsonl into Message[].
 
-target: copilot-log
 tags: [agent]
+
+execution:
+  target: copilot-log
 
 workspace:
   template: ../workspace/

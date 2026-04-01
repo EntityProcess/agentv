@@ -1,5 +1,3 @@
-target: default
-
 tests:
   - id: transcript-quality
     input: "Analyze the imported Claude Code transcript"

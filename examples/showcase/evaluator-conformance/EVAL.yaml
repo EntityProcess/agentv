@@ -8,7 +8,6 @@
 #      bun run conformance-check.ts
 
 description: Keyword-matching evaluator used for conformance testing demo
-target: default
 
 tests:
   - id: exact-match

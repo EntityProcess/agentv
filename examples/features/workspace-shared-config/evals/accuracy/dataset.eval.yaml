@@ -3,7 +3,6 @@ description: >-
   The workspace is defined once in workspace.yaml and reused across eval files.
 
 workspace: ../../workspace.yaml
-target: agent
 tags: [agent]
 
 tests:
