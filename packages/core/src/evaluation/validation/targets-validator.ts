@@ -60,6 +60,8 @@ const OPENAI_SETTINGS = new Set([
   'model',
   'deployment',
   'variant',
+  'api_format',
+  'apiFormat',
   'temperature',
   'max_output_tokens',
   'maxTokens',
