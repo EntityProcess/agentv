@@ -1,14 +1,7 @@
 targets:
-  - name: azure-llm
-    provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    version: ${{ AZURE_OPENAI_API_VERSION }}
-
   - name: mock_agent
     provider: cli
-    grader_target: azure-llm
+    grader_target: grader
     command: bun run ./mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
     healthcheck:
