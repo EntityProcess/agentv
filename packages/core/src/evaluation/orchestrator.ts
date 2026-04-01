@@ -1610,7 +1610,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       });
     } catch (error) {
       lastError = error;
-      if (isTimeoutLike(error) && attempt + 1 < attemptBudget) {
+      if (attempt + 1 < attemptBudget) {
+        const delayMs = retryBackoffMs(attempt);
+        await sleep(delayMs, signal);
         attempt += 1;
         continue;
       }
@@ -2567,7 +2569,7 @@ function buildErrorResult(
   failureReasonCode: string,
   verbose?: boolean,
 ): EvaluationResult {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = extractErrorMessage(error);
 
   let agentRequest: JsonObject | undefined;
   let lmRequest: JsonObject | undefined;
@@ -2711,24 +2713,59 @@ function aggregateEvaluatorTokenUsage(scores?: readonly EvaluatorResult[]): Toke
   };
 }
 
-function isTimeoutLike(error: unknown): boolean {
-  if (!error) {
-    return false;
-  }
-  if (
-    typeof DOMException !== 'undefined' &&
-    error instanceof DOMException &&
-    error.name === 'AbortError'
-  ) {
-    return true;
-  }
+/**
+ * Extract a human-readable message from an error of any shape.
+ *
+ * Handles three cases:
+ * 1. Standard Error instances → error.message
+ * 2. Plain objects with a `message` property (e.g. JSON-RPC error objects
+ *    rejected by @agentclientprotocol/sdk) → obj.message
+ * 3. Everything else → String(error)
+ */
+function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    const name = error.name?.toLowerCase();
-    const message = error.message?.toLowerCase();
-    return name.includes('timeout') || message.includes('timeout');
+    return error.message;
   }
-  const value = String(error).toLowerCase();
-  return value.includes('timeout');
+  if (error !== null && typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof obj.message === 'string' && obj.message) {
+      parts.push(obj.message);
+    }
+    if (typeof obj.code === 'number') {
+      parts.push(`(code ${obj.code})`);
+    }
+    if (parts.length > 0) {
+      return parts.join(' ');
+    }
+    // Fallback: serialize the object so we never return "[object Object]"
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // circular reference or other serialization failure
+    }
+  }
+  return String(error);
+}
+
+/** Exponential backoff: 2^attempt * 1000ms (1s, 2s, 4s, …), capped at 30s. */
+function retryBackoffMs(attempt: number): number {
+  return Math.min(2 ** attempt * 1000, 30_000);
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 }
 
 function mapChildResults(
