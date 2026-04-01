@@ -46,7 +46,6 @@
     "@ai-sdk/azure": "^3.0.0",
     "@ai-sdk/google": "^3.0.0",
     "@ai-sdk/openai": "^3.0.0",
-    "@anthropic-ai/claude-agent-sdk": "^0.2.88",
     "@github/copilot-sdk": "^0.1.25",
     "@openai/codex-sdk": "^0.104.0",
     "@openrouter/ai-sdk-provider": "^2.3.1",
@@ -66,9 +65,13 @@
     "@opentelemetry/semantic-conventions": "^1.39.0"
   },
   "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.88",
     "@mariozechner/pi-coding-agent": "^0.62.0"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
     "@mariozechner/pi-coding-agent": {
       "optional": true
     }
