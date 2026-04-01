@@ -12,8 +12,11 @@ tests:
   # --- contains ---
   - id: contains-basic
     criteria: Response mentions the word "Hello"
-    input: "Say hello to the user."
-    expected_output: "Hello there! How can I help you today?"
+    input:
+      - role: system
+        content: "Always start your response with 'Hello'."
+      - role: user
+        content: "Say hello to the user."
     assertions:
       - type: contains
         value: "Hello"
@@ -23,10 +26,9 @@ tests:
     criteria: Response contains a valid email address
     input:
       - role: system
-        content: "You must include the email support@example.com in your response."
+        content: "You must include the email support@example.com in every response."
       - role: user
         content: "Provide your contact email."
-    expected_output: "You can reach me at support@example.com."
     assertions:
       - type: regex
         value: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
@@ -36,10 +38,9 @@ tests:
     criteria: Response is exactly the expected string
     input:
       - role: system
-        content: "You are a calculator. Respond with only the numeric result, nothing else."
+        content: "You are a calculator. Respond with ONLY the numeric result. No words, no punctuation, no explanation, no newlines. Just the bare number."
       - role: user
         content: "What is 2+2?"
-    expected_output: "4"
     assertions:
       - type: equals
         value: "4"
@@ -47,8 +48,11 @@ tests:
   # --- regex with starts-with pattern ---
   - id: starts-with-prefix
     criteria: Response begins with a greeting
-    input: "Start your reply with 'Dear User'."
-    expected_output: "Dear User, thank you for contacting us."
+    input:
+      - role: system
+        content: "You MUST start every response with exactly 'Dear User,' followed by your message."
+      - role: user
+        content: "Thank the user for contacting support."
     assertions:
       - type: regex
         value: "^Dear User"
@@ -58,10 +62,9 @@ tests:
     criteria: Response is valid JSON
     input:
       - role: system
-        content: "You are an API. Respond only with valid JSON, no markdown or explanations."
+        content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: "Return a JSON object with a status field set to ok and code 200."
-    expected_output: '{"status": "ok", "code": 200}'
     assertions:
       - type: is-json
 
@@ -70,10 +73,9 @@ tests:
     criteria: Response is valid JSON that contains a "result" key
     input:
       - role: system
-        content: "You are an API. Respond only with valid JSON, no markdown or explanations."
+        content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: 'Return a JSON object with a "result" key set to the number 42.'
-    expected_output: '{"result": 42}'
     assertions:
       - type: is-json
         required: true
@@ -85,10 +87,9 @@ tests:
     criteria: Response must be valid JSON (required) and ideally contain a message field
     input:
       - role: system
-        content: "You are an API. Respond only with valid JSON, no markdown or explanations."
+        content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: 'Return a JSON object with a "message" field set to "success".'
-    expected_output: '{"message": "success"}'
     assertions:
       - type: is-json
         required: true
