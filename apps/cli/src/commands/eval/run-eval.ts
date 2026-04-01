@@ -1276,7 +1276,7 @@ export async function runEvalCommand(
     }
 
     if (usesDefaultArtifactWorkspace) {
-      const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
+      const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
       const workspaceDir = path.dirname(outputPath);
       const {
         testArtifactDir,
@@ -1298,7 +1298,7 @@ export async function runEvalCommand(
     // Write companion artifacts (grading, timing, benchmark) if requested
     if (options.artifacts) {
       const artifactsDir = path.resolve(options.artifacts);
-      const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
+      const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
       const {
         testArtifactDir,
         indexPath,
@@ -1343,7 +1343,7 @@ export async function runEvalCommand(
 
     // Suggest retry-errors command when execution errors are detected
     if (summary.executionErrorCount > 0 && !options.retryErrors) {
-      const evalFileArgs = resolvedTestFiles.map((f) => path.relative(cwd, f)).join(' ');
+      const evalFileArgs = activeTestFiles.map((f) => path.relative(cwd, f)).join(' ');
       const targetFlag = options.target ? ` --target ${options.target}` : '';
       const relativeOutputPath = path.relative(cwd, outputPath);
       console.log(
@@ -1355,7 +1355,7 @@ export async function runEvalCommand(
     return {
       executionErrorCount: summary.executionErrorCount,
       outputPath,
-      testFiles: resolvedTestFiles,
+      testFiles: activeTestFiles,
       target: options.target,
       thresholdFailed,
     };

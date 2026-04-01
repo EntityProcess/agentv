@@ -189,7 +189,7 @@ export const evalRunCommand = command({
     excludeTag: multioption({
       type: array(string),
       long: 'exclude-tag',
-      description: 'Skip eval files that have this tag (repeatable, AND logic)',
+      description: 'Skip eval files that have this tag (repeatable, file skipped if any match)',
     }),
   },
   handler: async (args) => {
