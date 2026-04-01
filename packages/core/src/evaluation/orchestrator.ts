@@ -2740,7 +2740,6 @@ function extractErrorMessage(error: unknown): string {
   return String(error);
 }
 
-
 function mapChildResults(
   children?: readonly ChildEvaluatorResult[],
 ): readonly EvaluatorResult[] | undefined {
