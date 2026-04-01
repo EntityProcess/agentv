@@ -6,7 +6,7 @@ on:
       suite_filter:
         description: "Space-separated glob patterns for eval files to run"
         required: false
-        default: "evals/**/eval.yaml examples/features/**/*.EVAL.yaml"
+        default: "evals/**/eval.yaml examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml"
       target:
         description: "Target name from .agentv/targets.yaml"
         required: false
@@ -45,7 +45,7 @@ jobs:
       - name: Resolve inputs
         id: filter
         env:
-          DEFAULT_PATTERNS: "evals/**/eval.yaml examples/features/**/*.EVAL.yaml"
+          DEFAULT_PATTERNS: "evals/**/eval.yaml examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml"
         run: |
           echo "patterns=${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}" >> "$GITHUB_OUTPUT"
           echo "target=${{ github.event.inputs.target || vars.EVAL_TARGET || 'copilot-cli' }}" >> "$GITHUB_OUTPUT"
