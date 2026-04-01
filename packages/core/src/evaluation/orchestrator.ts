@@ -1610,7 +1610,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       });
     } catch (error) {
       lastError = error;
-      if (isTimeoutLike(error) && attempt + 1 < attemptBudget) {
+      if (attempt + 1 < attemptBudget) {
         attempt += 1;
         continue;
       }
@@ -2567,7 +2567,7 @@ function buildErrorResult(
   failureReasonCode: string,
   verbose?: boolean,
 ): EvaluationResult {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = extractErrorMessage(error);
 
   let agentRequest: JsonObject | undefined;
   let lmRequest: JsonObject | undefined;
@@ -2711,25 +2711,35 @@ function aggregateEvaluatorTokenUsage(scores?: readonly EvaluatorResult[]): Toke
   };
 }
 
-function isTimeoutLike(error: unknown): boolean {
-  if (!error) {
-    return false;
-  }
-  if (
-    typeof DOMException !== 'undefined' &&
-    error instanceof DOMException &&
-    error.name === 'AbortError'
-  ) {
-    return true;
-  }
+/**
+ * Extract a human-readable message from an error of any shape.
+ *
+ * Handles three cases:
+ * 1. Standard Error instances → error.message
+ * 2. Plain objects with a `message` property (e.g. JSON-RPC error objects
+ *    rejected by @agentclientprotocol/sdk) → obj.message
+ * 3. Everything else → String(error)
+ */
+function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    const name = error.name?.toLowerCase();
-    const message = error.message?.toLowerCase();
-    return name.includes('timeout') || message.includes('timeout');
+    return error.message;
   }
-  const value = String(error).toLowerCase();
-  return value.includes('timeout');
+  if (error !== null && typeof error === 'object' && 'message' in error) {
+    const obj = error as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof obj.message === 'string') {
+      parts.push(obj.message);
+    }
+    if (typeof obj.code === 'number') {
+      parts.push(`(code ${obj.code})`);
+    }
+    if (parts.length > 0) {
+      return parts.join(' ');
+    }
+  }
+  return String(error);
 }
+
 
 function mapChildResults(
   children?: readonly ChildEvaluatorResult[],

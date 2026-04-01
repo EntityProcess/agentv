@@ -223,9 +223,30 @@ describe('runTestCase', () => {
     expect(provider.callIndex).toBe(1);
   });
 
-  it('retries timeout errors up to maxRetries', async () => {
+  it('retries provider errors up to maxRetries', async () => {
     const provider = new SequenceProvider('mock', {
       errors: [new Error('Request timeout')],
+      responses: [
+        {
+          output: [{ role: 'assistant', content: 'Add structured logging.' }],
+        },
+      ],
+    });
+
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      maxRetries: 1,
+    });
+
+    expect(result.score).toBeGreaterThan(0);
+  });
+
+  it('retries non-timeout provider errors up to maxRetries', async () => {
+    const provider = new SequenceProvider('mock', {
+      errors: [new Error('Provider failure')],
       responses: [
         {
           output: [{ role: 'assistant', content: 'Add structured logging.' }],
@@ -264,6 +285,32 @@ describe('runTestCase', () => {
     expect(result.failureReasonCode).toBe('provider_error');
     expect(result.executionError).toBeDefined();
     expect(result.executionError?.message).toContain('Provider failure');
+  });
+
+  it('surfaces JSON-RPC error objects with readable messages', async () => {
+    // Simulates @agentclientprotocol/sdk rejecting with a plain JSON-RPC error object
+    const jsonRpcError = { code: -32600, message: 'Invalid request' };
+    const provider: Provider = {
+      id: 'mock:jsonrpc',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        throw jsonRpcError;
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.executionStatus).toBe('execution_error');
+    expect(result.error).toContain('Invalid request');
+    expect(result.error).toContain('code -32600');
+    expect(result.error).not.toContain('[object Object]');
   });
 
   it('surfaces provider raw.error as evaluation error', async () => {
