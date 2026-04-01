@@ -1,5 +1,6 @@
-name: Multi-Model Benchmark
+name: multi-model-benchmark
 description: Compare greeting, code generation, and summarization across three model targets
+target: default
 
 tests:
   - id: greeting

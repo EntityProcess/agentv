@@ -4,6 +4,7 @@
 
 name: trace-analysis-demo
 description: Demo eval for generating execution traces to analyze
+target: default
 
 tests:
   - id: research-question

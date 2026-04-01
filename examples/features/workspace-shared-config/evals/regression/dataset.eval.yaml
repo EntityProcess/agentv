@@ -3,6 +3,7 @@ description: >-
   Demonstrates workspace config reuse across eval files in different directories.
 
 workspace: ../../workspace.yaml
+target: default
 
 tests:
   - id: verify-readme-exists

@@ -7,6 +7,7 @@
 
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare
+target: default
 
 tests:
   - id: code-review-001

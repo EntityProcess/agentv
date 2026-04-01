@@ -6,11 +6,11 @@ on:
       suite_filter:
         description: "Comma-separated glob patterns for eval files to run"
         required: false
-        default: "evals/**/eval.yaml,examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml"
+        default: "evals/**/*.eval.yaml,examples/**/*.eval.yaml,examples/**/*.EVAL.yaml,examples/**/EVAL.yaml"
       target:
-        description: "Target name from .agentv/targets.yaml"
+        description: "Optional target override (leave empty to use each eval's own target)"
         required: false
-        default: "copilot-cli"
+        default: ""
       threshold:
         description: "Minimum score threshold (0-1)"
         required: false
@@ -45,10 +45,10 @@ jobs:
       - name: Resolve inputs
         id: filter
         env:
-          DEFAULT_PATTERNS: "evals/**/eval.yaml,examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml"
+          DEFAULT_PATTERNS: "evals/**/*.eval.yaml,examples/**/*.eval.yaml,examples/**/*.EVAL.yaml,examples/**/EVAL.yaml"
         run: |
           echo "patterns=${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}" >> "$GITHUB_OUTPUT"
-          echo "target=${{ github.event.inputs.target || vars.EVAL_TARGET || 'copilot-cli' }}" >> "$GITHUB_OUTPUT"
+          echo "target=${{ github.event.inputs.target || vars.EVAL_TARGET || '' }}" >> "$GITHUB_OUTPUT"
           echo "threshold=${{ github.event.inputs.threshold || '0.8' }}" >> "$GITHUB_OUTPUT"
 
       - name: Run AgentV evals
@@ -61,9 +61,16 @@ jobs:
 
           # Split comma-separated patterns into positional args
           IFS=',' read -ra PATTERNS <<< "${{ steps.filter.outputs.patterns }}"
+
+          # Build optional --target flag (empty = use each eval's own target)
+          TARGET_FLAG=()
+          if [ -n "${{ steps.filter.outputs.target }}" ]; then
+            TARGET_FLAG=(--target "${{ steps.filter.outputs.target }}")
+          fi
+
           bun apps/cli/dist/cli.js eval run "${PATTERNS[@]}" \
             --targets .agentv/targets.yaml \
-            --target ${{ steps.filter.outputs.target }} \
+            "${TARGET_FLAG[@]}" \
             --workers 1 \
             --threshold ${{ steps.filter.outputs.threshold }} \
             -o .agentv/ci-results/junit.xml \

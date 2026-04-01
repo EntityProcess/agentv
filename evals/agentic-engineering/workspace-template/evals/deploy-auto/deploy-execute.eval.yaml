@@ -1,4 +1,5 @@
 description: Tests the deploy-execute skill
+target: default
 
 tests:
   - id: execute-plan

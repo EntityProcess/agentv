@@ -27,6 +27,13 @@ targets:
     grader_target: grader
     log_format: json
 
+  # Alias so evals with `target: copilot` resolve to copilot-cli.
+  - name: copilot
+    provider: copilot-cli
+    model: ${{ COPILOT_MODEL }}
+    grader_target: grader
+    log_format: json
+
   - name: copilot-sdk
     provider: copilot-sdk
     model: ${{ COPILOT_MODEL }}
@@ -65,6 +72,14 @@ targets:
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json
+
+  - name: vscode
+    provider: vscode
+    grader_target: grader
+
+  - name: copilot-log
+    provider: copilot-log
+    discover: latest
 
   # ── LLM targets (direct model access) ─────────────────────────────
   - name: azure-llm
