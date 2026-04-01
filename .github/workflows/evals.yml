@@ -16,6 +16,10 @@ jobs:
   evals:
     name: Run AgentV Evals
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      models: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-bun
