@@ -17,9 +17,6 @@
 
 description: Export control risk classification eval for trade compliance screening
 
-execution:
-  target: default
-
 assertions:
   - name: risk_assessment_quality
     type: code-grader

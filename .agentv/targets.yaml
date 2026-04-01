@@ -17,6 +17,13 @@ targets:
     grader_target: grader
     log_format: json
 
+  # ── LLM target (text generation, no agent binary needed) ────────────
+  - name: llm
+    provider: openai
+    base_url: https://models.github.ai/inference/v1
+    api_key: ${{ GH_MODELS_TOKEN }}
+    model: ${{ GH_MODELS_MODEL }}
+
   # ── Grader (LLM-as-judge) ──────────────────────────────────────────
   - name: grader
     provider: openai

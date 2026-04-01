@@ -6,7 +6,7 @@ name: suite-level-input-example
 description: Suite-level input prepended to all tests (like suite-level assert)
 
 execution:
-  target: default
+  target: llm
 
 # Suite-level input: prepended to every test's input messages.
 # Accepts the same formats as test-level input (string or message array).

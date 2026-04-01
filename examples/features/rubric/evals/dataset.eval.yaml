@@ -5,7 +5,7 @@ name: rubric
 description: "Example showing rubric evaluator - string shorthand and type: rubrics"
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # ==========================================

@@ -9,6 +9,9 @@
 
 description: Keyword-matching evaluator used for conformance testing demo
 
+execution:
+  target: llm
+
 tests:
   - id: exact-match
     criteria: "Answer must name the capital city of France."

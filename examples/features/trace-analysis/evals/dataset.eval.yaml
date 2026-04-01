@@ -5,6 +5,9 @@
 name: trace-analysis-demo
 description: Demo eval for generating execution traces to analyze
 
+execution:
+  target: llm
+
 tests:
   - id: research-question
     input: What are the key differences between REST and GraphQL APIs?

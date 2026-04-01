@@ -6,7 +6,7 @@ name: deterministic-evaluators
 description: Built-in deterministic assertions — contains, regex, JSON validation, equals
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # --- contains ---

@@ -1,7 +1,8 @@
 name: external-datasets-demo
 version: "1.0"
 
-target: default
+execution:
+  target: llm
 
 tests:
   - id: inline-test

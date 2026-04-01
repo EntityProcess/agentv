@@ -5,6 +5,9 @@
 
 description: Code graders with eval assert CLI integration
 
+execution:
+  target: llm
+
 tests:
   - id: capital-of-france
     criteria: Answer correctly identifies Paris as the capital of France

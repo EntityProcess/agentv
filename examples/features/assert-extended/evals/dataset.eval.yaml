@@ -6,7 +6,7 @@ name: assert-extended
 description: Extended deterministic assertions for natural language validation
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # ==========================================

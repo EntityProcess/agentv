@@ -29,6 +29,9 @@ assertions:
     target:
       max_calls: 15
 
+execution:
+  target: llm
+
 tests:
   # Test case 1: Perfect recall - all statements supported by retrieval
   # Expected: "Python was created by Guido van Rossum and first released in 1991"

@@ -5,7 +5,7 @@ description: Demonstrates the threshold aggregator — pass if N% of child evalu
 # Borderline verdicts count as passing (lenient).
 
 execution:
-  target: default
+  target: llm
 
 tests:
   - id: flexible-gate

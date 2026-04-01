@@ -28,7 +28,7 @@
 description: Demonstrates input_files shorthand for attaching files to test inputs
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # ==========================================

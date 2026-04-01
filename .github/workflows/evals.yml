@@ -34,6 +34,9 @@ jobs:
       - name: Install GitHub Copilot CLI
         run: curl -fsSL https://gh.io/copilot-install | bash
 
+      - name: Install Pi CLI
+        run: npm install -g @mariozechner/pi-coding-agent || echo "pi-cli install failed (non-fatal)"
+
       - name: Configure credentials
         run: |
           cat > .env <<EOF

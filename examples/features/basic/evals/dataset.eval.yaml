@@ -6,7 +6,7 @@ description: Example showing basic features, conversation threading, multiple ev
 
 # File-level default target
 execution:
-  target: default
+  target: llm
 
 tests:
   # ==========================================

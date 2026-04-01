@@ -5,7 +5,7 @@ name: default-evaluators-example
 description: Root-level evaluators that automatically apply to every test
 
 execution:
-  target: default
+  target: llm
 
 assertions:
   - name: tone_check

@@ -8,6 +8,9 @@
 
 description: Trace-based evaluation of agent internals using code graders
 
+execution:
+  target: llm
+
 tests:
   # ==========================================
   # Span Count - verify LLM/tool call counts

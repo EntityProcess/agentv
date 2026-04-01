@@ -6,7 +6,7 @@ description: Demonstrates TypeScript prompt templates for custom LLM grader prom
 
 # Uses the default target defined in .agentv/targets.yaml
 execution:
-  target: default
+  target: llm
 
 tests:
   - id: prompt-template-basic

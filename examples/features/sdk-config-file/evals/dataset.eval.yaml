@@ -5,7 +5,7 @@ name: sdk-config-file
 description: Demonstrates defineConfig() for typed project configuration
 
 execution:
-  target: default
+  target: llm
 
 tests:
   - id: config-greeting

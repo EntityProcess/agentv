@@ -3,7 +3,7 @@ name: weighted-evaluators-examples
 # This example demonstrates per-evaluator weights for top-level aggregation
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # Example 1: Different weights for multiple evaluators

@@ -5,7 +5,7 @@ name: trials
 description: Trial strategy example - pass@k with 2 trials
 
 execution:
-  target: default
+  target: llm
   trials:
     count: 2
     strategy: pass_at_k
