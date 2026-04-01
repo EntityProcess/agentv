@@ -10,6 +10,17 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
 /**
+ * Prefix for explicit file references in prompt strings.
+ * Consistent with case-file-loader.ts which uses "file://" for test-case file references.
+ *
+ * Usage:
+ *   prompt: "file://prompts/grader.md"   → explicit file, error if not found
+ *   prompt: "grader.md"                  → inline text (never resolved as file)
+ *   prompt: "Evaluate the response"      → inline text
+ */
+const PROMPT_FILE_PREFIX = 'file://';
+
+/**
  * Normalize evaluator type names from legacy snake_case to internal kebab-case.
  * Accepts both forms for backward compatibility:
  *   - snake_case: 'llm_grader' -> 'llm-grader' (legacy, still accepted)
@@ -428,14 +439,27 @@ async function parseEvaluatorList(
           threshold: thresholdValue,
         };
       } else {
-        // llm-grader aggregator
-        const aggregatorPrompt = asString(rawAggregator.prompt);
+        // llm-grader aggregator — same file:// prefix logic as evaluator prompts
+        const rawAggPrompt = asString(rawAggregator.prompt);
+        let aggregatorPrompt: string | undefined;
         let promptPath: string | undefined;
 
-        if (aggregatorPrompt) {
-          const resolved = await resolveFileReference(aggregatorPrompt, searchRoots);
-          if (resolved.resolvedPath) {
-            promptPath = path.resolve(resolved.resolvedPath);
+        if (rawAggPrompt) {
+          if (rawAggPrompt.startsWith(PROMPT_FILE_PREFIX)) {
+            // Explicit file reference — error if not found
+            const fileRef = rawAggPrompt.slice(PROMPT_FILE_PREFIX.length);
+            aggregatorPrompt = fileRef;
+            const resolved = await resolveFileReference(fileRef, searchRoots);
+            if (resolved.resolvedPath) {
+              promptPath = path.resolve(resolved.resolvedPath);
+            } else {
+              throw new Error(
+                `Composite aggregator in '${evalId}': prompt file not found: ${resolved.displayPath}`,
+              );
+            }
+          } else {
+            // Bare string — always treat as inline text, no file resolution
+            aggregatorPrompt = rawAggPrompt;
           }
         }
 
@@ -1144,26 +1168,32 @@ async function parseEvaluatorList(
         promptScriptConfig = rawPrompt.config as Record<string, unknown>;
       }
     } else if (typeof rawPrompt === 'string') {
-      // Text template prompt (existing behavior)
-      prompt = rawPrompt;
-      const resolved = await resolveFileReference(prompt, searchRoots);
-      if (resolved.resolvedPath) {
-        promptPath = path.resolve(resolved.resolvedPath);
-        // Validate custom prompt content upfront - throws error if validation fails
-        try {
-          await validateCustomPromptContent(promptPath);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          // Add context and re-throw for the caller to handle
-          throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
+      // Text template prompt — supports explicit file:// prefix for file references.
+      //   "file://prompts/grader.md" → explicit file reference, error if not found
+      //   "grader.md"                → inline text (no file resolution)
+      //   "Evaluate the response"    → inline text
+
+      if (rawPrompt.startsWith(PROMPT_FILE_PREFIX)) {
+        // Explicit file reference — strip prefix and resolve. Error if not found.
+        const fileRef = rawPrompt.slice(PROMPT_FILE_PREFIX.length);
+        prompt = fileRef;
+        const resolved = await resolveFileReference(fileRef, searchRoots);
+        if (resolved.resolvedPath) {
+          promptPath = path.resolve(resolved.resolvedPath);
+          try {
+            await validateCustomPromptContent(promptPath);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
+          }
+        } else {
+          throw new Error(
+            `Evaluator '${name}' in '${evalId}': prompt file not found: ${resolved.displayPath}`,
+          );
         }
       } else {
-        logWarning(
-          `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
-          resolved.attempted.length > 0
-            ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
-            : undefined,
-        );
+        // Bare string — always treat as inline text, no file resolution
+        prompt = rawPrompt;
       }
     }
 

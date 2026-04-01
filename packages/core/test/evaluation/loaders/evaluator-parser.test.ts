@@ -1780,3 +1780,61 @@ describe('parseEvaluators - string shorthand in assertions', () => {
     expect(evaluators).toBeUndefined();
   });
 });
+
+describe('parseEvaluators - file:// prefix prompt resolution', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-file-prefix-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+    await writeFile(path.join(tempDir, 'grader.md'), 'Evaluate the quality of {{ output }}');
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('file:// prefix resolves existing file', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assertions: [{ name: 'quality', type: 'llm-grader', prompt: 'file://grader.md' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as LlmGraderEvaluatorConfig;
+    expect(config.promptPath).toBeTruthy();
+    expect(config.promptPath).toContain('grader.md');
+  });
+
+  it('file:// prefix throws when file not found', async () => {
+    await expect(
+      parseEvaluators(
+        {
+          assertions: [{ name: 'missing', type: 'llm-grader', prompt: 'file://nonexistent.md' }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/prompt file not found/);
+  });
+
+  it('bare path is always treated as inline text even if file exists', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assertions: [{ name: 'quality', type: 'llm-grader', prompt: 'grader.md' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as LlmGraderEvaluatorConfig;
+    // Bare string is inline text — no file resolution, no promptPath
+    expect(config.prompt).toBe('grader.md');
+    expect(config.promptPath).toBeUndefined();
+  });
+});
