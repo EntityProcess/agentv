@@ -42,6 +42,8 @@ jobs:
           COPILOT_MODEL=${{ vars.COPILOT_MODEL || 'gpt-5-mini' }}
           AGENT_PROVIDER=${{ vars.AGENT_PROVIDER || 'copilot-cli' }}
           AGENT_MODEL=${{ vars.AGENT_MODEL || vars.COPILOT_MODEL || 'gpt-5-mini' }}
+          GOOGLE_GENERATIVE_AI_API_KEY=${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          GEMINI_MODEL_NAME=${{ vars.GEMINI_MODEL_NAME || 'gemini-2.0-flash' }}
           EOF
 
       - name: Resolve inputs
