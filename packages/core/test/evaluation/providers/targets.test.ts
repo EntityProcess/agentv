@@ -22,7 +22,11 @@ const generateTextMock = mock(async () => ({
 const createAzureMock = mock((options: unknown) => ({
   chat: () => ({ provider: 'azure', options }),
 }));
-const createOpenAIMock = mock((options: unknown) => () => ({ provider: 'openai', options }));
+const createOpenAIMock = mock((options: unknown) => {
+  const defaultFn = () => ({ provider: 'openai', options });
+  defaultFn.chat = () => ({ provider: 'openai', options, api: 'chat' });
+  return defaultFn;
+});
 const createOpenRouterMock = mock((options: unknown) => () => ({
   provider: 'openrouter',
   options,

@@ -5,7 +5,7 @@
 targets:
   - name: default
     provider: openai
-    base_url: https://models.github.ai/inference
+    base_url: https://models.github.ai/inference/v1
     api_key: ${{ GH_MODELS_TOKEN }}
     model: ${{ GH_MODELS_MODEL }}
 
