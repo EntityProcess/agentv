@@ -535,16 +535,19 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
     // Required field: provider
     const provider = target.provider;
+    const hasUseTarget =
+      typeof target.use_target === 'string' && target.use_target.trim().length > 0;
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
     const isTemplated = typeof provider === 'string' && /^\$\{\{.+\}\}$/.test(provider.trim());
-    if (typeof provider !== 'string' || provider.trim().length === 0) {
+    if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.provider`,
-        message: "Missing or invalid 'provider' field (must be a non-empty string)",
+        message:
+          "Missing or invalid 'provider' field (must be a non-empty string, or use use_target for delegation)",
       });
-    } else if (!isTemplated && !knownProviders.includes(provider)) {
+    } else if (typeof provider === 'string' && !isTemplated && !knownProviders.includes(provider)) {
       // Warning for unknown providers (non-fatal); skip when provider uses ${{ VAR }}
       errors.push({
         severity: 'warning',
