@@ -88,6 +88,8 @@ interface NormalizedOptions {
   readonly model?: string;
   readonly outputMessages: number | 'all';
   readonly threshold?: number;
+  readonly tags: readonly string[];
+  readonly excludeTags: readonly string[];
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -138,6 +140,43 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
 
 function normalizeWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
   return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
+}
+
+function normalizeStringArray(value: unknown): readonly string[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  }
+  return [];
+}
+
+/**
+ * Check whether an eval file's tags satisfy --tag / --exclude-tag filters.
+ *
+ * - `--tag X` means the file must have tag X (AND logic: all specified tags must be present)
+ * - `--exclude-tag X` means the file must NOT have tag X (AND logic: none of the specified tags may be present)
+ * - When both are used, both conditions must hold.
+ * - Files without tags are excluded when --tag is specified, but included when only --exclude-tag is specified.
+ */
+export function matchesTagFilters(
+  fileTags: readonly string[] | undefined,
+  includeTags: readonly string[],
+  excludeTags: readonly string[],
+): boolean {
+  const tags = new Set(fileTags ?? []);
+
+  // --tag: every specified tag must be present
+  if (includeTags.length > 0) {
+    for (const required of includeTags) {
+      if (!tags.has(required)) return false;
+    }
+  }
+
+  // --exclude-tag: none of the specified tags may be present
+  for (const excluded of excludeTags) {
+    if (tags.has(excluded)) return false;
+  }
+
+  return true;
 }
 
 /**
@@ -304,6 +343,8 @@ function normalizeOptions(
     model: normalizeString(rawOptions.model),
     outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
     threshold: normalizeOptionalNumber(rawOptions.threshold),
+    tags: normalizeStringArray(rawOptions.tag),
+    excludeTags: normalizeStringArray(rawOptions.excludeTag),
   } satisfies NormalizedOptions;
 }
 
@@ -434,6 +475,7 @@ async function prepareFileMetadata(params: {
   readonly totalBudgetUsd?: number;
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
+  readonly tags?: readonly string[];
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -524,6 +566,7 @@ async function prepareFileMetadata(params: {
     totalBudgetUsd: suite.totalBudgetUsd,
     failOnError: suite.failOnError,
     threshold: suite.threshold,
+    tags: suite.metadata?.tags,
   };
 }
 
@@ -970,6 +1013,7 @@ export async function runEvalCommand(
       readonly totalBudgetUsd?: number;
       readonly failOnError?: FailOnError;
       readonly threshold?: number;
+      readonly tags?: readonly string[];
     }
   >();
   // Separate TypeScript/JS eval files from YAML files.
@@ -1004,6 +1048,27 @@ export async function runEvalCommand(
       options,
     });
     fileMetadata.set(testFilePath, meta);
+  }
+
+  // Apply --tag / --exclude-tag filtering at the eval-file level
+  const hasTagFilters = options.tags.length > 0 || options.excludeTags.length > 0;
+  if (hasTagFilters) {
+    const skippedFiles: string[] = [];
+    for (const [testFilePath, meta] of fileMetadata.entries()) {
+      if (!matchesTagFilters(meta.tags, options.tags, options.excludeTags)) {
+        fileMetadata.delete(testFilePath);
+        skippedFiles.push(path.relative(cwd, testFilePath));
+      }
+    }
+    if (skippedFiles.length > 0 && options.verbose) {
+      console.log(
+        `Skipped ${skippedFiles.length} eval file(s) by tag filter: ${skippedFiles.join(', ')}`,
+      );
+    }
+    if (fileMetadata.size === 0) {
+      console.log('No eval files matched the tag filters. Nothing to run.');
+      return;
+    }
   }
 
   // Resolve cache: combine CLI flags with YAML config
@@ -1116,8 +1181,11 @@ export async function runEvalCommand(
     }
   }
 
+  // Use only files that survived tag filtering (fileMetadata keys)
+  const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
+
   try {
-    await runWithLimit(resolvedTestFiles, fileConcurrency, async (testFilePath) => {
+    await runWithLimit(activeTestFiles, fileConcurrency, async (testFilePath) => {
       const targetPrep = fileMetadata.get(testFilePath);
       if (!targetPrep) {
         throw new Error(`Missing metadata for ${testFilePath}`);

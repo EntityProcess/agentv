@@ -181,6 +181,16 @@ export const evalRunCommand = command({
       description:
         'Per-test score threshold (0-1, default 0.8). Exit 1 if any test scores below this value',
     }),
+    tag: multioption({
+      type: array(string),
+      long: 'tag',
+      description: 'Only run eval files that have this tag (repeatable, AND logic)',
+    }),
+    excludeTag: multioption({
+      type: array(string),
+      long: 'exclude-tag',
+      description: 'Skip eval files that have this tag (repeatable, AND logic)',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -224,6 +234,8 @@ export const evalRunCommand = command({
       model: args.model,
       outputMessages: args.outputMessages,
       threshold: args.threshold,
+      tag: args.tag,
+      excludeTag: args.excludeTag,
     };
     const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
     if (result?.thresholdFailed) {
