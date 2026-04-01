@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       suite_filter:
-        description: "Glob pattern for eval files to run"
+        description: "Space-separated glob patterns for eval files to run"
         required: false
-        default: "evals/**/eval.yaml"
+        default: "evals/**/eval.yaml examples/features/**/*.EVAL.yaml"
       threshold:
         description: "Minimum score threshold (0-1)"
         required: false
@@ -40,8 +40,10 @@ jobs:
 
       - name: Resolve filter and threshold
         id: filter
+        env:
+          DEFAULT_PATTERNS: "evals/**/eval.yaml examples/features/**/*.EVAL.yaml"
         run: |
-          echo "pattern=${{ github.event.inputs.suite_filter || 'evals/**/eval.yaml' }}" >> "$GITHUB_OUTPUT"
+          echo "patterns=${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}" >> "$GITHUB_OUTPUT"
           echo "threshold=${{ github.event.inputs.threshold || '0.8' }}" >> "$GITHUB_OUTPUT"
 
       - name: Run AgentV evals
@@ -52,7 +54,8 @@ jobs:
         run: |
           mkdir -p .agentv/ci-results
 
-          bun apps/cli/dist/cli.js eval run "${{ steps.filter.outputs.pattern }}" \
+          # shellcheck disable=SC2086
+          bun apps/cli/dist/cli.js eval run ${{ steps.filter.outputs.patterns }} \
             --workers 1 \
             --threshold ${{ steps.filter.outputs.threshold }} \
             -o .agentv/ci-results/junit.xml \
