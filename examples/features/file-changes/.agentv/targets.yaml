@@ -13,4 +13,3 @@ targets:
       rm obsolete.log &&
       echo "Done: edited 2 files, created 2 files, deleted 1 file." > {OUTPUT_FILE}
       '
-    workspace_template: ../workspace-template

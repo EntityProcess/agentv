@@ -8,7 +8,6 @@ targets:
       printf "export function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function subtract(a: number, b: number): number {\n  return a - b;\n}\n" > src/calculator.ts &&
       echo "Added subtract function to calculator.ts" > {OUTPUT_FILE}
       '
-    workspace_template: ../workspace-template
     grader_target: azure_grader
 
   # Azure OpenAI — used as LLM grader (rubrics) and built-in llm-grader provider
