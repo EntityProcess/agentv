@@ -27,9 +27,9 @@ function isTTY(): boolean {
  *   - name: default
  *     alias: ${{ AGENT_TARGET }}   # e.g. "copilot-cli"
  *
- * Alias chains are followed up to 5 levels deep to prevent cycles.
+ * use_target chains are followed up to 5 levels deep to prevent cycles.
  */
-function resolveAlias(
+function resolveUseTarget(
   name: string,
   definitions: readonly TargetDefinition[],
   env: NodeJS.ProcessEnv,
@@ -45,22 +45,21 @@ function resolveAlias(
   }
 
   for (let depth = 0; depth < maxDepth; depth++) {
-    if (current.alias === undefined || current.alias === null) break;
-    const aliasRaw: string = String(current.alias).trim();
-    if (aliasRaw.length === 0) break;
+    const useTarget = current.use_target;
+    if (useTarget === undefined || useTarget === null) break;
+    const raw: string = String(useTarget).trim();
+    if (raw.length === 0) break;
 
     // Resolve ${{ ENV_VAR }} syntax
-    const envMatch: RegExpMatchArray | null = aliasRaw.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
-    const aliasTarget: string = envMatch ? (env[envMatch[1]] ?? '') : aliasRaw;
-    if (aliasTarget.trim().length === 0) break;
+    const envMatch: RegExpMatchArray | null = raw.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
+    const resolved: string = envMatch ? (env[envMatch[1]] ?? '') : raw;
+    if (resolved.trim().length === 0) break;
 
-    const next: TargetDefinition | undefined = definitions.find(
-      (d) => d.name === aliasTarget.trim(),
-    );
+    const next: TargetDefinition | undefined = definitions.find((d) => d.name === resolved.trim());
     if (!next) {
       const available = listTargetNames(definitions).join(', ');
       throw new Error(
-        `Target '${name}' aliases to '${aliasTarget.trim()}' which was not found in ${targetsFilePath}. Available targets: ${available}`,
+        `Target '${name}' use_target '${resolved.trim()}' not found in ${targetsFilePath}. Available targets: ${available}`,
       );
     }
     current = next;
@@ -174,7 +173,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const fileTargetName = await readTestSuiteTarget(testFilePath);
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
-  const targetDefinition = resolveAlias(targetChoice.name, definitions, env, targetsFilePath);
+  const targetDefinition = resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath);
 
   if (dryRun) {
     const mockTarget: ResolvedTarget = {
@@ -270,7 +269,7 @@ export async function selectMultipleTargets(
   const results: TargetSelection[] = [];
 
   for (const name of targetNames) {
-    const targetDefinition = resolveAlias(name, definitions, env, targetsFilePath);
+    const targetDefinition = resolveUseTarget(name, definitions, env, targetsFilePath);
 
     if (dryRun) {
       const mockTarget: ResolvedTarget = {

@@ -6,13 +6,13 @@
 # grader_target so eval execution and grading use separate models.
 
 targets:
-  # ── Default target (alias) ───────────────────────────────────────────
-  # Evals without an explicit target resolve to "default". The alias
+  # ── Default target (use) ───────────────────────────────────────────
+  # Evals without an explicit target resolve to "default". The use
   # redirects to a named target, controlled via AGENT_TARGET env var.
   # One env var switches the entire provider config (auth, model, etc.).
   # Example: AGENT_TARGET=copilot-cli  or  AGENT_TARGET=claude
   - name: default
-    alias: ${{ AGENT_TARGET }}
+    use_target: ${{ AGENT_TARGET }}
     provider: mock
 
   # ── LLM target (text generation, no agent binary needed) ────────────
