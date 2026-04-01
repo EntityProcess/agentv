@@ -32,8 +32,11 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
     );
   }
 
-  if (typeof provider !== 'string' || provider.trim().length === 0) {
-    throw new Error(`targets.yaml entry '${name}' in ${filePath} is missing a valid 'provider'`);
+  const hasUseTarget = typeof value.use_target === 'string' && value.use_target.trim().length > 0;
+  if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
+    throw new Error(
+      `targets.yaml entry '${name}' in ${filePath} is missing a valid 'provider' (or use use_target for delegation)`,
+    );
   }
 
   // Pass through all properties from the YAML to support the flattened schema
