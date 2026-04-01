@@ -1611,6 +1611,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     } catch (error) {
       lastError = error;
       if (attempt + 1 < attemptBudget) {
+        const delayMs = retryBackoffMs(attempt);
+        await sleep(delayMs);
         attempt += 1;
         continue;
       }
@@ -2738,6 +2740,15 @@ function extractErrorMessage(error: unknown): string {
     }
   }
   return String(error);
+}
+
+/** Exponential backoff: 2^attempt * 1000ms (1s, 2s, 4s, …), capped at 30s. */
+function retryBackoffMs(attempt: number): number {
+  return Math.min(2 ** attempt * 1000, 30_000);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function mapChildResults(

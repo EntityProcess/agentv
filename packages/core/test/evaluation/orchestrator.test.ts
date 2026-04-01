@@ -265,6 +265,30 @@ describe('runTestCase', () => {
     expect(result.score).toBeGreaterThan(0);
   });
 
+  it('applies exponential backoff between retries', async () => {
+    const provider = new SequenceProvider('mock', {
+      errors: [new Error('Transient failure')],
+      responses: [
+        {
+          output: [{ role: 'assistant', content: 'Add structured logging.' }],
+        },
+      ],
+    });
+
+    const startMs = Date.now();
+    await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      maxRetries: 1,
+    });
+    const elapsedMs = Date.now() - startMs;
+
+    // First retry has 2^0 * 1000 = 1000ms backoff
+    expect(elapsedMs).toBeGreaterThanOrEqual(900);
+  });
+
   it('returns error result on unrecoverable failure', async () => {
     const provider = new SequenceProvider('mock', {
       errors: [new Error('Provider failure')],
