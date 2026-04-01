@@ -53,10 +53,12 @@ export class OpenAIProvider implements Provider {
       apiKey: config.apiKey,
       baseURL: config.baseURL,
     });
-    // Non-OpenAI endpoints (e.g. GitHub Models) don't support the Responses
-    // API (/responses). Use .chat() to force /chat/completions.
-    const isCustomEndpoint = config.baseURL && !config.baseURL.includes('api.openai.com');
-    this.model = isCustomEndpoint ? openai.chat(config.model) : openai(config.model);
+    // Default to Chat Completions API (/chat/completions) which is
+    // universally supported by all OpenAI-compatible endpoints.
+    // Only use the Responses API (/responses) for actual OpenAI, which
+    // is the only provider that supports it.
+    const isOpenAI = config.baseURL.includes('api.openai.com');
+    this.model = isOpenAI ? openai(config.model) : openai.chat(config.model);
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
