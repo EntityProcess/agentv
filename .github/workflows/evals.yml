@@ -84,7 +84,7 @@ jobs:
 
           bun apps/cli/dist/cli.js eval run "${PATTERNS[@]}" \
             "${TARGET_FLAG[@]}" \
-            --workers 1 \
+            --workers 3 \
             --threshold ${{ steps.filter.outputs.threshold }} \
             -o .agentv/ci-results/junit.xml \
             --benchmark-json .agentv/ci-results/benchmark.json \
