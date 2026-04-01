@@ -1,34 +1,46 @@
 # AgentV Evaluation Targets
 # Consolidated from root, examples/features, and examples/showcase.
 # Per-eval .agentv folders override these for specific eval cases.
+#
+# "grader" is the LLM used for scoring; agent targets reference it via
+# grader_target so eval execution and grading use separate models.
 
 targets:
+  # ── Grader (LLM-as-judge) ──────────────────────────────────────────
+  # "default" is an alias so example evals with `target: default` work.
   - name: default
     provider: openai
     base_url: https://models.github.ai/inference/v1
     api_key: ${{ GH_MODELS_TOKEN }}
     model: ${{ GH_MODELS_MODEL }}
 
+  - name: grader
+    provider: openai
+    base_url: https://models.github.ai/inference/v1
+    api_key: ${{ GH_MODELS_TOKEN }}
+    model: ${{ GH_MODELS_MODEL }}
+
+  # ── Agent targets ──────────────────────────────────────────────────
   - name: copilot-cli
     provider: copilot-cli
     model: ${{ COPILOT_MODEL }}
-    grader_target: default
+    grader_target: grader
     log_format: json
 
   - name: copilot-sdk
     provider: copilot-sdk
     model: ${{ COPILOT_MODEL }}
-    grader_target: default
+    grader_target: grader
     log_format: json
 
   - name: claude
     provider: claude
-    grader_target: default
+    grader_target: grader
     log_format: json
 
   - name: claude-sdk
     provider: claude-sdk
-    grader_target: default
+    grader_target: grader
     log_format: json
 
   - name: pi
@@ -36,7 +48,7 @@ targets:
     subprovider: openrouter
     model: ${{ OPENROUTER_MODEL }}
     api_key: ${{ OPENROUTER_API_KEY }}
-    grader_target: default
+    grader_target: grader
     tools: read,bash,edit,write
     log_format: json
 
@@ -45,15 +57,16 @@ targets:
     subprovider: openrouter
     model: ${{ OPENROUTER_MODEL }}
     api_key: ${{ OPENROUTER_API_KEY }}
-    grader_target: default
+    grader_target: grader
 
   - name: codex
     provider: codex
-    grader_target: default
+    grader_target: grader
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json
 
+  # ── LLM targets (direct model access) ─────────────────────────────
   - name: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
