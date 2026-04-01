@@ -100,6 +100,10 @@ jobs:
 
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
+      - name: Post eval summary
+        if: always()
+        run: bun run scripts/ci-summary.ts .agentv/ci-results >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish JUnit test results
         if: always()
         continue-on-error: true
