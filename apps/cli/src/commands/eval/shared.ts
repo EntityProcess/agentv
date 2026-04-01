@@ -9,10 +9,26 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error('No eval paths provided.');
   }
 
+  // Separate negation patterns (!glob) from include patterns.
+  // Negation patterns are passed to fast-glob as `ignore`.
+  const includePatterns: string[] = [];
+  const ignorePatterns: string[] = [];
+  for (const input of normalizedInputs) {
+    if (input.startsWith('!')) {
+      ignorePatterns.push(input.slice(1));
+    } else {
+      includePatterns.push(input);
+    }
+  }
+
+  if (includePatterns.length === 0) {
+    throw new Error('No eval paths provided (only negation patterns found).');
+  }
+
   const unmatched: string[] = [];
   const results = new Set<string>();
 
-  for (const pattern of normalizedInputs) {
+  for (const pattern of includePatterns) {
     // If the pattern points to an existing file or directory, short-circuit globbing
     const candidatePath = path.isAbsolute(pattern)
       ? path.normalize(pattern)
@@ -32,6 +48,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
           unique: true,
           dot: true,
           followSymbolicLinks: true,
+          ignore: ignorePatterns,
         });
         if (dirMatches.length === 0) {
           unmatched.push(pattern);
@@ -54,6 +71,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       unique: true,
       dot: true,
       followSymbolicLinks: true,
+      ignore: ignorePatterns,
     });
 
     const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl|json)$/i.test(filePath));
