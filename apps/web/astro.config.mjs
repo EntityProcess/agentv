@@ -1,11 +1,9 @@
-import cloudflare from '@astrojs/cloudflare';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   site: 'https://agentv.dev',
-  output: 'server',
-  adapter: cloudflare({ imageService: 'passthrough' }),
+  image: { service: { entrypoint: 'astro/assets/services/noop' } },
   integrations: [
     starlight({
       title: 'agent v',
