@@ -382,4 +382,7 @@ export interface TargetDefinition {
   readonly retryBackoffFactor?: number | unknown | undefined;
   readonly retry_status_codes?: unknown | undefined;
   readonly retryStatusCodes?: unknown | undefined;
+  // Fallback targets for provider errors
+  readonly fallback_targets?: readonly string[] | unknown | undefined;
+  readonly fallbackTargets?: readonly string[] | unknown | undefined;
 }

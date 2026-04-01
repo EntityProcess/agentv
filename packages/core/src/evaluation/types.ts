@@ -900,6 +900,11 @@ export interface EvaluationResult {
   readonly score: number;
   readonly assertions: readonly AssertionEntry[];
   readonly target: string;
+  /**
+   * The target that actually served the response, when different from the
+   * primary target. Present only when a fallback target was used.
+   */
+  readonly targetUsed?: string;
   /** Token usage metrics from provider (optional) */
   readonly tokenUsage?: TokenUsage;
   /** Total cost in USD (optional, from provider) */

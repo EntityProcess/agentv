@@ -1593,6 +1593,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
   let lastError: unknown;
+  /** Set when a fallback target actually served the response. */
+  let targetUsed: string | undefined;
 
   while (!providerResponse && attempt < attemptBudget) {
     try {
@@ -1616,25 +1618,36 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         attempt += 1;
         continue;
       }
-      // On error, keep workspace for debugging (unless forceCleanup is set)
-      const errorResult = buildErrorResult(
-        evalCase,
-        target.name,
-        nowFn(),
-        error,
-        promptInputs,
-        provider,
-        'agent',
-        'provider_error',
-        verbose,
-      );
-      if (workspacePath) {
-        if (forceCleanup) {
-          await cleanupWorkspace(workspacePath).catch(() => {});
-        }
-        return { ...errorResult, workspacePath };
+      break; // Exhausted retries on primary — try fallback targets below
+    }
+  }
+
+  // Try fallback targets in order after exhausting retries on the primary
+  if (!providerResponse && target.fallbackTargets?.length && targetResolver) {
+    for (const fallbackName of target.fallbackTargets) {
+      const fallbackProvider = targetResolver(fallbackName);
+      if (!fallbackProvider) {
+        continue;
       }
-      return errorResult;
+      try {
+        providerResponse = await invokeProvider(fallbackProvider, {
+          evalCase: evalCase,
+          target,
+          promptInputs,
+          attempt: 0,
+          agentTimeoutMs,
+          signal,
+          cwd: workspacePath,
+          workspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+          captureFileChanges: !!baselineCommit,
+          streamCallbacks: options.streamCallbacks,
+        });
+        targetUsed = fallbackName;
+        break; // Fallback succeeded
+      } catch (error) {
+        lastError = error;
+        // Continue to next fallback
+      }
     }
   }
 
@@ -1812,9 +1825,13 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         ? 'execution_error'
         : classifyQualityStatus(result.score, caseThreshold);
 
+    // Include targetUsed only when a fallback target served the response
+    const targetUsedField = targetUsed ? { targetUsed } : {};
+
     const finalResult = providerError
       ? {
           ...result,
+          ...targetUsedField,
           evalRun,
           error: providerError,
           executionStatus,
@@ -1828,6 +1845,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       : skippedEvaluatorError
         ? {
             ...result,
+            ...targetUsedField,
             score: 0,
             evalRun,
             error: skippedEvaluatorError,
@@ -1841,6 +1859,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           }
         : {
             ...result,
+            ...targetUsedField,
             evalRun,
             executionStatus,
             beforeAllOutput,

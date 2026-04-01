@@ -592,6 +592,11 @@ interface ResolvedTargetBase {
    * to force CLI invocation even in subagent mode.
    */
   readonly subagentModeAllowed?: boolean;
+  /**
+   * Ordered list of target names to try when the primary target fails after
+   * exhausting retries. Each fallback is attempted in order.
+   */
+  readonly fallbackTargets?: readonly string[];
 }
 
 export type ResolvedTarget =
@@ -642,6 +647,8 @@ export const COMMON_TARGET_SETTINGS = [
   'providerBatching',
   'subagent_mode_allowed',
   'subagentModeAllowed',
+  'fallback_targets',
+  'fallbackTargets',
 ] as const;
 
 const BASE_TARGET_SCHEMA = z
@@ -654,6 +661,8 @@ const BASE_TARGET_SCHEMA = z
     workspace_template: z.string().optional(),
     workspaceTemplate: z.string().optional(),
     subagent_mode_allowed: z.boolean().optional(),
+    fallback_targets: z.array(z.string().min(1)).optional(),
+    fallbackTargets: z.array(z.string().min(1)).optional(),
   })
   .passthrough();
 
@@ -741,12 +750,14 @@ export function resolveTargetDefinition(
   );
 
   // Shared base fields for all resolved targets
+  const fallbackTargets = parsed.fallback_targets ?? parsed.fallbackTargets;
   const base = {
     name: parsed.name,
     graderTarget: parsed.grader_target ?? parsed.judge_target,
     workers: parsed.workers,
     providerBatching,
     subagentModeAllowed,
+    ...(fallbackTargets ? { fallbackTargets } : {}),
   } as const;
 
   switch (provider) {
