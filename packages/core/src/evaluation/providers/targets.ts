@@ -390,6 +390,15 @@ export interface RetryConfig {
 }
 
 /**
+ * Selects which OpenAI-compatible API endpoint to use.
+ * - "chat" (default): POST /chat/completions — universally supported by all OpenAI-compatible providers.
+ * - "responses": POST /responses — only supported by api.openai.com.
+ *
+ * Maps to Vercel AI SDK methods: "chat" → provider.chat(model), "responses" → provider(model).
+ */
+export type ApiFormat = 'chat' | 'responses';
+
+/**
  * Azure OpenAI settings used by the Vercel AI SDK.
  */
 export interface AzureResolvedConfig {
@@ -409,6 +418,7 @@ export interface OpenAIResolvedConfig {
   readonly baseURL: string;
   readonly apiKey: string;
   readonly model: string;
+  readonly apiFormat?: ApiFormat;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly retry?: RetryConfig;
@@ -927,6 +937,18 @@ function resolveAzureConfig(
   };
 }
 
+function resolveApiFormat(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  targetName: string,
+): ApiFormat | undefined {
+  const raw = target.api_format ?? target.apiFormat;
+  if (raw === undefined) return undefined;
+  if (raw === 'chat' || raw === 'responses') return raw;
+  throw new Error(
+    `Invalid api_format '${raw}' for target '${targetName}'. Must be 'chat' or 'responses'.`,
+  );
+}
+
 function resolveOpenAIConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
@@ -951,6 +973,7 @@ function resolveOpenAIConfig(
     baseURL,
     apiKey,
     model,
+    apiFormat: resolveApiFormat(target, target.name),
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,

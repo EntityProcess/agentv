@@ -7,6 +7,52 @@ sidebar:
 
 LLM provider targets call language model APIs directly. These are used both as evaluation targets and as grader targets for scoring.
 
+## OpenAI
+
+```yaml
+targets:
+  - name: openai-target
+    provider: openai
+    api_key: ${{ OPENAI_API_KEY }}
+    model: gpt-4o
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `api_key` | Yes | OpenAI API key |
+| `model` | Yes | Model identifier |
+| `base_url` | No | Custom base URL for OpenAI-compatible endpoints |
+| `api_format` | No | API format: `chat` (default) or `responses` |
+
+### `api_format`
+
+Controls which OpenAI API endpoint is used:
+
+| Value | Endpoint | When to use |
+|-------|----------|-------------|
+| `chat` (default) | `/chat/completions` | All OpenAI-compatible endpoints (GitHub Models, local proxies, etc.) |
+| `responses` | `/responses` | Only `api.openai.com` — opt in to the Responses API |
+
+Most users should leave this unset. The default `chat` format is universally supported. Use `responses` only when you need Responses API features on `api.openai.com` directly.
+
+```yaml
+# OpenAI-compatible endpoint (default chat format works)
+targets:
+  - name: github-models
+    provider: openai
+    api_format: chat
+    base_url: https://models.github.ai/inference/v1
+    api_key: ${{ GH_MODELS_TOKEN }}
+    model: ${{ GH_MODELS_MODEL }}
+
+  # Opt in to Responses API for api.openai.com
+  - name: openai-responses
+    provider: openai
+    api_format: responses
+    api_key: ${{ OPENAI_API_KEY }}
+    model: gpt-4o
+```
+
 ## Azure OpenAI
 
 ```yaml

@@ -42,6 +42,7 @@ export { extractLastAssistantContent } from './types.js';
 export type {
   AgentVResolvedConfig,
   AnthropicResolvedConfig,
+  ApiFormat,
   AzureResolvedConfig,
   ClaudeResolvedConfig,
   CliResolvedConfig,
