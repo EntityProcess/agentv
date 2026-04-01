@@ -643,6 +643,7 @@ export type ResolvedTarget =
  * here automatically makes it valid in targets.yaml without a separate update.
  */
 export const COMMON_TARGET_SETTINGS = [
+  'alias',
   'provider_batching',
   'providerBatching',
   'subagent_mode_allowed',
@@ -655,6 +656,7 @@ const BASE_TARGET_SCHEMA = z
   .object({
     name: z.string().min(1, 'target name is required'),
     provider: z.string().min(1, 'provider is required'),
+    alias: z.string().optional(),
     grader_target: z.string().optional(),
     judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),

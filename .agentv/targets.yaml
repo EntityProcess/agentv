@@ -6,16 +6,14 @@
 # grader_target so eval execution and grading use separate models.
 
 targets:
-  # ── Default target (env-var-driven) ──────────────────────────────────
-  # Evals without an explicit target resolve to "default". Controlled via
-  # AGENT_PROVIDER + AGENT_MODEL env vars so CI and local dev can swap
-  # the agent without editing eval files.
-  # Example: AGENT_PROVIDER=copilot-cli AGENT_MODEL=gpt-5-mini
+  # ── Default target (alias) ───────────────────────────────────────────
+  # Evals without an explicit target resolve to "default". The alias
+  # redirects to a named target, controlled via AGENT_TARGET env var.
+  # One env var switches the entire provider config (auth, model, etc.).
+  # Example: AGENT_TARGET=copilot-cli  or  AGENT_TARGET=claude
   - name: default
-    provider: ${{ AGENT_PROVIDER }}
-    model: ${{ AGENT_MODEL }}
-    grader_target: grader
-    log_format: json
+    alias: ${{ AGENT_TARGET }}
+    provider: mock
 
   # ── LLM target (text generation, no agent binary needed) ────────────
   - name: llm

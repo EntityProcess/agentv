@@ -283,6 +283,9 @@ export type EnvLookup = Readonly<Record<string, string | undefined>>;
 export interface TargetDefinition {
   readonly name: string;
   readonly provider: ProviderKind | string;
+  // Alias: resolve this target as another named target.
+  // Supports ${{ ENV_VAR }} syntax (e.g., alias: ${{ AGENT_TARGET }}).
+  readonly alias?: string | unknown | undefined;
   readonly grader_target?: string | undefined;
   /** @deprecated Use `grader_target` instead */
   readonly judge_target?: string | undefined;
