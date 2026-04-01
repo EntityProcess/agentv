@@ -3,12 +3,22 @@
 
 targets:
   - name: default
-    provider: pi-coding-agent
-    subprovider: openrouter
-    model: z-ai/glm-4.7
-    api_key: ${{ OPENROUTER_API_KEY }}
-    system_prompt: "Answer directly based on the information provided."
-    grader_target: gemini-flash
+    provider: openai
+    base_url: https://models.github.ai/inference
+    api_key: ${{ GH_MODELS_TOKEN }}
+    model: ${{ GH_MODELS_MODEL }}
+
+  - name: copilot-cli
+    provider: copilot-cli
+    model: ${{ GH_MODELS_MODEL }}
+    grader_target: default
+    log_format: json
+
+  - name: copilot-sdk
+    provider: copilot-sdk
+    model: ${{ GH_MODELS_MODEL }}
+    grader_target: default
+    log_format: json
 
   - name: pi-cli
     provider: pi-cli

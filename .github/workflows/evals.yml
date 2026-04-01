@@ -23,22 +23,15 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Configure targets
-        run: |
-          mkdir -p .agentv
-          cat > .agentv/targets.yaml <<'TARGETS'
-          targets:
-            - name: default
-              provider: openai
-              base_url: https://models.github.ai/inference
-              api_key: ${{ GH_MODELS_TOKEN }}
-              model: ${{ GH_MODELS_MODEL }}
-          TARGETS
+      - name: Install GitHub Copilot CLI
+        run: curl -fsSL https://gh.io/copilot-install | bash
 
-          cat > .env <<ENV
+      - name: Configure credentials
+        run: |
+          cat > .env <<EOF
           GH_MODELS_TOKEN=${{ secrets.GH_MODELS_TOKEN || secrets.GITHUB_TOKEN }}
           GH_MODELS_MODEL=${{ vars.GH_MODELS_MODEL || 'openai/gpt-5-mini' }}
-          ENV
+          EOF
 
       - name: Resolve filter and threshold
         id: filter
@@ -48,6 +41,9 @@ jobs:
 
       - name: Run AgentV evals
         id: run-evals
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p .agentv/ci-results
 
