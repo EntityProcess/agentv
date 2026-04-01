@@ -1612,7 +1612,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       lastError = error;
       if (attempt + 1 < attemptBudget) {
         const delayMs = retryBackoffMs(attempt);
-        await sleep(delayMs);
+        await sleep(delayMs, signal);
         attempt += 1;
         continue;
       }
@@ -2726,10 +2726,10 @@ function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  if (error !== null && typeof error === 'object' && 'message' in error) {
+  if (error !== null && typeof error === 'object') {
     const obj = error as Record<string, unknown>;
     const parts: string[] = [];
-    if (typeof obj.message === 'string') {
+    if (typeof obj.message === 'string' && obj.message) {
       parts.push(obj.message);
     }
     if (typeof obj.code === 'number') {
@@ -2737,6 +2737,12 @@ function extractErrorMessage(error: unknown): string {
     }
     if (parts.length > 0) {
       return parts.join(' ');
+    }
+    // Fallback: serialize the object so we never return "[object Object]"
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // circular reference or other serialization failure
     }
   }
   return String(error);
@@ -2747,8 +2753,19 @@ function retryBackoffMs(attempt: number): number {
   return Math.min(2 ** attempt * 1000, 30_000);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 }
 
 function mapChildResults(
