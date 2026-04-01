@@ -1210,31 +1210,57 @@ export async function runEvalCommand(
             return [];
           }
 
-          const result = await runSingleEvalFile({
-            testFilePath,
-            cwd,
-            repoRoot,
-            options,
-            outputWriter,
-            otelExporter,
-            cache,
-            evaluationRunner,
-            workersOverride: perFileWorkers,
-            yamlWorkers: targetPrep.yamlWorkers,
-            progressReporter,
-            seenEvalCases,
-            displayIdTracker,
-            selection,
-            inlineTargetLabel,
-            evalCases: applicableEvalCases,
-            trialsConfig: targetPrep.trialsConfig,
-            matrixMode: targetPrep.selections.length > 1,
-            totalBudgetUsd: targetPrep.totalBudgetUsd,
-            failOnError: targetPrep.failOnError,
-            threshold: resolvedThreshold,
-          });
+          try {
+            const result = await runSingleEvalFile({
+              testFilePath,
+              cwd,
+              repoRoot,
+              options,
+              outputWriter,
+              otelExporter,
+              cache,
+              evaluationRunner,
+              workersOverride: perFileWorkers,
+              yamlWorkers: targetPrep.yamlWorkers,
+              progressReporter,
+              seenEvalCases,
+              displayIdTracker,
+              selection,
+              inlineTargetLabel,
+              evalCases: applicableEvalCases,
+              trialsConfig: targetPrep.trialsConfig,
+              matrixMode: targetPrep.selections.length > 1,
+              totalBudgetUsd: targetPrep.totalBudgetUsd,
+              failOnError: targetPrep.failOnError,
+              threshold: resolvedThreshold,
+            });
 
-          return result.results;
+            return result.results;
+          } catch (fileError) {
+            // before_all or other setup failures should not abort the entire run.
+            // Mark all tests in this file as errors and continue with other files.
+            const message = fileError instanceof Error ? fileError.message : String(fileError);
+            console.error(`\n⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
+            const errorResults: EvaluationResult[] = applicableEvalCases.map((evalCase) => ({
+              timestamp: new Date().toISOString(),
+              testId: evalCase.id,
+              score: 0,
+              assertions: [],
+              output: [],
+              scores: [],
+              error: message,
+              executionStatus: 'execution_error' as const,
+              failureStage: 'setup' as const,
+              failureReasonCode: 'setup_error' as const,
+              durationMs: 0,
+              tokenUsage: { input: 0, output: 0, inputTokens: 0, outputTokens: 0 },
+              target: selection.targetName,
+            }));
+            for (const errResult of errorResults) {
+              await outputWriter.append(errResult);
+            }
+            return errorResults;
+          }
         }),
       );
       for (const results of targetResults) {
