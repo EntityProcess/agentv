@@ -37,6 +37,9 @@ jobs:
       - name: Install Pi CLI
         run: npm install -g @mariozechner/pi-coding-agent || echo "pi-cli install failed (non-fatal)"
 
+      - name: Install uv (Python package manager)
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
       - name: Configure credentials
         run: |
           cat > .env <<EOF
@@ -57,7 +60,7 @@ jobs:
           DEFAULT_PATTERNS: "evals/**/*.eval.yaml,examples/**/*.eval.yaml,examples/**/*.EVAL.yaml,examples/**/EVAL.yaml"
           # Exclude evals that need local scripts or multiple agent targets.
           # Negation patterns (!glob) are supported by the CLI.
-          EXCLUDE_PATTERNS: "!examples/showcase/multi-model-benchmark/**,!examples/features/agent-skills-evals/**,!examples/features/batch-cli/**,!examples/features/code-grader-sdk/**,!examples/features/local-cli/**"
+          EXCLUDE_PATTERNS: "!examples/showcase/multi-model-benchmark/**"
         run: |
           PATTERNS="${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}"
           EXCLUDES="${{ vars.EVAL_EXCLUDE_PATTERNS || env.EXCLUDE_PATTERNS }}"
