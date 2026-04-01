@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   site: 'https://agentv.dev',
+  image: { service: { entrypoint: 'astro/assets/services/noop' } },
   integrations: [
     starlight({
       title: 'agent v',
