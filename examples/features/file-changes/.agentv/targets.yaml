@@ -10,6 +10,6 @@ targets:
       mkdir -p src tests &&
       printf "export const isEmpty = (s: string) => s.length === 0;\n" > src/utils.ts &&
       printf "import { greet } from \"../src/main\";\nconsole.log(greet(\"World\"));\n" > tests/main.test.ts &&
-      rm obsolete.log &&
+      rm -f obsolete.log &&
       echo "Done: edited 2 files, created 2 files, deleted 1 file." > {OUTPUT_FILE}
       '

@@ -3,7 +3,7 @@ targets:
     provider: cli
     command: bun run ./scripts/replay-fixture-output.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
-    grader_target: grader_gpt_5_mini
+    grader_target: grader
     healthcheck:
       command: bun run ./scripts/replay-fixture-output.ts --healthcheck
       cwd: ..

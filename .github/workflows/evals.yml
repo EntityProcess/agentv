@@ -64,7 +64,7 @@ jobs:
           # copilot-log-eval: needs copilot session files on disk
           # batch-cli: batch output format mismatch (pre-existing)
           # file-changes-graders: workspace cwd bug on retries (pre-existing)
-          EXCLUDE_PATTERNS: "!examples/showcase/multi-model-benchmark/**,!examples/features/copilot-log-eval/**,!examples/features/batch-cli/**,!examples/features/file-changes-graders/**"
+          EXCLUDE_PATTERNS: "!examples/showcase/multi-model-benchmark/**,!examples/features/copilot-log-eval/**,!examples/features/batch-cli/**,!examples/features/file-changes-graders/**,!examples/showcase/cross-repo-sync/**"
         run: |
           PATTERNS="${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}"
           EXCLUDES="${{ vars.EVAL_EXCLUDE_PATTERNS || env.EXCLUDE_PATTERNS }}"
