@@ -47,7 +47,7 @@ jobs:
         run: |
           mkdir -p .agentv/ci-results
 
-          bun apps/cli/dist/cli.js eval run "${{ steps.filter.outputs.pattern }}" \
+          bunx agentv eval run "${{ steps.filter.outputs.pattern }}" \
             --workers 1 \
             --threshold ${{ steps.filter.outputs.threshold }} \
             -o .agentv/ci-results/junit.xml \
