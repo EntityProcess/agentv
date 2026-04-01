@@ -96,13 +96,13 @@ jobs:
             -o .agentv/ci-results/junit.xml \
             --benchmark-json .agentv/ci-results/benchmark.json \
             --artifacts .agentv/ci-results/artifacts \
-            --verbose \
             2>&1 | tee .agentv/ci-results/eval-output.log
 
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Publish JUnit test results
         if: always()
+        continue-on-error: true
         uses: dorny/test-reporter@v1
         with:
           name: AgentV Eval Results
