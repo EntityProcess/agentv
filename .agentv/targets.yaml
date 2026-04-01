@@ -34,7 +34,7 @@ targets:
   - name: pi
     provider: pi-coding-agent
     subprovider: openrouter
-    model: openai/gpt-5.4
+    model: ${{ OPENROUTER_MODEL }}
     api_key: ${{ OPENROUTER_API_KEY }}
     grader_target: default
     tools: read,bash,edit,write
@@ -43,7 +43,7 @@ targets:
   - name: pi-cli
     provider: pi-cli
     subprovider: openrouter
-    model: openai/gpt-5.1-codex
+    model: ${{ OPENROUTER_MODEL }}
     api_key: ${{ OPENROUTER_API_KEY }}
     grader_target: default
 
