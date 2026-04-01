@@ -76,7 +76,6 @@ jobs:
           fi
 
           bun apps/cli/dist/cli.js eval run "${PATTERNS[@]}" \
-            --targets .agentv/targets.yaml \
             "${TARGET_FLAG[@]}" \
             --workers 1 \
             --threshold ${{ steps.filter.outputs.threshold }} \
