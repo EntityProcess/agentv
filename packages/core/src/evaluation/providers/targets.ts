@@ -593,9 +593,8 @@ interface ResolvedTargetBase {
    */
   readonly subagentModeAllowed?: boolean;
   /**
-   * Ordered list of target names to try when the primary target fails with a
-   * retryable error (e.g., 429, 503). After exhausting retries on the primary,
-   * each fallback is attempted in order.
+   * Ordered list of target names to try when the primary target fails after
+   * exhausting retries. Each fallback is attempted in order.
    */
   readonly fallbackTargets?: readonly string[];
 }

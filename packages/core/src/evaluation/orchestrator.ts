@@ -1591,7 +1591,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const caseStartMs = Date.now();
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
-  let activeProvider = provider;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
   let lastError: unknown;
   /** Set when a fallback target actually served the response. */
@@ -1599,7 +1598,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   while (!providerResponse && attempt < attemptBudget) {
     try {
-      providerResponse = await invokeProvider(activeProvider, {
+      providerResponse = await invokeProvider(provider, {
         evalCase: evalCase,
         target,
         promptInputs,
@@ -1643,7 +1642,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           captureFileChanges: !!baselineCommit,
           streamCallbacks: options.streamCallbacks,
         });
-        activeProvider = fallbackProvider;
         targetUsed = fallbackName;
         break; // Fallback succeeded
       } catch (error) {
