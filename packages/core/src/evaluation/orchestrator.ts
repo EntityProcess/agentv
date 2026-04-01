@@ -356,9 +356,21 @@ export async function runEvaluation(
     if (resolvedTargetsByName.has(name)) {
       return resolvedTargetsByName.get(name);
     }
-    const definition = targetDefinitions.get(name);
+    // Follow use_target chain to find the concrete definition
+    let definition = targetDefinitions.get(name);
     if (!definition) {
       return undefined;
+    }
+    for (let depth = 0; depth < 5; depth++) {
+      const useTarget = definition.use_target;
+      if (typeof useTarget !== 'string' || useTarget.trim().length === 0) break;
+      // Resolve ${{ ENV_VAR }} syntax
+      const envMatch = useTarget.trim().match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
+      const resolvedName = envMatch ? (envLookup[envMatch[1]] ?? '') : useTarget.trim();
+      if (resolvedName.length === 0) break;
+      const next = targetDefinitions.get(resolvedName);
+      if (!next) break;
+      definition = next;
     }
     const resolved = resolveTargetDefinition(definition, envLookup, evalFilePath);
     resolvedTargetsByName.set(name, resolved);
