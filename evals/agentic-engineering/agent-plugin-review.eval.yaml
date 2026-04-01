@@ -1,9 +1,5 @@
 description: Evaluates that the agent-plugin-review skill is triggered and catches planted issues in a mock plugin
 
-execution:
-  targets:
-    - pi-cli
-
 tags: [agent]
 
 workspace:
