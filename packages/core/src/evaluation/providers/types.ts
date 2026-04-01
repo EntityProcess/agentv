@@ -282,7 +282,7 @@ export type EnvLookup = Readonly<Record<string, string | undefined>>;
 
 export interface TargetDefinition {
   readonly name: string;
-  readonly provider: ProviderKind | string;
+  readonly provider?: ProviderKind | string;
   // Delegation: resolve this target as another named target.
   // Supports ${{ ENV_VAR }} syntax (e.g., use_target: ${{ AGENT_TARGET }}).
   readonly use_target?: string | unknown | undefined;

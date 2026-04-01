@@ -13,19 +13,16 @@ targets:
   # Example: AGENT_TARGET=copilot-cli  or  AGENT_TARGET=claude
   - name: default
     use_target: ${{ AGENT_TARGET }}
-    provider: mock
 
   # ── LLM target (text generation, no agent binary needed) ────────────
   # Delegates to GRADER_TARGET — same provider used for grading and LLM evals.
   - name: llm
     use_target: ${{ GRADER_TARGET }}
-    provider: mock
 
   # ── Grader (LLM-as-judge) ──────────────────────────────────────────
   # Used by agent targets via grader_target. Switch provider via GRADER_TARGET.
   - name: grader
     use_target: ${{ GRADER_TARGET }}
-    provider: mock
 
   # ── Named agent targets ───────────────────────────────────────────
   - name: copilot-cli
