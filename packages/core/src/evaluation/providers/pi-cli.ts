@@ -632,6 +632,29 @@ function extractMessages(events: unknown[]): readonly Message[] {
     }
   }
 
+  // Some providers (e.g. azure-openai-responses) emit text content only in
+  // message_update events, leaving the agent_end assistant message with empty
+  // content. Fall back to the last message_end with non-empty content.
+  if (messages) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant' && !messages[i].content) {
+        // Try to find content from the last message_end event
+        for (let j = events.length - 1; j >= 0; j--) {
+          const evt = events[j] as Record<string, unknown> | null;
+          if (!evt || evt.type !== 'message_end') continue;
+          const msg = evt.message as Record<string, unknown> | undefined;
+          if (msg?.role !== 'assistant') continue;
+          const text = extractPiTextContent(msg.content);
+          if (text) {
+            messages[i] = { ...messages[i], content: text };
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+
   // Pi CLI may emit tool_execution_start/tool_execution_end events whose tool
   // calls are absent from the final agent_end messages. Reconstruct them and
   // inject into the last assistant message so evaluators (e.g. skill-trigger)
