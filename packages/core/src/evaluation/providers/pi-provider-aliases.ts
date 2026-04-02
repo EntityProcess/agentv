@@ -35,10 +35,24 @@ export const ENV_BASE_URL_MAP: Record<string, string> = {
   openrouter: 'OPENROUTER_BASE_URL',
 };
 
+/** Short alias → pi CLI --provider flag value. */
+const CLI_PROVIDER_ALIASES: Record<string, string> = {
+  azure: 'azure-openai-responses',
+  'azure-v1': 'openai',
+};
+
 /**
  * Resolve a subprovider config value to the SDK's canonical name.
  * Returns the input unchanged if no alias matches.
  */
 export function resolveSubprovider(name: string): string {
   return SUBPROVIDER_ALIASES[name.toLowerCase()] ?? name;
+}
+
+/**
+ * Resolve a subprovider config value for the pi CLI --provider flag.
+ * The CLI uses different provider names than the SDK (e.g. "openai" not "openai-responses").
+ */
+export function resolveCliProvider(name: string): string {
+  return CLI_PROVIDER_ALIASES[name.toLowerCase()] ?? name;
 }
