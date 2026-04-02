@@ -6,7 +6,7 @@ on:
       suite_filter:
         description: "Comma-separated glob patterns for eval files to run"
         required: false
-        default: "evals/**/*.eval.yaml,examples/**/*.eval.yaml,examples/**/*.EVAL.yaml,examples/**/EVAL.yaml"
+        default: ""
       target:
         description: "Optional target override (leave empty to use each eval's own target)"
         required: false
@@ -59,19 +59,11 @@ jobs:
 
       - name: Resolve inputs
         id: filter
-        env:
-          DEFAULT_PATTERNS: "evals/**/*.eval.yaml,examples/**/*.eval.yaml,examples/**/*.EVAL.yaml,examples/**/EVAL.yaml"
-          # Exclude evals that need local scripts or multiple agent targets.
-          # Negation patterns (!glob) are supported by the CLI.
-          # multi-model-benchmark: needs multiple agents
-          # copilot-log-eval: needs copilot session files on disk
-          # batch-cli: batch output format mismatch (pre-existing)
-          # file-changes-graders: workspace cwd bug on retries (pre-existing)
-          EXCLUDE_PATTERNS: "!examples/showcase/multi-model-benchmark/**,!examples/features/copilot-log-eval/**,!examples/features/batch-cli/**,!examples/features/file-changes-graders/**,!examples/showcase/cross-repo-sync/**"
         run: |
-          PATTERNS="${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}"
-          EXCLUDES="${{ vars.EVAL_EXCLUDE_PATTERNS || env.EXCLUDE_PATTERNS }}"
-          echo "patterns=${PATTERNS},${EXCLUDES}" >> "$GITHUB_OUTPUT"
+          PATTERNS="${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS }}"
+          EXCLUDES="${{ vars.EVAL_EXCLUDE_PATTERNS }}"
+          if [ -n "$EXCLUDES" ]; then PATTERNS="$PATTERNS,$EXCLUDES"; fi
+          echo "patterns=$PATTERNS" >> "$GITHUB_OUTPUT"
           echo "target=${{ github.event.inputs.target || vars.EVAL_TARGET || '' }}" >> "$GITHUB_OUTPUT"
           echo "threshold=${{ github.event.inputs.threshold || '0.8' }}" >> "$GITHUB_OUTPUT"
 
@@ -98,10 +90,10 @@ jobs:
             --threshold ${{ steps.filter.outputs.threshold }} \
             --output .agentv/ci-results/junit.xml \
             --benchmark-json .agentv/ci-results/benchmark.json \
-            --artifacts .agentv/ci-results/artifacts \
-            2>&1 | tee .agentv/ci-results/eval-output.log
+            --artifacts .agentv/ci-results/artifacts
+          EXIT_CODE=$?
 
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Post eval summary
         if: always()
