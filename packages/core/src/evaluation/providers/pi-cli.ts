@@ -10,18 +10,14 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
+import { accessSync, createWriteStream, readFileSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
-import {
-  ENV_BASE_URL_MAP,
-  ENV_KEY_MAP,
-  resolveCliProvider,
-} from './pi-provider-aliases.js';
+import { ENV_BASE_URL_MAP, ENV_KEY_MAP, resolveCliProvider } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCliResolvedConfig } from './targets.js';
@@ -887,7 +883,6 @@ function resolveWindowsCmd(executable: string): [string, string[]] {
 
   // Parse the .cmd to extract the node script path.
   // npm .cmd wrappers end with: "%_prog%" "%dp0%\path\to\script.js" %*
-  const { readFileSync } = require('node:fs') as typeof import('node:fs');
   const content = readFileSync(cmdPath, 'utf-8');
   const match = content.match(/"?%_prog%"?\s+"([^"]+\.js)"/);
   if (!match) return [executable, []];
