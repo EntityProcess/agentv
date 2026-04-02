@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   ENV_BASE_URL_MAP,
   ENV_KEY_MAP,
+  extractAzureResourceName,
   resolveCliProvider,
   resolveEnvBaseUrlName,
   resolveEnvKeyName,
@@ -27,19 +28,11 @@ describe('resolveSubprovider', () => {
     expect(resolveSubprovider('openrouter')).toBe('openrouter');
     expect(resolveSubprovider('google')).toBe('google');
   });
-
-  it('passes through the full SDK name unchanged', () => {
-    expect(resolveSubprovider('azure-openai-responses')).toBe('azure-openai-responses');
-  });
 });
 
 describe('resolveCliProvider', () => {
-  it('resolves "azure" without base_url to azure-openai-responses', () => {
+  it('resolves "azure" to azure-openai-responses', () => {
     expect(resolveCliProvider('azure')).toBe('azure-openai-responses');
-  });
-
-  it('resolves "azure" with base_url to openai', () => {
-    expect(resolveCliProvider('azure', true)).toBe('openai');
   });
 
   it('passes through unknown providers unchanged', () => {
@@ -52,7 +45,7 @@ describe('resolveEnvKeyName', () => {
     expect(resolveEnvKeyName('azure')).toBe('AZURE_OPENAI_API_KEY');
   });
 
-  it('maps azure with base_url to OPENAI_API_KEY', () => {
+  it('maps azure with base_url to OPENAI_API_KEY (SDK path)', () => {
     expect(resolveEnvKeyName('azure', true)).toBe('OPENAI_API_KEY');
   });
 
@@ -67,8 +60,32 @@ describe('resolveEnvBaseUrlName', () => {
     expect(resolveEnvBaseUrlName('azure')).toBe('AZURE_OPENAI_BASE_URL');
   });
 
-  it('maps azure with base_url to OPENAI_BASE_URL', () => {
+  it('maps azure with base_url to OPENAI_BASE_URL (SDK path)', () => {
     expect(resolveEnvBaseUrlName('azure', true)).toBe('OPENAI_BASE_URL');
+  });
+});
+
+describe('extractAzureResourceName', () => {
+  it('extracts resource name from .openai.azure.com URL', () => {
+    expect(extractAzureResourceName('https://my-resource.openai.azure.com')).toBe('my-resource');
+  });
+
+  it('extracts resource name from .services.ai.azure.com URL', () => {
+    expect(extractAzureResourceName('https://my-resource.services.ai.azure.com')).toBe(
+      'my-resource',
+    );
+  });
+
+  it('extracts resource name from URL with path', () => {
+    expect(
+      extractAzureResourceName(
+        'https://my-resource.services.ai.azure.com/api/projects/foo/openai/v1',
+      ),
+    ).toBe('my-resource');
+  });
+
+  it('returns raw value if already a resource name', () => {
+    expect(extractAzureResourceName('my-resource')).toBe('my-resource');
   });
 });
 

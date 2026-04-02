@@ -1,13 +1,16 @@
 /**
  * Shared alias map for pi-ai subprovider names.
  *
- * Target configs use `subprovider: azure` for Azure OpenAI. When a `base_url`
- * is provided (e.g. Azure v1 endpoints like .services.ai.azure.com/…/openai/v1),
- * we use the standard OpenAI client instead of AzureOpenAI — the v1 endpoint is
- * OpenAI-compatible and doesn't accept api-version query params.
+ * Target configs use `subprovider: azure` for Azure OpenAI. The behavior
+ * differs between the SDK and CLI:
  *
- * When no base_url is provided, we use the native azure-openai-responses provider
- * which builds the URL from AZURE_OPENAI_RESOURCE_NAME.
+ * **pi-coding-agent SDK:** When a `base_url` is provided (Azure v1 endpoints
+ * like .services.ai.azure.com/…/openai/v1), uses the standard OpenAI client
+ * (openai-responses) since v1 endpoints don't accept api-version params.
+ * Without base_url, uses the native azure-openai-responses provider.
+ *
+ * **pi CLI:** Always uses azure-openai-responses with AZURE_OPENAI_RESOURCE_NAME.
+ * The CLI's azure provider builds the correct URL internally.
  */
 
 /** Short alias → pi-ai SDK provider name (when no base_url override). */
@@ -56,32 +59,21 @@ export function resolveSubprovider(name: string, hasBaseUrl = false): string {
   return SUBPROVIDER_ALIASES[lower] ?? name;
 }
 
-/** Short alias → pi CLI --provider flag value. */
-const CLI_PROVIDER_ALIASES: Record<string, string> = {
-  azure: 'azure-openai-responses',
-};
-
-const CLI_PROVIDER_ALIASES_WITH_BASE_URL: Record<string, string> = {
-  azure: 'openai',
-};
-
 /**
  * Resolve a subprovider config value for the pi CLI --provider flag.
- * When `hasBaseUrl` is true and the provider is "azure", uses "openai"
- * (standard OpenAI client) which works with Azure /v1 endpoints.
+ * For azure, always uses azure-openai-responses — the CLI handles URL
+ * construction via AZURE_OPENAI_RESOURCE_NAME.
  */
-export function resolveCliProvider(name: string, hasBaseUrl = false): string {
+export function resolveCliProvider(name: string): string {
   const lower = name.toLowerCase();
-  if (hasBaseUrl) {
-    const alias = CLI_PROVIDER_ALIASES_WITH_BASE_URL[lower];
-    if (alias) return alias;
-  }
-  return CLI_PROVIDER_ALIASES[lower] ?? name;
+  if (lower === 'azure') return 'azure-openai-responses';
+  return name;
 }
 
 /**
  * Resolve the environment variable name for the API key.
- * When azure + base_url, the key goes to OPENAI_API_KEY (standard client).
+ * When azure + base_url (SDK path), the key goes to OPENAI_API_KEY.
+ * For CLI path, always AZURE_OPENAI_API_KEY.
  */
 export function resolveEnvKeyName(provider: string, hasBaseUrl = false): string | undefined {
   const lower = provider.toLowerCase();
@@ -91,10 +83,23 @@ export function resolveEnvKeyName(provider: string, hasBaseUrl = false): string 
 
 /**
  * Resolve the environment variable name for the base URL.
- * When azure + base_url, the URL goes to OPENAI_BASE_URL (standard client).
+ * When azure + base_url (SDK path), goes to OPENAI_BASE_URL.
+ * For CLI path, goes to AZURE_OPENAI_RESOURCE_NAME.
  */
 export function resolveEnvBaseUrlName(provider: string, hasBaseUrl = false): string | undefined {
   const lower = provider.toLowerCase();
   if (hasBaseUrl && lower === 'azure') return 'OPENAI_BASE_URL';
   return ENV_BASE_URL_MAP[lower];
+}
+
+/**
+ * For pi-cli azure, extract resource name from base_url and set
+ * AZURE_OPENAI_RESOURCE_NAME. The pi CLI builds the full URL internally.
+ */
+export function extractAzureResourceName(baseUrl: string): string {
+  // Handle full URL: https://resource.openai.azure.com/... or https://resource.services.ai.azure.com/...
+  const urlMatch = baseUrl.match(/^https?:\/\/([^./]+)/);
+  if (urlMatch) return urlMatch[1];
+  // Already a resource name
+  return baseUrl;
 }

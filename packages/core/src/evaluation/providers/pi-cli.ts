@@ -18,8 +18,8 @@ import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
+  extractAzureResourceName,
   resolveCliProvider,
-  resolveEnvBaseUrlName,
   resolveEnvKeyName,
 } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
@@ -179,7 +179,7 @@ export class PiCliProvider implements Provider {
     const args: string[] = [];
 
     if (this.config.subprovider) {
-      args.push('--provider', resolveCliProvider(this.config.subprovider, !!this.config.baseUrl));
+      args.push('--provider', resolveCliProvider(this.config.subprovider));
     }
     if (this.config.model) {
       args.push('--model', this.config.model);
@@ -248,19 +248,22 @@ export class PiCliProvider implements Provider {
     const env = { ...process.env };
 
     const provider = this.config.subprovider?.toLowerCase() ?? 'google';
-    const hasBaseUrl = !!this.config.baseUrl;
 
-    if (this.config.apiKey) {
-      const envKey = resolveEnvKeyName(provider, hasBaseUrl);
-      if (envKey) {
-        env[envKey] = this.config.apiKey;
+    if (provider === 'azure') {
+      // Pi CLI uses azure-openai-responses with AZURE_OPENAI_RESOURCE_NAME.
+      // Extract the resource name from base_url (or use it as-is if already a name).
+      if (this.config.apiKey) {
+        env.AZURE_OPENAI_API_KEY = this.config.apiKey;
       }
-    }
-
-    if (this.config.baseUrl) {
-      const envKey = resolveEnvBaseUrlName(provider, hasBaseUrl);
-      if (envKey) {
-        env[envKey] = this.config.baseUrl;
+      if (this.config.baseUrl) {
+        env.AZURE_OPENAI_RESOURCE_NAME = extractAzureResourceName(this.config.baseUrl);
+      }
+    } else {
+      if (this.config.apiKey) {
+        const envKey = resolveEnvKeyName(provider);
+        if (envKey) {
+          env[envKey] = this.config.apiKey;
+        }
       }
     }
 
@@ -272,9 +275,7 @@ export class PiCliProvider implements Provider {
     // var prefixes that provider uses. All other providers' vars are stripped
     // automatically when that provider is selected.
     if (this.config.subprovider) {
-      // Use the resolved CLI provider name for prefix matching, so that
-      // azure + base_url (resolved to "openai") preserves OPENAI_* vars.
-      const resolvedProvider = resolveCliProvider(this.config.subprovider, hasBaseUrl);
+      const resolvedProvider = resolveCliProvider(this.config.subprovider);
       const PROVIDER_OWN_PREFIXES: Record<string, readonly string[]> = {
         openrouter: ['OPENROUTER_'],
         anthropic: ['ANTHROPIC_'],
