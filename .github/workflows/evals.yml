@@ -114,7 +114,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eval-results-${{ github.run_id }}
-          path: .agentv/ci-results/
+          path: |
+            .agentv/ci-results/
+            .agentv/logs/
           retention-days: 30
 
       - name: Fail if threshold not met
