@@ -60,8 +60,48 @@ mock.module('@ai-sdk/google', () => ({
 }));
 
 const providerModule = await import('../../../src/evaluation/providers/index.js');
-const { resolveTargetDefinition, createProvider } = providerModule;
+const { resolveDelegatedTargetDefinition, resolveTargetDefinition, createProvider } =
+  providerModule;
 const { extractLastAssistantContent } = await import('../../../src/evaluation/providers/types.js');
+
+describe('resolveDelegatedTargetDefinition', () => {
+  it('throws a helpful error when an env-backed use_target variable is missing', () => {
+    const definitions = new Map([
+      ['grader', { name: 'grader', use_target: '${{ GRADER_TARGET }}' }],
+      ['azure', { name: 'azure', provider: 'azure' }],
+    ]);
+
+    expect(() => resolveDelegatedTargetDefinition('grader', definitions, {})).toThrow(
+      /GRADER_TARGET is not set/i,
+    );
+  });
+
+  it('throws a helpful error when an env-backed use_target resolves to a missing target', () => {
+    const definitions = new Map([
+      ['grader', { name: 'grader', use_target: '${{ GRADER_TARGET }}' }],
+    ]);
+
+    expect(() =>
+      resolveDelegatedTargetDefinition('grader', definitions, {
+        GRADER_TARGET: 'azure',
+      }),
+    ).toThrow(/resolved to "azure".*no target named "azure" exists/i);
+  });
+
+  it('resolves a delegated target chain to a concrete definition', () => {
+    const definitions = new Map([
+      ['grader', { name: 'grader', use_target: '${{ GRADER_TARGET }}' }],
+      ['llm', { name: 'llm', use_target: 'azure' }],
+      ['azure', { name: 'azure', provider: 'azure' }],
+    ]);
+
+    const resolved = resolveDelegatedTargetDefinition('grader', definitions, {
+      GRADER_TARGET: 'llm',
+    });
+
+    expect(resolved).toEqual({ name: 'azure', provider: 'azure' });
+  });
+});
 
 describe('resolveTargetDefinition', () => {
   beforeEach(() => {

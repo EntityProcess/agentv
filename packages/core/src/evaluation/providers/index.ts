@@ -19,7 +19,11 @@ import { PiCliProvider } from './pi-cli.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import { ProviderRegistry } from './provider-registry.js';
 import type { ResolvedTarget } from './targets.js';
-import { COMMON_TARGET_SETTINGS, resolveTargetDefinition } from './targets.js';
+import {
+  COMMON_TARGET_SETTINGS,
+  resolveDelegatedTargetDefinition,
+  resolveTargetDefinition,
+} from './targets.js';
 import type { EnvLookup, Provider, TargetDefinition } from './types.js';
 import { VSCodeProvider } from './vscode-provider.js';
 
@@ -59,7 +63,7 @@ export type {
   VSCodeResolvedConfig,
 } from './targets.js';
 
-export { COMMON_TARGET_SETTINGS, resolveTargetDefinition };
+export { COMMON_TARGET_SETTINGS, resolveDelegatedTargetDefinition, resolveTargetDefinition };
 export { readTargetDefinitions, listTargetNames } from './targets-file.js';
 export {
   ensureVSCodeSubagents,

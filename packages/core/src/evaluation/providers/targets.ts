@@ -652,6 +652,8 @@ export const COMMON_TARGET_SETTINGS = [
   'fallbackTargets',
 ] as const;
 
+const USE_TARGET_ENV_PATTERN = /^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i;
+
 const BASE_TARGET_SCHEMA = z
   .object({
     name: z.string().min(1, 'target name is required'),
@@ -725,6 +727,68 @@ function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryCo
     backoffFactor,
     retryableStatusCodes,
   };
+}
+
+export function resolveDelegatedTargetDefinition(
+  name: string,
+  definitions: ReadonlyMap<string, TargetDefinition>,
+  env: EnvLookup = process.env,
+): TargetDefinition | undefined {
+  let definition = definitions.get(name);
+  if (!definition) {
+    return undefined;
+  }
+
+  const visited = [definition.name];
+
+  for (let depth = 0; depth < 10; depth++) {
+    const rawUseTarget =
+      typeof definition.use_target === 'string' ? definition.use_target.trim() : undefined;
+    if (!rawUseTarget) {
+      return definition;
+    }
+
+    const envMatch = rawUseTarget.match(USE_TARGET_ENV_PATTERN);
+    const envVarName = envMatch?.[1];
+    const resolvedName = envVarName ? (env[envVarName]?.trim() ?? '') : rawUseTarget;
+
+    if (resolvedName.length === 0) {
+      if (envVarName) {
+        throw new Error(
+          `Target "${definition.name}" uses use_target: \${{ ${envVarName} }}, but ${envVarName} is not set. Set ${envVarName} to the name of a concrete target (for example, "azure") before running the eval.`,
+        );
+      }
+
+      throw new Error(
+        `Target "${definition.name}" has an empty use_target value. Point it at a concrete target name before running the eval.`,
+      );
+    }
+
+    const next = definitions.get(resolvedName);
+    if (!next) {
+      if (envVarName) {
+        throw new Error(
+          `Target "${definition.name}" uses use_target: \${{ ${envVarName} }}, which resolved to "${resolvedName}", but no target named "${resolvedName}" exists.`,
+        );
+      }
+
+      throw new Error(
+        `Target "${definition.name}" uses use_target: "${resolvedName}", but no target named "${resolvedName}" exists.`,
+      );
+    }
+
+    if (visited.includes(next.name)) {
+      const chain = [...visited, next.name].join(' -> ');
+      throw new Error(`Circular use_target reference detected: ${chain}`);
+    }
+
+    definition = next;
+    visited.push(definition.name);
+  }
+
+  throw new Error(
+    `Target "${name}" exceeded the maximum use_target resolution depth (10). Check for a delegation loop or overly deep alias chain.`,
+  );
 }
 
 export function resolveTargetDefinition(
