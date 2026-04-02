@@ -842,4 +842,60 @@ describe('createProvider', () => {
     expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
+
+  it('resolves pi-coding-agent with azure subprovider and base_url', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://my-resource.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'azure-secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-azure',
+        provider: 'pi-coding-agent',
+        subprovider: 'azure',
+        base_url: '${{ AZURE_OPENAI_ENDPOINT }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        tools: 'read,bash,edit,write',
+      },
+      env,
+    );
+
+    expect(resolved.kind).toBe('pi-coding-agent');
+    if (resolved.kind !== 'pi-coding-agent') throw new Error('expected pi-coding-agent');
+    expect(resolved.config.subprovider).toBe('azure');
+    expect(resolved.config.baseUrl).toBe('https://my-resource.openai.azure.com');
+    expect(resolved.config.model).toBe('gpt-4o');
+    expect(resolved.config.apiKey).toBe('azure-secret');
+    expect(resolved.config.tools).toBe('read,bash,edit,write');
+  });
+
+  it('resolves pi-cli with azure subprovider and base_url', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://my-resource.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'azure-secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-cli-azure',
+        provider: 'pi-cli',
+        subprovider: 'azure',
+        base_url: '${{ AZURE_OPENAI_ENDPOINT }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+      },
+      env,
+    );
+
+    expect(resolved.kind).toBe('pi-cli');
+    if (resolved.kind !== 'pi-cli') throw new Error('expected pi-cli');
+    expect(resolved.config.subprovider).toBe('azure');
+    expect(resolved.config.baseUrl).toBe('https://my-resource.openai.azure.com');
+    expect(resolved.config.model).toBe('gpt-4o');
+    expect(resolved.config.apiKey).toBe('azure-secret');
+  });
 });

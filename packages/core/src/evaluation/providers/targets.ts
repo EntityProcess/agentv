@@ -512,6 +512,7 @@ export interface PiCodingAgentResolvedConfig {
   readonly subprovider?: string;
   readonly model?: string;
   readonly apiKey?: string;
+  readonly baseUrl?: string;
   readonly tools?: string;
   readonly thinking?: string;
   readonly cwd?: string;
@@ -527,6 +528,7 @@ export interface PiCliResolvedConfig {
   readonly subprovider?: string;
   readonly model?: string;
   readonly apiKey?: string;
+  readonly baseUrl?: string;
   readonly tools?: string;
   readonly thinking?: string;
   readonly args?: readonly string[];
@@ -1467,6 +1469,12 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
+  const baseUrlSource = target.base_url ?? target.baseUrl ?? target.endpoint;
+  const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} pi base url`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
   const tools = resolveOptionalString(toolsSource, env, `${target.name} pi tools`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -1523,6 +1531,7 @@ function resolvePiCodingAgentConfig(
     subprovider,
     model,
     apiKey,
+    baseUrl,
     tools,
     thinking,
     cwd,
@@ -1573,6 +1582,12 @@ function resolvePiCliConfig(
 
   const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi-cli api key`, {
     allowLiteral: false,
+    optionalEnv: true,
+  });
+
+  const baseUrlSource = target.base_url ?? target.baseUrl ?? target.endpoint;
+  const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} pi-cli base url`, {
+    allowLiteral: true,
     optionalEnv: true,
   });
 
@@ -1629,6 +1644,7 @@ function resolvePiCliConfig(
     subprovider,
     model,
     apiKey,
+    baseUrl,
     tools,
     thinking,
     args,

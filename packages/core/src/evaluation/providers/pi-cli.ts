@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
+import { ENV_BASE_URL_MAP, ENV_KEY_MAP, resolveSubprovider } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCliResolvedConfig } from './targets.js';
@@ -174,7 +175,7 @@ export class PiCliProvider implements Provider {
     const args: string[] = [];
 
     if (this.config.subprovider) {
-      args.push('--provider', this.config.subprovider);
+      args.push('--provider', resolveSubprovider(this.config.subprovider));
     }
     if (this.config.model) {
       args.push('--model', this.config.model);
@@ -242,20 +243,19 @@ export class PiCliProvider implements Provider {
   private buildEnv(): NodeJS.ProcessEnv {
     const env = { ...process.env };
 
+    const provider = this.config.subprovider?.toLowerCase() ?? 'google';
+
     if (this.config.apiKey) {
-      const provider = this.config.subprovider?.toLowerCase() ?? 'google';
-      const ENV_KEY_MAP: Record<string, string> = {
-        google: 'GEMINI_API_KEY',
-        gemini: 'GEMINI_API_KEY',
-        anthropic: 'ANTHROPIC_API_KEY',
-        openai: 'OPENAI_API_KEY',
-        groq: 'GROQ_API_KEY',
-        xai: 'XAI_API_KEY',
-        openrouter: 'OPENROUTER_API_KEY',
-      };
       const envKey = ENV_KEY_MAP[provider];
       if (envKey) {
         env[envKey] = this.config.apiKey;
+      }
+    }
+
+    if (this.config.baseUrl) {
+      const envKey = ENV_BASE_URL_MAP[provider];
+      if (envKey) {
+        env[envKey] = this.config.baseUrl;
       }
     }
 
