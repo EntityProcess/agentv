@@ -1,126 +1,83 @@
 ---
-title: Comparison
-description: How AgentV compares to other evaluation frameworks.
+title: Ecosystem
+description: How AgentV fits into the AI agent lifecycle alongside complementary tools.
 ---
 
-## Quick Comparison
+AgentV is the **evaluation layer** in the AI agent lifecycle. It works alongside runtime governance and observability tools — each handles a different concern with zero overlap.
 
-| Aspect | **AgentV** | **Braintrust** | **Langfuse** | **LangSmith** | **LangWatch** | **Google ADK** | **Mastra** | **OpenCode Bench** |
-|--------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
-| **Primary Focus** | Agent evaluation & testing | Evaluation + logging | Observability + evaluation | Observability + evaluation | LLM ops & evaluation | Agent development | Agent/workflow development | Coding agent benchmarking |
-| **Language** | TypeScript/CLI | Python/TypeScript | Python/JavaScript | Python/JavaScript | Python/JavaScript | Python | TypeScript | Python/CLI |
-| **Deployment** | Local (CLI-first) | Cloud | Cloud/self-hosted | Cloud only | Cloud/self-hosted/hybrid | Local/Cloud Run | Local/server | Benchmarking service |
-| **Self-contained** | Yes | No (cloud) | No (requires server) | No (cloud-only) | No (requires server) | Yes | Yes (optional) | No (requires service) |
-| **Evaluation Focus** | Core feature | Core feature | Yes | Yes | Core feature | Minimal | Secondary | Core feature |
-| **Judge Types** | Code + LLM (custom prompts) | Code + LLM (custom) | LLM-as-judge only | LLM-based + custom | LLM + real-time | Built-in metrics | Built-in (minimal) | Multi-judge LLM (3 judges) |
-| **CLI-First** | Yes | No (SDK-first) | Dashboard-first | Dashboard-first | Dashboard-first | Code-first | Code-first | Service-based |
-| **Open Source** | MIT | Closed source | Apache 2.0 | Closed | Closed | Apache 2.0 | MIT | Open source |
-| **Setup Time** | &lt; 2 min | 5+ min | 15+ min | 10+ min | 20+ min | 30+ min | 10+ min | 5-10 min |
+## The Three Layers
 
-## AgentV vs. Braintrust
+| Layer | Tool | Question it answers |
+|-------|------|-------------------|
+| **Evaluate** (pre-production) | [AgentV](https://github.com/EntityProcess/agentv) | "Is this agent good enough to deploy?" |
+| **Govern** (runtime) | [Agent Control](https://github.com/agentcontrol/agent-control) | "Should this action be allowed?" |
+| **Observe** (runtime) | [Langfuse](https://github.com/langfuse/langfuse) | "What is the agent doing in production?" |
 
-| Feature | AgentV | Braintrust |
-|---------|--------|-----------|
-| **Evaluation** | Code + LLM (custom prompts) | Code + LLM (Autoevals library) |
-| **Deployment** | Local (no server) | Cloud-only (managed) |
-| **Open source** | MIT | Closed source |
-| **Pricing** | Free | Free tier + paid plans |
-| **CLI-first** | Yes | SDK-first (Python/TS) |
-| **Custom judge prompts** | Markdown files (Git) | SDK-based |
-| **Observability** | No | Yes (logging, tracing) |
-| **Datasets** | YAML/JSONL in Git | Managed in platform |
-| **CI/CD** | Native (exit codes) | API-based |
-| **Collaboration** | Git-based | Web dashboard |
+### AgentV — Evaluate
 
-**Choose AgentV if:** You want local-first evaluation, open source, version-controlled evals in Git.
-**Choose Braintrust if:** You want a managed platform with built-in logging, datasets, and team collaboration.
-
-## AgentV vs. Langfuse
-
-| Feature | AgentV | Langfuse |
-|---------|--------|----------|
-| **Evaluation** | Code + LLM (custom prompts) | LLM only |
-| **Local execution** | Yes | No (requires server) |
-| **Speed** | Fast (no network) | Slower (API round-trips) |
-| **Setup** | `npm install` | Docker + database |
-| **Cost** | Free | Free + $299+/mo for production |
-| **Observability** | No | Full tracing |
-| **Custom judge prompts** | Version in Git | API-based |
-| **CI/CD ready** | Yes | Requires API calls |
-
-**Choose AgentV if:** You iterate locally on evals, need deterministic + subjective judges together.
-**Choose Langfuse if:** You need production observability + team dashboards.
-
-## AgentV vs. LangSmith
-
-| Feature | AgentV | LangSmith |
-|---------|--------|-----------|
-| **Evaluation** | Code + LLM custom | LLM-based (SDK) |
-| **Deployment** | Local (no server) | Cloud only |
-| **Framework lock-in** | None | LangChain ecosystem |
-| **Open source** | MIT | Closed |
-| **Local execution** | Yes | No (requires API calls) |
-| **Observability** | No | Full tracing |
-
-**Choose AgentV if:** You want local evaluation, deterministic judges, open source.
-**Choose LangSmith if:** You're LangChain-heavy, need production tracing.
-
-## AgentV vs. LangWatch
-
-| Feature | AgentV | LangWatch |
-|---------|--------|-----------|
-| **Evaluation focus** | Development-first | Team collaboration first |
-| **Execution** | Local | Cloud/self-hosted server |
-| **Custom judge prompts** | Markdown files (Git) | UI-based |
-| **Code judges** | Yes | LLM-focused |
-| **Setup** | &lt; 2 min | 20+ min |
-| **Team features** | No | Annotation, roles, review |
-
-**Choose AgentV if:** You develop locally, want fast iteration, prefer code judges.
-**Choose LangWatch if:** You need team collaboration, managed optimization, on-prem deployment.
-
-## AgentV vs. Google ADK
-
-| Feature | AgentV | Google ADK |
-|---------|--------|-----------|
-| **Purpose** | Evaluation | Agent development |
-| **Evaluation capability** | Comprehensive | Built-in metrics only |
-| **Setup** | &lt; 2 min | 30+ min |
-| **Code-first** | YAML-first | Python-first |
-
-**Choose AgentV if:** You need to evaluate agents (not build them).
-**Choose Google ADK if:** You're building multi-agent systems.
-
-## AgentV vs. Mastra
-
-| Feature | AgentV | Mastra |
-|---------|--------|--------|
-| **Purpose** | Agent evaluation & testing | Agent/workflow development framework |
-| **Evaluation** | Core focus (code + LLM judges) | Secondary, built-in only |
-| **Agent Building** | No (tests agents) | Yes (builds agents with tools, workflows) |
-| **Open Source** | MIT | MIT |
-
-**Choose AgentV if:** You need to test/evaluate agents.
-**Choose Mastra if:** You're building TypeScript AI agents and need orchestration.
-
-## When to Use AgentV
-
-**Best for:** Individual developers and teams that evaluate locally before deploying, and need custom evaluation criteria.
-
-**Use something else for:**
-- Production observability → Langfuse or LangWatch
-- Team dashboards → LangWatch, Langfuse, or Braintrust
-- Building agents → Mastra (TypeScript) or Google ADK (Python)
-- Standardized benchmarking → OpenCode Bench
-
-## Ecosystem Recommendation
+Offline evaluation and testing. Run eval cases against agents, score with deterministic code graders + LLM judges, detect regressions, gate CI/CD pipelines. Everything lives in Git.
 
 ```
-Build agents (Mastra / Google ADK)
-    ↓
-Evaluate locally (AgentV)
-    ↓
-Block regressions in CI/CD (AgentV)
-    ↓
-Monitor in production (Langfuse / LangWatch / Braintrust)
+agentv eval evals/my-agent.yaml
 ```
+
+### Agent Control — Govern
+
+Runtime guardrails. Intercepts agent actions (tool calls, API requests) and evaluates them against configurable policies. Deny, steer, warn, or log — without changing agent code. Pluggable evaluators with confidence scoring.
+
+### Langfuse — Observe
+
+Production observability. Traces agent execution with explicit Tool/LLM/Retrieval observation types, ingests evaluation scores, and provides dashboards for debugging and monitoring. Self-hostable.
+
+## How They Connect
+
+```
+Define evals (YAML in Git)
+    |
+    v
+Run evals locally or in CI (AgentV)
+    |
+    v
+Deploy agent to production
+    |
+    v
+Enforce policies on tool calls (Agent Control)
+    |                          |
+    v                          v
+Trace execution (Langfuse)   Log violations (Agent Control)
+    |
+    v
+Feed production traces back into evals (AgentV)
+```
+
+The feedback loop is key: Langfuse traces surface real-world failures that become new AgentV eval cases. Agent Control deny/steer events identify safety gaps that become new test scenarios.
+
+## Traditional Software Analogy
+
+This maps to how traditional software works:
+
+| Traditional | AI Agent Equivalent |
+|------------|-------------------|
+| Test suite (Jest, pytest) | **AgentV** |
+| WAF / auth middleware | **Agent Control** |
+| APM / logging (Datadog) | **Langfuse** |
+
+## When to Use What
+
+**AgentV** handles:
+- Eval definition and execution
+- Code + LLM graders
+- Regression detection and CI/CD gating
+- Multi-provider A/B comparison
+
+**Agent Control** handles:
+- Runtime policy enforcement (deny/steer/warn/log)
+- Pre/post execution evaluation of agent actions
+- Pluggable evaluators (regex, JSON, SQL, LLM-based)
+- Centralized control plane with dashboard
+
+**Langfuse** handles:
+- Production tracing with agent-native observation types
+- Live evaluation automation on trace ingestion
+- Score ingestion from external evaluators
+- Team dashboards and debugging

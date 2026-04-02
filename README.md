@@ -111,7 +111,7 @@ Full docs at [agentv.dev/docs](https://agentv.dev/docs/getting-started/introduct
 - [Rubrics](https://agentv.dev/docs/evaluation/rubrics/) — structured criteria scoring
 - [Targets](https://agentv.dev/docs/targets/configuration/) — configure agents and providers
 - [Compare results](https://agentv.dev/docs/tools/compare/) — A/B testing and regression detection
-- [Comparison with other frameworks](https://agentv.dev/docs/reference/comparison/) — vs Braintrust, Langfuse, LangSmith, LangWatch
+- [Ecosystem](https://agentv.dev/docs/reference/comparison/) — how AgentV fits with Agent Control and Langfuse
 
 ## Development
 
