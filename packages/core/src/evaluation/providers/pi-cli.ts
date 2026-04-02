@@ -17,7 +17,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
-import { resolveCliProvider, resolveEnvBaseUrlName, resolveEnvKeyName } from './pi-provider-aliases.js';
+import {
+  resolveCliProvider,
+  resolveEnvBaseUrlName,
+  resolveEnvKeyName,
+} from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCliResolvedConfig } from './targets.js';
