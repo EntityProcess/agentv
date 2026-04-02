@@ -8,7 +8,7 @@
  * For the SDK-based approach (no subprocess), use the `pi-coding-agent` provider instead.
  */
 
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { accessSync, createWriteStream, readFileSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
@@ -184,7 +184,9 @@ export class PiCliProvider implements Provider {
     if (this.config.model) {
       args.push('--model', this.config.model);
     }
-    if (this.config.apiKey) {
+    // For azure, the API key is passed via AZURE_OPENAI_API_KEY env var in
+    // buildEnv(). The --api-key flag would set the wrong provider's key.
+    if (this.config.apiKey && this.config.subprovider?.toLowerCase() !== 'azure') {
       args.push('--api-key', this.config.apiKey);
     }
 
@@ -868,10 +870,10 @@ function formatTimeoutSuffix(timeoutMs: number | undefined): string {
 }
 
 /**
- * On Windows, npm/bun global installs create `.cmd` wrappers that can't be
- * spawned directly without a shell. Resolve the wrapper to the underlying
- * node script so we can spawn without shell (avoiding PowerShell/cmd
- * escaping issues with prompt content).
+ * On Windows, npm/bun global installs create `.cmd` and `.sh` wrappers.
+ * Bun's spawn can't capture stdout from sh-script wrappers (the forked
+ * node process writes to a different stdout). Resolve to the underlying
+ * node script so we can spawn `node script.js` directly.
  */
 function resolveWindowsCmd(executable: string): [string, string[]] {
   if (process.platform !== 'win32') return [executable, []];
@@ -880,30 +882,38 @@ function resolveWindowsCmd(executable: string): [string, string[]] {
   const lower = executable.toLowerCase();
   if (lower.endsWith('.js') || lower.endsWith('.exe')) return [executable, []];
 
-  // Check for .cmd wrapper next to the executable
-  const cmdPath = `${executable}.cmd`;
+  // Find the executable's full path using `where`
+  let fullPath: string;
   try {
-    accessSync(cmdPath);
-  } catch {
-    return [executable, []]; // No .cmd wrapper, try as-is
-  }
-
-  // Parse the .cmd to extract the node script path.
-  // npm .cmd wrappers end with: "%_prog%" "%dp0%\path\to\script.js" %*
-  const content = readFileSync(cmdPath, 'utf-8');
-  const match = content.match(/"?%_prog%"?\s+"([^"]+\.js)"/);
-  if (!match) return [executable, []];
-
-  // %dp0% refers to the directory containing the .cmd file
-  const dp0 = path.dirname(cmdPath.includes(path.sep) ? path.resolve(cmdPath) : cmdPath);
-  const scriptPath = match[1].replace(/%dp0%[/\\]?/gi, `${dp0}${path.sep}`);
-
-  try {
-    accessSync(scriptPath);
-    return ['node', [scriptPath]];
+    fullPath = execSync(`where ${executable}`, { encoding: 'utf-8' })
+      .trim()
+      .split(/\r?\n/)[0]
+      .trim();
   } catch {
     return [executable, []];
   }
+
+  // Try .cmd wrapper first (has the script path embedded)
+  const cmdPath = fullPath.endsWith('.cmd') ? fullPath : `${fullPath}.cmd`;
+  try {
+    const content = readFileSync(cmdPath, 'utf-8');
+    // npm .cmd wrappers end with: "%_prog%" "%dp0%\path\to\script.js" %*
+    const match = content.match(/"?%_prog%"?\s+"([^"]+\.js)"/);
+    if (match) {
+      const dp0 = path.dirname(path.resolve(cmdPath));
+      const scriptPath = match[1].replace(/%dp0%[/\\]?/gi, `${dp0}${path.sep}`);
+      try {
+        accessSync(scriptPath);
+        return ['node', [scriptPath]];
+      } catch {
+        // Script not found at resolved path, fall through
+      }
+    }
+  } catch {
+    // No .cmd wrapper, fall through
+  }
+
+  return [executable, []];
 }
 
 async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
