@@ -9,6 +9,9 @@
 /** Short alias → pi-ai SDK provider name. */
 const SUBPROVIDER_ALIASES: Record<string, string> = {
   azure: 'azure-openai-responses',
+  // Azure v1 endpoints (e.g. .services.ai.azure.com) don't accept api-version
+  // query params, so use the standard OpenAI client via openai-responses instead.
+  'azure-v1': 'openai-responses',
 };
 
 /** Short alias → environment variable for API key. */
@@ -21,12 +24,14 @@ export const ENV_KEY_MAP: Record<string, string> = {
   xai: 'XAI_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
   azure: 'AZURE_OPENAI_API_KEY',
+  'azure-v1': 'OPENAI_API_KEY',
 };
 
 /** Short alias → environment variable for base URL / endpoint. */
 export const ENV_BASE_URL_MAP: Record<string, string> = {
   openai: 'OPENAI_BASE_URL',
   azure: 'AZURE_OPENAI_BASE_URL',
+  'azure-v1': 'OPENAI_BASE_URL',
   openrouter: 'OPENROUTER_BASE_URL',
 };
 

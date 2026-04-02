@@ -273,6 +273,7 @@ export class PiCliProvider implements Provider {
         anthropic: ['ANTHROPIC_'],
         openai: ['OPENAI_'],
         azure: ['AZURE_OPENAI_'],
+        'azure-v1': ['OPENAI_'],
         google: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
         gemini: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
         groq: ['GROQ_'],
@@ -870,7 +871,7 @@ async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
       cwd: options.cwd,
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
+      shell: process.platform === 'win32',
     });
 
     let stdout = '';

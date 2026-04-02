@@ -127,6 +127,7 @@ async function loadSdkModules() {
     toolMap,
     SessionManager: piSdk.SessionManager,
     getModel: piAi.getModel,
+    registerBuiltInApiProviders: piAi.registerBuiltInApiProviders,
   };
 }
 
@@ -164,6 +165,8 @@ export class PiCodingAgentProvider implements Provider {
     const startMs = Date.now();
 
     const sdk = await loadSdkModules();
+    // Ensure pi-ai API providers (openai, azure, etc.) are registered for getModel/streaming.
+    sdk.registerBuiltInApiProviders();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
 
     try {
@@ -177,14 +180,26 @@ export class PiCodingAgentProvider implements Provider {
       this.setBaseUrlEnv(rawProvider);
 
       // Build model using pi-ai's getModel (requires type assertion for runtime strings).
-      // getModel returns undefined when the provider+model combo isn't in the registry,
-      // which causes the SDK to silently fall back to azure-openai-responses.
       // biome-ignore lint/suspicious/noExplicitAny: runtime string config requires any cast
-      const model = (sdk.getModel as any)(providerName, modelId);
+      let model = (sdk.getModel as any)(providerName, modelId);
       if (!model) {
-        throw new Error(
-          `pi-coding-agent: getModel('${providerName}', '${modelId}') returned undefined. The model '${modelId}' is not registered for provider '${providerName}' in pi-ai. Check that subprovider and model are correct in your target config.`,
-        );
+        // Model not in the pi-ai registry — construct a minimal model descriptor.
+        // This is common for Azure deployments whose names don't match standard model IDs.
+        // The `provider` field must match pi-ai's getEnvApiKey map (e.g. "openai", not
+        // "openai-responses") so the SDK can find the API key from env vars.
+        const envProvider = providerName.replace(/-responses$/, '');
+        model = {
+          id: modelId,
+          name: modelId,
+          api: providerName,
+          provider: envProvider,
+          baseUrl: this.config.baseUrl ?? '',
+          reasoning: false,
+          input: ['text'],
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: 128000,
+          maxTokens: 16384,
+        };
       }
 
       // Select tools based on config

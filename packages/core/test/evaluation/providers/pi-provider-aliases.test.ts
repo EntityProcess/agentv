@@ -25,6 +25,10 @@ describe('resolveSubprovider', () => {
   it('passes through the full SDK name unchanged', () => {
     expect(resolveSubprovider('azure-openai-responses')).toBe('azure-openai-responses');
   });
+
+  it('resolves "azure-v1" to openai-responses for v1 endpoints', () => {
+    expect(resolveSubprovider('azure-v1')).toBe('openai-responses');
+  });
 });
 
 describe('ENV_KEY_MAP', () => {
