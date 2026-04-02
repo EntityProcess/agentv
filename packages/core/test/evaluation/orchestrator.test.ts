@@ -223,6 +223,38 @@ describe('runTestCase', () => {
     expect(provider.callIndex).toBe(1);
   });
 
+  it('preserves workspace cwd across retry attempts', async () => {
+    const cwdsSeen: (string | undefined)[] = [];
+    const provider: Provider = {
+      id: 'mock:cwd-test',
+      kind: 'mock' as const,
+      targetName: 'cwd-test',
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        cwdsSeen.push(request.cwd);
+        if (cwdsSeen.length === 1) {
+          throw new Error('Transient failure');
+        }
+        return {
+          output: [{ role: 'assistant', content: 'Success on retry' }],
+        };
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      maxRetries: 1,
+      sharedWorkspacePath: '/fake/workspace/path',
+    });
+
+    expect(result.score).toBeGreaterThan(0);
+    expect(cwdsSeen).toHaveLength(2);
+    expect(cwdsSeen[0]).toBe('/fake/workspace/path');
+    expect(cwdsSeen[1]).toBe('/fake/workspace/path');
+  });
+
   it('retries provider errors up to maxRetries', async () => {
     const provider = new SequenceProvider('mock', {
       errors: [new Error('Request timeout')],
