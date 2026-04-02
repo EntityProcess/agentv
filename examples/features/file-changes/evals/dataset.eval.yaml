@@ -12,6 +12,9 @@
 name: file-changes
 description: Verify file_changes captures edits, creates, and deletes across multiple tests
 
+workspace:
+  template: ../workspace-template
+
 execution:
   target: mock_agent
 

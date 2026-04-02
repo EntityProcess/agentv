@@ -9,9 +9,3 @@ targets:
   - name: copilot_agent
     provider: copilot-cli
     model: claude-haiku-4.5
-
-  - name: azure_grader
-    provider: azure
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}

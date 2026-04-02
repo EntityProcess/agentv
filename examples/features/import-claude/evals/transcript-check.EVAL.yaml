@@ -1,3 +1,6 @@
+execution:
+  target: llm
+
 tests:
   - id: transcript-quality
     input: "Analyze the imported Claude Code transcript"

@@ -6,11 +6,11 @@ on:
       suite_filter:
         description: "Comma-separated glob patterns for eval files to run"
         required: false
-        default: "evals/**/eval.yaml,examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml"
+        default: ""
       target:
-        description: "Target name from .agentv/targets.yaml"
+        description: "Optional target override (leave empty to use each eval's own target)"
         required: false
-        default: "copilot-cli"
+        default: ""
       threshold:
         description: "Minimum score threshold (0-1)"
         required: false
@@ -26,13 +26,22 @@ jobs:
       models: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: ./.github/actions/setup-bun
 
       - name: Build
         run: bun run build
 
       - name: Install GitHub Copilot CLI
-        run: curl -fsSL https://gh.io/copilot-install | bash
+        run: npm install -g @github/copilot
+
+      - name: Install Pi CLI
+        run: npm install -g @mariozechner/pi-coding-agent || echo "pi-cli install failed (non-fatal)"
+
+      - name: Install uv (Python package manager)
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Configure credentials
         run: |
@@ -40,15 +49,22 @@ jobs:
           GH_MODELS_TOKEN=${{ secrets.COPILOT_PAT || secrets.GH_MODELS_TOKEN || secrets.GITHUB_TOKEN }}
           GH_MODELS_MODEL=${{ vars.GH_MODELS_MODEL || 'gpt-5-mini' }}
           COPILOT_MODEL=${{ vars.COPILOT_MODEL || 'gpt-5-mini' }}
+          AGENT_TARGET=${{ vars.AGENT_TARGET || 'copilot-cli' }}
+          GRADER_TARGET=${{ vars.GRADER_TARGET || 'openrouter' }}
+          GOOGLE_GENERATIVE_AI_API_KEY=${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL=${{ vars.OPENROUTER_MODEL || 'openai/gpt-5.4-mini' }}
+          GEMINI_MODEL_NAME=${{ vars.GEMINI_MODEL_NAME || 'gemini-2.0-flash' }}
           EOF
 
       - name: Resolve inputs
         id: filter
-        env:
-          DEFAULT_PATTERNS: "evals/**/eval.yaml,examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml"
         run: |
-          echo "patterns=${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS || env.DEFAULT_PATTERNS }}" >> "$GITHUB_OUTPUT"
-          echo "target=${{ github.event.inputs.target || vars.EVAL_TARGET || 'copilot-cli' }}" >> "$GITHUB_OUTPUT"
+          PATTERNS="${{ github.event.inputs.suite_filter || vars.EVAL_PATTERNS }}"
+          EXCLUDES="${{ vars.EVAL_EXCLUDE_PATTERNS }}"
+          if [ -n "$EXCLUDES" ]; then PATTERNS="$PATTERNS,$EXCLUDES"; fi
+          echo "patterns=$PATTERNS" >> "$GITHUB_OUTPUT"
+          echo "target=${{ github.event.inputs.target || vars.EVAL_TARGET || '' }}" >> "$GITHUB_OUTPUT"
           echo "threshold=${{ github.event.inputs.threshold || '0.8' }}" >> "$GITHUB_OUTPUT"
 
       - name: Run AgentV evals
@@ -61,21 +77,31 @@ jobs:
 
           # Split comma-separated patterns into positional args
           IFS=',' read -ra PATTERNS <<< "${{ steps.filter.outputs.patterns }}"
-          bun apps/cli/dist/cli.js eval run "${PATTERNS[@]}" \
-            --targets .agentv/targets.yaml \
-            --target ${{ steps.filter.outputs.target }} \
-            --workers 1 \
-            --threshold ${{ steps.filter.outputs.threshold }} \
-            -o .agentv/ci-results/junit.xml \
-            --benchmark-json .agentv/ci-results/benchmark.json \
-            --artifacts .agentv/ci-results/artifacts \
-            --verbose \
-            2>&1 | tee .agentv/ci-results/eval-output.log
 
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          # Build optional --target flag (empty = use each eval's own target)
+          TARGET_FLAG=()
+          if [ -n "${{ steps.filter.outputs.target }}" ]; then
+            TARGET_FLAG=(--target "${{ steps.filter.outputs.target }}")
+          fi
+
+          bun apps/cli/dist/cli.js eval run "${PATTERNS[@]}" \
+            "${TARGET_FLAG[@]}" \
+            --workers 3 \
+            --threshold ${{ steps.filter.outputs.threshold }} \
+            --output .agentv/ci-results/junit.xml \
+            --benchmark-json .agentv/ci-results/benchmark.json \
+            --artifacts .agentv/ci-results/artifacts
+          EXIT_CODE=$?
+
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Post eval summary
+        if: always()
+        run: bun run scripts/ci-summary.ts .agentv/ci-results >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish JUnit test results
         if: always()
+        continue-on-error: true
         uses: dorny/test-reporter@v1
         with:
           name: AgentV Eval Results
@@ -88,7 +114,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eval-results-${{ github.run_id }}
-          path: .agentv/ci-results/
+          path: |
+            .agentv/ci-results/
+            .agentv/logs/
           retention-days: 30
 
       - name: Fail if threshold not met

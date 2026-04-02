@@ -12,6 +12,8 @@ description: Batch CLI demo (AML screening) using structured input → CSV → J
 execution:
   target: batch_cli
 
+tags: [agent]
+
 tests:
   - id: aml-001
     criteria: |-

@@ -9,7 +9,7 @@ name: suite-level-input-files-example
 description: Suite-level input + input_files shorthands
 
 execution:
-  target: default
+  target: llm
 
 # Suite-level input as a plain string — prepended as a user message to every test.
 # No role/content wrapping needed at the top level, just like per-test input.

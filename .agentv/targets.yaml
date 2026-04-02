@@ -6,21 +6,25 @@
 # grader_target so eval execution and grading use separate models.
 
 targets:
-  # ── Grader (LLM-as-judge) ──────────────────────────────────────────
-  # "default" is an alias so example evals with `target: default` work.
+  # ── Default target (use) ───────────────────────────────────────────
+  # Evals without an explicit target resolve to "default". The use
+  # redirects to a named target, controlled via AGENT_TARGET env var.
+  # One env var switches the entire provider config (auth, model, etc.).
+  # Example: AGENT_TARGET=copilot-cli  or  AGENT_TARGET=claude
   - name: default
-    provider: openai
-    base_url: https://models.github.ai/inference/v1
-    api_key: ${{ GH_MODELS_TOKEN }}
-    model: ${{ GH_MODELS_MODEL }}
+    use_target: ${{ AGENT_TARGET }}
 
+  # ── LLM target (text generation, no agent binary needed) ────────────
+  # Delegates to GRADER_TARGET — same provider used for grading and LLM evals.
+  - name: llm
+    use_target: ${{ GRADER_TARGET }}
+
+  # ── Grader (LLM-as-judge) ──────────────────────────────────────────
+  # Used by agent targets via grader_target. Switch provider via GRADER_TARGET.
   - name: grader
-    provider: openai
-    base_url: https://models.github.ai/inference/v1
-    api_key: ${{ GH_MODELS_TOKEN }}
-    model: ${{ GH_MODELS_MODEL }}
+    use_target: ${{ GRADER_TARGET }}
 
-  # ── Agent targets ──────────────────────────────────────────────────
+  # ── Named agent targets ───────────────────────────────────────────
   - name: copilot-cli
     provider: copilot-cli
     model: ${{ COPILOT_MODEL }}

@@ -3,7 +3,7 @@ name: composite-evaluator-examples
 # This example demonstrates the new CompositeEvaluator feature
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # Example 1: Weighted Average Aggregation

@@ -4,7 +4,7 @@ version: "1.0"
 tags: [demo, assert]
 
 execution:
-  target: default
+  target: llm
 
 tests:
   # ==========================================
@@ -13,11 +13,10 @@ tests:
   - id: contains-check
     criteria: Response must contain the word Hello
     input:
+      - role: system
+        content: "Always include the word 'Hello' in your response."
       - role: user
         content: Say hello world
-    expected_output:
-      - role: assistant
-        content: Hello world!
     assertions:
       - type: contains
         value: Hello
@@ -31,12 +30,9 @@ tests:
     criteria: Response must be valid JSON with a status field
     input:
       - role: system
-        content: "You are an API that only responds with valid JSON. No markdown, no explanation, just raw JSON."
+        content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: 'Return a JSON object with fields: status set to "ok" and code set to 200.'
-    expected_output:
-      - role: assistant
-        content: '{"status": "ok", "code": 200}'
     assertions:
       - type: is-json
         required: true
@@ -52,10 +48,7 @@ tests:
     criteria: Response must include a formal greeting pattern
     input:
       - role: user
-        content: Greet me formally with a time-of-day greeting (e.g. Good morning, Good afternoon, or Good evening)
-    expected_output:
-      - role: assistant
-        content: Good morning! It's a pleasure to meet you.
+        content: "Greet me with exactly one of: 'Good morning', 'Good afternoon', or 'Good evening'. Start your response with that greeting."
     assertions:
       - type: regex
         value: "Good (morning|afternoon|evening)"
@@ -68,12 +61,9 @@ tests:
     criteria: Response must be exactly the number 4
     input:
       - role: system
-        content: "You are a calculator. Respond with only the numeric result, nothing else. No words, no punctuation, just the number."
+        content: "You are a calculator. Respond with ONLY the numeric result. No words, no punctuation, no explanation, no newlines. Just the bare number."
       - role: user
         content: "What is 2 + 2?"
-    expected_output:
-      - role: assistant
-        content: "4"
     assertions:
       - type: equals
         value: "4"

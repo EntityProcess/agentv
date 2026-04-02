@@ -6,7 +6,7 @@ name: nlp-metrics
 description: NLP text-quality metrics using code_grader evaluators
 
 execution:
-  target: default
+  target: llm
 
 tests:
   - id: summarisation-rouge

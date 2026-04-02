@@ -1,3 +1,0 @@
-targets:
-  - name: default
-    provider: echo

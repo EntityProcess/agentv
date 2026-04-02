@@ -27,8 +27,7 @@ workspace:
         resolve: local
       clone:
         depth: 1
-execution:
-  target: copilot
+tags: [agent]
 
 tests:
   - id: verify-workspace

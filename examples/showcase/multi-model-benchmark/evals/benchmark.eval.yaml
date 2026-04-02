@@ -12,6 +12,7 @@
 #   agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
 
 description: Multi-model benchmark — accuracy, completeness, and clarity across models
+tags: [multi-provider]
 
 execution:
   targets:

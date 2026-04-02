@@ -1,4 +1,7 @@
 name: coding-ability
+execution:
+  target: llm
+
 tests:
   - id: review-null-check
     input: |

@@ -6,7 +6,7 @@ description: Example showing basic features, conversation threading, multiple ev
 
 # File-level default target
 execution:
-  target: default
+  target: llm
 
 tests:
   # ==========================================
@@ -70,8 +70,7 @@ tests:
     criteria: AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
 
     execution:
-      # Override file-level target for this specific test
-      target: azure-llm
+      target: llm
 
     # Multiple evaluators - supports both code-based and LLM graders
     assertions:

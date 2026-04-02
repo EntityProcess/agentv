@@ -17,6 +17,57 @@ function isTTY(): boolean {
   return process.stdout.isTTY ?? false;
 }
 
+/**
+ * Resolve a target definition, following alias chains.
+ *
+ * If a target has an `alias` field (supports ${{ ENV_VAR }} syntax),
+ * it is resolved to the referenced target. This allows a single env var
+ * to switch the entire provider config:
+ *
+ *   - name: default
+ *     alias: ${{ AGENT_TARGET }}   # e.g. "copilot-cli"
+ *
+ * use_target chains are followed up to 5 levels deep to prevent cycles.
+ */
+function resolveUseTarget(
+  name: string,
+  definitions: readonly TargetDefinition[],
+  env: NodeJS.ProcessEnv,
+  targetsFilePath: string,
+): TargetDefinition {
+  const maxDepth = 5;
+  let current: TargetDefinition | undefined = definitions.find((d) => d.name === name);
+  if (!current) {
+    const available = listTargetNames(definitions).join(', ');
+    throw new Error(
+      `Target '${name}' not found in ${targetsFilePath}. Available targets: ${available}`,
+    );
+  }
+
+  for (let depth = 0; depth < maxDepth; depth++) {
+    const useTarget = current.use_target;
+    if (useTarget === undefined || useTarget === null) break;
+    const raw: string = String(useTarget).trim();
+    if (raw.length === 0) break;
+
+    // Resolve ${{ ENV_VAR }} syntax
+    const envMatch: RegExpMatchArray | null = raw.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
+    const resolved: string = envMatch ? (env[envMatch[1]] ?? '') : raw;
+    if (resolved.trim().length === 0) break;
+
+    const next: TargetDefinition | undefined = definitions.find((d) => d.name === resolved.trim());
+    if (!next) {
+      const available = listTargetNames(definitions).join(', ');
+      throw new Error(
+        `Target '${name}' use_target '${resolved.trim()}' not found in ${targetsFilePath}. Available targets: ${available}`,
+      );
+    }
+    current = next;
+  }
+
+  return current;
+}
+
 export async function readTestSuiteTarget(testFilePath: string): Promise<string | undefined> {
   const metadata = await readTestSuiteMetadata(testFilePath);
   return metadata.target;
@@ -122,15 +173,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const fileTargetName = await readTestSuiteTarget(testFilePath);
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
-  const targetDefinition = definitions.find(
-    (definition: TargetDefinition) => definition.name === targetChoice.name,
-  );
-  if (!targetDefinition) {
-    const available = listTargetNames(definitions).join(', ');
-    throw new Error(
-      `Target '${targetChoice.name}' not found in ${targetsFilePath}. Available targets: ${available}`,
-    );
-  }
+  const targetDefinition = resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath);
 
   if (dryRun) {
     const mockTarget: ResolvedTarget = {
@@ -226,15 +269,7 @@ export async function selectMultipleTargets(
   const results: TargetSelection[] = [];
 
   for (const name of targetNames) {
-    const targetDefinition = definitions.find(
-      (definition: TargetDefinition) => definition.name === name,
-    );
-    if (!targetDefinition) {
-      const available = listTargetNames(definitions).join(', ');
-      throw new Error(
-        `Target '${name}' not found in ${targetsFilePath}. Available targets: ${available}`,
-      );
-    }
+    const targetDefinition = resolveUseTarget(name, definitions, env, targetsFilePath);
 
     if (dryRun) {
       const mockTarget: ResolvedTarget = {

@@ -5,7 +5,7 @@ description: JSONL version of the basic example - demonstrates file references, 
 name: basic-jsonl
 
 execution:
-  target: default
+  target: llm
 
 evaluator: llm_grader
 

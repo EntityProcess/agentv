@@ -7,6 +7,8 @@ description: Demonstrates TypeScript helpers for code_grader payloads
 execution:
   target: local_cli
 
+tags: [agent]
+
 tests:
   - id: code-grader-sdk-attachments
     criteria: The CLI echoes the prompt and lists attachment names.

@@ -643,6 +643,7 @@ export type ResolvedTarget =
  * here automatically makes it valid in targets.yaml without a separate update.
  */
 export const COMMON_TARGET_SETTINGS = [
+  'use_target',
   'provider_batching',
   'providerBatching',
   'subagent_mode_allowed',
@@ -654,7 +655,8 @@ export const COMMON_TARGET_SETTINGS = [
 const BASE_TARGET_SCHEMA = z
   .object({
     name: z.string().min(1, 'target name is required'),
-    provider: z.string().min(1, 'provider is required'),
+    provider: z.string().optional(),
+    use_target: z.string().optional(),
     grader_target: z.string().optional(),
     judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
@@ -734,6 +736,11 @@ export function resolveTargetDefinition(
   if (parsed.workspace_template !== undefined || parsed.workspaceTemplate !== undefined) {
     throw new Error(
       `${parsed.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
+    );
+  }
+  if (!parsed.provider) {
+    throw new Error(
+      `${parsed.name}: 'provider' is required (targets with use_target must be resolved before calling resolveTargetDefinition)`,
     );
   }
   const provider = resolveString(

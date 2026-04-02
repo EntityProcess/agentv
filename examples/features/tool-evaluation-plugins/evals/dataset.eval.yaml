@@ -13,6 +13,9 @@
 
 description: Tool-call F1 scoring examples
 
+execution:
+  target: llm
+
 tests:
   # ==========================================
   # Example 1: Basic tool-call F1

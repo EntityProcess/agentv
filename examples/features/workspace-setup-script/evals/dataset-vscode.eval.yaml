@@ -29,8 +29,7 @@ workspace:
         resolve: local
       clone:
         depth: 1
-execution:
-  target: vscode
+tags: [agent]
 
 tests:
   - id: verify-workspace
