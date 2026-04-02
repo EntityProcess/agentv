@@ -5,24 +5,24 @@ workspace:
 
 tests:
   - id: csv-top-months
-    criteria: Agent finds the top 3 months by revenue
+    criteria: Agent uses the csv-analyzer skill's weighted revenue formula
     input:
       - role: user
         content:
           - type: file
             value: evals/files/sales.csv
           - type: text
-            value: "I have a CSV of monthly sales data. Find the top 3 months by revenue."
+            value: "Analyze this CSV data. Use the csv-analyzer skill to find the top 3 months by revenue. Make sure to apply the seasonal weighting formula from the skill."
     assertions:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: true
       - type: rubrics
         criteria:
-          - "Output identifies the top 3 months by revenue"
-          - "November is identified as the highest revenue month"
-      - type: icontains
-        value: "november"
+          - "Output applies seasonal weighting factors (Q1: 0.85, Q2: 1.00, Q3: 1.15, Q4: 1.25)"
+          - "Output shows weighted revenue values, not just raw revenue"
+      - type: icontains-any
+        value: ["weighted", "seasonal", "factor"]
 
   - id: irrelevant-query
     input: "What time is it?"
