@@ -1,0 +1,12 @@
+description: Smoke test for Azure OpenAI connectivity via pi agent
+
+tests:
+  - id: capital-of-france
+    criteria: The answer correctly states that Paris is the capital of France.
+    input: What is the capital of France? Answer in one word.
+    expected_output: Paris
+
+  - id: simple-math
+    criteria: The answer correctly states that 2 + 2 = 4.
+    input: What is 2 + 2? Answer with just the number.
+    expected_output: "4"

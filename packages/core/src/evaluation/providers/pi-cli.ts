@@ -8,15 +8,20 @@
  * For the SDK-based approach (no subprocess), use the `pi-coding-agent` provider instead.
  */
 
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
+import { accessSync, createWriteStream, readFileSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
+import {
+  extractAzureResourceName,
+  resolveCliProvider,
+  resolveEnvKeyName,
+} from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCliResolvedConfig } from './targets.js';
@@ -174,12 +179,14 @@ export class PiCliProvider implements Provider {
     const args: string[] = [];
 
     if (this.config.subprovider) {
-      args.push('--provider', this.config.subprovider);
+      args.push('--provider', resolveCliProvider(this.config.subprovider));
     }
     if (this.config.model) {
       args.push('--model', this.config.model);
     }
-    if (this.config.apiKey) {
+    // For azure, the API key is passed via AZURE_OPENAI_API_KEY env var in
+    // buildEnv(). The --api-key flag would set the wrong provider's key.
+    if (this.config.apiKey && this.config.subprovider?.toLowerCase() !== 'azure') {
       args.push('--api-key', this.config.apiKey);
     }
 
@@ -242,20 +249,23 @@ export class PiCliProvider implements Provider {
   private buildEnv(): NodeJS.ProcessEnv {
     const env = { ...process.env };
 
-    if (this.config.apiKey) {
-      const provider = this.config.subprovider?.toLowerCase() ?? 'google';
-      const ENV_KEY_MAP: Record<string, string> = {
-        google: 'GEMINI_API_KEY',
-        gemini: 'GEMINI_API_KEY',
-        anthropic: 'ANTHROPIC_API_KEY',
-        openai: 'OPENAI_API_KEY',
-        groq: 'GROQ_API_KEY',
-        xai: 'XAI_API_KEY',
-        openrouter: 'OPENROUTER_API_KEY',
-      };
-      const envKey = ENV_KEY_MAP[provider];
-      if (envKey) {
-        env[envKey] = this.config.apiKey;
+    const provider = this.config.subprovider?.toLowerCase() ?? 'google';
+
+    if (provider === 'azure') {
+      // Pi CLI uses azure-openai-responses with AZURE_OPENAI_RESOURCE_NAME.
+      // Extract the resource name from base_url (or use it as-is if already a name).
+      if (this.config.apiKey) {
+        env.AZURE_OPENAI_API_KEY = this.config.apiKey;
+      }
+      if (this.config.baseUrl) {
+        env.AZURE_OPENAI_RESOURCE_NAME = extractAzureResourceName(this.config.baseUrl);
+      }
+    } else {
+      if (this.config.apiKey) {
+        const envKey = resolveEnvKeyName(provider);
+        if (envKey) {
+          env[envKey] = this.config.apiKey;
+        }
       }
     }
 
@@ -267,18 +277,18 @@ export class PiCliProvider implements Provider {
     // var prefixes that provider uses. All other providers' vars are stripped
     // automatically when that provider is selected.
     if (this.config.subprovider) {
-      const provider = this.config.subprovider.toLowerCase();
+      const resolvedProvider = resolveCliProvider(this.config.subprovider);
       const PROVIDER_OWN_PREFIXES: Record<string, readonly string[]> = {
         openrouter: ['OPENROUTER_'],
         anthropic: ['ANTHROPIC_'],
         openai: ['OPENAI_'],
-        azure: ['AZURE_OPENAI_'],
+        'azure-openai-responses': ['AZURE_OPENAI_'],
         google: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
         gemini: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
         groq: ['GROQ_'],
         xai: ['XAI_'],
       };
-      const ownPrefixes = PROVIDER_OWN_PREFIXES[provider] ?? [];
+      const ownPrefixes = PROVIDER_OWN_PREFIXES[resolvedProvider] ?? [];
       const allOtherPrefixes = Object.entries(PROVIDER_OWN_PREFIXES)
         .filter(([key]) => key !== provider)
         .flatMap(([, prefixes]) => prefixes);
@@ -622,6 +632,29 @@ function extractMessages(events: unknown[]): readonly Message[] {
     }
   }
 
+  // Some providers (e.g. azure-openai-responses) emit text content only in
+  // message_update events, leaving the agent_end assistant message with empty
+  // content. Fall back to the last message_end with non-empty content.
+  if (messages) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant' && !messages[i].content) {
+        // Try to find content from the last message_end event
+        for (let j = events.length - 1; j >= 0; j--) {
+          const evt = events[j] as Record<string, unknown> | null;
+          if (!evt || evt.type !== 'message_end') continue;
+          const msg = evt.message as Record<string, unknown> | undefined;
+          if (msg?.role !== 'assistant') continue;
+          const text = extractPiTextContent(msg.content);
+          if (text) {
+            messages[i] = { ...messages[i], content: text };
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+
   // Pi CLI may emit tool_execution_start/tool_execution_end events whose tool
   // calls are absent from the final agent_end messages. Reconstruct them and
   // inject into the last assistant message so evaluators (e.g. skill-trigger)
@@ -859,18 +892,64 @@ function formatTimeoutSuffix(timeoutMs: number | undefined): string {
   return ` after ${Math.ceil(timeoutMs / 1000)}s`;
 }
 
+/**
+ * On Windows, npm/bun global installs create `.cmd` and `.sh` wrappers.
+ * Bun's spawn can't capture stdout from sh-script wrappers (the forked
+ * node process writes to a different stdout). Resolve to the underlying
+ * node script so we can spawn `node script.js` directly.
+ */
+function resolveWindowsCmd(executable: string): [string, string[]] {
+  if (process.platform !== 'win32') return [executable, []];
+
+  // If already pointing at node/bun or a .js file, no resolution needed
+  const lower = executable.toLowerCase();
+  if (lower.endsWith('.js') || lower.endsWith('.exe')) return [executable, []];
+
+  // Find the executable's full path using `where`
+  let fullPath: string;
+  try {
+    fullPath = execSync(`where ${executable}`, { encoding: 'utf-8' })
+      .trim()
+      .split(/\r?\n/)[0]
+      .trim();
+  } catch {
+    return [executable, []];
+  }
+
+  // Try .cmd wrapper first (has the script path embedded)
+  const cmdPath = fullPath.endsWith('.cmd') ? fullPath : `${fullPath}.cmd`;
+  try {
+    const content = readFileSync(cmdPath, 'utf-8');
+    // npm .cmd wrappers end with: "%_prog%" "%dp0%\path\to\script.js" %*
+    const match = content.match(/"?%_prog%"?\s+"([^"]+\.js)"/);
+    if (match) {
+      const dp0 = path.dirname(path.resolve(cmdPath));
+      const scriptPath = match[1].replace(/%dp0%[/\\]?/gi, `${dp0}${path.sep}`);
+      try {
+        accessSync(scriptPath);
+        return ['node', [scriptPath]];
+      } catch {
+        // Script not found at resolved path, fall through
+      }
+    }
+  } catch {
+    // No .cmd wrapper, fall through
+  }
+
+  return [executable, []];
+}
+
 async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
   return await new Promise<PiRunResult>((resolve, reject) => {
     const parts = options.executable.split(/\s+/);
-    const executable = parts[0];
-    const executableArgs = parts.slice(1);
+    const [resolvedExe, prefixArgs] = resolveWindowsCmd(parts[0]);
+    const executableArgs = [...prefixArgs, ...parts.slice(1)];
     const allArgs = [...executableArgs, ...options.args];
 
-    const child = spawn(executable, allArgs, {
+    const child = spawn(resolvedExe, allArgs, {
       cwd: options.cwd,
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
     });
 
     let stdout = '';

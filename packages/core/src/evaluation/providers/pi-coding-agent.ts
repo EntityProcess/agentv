@@ -18,6 +18,11 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
+import {
+  resolveEnvBaseUrlName,
+  resolveEnvKeyName,
+  resolveSubprovider,
+} from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber, toPiContentArray } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
@@ -126,6 +131,8 @@ async function loadSdkModules() {
     toolMap,
     SessionManager: piSdk.SessionManager,
     getModel: piAi.getModel,
+    // biome-ignore lint/suspicious/noExplicitAny: registerBuiltInApiProviders exists at runtime but not in type defs
+    registerBuiltInApiProviders: (piAi as any).registerBuiltInApiProviders as () => void,
   };
 }
 
@@ -163,25 +170,42 @@ export class PiCodingAgentProvider implements Provider {
     const startMs = Date.now();
 
     const sdk = await loadSdkModules();
+    // Ensure pi-ai API providers (openai, azure, etc.) are registered for getModel/streaming.
+    sdk.registerBuiltInApiProviders();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
 
     try {
       const cwd = this.resolveCwd(request.cwd);
-      const providerName = this.config.subprovider ?? 'google';
+      const rawProvider = this.config.subprovider ?? 'google';
+      const hasBaseUrl = !!this.config.baseUrl;
+      const providerName = resolveSubprovider(rawProvider, hasBaseUrl);
       const modelId = this.config.model ?? 'gemini-2.5-flash';
 
-      // Set provider-specific API key env var so the SDK can find it
-      this.setApiKeyEnv(providerName);
+      // Set provider-specific env vars so the SDK can find them
+      this.setApiKeyEnv(rawProvider, hasBaseUrl);
+      this.setBaseUrlEnv(rawProvider, hasBaseUrl);
 
       // Build model using pi-ai's getModel (requires type assertion for runtime strings).
-      // getModel returns undefined when the provider+model combo isn't in the registry,
-      // which causes the SDK to silently fall back to azure-openai-responses.
       // biome-ignore lint/suspicious/noExplicitAny: runtime string config requires any cast
-      const model = (sdk.getModel as any)(providerName, modelId);
+      let model = (sdk.getModel as any)(providerName, modelId);
       if (!model) {
-        throw new Error(
-          `pi-coding-agent: getModel('${providerName}', '${modelId}') returned undefined. The model '${modelId}' is not registered for provider '${providerName}' in pi-ai. Check that subprovider and model are correct in your target config.`,
-        );
+        // Model not in the pi-ai registry — construct a minimal model descriptor.
+        // This is common for Azure deployments whose names don't match standard model IDs.
+        // The `provider` field must match pi-ai's getEnvApiKey map (e.g. "openai", not
+        // "openai-responses") so the SDK can find the API key from env vars.
+        const envProvider = providerName.replace(/-responses$/, '');
+        model = {
+          id: modelId,
+          name: modelId,
+          api: providerName,
+          provider: envProvider,
+          baseUrl: this.config.baseUrl ?? '',
+          reasoning: false,
+          input: ['text'],
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: 128000,
+          maxTokens: 16384,
+        };
       }
 
       // Select tools based on config
@@ -383,20 +407,20 @@ export class PiCodingAgentProvider implements Provider {
   }
 
   /** Maps config apiKey to the provider-specific env var the SDK reads. */
-  private setApiKeyEnv(providerName: string): void {
+  private setApiKeyEnv(providerName: string, hasBaseUrl = false): void {
     if (!this.config.apiKey) return;
-    const ENV_KEY_MAP: Record<string, string> = {
-      google: 'GEMINI_API_KEY',
-      gemini: 'GEMINI_API_KEY',
-      anthropic: 'ANTHROPIC_API_KEY',
-      openai: 'OPENAI_API_KEY',
-      groq: 'GROQ_API_KEY',
-      xai: 'XAI_API_KEY',
-      openrouter: 'OPENROUTER_API_KEY',
-    };
-    const envKey = ENV_KEY_MAP[providerName.toLowerCase()];
+    const envKey = resolveEnvKeyName(providerName, hasBaseUrl);
     if (envKey) {
       process.env[envKey] = this.config.apiKey;
+    }
+  }
+
+  /** Maps config baseUrl to the provider-specific env var the SDK reads. */
+  private setBaseUrlEnv(providerName: string, hasBaseUrl = false): void {
+    if (!this.config.baseUrl) return;
+    const envKey = resolveEnvBaseUrlName(providerName, hasBaseUrl);
+    if (envKey) {
+      process.env[envKey] = this.config.baseUrl;
     }
   }
 
