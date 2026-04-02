@@ -1,17 +1,25 @@
 /**
  * Shared alias map for pi-ai subprovider names.
  *
- * Target configs can use short names (e.g. "azure") which are resolved to
- * the SDK's canonical provider names (e.g. "azure-openai-responses").
- * The ENV_KEY_MAP uses the short names so it stays consistent with other entries.
+ * Target configs use `subprovider: azure` for Azure OpenAI. When a `base_url`
+ * is provided (e.g. Azure v1 endpoints like .services.ai.azure.com/…/openai/v1),
+ * we use the standard OpenAI client instead of AzureOpenAI — the v1 endpoint is
+ * OpenAI-compatible and doesn't accept api-version query params.
+ *
+ * When no base_url is provided, we use the native azure-openai-responses provider
+ * which builds the URL from AZURE_OPENAI_RESOURCE_NAME.
  */
 
-/** Short alias → pi-ai SDK provider name. */
+/** Short alias → pi-ai SDK provider name (when no base_url override). */
 const SUBPROVIDER_ALIASES: Record<string, string> = {
   azure: 'azure-openai-responses',
-  // Azure v1 endpoints (e.g. .services.ai.azure.com) don't accept api-version
-  // query params, so use the standard OpenAI client via openai-responses instead.
-  'azure-v1': 'openai-responses',
+};
+
+/** Short alias → pi-ai SDK provider name (when base_url is set). */
+const SUBPROVIDER_ALIASES_WITH_BASE_URL: Record<string, string> = {
+  // Azure v1 endpoints are OpenAI-compatible; use the standard client
+  // to avoid AzureOpenAI adding api-version query params.
+  azure: 'openai-responses',
 };
 
 /** Short alias → environment variable for API key. */
@@ -24,35 +32,69 @@ export const ENV_KEY_MAP: Record<string, string> = {
   xai: 'XAI_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
   azure: 'AZURE_OPENAI_API_KEY',
-  'azure-v1': 'OPENAI_API_KEY',
 };
 
 /** Short alias → environment variable for base URL / endpoint. */
 export const ENV_BASE_URL_MAP: Record<string, string> = {
   openai: 'OPENAI_BASE_URL',
   azure: 'AZURE_OPENAI_BASE_URL',
-  'azure-v1': 'OPENAI_BASE_URL',
   openrouter: 'OPENROUTER_BASE_URL',
-};
-
-/** Short alias → pi CLI --provider flag value. */
-const CLI_PROVIDER_ALIASES: Record<string, string> = {
-  azure: 'azure-openai-responses',
-  'azure-v1': 'openai',
 };
 
 /**
  * Resolve a subprovider config value to the SDK's canonical name.
- * Returns the input unchanged if no alias matches.
+ * When `hasBaseUrl` is true and the provider is "azure", uses the standard
+ * OpenAI client (openai-responses) instead of AzureOpenAI to avoid
+ * api-version conflicts with /v1 endpoints.
  */
-export function resolveSubprovider(name: string): string {
-  return SUBPROVIDER_ALIASES[name.toLowerCase()] ?? name;
+export function resolveSubprovider(name: string, hasBaseUrl = false): string {
+  const lower = name.toLowerCase();
+  if (hasBaseUrl) {
+    const alias = SUBPROVIDER_ALIASES_WITH_BASE_URL[lower];
+    if (alias) return alias;
+  }
+  return SUBPROVIDER_ALIASES[lower] ?? name;
 }
+
+/** Short alias → pi CLI --provider flag value. */
+const CLI_PROVIDER_ALIASES: Record<string, string> = {
+  azure: 'azure-openai-responses',
+};
+
+const CLI_PROVIDER_ALIASES_WITH_BASE_URL: Record<string, string> = {
+  azure: 'openai',
+};
 
 /**
  * Resolve a subprovider config value for the pi CLI --provider flag.
- * The CLI uses different provider names than the SDK (e.g. "openai" not "openai-responses").
+ * When `hasBaseUrl` is true and the provider is "azure", uses "openai"
+ * (standard OpenAI client) which works with Azure /v1 endpoints.
  */
-export function resolveCliProvider(name: string): string {
-  return CLI_PROVIDER_ALIASES[name.toLowerCase()] ?? name;
+export function resolveCliProvider(name: string, hasBaseUrl = false): string {
+  const lower = name.toLowerCase();
+  if (hasBaseUrl) {
+    const alias = CLI_PROVIDER_ALIASES_WITH_BASE_URL[lower];
+    if (alias) return alias;
+  }
+  return CLI_PROVIDER_ALIASES[lower] ?? name;
+}
+
+/**
+ * Resolve the environment variable name for the API key.
+ * When azure + base_url, the key goes to OPENAI_API_KEY (standard client).
+ */
+export function resolveEnvKeyName(provider: string, hasBaseUrl = false): string | undefined {
+  const lower = provider.toLowerCase();
+  if (hasBaseUrl && lower === 'azure') return 'OPENAI_API_KEY';
+  return ENV_KEY_MAP[lower];
+}
+
+/**
+ * Resolve the environment variable name for the base URL.
+ * When azure + base_url, the URL goes to OPENAI_BASE_URL (standard client).
+ */
+export function resolveEnvBaseUrlName(provider: string, hasBaseUrl = false): string | undefined {
+  const lower = provider.toLowerCase();
+  if (hasBaseUrl && lower === 'azure') return 'OPENAI_BASE_URL';
+  return ENV_BASE_URL_MAP[lower];
 }

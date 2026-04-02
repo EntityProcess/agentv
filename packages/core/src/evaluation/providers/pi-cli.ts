@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
-import { ENV_BASE_URL_MAP, ENV_KEY_MAP, resolveCliProvider } from './pi-provider-aliases.js';
+import { resolveCliProvider, resolveEnvBaseUrlName, resolveEnvKeyName } from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCliResolvedConfig } from './targets.js';
@@ -175,7 +175,7 @@ export class PiCliProvider implements Provider {
     const args: string[] = [];
 
     if (this.config.subprovider) {
-      args.push('--provider', resolveCliProvider(this.config.subprovider));
+      args.push('--provider', resolveCliProvider(this.config.subprovider, !!this.config.baseUrl));
     }
     if (this.config.model) {
       args.push('--model', this.config.model);
@@ -244,16 +244,17 @@ export class PiCliProvider implements Provider {
     const env = { ...process.env };
 
     const provider = this.config.subprovider?.toLowerCase() ?? 'google';
+    const hasBaseUrl = !!this.config.baseUrl;
 
     if (this.config.apiKey) {
-      const envKey = ENV_KEY_MAP[provider];
+      const envKey = resolveEnvKeyName(provider, hasBaseUrl);
       if (envKey) {
         env[envKey] = this.config.apiKey;
       }
     }
 
     if (this.config.baseUrl) {
-      const envKey = ENV_BASE_URL_MAP[provider];
+      const envKey = resolveEnvBaseUrlName(provider, hasBaseUrl);
       if (envKey) {
         env[envKey] = this.config.baseUrl;
       }
@@ -267,19 +268,20 @@ export class PiCliProvider implements Provider {
     // var prefixes that provider uses. All other providers' vars are stripped
     // automatically when that provider is selected.
     if (this.config.subprovider) {
-      const provider = this.config.subprovider.toLowerCase();
+      // Use the resolved CLI provider name for prefix matching, so that
+      // azure + base_url (resolved to "openai") preserves OPENAI_* vars.
+      const resolvedProvider = resolveCliProvider(this.config.subprovider, hasBaseUrl);
       const PROVIDER_OWN_PREFIXES: Record<string, readonly string[]> = {
         openrouter: ['OPENROUTER_'],
         anthropic: ['ANTHROPIC_'],
         openai: ['OPENAI_'],
-        azure: ['AZURE_OPENAI_'],
-        'azure-v1': ['OPENAI_'],
+        'azure-openai-responses': ['AZURE_OPENAI_'],
         google: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
         gemini: ['GEMINI_', 'GOOGLE_GENERATIVE_AI_'],
         groq: ['GROQ_'],
         xai: ['XAI_'],
       };
-      const ownPrefixes = PROVIDER_OWN_PREFIXES[provider] ?? [];
+      const ownPrefixes = PROVIDER_OWN_PREFIXES[resolvedProvider] ?? [];
       const allOtherPrefixes = Object.entries(PROVIDER_OWN_PREFIXES)
         .filter(([key]) => key !== provider)
         .flatMap(([, prefixes]) => prefixes);

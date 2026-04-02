@@ -18,7 +18,11 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
-import { ENV_BASE_URL_MAP, ENV_KEY_MAP, resolveSubprovider } from './pi-provider-aliases.js';
+import {
+  resolveEnvBaseUrlName,
+  resolveEnvKeyName,
+  resolveSubprovider,
+} from './pi-provider-aliases.js';
 import { extractPiTextContent, toFiniteNumber, toPiContentArray } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
@@ -173,12 +177,13 @@ export class PiCodingAgentProvider implements Provider {
     try {
       const cwd = this.resolveCwd(request.cwd);
       const rawProvider = this.config.subprovider ?? 'google';
-      const providerName = resolveSubprovider(rawProvider);
+      const hasBaseUrl = !!this.config.baseUrl;
+      const providerName = resolveSubprovider(rawProvider, hasBaseUrl);
       const modelId = this.config.model ?? 'gemini-2.5-flash';
 
       // Set provider-specific env vars so the SDK can find them
-      this.setApiKeyEnv(rawProvider);
-      this.setBaseUrlEnv(rawProvider);
+      this.setApiKeyEnv(rawProvider, hasBaseUrl);
+      this.setBaseUrlEnv(rawProvider, hasBaseUrl);
 
       // Build model using pi-ai's getModel (requires type assertion for runtime strings).
       // biome-ignore lint/suspicious/noExplicitAny: runtime string config requires any cast
@@ -402,18 +407,18 @@ export class PiCodingAgentProvider implements Provider {
   }
 
   /** Maps config apiKey to the provider-specific env var the SDK reads. */
-  private setApiKeyEnv(providerName: string): void {
+  private setApiKeyEnv(providerName: string, hasBaseUrl = false): void {
     if (!this.config.apiKey) return;
-    const envKey = ENV_KEY_MAP[providerName.toLowerCase()];
+    const envKey = resolveEnvKeyName(providerName, hasBaseUrl);
     if (envKey) {
       process.env[envKey] = this.config.apiKey;
     }
   }
 
   /** Maps config baseUrl to the provider-specific env var the SDK reads. */
-  private setBaseUrlEnv(providerName: string): void {
+  private setBaseUrlEnv(providerName: string, hasBaseUrl = false): void {
     if (!this.config.baseUrl) return;
-    const envKey = ENV_BASE_URL_MAP[providerName.toLowerCase()];
+    const envKey = resolveEnvBaseUrlName(providerName, hasBaseUrl);
     if (envKey) {
       process.env[envKey] = this.config.baseUrl;
     }
