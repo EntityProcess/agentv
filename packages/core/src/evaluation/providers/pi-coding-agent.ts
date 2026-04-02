@@ -127,7 +127,8 @@ async function loadSdkModules() {
     toolMap,
     SessionManager: piSdk.SessionManager,
     getModel: piAi.getModel,
-    registerBuiltInApiProviders: piAi.registerBuiltInApiProviders,
+    // biome-ignore lint/suspicious/noExplicitAny: registerBuiltInApiProviders exists at runtime but not in type defs
+    registerBuiltInApiProviders: (piAi as any).registerBuiltInApiProviders as () => void,
   };
 }
 
