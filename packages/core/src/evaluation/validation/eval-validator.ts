@@ -486,6 +486,12 @@ function validateMessages(
       continue;
     }
 
+    // Content object shorthand: items with 'type' (e.g., {type: "file", value: "..."})
+    // but no 'role' are valid content shorthands — the runtime wraps them implicitly.
+    if (!('role' in message) && 'type' in message) {
+      continue; // Accept silently — runtime handles expansion
+    }
+
     // Validate role field
     const role = message.role;
     const validRoles = ['system', 'user', 'assistant'];
