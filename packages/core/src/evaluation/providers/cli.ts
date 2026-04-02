@@ -352,9 +352,13 @@ export class CliProvider implements Provider {
     );
     const renderedCommand = renderTemplate(this.config.command, templateValues);
 
+    // Use per-request cwd override (from workspace) if any request provides one,
+    // otherwise fall back to the target's configured cwd.
+    const effectiveCwd = requests[0]?.cwd ?? this.config.cwd;
+
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] (batch size=${requests.length}) cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] (batch size=${requests.length}) cwd=${effectiveCwd ?? ''} command=${renderedCommand}`,
       );
     }
 
@@ -362,7 +366,7 @@ export class CliProvider implements Provider {
     try {
       const startTime = Date.now();
       const result = await this.runCommand(renderedCommand, {
-        cwd: this.config.cwd,
+        cwd: effectiveCwd,
         env: process.env,
         timeoutMs: this.config.timeoutMs,
         signal: controller.signal,
