@@ -354,6 +354,8 @@ export class CliProvider implements Provider {
 
     // Use per-request cwd override (from workspace) if any request provides one,
     // otherwise fall back to the target's configured cwd.
+    // All requests in a batch share the same workspace, so the first request's cwd
+    // is representative of the entire batch.
     const effectiveCwd = requests[0]?.cwd ?? this.config.cwd;
 
     if (this.verbose) {
@@ -406,7 +408,7 @@ export class CliProvider implements Provider {
               command: renderedCommand,
               stderr: result.stderr,
               exitCode: result.exitCode ?? 0,
-              cwd: this.config.cwd,
+              cwd: effectiveCwd,
               outputFile: outputFilePath,
             },
           };
@@ -427,7 +429,7 @@ export class CliProvider implements Provider {
               command: renderedCommand,
               stderr: result.stderr,
               exitCode: result.exitCode ?? 0,
-              cwd: this.config.cwd,
+              cwd: effectiveCwd,
               outputFile: outputFilePath,
               error: errorMessage,
             },
@@ -443,7 +445,7 @@ export class CliProvider implements Provider {
             command: renderedCommand,
             stderr: result.stderr,
             exitCode: result.exitCode ?? 0,
-            cwd: this.config.cwd,
+            cwd: effectiveCwd,
             outputFile: outputFilePath,
             recordId: evalCaseId,
           },

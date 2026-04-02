@@ -201,6 +201,28 @@ describe('CliProvider', () => {
     expect(capturedCwd).toBe('/workspace/path');
   });
 
+  it('falls back to config.cwd when request.cwd is undefined in invokeBatch', async () => {
+    let capturedCwd: string | undefined;
+    const runner = mock(async (command: string, options): Promise<CommandRunResult> => {
+      capturedCwd = options?.cwd;
+      const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        const jsonl = `${JSON.stringify({ id: 'case-1', text: 'ok' })}\n`;
+        await writeFile(outputFilePath, jsonl, 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+      return { stdout: '', stderr: '', exitCode: 0, failed: false };
+    });
+
+    const configWithCwd: CliResolvedConfig = { ...baseConfig, cwd: '/config/cwd' };
+    const provider = new CliProvider('cli-target', configWithCwd, runner);
+
+    // No cwd in request — should fall back to config.cwd
+    await provider.invokeBatch([baseRequest]);
+    expect(capturedCwd).toBe('/config/cwd');
+  });
+
   it('supports batch mode by reading JSONL records keyed by id', async () => {
     const runner = mock(async (command: string): Promise<CommandRunResult> => {
       const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
