@@ -750,7 +750,7 @@ export function resolveDelegatedTargetDefinition(
 
     const envMatch = rawUseTarget.match(USE_TARGET_ENV_PATTERN);
     const envVarName = envMatch?.[1];
-    const resolvedName = envVarName ? env[envVarName]?.trim() ?? '' : rawUseTarget;
+    const resolvedName = envVarName ? (env[envVarName]?.trim() ?? '') : rawUseTarget;
 
     if (resolvedName.length === 0) {
       if (envVarName) {

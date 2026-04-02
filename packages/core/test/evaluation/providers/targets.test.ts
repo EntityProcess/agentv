@@ -60,7 +60,8 @@ mock.module('@ai-sdk/google', () => ({
 }));
 
 const providerModule = await import('../../../src/evaluation/providers/index.js');
-const { resolveDelegatedTargetDefinition, resolveTargetDefinition, createProvider } = providerModule;
+const { resolveDelegatedTargetDefinition, resolveTargetDefinition, createProvider } =
+  providerModule;
 const { extractLastAssistantContent } = await import('../../../src/evaluation/providers/types.js');
 
 describe('resolveDelegatedTargetDefinition', () => {
