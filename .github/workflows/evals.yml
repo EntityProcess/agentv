@@ -32,7 +32,7 @@ jobs:
         run: bun run build
 
       - name: Install GitHub Copilot CLI
-        run: curl -fsSL https://gh.io/copilot-install | bash
+        run: npm install -g @github/copilot
 
       - name: Install Pi CLI
         run: npm install -g @mariozechner/pi-coding-agent || echo "pi-cli install failed (non-fatal)"
