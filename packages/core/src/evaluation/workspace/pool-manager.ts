@@ -354,7 +354,7 @@ export class WorkspacePoolManager {
 
   /**
    * Reset an existing slot for reuse:
-   * 1. Reset repos (git reset --hard {ref} && git clean -fd per repo)
+   * 1. Reset repos (fetch from origin when resolve=remote, then git reset --hard && git clean per repo)
    * 2. Re-copy template files (skip repo directories)
    */
   private async resetSlot(
