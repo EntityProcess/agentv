@@ -354,7 +354,7 @@ export class WorkspacePoolManager {
 
   /**
    * Reset an existing slot for reuse:
-   * 1. Reset repos (git reset --hard {ref} && git clean -fd per repo)
+   * 1. Reset repos (fetch from origin when resolve=remote, then git reset --hard && git clean per repo)
    * 2. Re-copy template files (skip repo directories)
    */
   private async resetSlot(
@@ -373,7 +373,20 @@ export class WorkspacePoolManager {
         continue;
       }
       const ref = repo.checkout?.ref ?? 'HEAD';
-      await git(['reset', '--hard', ref], { cwd: repoDir });
+      const resolve = repo.checkout?.resolve ?? 'remote';
+
+      // When resolve is 'remote', fetch latest from origin before resetting
+      // so the pool slot reflects the current remote state at eval start.
+      if (resolve === 'remote') {
+        const fetchArgs = ['fetch', 'origin', ref];
+        if (repo.clone?.depth) {
+          fetchArgs.splice(1, 0, '--depth', String(repo.clone.depth));
+        }
+        await git(fetchArgs, { cwd: repoDir });
+        await git(['reset', '--hard', 'FETCH_HEAD'], { cwd: repoDir });
+      } else {
+        await git(['reset', '--hard', ref], { cwd: repoDir });
+      }
       // strict removes .gitignored files (node_modules, build outputs).
       // fast preserves .gitignored files, letting before_all
       // build steps survive across pool reuse cycles and avoiding expensive rebuilds.
