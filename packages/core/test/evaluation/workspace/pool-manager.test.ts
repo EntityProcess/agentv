@@ -759,6 +759,97 @@ describe('WorkspacePoolManager', () => {
     });
   });
 
+  describe('resolve: remote pool reuse', () => {
+    it('fetches latest from remote on pool reuse when resolve is remote', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      const initialSha = createTestRepo(repoDir, { 'hello.txt': 'v1' });
+      // Rename default branch to 'main' (git init defaults to 'master')
+      execSync('git branch -M main', { cwd: repoDir, ...EXEC_OPTS });
+
+      const manager = new WorkspacePoolManager(poolRoot);
+      const repos: RepoConfig[] = [
+        {
+          path: './my-repo',
+          source: { type: 'local', path: repoDir },
+          checkout: { ref: 'main', resolve: 'remote' },
+        },
+      ];
+
+      // First acquisition — clones at initial commit
+      const slot1 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+      expect(slot1.isExisting).toBe(false);
+      expect(readFileSync(path.join(slot1.path, 'my-repo', 'hello.txt'), 'utf-8')).toBe('v1');
+      await manager.releaseSlot(slot1);
+
+      // Advance the source repo to a new commit
+      writeFileSync(path.join(repoDir, 'hello.txt'), 'v2');
+      execSync('git add -A && git commit -m "v2"', { cwd: repoDir, ...EXEC_OPTS });
+      const newSha = gitExec('git rev-parse HEAD', repoDir);
+      expect(newSha).not.toBe(initialSha);
+
+      // Second acquisition — should reuse slot but fetch latest
+      const slot2 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+      expect(slot2.isExisting).toBe(true);
+      expect(slot2.path).toBe(slot1.path);
+
+      // The repo should have the latest content from the source
+      expect(readFileSync(path.join(slot2.path, 'my-repo', 'hello.txt'), 'utf-8')).toBe('v2');
+      const slot2Head = gitExec('git rev-parse HEAD', path.join(slot2.path, 'my-repo'));
+      expect(slot2Head).toBe(newSha);
+
+      await manager.releaseSlot(slot2);
+    });
+
+    it('does not fetch from remote when resolve is local', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'hello.txt': 'v1' });
+      // Rename default branch to 'main' (git init defaults to 'master')
+      execSync('git branch -M main', { cwd: repoDir, ...EXEC_OPTS });
+
+      const manager = new WorkspacePoolManager(poolRoot);
+      const repos: RepoConfig[] = [
+        {
+          path: './my-repo',
+          source: { type: 'local', path: repoDir },
+          checkout: { ref: 'main', resolve: 'local' },
+        },
+      ];
+
+      // First acquisition
+      const slot1 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+      await manager.releaseSlot(slot1);
+
+      // Advance the source repo
+      writeFileSync(path.join(repoDir, 'hello.txt'), 'v2');
+      execSync('git add -A && git commit -m "v2"', { cwd: repoDir, ...EXEC_OPTS });
+
+      // Second acquisition — should reuse slot WITHOUT fetching
+      const slot2 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+      expect(slot2.isExisting).toBe(true);
+
+      // The repo should still have the original content (no fetch)
+      expect(readFileSync(path.join(slot2.path, 'my-repo', 'hello.txt'), 'utf-8')).toBe('v1');
+
+      await manager.releaseSlot(slot2);
+    });
+  });
+
   describe('releaseSlot', () => {
     it('removes lock file', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
