@@ -973,13 +973,14 @@ export class LlmGraderEvaluator implements Evaluator {
           userPrompt,
           images,
         });
-        lastInvalidResponse = result;
+        const canRepairResponse = result.text.trim().length > 0;
+        lastInvalidResponse = canRepairResponse ? result : undefined;
         let data: T;
         try {
           data = schema.parse(parseJsonFromText(result.text));
         } catch (e: unknown) {
           lastError = e instanceof Error ? e : new Error(String(e));
-          shouldAttemptStructureFix = true;
+          shouldAttemptStructureFix = canRepairResponse;
           continue;
         }
         return {
