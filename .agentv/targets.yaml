@@ -100,6 +100,7 @@ targets:
 
   # Single Azure target. Control the endpoint shape with AZURE_OPENAI_API_FORMAT:
   # - chat (default): uses /chat/completions and AZURE_OPENAI_API_VERSION
+  #   If AZURE_OPENAI_API_VERSION is omitted, AgentV defaults chat targets to 2024-12-01-preview.
   # - responses: uses /responses and AgentV auto-defaults the version to v1
   - name: azure
     provider: azure
