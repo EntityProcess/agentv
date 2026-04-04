@@ -388,6 +388,11 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    - Mark the draft PR ready for review, or
    - Merge directly if the change is low risk and the repo policy allows it
 
+8. **After merge, clean up local state**:
+   - Delete the local feature branch
+   - Remove the local worktree created for the issue
+   - Confirm the primary checkout is back on an up-to-date `main`
+
 The `in-progress` label stays on the issue until the PR is merged and the issue is closed. Do not remove it manually.
 
 **IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
