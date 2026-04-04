@@ -144,8 +144,8 @@ export interface EvalConfig {
   readonly task?: (input: string) => string | Promise<string>;
   /** Suite-level assertions applied to all tests */
   readonly assert?: readonly AssertEntry[];
-  /** Filter tests by ID pattern (glob supported) */
-  readonly filter?: string;
+  /** Filter tests by ID pattern(s) (glob supported). Arrays use OR logic. */
+  readonly filter?: string | readonly string[];
   /** Maximum concurrent workers (default: 3) */
   readonly workers?: number;
   /** Maximum retries on failure (default: 2) */

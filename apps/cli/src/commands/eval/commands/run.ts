@@ -32,10 +32,10 @@ export const evalRunCommand = command({
       long: 'targets',
       description: 'Path to targets.yaml (overrides discovery)',
     }),
-    testId: option({
-      type: optional(string),
+    testId: multioption({
+      type: array(string),
       long: 'test-id',
-      description: 'Filter tests by ID pattern (glob supported, e.g., "summary-*")',
+      description: 'Filter tests by ID pattern (repeatable, OR logic; glob supported)',
     }),
     workers: option({
       type: optional(number),

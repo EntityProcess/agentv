@@ -247,4 +247,24 @@ describe('agentv eval CLI', () => {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
   });
+
+  it('supports repeatable --test-id flags with OR matching', async () => {
+    const fixture = await createFixture();
+    try {
+      await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--test-id',
+        'case-alpha',
+        '--test-id',
+        'case-beta',
+      ]);
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics.filter).toEqual(['case-alpha', 'case-beta']);
+      expect(diagnostics.evalCaseIds).toEqual(['case-alpha', 'case-beta']);
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  });
 });

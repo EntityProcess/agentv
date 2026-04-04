@@ -228,8 +228,8 @@ export interface RunEvaluationOptions {
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly now?: () => Date;
-  /** Filter tests by ID pattern (glob supported, e.g., "summary-*") */
-  readonly filter?: string;
+  /** Filter tests by ID pattern(s) (glob supported, e.g., "summary-*"). Arrays use OR logic. */
+  readonly filter?: string | readonly string[];
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
   readonly evalCases?: readonly EvalTest[];
@@ -329,7 +329,7 @@ export async function runEvaluation(
   const filteredEvalCases = filterEvalCases(evalCases, filter);
   if (filteredEvalCases.length === 0) {
     if (filter) {
-      throw new Error(`No tests matched filter '${filter}' in ${evalFilePath}`);
+      throw new Error(`No tests matched filter '${formatFilter(filter)}' in ${evalFilePath}`);
     }
     return [];
   }
@@ -2488,11 +2488,24 @@ async function runEvaluatorList(options: {
   return { score, scores };
 }
 
-function filterEvalCases(evalCases: readonly EvalTest[], filter?: string): readonly EvalTest[] {
+function formatFilter(filter: string | readonly string[]): string {
+  return typeof filter === 'string' ? filter : filter.join(', ');
+}
+
+function matchesFilter(id: string, filter: string | readonly string[]): boolean {
+  return typeof filter === 'string'
+    ? micromatch.isMatch(id, filter)
+    : filter.some((pattern) => micromatch.isMatch(id, pattern));
+}
+
+function filterEvalCases(
+  evalCases: readonly EvalTest[],
+  filter?: string | readonly string[],
+): readonly EvalTest[] {
   if (!filter) {
     return evalCases;
   }
-  return evalCases.filter((evalCase) => micromatch.isMatch(evalCase.id, filter));
+  return evalCases.filter((evalCase) => matchesFilter(evalCase.id, filter));
 }
 
 function buildEvaluatorRegistry(

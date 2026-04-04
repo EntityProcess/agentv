@@ -23,9 +23,15 @@ const ANSI_RESET = '\u001b[0m';
 
 type LoadOptions = {
   readonly verbose?: boolean;
-  /** Filter tests by ID pattern (glob supported, e.g., "summary-*") */
-  readonly filter?: string;
+  /** Filter tests by ID pattern(s) (glob supported, e.g., "summary-*"). Arrays use OR logic. */
+  readonly filter?: string | readonly string[];
 };
+
+function matchesFilter(id: string, filter: string | readonly string[]): boolean {
+  return typeof filter === 'string'
+    ? micromatch.isMatch(id, filter)
+    : filter.some((pattern) => micromatch.isMatch(id, pattern));
+}
 
 /**
  * Sidecar metadata structure for JSONL datasets.
@@ -178,7 +184,7 @@ export async function loadTestsFromJsonl(
     const id = asString(evalcase.id);
 
     // Skip eval cases that don't match the filter pattern (glob supported)
-    if (filterPattern && (!id || !micromatch.isMatch(id, filterPattern))) {
+    if (filterPattern && (!id || !matchesFilter(id, filterPattern))) {
       continue;
     }
 

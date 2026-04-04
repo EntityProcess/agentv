@@ -15,7 +15,7 @@ interface RunEvaluationOptionsLike {
   readonly promptDumpDir?: string;
   readonly cache?: unknown;
   readonly useCache?: boolean;
-  readonly testId?: string;
+  readonly filter?: string | readonly string[];
   readonly evalCases?: ReadonlyArray<unknown>;
   readonly verbose?: boolean;
   readonly onResult?: (result: EvaluationResultLike) => Promise<void> | void;
@@ -77,11 +77,23 @@ async function maybeWriteDiagnostics(
     targetKind: options.target?.kind,
     agentTimeoutMs: options.agentTimeoutMs ?? null,
     promptDumpDir: options.promptDumpDir,
-    testId: options.testId ?? null,
+    filter: options.filter ?? null,
     useCache: options.useCache ?? false,
     envSample: process.env.CLI_ENV_SAMPLE ?? null,
     envRootOnly: process.env.CLI_ENV_ROOT_ONLY ?? null,
     envLocalOnly: process.env.CLI_ENV_LOCAL_ONLY ?? null,
+    evalCaseIds: Array.isArray(options.evalCases)
+      ? options.evalCases
+          .map((evalCase) =>
+            evalCase &&
+            typeof evalCase === 'object' &&
+            'id' in evalCase &&
+            typeof evalCase.id === 'string'
+              ? evalCase.id
+              : null,
+          )
+          .filter((id): id is string => id !== null)
+      : null,
     resultCount: results.length,
   } satisfies Record<string, unknown>;
 

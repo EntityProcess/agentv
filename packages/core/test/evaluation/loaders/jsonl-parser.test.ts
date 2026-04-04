@@ -255,6 +255,25 @@ describe('loadTestsFromJsonl', () => {
     expect(cases.map((c) => c.id)).toEqual(['summary-basic', 'summary-advanced']);
   });
 
+  it('filters by multiple patterns with OR logic', async () => {
+    const jsonlPath = path.join(tempDir, 'filter-multi.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "alpha-case", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "beta-case", "criteria": "Goal 2", "input": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "gamma-case", "criteria": "Goal 3", "input": [{"role": "user", "content": "Query 3"}]}',
+      ].join('\n'),
+    );
+
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir, {
+      filter: ['alpha-*', 'beta-case'],
+    });
+
+    expect(cases).toHaveLength(2);
+    expect(cases.map((c) => c.id)).toEqual(['alpha-case', 'beta-case']);
+  });
+
   it('supports conversation_id field', async () => {
     const jsonlPath = path.join(tempDir, 'with-conv-id.jsonl');
     await writeFile(
