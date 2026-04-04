@@ -60,7 +60,7 @@ interface NormalizedOptions {
   readonly target?: string;
   readonly cliTargets: readonly string[];
   readonly targetsPath?: string;
-  readonly filter?: string;
+  readonly filter?: string | readonly string[];
   readonly workers?: number;
   readonly outPath?: string;
   readonly outputPaths: readonly string[];
@@ -147,6 +147,18 @@ function normalizeStringArray(value: unknown): readonly string[] {
     return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
   }
   return [];
+}
+
+function normalizeFilter(value: unknown): string | readonly string[] | undefined {
+  if (Array.isArray(value)) {
+    const filters = normalizeStringArray(value);
+    if (filters.length === 0) {
+      return undefined;
+    }
+    return filters.length === 1 ? filters[0] : filters;
+  }
+
+  return normalizeString(value);
 }
 
 /**
@@ -298,7 +310,7 @@ function normalizeOptions(
     target: singleTarget,
     cliTargets,
     targetsPath: normalizeString(rawOptions.targets),
-    filter: normalizeString(rawOptions.filter),
+    filter: normalizeFilter(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
     outPath: cliOut ?? configOut,
     outputPaths,
@@ -718,6 +730,7 @@ async function runSingleEvalFile(params: {
       }
       return true;
     })(),
+    filter: options.filter,
     evalCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,

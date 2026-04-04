@@ -334,7 +334,13 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    ```
    If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
 
-2. **Create a worktree** with a feature branch:
+2. **Update local `main` to the latest `origin/main`** before branching:
+   ```bash
+   git checkout main
+   git pull --ff-only origin main
+   ```
+
+3. **Create a worktree** with a feature branch:
    ```bash
    git worktree add agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description>
    cd agentv.worktrees/<branch-name>
@@ -343,15 +349,17 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    # Example: git worktree add agentv.worktrees/feat/42-add-new-embedder -b feat/42-add-new-embedder
    ```
 
-3. **Implement the changes** and commit following the commit convention
+   The feature branch must be based on the freshly updated `main`, not a stale local checkout.
 
-4. **Push the branch and create a Pull Request**:
+4. **Implement the changes** and commit following the commit convention
+
+5. **Push the branch and create a Pull Request**:
    ```bash
    git push -u origin <branch-name>
    gh pr create --title "<type>(scope): description" --body "Closes #<issue-number>"
    ```
 
-5. **Before merging**, ensure:
+6. **Before merging**, ensure:
    - **E2E verification completed** (see "Completing Work — E2E Checklist")
    - CI pipeline passes (all checks green)
    - Code has been reviewed if required
