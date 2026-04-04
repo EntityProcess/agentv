@@ -406,6 +406,7 @@ export interface AzureResolvedConfig {
   readonly deploymentName: string;
   readonly apiKey: string;
   readonly version?: string;
+  readonly apiFormat?: ApiFormat;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly retry?: RetryConfig;
@@ -1122,6 +1123,7 @@ function resolveAzureConfig(
     deploymentName,
     apiKey,
     version,
+    apiFormat: resolveApiFormat(target, target.name),
     temperature,
     maxOutputTokens,
     retry,

@@ -48,6 +48,8 @@ const AZURE_SETTINGS = new Set([
   'model',
   'version',
   'api_version',
+  'api_format',
+  'apiFormat',
   'temperature',
   'max_output_tokens',
   'maxTokens',

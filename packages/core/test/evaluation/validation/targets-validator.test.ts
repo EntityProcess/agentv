@@ -140,4 +140,29 @@ describe('validateTargetsFile', () => {
       ),
     ).toBe(true);
   });
+
+  it('accepts azure api_format as a known setting', async () => {
+    const filePath = path.join(tempDir, 'azure-api-format.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: azure-responses
+    provider: azure
+    endpoint: \${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: \${{ AZURE_OPENAI_API_KEY }}
+    model: \${{ AZURE_DEPLOYMENT_NAME }}
+    api_format: responses
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(
+      result.errors.some(
+        (error) =>
+          error.location === 'targets[0].api_format' &&
+          error.message.includes("Unknown setting 'api_format'"),
+      ),
+    ).toBe(false);
+  });
 });
