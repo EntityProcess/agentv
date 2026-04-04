@@ -103,3 +103,25 @@ export function extractAzureResourceName(baseUrl: string): string {
   // Already a resource name
   return baseUrl;
 }
+
+/**
+ * For pi-coding-agent SDK azure, normalize either a bare resource name or an
+ * Azure endpoint URL into the OpenAI-compatible v1 base URL expected by the
+ * SDK's openai-responses path.
+ */
+export function normalizeAzureSdkBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}.openai.azure.com/openai/v1`;
+  }
+  if (/\/openai\/v1$/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/\/openai$/i.test(trimmed)) {
+    return `${trimmed}/v1`;
+  }
+  return `${trimmed}/openai/v1`;
+}

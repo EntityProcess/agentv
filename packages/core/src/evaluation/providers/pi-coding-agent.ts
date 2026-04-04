@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
+  normalizeAzureSdkBaseUrl,
   resolveEnvBaseUrlName,
   resolveEnvKeyName,
   resolveSubprovider,
@@ -177,17 +178,21 @@ export class PiCodingAgentProvider implements Provider {
     try {
       const cwd = this.resolveCwd(request.cwd);
       const rawProvider = this.config.subprovider ?? 'google';
-      const hasBaseUrl = !!this.config.baseUrl;
+      const normalizedBaseUrl = this.normalizeSdkBaseUrl(rawProvider, this.config.baseUrl);
+      const hasBaseUrl = !!normalizedBaseUrl;
       const providerName = resolveSubprovider(rawProvider, hasBaseUrl);
       const modelId = this.config.model ?? 'gemini-2.5-flash';
 
       // Set provider-specific env vars so the SDK can find them
       this.setApiKeyEnv(rawProvider, hasBaseUrl);
-      this.setBaseUrlEnv(rawProvider, hasBaseUrl);
+      this.setBaseUrlEnv(rawProvider, normalizedBaseUrl, hasBaseUrl);
 
       // Build model using pi-ai's getModel (requires type assertion for runtime strings).
       // biome-ignore lint/suspicious/noExplicitAny: runtime string config requires any cast
       let model = (sdk.getModel as any)(providerName, modelId);
+      if (model && normalizedBaseUrl) {
+        model = { ...model, baseUrl: normalizedBaseUrl };
+      }
       if (!model) {
         // Model not in the pi-ai registry — construct a minimal model descriptor.
         // This is common for Azure deployments whose names don't match standard model IDs.
@@ -199,7 +204,7 @@ export class PiCodingAgentProvider implements Provider {
           name: modelId,
           api: providerName,
           provider: envProvider,
-          baseUrl: this.config.baseUrl ?? '',
+          baseUrl: normalizedBaseUrl ?? '',
           reasoning: false,
           input: ['text'],
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -416,12 +421,25 @@ export class PiCodingAgentProvider implements Provider {
   }
 
   /** Maps config baseUrl to the provider-specific env var the SDK reads. */
-  private setBaseUrlEnv(providerName: string, hasBaseUrl = false): void {
-    if (!this.config.baseUrl) return;
+  private setBaseUrlEnv(
+    providerName: string,
+    baseUrl: string | undefined = this.config.baseUrl,
+    hasBaseUrl = false,
+  ): void {
+    const normalizedBaseUrl = this.normalizeSdkBaseUrl(providerName, baseUrl);
+    if (!normalizedBaseUrl) return;
     const envKey = resolveEnvBaseUrlName(providerName, hasBaseUrl);
     if (envKey) {
-      process.env[envKey] = this.config.baseUrl;
+      process.env[envKey] = normalizedBaseUrl;
     }
+  }
+
+  private normalizeSdkBaseUrl(providerName: string, baseUrl?: string): string | undefined {
+    if (!baseUrl) return undefined;
+    if (providerName.toLowerCase() === 'azure') {
+      return normalizeAzureSdkBaseUrl(baseUrl);
+    }
+    return baseUrl;
   }
 
   private resolveCwd(cwdOverride?: string): string {

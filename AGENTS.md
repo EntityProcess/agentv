@@ -87,6 +87,18 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Working Style
 
+### Worktree Setup
+- For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
+- Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
+- Do not implement from the primary checkout, from a stale local `main`, or from a branch created off an outdated base.
+- Default setup:
+```bash
+git fetch origin
+git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<issue-or-topic>-<short-desc> origin/main
+cd ../agentv.worktrees/<type>-<short-desc>
+```
+- If you discover you are not on a fresh worktree from the latest `origin/main`, stop and fix that first before changing code.
+
 ### Planning
 - Use plan mode for any non-trivial task (5+ steps or architectural decisions).
 - If something goes sideways, STOP and re-plan immediately — don't keep pushing a broken approach.
