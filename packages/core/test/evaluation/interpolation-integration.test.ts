@@ -36,6 +36,33 @@ describe('env interpolation in YAML loading', () => {
     expect(cases[0].criteria).toBe('Must return correct answer');
   });
 
+  it('uses exported process.env values even when no .env file exists', async () => {
+    const evalFile = path.join(testDir, 'interp-process-env.eval.yaml');
+    await writeFile(
+      evalFile,
+      [
+        'workspace:',
+        '  repos:',
+        '    - path: ./RepoA',
+        '      source:',
+        '        type: local',
+        '        path: "${{ AGENTV_TEST_PATH }}"',
+        'tests:',
+        '  - id: test-1',
+        '    input: "hello"',
+        '    criteria: "${{ AGENTV_TEST_CRITERIA }}"',
+        '',
+      ].join('\n'),
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases[0].criteria).toBe('Must return correct answer');
+    expect(cases[0].workspace?.repos?.[0]?.source).toEqual({
+      type: 'local',
+      path: '/abs/path/to/repo',
+    });
+  });
+
   it('interpolates ${{ VAR }} in workspace repo source path', async () => {
     const evalFile = path.join(testDir, 'interp-workspace.eval.yaml');
     await writeFile(

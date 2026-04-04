@@ -30,7 +30,9 @@ targets:
 
 ## Environment Variables
 
-Use `${{ VARIABLE_NAME }}` syntax to reference values from your `.env` file:
+Use `${{ VARIABLE_NAME }}` syntax to reference values from your environment. AgentV reads
+exported process environment variables directly, and it also loads `.env` files from the
+eval directory hierarchy when present:
 
 ```yaml
 targets:
@@ -40,7 +42,8 @@ targets:
     model: ${{ ANTHROPIC_MODEL }}
 ```
 
-This keeps secrets out of version-controlled files.
+This keeps secrets out of version-controlled files and avoids requiring a CI step that rewrites
+already-exported secrets into `.env`.
 
 ## Supported Providers
 
