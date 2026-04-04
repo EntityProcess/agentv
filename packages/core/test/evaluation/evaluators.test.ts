@@ -57,6 +57,26 @@ class CapturingProvider implements Provider {
   }
 }
 
+class SequenceCapturingProvider implements Provider {
+  readonly id = 'sequence-capturing';
+  readonly kind = 'mock' as const;
+  readonly targetName = 'sequence-capturing';
+  readonly requests: ProviderRequest[] = [];
+  private index = 0;
+
+  constructor(private readonly responses: readonly ProviderResponse[]) {}
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    this.requests.push(request);
+    const response = this.responses[this.index] ?? this.responses[this.responses.length - 1];
+    this.index += 1;
+    if (!response) {
+      throw new Error('No mock response configured');
+    }
+    return response;
+  }
+}
+
 const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
@@ -645,6 +665,81 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     expect(warnSpy.mock.calls[0][0]).toContain('my-custom-grader');
     expect(warnSpy.mock.calls[0][0]).toContain('skipped');
     warnSpy.mockRestore();
+  });
+
+  it('repairs malformed freeform grader output after standard retries are exhausted', async () => {
+    const malformedResponse = textResponse(
+      JSON.stringify({
+        score: '0.8',
+        assertions: [{ text: 'Captured logging requirement', passed: true }],
+      }),
+    );
+    const repairedResponse = textResponse(
+      JSON.stringify({
+        score: 0.8,
+        assertions: [{ text: 'Captured logging requirement', passed: true }],
+      }),
+    );
+
+    const graderProvider = new SequenceCapturingProvider([
+      malformedResponse,
+      malformedResponse,
+      malformedResponse,
+      repairedResponse,
+    ]);
+
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.8);
+    expect(result.verdict).toBe('pass');
+    expect(graderProvider.requests).toHaveLength(4);
+    expect(graderProvider.requests[3]?.question).toContain(
+      'The following evaluation response has useful grading content but invalid JSON structure.',
+    );
+    expect(graderProvider.requests[3]?.question).toContain('"score":"0.8"');
+  });
+
+  it('keeps skipping when the structure-fix attempt is also malformed', async () => {
+    const malformedResponse = textResponse(
+      '{"score":"0.8","assertions":[{"text":"Bad","passed":true}]}',
+    );
+    const graderProvider = new SequenceCapturingProvider([
+      malformedResponse,
+      malformedResponse,
+      malformedResponse,
+      textResponse('{"score":'),
+    ]);
+
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('skip');
+    expect(result.assertions[0]?.text).toContain('structure-fix attempt');
+    expect(graderProvider.requests).toHaveLength(4);
   });
 
   it('keeps skipping on unrecoverable malformed JSON', async () => {

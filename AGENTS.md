@@ -337,10 +337,14 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    # Claim it — label + project roadmap status
    gh issue edit <number> --add-label "in-progress"
 
-   # Update project roadmap: set status to "In Progress" and stamp Agent ID
-   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "agentv") | .id')
+   # Update project roadmap: ensure the issue is on the AgentV OSS board,
+   # then set status to "In progress" and stamp Agent ID
+   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .id')
+   if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+     ITEM_ID=$(gh project item-add 1 --owner EntityProcess --url "https://github.com/EntityProcess/agentv/issues/<number>" --format json | jq -r '.id')
+   fi
    if [ -n "$ITEM_ID" ]; then
-     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id 47fc9ee4
+     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id c3991b20
      gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
    fi
    ```
