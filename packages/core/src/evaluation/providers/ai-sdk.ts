@@ -244,7 +244,9 @@ function buildAzureOptions(config: AzureResolvedConfig): AzureOpenAIProviderSett
   const options: AzureOpenAIProviderSettings = {
     apiKey: config.apiKey,
     apiVersion: config.version,
-    useDeploymentBasedUrls: true,
+    // Chat completions still use deployment-scoped Azure URLs for compatibility
+    // with existing deployments. Responses API should use the SDK's v1 path.
+    useDeploymentBasedUrls: config.apiFormat !== 'responses',
   };
 
   const baseURL = normalizeAzureBaseUrl(config.resourceName);

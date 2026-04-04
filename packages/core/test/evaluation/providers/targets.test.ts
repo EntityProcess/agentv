@@ -817,6 +817,7 @@ describe('createProvider', () => {
     const response = await provider.invoke({ question: 'Hello' });
 
     expect(createAzureMock).toHaveBeenCalledTimes(1);
+    expect(createAzureMock.mock.calls[0]?.[0]).toMatchObject({ useDeploymentBasedUrls: true });
     expect(provider.asLanguageModel()).toMatchObject({ apiFormat: 'chat' });
     expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
@@ -845,6 +846,7 @@ describe('createProvider', () => {
     const response = await provider.invoke({ question: 'Hello' });
 
     expect(createAzureMock).toHaveBeenCalledTimes(1);
+    expect(createAzureMock.mock.calls[0]?.[0]).toMatchObject({ useDeploymentBasedUrls: false });
     expect(provider.asLanguageModel()).toMatchObject({ apiFormat: 'responses' });
     expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
