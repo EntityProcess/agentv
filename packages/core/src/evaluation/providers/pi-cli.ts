@@ -638,17 +638,9 @@ function extractMessages(events: unknown[]): readonly Message[] {
   if (messages) {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant' && !messages[i].content) {
-        // Try to find content from the last message_end event
-        for (let j = events.length - 1; j >= 0; j--) {
-          const evt = events[j] as Record<string, unknown> | null;
-          if (!evt || evt.type !== 'message_end') continue;
-          const msg = evt.message as Record<string, unknown> | undefined;
-          if (msg?.role !== 'assistant') continue;
-          const text = extractPiTextContent(msg.content);
-          if (text) {
-            messages[i] = { ...messages[i], content: text };
-            break;
-          }
+        const recoveredContent = extractAssistantContentFromEvents(events);
+        if (recoveredContent) {
+          messages[i] = { ...messages[i], content: recoveredContent };
         }
         break;
       }
@@ -665,6 +657,42 @@ function extractMessages(events: unknown[]): readonly Message[] {
   }
 
   return messages;
+}
+
+function extractAssistantContentFromEvents(events: unknown[]): string | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const evt = events[i] as Record<string, unknown> | null;
+    if (!evt || typeof evt !== 'object') continue;
+
+    if (evt.type === 'message_end') {
+      const msg = evt.message as Record<string, unknown> | undefined;
+      if (msg?.role !== 'assistant') continue;
+      const text = extractPiTextContent(msg.content);
+      if (text) return text;
+      continue;
+    }
+
+    if (evt.type !== 'message_update') continue;
+
+    const msg = evt.message as Record<string, unknown> | undefined;
+    if (msg?.role !== 'assistant') continue;
+
+    const deltaEvent = evt.assistantMessageEvent as Record<string, unknown> | undefined;
+    const partial = deltaEvent?.partial as Record<string, unknown> | undefined;
+
+    const partialText = extractPiTextContent(partial?.content);
+    if (partialText) return partialText;
+
+    if (typeof deltaEvent?.content === 'string' && deltaEvent.content.length > 0) {
+      return deltaEvent.content;
+    }
+
+    if (typeof deltaEvent?.delta === 'string' && deltaEvent.delta.length > 0) {
+      return deltaEvent.delta;
+    }
+  }
+
+  return undefined;
 }
 
 /**

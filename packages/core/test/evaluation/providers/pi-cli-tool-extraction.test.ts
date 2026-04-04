@@ -228,4 +228,44 @@ describe('pi-cli tool call extraction from events', () => {
       path: '.agents/skills/csv-analyzer/SKILL.md',
     });
   });
+
+  it('should recover assistant text from message_update deltas when agent_end content is empty', () => {
+    const events = [
+      {
+        type: 'message_update',
+        message: { role: 'assistant', content: [] },
+        assistantMessageEvent: {
+          type: 'text_delta',
+          contentIndex: 0,
+          delta: '2 + 2',
+          partial: { role: 'assistant', content: [{ type: 'text', text: '2 + 2' }] },
+        },
+      },
+      {
+        type: 'message_update',
+        message: { role: 'assistant', content: [] },
+        assistantMessageEvent: {
+          type: 'text_delta',
+          contentIndex: 0,
+          delta: ' = 4',
+          partial: { role: 'assistant', content: [{ type: 'text', text: '2 + 2 = 4' }] },
+        },
+      },
+      {
+        type: 'agent_end',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'What is 2+2?' }] },
+          { role: 'assistant', content: [] },
+        ],
+      },
+    ];
+
+    const messages = extractMessages(events);
+
+    expect(messages).toHaveLength(2);
+    expect(messages[1]).toMatchObject({
+      role: 'assistant',
+      content: '2 + 2 = 4',
+    });
+  });
 });
