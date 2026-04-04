@@ -712,7 +712,9 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
   });
 
   it('keeps skipping when the structure-fix attempt is also malformed', async () => {
-    const malformedResponse = textResponse('{"score":"0.8","assertions":[{"text":"Bad","passed":true}]}');
+    const malformedResponse = textResponse(
+      '{"score":"0.8","assertions":[{"text":"Bad","passed":true}]}',
+    );
     const graderProvider = new SequenceCapturingProvider([
       malformedResponse,
       malformedResponse,
