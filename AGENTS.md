@@ -110,6 +110,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Subagents for: research, file exploration, running tests, code review.
 - For complex problems, throw more subagents at it — parallelize where possible.
 - Name subagents descriptively.
+- Before declaring a repo change complete or opening/finalizing a PR, spawn a subagent for a final code review pass unless the user explicitly says not to.
 
 ### Autonomous Bug Fixes
 - When you spot a bug, just fix it. Don't ask for hand-holding.
@@ -377,6 +378,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 6. **Before merging**, ensure:
    - **E2E verification completed** (see "Completing Work — E2E Checklist")
+   - For CLI/user-facing changes, run at least one manual end-to-end check of the actual command flow, not just unit/integration tests.
    - CI pipeline passes (all checks green)
    - Code has been reviewed if required
    - No merge conflicts with `main`
