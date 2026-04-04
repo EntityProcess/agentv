@@ -111,7 +111,6 @@ targets:
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     api_format: responses
-    version: v1
 
   - name: gemini
     provider: gemini

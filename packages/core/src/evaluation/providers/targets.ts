@@ -776,20 +776,27 @@ const BASE_TARGET_SCHEMA = z
   .passthrough();
 
 const DEFAULT_AZURE_API_VERSION = '2024-12-01-preview';
+const DEFAULT_AZURE_RESPONSES_API_VERSION = 'v1';
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
-function normalizeAzureApiVersion(value: string | undefined): string {
+function normalizeAzureApiVersion(
+  value: string | undefined,
+  apiFormat: ApiFormat | undefined,
+): string {
+  const defaultVersion =
+    apiFormat === 'responses' ? DEFAULT_AZURE_RESPONSES_API_VERSION : DEFAULT_AZURE_API_VERSION;
+
   if (!value) {
-    return DEFAULT_AZURE_API_VERSION;
+    return defaultVersion;
   }
 
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    return DEFAULT_AZURE_API_VERSION;
+    return defaultVersion;
   }
 
   const withoutPrefix = trimmed.replace(/^api[-_]?version\s*=\s*/i, '').trim();
-  return withoutPrefix.length > 0 ? withoutPrefix : DEFAULT_AZURE_API_VERSION;
+  return withoutPrefix.length > 0 ? withoutPrefix : defaultVersion;
 }
 
 function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
@@ -1105,11 +1112,13 @@ function resolveAzureConfig(
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
+  const apiFormat = resolveApiFormat(target, target.name);
   const version = normalizeAzureApiVersion(
     resolveOptionalString(versionSource, env, `${target.name} api version`, {
       allowLiteral: true,
       optionalEnv: true,
     }),
+    apiFormat,
   );
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
   const maxOutputTokens = resolveOptionalNumber(
@@ -1123,7 +1132,7 @@ function resolveAzureConfig(
     deploymentName,
     apiKey,
     version,
-    apiFormat: resolveApiFormat(target, target.name),
+    apiFormat,
     temperature,
     maxOutputTokens,
     retry,
