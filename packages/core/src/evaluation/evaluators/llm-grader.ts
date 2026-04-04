@@ -145,6 +145,12 @@ const scoreRangeEvaluationSchema = z.object({
 
 export { freeformEvaluationSchema, rubricEvaluationSchema };
 
+interface StructuredGenerationResult {
+  readonly text: string;
+  readonly providerResponse?: ProviderResponse;
+  readonly tokenUsage?: TokenUsage;
+}
+
 export class LlmGraderEvaluator implements Evaluator {
   readonly kind = 'llm-grader';
 
@@ -955,67 +961,125 @@ export class LlmGraderEvaluator implements Evaluator {
     const { context, graderProvider, systemPrompt, userPrompt, schema, images } = options;
 
     let lastError: Error | undefined;
+    let lastInvalidResponse: StructuredGenerationResult | undefined;
+    let shouldAttemptStructureFix = false;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        // Prefer Vercel AI SDK language model if available.
-        const model = graderProvider.asLanguageModel?.();
-        if (model) {
-          const modelOptions = {
-            ...(this.maxOutputTokens ? { maxTokens: this.maxOutputTokens } : {}),
-            ...(typeof this.temperature === 'number' ? { temperature: this.temperature } : {}),
-          };
-
-          // When images are present, use multi-part messages instead of plain prompt
-          const hasImages = images && images.length > 0;
-          const result = hasImages
-            ? await generateText({
-                model,
-                system: systemPrompt,
-                messages: [
-                  {
-                    role: 'user' as const,
-                    content: [
-                      { type: 'text' as const, text: userPrompt },
-                      ...toAiSdkImageParts(images),
-                    ],
-                  },
-                ],
-                ...modelOptions,
-              })
-            : await generateText({
-                model,
-                system: systemPrompt,
-                prompt: userPrompt,
-                ...modelOptions,
-              });
-
-          const data = schema.parse(parseJsonFromText(result.text));
-          const rawUsage = result.usage;
-          const tokenUsage =
-            rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
-              ? { input: rawUsage.inputTokens, output: rawUsage.outputTokens }
-              : undefined;
-          return { data, tokenUsage };
-        }
-
-        const response = await graderProvider.invoke({
-          question: userPrompt,
+        const result = await this.generateStructuredResponse({
+          context,
+          graderProvider,
           systemPrompt,
-          evalCaseId: context.evalCase.id,
-          attempt: context.attempt,
-          maxOutputTokens: this.maxOutputTokens,
-          temperature: this.temperature,
+          userPrompt,
+          images,
         });
-
-        const data = schema.parse(parseJsonFromText(extractLastAssistantContent(response.output)));
-        return { data, providerResponse: response, tokenUsage: response.tokenUsage };
+        lastInvalidResponse = result;
+        let data: T;
+        try {
+          data = schema.parse(parseJsonFromText(result.text));
+        } catch (e: unknown) {
+          lastError = e instanceof Error ? e : new Error(String(e));
+          shouldAttemptStructureFix = true;
+          continue;
+        }
+        return {
+          data,
+          providerResponse: result.providerResponse,
+          tokenUsage: result.tokenUsage,
+        };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));
       }
     }
 
-    throw new Error(`Failed to parse evaluator response after 3 attempts: ${lastError?.message}`);
+    if (shouldAttemptStructureFix && lastInvalidResponse) {
+      try {
+        const repaired = await this.generateStructuredResponse({
+          context,
+          graderProvider,
+          systemPrompt,
+          userPrompt: buildStructureRepairPrompt({
+            validationError: lastError?.message ?? 'Schema validation failed',
+            invalidResponse: lastInvalidResponse.text,
+          }),
+        });
+        const data = schema.parse(parseJsonFromText(repaired.text));
+        return {
+          data,
+          providerResponse: repaired.providerResponse,
+          tokenUsage: sumTokenUsage(lastInvalidResponse.tokenUsage, repaired.tokenUsage),
+        };
+      } catch (e: unknown) {
+        lastError = e instanceof Error ? e : new Error(String(e));
+      }
+    }
+
+    throw new Error(
+      `Failed to parse evaluator response after 3 attempts and 1 structure-fix attempt: ${lastError?.message}`,
+    );
+  }
+
+  private async generateStructuredResponse(options: {
+    readonly context: EvaluationContext;
+    readonly graderProvider: Provider;
+    readonly systemPrompt: string;
+    readonly userPrompt: string;
+    readonly images?: readonly ContentImage[];
+  }): Promise<StructuredGenerationResult> {
+    const { context, graderProvider, systemPrompt, userPrompt, images } = options;
+
+    const model = graderProvider.asLanguageModel?.();
+    if (model) {
+      const modelOptions = {
+        ...(this.maxOutputTokens ? { maxTokens: this.maxOutputTokens } : {}),
+        ...(typeof this.temperature === 'number' ? { temperature: this.temperature } : {}),
+      };
+
+      const hasImages = images && images.length > 0;
+      const result = hasImages
+        ? await generateText({
+            model,
+            system: systemPrompt,
+            messages: [
+              {
+                role: 'user' as const,
+                content: [
+                  { type: 'text' as const, text: userPrompt },
+                  ...toAiSdkImageParts(images),
+                ],
+              },
+            ],
+            ...modelOptions,
+          })
+        : await generateText({
+            model,
+            system: systemPrompt,
+            prompt: userPrompt,
+            ...modelOptions,
+          });
+
+      const rawUsage = result.usage;
+      const tokenUsage =
+        rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
+          ? { input: rawUsage.inputTokens, output: rawUsage.outputTokens }
+          : undefined;
+      return { text: result.text, tokenUsage };
+    }
+
+    const response = await graderProvider.invoke({
+      question: userPrompt,
+      systemPrompt,
+      evalCaseId: context.evalCase.id,
+      attempt: context.attempt,
+      maxOutputTokens: this.maxOutputTokens,
+      temperature: this.temperature,
+    });
+
+    return {
+      text: extractLastAssistantContent(response.output),
+      providerResponse: response,
+      tokenUsage: response.tokenUsage,
+    };
   }
 }
 
@@ -1043,6 +1107,37 @@ export function buildOutputSchema(): string {
     '  "details": {<optional object with domain-specific structured metrics>}',
     '}',
   ].join('\n');
+}
+
+function buildStructureRepairPrompt(options: {
+  readonly validationError: string;
+  readonly invalidResponse: string;
+}): string {
+  const { validationError, invalidResponse } = options;
+  return [
+    'The following evaluation response has useful grading content but invalid JSON structure.',
+    'Repair it to satisfy the schema in the system prompt.',
+    'Preserve the evaluation meaning, do not re-grade the answer, and return only a single JSON object.',
+    '',
+    'Validation error:',
+    validationError,
+    '',
+    'Invalid response:',
+    invalidResponse,
+  ].join('\n');
+}
+
+function sumTokenUsage(
+  first: TokenUsage | undefined,
+  second: TokenUsage | undefined,
+): TokenUsage | undefined {
+  if (!first && !second) {
+    return undefined;
+  }
+  return {
+    input: (first?.input ?? 0) + (second?.input ?? 0),
+    output: (first?.output ?? 0) + (second?.output ?? 0),
+  };
 }
 
 export function buildRubricOutputSchema(): string {
