@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
-import { CLI_PLACEHOLDERS, COMMON_TARGET_SETTINGS } from '../providers/targets.js';
+import {
+  CLI_PLACEHOLDERS,
+  COMMON_TARGET_SETTINGS,
+  findDeprecatedCamelCaseTargetWarnings,
+} from '../providers/targets.js';
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -520,6 +524,15 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         message: 'Target must be an object',
       });
       continue;
+    }
+
+    for (const warning of findDeprecatedCamelCaseTargetWarnings(target, location)) {
+      errors.push({
+        severity: 'warning',
+        filePath: absolutePath,
+        location: warning.location,
+        message: warning.message,
+      });
     }
 
     // Required field: name

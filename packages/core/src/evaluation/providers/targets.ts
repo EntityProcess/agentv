@@ -573,6 +573,108 @@ export interface AgentVResolvedConfig {
   readonly temperature: number;
 }
 
+export interface TargetDeprecationWarning {
+  readonly location: string;
+  readonly message: string;
+}
+
+const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
+  ['providerBatching', 'provider_batching'],
+  ['subagentModeAllowed', 'subagent_mode_allowed'],
+  ['fallbackTargets', 'fallback_targets'],
+  ['resourceName', 'resource'],
+  ['baseUrl', 'base_url'],
+  ['apiKey', 'api_key'],
+  ['deploymentName', 'deployment'],
+  ['thinkingBudget', 'thinking_budget'],
+  ['maxTokens', 'max_output_tokens'],
+  ['apiFormat', 'api_format'],
+  ['timeoutSeconds', 'timeout_seconds'],
+  ['logDir', 'log_dir'],
+  ['logDirectory', 'log_directory'],
+  ['logFormat', 'log_format'],
+  ['logOutputFormat', 'log_output_format'],
+  ['systemPrompt', 'system_prompt'],
+  ['maxTurns', 'max_turns'],
+  ['maxBudgetUsd', 'max_budget_usd'],
+  ['dryRun', 'dry_run'],
+  ['subagentRoot', 'subagent_root'],
+  ['filesFormat', 'files_format'],
+  ['attachmentsFormat', 'attachments_format'],
+  ['cliUrl', 'cli_url'],
+  ['cliPath', 'cli_path'],
+  ['githubToken', 'github_token'],
+  ['sessionDir', 'session_dir'],
+  ['sessionId', 'session_id'],
+  ['sessionStateDir', 'session_state_dir'],
+  ['maxRetries', 'max_retries'],
+  ['retryInitialDelayMs', 'retry_initial_delay_ms'],
+  ['retryMaxDelayMs', 'retry_max_delay_ms'],
+  ['retryBackoffFactor', 'retry_backoff_factor'],
+  ['retryStatusCodes', 'retry_status_codes'],
+]);
+
+const DEPRECATED_HEALTHCHECK_CAMEL_CASE_FIELDS = new Map<string, string>([
+  ['timeoutSeconds', 'timeout_seconds'],
+]);
+
+function collectDeprecatedCamelCaseWarnings(
+  value: unknown,
+  location: string,
+  aliases: ReadonlyMap<string, string>,
+): TargetDeprecationWarning[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return [];
+  }
+
+  const warnings: TargetDeprecationWarning[] = [];
+  for (const [camelCaseField, snakeCaseField] of aliases) {
+    if (Object.prototype.hasOwnProperty.call(value, camelCaseField)) {
+      warnings.push({
+        location: `${location}.${camelCaseField}`,
+        message: `Deprecated camelCase field '${camelCaseField}' in targets.yaml. Use '${snakeCaseField}' instead.`,
+      });
+    }
+  }
+
+  return warnings;
+}
+
+export function findDeprecatedCamelCaseTargetWarnings(
+  target: unknown,
+  location: string,
+): readonly TargetDeprecationWarning[] {
+  const warnings = collectDeprecatedCamelCaseWarnings(
+    target,
+    location,
+    DEPRECATED_TARGET_CAMEL_CASE_FIELDS,
+  );
+
+  if (typeof target !== 'object' || target === null || Array.isArray(target)) {
+    return warnings;
+  }
+
+  const healthcheck = (target as { healthcheck?: unknown }).healthcheck;
+  warnings.push(
+    ...collectDeprecatedCamelCaseWarnings(
+      healthcheck,
+      `${location}.healthcheck`,
+      DEPRECATED_HEALTHCHECK_CAMEL_CASE_FIELDS,
+    ),
+  );
+
+  return warnings;
+}
+
+function emitDeprecatedCamelCaseTargetWarnings(definition: TargetDefinition): void {
+  for (const warning of findDeprecatedCamelCaseTargetWarnings(
+    definition,
+    `target "${definition.name}"`,
+  )) {
+    console.warn(`Warning: ${warning.message}`);
+  }
+}
+
 /**
  * Healthcheck configuration type derived from CliHealthcheckSchema.
  * Supports both HTTP and command-based healthchecks.
@@ -797,7 +899,12 @@ export function resolveTargetDefinition(
   definition: TargetDefinition,
   env: EnvLookup = process.env,
   evalFilePath?: string,
+  options?: { readonly emitDeprecationWarnings?: boolean },
 ): ResolvedTarget {
+  if (options?.emitDeprecationWarnings !== false) {
+    emitDeprecatedCamelCaseTargetWarnings(definition);
+  }
+
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
   if (parsed.workspace_template !== undefined || parsed.workspaceTemplate !== undefined) {
     throw new Error(
