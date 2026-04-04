@@ -105,6 +105,14 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
+  - name: azure-responses
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    api_format: responses
+    version: v1
+
   - name: gemini
     provider: gemini
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}

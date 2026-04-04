@@ -47,6 +47,12 @@ Run against a different target than specified in the eval file:
 agentv eval --target azure-base evals/**/*.yaml
 ```
 
+For Azure OpenAI Responses API runs, point at the repo's `azure-responses` target:
+
+```bash
+agentv eval --target azure-responses evals/**/*.yaml
+```
+
 ### Experiment Label
 
 Tag a pipeline run with an experiment name to track different conditions (e.g. with vs without skills):
