@@ -1112,7 +1112,7 @@ function resolveAzureConfig(
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
-  const apiFormat = resolveApiFormat(target, target.name);
+  const apiFormat = resolveApiFormat(target, env, target.name);
   const version = normalizeAzureApiVersion(
     resolveOptionalString(versionSource, env, `${target.name} api version`, {
       allowLiteral: true,
@@ -1141,9 +1141,18 @@ function resolveAzureConfig(
 
 function resolveApiFormat(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
   targetName: string,
 ): ApiFormat | undefined {
-  const raw = target.api_format ?? target.apiFormat;
+  const raw = resolveOptionalString(
+    target.api_format ?? target.apiFormat,
+    env,
+    `${targetName} api format`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
   if (raw === undefined) return undefined;
   if (raw === 'chat' || raw === 'responses') return raw;
   throw new Error(
@@ -1175,7 +1184,7 @@ function resolveOpenAIConfig(
     baseURL,
     apiKey,
     model,
-    apiFormat: resolveApiFormat(target, target.name),
+    apiFormat: resolveApiFormat(target, env, target.name),
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,

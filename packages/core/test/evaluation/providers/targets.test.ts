@@ -283,6 +283,35 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.version).toBe('v1');
   });
 
+  it('resolves azure api_format from env interpolation', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+      AZURE_OPENAI_API_FORMAT: 'responses',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'azure-env-format',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_format: '${{ AZURE_OPENAI_API_FORMAT }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
+    }
+
+    expect(target.config.apiFormat).toBe('responses');
+    expect(target.config.version).toBe('v1');
+  });
+
   it('defaults azure responses targets to api version v1', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
