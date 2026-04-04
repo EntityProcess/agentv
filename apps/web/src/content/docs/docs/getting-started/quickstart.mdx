@@ -28,11 +28,14 @@ agentv init
 
 ## 3. Configure environment variables
 
-The init command creates a `.env.example` file in your project root.
+The init command creates a `.env.example` file in your project root. You can either export these
+variables in your shell/CI environment directly or copy `.env.example` to `.env` for local
+development.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your API keys, endpoints, and other configuration values
-3. Update the environment variable names in `.agentv/targets.yaml` to match those defined in your `.env` file
+3. Update the environment variable names in `.agentv/targets.yaml` to match the variables you
+   exported or defined in `.env`
 
 ## 4. Create an eval
 
