@@ -406,6 +406,7 @@ export interface AzureResolvedConfig {
   readonly deploymentName: string;
   readonly apiKey: string;
   readonly version?: string;
+  readonly apiFormat?: ApiFormat;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly retry?: RetryConfig;
@@ -775,20 +776,27 @@ const BASE_TARGET_SCHEMA = z
   .passthrough();
 
 const DEFAULT_AZURE_API_VERSION = '2024-12-01-preview';
+const DEFAULT_AZURE_RESPONSES_API_VERSION = 'v1';
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
-function normalizeAzureApiVersion(value: string | undefined): string {
+function normalizeAzureApiVersion(
+  value: string | undefined,
+  apiFormat: ApiFormat | undefined,
+): string {
+  const defaultVersion =
+    apiFormat === 'responses' ? DEFAULT_AZURE_RESPONSES_API_VERSION : DEFAULT_AZURE_API_VERSION;
+
   if (!value) {
-    return DEFAULT_AZURE_API_VERSION;
+    return defaultVersion;
   }
 
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    return DEFAULT_AZURE_API_VERSION;
+    return defaultVersion;
   }
 
   const withoutPrefix = trimmed.replace(/^api[-_]?version\s*=\s*/i, '').trim();
-  return withoutPrefix.length > 0 ? withoutPrefix : DEFAULT_AZURE_API_VERSION;
+  return withoutPrefix.length > 0 ? withoutPrefix : defaultVersion;
 }
 
 function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
@@ -1104,11 +1112,13 @@ function resolveAzureConfig(
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
+  const apiFormat = resolveApiFormat(target, env, target.name);
   const version = normalizeAzureApiVersion(
     resolveOptionalString(versionSource, env, `${target.name} api version`, {
       allowLiteral: true,
       optionalEnv: true,
     }),
+    apiFormat,
   );
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
   const maxOutputTokens = resolveOptionalNumber(
@@ -1122,6 +1132,7 @@ function resolveAzureConfig(
     deploymentName,
     apiKey,
     version,
+    apiFormat,
     temperature,
     maxOutputTokens,
     retry,
@@ -1130,9 +1141,18 @@ function resolveAzureConfig(
 
 function resolveApiFormat(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
   targetName: string,
 ): ApiFormat | undefined {
-  const raw = target.api_format ?? target.apiFormat;
+  const raw = resolveOptionalString(
+    target.api_format ?? target.apiFormat,
+    env,
+    `${targetName} api format`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
   if (raw === undefined) return undefined;
   if (raw === 'chat' || raw === 'responses') return raw;
   throw new Error(
@@ -1164,7 +1184,7 @@ function resolveOpenAIConfig(
     baseURL,
     apiKey,
     model,
-    apiFormat: resolveApiFormat(target, target.name),
+    apiFormat: resolveApiFormat(target, env, target.name),
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,

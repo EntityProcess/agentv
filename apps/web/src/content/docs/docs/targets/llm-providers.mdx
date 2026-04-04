@@ -31,9 +31,9 @@ Controls which OpenAI API endpoint is used:
 | Value | Endpoint | When to use |
 |-------|----------|-------------|
 | `chat` (default) | `/chat/completions` | All OpenAI-compatible endpoints (GitHub Models, local proxies, etc.) |
-| `responses` | `/responses` | Only `api.openai.com` — opt in to the Responses API |
+| `responses` | `/responses` | `api.openai.com` and Azure OpenAI when the deployment supports the Responses API |
 
-Most users should leave this unset. The default `chat` format is universally supported. Use `responses` only when you need Responses API features on `api.openai.com` directly.
+Most users should leave this unset. The default `chat` format is universally supported. Use `responses` when you need Responses API features on OpenAI or Azure OpenAI deployments that support it.
 
 ```yaml
 # OpenAI-compatible endpoint (default chat format works)
@@ -69,6 +69,23 @@ targets:
 | `endpoint` | Yes | Azure OpenAI endpoint URL |
 | `api_key` | Yes | API key |
 | `model` | Yes | Deployment name |
+| `api_format` | No | API format: `chat` (default) or `responses` |
+
+Azure OpenAI supports the same `api_format` switch:
+
+```yaml
+targets:
+  - name: azure-responses
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    api_format: responses
+```
+
+When `api_format: responses` is used with Azure, AgentV defaults the API version to `v1` unless you explicitly override `version`.
+
+The repository's default [`.agentv/targets.yaml`](/home/christso/projects/agentv.worktrees/feat-920-azure-responses-api/.agentv/targets.yaml) uses a single `azure` target and drives `api_format` from `AZURE_OPENAI_API_FORMAT`.
 
 ## Anthropic
 

@@ -19,9 +19,12 @@ const generateTextMock = mock(async () => ({
   providerMetadata: undefined,
 }));
 
-const createAzureMock = mock((options: unknown) => ({
-  chat: () => ({ provider: 'azure', options }),
-}));
+const createAzureMock = mock((options: unknown) => {
+  const fn = () => ({ provider: 'azure', options, apiFormat: 'responses' });
+  fn.chat = () => ({ provider: 'azure', options, apiFormat: 'chat' });
+  fn.responses = () => ({ provider: 'azure', options, apiFormat: 'responses' });
+  return fn;
+});
 const createOpenAIMock = mock((options: unknown) => {
   const fn = () => ({ provider: 'openai', options });
   fn.chat = () => ({ provider: 'openai', options });
@@ -250,6 +253,90 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.version).toBe('2024-08-01-preview');
+  });
+
+  it('resolves azure api_format when configured', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'azure-responses',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_format: 'responses',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
+    }
+
+    expect(target.config.apiFormat).toBe('responses');
+    expect(target.config.version).toBe('v1');
+  });
+
+  it('resolves azure api_format from env interpolation', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+      AZURE_OPENAI_API_FORMAT: 'responses',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'azure-env-format',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_format: '${{ AZURE_OPENAI_API_FORMAT }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
+    }
+
+    expect(target.config.apiFormat).toBe('responses');
+    expect(target.config.version).toBe('v1');
+  });
+
+  it('defaults azure responses targets to api version v1', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'azure-responses-default-version',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_format: 'responses',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
+    }
+
+    expect(target.config.version).toBe('v1');
   });
 
   it('throws when required azure environment variables are missing', () => {
@@ -787,6 +874,37 @@ describe('createProvider', () => {
     const response = await provider.invoke({ question: 'Hello' });
 
     expect(createAzureMock).toHaveBeenCalledTimes(1);
+    expect(createAzureMock.mock.calls[0]?.[0]).toMatchObject({ useDeploymentBasedUrls: true });
+    expect(provider.asLanguageModel()).toMatchObject({ apiFormat: 'chat' });
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    expect(extractLastAssistantContent(response.output)).toBe('ok');
+  });
+
+  it('creates an azure provider using the responses api when requested', async () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'key',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'azure-responses-target',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_format: 'responses',
+      },
+      env,
+    );
+
+    const provider = createProvider(resolved);
+    const response = await provider.invoke({ question: 'Hello' });
+
+    expect(createAzureMock).toHaveBeenCalledTimes(1);
+    expect(createAzureMock.mock.calls[0]?.[0]).toMatchObject({ useDeploymentBasedUrls: false });
+    expect(provider.asLanguageModel()).toMatchObject({ apiFormat: 'responses' });
     expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
