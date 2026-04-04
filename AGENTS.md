@@ -110,6 +110,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Subagents for: research, file exploration, running tests, code review.
 - For complex problems, throw more subagents at it — parallelize where possible.
 - Name subagents descriptively.
+- Before declaring a repo change complete or opening/finalizing a PR, spawn a subagent for a final code review pass unless the user explicitly says not to.
 
 ### Autonomous Bug Fixes
 - When you spot a bug, just fix it. Don't ask for hand-holding.
@@ -369,17 +370,28 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 4. **Implement the changes** and commit following the commit convention
 
-5. **Push the branch and create a Pull Request**:
+5. **Push regularly and open a draft Pull Request early**:
    ```bash
    git push -u origin <branch-name>
-   gh pr create --title "<type>(scope): description" --body "Closes #<issue-number>"
+   gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue-number>"
    ```
+   Push incremental commits to the draft PR as you work so progress is visible and recoverable.
 
-6. **Before merging**, ensure:
+6. **Before marking the PR ready for review or merging a low-risk change**, ensure:
    - **E2E verification completed** (see "Completing Work — E2E Checklist")
+   - For CLI or other user-facing changes, run at least one manual end-to-end check of the real user flow, not just unit/integration tests.
+   - A final subagent code review pass has been run and any findings addressed or called out.
    - CI pipeline passes (all checks green)
-   - Code has been reviewed if required
    - No merge conflicts with `main`
+
+7. **Only after verification is complete**:
+   - Mark the draft PR ready for review, or
+   - Merge directly if the change is low risk and the repo policy allows it
+
+8. **After merge, clean up local state**:
+   - Delete the local feature branch
+   - Remove the local worktree created for the issue
+   - Confirm the primary checkout is back on an up-to-date `main`
 
 The `in-progress` label stays on the issue until the PR is merged and the issue is closed. Do not remove it manually.
 

@@ -293,6 +293,8 @@ export interface TargetDefinition {
   // Provider batching
   readonly provider_batching?: boolean | undefined;
   readonly providerBatching?: boolean | undefined;
+  readonly subagent_mode_allowed?: boolean | undefined;
+  readonly subagentModeAllowed?: boolean | undefined;
   // Azure fields
   readonly endpoint?: string | unknown | undefined;
   readonly base_url?: string | unknown | undefined;

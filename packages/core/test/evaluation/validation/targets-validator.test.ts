@@ -87,4 +87,57 @@ describe('validateTargetsFile', () => {
       ),
     ).toBe(false);
   });
+
+  it('warns on deprecated camelCase target aliases', async () => {
+    const filePath = path.join(tempDir, 'camel-case-aliases.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: codex-target
+    provider: codex
+    timeoutSeconds: 30
+    logDir: ./logs
+    systemPrompt: Be precise.
+  - name: cli-target
+    provider: cli
+    command: echo {PROMPT}
+    healthcheck:
+      command: echo ok
+      timeoutSeconds: 5
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+    const warnings = result.errors.filter((error) => error.severity === 'warning');
+
+    expect(result.valid).toBe(true);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.location === 'targets[0].timeoutSeconds' &&
+          warning.message.includes("Use 'timeout_seconds' instead"),
+      ),
+    ).toBe(true);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.location === 'targets[0].logDir' &&
+          warning.message.includes("Use 'log_dir' instead"),
+      ),
+    ).toBe(true);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.location === 'targets[0].systemPrompt' &&
+          warning.message.includes("Use 'system_prompt' instead"),
+      ),
+    ).toBe(true);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.location === 'targets[1].healthcheck.timeoutSeconds' &&
+          warning.message.includes("Use 'timeout_seconds' instead"),
+      ),
+    ).toBe(true);
+  });
 });

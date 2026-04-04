@@ -198,7 +198,9 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   }
 
   try {
-    const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath);
+    const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
+      emitDeprecationWarnings: false,
+    });
     return {
       definitions,
       resolvedTarget,
@@ -292,7 +294,9 @@ export async function selectMultipleTargets(
       });
     } else {
       try {
-        const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath);
+        const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
+          emitDeprecationWarnings: false,
+        });
         results.push({
           definitions,
           resolvedTarget,
