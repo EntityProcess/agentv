@@ -370,18 +370,23 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 4. **Implement the changes** and commit following the commit convention
 
-5. **Push the branch and create a Pull Request**:
+5. **Push regularly and open a draft Pull Request early**:
    ```bash
    git push -u origin <branch-name>
-   gh pr create --title "<type>(scope): description" --body "Closes #<issue-number>"
+   gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue-number>"
    ```
+   Push incremental commits to the draft PR as you work so progress is visible and recoverable.
 
-6. **Before merging**, ensure:
+6. **Before marking the PR ready for review or merging a low-risk change**, ensure:
    - **E2E verification completed** (see "Completing Work — E2E Checklist")
-   - For CLI/user-facing changes, run at least one manual end-to-end check of the actual command flow, not just unit/integration tests.
+   - For CLI or other user-facing changes, run at least one manual end-to-end check of the real user flow, not just unit/integration tests.
+   - A final subagent code review pass has been run and any findings addressed or called out.
    - CI pipeline passes (all checks green)
-   - Code has been reviewed if required
    - No merge conflicts with `main`
+
+7. **Only after verification is complete**:
+   - Mark the draft PR ready for review, or
+   - Merge directly if the change is low risk and the repo policy allows it
 
 The `in-progress` label stays on the issue until the PR is merged and the issue is closed. Do not remove it manually.
 
