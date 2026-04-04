@@ -4,6 +4,7 @@ import {
   ENV_BASE_URL_MAP,
   ENV_KEY_MAP,
   extractAzureResourceName,
+  normalizeAzureSdkBaseUrl,
   resolveCliProvider,
   resolveEnvBaseUrlName,
   resolveEnvKeyName,
@@ -86,6 +87,28 @@ describe('extractAzureResourceName', () => {
 
   it('returns raw value if already a resource name', () => {
     expect(extractAzureResourceName('my-resource')).toBe('my-resource');
+  });
+});
+
+describe('normalizeAzureSdkBaseUrl', () => {
+  it('converts a bare resource name to an OpenAI-compatible Azure v1 URL', () => {
+    expect(normalizeAzureSdkBaseUrl('my-resource')).toBe(
+      'https://my-resource.openai.azure.com/openai/v1',
+    );
+  });
+
+  it('appends /openai/v1 to a standard Azure endpoint URL', () => {
+    expect(normalizeAzureSdkBaseUrl('https://my-resource.openai.azure.com')).toBe(
+      'https://my-resource.openai.azure.com/openai/v1',
+    );
+  });
+
+  it('preserves an Azure v1 URL that is already normalized', () => {
+    expect(
+      normalizeAzureSdkBaseUrl(
+        'https://my-resource.services.ai.azure.com/api/projects/foo/openai/v1',
+      ),
+    ).toBe('https://my-resource.services.ai.azure.com/api/projects/foo/openai/v1');
   });
 });
 
