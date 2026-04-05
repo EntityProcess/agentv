@@ -32,6 +32,13 @@ agentv trend \
   .agentv/results/runs/2026-03-15T10-00-00-000Z/
 ```
 
+Concrete regression-gating example:
+
+```bash
+agentv trend --last 8 --dataset code-review --target claude-sonnet \
+  --fail-on-degrading --slope-threshold 0.01
+```
+
 ## Supported Inputs
 
 `trend` only accepts canonical run workspaces:
@@ -64,6 +71,16 @@ Legacy flat `results.jsonl` files are rejected. The command stays on lightweight
 6. Classifies the slope as `improving`, `degrading`, or `stable`.
 
 Strict matched-test analysis is the default because changing test composition across runs can create false drift signals.
+
+## Worked Example
+
+Suppose three historical runs for `dataset=code-review` and `target=claude-sonnet` produce matched mean scores of `0.92`, `0.86`, and `0.80`.
+
+- The slope is negative.
+- The command reports `direction=degrading`.
+- With `--fail-on-degrading --slope-threshold 0.01`, the command exits with code `1`.
+
+This is the intended CI workflow for detecting slow drift that a single pairwise comparison can miss.
 
 ## Output
 

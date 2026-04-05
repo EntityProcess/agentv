@@ -1,0 +1,3 @@
+{"timestamp":"2026-03-08T10:00:00.000Z","test_id":"summary-accuracy","dataset":"code-review","target":"claude-sonnet","score":0.88}
+{"timestamp":"2026-03-08T10:00:00.000Z","test_id":"tool-selection","dataset":"code-review","target":"claude-sonnet","score":0.84}
+{"timestamp":"2026-03-08T10:00:00.000Z","test_id":"summary-accuracy","dataset":"code-review","target":"gpt-5","score":0.90}
