@@ -24,15 +24,10 @@ const COMMON_SETTINGS = new Set<string>(COMMON_TARGET_SETTINGS);
 
 const RETRY_SETTINGS = new Set([
   'max_retries',
-  'maxRetries',
   'retry_initial_delay_ms',
-  'retryInitialDelayMs',
   'retry_max_delay_ms',
-  'retryMaxDelayMs',
   'retry_backoff_factor',
-  'retryBackoffFactor',
   'retry_status_codes',
-  'retryStatusCodes',
 ]);
 
 const AZURE_SETTINGS = new Set([
@@ -40,18 +35,14 @@ const AZURE_SETTINGS = new Set([
   ...RETRY_SETTINGS,
   'endpoint',
   'resource',
-  'resourceName',
   'api_key',
-  'apiKey',
   'deployment',
-  'deploymentName',
   'model',
   'version',
   'api_version',
   'api_format',
   'temperature',
   'max_output_tokens',
-  'maxTokens',
 ]);
 
 const OPENAI_SETTINGS = new Set([
@@ -59,57 +50,47 @@ const OPENAI_SETTINGS = new Set([
   ...RETRY_SETTINGS,
   'endpoint',
   'base_url',
-  'baseUrl',
   'api_key',
-  'apiKey',
   'model',
   'deployment',
   'variant',
   'api_format',
   'temperature',
   'max_output_tokens',
-  'maxTokens',
 ]);
 
 const OPENROUTER_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
   'api_key',
-  'apiKey',
   'model',
   'deployment',
   'variant',
   'temperature',
   'max_output_tokens',
-  'maxTokens',
 ]);
 
 const ANTHROPIC_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
   'api_key',
-  'apiKey',
   'model',
   'deployment',
   'variant',
   'temperature',
   'max_output_tokens',
-  'maxTokens',
   'thinking_budget',
-  'thinkingBudget',
 ]);
 
 const GEMINI_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
   'api_key',
-  'apiKey',
   'model',
   'deployment',
   'variant',
   'temperature',
   'max_output_tokens',
-  'maxTokens',
 ]);
 
 const CODEX_SETTINGS = new Set([
@@ -122,41 +103,26 @@ const CODEX_SETTINGS = new Set([
   'arguments',
   'cwd',
   'timeout_seconds',
-  'timeoutSeconds',
   'log_dir',
-  'logDir',
   'log_directory',
-  'logDirectory',
   'log_format',
-  'logFormat',
   'log_output_format',
-  'logOutputFormat',
   'system_prompt',
-  'systemPrompt',
   'workspace_template',
-  'workspaceTemplate',
 ]);
 
 const COPILOT_SDK_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'cli_url',
-  'cliUrl',
   'cli_path',
-  'cliPath',
   'github_token',
-  'githubToken',
   'model',
   'cwd',
   'timeout_seconds',
-  'timeoutSeconds',
   'log_dir',
-  'logDir',
   'log_format',
-  'logFormat',
   'system_prompt',
-  'systemPrompt',
   'workspace_template',
-  'workspaceTemplate',
 ]);
 
 const COPILOT_CLI_SETTINGS = new Set([
@@ -169,37 +135,25 @@ const COPILOT_CLI_SETTINGS = new Set([
   'model',
   'cwd',
   'timeout_seconds',
-  'timeoutSeconds',
   'log_dir',
-  'logDir',
   'log_format',
-  'logFormat',
   'system_prompt',
-  'systemPrompt',
   'workspace_template',
-  'workspaceTemplate',
 ]);
 
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'executable',
   'workspace_template',
-  'workspaceTemplate',
   'wait',
   'dry_run',
-  'dryRun',
   'subagent_root',
-  'subagentRoot',
   'timeout_seconds',
-  'timeoutSeconds',
 ]);
 
 const MOCK_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'response',
-  'delayMs',
-  'delayMinMs',
-  'delayMaxMs',
   'trace', // For testing tool-trajectory evaluator
 ]);
 
@@ -211,23 +165,14 @@ const CLAUDE_SETTINGS = new Set([
   'model',
   'cwd',
   'timeout_seconds',
-  'timeoutSeconds',
   'log_dir',
-  'logDir',
   'log_directory',
-  'logDirectory',
   'log_format',
-  'logFormat',
   'log_output_format',
-  'logOutputFormat',
   'system_prompt',
-  'systemPrompt',
   'workspace_template',
-  'workspaceTemplate',
   'max_turns',
-  'maxTurns',
   'max_budget_usd',
-  'maxBudgetUsd',
 ]);
 
 function getKnownSettings(provider: string): Set<string> | null {
@@ -395,15 +340,15 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       return;
     }
 
-    const timeoutSeconds = healthcheck.timeout_seconds ?? healthcheck.timeoutSeconds;
+    const timeoutSeconds = healthcheck.timeout_seconds;
     if (timeoutSeconds !== undefined) {
       const numericTimeout = Number(timeoutSeconds);
       if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
         errors.push({
           severity: 'error',
           filePath: absolutePath,
-          location: `${location}.timeoutSeconds`,
-          message: 'healthcheck.timeoutSeconds must be a positive number when provided',
+          location: `${location}.timeout_seconds`,
+          message: 'healthcheck.timeout_seconds must be a positive number when provided',
         });
       }
     }
@@ -527,11 +472,15 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     for (const warning of findDeprecatedCamelCaseTargetWarnings(target, location)) {
+      const fieldMatch = warning.message.match(/field '([^']+)'/);
+      const replacementMatch = warning.message.match(/Use '([^']+)' instead/);
+      const field = fieldMatch?.[1] ?? 'unknown';
+      const replacement = replacementMatch?.[1] ?? 'snake_case';
       errors.push({
-        severity: 'warning',
+        severity: 'error',
         filePath: absolutePath,
         location: warning.location,
-        message: warning.message,
+        message: `camelCase field '${field}' is no longer supported in targets.yaml. Use '${replacement}' instead.`,
       });
     }
 

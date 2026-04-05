@@ -764,30 +764,24 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/workspace_template has been removed/i);
   });
 
-  it('warns when deprecated camelCase target fields are used', () => {
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
-
-    resolveTargetDefinition(
-      {
-        name: 'deprecated-camel-case',
-        provider: 'openai',
-        baseUrl: '${{ OPENAI_BASE_URL }}',
-        apiKey: '${{ OPENAI_API_KEY }}',
-        model: '${{ OPENAI_MODEL }}',
-        maxTokens: 100,
-      },
-      {
-        OPENAI_BASE_URL: 'https://api.openai.com/v1',
-        OPENAI_API_KEY: 'test-key',
-        OPENAI_MODEL: 'gpt-5-mini',
-      },
-    );
-
-    expect(warnSpy).toHaveBeenCalledTimes(3);
-    expect(warnSpy.mock.calls[0]?.[0]).toContain("Deprecated camelCase field 'baseUrl'");
-    expect(warnSpy.mock.calls[1]?.[0]).toContain("Deprecated camelCase field 'apiKey'");
-    expect(warnSpy.mock.calls[2]?.[0]).toContain("Deprecated camelCase field 'maxTokens'");
-    warnSpy.mockRestore();
+  it('rejects camelCase target fields', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'deprecated-camel-case',
+          provider: 'openai',
+          baseUrl: '${{ OPENAI_BASE_URL }}',
+          apiKey: '${{ OPENAI_API_KEY }}',
+          model: '${{ OPENAI_MODEL }}',
+          maxTokens: 100,
+        },
+        {
+          OPENAI_BASE_URL: 'https://api.openai.com/v1',
+          OPENAI_API_KEY: 'test-key',
+          OPENAI_MODEL: 'gpt-5-mini',
+        },
+      ),
+    ).toThrow(/baseUrl.*base_url/i);
   });
 
   it('resolves agentv target with model and default temperature', () => {

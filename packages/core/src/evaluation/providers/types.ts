@@ -292,30 +292,22 @@ export interface TargetDefinition {
   readonly workers?: number | undefined;
   // Provider batching
   readonly provider_batching?: boolean | undefined;
-  readonly providerBatching?: boolean | undefined;
   readonly subagent_mode_allowed?: boolean | undefined;
-  readonly subagentModeAllowed?: boolean | undefined;
   // Azure fields
   readonly endpoint?: string | unknown | undefined;
   readonly base_url?: string | unknown | undefined;
-  readonly baseUrl?: string | unknown | undefined;
   readonly resource?: string | unknown | undefined;
-  readonly resourceName?: string | unknown | undefined;
   readonly api_key?: string | unknown | undefined;
-  readonly apiKey?: string | unknown | undefined;
   readonly deployment?: string | unknown | undefined;
-  readonly deploymentName?: string | unknown | undefined;
   readonly model?: string | unknown | undefined;
   readonly version?: string | unknown | undefined;
   readonly api_version?: string | unknown | undefined;
   // Anthropic fields
   readonly variant?: string | unknown | undefined;
   readonly thinking_budget?: number | unknown | undefined;
-  readonly thinkingBudget?: number | unknown | undefined;
   // Common fields
   readonly temperature?: number | unknown | undefined;
   readonly max_output_tokens?: number | unknown | undefined;
-  readonly maxTokens?: number | unknown | undefined;
   // Codex fields
   readonly executable?: string | unknown | undefined;
   readonly command?: string | unknown | undefined;
@@ -324,70 +316,42 @@ export interface TargetDefinition {
   readonly arguments?: unknown | undefined;
   readonly cwd?: string | unknown | undefined;
   readonly timeout_seconds?: number | unknown | undefined;
-  readonly timeoutSeconds?: number | unknown | undefined;
   readonly log_dir?: string | unknown | undefined;
-  readonly logDir?: string | unknown | undefined;
   readonly log_directory?: string | unknown | undefined;
-  readonly logDirectory?: string | unknown | undefined;
   readonly log_format?: string | unknown | undefined;
-  readonly logFormat?: string | unknown | undefined;
   readonly log_output_format?: string | unknown | undefined;
-  readonly logOutputFormat?: string | unknown | undefined;
   // System prompt (codex, copilot, claude, pi-coding-agent)
   readonly system_prompt?: string | unknown | undefined;
-  readonly systemPrompt?: string | unknown | undefined;
   // Claude Agent SDK fields
   readonly max_turns?: number | unknown | undefined;
-  readonly maxTurns?: number | unknown | undefined;
   readonly max_budget_usd?: number | unknown | undefined;
-  readonly maxBudgetUsd?: number | unknown | undefined;
   // Mock fields
   readonly response?: string | unknown | undefined;
-  readonly delayMs?: number | unknown | undefined;
-  readonly delayMinMs?: number | unknown | undefined;
-  readonly delayMaxMs?: number | unknown | undefined;
   // VSCode fields
   readonly wait?: boolean | unknown | undefined;
   readonly dry_run?: boolean | unknown | undefined;
-  readonly dryRun?: boolean | unknown | undefined;
   readonly subagent_root?: string | unknown | undefined;
-  readonly subagentRoot?: string | unknown | undefined;
   readonly workspace_template?: string | unknown | undefined;
-  readonly workspaceTemplate?: string | unknown | undefined;
   // CLI fields
   readonly files_format?: string | unknown | undefined;
-  readonly filesFormat?: string | unknown | undefined;
   readonly attachments_format?: string | unknown | undefined;
-  readonly attachmentsFormat?: string | unknown | undefined;
   readonly env?: unknown | undefined;
   readonly healthcheck?: unknown | undefined;
   // Copilot-log fields
   readonly session_dir?: string | unknown | undefined;
-  readonly sessionDir?: string | unknown | undefined;
   readonly session_id?: string | unknown | undefined;
-  readonly sessionId?: string | unknown | undefined;
   readonly discover?: string | unknown | undefined;
   readonly session_state_dir?: string | unknown | undefined;
-  readonly sessionStateDir?: string | unknown | undefined;
   // Copilot SDK fields
   readonly cli_url?: string | unknown | undefined;
-  readonly cliUrl?: string | unknown | undefined;
   readonly cli_path?: string | unknown | undefined;
-  readonly cliPath?: string | unknown | undefined;
   readonly github_token?: string | unknown | undefined;
-  readonly githubToken?: string | unknown | undefined;
   // Retry configuration fields
   readonly max_retries?: number | unknown | undefined;
-  readonly maxRetries?: number | unknown | undefined;
   readonly retry_initial_delay_ms?: number | unknown | undefined;
-  readonly retryInitialDelayMs?: number | unknown | undefined;
   readonly retry_max_delay_ms?: number | unknown | undefined;
-  readonly retryMaxDelayMs?: number | unknown | undefined;
   readonly retry_backoff_factor?: number | unknown | undefined;
-  readonly retryBackoffFactor?: number | unknown | undefined;
   readonly retry_status_codes?: unknown | undefined;
-  readonly retryStatusCodes?: unknown | undefined;
   // Fallback targets for provider errors
   readonly fallback_targets?: readonly string[] | unknown | undefined;
-  readonly fallbackTargets?: readonly string[] | unknown | undefined;
 }

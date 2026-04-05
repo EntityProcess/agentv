@@ -10,21 +10,28 @@ import {
 } from '../../../src/evaluation/providers/targets.js';
 
 describe('CliHealthcheckInputSchema', () => {
-  it('accepts HTTP and command healthchecks with mixed snake_case/camelCase', () => {
-    // HTTP with snake_case timeout
+  it('accepts snake_case healthcheck fields', () => {
     const httpInput = {
       url: 'http://localhost:8080/health',
       timeout_seconds: 30,
     };
     expect(CliHealthcheckInputSchema.safeParse(httpInput).success).toBe(true);
 
-    // Command with camelCase properties
     const commandInput = {
       command: 'curl http://localhost:8080/health',
       cwd: '/app',
-      timeoutSeconds: 30,
+      timeout_seconds: 30,
     };
     expect(CliHealthcheckInputSchema.safeParse(commandInput).success).toBe(true);
+  });
+
+  it('rejects camelCase healthcheck aliases', () => {
+    expect(
+      CliHealthcheckInputSchema.safeParse({
+        command: 'curl http://localhost:8080/health',
+        timeoutSeconds: 30,
+      }).success,
+    ).toBe(false);
   });
 
   it('rejects missing required fields', () => {
@@ -42,8 +49,8 @@ describe('CliTargetInputSchema', () => {
       name: 'test-target',
       provider: 'cli',
       command: 'agent run {PROMPT}',
-      timeoutSeconds: 60,
-      keepTempFiles: true,
+      timeout_seconds: 60,
+      keep_temp_files: true,
       files_format: '--file {path}',
     };
 
@@ -102,6 +109,17 @@ describe('CliTargetInputSchema', () => {
   it('rejects missing name', () => {
     const input = { provider: 'cli', command: 'agent run {PROMPT}' };
     expect(CliTargetInputSchema.safeParse(input).success).toBe(false);
+  });
+
+  it('rejects camelCase target aliases', () => {
+    expect(
+      CliTargetInputSchema.safeParse({
+        name: 'test-target',
+        provider: 'cli',
+        command: 'agent run {PROMPT}',
+        timeoutSeconds: 60,
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -190,10 +208,9 @@ describe('normalizeCliHealthcheck', () => {
       expect(httpResult.timeoutMs).toBe(30000);
     }
 
-    // Command with camelCase timeout
     const commandInput = {
       command: 'health-check.sh',
-      timeoutSeconds: 5,
+      timeout_seconds: 5,
     };
 
     const commandResult = normalizeCliHealthcheck(commandInput, {}, 'test-target');
@@ -304,8 +321,7 @@ describe('normalizeCliTargetInput', () => {
     }
   });
 
-  it('accepts attachments_format/attachmentsFormat as alias for files_format', () => {
-    // snake_case alias
+  it('accepts attachments_format as alias for files_format', () => {
     const snakeInput = {
       name: 'test-target',
       provider: 'cli',
@@ -313,14 +329,5 @@ describe('normalizeCliTargetInput', () => {
       attachments_format: '--attach {path}',
     };
     expect(normalizeCliTargetInput(snakeInput, {}).filesFormat).toBe('--attach {path}');
-
-    // camelCase alias
-    const camelInput = {
-      name: 'test-target',
-      provider: 'cli',
-      command: 'agent {PROMPT}',
-      attachmentsFormat: '--attach {path}',
-    };
-    expect(normalizeCliTargetInput(camelInput, {}).filesFormat).toBe('--attach {path}');
   });
 });
