@@ -9,8 +9,7 @@ import type { EnvLookup, TargetDefinition } from './types.js';
 
 /**
  * Loose input schema for HTTP healthcheck configuration.
- * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
- * property names for flexibility in configuration files.
+ * Accepts raw YAML input before normalization and validation.
  *
  * @example
  * ```yaml
@@ -28,8 +27,7 @@ export const CliHealthcheckHttpInputSchema = z
 
 /**
  * Loose input schema for command healthcheck configuration.
- * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
- * property names for flexibility in configuration files.
+ * Accepts raw YAML input before normalization and validation.
  *
  * @example
  * ```yaml
@@ -62,8 +60,7 @@ export const CliHealthcheckInputSchema = z.union([
 
 /**
  * Loose input schema for CLI target configuration.
- * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
- * property names for maximum flexibility in configuration files.
+ * Accepts raw YAML input before normalization and validation.
  *
  * This schema validates the raw YAML input structure before normalization
  * and environment variable resolution. Unknown properties are allowed
@@ -164,7 +161,7 @@ export const CliHealthcheckSchema = z.union([
 /**
  * Strict normalized schema for CLI target configuration.
  * This is the final validated shape after environment variable resolution
- * and snake_case to camelCase normalization.
+ * and internal field normalization.
  *
  * Uses .strict() to reject unknown properties, ensuring configuration
  * errors are caught early rather than silently ignored.
@@ -206,8 +203,8 @@ export type CliNormalizedConfig = z.infer<typeof CliTargetConfigSchema>;
 export type CliResolvedConfig = Readonly<CliNormalizedConfig>;
 
 /**
- * Normalizes a healthcheck input from loose (snake_case + camelCase) to
- * strict normalized form (camelCase only). Resolves environment variables.
+ * Normalizes a healthcheck input from raw YAML input to the strict internal
+ * form used by the CLI provider. Resolves environment variables.
  *
  * @param input - The loose healthcheck input from YAML
  * @param env - Environment variable lookup
@@ -262,12 +259,12 @@ export function normalizeCliHealthcheck(
 }
 
 /**
- * Normalizes a CLI target input from loose (snake_case + camelCase) to
- * strict normalized form (camelCase only). Resolves environment variables.
+ * Normalizes a CLI target input from raw YAML input to the strict internal
+ * form used by the CLI provider. Resolves environment variables.
  *
- * This function coalesces snake_case/camelCase variants and resolves
- * environment variable references using ${{ VAR_NAME }} syntax.
- * snake_case takes precedence over camelCase when both are present (matching YAML convention).
+ * This function resolves environment variable references using
+ * ${{ VAR_NAME }} syntax and converts external YAML field names to the
+ * internal runtime shape.
  *
  * @param input - The loose CLI target input from YAML
  * @param env - Environment variable lookup
@@ -623,7 +620,7 @@ function collectDeprecatedCamelCaseWarnings(
     if (Object.prototype.hasOwnProperty.call(value, camelCaseField)) {
       warnings.push({
         location: `${location}.${camelCaseField}`,
-        message: `Deprecated camelCase field '${camelCaseField}' in targets.yaml. Use '${snakeCaseField}' instead.`,
+        message: `camelCase field '${camelCaseField}' is no longer supported in targets.yaml. Use '${snakeCaseField}' instead.`,
       });
     }
   }
