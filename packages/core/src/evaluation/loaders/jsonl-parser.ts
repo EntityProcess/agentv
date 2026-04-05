@@ -168,7 +168,7 @@ export async function loadTestsFromJsonl(
   const globalExecution = sidecar.execution;
 
   if (verbose) {
-    console.log(`\n[JSONL Dataset: ${evalFilePath}]`);
+    console.log(`\n[JSONL Suite: ${evalFilePath}]`);
     console.log(`  Cases: ${rawCases.length}`);
     console.log(`  Suite: ${suiteName}`);
     if (sidecar.description) {

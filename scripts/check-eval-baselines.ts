@@ -85,8 +85,8 @@ async function findBaselinedYamlFiles(dir: string, results: string[] = []): Prom
   return results;
 }
 
-function baselinePathFor(datasetFilePath: string): string {
-  const absolutePath = path.resolve(datasetFilePath);
+function baselinePathFor(evalFilePath: string): string {
+  const absolutePath = path.resolve(evalFilePath);
   return absolutePath.replace(/\.ya?ml$/, '.baseline.jsonl');
 }
 
@@ -95,7 +95,7 @@ function candidatePathFor(baselinePath: string): string {
   return baselinePath.replace(/\.baseline\.jsonl$/, '.candidate.jsonl');
 }
 
-async function runAgentVEval(datasetFile: string, candidatePath: string): Promise<number> {
+async function runAgentVEval(evalFile: string, candidatePath: string): Promise<number> {
   const env = { ...process.env };
   if (!env.TOOL_EVAL_PLUGINS_DIR) {
     env.TOOL_EVAL_PLUGINS_DIR = path.join(
@@ -106,7 +106,7 @@ async function runAgentVEval(datasetFile: string, candidatePath: string): Promis
     );
   }
 
-  const args = ['bun', 'agentv', 'eval', datasetFile, '--out', candidatePath];
+  const args = ['bun', 'agentv', 'eval', evalFile, '--out', candidatePath];
   const proc = Bun.spawn(args, {
     cwd: repoRoot,
     stdout: 'inherit',
@@ -142,8 +142,8 @@ function cleanupCandidate(candidatePath: string): void {
   }
 }
 
-async function processDatasetFile(
-  datasetFile: string,
+async function processEvalFile(
+  evalFile: string,
   baselinePath: string,
   options: CliOptions,
 ): Promise<{ success: boolean; updated: boolean; created: boolean }> {
@@ -151,8 +151,8 @@ async function processDatasetFile(
   const candidatePath = candidatePathFor(baselinePath);
   const baselineExists = existsSync(baselinePath);
 
-  console.log(`\nRunning: ${path.relative(repoRoot, datasetFile)}`);
-  const exitCode = await runAgentVEval(datasetFile, candidatePath);
+  console.log(`\nRunning: ${path.relative(repoRoot, evalFile)}`);
+  const exitCode = await runAgentVEval(evalFile, candidatePath);
   if (exitCode !== 0) {
     cleanupCandidate(candidatePath);
     return { success: false, updated: false, created: false };
@@ -210,18 +210,18 @@ async function main(): Promise<void> {
   }
 
   // Collect dataset file → baseline path pairs
-  const pairs: Array<{ datasetFile: string; baselinePath: string }> = [];
+  const pairs: Array<{ evalFile: string; baselinePath: string }> = [];
 
   if (options.evalFile) {
     const absPath = path.resolve(options.evalFile);
-    pairs.push({ datasetFile: absPath, baselinePath: baselinePathFor(absPath) });
+    pairs.push({ evalFile: absPath, baselinePath: baselinePathFor(absPath) });
   } else {
     // Discover eval YAML files: by naming convention + by existing baselines
     const byConvention = await findEvalYamlFiles(examplesRoot);
     const byBaseline = await findBaselinedYamlFiles(examplesRoot);
     const allDatasetFiles = [...new Set([...byConvention, ...byBaseline])];
     for (const df of allDatasetFiles) {
-      pairs.push({ datasetFile: df, baselinePath: baselinePathFor(df) });
+      pairs.push({ evalFile: df, baselinePath: baselinePathFor(df) });
     }
 
     if (pairs.length === 0) {
@@ -234,10 +234,10 @@ async function main(): Promise<void> {
   let updatedCount = 0;
   let createdCount = 0;
 
-  for (const { datasetFile, baselinePath } of pairs.sort((a, b) =>
-    a.datasetFile.localeCompare(b.datasetFile),
+  for (const { evalFile, baselinePath } of pairs.sort((a, b) =>
+    a.evalFile.localeCompare(b.evalFile),
   )) {
-    const result = await processDatasetFile(datasetFile, baselinePath, options);
+    const result = await processEvalFile(evalFile, baselinePath, options);
     if (!result.success) failures += 1;
     if (result.updated) updatedCount += 1;
     if (result.created) createdCount += 1;

@@ -18,7 +18,7 @@ export interface DiscoveredEvalFile {
  *
  * Uses `eval_patterns` from `.agentv/config.yaml` if configured,
  * otherwise falls back to default patterns that match `suite*.yaml`,
- * `eval.yaml`, and legacy `dataset*.yaml` files under `evals/` directories.
+ * `eval.yaml`, and `dataset*.yaml` files under `evals/` directories.
  */
 export async function discoverEvalFiles(cwd: string): Promise<readonly DiscoveredEvalFile[]> {
   const repoRoot = await findRepoRoot(cwd);
