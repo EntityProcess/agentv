@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
-import { PiCodingAgentProvider } from '../../../src/evaluation/providers/pi-coding-agent.js';
+import {
+  PiCodingAgentProvider,
+  _internal,
+} from '../../../src/evaluation/providers/pi-coding-agent.js';
 
 describe('PiCodingAgentProvider', () => {
   it('has the correct kind and id', () => {
@@ -43,5 +46,21 @@ describe('PiCodingAgentProvider', () => {
     } else {
       process.env.OPENAI_BASE_URL = original;
     }
+  });
+
+  it('builds the expected global npm module entry path', () => {
+    expect(
+      _internal.buildGlobalModuleEntry(
+        '@mariozechner/pi-coding-agent',
+        'C:\\npm-global\\node_modules',
+      ),
+    ).toBe('C:\\npm-global\\node_modules\\@mariozechner\\pi-coding-agent\\dist\\index.js');
+    expect(
+      _internal.buildGlobalModuleEntry('@mariozechner/pi-ai', 'C:\\npm-global\\node_modules'),
+    ).toBe('C:\\npm-global\\node_modules\\@mariozechner\\pi-ai\\dist\\index.js');
+  });
+
+  it('finds the agentv package root', () => {
+    expect(_internal.findAgentvRoot().endsWith('packages\\core')).toBe(true);
   });
 });
