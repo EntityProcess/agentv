@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -99,11 +99,8 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
-function artifactDir(
-  outputDir: string,
-  record: { dataset?: string; test_id?: string; eval_id?: string },
-): string {
-  const testId = record.test_id ?? record.eval_id ?? 'unknown';
+function artifactDir(outputDir: string, record: { dataset?: string; test_id?: string }): string {
+  const testId = record.test_id ?? 'unknown';
   return path.join(outputDir, ...(record.dataset ? [record.dataset] : []), testId);
 }
 
@@ -118,23 +115,33 @@ describe('results export', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('loadExportSource accepts explicit legacy flat JSONL files', async () => {
-    const sourceFile = path.join(tempDir, 'eval_2026-03-18.jsonl');
-    writeFileSync(
-      sourceFile,
-      toJsonl({ ...RESULT_FULL, eval_id: 'legacy-id', test_id: undefined }),
-    );
+  it('loadExportSource resolves run workspaces to index.jsonl', async () => {
+    const runDir = path.join(tempDir, '2026-03-18T10-00-00-000Z');
+    mkdirSync(runDir, { recursive: true });
+    const sourceFile = path.join(runDir, 'index.jsonl');
+    writeFileSync(sourceFile, toJsonl(RESULT_FULL));
 
-    const { sourceFile: loadedSource, results } = await loadExportSource(sourceFile, tempDir);
+    const { sourceFile: loadedSource, results } = await loadExportSource(runDir, tempDir);
 
     expect(loadedSource).toBe(sourceFile);
     expect(results).toHaveLength(1);
-    expect(results[0].testId).toBe('legacy-id');
+    expect(results[0].testId).toBe('test-greeting');
   });
 
-  it('deriveOutputDir uses the source filename for flat JSONL inputs', () => {
-    const outputDir = deriveOutputDir(tempDir, path.join(tempDir, 'eval_2026-03-18.jsonl'));
-    expect(outputDir).toBe(path.join(tempDir, '.agentv', 'results', 'export', '2026-03-18'));
+  it('deriveOutputDir uses the run directory name for manifest inputs', () => {
+    const outputDir = deriveOutputDir(
+      tempDir,
+      path.join(tempDir, '2026-03-18T10-00-00-000Z', 'index.jsonl'),
+    );
+    expect(outputDir).toBe(
+      path.join(tempDir, '.agentv', 'results', 'export', '2026-03-18T10-00-00-000Z'),
+    );
+  });
+
+  it('deriveOutputDir rejects non-manifest paths', () => {
+    expect(() => deriveOutputDir(tempDir, path.join(tempDir, 'results.jsonl'))).toThrow(
+      'Expected a run manifest named index.jsonl',
+    );
   });
 
   it('should create benchmark.json matching artifact-writer schema', async () => {

@@ -648,12 +648,7 @@ function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefin
   return {
     ...result,
     timestamp: typeof result.timestamp === 'string' ? result.timestamp : new Date(0).toISOString(),
-    testId:
-      typeof result.testId === 'string'
-        ? result.testId
-        : typeof result.evalId === 'string'
-          ? result.evalId
-          : 'unknown',
+    testId: typeof result.testId === 'string' ? result.testId : 'unknown',
     score: typeof result.score === 'number' ? result.score : 0,
     assertions: Array.isArray(result.assertions) ? result.assertions.filter(isAssertionEntry) : [],
     target: typeof result.target === 'string' ? result.target : 'unknown',

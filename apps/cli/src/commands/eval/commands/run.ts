@@ -141,7 +141,8 @@ export const evalRunCommand = command({
     retryErrors: option({
       type: optional(string),
       long: 'retry-errors',
-      description: 'Path to previous output JSONL — re-run only execution_error test cases',
+      description:
+        'Path to a previous run workspace or index.jsonl manifest — re-run only execution_error test cases',
     }),
     strict: flag({
       long: 'strict',

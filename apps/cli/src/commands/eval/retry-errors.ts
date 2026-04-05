@@ -1,18 +1,9 @@
-import { readFile } from 'node:fs/promises';
-
 import type { EvaluationResult } from '@agentv/core';
 
 import { loadManifestResults, resolveResultSourcePath } from '../results/manifest.js';
-import { parseJsonlResults } from './artifact-writer.js';
 
 async function loadRetrySourceResults(jsonlPath: string): Promise<readonly EvaluationResult[]> {
-  try {
-    const resolvedPath = resolveResultSourcePath(jsonlPath);
-    return loadManifestResults(resolvedPath);
-  } catch {
-    const content = await readFile(jsonlPath, 'utf8');
-    return parseJsonlResults(content);
-  }
+  return loadManifestResults(resolveResultSourcePath(jsonlPath));
 }
 
 /**

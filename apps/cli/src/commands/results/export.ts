@@ -1,6 +1,6 @@
 /**
- * `agentv results export` — converts JSONL eval results into a directory
- * structure matching the artifact-writer output format.
+ * `agentv results export` — converts a canonical run workspace or index.jsonl
+ * manifest into a directory structure matching the artifact-writer output format.
  *
  * Output structure:
  *   <output-dir>/
@@ -21,8 +21,6 @@
  *   - To add new per-test workspace files, add them under each test directory.
  */
 
-import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { command, option, optional, positional, string } from 'cmd-ts';
@@ -57,16 +55,8 @@ export async function exportResults(
  * Derive the default output directory from a run manifest path.
  */
 export function deriveOutputDir(cwd: string, sourceFile: string): string {
-  const baseName = path.basename(sourceFile);
-  if (baseName !== RESULT_INDEX_FILENAME) {
-    const stem = path.basename(sourceFile, path.extname(sourceFile));
-    return path.join(
-      cwd,
-      '.agentv',
-      'results',
-      'export',
-      stem.startsWith('eval_') ? stem.slice(5) : stem,
-    );
+  if (path.basename(sourceFile) !== RESULT_INDEX_FILENAME) {
+    throw new Error(`Expected a run manifest named ${RESULT_INDEX_FILENAME}: ${sourceFile}`);
   }
 
   const parentDir = path.basename(path.dirname(sourceFile));
@@ -80,35 +70,16 @@ export async function loadExportSource(
   source: string | undefined,
   cwd: string,
 ): Promise<{ sourceFile: string; results: readonly EvaluationResult[] }> {
-  try {
-    const { sourceFile } = await resolveSourceFile(source, cwd);
-    const { results } = await loadSharedResults(source, cwd);
-    return { sourceFile, results };
-  } catch (error) {
-    if (!source) {
-      throw error;
-    }
-
-    const explicitSource = path.isAbsolute(source) ? source : path.resolve(cwd, source);
-    if (!existsSync(explicitSource) || path.extname(explicitSource) !== '.jsonl') {
-      throw error;
-    }
-
-    const content = await readFile(explicitSource, 'utf8');
-    const results = parseJsonlResults(content);
-    if (results.length === 0) {
-      throw new Error(`No results found in ${explicitSource}`);
-    }
-
-    return { sourceFile: explicitSource, results };
-  }
+  const { sourceFile } = await resolveSourceFile(source, cwd);
+  const { results } = await loadSharedResults(source, cwd);
+  return { sourceFile, results };
 }
 
 // ── CLI command ──────────────────────────────────────────────────────────
 
 export const resultsExportCommand = command({
   name: 'export',
-  description: 'Export JSONL eval results into a per-test directory structure',
+  description: 'Export a run workspace or index.jsonl manifest into a per-test directory structure',
   args: {
     source: positional({
       type: optional(string),

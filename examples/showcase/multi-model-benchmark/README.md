@@ -51,20 +51,20 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ## Comparing Models
 
-The eval produces a combined results file with a `target` field per record. Use `agentv compare` to see all models side by side:
+The eval produces a canonical run workspace with `target` in each `index.jsonl` record. Use `agentv compare` to see all models side by side:
 
 ```bash
 # N-way matrix — see all models at once
-agentv compare results.jsonl
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl
 
 # Designate a baseline for CI regression gating
-agentv compare results.jsonl --baseline copilot
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline copilot
 
 # Pairwise: compare two specific targets
-agentv compare results.jsonl --baseline copilot --candidate claude
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline copilot --candidate claude
 
 # JSON output for CI integration
-agentv compare results.jsonl --json
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
 ```
 
 ### Expected Output
@@ -134,7 +134,7 @@ This surfaces non-determinism — if a model passes on trial 1 but fails on tria
 
 ### 4. Compare
 
-The `agentv compare` command reads a combined JSONL (with `target` field) and shows an N-way matrix with pairwise summaries. Each pair classifies per-test deltas:
+The `agentv compare` command reads a canonical run manifest (`index.jsonl`, with `target` per record) and shows an N-way matrix with pairwise summaries. Each pair classifies per-test deltas:
 
 - **Win**: candidate score exceeds baseline by threshold (default 0.10)
 - **Loss**: baseline score exceeds candidate by threshold
@@ -154,8 +154,8 @@ benchmark.eval.yaml
 └────────┬────────────────┘
          │
          ▼
-   combined results.jsonl
-   (all targets in one file)
+  .agentv/results/runs/<timestamp>/
+           index.jsonl
          │
          ▼
 ┌─────────────────────────┐

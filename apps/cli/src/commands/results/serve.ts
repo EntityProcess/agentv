@@ -397,7 +397,7 @@ function handleEvalFiles(c: C, { searchDir }: DataContext) {
   try {
     const content = readFileSync(meta.path, 'utf8');
     const records = parseResultManifest(content);
-    const record = records.find((r) => (r.test_id ?? r.eval_id) === evalId);
+    const record = records.find((r) => r.test_id === evalId);
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
     const baseDir = path.dirname(meta.path);

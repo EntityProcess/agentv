@@ -14,27 +14,32 @@ describe('retry-errors', () => {
     }
   });
 
-  function createJsonlFile(lines: object[]): string {
-    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
-    const filePath = path.join(tmpDir, 'results.jsonl');
-    writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
-    return filePath;
-  }
-
   function createIndexFile(lines: object[]): string {
-    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-index-test-'));
+    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
     const filePath = path.join(tmpDir, 'index.jsonl');
     mkdirSync(tmpDir, { recursive: true });
     writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
     return filePath;
   }
 
+  function createFlatJsonlFile(lines: object[]): string {
+    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-flat-test-'));
+    const filePath = path.join(tmpDir, 'results.jsonl');
+    writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
+    return filePath;
+  }
+
   it('loadErrorTestIds returns only execution_error test IDs', async () => {
-    const filePath = createJsonlFile([
-      { testId: 'case-1', executionStatus: 'ok', score: 0.9 },
-      { testId: 'case-2', executionStatus: 'execution_error', score: 0, error: 'timeout' },
-      { testId: 'case-3', executionStatus: 'quality_failure', score: 0.3 },
-      { testId: 'case-4', executionStatus: 'execution_error', score: 0, error: 'provider failed' },
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-2', execution_status: 'execution_error', score: 0, error: 'timeout' },
+      { test_id: 'case-3', execution_status: 'quality_failure', score: 0.3 },
+      {
+        test_id: 'case-4',
+        execution_status: 'execution_error',
+        score: 0,
+        error: 'provider failed',
+      },
     ]);
 
     const ids = await loadErrorTestIds(filePath);
@@ -42,9 +47,9 @@ describe('retry-errors', () => {
   });
 
   it('loadErrorTestIds deduplicates IDs', async () => {
-    const filePath = createJsonlFile([
-      { testId: 'case-1', executionStatus: 'execution_error', score: 0 },
-      { testId: 'case-1', executionStatus: 'execution_error', score: 0 },
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
+      { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
     ]);
 
     const ids = await loadErrorTestIds(filePath);
@@ -52,9 +57,9 @@ describe('retry-errors', () => {
   });
 
   it('loadErrorTestIds returns empty array when no errors', async () => {
-    const filePath = createJsonlFile([
-      { testId: 'case-1', executionStatus: 'ok', score: 0.9 },
-      { testId: 'case-2', executionStatus: 'quality_failure', score: 0.5 },
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-2', execution_status: 'quality_failure', score: 0.5 },
     ]);
 
     const ids = await loadErrorTestIds(filePath);
@@ -62,10 +67,10 @@ describe('retry-errors', () => {
   });
 
   it('loadNonErrorResults returns only non-error results', async () => {
-    const filePath = createJsonlFile([
-      { testId: 'case-1', executionStatus: 'ok', score: 0.9 },
-      { testId: 'case-2', executionStatus: 'execution_error', score: 0 },
-      { testId: 'case-3', executionStatus: 'quality_failure', score: 0.5 },
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
+      { test_id: 'case-3', execution_status: 'quality_failure', score: 0.5 },
     ]);
 
     const results = await loadNonErrorResults(filePath);
@@ -74,8 +79,8 @@ describe('retry-errors', () => {
     expect(results[1].testId).toBe('case-3');
   });
 
-  it('supports snake_case result files written by the CLI', async () => {
-    const filePath = createJsonlFile([
+  it('supports index.jsonl manifests written by the CLI', async () => {
+    const filePath = createIndexFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
       { test_id: 'case-3', execution_status: 'quality_failure', score: 0.5 },
@@ -90,7 +95,21 @@ describe('retry-errors', () => {
     expect(results[1].testId).toBe('case-3');
   });
 
-  it('supports index.jsonl manifests during the migration', async () => {
+  it('rejects flat JSONL result files', async () => {
+    const filePath = createFlatJsonlFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
+    ]);
+
+    await expect(loadErrorTestIds(filePath)).rejects.toThrow(
+      'Expected a run workspace directory or index.jsonl manifest',
+    );
+    await expect(loadNonErrorResults(filePath)).rejects.toThrow(
+      'Expected a run workspace directory or index.jsonl manifest',
+    );
+  });
+
+  it('supports index.jsonl manifests', async () => {
     const filePath = createIndexFile([
       {
         test_id: 'case-1',
@@ -112,24 +131,20 @@ describe('retry-errors', () => {
     expect(ids).toEqual(['case-2']);
   });
 
-  it('skips malformed JSON lines', async () => {
+  it('throws on malformed index.jsonl lines', async () => {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
-    const filePath = path.join(tmpDir, 'results.jsonl');
+    const filePath = path.join(tmpDir, 'index.jsonl');
     writeFileSync(
       filePath,
       [
-        JSON.stringify({ testId: 'case-1', executionStatus: 'execution_error', score: 0 }),
+        JSON.stringify({ test_id: 'case-1', execution_status: 'execution_error', score: 0 }),
         'not valid json',
         '',
-        JSON.stringify({ testId: 'case-2', executionStatus: 'ok', score: 0.9 }),
+        JSON.stringify({ test_id: 'case-2', execution_status: 'ok', score: 0.9 }),
       ].join('\n'),
     );
 
-    const ids = await loadErrorTestIds(filePath);
-    expect(ids).toEqual(['case-1']);
-
-    const results = await loadNonErrorResults(filePath);
-    expect(results).toHaveLength(1);
-    expect(results[0].testId).toBe('case-2');
+    await expect(loadErrorTestIds(filePath)).rejects.toThrow();
+    await expect(loadNonErrorResults(filePath)).rejects.toThrow();
   });
 });

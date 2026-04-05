@@ -1,27 +1,25 @@
 # Compare Command Example
 
-The `agentv compare` command supports three modes: N-way matrix from a combined JSONL, pairwise from a combined JSONL, and two-file pairwise.
+The `agentv compare` command supports three modes: N-way matrix from a canonical run manifest, pairwise from a canonical run manifest, and two-run pairwise.
 
 ## Use Case
 
 Compare model performance across different configurations:
-- N-way matrix comparison across 3+ models from a single combined results file
+- N-way matrix comparison across 3+ models from a single run manifest
 - Baseline regression gating in CI (exit 1 if any target regresses)
 - Head-to-head pairwise between two specific targets
-- Before/after optimization runs (two-file pairwise)
+- Before/after optimization runs (two-run pairwise)
 
 ## Sample Files
 
-- `baseline-results.jsonl` - Results from baseline configuration (GPT-4.1)
-- `candidate-results.jsonl` - Results from candidate configuration (GPT-5)
-- `../../benchmark-tooling/fixtures/combined-results.jsonl` - Combined multi-target results (3 tests x 3 targets)
+- canonical run workspaces under `.agentv/results/runs/<timestamp>/`
 
 ## Usage
 
-### N-Way Matrix (combined JSONL)
+### N-Way Matrix (run manifest)
 
 ```bash
-agentv compare combined-results.jsonl
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl
 ```
 
 Output:
@@ -43,14 +41,14 @@ Pairwise Summary:
 ### Baseline Regression Check
 
 ```bash
-agentv compare combined-results.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1
 # Exits 1 if any target regresses vs gpt-4.1
 ```
 
-### Pairwise from Combined JSONL
+### Pairwise from a Single Run Manifest
 
 ```bash
-agentv compare combined-results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 ```
 
 ```
@@ -65,15 +63,16 @@ Comparing: gpt-4.1 → gpt-5-mini
 Summary: 0 wins, 0 losses, 3 ties | Mean Δ: -0.017 | Status: regressed
 ```
 
-### Two-File Pairwise (legacy)
+### Two-Run Pairwise
 
 ```bash
-agentv compare baseline-results.jsonl candidate-results.jsonl
+agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl \
+  .agentv/results/runs/<candidate-timestamp>/index.jsonl
 ```
 
 Output:
 ```
-Comparing: baseline-results.jsonl → candidate-results.jsonl
+Comparing: .agentv/results/runs/<baseline-timestamp>/index.jsonl → .agentv/results/runs/<candidate-timestamp>/index.jsonl
 
   Test ID          Baseline  Candidate     Delta  Result
   ───────────────  ────────  ─────────  ────────  ────────
@@ -91,7 +90,8 @@ Summary: 1 win, 0 losses, 4 ties | Mean Δ: +0.054 | Status: improved
 Use a stricter threshold (0.05) for win/loss classification:
 
 ```bash
-agentv compare baseline-results.jsonl candidate-results.jsonl --threshold 0.05
+agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl \
+  .agentv/results/runs/<candidate-timestamp>/index.jsonl --threshold 0.05
 ```
 
 ### JSON Output
@@ -99,7 +99,7 @@ agentv compare baseline-results.jsonl candidate-results.jsonl --threshold 0.05
 For machine-readable output (CI pipelines, scripts):
 
 ```bash
-agentv compare combined-results.jsonl --json
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
 ```
 
 Output uses snake_case for Python ecosystem compatibility:
@@ -130,8 +130,8 @@ Use exit codes for automated quality gates:
 
 ```bash
 # N-way: fail if any target regresses vs baseline
-agentv compare results.jsonl --baseline gpt-4.1 || echo "Regression detected!"
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 || echo "Regression detected!"
 
-# Two-file: fail if candidate regresses
-agentv compare baseline.jsonl candidate.jsonl || echo "Regression detected!"
+# Two-run: fail if candidate regresses
+agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/results/runs/<candidate-timestamp>/index.jsonl || echo "Regression detected!"
 ```

@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import {
   array,
   command,
@@ -15,7 +12,6 @@ import {
 } from 'cmd-ts';
 
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
-import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
 import { loadLightweightResults, resolveResultSourcePath } from '../results/manifest.js';
 
 // ANSI color codes (no dependency needed)
@@ -67,55 +63,24 @@ interface MatrixRow {
   scores: Record<string, number>;
 }
 
-interface ParsedCompareResult {
-  testId: string;
-  score: number;
+interface CompareInputRecord extends EvalResult {
   target?: string;
 }
 
-function loadFlatCompareResults(filePath: string): ParsedCompareResult[] {
-  const content = readFileSync(filePath, 'utf8');
-  const results: ParsedCompareResult[] = [];
-
-  for (const rawLine of content.split('\n')) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    const parsed = JSON.parse(line) as Record<string, unknown>;
-    const testId = typeof parsed.test_id === 'string' ? parsed.test_id : undefined;
-    if (!testId) {
+function loadCompareResults(filePath: string): CompareInputRecord[] {
+  return loadLightweightResults(resolveResultSourcePath(filePath)).map((record) => {
+    if (!record.testId || record.testId === 'unknown') {
       throw new Error(`Missing test_id in result source: ${filePath}`);
     }
-
-    if (typeof parsed.score !== 'number' || Number.isNaN(parsed.score)) {
+    if (typeof record.score !== 'number' || Number.isNaN(record.score)) {
       throw new Error(`Missing or invalid score in result source: ${filePath}`);
     }
-
-    results.push({
-      testId,
-      score: parsed.score,
-      target: typeof parsed.target === 'string' ? parsed.target : undefined,
-    });
-  }
-
-  return results;
-}
-
-function loadCompareResults(filePath: string): ParsedCompareResult[] {
-  try {
-    const resolvedPath = resolveResultSourcePath(filePath);
-    if (path.basename(resolvedPath) === RESULT_INDEX_FILENAME) {
-      return loadLightweightResults(resolvedPath).map((record) => ({
-        testId: record.testId,
-        score: record.score,
-        target: record.target,
-      }));
-    }
-  } catch {
-    // Fall back to direct JSONL parsing for explicit flat result files.
-  }
-
-  return loadFlatCompareResults(filePath);
+    return {
+      testId: record.testId,
+      score: record.score,
+      target: record.target,
+    };
+  });
 }
 
 export interface MatrixOutput {
@@ -125,10 +90,7 @@ export interface MatrixOutput {
 }
 
 export function loadJsonlResults(filePath: string): EvalResult[] {
-  return loadCompareResults(filePath).map((record) => ({
-    testId: record.testId,
-    score: record.score,
-  }));
+  return loadCompareResults(filePath).map(({ testId, score }) => ({ testId, score }));
 }
 
 export function loadCombinedResults(filePath: string): Map<string, EvalResult[]> {
@@ -469,12 +431,13 @@ export function formatMatrix(matrixOutput: MatrixOutput, baselineTarget?: string
 export const compareCommand = command({
   name: 'compare',
   description:
-    'Compare evaluation result files: two-file pairwise, combined JSONL pairwise, or N-way matrix',
+    'Compare evaluation run manifests: two-run pairwise, single-run pairwise, or N-way matrix',
   args: {
     results: restPositionals({
       type: string,
       displayName: 'results',
-      description: 'JSONL result file path(s). One file: combined mode. Two files: pairwise mode.',
+      description:
+        'Run workspace or index.jsonl manifest path(s). One source: single-run mode. Two sources: pairwise mode.',
     }),
     threshold: option({
       type: optional(number),
@@ -486,13 +449,13 @@ export const compareCommand = command({
       type: optional(string),
       long: 'baseline',
       short: 'b',
-      description: 'Target name to use as baseline (filters combined JSONL)',
+      description: 'Target name to use as baseline (filters a single run manifest)',
     }),
     candidate: option({
       type: optional(string),
       long: 'candidate',
       short: 'c',
-      description: 'Target name to use as candidate (filters combined JSONL)',
+      description: 'Target name to use as candidate (filters a single run manifest)',
     }),
     targets: multioption({
       type: array(string),
@@ -516,7 +479,7 @@ export const compareCommand = command({
 
     try {
       if (results.length === 0) {
-        throw new Error('At least one JSONL result file is required');
+        throw new Error('At least one run workspace or index.jsonl manifest is required');
       }
 
       if (results.length === 2) {
@@ -534,7 +497,7 @@ export const compareCommand = command({
         const exitCode = determineExitCode(comparison.summary.meanDelta);
         process.exit(exitCode);
       } else if (results.length === 1) {
-        // Combined JSONL mode
+        // Single-run manifest mode
         let groups = loadCombinedResults(results[0]);
 
         // Filter by --targets if specified
@@ -570,7 +533,7 @@ export const compareCommand = command({
         }
 
         if (baseline && candidate) {
-          // Pairwise mode from combined JSONL
+          // Pairwise mode from a single run manifest
           const baselineResults = groups.get(baseline);
           const candidateResults = groups.get(candidate);
           if (!baselineResults) {
@@ -604,7 +567,7 @@ export const compareCommand = command({
           process.exit(exitCode);
         }
       } else {
-        throw new Error('Expected 1 or 2 JSONL result files');
+        throw new Error('Expected 1 or 2 run workspaces or index.jsonl manifests');
       }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
