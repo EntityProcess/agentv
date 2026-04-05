@@ -6,9 +6,9 @@
  * per attribute across the whole dataset.
  *
  * Usage:
- *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/eval_<timestamp>/index.jsonl
- *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/eval_<timestamp>/index.jsonl --evaluator header_confusion
- *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/eval_<timestamp>/index.jsonl --format csv
+ *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl
+ *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --evaluator header_confusion
+ *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --format csv
  */
 
 import * as fs from 'node:fs';
@@ -241,7 +241,7 @@ Options:
 
 Example:
   bun run scripts/aggregate_metrics.ts .agentv/results/eval-001.jsonl
-  bun run scripts/aggregate_metrics.ts .agentv/results/runs/eval_<timestamp>/index.jsonl --evaluator header_confusion --format csv
+  bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --evaluator header_confusion --format csv
 `);
     process.exit(0);
   }

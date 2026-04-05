@@ -11,7 +11,7 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/<timestamp>.jsonl`. Each line is a JSON object with one result per test case.
+Results are written to `.agentv/results/runs/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -218,10 +218,10 @@ Notes:
 Re-run only the tests that had infrastructure/execution errors from a previous output:
 
 ```bash
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/eval_previous.jsonl
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
 ```
 
-This reads the previous JSONL, filters for `executionStatus === 'execution_error'`, and re-runs only those test cases. Non-error results from the previous run are preserved and merged into the new output.
+This reads the previous run manifest, filters for `executionStatus === 'execution_error'`, and re-runs only those test cases. Non-error results from the previous run are preserved and merged into the new output.
 
 ### Execution Error Tolerance
 

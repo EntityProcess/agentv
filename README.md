@@ -71,7 +71,7 @@ agentv eval evals/my-eval.yaml
 
 **5. Compare results across targets:**
 ```bash
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl
 ```
 
 ## Output formats

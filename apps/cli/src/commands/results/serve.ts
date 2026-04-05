@@ -7,8 +7,8 @@
  *
  * API endpoints:
  *   - GET /           — Studio SPA (React app)
- *   - GET /api/runs   — list available result files with metadata
- *   - GET /api/runs/:filename — load results from a specific run file
+ *   - GET /api/runs   — list available run workspaces with metadata
+ *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
  *   - GET /api/projects  — list registered projects
@@ -20,7 +20,7 @@
  * how searchDir is resolved.
  *
  * Exported functions (for testing):
- *   - resolveSourceFile(source, cwd) — resolves JSONL path
+ *   - resolveSourceFile(source, cwd) — resolves a run manifest path
  *   - loadResults(content) — parses JSONL into EvaluationResult[]
  *   - createApp(results, cwd) — Hono app factory
  */
@@ -43,6 +43,7 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 
 import { parseJsonlResults } from '../eval/artifact-writer.js';
+import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 import {
@@ -51,21 +52,21 @@ import {
   parseResultManifest,
   resolveResultSourcePath,
 } from './manifest.js';
-import { patchTestIds } from './shared.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
 
 /**
- * Resolve the JSONL result file path from an explicit source, run cache,
- * or directory scan. Throws if no file can be found.
+ * Resolve a run manifest path from an explicit source, run cache,
+ * or directory scan. Throws if no run workspace can be found.
  */
 export async function resolveSourceFile(source: string | undefined, cwd: string): Promise<string> {
   if (source) {
-    const resolved = resolveResultSourcePath(source, cwd);
+    let resolved = resolveResultSourcePath(source, cwd);
     if (!existsSync(resolved)) {
       throw new Error(`Source file not found: ${resolved}`);
     }
+    resolved = resolveRunManifestPath(resolved);
     return resolved;
   }
 
@@ -79,11 +80,11 @@ export async function resolveSourceFile(source: string | undefined, cwd: string)
   const metas = listResultFiles(cwd, 10);
   if (metas.length === 0) {
     throw new Error(
-      'No result files found in .agentv/results/\nRun an evaluation first: agentv eval <eval-file>',
+      'No run workspaces found in .agentv/results/runs/\nRun an evaluation first: agentv eval <eval-file>',
     );
   }
   if (metas.length > 1) {
-    console.log('Available result files:');
+    console.log('Available run workspaces:');
     for (const m of metas) {
       console.log(`  ${m.path}`);
     }
@@ -95,8 +96,7 @@ export async function resolveSourceFile(source: string | undefined, cwd: string)
 // ── JSONL parsing ────────────────────────────────────────────────────────
 
 /**
- * Parse JSONL content into EvaluationResult[], with backward-compat
- * patching of eval_id → testId.
+ * Parse JSONL content into EvaluationResult[].
  */
 export function loadResults(content: string): EvaluationResult[] {
   const results = parseJsonlResults(content);
@@ -104,12 +104,7 @@ export function loadResults(content: string): EvaluationResult[] {
     throw new Error('No valid results found in JSONL content');
   }
 
-  return results.map((r) => {
-    if (!r.testId && (r as unknown as Record<string, unknown>).evalId) {
-      return { ...r, testId: String((r as unknown as Record<string, unknown>).evalId) };
-    }
-    return r;
-  });
+  return results;
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -273,7 +268,7 @@ function handleRunDetail(c: C, { searchDir }: DataContext) {
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = patchTestIds(loadManifestResults(meta.path));
+    const loaded = loadManifestResults(meta.path);
     return c.json({ results: stripHeavyFields(loaded), source: meta.filename });
   } catch {
     return c.json({ error: 'Failed to load run' }, 500);
@@ -285,7 +280,7 @@ function handleRunDatasets(c: C, { searchDir, agentvDir }: DataContext) {
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = patchTestIds(loadManifestResults(meta.path));
+    const loaded = loadManifestResults(meta.path);
     const { pass_threshold } = loadStudioConfig(agentvDir);
     const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of loaded) {
@@ -314,7 +309,7 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = patchTestIds(loadManifestResults(meta.path));
+    const loaded = loadManifestResults(meta.path);
     const { pass_threshold } = loadStudioConfig(agentvDir);
     const categoryMap = new Map<
       string,
@@ -354,7 +349,7 @@ function handleCategoryDatasets(c: C, { searchDir, agentvDir }: DataContext) {
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = patchTestIds(loadManifestResults(meta.path));
+    const loaded = loadManifestResults(meta.path);
     const { pass_threshold } = loadStudioConfig(agentvDir);
     const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
     const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
@@ -385,7 +380,7 @@ function handleEvalDetail(c: C, { searchDir }: DataContext) {
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = patchTestIds(loadManifestResults(meta.path));
+    const loaded = loadManifestResults(meta.path);
     const result = loaded.find((r) => r.testId === evalId);
     if (!result) return c.json({ error: 'Eval not found' }, 404);
     return c.json({ eval: result });
@@ -854,7 +849,7 @@ export function createApp(
     const entries = metas.map((m) => {
       let totalCostUsd = 0;
       try {
-        const loaded = patchTestIds(loadManifestResults(m.path));
+        const loaded = loadManifestResults(m.path);
         totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
       } catch {
         // ignore load errors for aggregate
@@ -986,7 +981,8 @@ export const resultsServeCommand = command({
     source: positional({
       type: optional(string),
       displayName: 'source',
-      description: 'JSONL result file to serve (defaults to most recent in .agentv/results/)',
+      description:
+        'Run workspace directory or index.jsonl manifest to serve (defaults to most recent in .agentv/results/runs/)',
     }),
     port: option({
       type: optional(number),
@@ -1078,19 +1074,19 @@ export const resultsServeCommand = command({
           process.exit(1);
         }
         sourceFile = resolved;
-        results = patchTestIds(loadManifestResults(resolved));
+        results = loadManifestResults(resolved);
       } else {
         // Auto-discover: run cache -> directory scan -> empty state
         const cache = await loadRunCache(cwd);
         const cachedFile = cache ? resolveRunCacheFile(cache) : '';
         if (cachedFile && existsSync(cachedFile)) {
           sourceFile = cachedFile;
-          results = patchTestIds(loadManifestResults(cachedFile));
+          results = loadManifestResults(cachedFile);
         } else {
           const metas = listResultFiles(cwd, 1);
           if (metas.length > 0) {
             sourceFile = metas[0].path;
-            results = patchTestIds(loadManifestResults(metas[0].path));
+            results = loadManifestResults(metas[0].path);
           }
           // If no metas, results stays empty — dashboard shows welcome state
         }

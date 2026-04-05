@@ -56,6 +56,21 @@ describe('compare command', () => {
       ]);
     });
 
+    it('should load flat JSONL files with camelCase testId results', () => {
+      const filePath = path.join(tempDir, 'results.jsonl');
+      writeFileSync(
+        filePath,
+        '{"testId": "case-1", "score": 0.8}\n{"testId": "case-2", "score": 0.9}\n',
+      );
+
+      const results = loadJsonlResults(filePath);
+
+      expect(results).toEqual([
+        { testId: 'case-1', score: 0.8 },
+        { testId: 'case-2', score: 0.9 },
+      ]);
+    });
+
     it('should handle empty lines in JSONL', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(

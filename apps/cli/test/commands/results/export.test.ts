@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -9,7 +9,11 @@ import type {
   IndexArtifactEntry,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
-import { exportResults } from '../../../src/commands/results/export.js';
+import {
+  deriveOutputDir,
+  exportResults,
+  loadExportSource,
+} from '../../../src/commands/results/export.js';
 
 // ── Sample JSONL content (snake_case, matching on-disk format) ──────────
 
@@ -112,6 +116,25 @@ describe('results export', () => {
 
   afterEach(() => {
     rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('loadExportSource accepts explicit legacy flat JSONL files', async () => {
+    const sourceFile = path.join(tempDir, 'eval_2026-03-18.jsonl');
+    writeFileSync(
+      sourceFile,
+      toJsonl({ ...RESULT_FULL, eval_id: 'legacy-id', test_id: undefined }),
+    );
+
+    const { sourceFile: loadedSource, results } = await loadExportSource(sourceFile, tempDir);
+
+    expect(loadedSource).toBe(sourceFile);
+    expect(results).toHaveLength(1);
+    expect(results[0].testId).toBe('legacy-id');
+  });
+
+  it('deriveOutputDir uses the source filename for flat JSONL inputs', () => {
+    const outputDir = deriveOutputDir(tempDir, path.join(tempDir, 'eval_2026-03-18.jsonl'));
+    expect(outputDir).toBe(path.join(tempDir, '.agentv', 'results', 'export', '2026-03-18'));
   });
 
   it('should create benchmark.json matching artifact-writer schema', async () => {

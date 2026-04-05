@@ -594,6 +594,74 @@ function toCamelCaseDeep(obj: unknown): unknown {
   return obj;
 }
 
+type ParsedEvaluationResult = Record<string, unknown> & {
+  timestamp: string;
+  testId: string;
+  score: number;
+  assertions: EvaluationResult['assertions'];
+  target: string;
+  output: EvaluationResult['output'];
+  executionStatus: EvaluationResult['executionStatus'];
+};
+
+const EXECUTION_STATUSES = new Set<EvaluationResult['executionStatus']>([
+  'ok',
+  'quality_failure',
+  'execution_error',
+]);
+
+function isAssertionEntry(value: unknown): value is EvaluationResult['assertions'][number] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as { text?: unknown; passed?: unknown; evidence?: unknown };
+  return (
+    typeof candidate.text === 'string' &&
+    typeof candidate.passed === 'boolean' &&
+    (candidate.evidence === undefined || typeof candidate.evidence === 'string')
+  );
+}
+
+function isOutputMessage(value: unknown): value is EvaluationResult['output'][number] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as { role?: unknown };
+  return typeof candidate.role === 'string';
+}
+
+function isExecutionStatus(value: unknown): value is EvaluationResult['executionStatus'] {
+  return (
+    typeof value === 'string' &&
+    EXECUTION_STATUSES.has(value as EvaluationResult['executionStatus'])
+  );
+}
+
+function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const result = value as Record<string, unknown>;
+  return {
+    ...result,
+    timestamp: typeof result.timestamp === 'string' ? result.timestamp : new Date(0).toISOString(),
+    testId:
+      typeof result.testId === 'string'
+        ? result.testId
+        : typeof result.evalId === 'string'
+          ? result.evalId
+          : 'unknown',
+    score: typeof result.score === 'number' ? result.score : 0,
+    assertions: Array.isArray(result.assertions) ? result.assertions.filter(isAssertionEntry) : [],
+    target: typeof result.target === 'string' ? result.target : 'unknown',
+    output: Array.isArray(result.output) ? result.output.filter(isOutputMessage) : [],
+    executionStatus: isExecutionStatus(result.executionStatus) ? result.executionStatus : 'ok',
+  };
+}
+
 // ---------------------------------------------------------------------------
 // JSONL parsing
 // ---------------------------------------------------------------------------
@@ -610,7 +678,10 @@ export function parseJsonlResults(content: string): EvaluationResult[] {
       const parsed = JSON.parse(trimmed);
       // JSONL files from AgentV use snake_case; convert back to camelCase
       const camelCased = toCamelCaseDeep(parsed);
-      results.push(camelCased as EvaluationResult);
+      const normalized = normalizeParsedResult(camelCased);
+      if (normalized) {
+        results.push(normalized);
+      }
     } catch {
       // Skip malformed lines
     }

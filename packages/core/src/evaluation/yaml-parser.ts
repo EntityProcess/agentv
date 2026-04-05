@@ -273,18 +273,18 @@ async function loadTestsFromYaml(
   }
 
   const suite = interpolated as RawTestSuite;
-  const evalSetNameFromSuite = asString(suite.name)?.trim();
-  const fallbackEvalSet =
+  const datasetNameFromSuite = asString(suite.name)?.trim();
+  const fallbackDatasetName =
     path
       .basename(absoluteTestPath)
       .replace(/\.eval\.ya?ml$/i, '')
       .replace(/\.ya?ml$/i, '') || 'eval';
-  const evalSetName =
-    evalSetNameFromSuite && evalSetNameFromSuite.length > 0
-      ? evalSetNameFromSuite
-      : fallbackEvalSet;
+  const datasetName =
+    datasetNameFromSuite && datasetNameFromSuite.length > 0
+      ? datasetNameFromSuite
+      : fallbackDatasetName;
 
-  const rawTestcases = resolveTests(suite);
+  const rawTestCases = resolveTests(suite);
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm-grader';
 
@@ -292,14 +292,14 @@ async function loadTestsFromYaml(
   const evalFileDir = path.dirname(absoluteTestPath);
 
   // Resolve tests: string path to external file, inline array, or error
-  let expandedTestcases: readonly JsonValue[];
-  if (typeof rawTestcases === 'string') {
+  let expandedTestCases: readonly JsonValue[];
+  if (typeof rawTestCases === 'string') {
     // String path: load tests from external file (YAML, JSONL)
-    const externalPath = path.resolve(evalFileDir, rawTestcases);
-    expandedTestcases = await loadCasesFromFile(externalPath);
-  } else if (Array.isArray(rawTestcases)) {
+    const externalPath = path.resolve(evalFileDir, rawTestCases);
+    expandedTestCases = await loadCasesFromFile(externalPath);
+  } else if (Array.isArray(rawTestCases)) {
     // Inline array: expand any file:// references
-    expandedTestcases = await expandFileReferences(rawTestcases, evalFileDir);
+    expandedTestCases = await expandFileReferences(rawTestCases, evalFileDir);
   } else {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
@@ -329,47 +329,49 @@ async function loadTestsFromYaml(
 
   const results: EvalTest[] = [];
 
-  for (const rawEvalcase of expandedTestcases) {
-    if (!isJsonObject(rawEvalcase)) {
+  for (const rawTestCase of expandedTestCases) {
+    if (!isJsonObject(rawTestCase)) {
       logWarning('Skipping invalid test entry (expected object)');
       continue;
     }
 
-    const evalcase = rawEvalcase as RawEvalCase;
-    const id = asString(evalcase.id);
+    const testCaseConfig = rawTestCase as RawEvalCase;
+    const id = asString(testCaseConfig.id);
 
     // Skip tests that don't match the filter pattern (glob supported)
     if (filterPattern && (!id || !matchesFilter(id, filterPattern))) {
       continue;
     }
 
-    const conversationId = asString(evalcase.conversation_id);
-    let outcome = asString(evalcase.criteria);
-    if (!outcome && evalcase.expected_outcome !== undefined) {
-      outcome = asString(evalcase.expected_outcome);
+    const conversationId = asString(testCaseConfig.conversation_id);
+    let outcome = asString(testCaseConfig.criteria);
+    if (!outcome && testCaseConfig.expected_outcome !== undefined) {
+      outcome = asString(testCaseConfig.expected_outcome);
       if (outcome) {
         logWarning(
-          `Test '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          `Test '${asString(testCaseConfig.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
         );
       }
     }
 
     // Extract per-case execution config early (reused below for skip_defaults)
-    const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
+    const caseExecution = isJsonObject(testCaseConfig.execution)
+      ? testCaseConfig.execution
+      : undefined;
     const skipDefaults = caseExecution?.skip_defaults === true;
 
     // Resolve input with shorthand support (pass suite-level input_files for merge)
     const effectiveSuiteInputFiles = suiteInputFiles && !skipDefaults ? suiteInputFiles : undefined;
-    const testInputMessages = resolveInputMessages(evalcase, effectiveSuiteInputFiles);
+    const testInputMessages = resolveInputMessages(testCaseConfig, effectiveSuiteInputFiles);
     // Resolve expected_output with shorthand support
-    const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
+    const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
     // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
     const hasEvaluationSpec =
       !!outcome ||
       expectedMessages.length > 0 ||
-      evalcase.assertions !== undefined ||
-      evalcase.assert !== undefined;
+      testCaseConfig.assertions !== undefined ||
+      testCaseConfig.assert !== undefined;
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
         `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,
@@ -444,10 +446,15 @@ async function loadTestsFromYaml(
       .filter((part) => part.length > 0)
       .join(' ');
 
-    const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
+    const testCaseEvaluatorKind = coerceEvaluator(testCaseConfig.evaluator, id) ?? globalEvaluator;
     let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
     try {
-      evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? 'unknown');
+      evaluators = await parseEvaluators(
+        testCaseConfig,
+        globalExecution,
+        searchRoots,
+        id ?? 'unknown',
+      );
     } catch (error) {
       // Skip entire test if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);
@@ -456,7 +463,7 @@ async function loadTestsFromYaml(
     }
 
     // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-    const inlineRubrics = evalcase.rubrics;
+    const inlineRubrics = testCaseConfig.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
       const rubricEvaluator = parseInlineRubrics(inlineRubrics);
       if (rubricEvaluator) {
@@ -470,20 +477,20 @@ async function loadTestsFromYaml(
     const userFilePaths = collectResolvedInputFilePaths(inputMessages);
 
     // Parse per-case workspace config and merge with suite-level
-    const caseWorkspace = await resolveWorkspaceConfig(evalcase.workspace, evalFileDir);
+    const caseWorkspace = await resolveWorkspaceConfig(testCaseConfig.workspace, evalFileDir);
     const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
 
     // Parse per-case metadata
-    const metadata = isJsonObject(evalcase.metadata)
-      ? (evalcase.metadata as Record<string, unknown>)
+    const metadata = isJsonObject(testCaseConfig.metadata)
+      ? (testCaseConfig.metadata as Record<string, unknown>)
       : undefined;
 
     // Extract per-test targets override (matrix evaluation)
-    const caseTargets = extractTargetsFromTestCase(evalcase as JsonObject);
+    const caseTargets = extractTargetsFromTestCase(testCaseConfig as JsonObject);
 
     const testCase: EvalTest = {
       id,
-      dataset: evalSetName,
+      dataset: datasetName,
       category: options?.category,
       conversation_id: conversationId,
       question: question,
@@ -492,7 +499,7 @@ async function loadTestsFromYaml(
       reference_answer: referenceAnswer,
       file_paths: userFilePaths,
       criteria: outcome ?? '',
-      evaluator: evalCaseEvaluatorKind,
+      evaluator: testCaseEvaluatorKind,
       assertions: evaluators,
       workspace: mergedWorkspace,
       metadata,

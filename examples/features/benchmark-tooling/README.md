@@ -34,19 +34,19 @@ Pairwise Summary:
 
 ```bash
 # N-way matrix (all targets)
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl
 
 # With baseline regression check (exits 1 if any target regresses)
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1
 
 # Pairwise from combined file
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 
 # Filter to specific targets
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --targets gpt-4.1 --targets gpt-5-mini
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --targets gpt-4.1 --targets gpt-5-mini
 
 # JSON output
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --json
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
 ```
 
 ### Pairwise Mode
@@ -54,7 +54,7 @@ agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --json
 Extract a head-to-head comparison between two specific targets:
 
 ```bash
-agentv compare .agentv/results/runs/eval_<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 ```
 
 ```
@@ -247,7 +247,7 @@ Generates a consolidated benchmark summary across models and metrics from result
 ### Usage
 
 ```bash
-# Summarize all result files in a directory
+# Summarize all run workspaces in a directory
 bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
 
 # Summarize specific files

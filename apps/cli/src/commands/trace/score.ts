@@ -144,7 +144,7 @@ function extractCandidate(raw: RawResult): string {
  * Only used to satisfy the EvaluationContext interface — deterministic and
  * trace-based evaluators don't access these fields.
  */
-function buildEvalTest(raw: RawResult): EvalTest {
+function buildTestCase(raw: RawResult): EvalTest {
   return {
     id: raw.test_id ?? 'unknown',
     question: '',
@@ -210,7 +210,7 @@ async function runScore(
     const output = raw.output as readonly Message[] | undefined;
 
     const evalContext: EvaluationContext = {
-      evalCase: buildEvalTest(raw),
+      evalCase: buildTestCase(raw),
       candidate,
       target: { kind: 'custom' as const, name: raw.target ?? 'unknown', config: {} } as never,
       provider: stubProvider,
@@ -295,7 +295,7 @@ function renderTable(scored: ScoreResult[], assertSpec: string): string {
 
 export const traceScoreCommand = command({
   name: 'score',
-  description: 'Run evaluators against existing result files post-hoc',
+  description: 'Run evaluators against existing trace sources post-hoc',
   args: {
     file: positional({
       type: string,

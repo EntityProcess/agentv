@@ -104,7 +104,7 @@ export interface RawTraceSpan {
  *
  * Supported sources:
  * - Run workspace directories / index.jsonl manifests
- * - Legacy simple trace JSONL files
+ * - Standalone trace JSONL files for trace-only workflows
  * - OTLP JSON trace files written via --otel-file
  */
 export function loadResultFile(filePath: string): RawResult[] {
@@ -518,7 +518,7 @@ export function toTraceSummary(result: RawResult): TraceSummary | undefined {
 }
 
 /**
- * Metadata about a result file for listing.
+ * Metadata about a discovered run manifest for listing.
  */
 export interface ResultFileMeta {
   path: string;
@@ -531,62 +531,33 @@ export interface ResultFileMeta {
 }
 
 /**
- * Enumerate result files in the .agentv/results/ directory.
- * Scans runs/ for both directory-per-run layouts (index.jsonl preferred inside subdirs)
- * and legacy flat .jsonl files. Also scans the base directory for pre-runs/ files.
+ * Enumerate canonical run manifests in `.agentv/results/runs/`.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
-  const baseDir = path.join(cwd, '.agentv', 'results');
-  const runsDir = path.join(baseDir, RESULT_RUNS_DIRNAME);
+  const runsDir = path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME);
 
   const files: { filePath: string; displayName: string }[] = [];
 
-  // Scan runs/ for both directory-based runs and flat JSONL files.
-  // Process directories first so they take priority in dedup over flat files.
   try {
     const entries = readdirSync(runsDir, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const primaryPath = resolveExistingRunPrimaryPath(path.join(runsDir, entry.name));
-        if (primaryPath) {
-          files.push({ filePath: primaryPath, displayName: entry.name });
-        }
+      if (!entry.isDirectory()) {
+        continue;
       }
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory() && entry.name.endsWith('.jsonl')) {
-        files.push({ filePath: path.join(runsDir, entry.name), displayName: entry.name });
+
+      const primaryPath = resolveExistingRunPrimaryPath(path.join(runsDir, entry.name));
+      if (primaryPath) {
+        files.push({ filePath: primaryPath, displayName: entry.name });
       }
     }
   } catch {
     // runs/ doesn't exist yet
   }
 
-  // Also scan base directory for legacy files (backward compat)
-  try {
-    const entries = readdirSync(baseDir).filter((f) => f.endsWith('.jsonl'));
-    for (const entry of entries) {
-      files.push({ filePath: path.join(baseDir, entry), displayName: entry });
-    }
-  } catch {
-    // Base directory doesn't exist yet
-  }
-
-  // Deduplicate by normalized name (strip .jsonl so dir "eval_X" matches file "eval_X.jsonl")
-  const seen = new Set<string>();
-  const uniqueFiles: { filePath: string; displayName: string }[] = [];
-  for (const file of files) {
-    const key = file.displayName.replace(/\.jsonl$/, '');
-    if (!seen.has(key)) {
-      seen.add(key);
-      uniqueFiles.push(file);
-    }
-  }
-
   // Sort by display name descending (most recent first)
-  uniqueFiles.sort((a, b) => b.displayName.localeCompare(a.displayName));
+  files.sort((a, b) => b.displayName.localeCompare(a.displayName));
 
-  const limited = limit !== undefined && limit > 0 ? uniqueFiles.slice(0, limit) : uniqueFiles;
+  const limited = limit !== undefined && limit > 0 ? files.slice(0, limit) : files;
 
   const metas: ResultFileMeta[] = [];
 

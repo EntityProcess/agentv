@@ -9,7 +9,7 @@
  * Export directory layout:
  *   <out-dir>/
  *   ├── manifest.json
- *   └── <eval-set>/              (omitted if eval.yaml has no name)
+ *   └── <dataset>/               (omitted if eval.yaml has no name)
  *       └── <test-id>/
  *           ├── input.json
  *           ├── invoke.json
@@ -58,8 +58,8 @@ export const evalInputCommand = command({
     const evalDir = dirname(resolvedEvalPath);
 
     const category = deriveCategory(relative(process.cwd(), resolvedEvalPath));
-    const suite = await loadTestSuite(resolvedEvalPath, repoRoot, { category });
-    const tests = suite.tests;
+    const dataset = await loadTestSuite(resolvedEvalPath, repoRoot, { category });
+    const tests = dataset.tests;
 
     if (tests.length === 0) {
       console.error('No tests found in eval file.');
@@ -107,13 +107,13 @@ export const evalInputCommand = command({
       // No targets file found — subagent-as-target mode
     }
 
-    const evalSetName = suite.metadata?.name?.trim() ?? '';
-    const safeEvalSet = evalSetName ? evalSetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
+    const datasetName = dataset.metadata?.name?.trim() ?? '';
+    const safeDatasetName = datasetName ? datasetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     const testIds: string[] = [];
 
     for (const test of tests) {
-      const subpath = safeEvalSet ? [safeEvalSet, test.id] : [test.id];
+      const subpath = safeDatasetName ? [safeDatasetName, test.id] : [test.id];
       const testDir = join(outDir, ...subpath);
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
@@ -168,7 +168,7 @@ export const evalInputCommand = command({
     // manifest.json
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
-      dataset: evalSetName || undefined,
+      dataset: datasetName || undefined,
       experiment: experiment || undefined,
       timestamp: new Date().toISOString(),
       target: {

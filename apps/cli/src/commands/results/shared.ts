@@ -2,8 +2,7 @@
  * Shared utilities for `agentv results` subcommands.
  *
  * Provides:
- * - resolveSourceFile() — find an index/results manifest from explicit path or auto-discover latest
- * - patchTestIds() — backward-compat eval_id -> test_id patching
+ * - resolveSourceFile() — find an index manifest from explicit path or auto-discover latest
  * - sourceArg — cmd-ts positional for optional result source path
  *
  * How to extend:
@@ -14,6 +13,7 @@ import { existsSync } from 'node:fs';
 import { optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult } from '@agentv/core';
+import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
 import { loadManifestResults, resolveResultSourcePath } from './manifest.js';
@@ -22,7 +22,8 @@ import { loadManifestResults, resolveResultSourcePath } from './manifest.js';
 export const sourceArg = positional({
   type: optional(string),
   displayName: 'source',
-  description: 'Result file or workspace directory (defaults to most recent in .agentv/results/)',
+  description:
+    'Run workspace directory or index.jsonl manifest (defaults to most recent in .agentv/results/runs/)',
 });
 
 /**
@@ -40,6 +41,7 @@ export async function resolveSourceFile(
       console.error(`Error: File not found: ${sourceFile}`);
       process.exit(1);
     }
+    sourceFile = resolveRunManifestPath(sourceFile);
   } else {
     const cache = await loadRunCache(cwd);
     const cachedFile = cache ? resolveRunCacheFile(cache) : '';
@@ -48,7 +50,7 @@ export async function resolveSourceFile(
     } else {
       const metas = listResultFiles(cwd, 1);
       if (metas.length === 0) {
-        console.error('Error: No result files found in .agentv/results/');
+        console.error('Error: No run workspaces found in .agentv/results/runs/');
         console.error('Run an evaluation first: agentv eval <eval-file>');
         process.exit(1);
       }
@@ -60,7 +62,7 @@ export async function resolveSourceFile(
 }
 
 /**
- * Load and parse eval results from an index/results source file, with backward-compat patching.
+ * Load and parse eval results from a run workspace or index manifest.
  */
 export async function loadResults(
   source: string | undefined,
@@ -74,17 +76,5 @@ export async function loadResults(
     process.exit(1);
   }
 
-  return { results: patchTestIds(results), sourceFile };
-}
-
-/**
- * Patch older JSONL records that used eval_id instead of test_id.
- */
-export function patchTestIds(results: EvaluationResult[]): EvaluationResult[] {
-  return results.map((r) => {
-    if (!r.testId && (r as unknown as Record<string, unknown>).evalId) {
-      return { ...r, testId: String((r as unknown as Record<string, unknown>).evalId) };
-    }
-    return r;
-  });
+  return { results, sourceFile };
 }

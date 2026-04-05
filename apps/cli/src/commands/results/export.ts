@@ -21,11 +21,16 @@
  *   - To add new per-test workspace files, add them under each test directory.
  */
 
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+
 import { command, option, optional, positional, string } from 'cmd-ts';
 
+import type { EvaluationResult } from '@agentv/core';
+
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
-import { loadResults as loadSharedResults, patchTestIds, resolveSourceFile } from './shared.js';
+import { loadResults as loadSharedResults, resolveSourceFile } from './shared.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
 
@@ -40,7 +45,7 @@ export async function exportResults(
     throw new Error(`No results found in ${sourceFile}`);
   }
 
-  await writeArtifactsFromResults(patchTestIds(results), outputDir, {
+  await writeArtifactsFromResults(results, outputDir, {
     evalFile: sourceFile,
   });
 }
@@ -48,23 +53,54 @@ export async function exportResults(
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 /**
- * Derive the default output directory from a JSONL source path.
- * Handles both directory-per-run manifests (<ts>/index.jsonl) and legacy flat files.
+ * Derive the default output directory from a run manifest path.
  */
-function deriveOutputDir(cwd: string, sourceFile: string): string {
-  const parentDir = path.basename(path.dirname(sourceFile));
-  // Directory-per-run: parent is the timestamp dir (or legacy eval_<ts> dir)
-  if (/^\d{4}-\d{2}-\d{2}T/.test(parentDir)) {
-    return path.join(cwd, '.agentv', 'results', 'export', parentDir);
+export function deriveOutputDir(cwd: string, sourceFile: string): string {
+  const baseName = path.basename(sourceFile);
+  if (baseName !== 'index.jsonl') {
+    const stem = path.basename(sourceFile, path.extname(sourceFile));
+    return path.join(
+      cwd,
+      '.agentv',
+      'results',
+      'export',
+      stem.startsWith('eval_') ? stem.slice(5) : stem,
+    );
   }
+
+  const parentDir = path.basename(path.dirname(sourceFile));
   if (parentDir.startsWith('eval_')) {
-    // Legacy eval_ prefix: strip it
     return path.join(cwd, '.agentv', 'results', 'export', parentDir.slice(5));
   }
-  // Legacy flat file: extract timestamp from filename
-  const basename = path.basename(sourceFile, '.jsonl');
-  const dirName = basename.startsWith('eval_') ? basename.slice(5) : basename;
-  return path.join(cwd, '.agentv', 'results', 'export', dirName);
+  return path.join(cwd, '.agentv', 'results', 'export', parentDir);
+}
+
+export async function loadExportSource(
+  source: string | undefined,
+  cwd: string,
+): Promise<{ sourceFile: string; results: readonly EvaluationResult[] }> {
+  try {
+    const { sourceFile } = await resolveSourceFile(source, cwd);
+    const { results } = await loadSharedResults(source, cwd);
+    return { sourceFile, results };
+  } catch (error) {
+    if (!source) {
+      throw error;
+    }
+
+    const explicitSource = path.isAbsolute(source) ? source : path.resolve(cwd, source);
+    if (!existsSync(explicitSource) || path.extname(explicitSource) !== '.jsonl') {
+      throw error;
+    }
+
+    const content = await readFile(explicitSource, 'utf8');
+    const results = parseJsonlResults(content);
+    if (results.length === 0) {
+      throw new Error(`No results found in ${explicitSource}`);
+    }
+
+    return { sourceFile: explicitSource, results };
+  }
 }
 
 // ── CLI command ──────────────────────────────────────────────────────────
@@ -76,7 +112,8 @@ export const resultsExportCommand = command({
     source: positional({
       type: optional(string),
       displayName: 'source',
-      description: 'JSONL result file to export (defaults to most recent in .agentv/results/)',
+      description:
+        'Run workspace directory or index.jsonl manifest to export (defaults to most recent in .agentv/results/runs/)',
     }),
     out: option({
       type: optional(string),
@@ -95,8 +132,7 @@ export const resultsExportCommand = command({
     const cwd = dir ?? process.cwd();
 
     try {
-      const { sourceFile } = await resolveSourceFile(source, cwd);
-      const { results } = await loadSharedResults(source, cwd);
+      const { sourceFile, results } = await loadExportSource(source, cwd);
 
       const outputDir = out
         ? path.isAbsolute(out)
@@ -111,9 +147,7 @@ export const resultsExportCommand = command({
       // Report exported test IDs
       console.log(`Exported ${results.length} test(s) to ${outputDir}`);
       for (const result of results) {
-        const id =
-          result.testId ?? (result as unknown as Record<string, unknown>).evalId ?? 'unknown';
-        console.log(`  ${id}`);
+        console.log(`  ${result.testId ?? 'unknown'}`);
       }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);

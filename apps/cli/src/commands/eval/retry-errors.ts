@@ -1,17 +1,25 @@
+import { readFile } from 'node:fs/promises';
+
 import type { EvaluationResult } from '@agentv/core';
 
-import {
-  loadLightweightResults,
-  loadManifestResults,
-  resolveResultSourcePath,
-} from '../results/manifest.js';
+import { loadManifestResults, resolveResultSourcePath } from '../results/manifest.js';
+import { parseJsonlResults } from './artifact-writer.js';
+
+async function loadRetrySourceResults(jsonlPath: string): Promise<readonly EvaluationResult[]> {
+  try {
+    const resolvedPath = resolveResultSourcePath(jsonlPath);
+    return loadManifestResults(resolvedPath);
+  } catch {
+    const content = await readFile(jsonlPath, 'utf8');
+    return parseJsonlResults(content);
+  }
+}
 
 /**
  * Load test IDs from an index/results source that have executionStatus === 'execution_error'.
  */
 export async function loadErrorTestIds(jsonlPath: string): Promise<readonly string[]> {
-  const resolvedPath = resolveResultSourcePath(jsonlPath);
-  const ids = loadLightweightResults(resolvedPath)
+  const ids = (await loadRetrySourceResults(jsonlPath))
     .filter((result) => result.executionStatus === 'execution_error')
     .map((result) => result.testId);
 
@@ -23,8 +31,7 @@ export async function loadErrorTestIds(jsonlPath: string): Promise<readonly stri
  * These are the "good" results that should be preserved when merging retry output.
  */
 export async function loadNonErrorResults(jsonlPath: string): Promise<readonly EvaluationResult[]> {
-  const resolvedPath = resolveResultSourcePath(jsonlPath);
-  return loadManifestResults(resolvedPath).filter(
+  return (await loadRetrySourceResults(jsonlPath)).filter(
     (result) => result.testId && result.executionStatus !== 'execution_error',
   );
 }

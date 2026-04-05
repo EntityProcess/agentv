@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import {
   array,
   command,
@@ -62,6 +65,66 @@ interface MatrixRow {
   scores: Record<string, number>;
 }
 
+interface ParsedCompareResult {
+  testId: string;
+  score: number;
+  target?: string;
+}
+
+function loadFlatCompareResults(filePath: string): ParsedCompareResult[] {
+  const content = readFileSync(filePath, 'utf8');
+  const results: ParsedCompareResult[] = [];
+
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const parsed = JSON.parse(line) as Record<string, unknown>;
+    const testId =
+      typeof parsed.test_id === 'string'
+        ? parsed.test_id
+        : typeof parsed.testId === 'string'
+          ? parsed.testId
+          : typeof parsed.eval_id === 'string'
+            ? parsed.eval_id
+            : typeof parsed.evalId === 'string'
+              ? parsed.evalId
+              : undefined;
+    if (!testId) {
+      throw new Error(`Missing test_id in result source: ${filePath}`);
+    }
+
+    if (typeof parsed.score !== 'number' || Number.isNaN(parsed.score)) {
+      throw new Error(`Missing or invalid score in result source: ${filePath}`);
+    }
+
+    results.push({
+      testId,
+      score: parsed.score,
+      target: typeof parsed.target === 'string' ? parsed.target : undefined,
+    });
+  }
+
+  return results;
+}
+
+function loadCompareResults(filePath: string): ParsedCompareResult[] {
+  try {
+    const resolvedPath = resolveResultSourcePath(filePath);
+    if (path.basename(resolvedPath) === 'index.jsonl') {
+      return loadLightweightResults(resolvedPath).map((record) => ({
+        testId: record.testId,
+        score: record.score,
+        target: record.target,
+      }));
+    }
+  } catch {
+    // Fall back to direct JSONL parsing for explicit flat result files.
+  }
+
+  return loadFlatCompareResults(filePath);
+}
+
 export interface MatrixOutput {
   matrix: MatrixRow[];
   pairwise: ComparisonOutput[];
@@ -69,7 +132,7 @@ export interface MatrixOutput {
 }
 
 export function loadJsonlResults(filePath: string): EvalResult[] {
-  return loadLightweightResults(resolveResultSourcePath(filePath)).map((record) => ({
+  return loadCompareResults(filePath).map((record) => ({
     testId: record.testId,
     score: record.score,
   }));
@@ -78,7 +141,7 @@ export function loadJsonlResults(filePath: string): EvalResult[] {
 export function loadCombinedResults(filePath: string): Map<string, EvalResult[]> {
   const groups = new Map<string, EvalResult[]>();
 
-  for (const record of loadLightweightResults(resolveResultSourcePath(filePath))) {
+  for (const record of loadCompareResults(filePath)) {
     if (typeof record.target !== 'string') {
       throw new Error(`Missing target field in combined result source: ${filePath}`);
     }
