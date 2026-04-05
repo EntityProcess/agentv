@@ -1,6 +1,6 @@
 # Field Accuracy Evaluation Dataset
 #
-# This dataset demonstrates the built-in `field_accuracy` evaluator for per-evalcase scoring.
+# This dataset demonstrates the built-in `field_accuracy` evaluator for per-test-case scoring.
 # Use this pattern when you need simple pass/fail scoring per field.
 #
 # For aggregatable TP/TN/FP/FN metrics across documents, see confusion-metrics.yaml instead.
@@ -22,7 +22,7 @@
 #   invoice-005: ~1.000 (line items extracted correctly)
 #   invoice-006: ~1.000 (greedy matching handles reordered line items)
 #
-description: Field accuracy evaluator patterns (per-evalcase scoring)
+description: Field accuracy evaluator patterns (per-test-case scoring)
 
 execution:
   target: mock_extractor
@@ -416,4 +416,3 @@ tests:
             value: ../fixtures/invoice-006.json
           - type: text
             value: "Extract line items from invoice (may be reordered)."
-

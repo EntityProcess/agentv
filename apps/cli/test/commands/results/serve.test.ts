@@ -58,6 +58,18 @@ describe('resolveSourceFile', () => {
       'Source file not found',
     );
   });
+
+  it('rejects legacy flat result files', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
+    const flatFile = path.join(tempDir, 'results.jsonl');
+    writeFileSync(flatFile, toJsonl(RESULT_A));
+
+    await expect(resolveSourceFile(flatFile, tempDir)).rejects.toThrow(
+      'Expected a run workspace directory or index.jsonl manifest',
+    );
+
+    rmSync(tempDir, { recursive: true, force: true });
+  });
 });
 
 // ── loadResults ──────────────────────────────────────────────────────────
@@ -327,8 +339,10 @@ describe('serve app', () => {
     it('loads results from an existing run file', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
-      const filename = 'eval_2026-03-25T10-00-00-000Z.jsonl';
-      writeFileSync(path.join(runsDir, filename), toJsonl(RESULT_A, RESULT_B));
+      const filename = '2026-03-25T10-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A, RESULT_B));
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request(`/api/runs/${filename}`);

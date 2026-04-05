@@ -256,102 +256,80 @@ describe('trace utils', () => {
       expect(metas).toEqual([]);
     });
 
-    it('should enumerate JSONL files in .agentv/results/runs/', () => {
+    it('should enumerate run workspaces in .agentv/results/runs/', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
 
+      const olderRunDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
+      const newerRunDir = path.join(runsDir, '2026-02-21T10-00-00-000Z');
+      mkdirSync(olderRunDir, { recursive: true });
+      mkdirSync(newerRunDir, { recursive: true });
       writeFileSync(
-        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
+        path.join(olderRunDir, 'index.jsonl'),
         `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
       );
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
-        `${RESULT_FAILING}\n`,
-      );
+      writeFileSync(path.join(newerRunDir, 'index.jsonl'), `${RESULT_FAILING}\n`);
 
       const metas = listResultFiles(tempDir);
 
       expect(metas).toHaveLength(2);
       // Most recent first
-      expect(metas[0].filename).toBe('eval_2026-02-21T10-00-00-000Z.jsonl');
+      expect(metas[0].filename).toBe('2026-02-21T10-00-00-000Z');
+      expect(metas[0].timestamp).toBe('2026-02-21T10:00:00.000Z');
       expect(metas[0].testCount).toBe(1);
       expect(metas[0].passRate).toBe(0);
 
-      expect(metas[1].filename).toBe('eval_2026-02-20T21-38-05-833Z.jsonl');
+      expect(metas[1].filename).toBe('2026-02-20T21-38-05-833Z');
+      expect(metas[1].timestamp).toBe('2026-02-20T21:38:05.833Z');
       expect(metas[1].testCount).toBe(2);
       expect(metas[1].passRate).toBe(0.5);
     });
 
-    it('should find legacy files in .agentv/results/ (backward compat)', () => {
-      const resultsDir = path.join(tempDir, '.agentv', 'results');
-      mkdirSync(resultsDir, { recursive: true });
-
-      writeFileSync(
-        path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
-        `${RESULT_WITH_TRACE}\n`,
-      );
-
-      const metas = listResultFiles(tempDir);
-      expect(metas).toHaveLength(1);
-      expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z.jsonl');
-    });
-
-    it('should deduplicate files preferring runs/ over legacy root', () => {
+    it('should ignore legacy flat result files in results roots', () => {
       const resultsDir = path.join(tempDir, '.agentv', 'results');
       const runsDir = path.join(resultsDir, 'runs');
       mkdirSync(runsDir, { recursive: true });
-
-      // Same filename in both locations
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
-        `${RESULT_WITH_TRACE}\n`,
-      );
       writeFileSync(
         path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n`,
       );
+      writeFileSync(path.join(runsDir, '2026-02-21T10-00-00-000Z.jsonl'), `${RESULT_FAILING}\n`);
 
       const metas = listResultFiles(tempDir);
-      expect(metas).toHaveLength(1);
-      // Should prefer the runs/ version
-      expect(metas[0].path).toContain(path.join('runs', 'eval_2026-02-20T21-38-05-833Z.jsonl'));
+
+      expect(metas).toEqual([]);
     });
 
     it('should respect limit', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
 
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
-        `${RESULT_WITH_TRACE}\n`,
-      );
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-21T10-00-00-000Z.jsonl'),
-        `${RESULT_FAILING}\n`,
-      );
+      const olderRunDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
+      const newerRunDir = path.join(runsDir, '2026-02-21T10-00-00-000Z');
+      mkdirSync(olderRunDir, { recursive: true });
+      mkdirSync(newerRunDir, { recursive: true });
+      writeFileSync(path.join(olderRunDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
+      writeFileSync(path.join(newerRunDir, 'index.jsonl'), `${RESULT_FAILING}\n`);
 
       const metas = listResultFiles(tempDir, 1);
       expect(metas).toHaveLength(1);
-      expect(metas[0].filename).toBe('eval_2026-02-21T10-00-00-000Z.jsonl');
+      expect(metas[0].filename).toBe('2026-02-21T10-00-00-000Z');
     });
 
-    it('should ignore non-JSONL files', () => {
+    it('should ignore non-directory entries in runs/', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
 
       writeFileSync(path.join(runsDir, 'notes.txt'), 'not a result file');
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
-        `${RESULT_WITH_TRACE}\n`,
-      );
+      writeFileSync(path.join(runsDir, '2026-02-20T21-38-05-833Z.jsonl'), `${RESULT_WITH_TRACE}\n`);
 
       const metas = listResultFiles(tempDir);
-      expect(metas).toHaveLength(1);
+      expect(metas).toHaveLength(0);
     });
 
     it('should discover index.jsonl inside run directories in runs/', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
-      const runDir = path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z');
+      const runDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
       writeFileSync(
@@ -364,55 +342,12 @@ describe('trace utils', () => {
       expect(metas).toHaveLength(1);
       expect(metas[0].testCount).toBe(2);
       expect(metas[0].passRate).toBe(0.5);
-      expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
-    });
-
-    it('should list both directory-based and flat-file results together', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
-      mkdirSync(runsDir, { recursive: true });
-
-      // New directory-based run
-      const runDir = path.join(runsDir, 'eval_2026-02-21T10-00-00-000Z');
-      mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_FAILING}\n`);
-
-      // Legacy flat file
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
-        `${RESULT_WITH_TRACE}\n`,
-      );
-
-      const metas = listResultFiles(tempDir);
-      expect(metas).toHaveLength(2);
-      // Most recent first
-      expect(metas[0].filename).toBe('eval_2026-02-21T10-00-00-000Z');
-      expect(metas[1].filename).toBe('eval_2026-02-20T21-38-05-833Z.jsonl');
-    });
-
-    it('should deduplicate directory and flat file with same timestamp', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
-      mkdirSync(runsDir, { recursive: true });
-
-      // Directory-based (preferred)
-      const runDir = path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z');
-      mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
-
-      // Flat file with same timestamp
-      writeFileSync(
-        path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
-        `${RESULT_WITH_TRACE}\n`,
-      );
-
-      const metas = listResultFiles(tempDir);
-      expect(metas).toHaveLength(1);
-      // Prefer directory-based (scanned first)
-      expect(metas[0].filename).toBe('eval_2026-02-20T21-38-05-833Z');
+      expect(metas[0].filename).toBe('2026-02-20T21-38-05-833Z');
     });
 
     it('should skip directories without index.jsonl', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
-      const emptyDir = path.join(runsDir, 'eval_2026-02-20T21-38-05-833Z');
+      const emptyDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
       mkdirSync(emptyDir, { recursive: true });
 
       // Directory exists but no manifest/result file inside
@@ -437,6 +372,11 @@ describe('trace utils', () => {
     it('should handle different timestamp values', () => {
       const result = extractTimestampFromFilename('eval_2026-01-01T00-00-00-000Z.jsonl');
       expect(result).toBe('2026-01-01T00:00:00.000Z');
+    });
+
+    it('should extract and format timestamp from bare run directory names', () => {
+      const result = extractTimestampFromFilename('2026-02-20T21-38-05-833Z');
+      expect(result).toBe('2026-02-20T21:38:05.833Z');
     });
   });
 

@@ -400,21 +400,21 @@ function createProgressReporter(
   };
 }
 
-function makeEvalKey(testFilePath: string, evalId: string): string {
-  return `${path.resolve(testFilePath)}::${evalId}`;
+function makeTestCaseKey(testFilePath: string, testId: string): string {
+  return `${path.resolve(testFilePath)}::${testId}`;
 }
 
-function createDisplayIdTracker(): { getOrAssign(evalKey: string): number } {
+function createDisplayIdTracker(): { getOrAssign(testCaseKey: string): number } {
   const map = new Map<string, number>();
   let nextId = 1;
   return {
-    getOrAssign(evalKey: string): number {
-      const existing = map.get(evalKey);
+    getOrAssign(testCaseKey: string): number {
+      const existing = map.get(testCaseKey);
       if (existing !== undefined) {
         return existing;
       }
       const assigned = nextId++;
-      map.set(evalKey, assigned);
+      map.set(testCaseKey, assigned);
       return assigned;
     },
   };
@@ -476,11 +476,11 @@ async function prepareFileMetadata(params: {
   readonly cwd: string;
   readonly options: NormalizedOptions;
 }): Promise<{
-  readonly evalIds: readonly string[];
-  readonly evalCases: readonly EvalTest[];
+  readonly testIds: readonly string[];
+  readonly testCases: readonly EvalTest[];
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
-  readonly suiteTargets?: readonly string[];
+  readonly datasetTargets?: readonly string[];
   readonly yamlWorkers?: number;
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
@@ -501,23 +501,23 @@ async function prepareFileMetadata(params: {
   const relativePath = path.relative(cwd, testFilePath);
   const category = deriveCategory(relativePath);
 
-  const suite = await loadTestSuite(testFilePath, repoRoot, {
+  const dataset = await loadTestSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: options.filter,
     category,
   });
-  const filteredIds = suite.tests.map((value) => value.id);
+  const testIds = dataset.tests.map((value) => value.id);
 
   // Determine target names: CLI --target flags override YAML
   const cliTargets = options.cliTargets;
-  const suiteTargets = suite.targets;
+  const datasetTargets = dataset.targets;
 
-  // Resolve which target names to use (precedence: CLI > YAML targets > YAML target > default)
+  // Resolve which target names to use (precedence: CLI > dataset YAML targets > default)
   let targetNames: readonly string[];
   if (cliTargets.length > 0) {
     targetNames = cliTargets;
-  } else if (suiteTargets && suiteTargets.length > 0) {
-    targetNames = suiteTargets;
+  } else if (datasetTargets && datasetTargets.length > 0) {
+    targetNames = datasetTargets;
   } else {
     targetNames = [];
   }
@@ -567,18 +567,18 @@ async function prepareFileMetadata(params: {
   }
 
   return {
-    evalIds: filteredIds,
-    evalCases: suite.tests,
+    testIds,
+    testCases: dataset.tests,
     selections,
-    trialsConfig: suite.trials,
-    suiteTargets,
-    yamlWorkers: suite.workers,
-    yamlCache: suite.cacheConfig?.enabled,
-    yamlCachePath: suite.cacheConfig?.cachePath,
-    totalBudgetUsd: suite.totalBudgetUsd,
-    failOnError: suite.failOnError,
-    threshold: suite.threshold,
-    tags: suite.metadata?.tags,
+    trialsConfig: dataset.trials,
+    datasetTargets,
+    yamlWorkers: dataset.workers,
+    yamlCache: dataset.cacheConfig?.enabled,
+    yamlCachePath: dataset.cacheConfig?.cachePath,
+    totalBudgetUsd: dataset.totalBudgetUsd,
+    failOnError: dataset.failOnError,
+    threshold: dataset.threshold,
+    tags: dataset.metadata?.tags,
   };
 }
 
@@ -613,11 +613,11 @@ async function runSingleEvalFile(params: {
   readonly workersOverride?: number;
   readonly yamlWorkers?: number;
   readonly progressReporter: ProgressReporter;
-  readonly seenEvalCases: Set<string>;
-  readonly displayIdTracker: { getOrAssign(evalKey: string): number };
+  readonly seenTestCases: Set<string>;
+  readonly displayIdTracker: { getOrAssign(testCaseKey: string): number };
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
-  readonly evalCases: readonly EvalTest[];
+  readonly testCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
   readonly matrixMode?: boolean;
   readonly totalBudgetUsd?: number;
@@ -636,11 +636,11 @@ async function runSingleEvalFile(params: {
     workersOverride,
     yamlWorkers,
     progressReporter,
-    seenEvalCases,
+    seenTestCases,
     displayIdTracker,
     selection,
     inlineTargetLabel,
-    evalCases,
+    testCases,
     trialsConfig,
     matrixMode,
     totalBudgetUsd,
@@ -731,7 +731,7 @@ async function runSingleEvalFile(params: {
       return true;
     })(),
     filter: options.filter,
-    evalCases,
+    evalCases: testCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
     workspaceMode: options.workspaceMode,
@@ -747,7 +747,7 @@ async function runSingleEvalFile(params: {
       (
         streamingObserver as { completeFromResult?: (result: EvaluationResult) => void } | null
       )?.completeFromResult?.(result);
-      // Finalize streaming observer span with score
+      // Finalize the streaming observer span with score.
       streamingObserver?.finalizeEvalCase(result.score, result.error);
 
       // Trim output messages for results JSONL based on --output-messages.
@@ -775,13 +775,13 @@ async function runSingleEvalFile(params: {
       }
     },
     onProgress: async (event) => {
-      const evalKeyId = matrixMode ? `${event.testId}@${targetName}` : event.testId;
-      const evalKey = makeEvalKey(testFilePath, evalKeyId);
-      if (event.status === 'pending' && !seenEvalCases.has(evalKey)) {
-        seenEvalCases.add(evalKey);
-        progressReporter.setTotal(seenEvalCases.size);
+      const testCaseKeyId = matrixMode ? `${event.testId}@${targetName}` : event.testId;
+      const testCaseKey = makeTestCaseKey(testFilePath, testCaseKeyId);
+      if (event.status === 'pending' && !seenTestCases.has(testCaseKey)) {
+        seenTestCases.add(testCaseKey);
+        progressReporter.setTotal(seenTestCases.size);
       }
-      const displayId = displayIdTracker.getOrAssign(evalKey);
+      const displayId = displayIdTracker.getOrAssign(testCaseKey);
 
       // Start streaming observer when eval case begins execution
       if (event.status === 'running' && streamingObserver) {
@@ -999,7 +999,7 @@ export async function runEvalCommand(
   // We defer cache creation until after file metadata is loaded
   const evaluationRunner = await resolveEvaluationRunner();
   const allResults: EvaluationResult[] = [];
-  const seenEvalCases = new Set<string>();
+  const seenTestCases = new Set<string>();
   const displayIdTracker = createDisplayIdTracker();
 
   // Derive file-level concurrency from worker count (global) when provided
@@ -1014,14 +1014,14 @@ export async function runEvalCommand(
   const fileMetadata = new Map<
     string,
     {
-      readonly evalIds: readonly string[];
-      readonly evalCases: readonly EvalTest[];
+      readonly testIds: readonly string[];
+      readonly testCases: readonly EvalTest[];
       readonly selections: readonly {
         selection: TargetSelection;
         inlineTargetLabel: string;
       }[];
       readonly trialsConfig?: TrialsConfig;
-      readonly suiteTargets?: readonly string[];
+      readonly datasetTargets?: readonly string[];
       readonly yamlWorkers?: number;
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
@@ -1099,13 +1099,12 @@ export async function runEvalCommand(
   const cache = cacheEnabled
     ? new ResponseCache(yamlCachePath ? path.resolve(yamlCachePath) : undefined)
     : undefined;
-  const useCache = cacheEnabled;
 
   if (cacheEnabled) {
     console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
   }
 
-  // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold
+  // Resolve dataset-level threshold: CLI --threshold takes precedence over YAML execution.threshold.
   const yamlThreshold = firstMeta?.threshold;
   const resolvedThreshold = options.threshold ?? yamlThreshold;
   if (resolvedThreshold !== undefined && (resolvedThreshold < 0 || resolvedThreshold > 1)) {
@@ -1129,13 +1128,13 @@ export async function runEvalCommand(
   // In matrix mode, total eval count is tests × targets (accounting for per-test target overrides)
   let totalEvalCount = 0;
   for (const meta of fileMetadata.values()) {
-    const suiteTargetNames = meta.selections.map((s) => s.selection.targetName);
-    for (const test of meta.evalCases) {
-      // Per-test targets override suite-level targets
+    const datasetTargetNames = meta.selections.map((s) => s.selection.targetName);
+    for (const test of meta.testCases) {
+      // Per-test targets override dataset-level targets.
       const testTargetNames =
         test.targets && test.targets.length > 0
-          ? test.targets.filter((t) => suiteTargetNames.includes(t))
-          : suiteTargetNames;
+          ? test.targets.filter((t) => datasetTargetNames.includes(t))
+          : datasetTargetNames;
       totalEvalCount += testTargetNames.length > 0 ? testTargetNames.length : 1;
     }
   }
@@ -1179,13 +1178,13 @@ export async function runEvalCommand(
   });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
     for (const { selection, inlineTargetLabel } of meta.selections) {
-      for (const testId of meta.evalIds) {
-        const evalKey = makeEvalKey(
+      for (const testId of meta.testIds) {
+        const testCaseKey = makeTestCaseKey(
           testFilePath,
           meta.selections.length > 1 ? `${testId}@${selection.targetName}` : testId,
         );
-        seenEvalCases.add(evalKey);
-        const displayId = displayIdTracker.getOrAssign(evalKey);
+        seenTestCases.add(testCaseKey);
+        const displayId = displayIdTracker.getOrAssign(testCaseKey);
         progressReporter.update(displayId, {
           workerId: displayId,
           testId: meta.selections.length > 1 ? `${testId}@${selection.targetName}` : testId,
@@ -1209,19 +1208,19 @@ export async function runEvalCommand(
       // Run all targets concurrently (each target has its own worker limit)
       const targetResults = await Promise.all(
         targetPrep.selections.map(async ({ selection, inlineTargetLabel }) => {
-          // Filter eval cases to those applicable to this target
+          // Filter test cases to those applicable to this target.
           const targetName = selection.targetName;
-          const applicableEvalCases =
+          const applicableTestCases =
             targetPrep.selections.length > 1
-              ? targetPrep.evalCases.filter((test) => {
+              ? targetPrep.testCases.filter((test) => {
                   if (test.targets && test.targets.length > 0) {
                     return test.targets.includes(targetName);
                   }
                   return true;
                 })
-              : targetPrep.evalCases;
+              : targetPrep.testCases;
 
-          if (applicableEvalCases.length === 0) {
+          if (applicableTestCases.length === 0) {
             return [];
           }
 
@@ -1238,11 +1237,11 @@ export async function runEvalCommand(
               workersOverride: perFileWorkers,
               yamlWorkers: targetPrep.yamlWorkers,
               progressReporter,
-              seenEvalCases,
+              seenTestCases,
               displayIdTracker,
               selection,
               inlineTargetLabel,
-              evalCases: applicableEvalCases,
+              testCases: applicableTestCases,
               trialsConfig: targetPrep.trialsConfig,
               matrixMode: targetPrep.selections.length > 1,
               totalBudgetUsd: targetPrep.totalBudgetUsd,
@@ -1256,9 +1255,9 @@ export async function runEvalCommand(
             // Mark all tests in this file as errors and continue with other files.
             const message = fileError instanceof Error ? fileError.message : String(fileError);
             console.error(`\n⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
-            const errorResults: EvaluationResult[] = applicableEvalCases.map((evalCase) => ({
+            const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
               timestamp: new Date().toISOString(),
-              testId: evalCase.id,
+              testId: testCase.id,
               score: 0,
               assertions: [],
               output: [],

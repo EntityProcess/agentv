@@ -5,11 +5,11 @@ Demonstrates `agentv trace` subcommands for headless trace inspection and analys
 ## Quick Start
 
 ```bash
-# List result files
+# List run workspaces
 bun agentv trace list
 
 # Show summary trace details from the run manifest
-bun agentv trace show .agentv/results/runs/eval_<timestamp>/index.jsonl
+bun agentv trace show .agentv/results/runs/<timestamp>/index.jsonl
 
 # Show hierarchical trace tree from an OTLP export
 bun agentv trace show traces/eval.otlp.json --tree
@@ -18,13 +18,13 @@ bun agentv trace show traces/eval.otlp.json --tree
 bun agentv trace show traces/eval.otlp.json --test-id research-question --tree
 
 # Compute percentile statistics
-bun agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl
+bun agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl
 
 # Group stats by target provider
-bun agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl --group-by target
+bun agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target
 
 # JSON output for piping to jq
-bun agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl --format json | jq '.groups[].metrics'
+bun agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl --format json | jq '.groups[].metrics'
 ```
 
 ## What's in the Example Data
@@ -53,6 +53,6 @@ bun agentv trace show traces/eval.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare scores by target provider
-bun agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl --group-by target --format json \
+bun agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```

@@ -158,10 +158,10 @@ export async function loadTestsFromJsonl(
   const rawFile = await readFile(absoluteTestPath, 'utf8');
   const rawCases = parseJsonlContent(rawFile, evalFilePath);
 
-  // Derive eval set name: sidecar > filename
-  const fallbackEvalSet = path.basename(absoluteTestPath, '.jsonl') || 'eval';
-  const evalSetName =
-    sidecar.name && sidecar.name.trim().length > 0 ? sidecar.name : fallbackEvalSet;
+  // Derive dataset name: sidecar > filename
+  const fallbackDatasetName = path.basename(absoluteTestPath, '.jsonl') || 'eval';
+  const datasetName =
+    sidecar.name && sidecar.name.trim().length > 0 ? sidecar.name : fallbackDatasetName;
 
   // Global defaults from sidecar
   const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm-grader';
@@ -170,7 +170,7 @@ export async function loadTestsFromJsonl(
   if (verbose) {
     console.log(`\n[JSONL Dataset: ${evalFilePath}]`);
     console.log(`  Cases: ${rawCases.length}`);
-    console.log(`  Eval set: ${evalSetName}`);
+    console.log(`  Dataset: ${datasetName}`);
     if (sidecar.description) {
       console.log(`  Description: ${sidecar.description}`);
     }
@@ -179,34 +179,34 @@ export async function loadTestsFromJsonl(
   const results: EvalTest[] = [];
 
   for (let lineIndex = 0; lineIndex < rawCases.length; lineIndex++) {
-    const evalcase = rawCases[lineIndex];
+    const testCaseConfig = rawCases[lineIndex];
     const lineNumber = lineIndex + 1; // 1-based for user-facing messages
-    const id = asString(evalcase.id);
+    const id = asString(testCaseConfig.id);
 
     // Skip eval cases that don't match the filter pattern (glob supported)
     if (filterPattern && (!id || !matchesFilter(id, filterPattern))) {
       continue;
     }
 
-    const conversationId = asString(evalcase.conversation_id);
-    let outcome = asString(evalcase.criteria);
-    if (!outcome && evalcase.expected_outcome !== undefined) {
-      outcome = asString(evalcase.expected_outcome);
+    const conversationId = asString(testCaseConfig.conversation_id);
+    let outcome = asString(testCaseConfig.criteria);
+    if (!outcome && testCaseConfig.expected_outcome !== undefined) {
+      outcome = asString(testCaseConfig.expected_outcome);
       if (outcome) {
         logWarning(
-          `Test '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          `Test '${asString(testCaseConfig.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
         );
       }
     }
 
     // Resolve input with shorthand support
-    const rawInputMessages = resolveInputMessages(evalcase);
+    const rawInputMessages = resolveInputMessages(testCaseConfig);
     // Resolve expected_output with shorthand support
-    const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
+    const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
     // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assert
     const hasEvaluationSpec =
-      !!outcome || expectedMessages.length > 0 || evalcase.assert !== undefined;
+      !!outcome || expectedMessages.length > 0 || testCaseConfig.assert !== undefined;
     if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
         `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
@@ -265,13 +265,20 @@ export async function loadTestsFromJsonl(
       .join(' ');
 
     // Merge execution config: per-case overrides sidecar
-    const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
+    const caseExecution = isJsonObject(testCaseConfig.execution)
+      ? testCaseConfig.execution
+      : undefined;
     const mergedExecution = caseExecution ?? globalExecution;
 
-    const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
+    const testCaseEvaluatorKind = coerceEvaluator(testCaseConfig.evaluator, id) ?? globalEvaluator;
     let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
     try {
-      evaluators = await parseEvaluators(evalcase, mergedExecution, searchRoots, id ?? 'unknown');
+      evaluators = await parseEvaluators(
+        testCaseConfig,
+        mergedExecution,
+        searchRoots,
+        id ?? 'unknown',
+      );
     } catch (error) {
       // Skip entire test if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);
@@ -280,7 +287,7 @@ export async function loadTestsFromJsonl(
     }
 
     // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-    const inlineRubrics = evalcase.rubrics;
+    const inlineRubrics = testCaseConfig.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
       const rubricEvaluator = parseInlineRubrics(inlineRubrics);
       if (rubricEvaluator) {
@@ -295,7 +302,7 @@ export async function loadTestsFromJsonl(
 
     const testCase: EvalTest = {
       id,
-      dataset: evalSetName,
+      dataset: datasetName,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,
@@ -303,7 +310,7 @@ export async function loadTestsFromJsonl(
       reference_answer: referenceAnswer,
       file_paths: userFilePaths,
       criteria: outcome ?? '',
-      evaluator: evalCaseEvaluatorKind,
+      evaluator: testCaseEvaluatorKind,
       assertions: evaluators,
     };
 

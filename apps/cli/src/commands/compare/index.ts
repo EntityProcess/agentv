@@ -10,6 +10,7 @@ import {
   restPositionals,
   string,
 } from 'cmd-ts';
+
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { loadLightweightResults, resolveResultSourcePath } from '../results/manifest.js';
 
@@ -62,6 +63,26 @@ interface MatrixRow {
   scores: Record<string, number>;
 }
 
+interface CompareInputRecord extends EvalResult {
+  target?: string;
+}
+
+function loadCompareResults(filePath: string): CompareInputRecord[] {
+  return loadLightweightResults(resolveResultSourcePath(filePath)).map((record) => {
+    if (!record.testId || record.testId === 'unknown') {
+      throw new Error(`Missing test_id in result source: ${filePath}`);
+    }
+    if (typeof record.score !== 'number' || Number.isNaN(record.score)) {
+      throw new Error(`Missing or invalid score in result source: ${filePath}`);
+    }
+    return {
+      testId: record.testId,
+      score: record.score,
+      target: record.target,
+    };
+  });
+}
+
 export interface MatrixOutput {
   matrix: MatrixRow[];
   pairwise: ComparisonOutput[];
@@ -69,16 +90,13 @@ export interface MatrixOutput {
 }
 
 export function loadJsonlResults(filePath: string): EvalResult[] {
-  return loadLightweightResults(resolveResultSourcePath(filePath)).map((record) => ({
-    testId: record.testId,
-    score: record.score,
-  }));
+  return loadCompareResults(filePath).map(({ testId, score }) => ({ testId, score }));
 }
 
 export function loadCombinedResults(filePath: string): Map<string, EvalResult[]> {
   const groups = new Map<string, EvalResult[]>();
 
-  for (const record of loadLightweightResults(resolveResultSourcePath(filePath))) {
+  for (const record of loadCompareResults(filePath)) {
     if (typeof record.target !== 'string') {
       throw new Error(`Missing target field in combined result source: ${filePath}`);
     }
@@ -413,12 +431,13 @@ export function formatMatrix(matrixOutput: MatrixOutput, baselineTarget?: string
 export const compareCommand = command({
   name: 'compare',
   description:
-    'Compare evaluation result files: two-file pairwise, combined JSONL pairwise, or N-way matrix',
+    'Compare evaluation run manifests: two-run pairwise, single-run pairwise, or N-way matrix',
   args: {
     results: restPositionals({
       type: string,
       displayName: 'results',
-      description: 'JSONL result file path(s). One file: combined mode. Two files: pairwise mode.',
+      description:
+        'Run workspace or index.jsonl manifest path(s). One source: single-run mode. Two sources: pairwise mode.',
     }),
     threshold: option({
       type: optional(number),
@@ -430,13 +449,13 @@ export const compareCommand = command({
       type: optional(string),
       long: 'baseline',
       short: 'b',
-      description: 'Target name to use as baseline (filters combined JSONL)',
+      description: 'Target name to use as baseline (filters a single run manifest)',
     }),
     candidate: option({
       type: optional(string),
       long: 'candidate',
       short: 'c',
-      description: 'Target name to use as candidate (filters combined JSONL)',
+      description: 'Target name to use as candidate (filters a single run manifest)',
     }),
     targets: multioption({
       type: array(string),
@@ -460,7 +479,7 @@ export const compareCommand = command({
 
     try {
       if (results.length === 0) {
-        throw new Error('At least one JSONL result file is required');
+        throw new Error('At least one run workspace or index.jsonl manifest is required');
       }
 
       if (results.length === 2) {
@@ -478,7 +497,7 @@ export const compareCommand = command({
         const exitCode = determineExitCode(comparison.summary.meanDelta);
         process.exit(exitCode);
       } else if (results.length === 1) {
-        // Combined JSONL mode
+        // Single-run manifest mode
         let groups = loadCombinedResults(results[0]);
 
         // Filter by --targets if specified
@@ -514,7 +533,7 @@ export const compareCommand = command({
         }
 
         if (baseline && candidate) {
-          // Pairwise mode from combined JSONL
+          // Pairwise mode from a single run manifest
           const baselineResults = groups.get(baseline);
           const candidateResults = groups.get(candidate);
           if (!baselineResults) {
@@ -548,7 +567,7 @@ export const compareCommand = command({
           process.exit(exitCode);
         }
       } else {
-        throw new Error('Expected 1 or 2 JSONL result files');
+        throw new Error('Expected 1 or 2 run workspaces or index.jsonl manifests');
       }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);

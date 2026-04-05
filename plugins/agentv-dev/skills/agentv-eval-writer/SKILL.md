@@ -541,17 +541,17 @@ agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 # Import agent transcripts for offline grading
 agentv import claude --discover latest
 
-# Re-run only execution errors from a previous output
-agentv eval <file.yaml> --retry-errors <previous-output.jsonl>
+# Re-run only execution errors from a previous run
+agentv eval <file.yaml> --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
 
 # Validate eval file
 agentv validate <file.yaml>
 
-# Compare results — N-way matrix from combined JSONL
-agentv compare <combined-results.jsonl>
-agentv compare <combined-results.jsonl> --baseline <target>                   # CI regression gate
-agentv compare <combined-results.jsonl> --baseline <target> --candidate <target>  # pairwise
-agentv compare <results1.jsonl> <results2.jsonl>                              # two-file pairwise
+# Compare results — N-way matrix from a canonical run manifest
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline <target>                   # CI regression gate
+agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline <target> --candidate <target>  # pairwise
+agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/results/runs/<candidate-timestamp>/index.jsonl
 
 # Author assertions directly in the eval file
 # Prefer simple assertions when they fit the criteria; use deterministic or LLM-based graders when needed

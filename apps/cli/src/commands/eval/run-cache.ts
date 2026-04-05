@@ -16,21 +16,19 @@ const CACHE_FILENAME = 'cache.json';
 export interface RunCache {
   /** Directory path for new per-run directory format (e.g. .agentv/results/runs/<ts>/) */
   readonly lastRunDir?: string;
-  /** JSONL file path for legacy flat-file format. Kept for backward compat. */
+  /** @deprecated Legacy flat-file pointer from old cache files. Ignored on read. */
   readonly lastResultFile?: string;
   readonly timestamp: string;
 }
 
 /**
  * Resolve the primary result manifest path from a RunCache entry.
- * New format: lastRunDir/index.jsonl
- * Legacy format: lastResultFile (flat JSONL path)
  */
 export function resolveRunCacheFile(cache: RunCache): string {
   if (cache.lastRunDir) {
     return resolveExistingRunPrimaryPath(cache.lastRunDir) ?? resolveRunIndexPath(cache.lastRunDir);
   }
-  return cache.lastResultFile ?? '';
+  return '';
 }
 
 function cachePath(cwd: string): string {
@@ -47,18 +45,15 @@ export async function loadRunCache(cwd: string): Promise<RunCache | undefined> {
 }
 
 export async function saveRunCache(cwd: string, resultPath: string): Promise<void> {
+  if (path.basename(resultPath) !== RESULT_INDEX_FILENAME) {
+    return;
+  }
+
   const dir = path.join(cwd, '.agentv');
   await mkdir(dir, { recursive: true });
-  const basename = path.basename(resultPath);
-  const cache: RunCache =
-    basename === RESULT_INDEX_FILENAME
-      ? {
-          lastRunDir: path.dirname(resultPath),
-          timestamp: new Date().toISOString(),
-        }
-      : {
-          lastResultFile: resultPath,
-          timestamp: new Date().toISOString(),
-        };
+  const cache: RunCache = {
+    lastRunDir: path.dirname(resultPath),
+    timestamp: new Date().toISOString(),
+  };
   await writeFile(cachePath(cwd), `${JSON.stringify(cache, null, 2)}\n`, 'utf-8');
 }

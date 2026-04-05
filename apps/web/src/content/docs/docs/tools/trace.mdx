@@ -19,13 +19,13 @@ For full tool-call inspection, prefer OTLP JSON exports over eval manifests.
 
 ### `trace list`
 
-Enumerate evaluation result files from `.agentv/results/`.
+Enumerate canonical evaluation run workspaces from `.agentv/results/runs/`.
 
 ```bash
 agentv trace list [--limit N] [--format json|table]
 ```
 
-Shows filename, test count, pass rate, average score, file size, and timestamp for each result file.
+Shows filename, test count, pass rate, average score, file size, and timestamp for each run workspace.
 
 ### `trace show`
 
@@ -56,7 +56,7 @@ research-question, 15.1s, 10,167 tok, $0.105
 Scores: response_quality 75% | routing_accuracy 100%
 ```
 
-Falls back to a flat summary when output messages are not present in the result file.
+Falls back to a flat summary when output messages are not present in the run workspace.
 
 ### `trace stats`
 
@@ -94,7 +94,7 @@ agentv trace show trace.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
-agentv trace stats .agentv/results/runs/eval_<timestamp>/index.jsonl --group-by target --format json \
+agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```
 

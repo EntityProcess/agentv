@@ -4,8 +4,8 @@ targets:
     provider_batching: false
     verbose: true
     
-    # Runs the mock invoice extractor for each evalcase individually
-    # {FILES} is replaced with the input file paths from the evalcase
+    # Runs the mock invoice extractor for each test case individually
+    # {FILES} is replaced with the input file paths from the test case
     # {OUTPUT_FILE} is the temporary file path where output should be written
     command: bun run ../mock_extractor.ts {FILES} {OUTPUT_FILE}
 

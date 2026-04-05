@@ -14,13 +14,13 @@ function formatListTable(metas: ResultFileMeta[]): string {
   const lines: string[] = [];
 
   if (metas.length === 0) {
-    lines.push(`${c.yellow}No result files found in .agentv/results/${c.reset}`);
+    lines.push(`${c.yellow}No run workspaces found in .agentv/results/runs/${c.reset}`);
     lines.push(`${c.dim}Run an evaluation first: agentv run <eval-file>${c.reset}`);
     return lines.join('\n');
   }
 
   lines.push('');
-  lines.push(`${c.bold}Evaluation Results${c.reset} ${c.dim}(.agentv/results/)${c.reset}`);
+  lines.push(`${c.bold}Evaluation Runs${c.reset} ${c.dim}(.agentv/results/runs/)${c.reset}`);
   lines.push('');
 
   // Column widths
@@ -42,7 +42,9 @@ function formatListTable(metas: ResultFileMeta[]): string {
   }
 
   lines.push('');
-  lines.push(`${c.dim}${metas.length} result file${metas.length !== 1 ? 's' : ''} found${c.reset}`);
+  lines.push(
+    `${c.dim}${metas.length} run workspace${metas.length !== 1 ? 's' : ''} found${c.reset}`,
+  );
   lines.push('');
 
   return lines.join('\n');
@@ -50,7 +52,7 @@ function formatListTable(metas: ResultFileMeta[]): string {
 
 export const traceListCommand = command({
   name: 'list',
-  description: 'List recent evaluation result files from .agentv/results/',
+  description: 'List recent evaluation run workspaces from .agentv/results/runs/',
   args: {
     limit: option({
       type: optional(number),

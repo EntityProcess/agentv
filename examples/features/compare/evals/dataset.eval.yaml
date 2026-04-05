@@ -1,9 +1,9 @@
 # Demo eval for the compare example.
-# Run against two targets to generate baseline and candidate result files:
+# Run against two targets to generate canonical run workspaces:
 #   agentv eval evals/dataset.eval.yaml --target baseline
 #   agentv eval evals/dataset.eval.yaml --target candidate
 # Then compare:
-#   agentv compare evals/baseline-results.jsonl evals/candidate-results.jsonl
+#   agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/results/runs/<candidate-timestamp>/index.jsonl
 
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare

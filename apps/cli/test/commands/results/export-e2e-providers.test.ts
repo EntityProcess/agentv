@@ -210,11 +210,8 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
-function artifactDir(
-  outputDir: string,
-  record: { dataset?: string; test_id?: string; eval_id?: string },
-): string {
-  const testId = record.test_id ?? record.eval_id ?? 'unknown';
+function artifactDir(outputDir: string, record: { dataset?: string; test_id?: string }): string {
+  const testId = record.test_id ?? 'unknown';
   return path.join(outputDir, ...(record.dataset ? [record.dataset] : []), testId);
 }
 
@@ -665,31 +662,6 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(timing.token_usage.output).toBe(50);
       expect(timing.token_usage.reasoning).toBe(75);
       expect(timing.duration_ms).toBe(1000);
-    });
-
-    it('should handle eval_id (legacy) as test_id alias', async () => {
-      const outputDir = path.join(tempDir, 'legacy');
-      const record = {
-        timestamp: '2026-03-18T10:00:00.000Z',
-        eval_id: 'legacy-test-id',
-        dataset: 'test',
-        score: 1.0,
-        assertions: [{ text: 'ok', passed: true }],
-        output_text: 'ok',
-        target: 'mock',
-        execution_status: 'ok',
-      };
-
-      await exportResults('test.jsonl', toJsonl(record), outputDir);
-
-      expect(
-        existsSync(
-          path.join(
-            artifactDir(outputDir, { ...record, test_id: undefined, target: 'mock' as const }),
-            'grading.json',
-          ),
-        ),
-      ).toBe(true);
     });
   });
 });

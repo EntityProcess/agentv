@@ -20,6 +20,10 @@ export function resolveRunIndexPath(runDir: string): string {
   return path.join(runDir, RESULT_INDEX_FILENAME);
 }
 
+export function isRunManifestPath(filePath: string): boolean {
+  return path.basename(filePath) === RESULT_INDEX_FILENAME;
+}
+
 export function resolveExistingRunPrimaryPath(runDir: string): string | undefined {
   const indexPath = resolveRunIndexPath(runDir);
   if (existsSync(indexPath)) {
@@ -48,4 +52,18 @@ export function resolveWorkspaceOrFilePath(filePath: string): string {
   }
 
   return existing;
+}
+
+export function resolveRunManifestPath(filePath: string): string {
+  if (isDirectoryPath(filePath)) {
+    return resolveWorkspaceOrFilePath(filePath);
+  }
+
+  if (!isRunManifestPath(filePath)) {
+    throw new Error(
+      `Expected a run workspace directory or ${RESULT_INDEX_FILENAME} manifest: ${filePath}`,
+    );
+  }
+
+  return filePath;
 }

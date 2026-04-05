@@ -26,48 +26,6 @@ describe('compare command', () => {
   });
 
   describe('loadJsonlResults', () => {
-    it('should load valid JSONL file with test_id results', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(
-        filePath,
-        '{"test_id": "case-1", "score": 0.8}\n{"test_id": "case-2", "score": 0.9}\n',
-      );
-
-      const results = loadJsonlResults(filePath);
-
-      expect(results).toEqual([
-        { testId: 'case-1', score: 0.8 },
-        { testId: 'case-2', score: 0.9 },
-      ]);
-    });
-
-    it('should load valid JSONL file with legacy eval_id results', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(
-        filePath,
-        '{"eval_id": "case-1", "score": 0.8}\n{"eval_id": "case-2", "score": 0.9}\n',
-      );
-
-      const results = loadJsonlResults(filePath);
-
-      expect(results).toEqual([
-        { testId: 'case-1', score: 0.8 },
-        { testId: 'case-2', score: 0.9 },
-      ]);
-    });
-
-    it('should handle empty lines in JSONL', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(
-        filePath,
-        '{"test_id": "case-1", "score": 0.8}\n\n{"test_id": "case-2", "score": 0.9}\n',
-      );
-
-      const results = loadJsonlResults(filePath);
-
-      expect(results).toHaveLength(2);
-    });
-
     it('should load index.jsonl manifests from a run workspace', () => {
       const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
@@ -85,31 +43,66 @@ describe('compare command', () => {
       ]);
     });
 
+    it('should handle empty lines in index.jsonl manifests', () => {
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "case-1", "score": 0.8, "grading_path": "case-1/grading.json", "timing_path": "case-1/timing.json"}\n\n{"test_id": "case-2", "score": 0.9, "grading_path": "case-2/grading.json", "timing_path": "case-2/timing.json"}\n',
+      );
+
+      const results = loadJsonlResults(filePath);
+
+      expect(results).toHaveLength(2);
+    });
+
     it('should throw error for missing test_id', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(filePath, '{"score": 0.8}\n');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"score": 0.8, "grading_path": "case-1/grading.json", "timing_path": "case-1/timing.json"}\n',
+      );
 
       expect(() => loadJsonlResults(filePath)).toThrow('Missing test_id');
     });
 
     it('should throw error for missing score', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(filePath, '{"test_id": "case-1"}\n');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "case-1", "grading_path": "case-1/grading.json", "timing_path": "case-1/timing.json"}\n',
+      );
 
       expect(() => loadJsonlResults(filePath)).toThrow('Missing or invalid score');
+    });
+
+    it('should reject flat JSONL result files', () => {
+      const filePath = path.join(tempDir, 'results.jsonl');
+      writeFileSync(filePath, '{"test_id": "case-1", "score": 0.8}\n');
+
+      expect(() => loadJsonlResults(filePath)).toThrow(
+        'Expected a run workspace directory or index.jsonl manifest',
+      );
     });
   });
 
   describe('loadCombinedResults', () => {
     it('should group records by target field', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         filePath,
         [
-          '{"test_id": "t1", "score": 0.8, "target": "model-a"}',
-          '{"test_id": "t2", "score": 0.9, "target": "model-a"}',
-          '{"test_id": "t1", "score": 0.7, "target": "model-b"}',
-          '{"test_id": "t2", "score": 0.85, "target": "model-b"}',
+          '{"test_id": "t1", "score": 0.8, "target": "model-a", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
+          '{"test_id": "t2", "score": 0.9, "target": "model-a", "grading_path": "t2/grading.json", "timing_path": "t2/timing.json"}',
+          '{"test_id": "t1", "score": 0.7, "target": "model-b", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
+          '{"test_id": "t2", "score": 0.85, "target": "model-b", "grading_path": "t2/grading.json", "timing_path": "t2/timing.json"}',
         ].join('\n'),
       );
 
@@ -127,13 +120,15 @@ describe('compare command', () => {
     });
 
     it('should handle three or more targets', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         filePath,
         [
-          '{"test_id": "t1", "score": 0.8, "target": "a"}',
-          '{"test_id": "t1", "score": 0.7, "target": "b"}',
-          '{"test_id": "t1", "score": 0.9, "target": "c"}',
+          '{"test_id": "t1", "score": 0.8, "target": "a", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
+          '{"test_id": "t1", "score": 0.7, "target": "b", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
+          '{"test_id": "t1", "score": 0.9, "target": "c", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}',
         ].join('\n'),
       );
 
@@ -146,43 +141,52 @@ describe('compare command', () => {
     });
 
     it('should throw error for missing target field', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
-      writeFileSync(filePath, '{"test_id": "t1", "score": 0.8}\n');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "t1", "score": 0.8, "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}\n',
+      );
 
       expect(() => loadCombinedResults(filePath)).toThrow('Missing target field');
     });
 
     it('should throw error for missing test_id', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
-      writeFileSync(filePath, '{"score": 0.8, "target": "a"}\n');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"score": 0.8, "target": "a", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}\n',
+      );
 
       expect(() => loadCombinedResults(filePath)).toThrow('Missing test_id');
     });
 
     it('should throw error for missing score', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
-      writeFileSync(filePath, '{"test_id": "t1", "target": "a"}\n');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "t1", "target": "a", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}\n',
+      );
 
       expect(() => loadCombinedResults(filePath)).toThrow('Missing or invalid score');
     });
 
     it('should handle empty lines', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
+      const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
+      mkdirSync(runDir, { recursive: true });
+      const filePath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         filePath,
-        '{"test_id": "t1", "score": 0.8, "target": "a"}\n\n{"test_id": "t2", "score": 0.9, "target": "a"}\n',
+        '{"test_id": "t1", "score": 0.8, "target": "a", "grading_path": "t1/grading.json", "timing_path": "t1/timing.json"}\n\n{"test_id": "t2", "score": 0.9, "target": "a", "grading_path": "t2/grading.json", "timing_path": "t2/timing.json"}\n',
       );
 
       const groups = loadCombinedResults(filePath);
       expect(groups.get('a')).toHaveLength(2);
-    });
-
-    it('should support legacy eval_id field', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
-      writeFileSync(filePath, '{"eval_id": "t1", "score": 0.8, "target": "a"}\n');
-
-      const groups = loadCombinedResults(filePath);
-      expect(groups.get('a')).toEqual([{ testId: 't1', score: 0.8 }]);
     });
 
     it('should group records from index.jsonl manifests', () => {
@@ -201,6 +205,15 @@ describe('compare command', () => {
 
       expect(groups.get('model-a')).toEqual([{ testId: 't1', score: 0.8 }]);
       expect(groups.get('model-b')).toEqual([{ testId: 't1', score: 0.7 }]);
+    });
+
+    it('should reject flat combined JSONL files', () => {
+      const filePath = path.join(tempDir, 'combined-results.jsonl');
+      writeFileSync(filePath, '{"test_id": "t1", "score": 0.8, "target": "a"}\n');
+
+      expect(() => loadCombinedResults(filePath)).toThrow(
+        'Expected a run workspace directory or index.jsonl manifest',
+      );
     });
   });
 

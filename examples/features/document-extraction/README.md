@@ -2,14 +2,14 @@
 
 This folder demonstrates two evaluation patterns for document extraction:
 
-1. **`field_accuracy`** (built-in) - Per-evalcase scoring with pass/fail per field
+1. **`field_accuracy`** (built-in) - Per-test-case scoring with pass/fail per field
 2. **`code_grader`** (custom) - TP/TN/FP/FN metrics for cross-document aggregation
 
 ## When to Use Each Pattern
 
 | Pattern | Use Case | Output |
 |---------|----------|--------|
-| `field_accuracy` | Simple pass/fail scoring per evalcase | Score (0-1) per evalcase |
+| `field_accuracy` | Simple pass/fail scoring per test case | Score (0-1) per test case |
 | `code_grader` with `details.metrics` | Aggregate precision/recall across documents | TP/TN/FP/FN per field |
 
 ## Quick Start
@@ -17,7 +17,7 @@ This folder demonstrates two evaluation patterns for document extraction:
 From repo root:
 
 ```bash
-# Pattern 1: Field accuracy (per-evalcase scoring)
+# Pattern 1: Field accuracy (per-test-case scoring)
 bun agentv eval examples/features/document-extraction/evals/field-accuracy.eval.yaml
 
 # Pattern 2: Confusion metrics (cross-document aggregation)
@@ -25,12 +25,12 @@ bun agentv eval examples/features/document-extraction/evals/confusion-metrics.ev
 
 # Aggregate TP/TN/FP/FN into a table (only works with confusion-metrics.eval.yaml)
 bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
-  .agentv/results/eval_<timestamp>.jsonl
+  .agentv/results/runs/<timestamp>/index.jsonl
 ```
 
 ## Pattern 1: Field Accuracy (`field-accuracy.eval.yaml`)
 
-Uses the built-in `field_accuracy` evaluator for per-evalcase scoring:
+Uses the built-in `field_accuracy` evaluator for per-test-case scoring:
 
 ```yaml
 evaluators:
@@ -47,7 +47,7 @@ evaluators:
         tolerance: 1.0
 ```
 
-**Output**: A score (0-1) per evalcase based on weighted field matches.
+**Output**: A score (0-1) per test case based on weighted field matches.
 
 **Best for**: Quick validation, CI/CD gates, simple pass/fail checks.
 
@@ -71,7 +71,7 @@ evaluators:
 **Output**: Aggregate metrics table with fractional precision/recall:
 
 ```
-Processed 5 evaluation results from .agentv/results/eval_<timestamp>.jsonl
+Processed 5 evaluation results from .agentv/results/runs/<timestamp>/index.jsonl
 
 Field          | TP | TN | FP | FN | Precision | Recall | F1    | Count
 ---------------+----+----+----+----+-----------+--------+-------+------
@@ -96,7 +96,7 @@ Macro-F1: 0.759
 The `aggregate_metrics.ts` script only works with evaluators that emit `details.metrics`:
 
 ```bash
-bun run scripts/aggregate_metrics.ts .agentv/results/runs/eval_<timestamp>/index.jsonl [options]
+bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl [options]
 
 Options:
   --evaluator <name>  Filter to a specific evaluator
