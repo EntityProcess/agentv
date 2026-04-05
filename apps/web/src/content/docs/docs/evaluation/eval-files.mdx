@@ -7,6 +7,10 @@ sidebar:
 
 Evaluation files define the test cases, targets, and evaluators for an evaluation run. AgentV supports two formats: YAML and JSONL.
 
+## Suites
+
+An eval file is a **suite**: it binds test cases to execution context (workspace, hooks, targets, trials). Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
+
 ## YAML Format
 
 The primary format. A single file contains metadata, execution config, and tests:
