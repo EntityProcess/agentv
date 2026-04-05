@@ -41,36 +41,6 @@ describe('compare command', () => {
       ]);
     });
 
-    it('should load valid JSONL file with legacy eval_id results', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(
-        filePath,
-        '{"eval_id": "case-1", "score": 0.8}\n{"eval_id": "case-2", "score": 0.9}\n',
-      );
-
-      const results = loadJsonlResults(filePath);
-
-      expect(results).toEqual([
-        { testId: 'case-1', score: 0.8 },
-        { testId: 'case-2', score: 0.9 },
-      ]);
-    });
-
-    it('should load flat JSONL files with camelCase testId results', () => {
-      const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(
-        filePath,
-        '{"testId": "case-1", "score": 0.8}\n{"testId": "case-2", "score": 0.9}\n',
-      );
-
-      const results = loadJsonlResults(filePath);
-
-      expect(results).toEqual([
-        { testId: 'case-1', score: 0.8 },
-        { testId: 'case-2', score: 0.9 },
-      ]);
-    });
-
     it('should handle empty lines in JSONL', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
@@ -190,14 +160,6 @@ describe('compare command', () => {
 
       const groups = loadCombinedResults(filePath);
       expect(groups.get('a')).toHaveLength(2);
-    });
-
-    it('should support legacy eval_id field', () => {
-      const filePath = path.join(tempDir, 'combined.jsonl');
-      writeFileSync(filePath, '{"eval_id": "t1", "score": 0.8, "target": "a"}\n');
-
-      const groups = loadCombinedResults(filePath);
-      expect(groups.get('a')).toEqual([{ testId: 't1', score: 0.8 }]);
     });
 
     it('should group records from index.jsonl manifests', () => {

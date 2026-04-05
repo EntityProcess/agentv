@@ -82,16 +82,7 @@ function loadFlatCompareResults(filePath: string): ParsedCompareResult[] {
     if (!line) continue;
 
     const parsed = JSON.parse(line) as Record<string, unknown>;
-    const testId =
-      typeof parsed.test_id === 'string'
-        ? parsed.test_id
-        : typeof parsed.testId === 'string'
-          ? parsed.testId
-          : typeof parsed.eval_id === 'string'
-            ? parsed.eval_id
-            : typeof parsed.evalId === 'string'
-              ? parsed.evalId
-              : undefined;
+    const testId = typeof parsed.test_id === 'string' ? parsed.test_id : undefined;
     if (!testId) {
       throw new Error(`Missing test_id in result source: ${filePath}`);
     }
