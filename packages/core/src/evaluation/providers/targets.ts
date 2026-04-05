@@ -3,41 +3,6 @@ import { z } from 'zod';
 
 import type { EnvLookup, TargetDefinition } from './types.js';
 
-const CLI_TARGET_CAMEL_CASE_ALIASES = new Map<string, string>([
-  ['filesFormat', 'files_format'],
-  ['attachmentsFormat', 'attachments_format'],
-  ['workspaceTemplate', 'workspace_template'],
-  ['timeoutSeconds', 'timeout_seconds'],
-  ['cliVerbose', 'cli_verbose'],
-  ['keepTempFiles', 'keep_temp_files'],
-  ['keepOutputFiles', 'keep_output_files'],
-  ['providerBatching', 'provider_batching'],
-]);
-
-const CLI_HEALTHCHECK_CAMEL_CASE_ALIASES = new Map<string, string>([
-  ['timeoutSeconds', 'timeout_seconds'],
-]);
-
-function rejectCamelCaseAliases(
-  value: unknown,
-  ctx: z.RefinementCtx,
-  aliases: ReadonlyMap<string, string>,
-): void {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return;
-  }
-
-  for (const [camelCaseField, snakeCaseField] of aliases) {
-    if (Object.prototype.hasOwnProperty.call(value, camelCaseField)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [camelCaseField],
-        message: `camelCase field '${camelCaseField}' is no longer supported in targets.yaml. Use '${snakeCaseField}' instead.`,
-      });
-    }
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Zod Schemas for CLI Provider Configuration
 // ---------------------------------------------------------------------------
@@ -54,14 +19,12 @@ function rejectCamelCaseAliases(
  *   timeout_seconds: 30
  * ```
  */
-export const CliHealthcheckHttpInputSchema = z.object({
-  url: z.string().min(1, 'healthcheck URL is required'),
-  timeout_seconds: z.number().positive().optional(),
-})
-  .passthrough()
-  .superRefine((value, ctx) => {
-    rejectCamelCaseAliases(value, ctx, CLI_HEALTHCHECK_CAMEL_CASE_ALIASES);
-  });
+export const CliHealthcheckHttpInputSchema = z
+  .object({
+    url: z.string().min(1, 'healthcheck URL is required'),
+    timeout_seconds: z.number().positive().optional(),
+  })
+  .passthrough();
 
 /**
  * Loose input schema for command healthcheck configuration.
@@ -76,15 +39,13 @@ export const CliHealthcheckHttpInputSchema = z.object({
  *   timeout_seconds: 10
  * ```
  */
-export const CliHealthcheckCommandInputSchema = z.object({
-  command: z.string().min(1, 'healthcheck command is required'),
-  cwd: z.string().optional(),
-  timeout_seconds: z.number().positive().optional(),
-})
-  .passthrough()
-  .superRefine((value, ctx) => {
-    rejectCamelCaseAliases(value, ctx, CLI_HEALTHCHECK_CAMEL_CASE_ALIASES);
-  });
+export const CliHealthcheckCommandInputSchema = z
+  .object({
+    command: z.string().min(1, 'healthcheck command is required'),
+    cwd: z.string().optional(),
+    timeout_seconds: z.number().positive().optional(),
+  })
+  .passthrough();
 
 /**
  * Union for healthcheck input configuration.
@@ -119,49 +80,47 @@ export const CliHealthcheckInputSchema = z.union([
  *       url: http://localhost:8080/health
  * ```
  */
-export const CliTargetInputSchema = z.object({
-  name: z.string().min(1, 'target name is required'),
-  provider: z
-    .string()
-    .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
+export const CliTargetInputSchema = z
+  .object({
+    name: z.string().min(1, 'target name is required'),
+    provider: z
+      .string()
+      .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
 
-  // Command - required
-  command: z.string(),
+    // Command - required
+    command: z.string(),
 
-  // Files format - optional
-  files_format: z.string().optional(),
-  attachments_format: z.string().optional(),
+    // Files format - optional
+    files_format: z.string().optional(),
+    attachments_format: z.string().optional(),
 
-  // Working directory - optional
-  cwd: z.string().optional(),
+    // Working directory - optional
+    cwd: z.string().optional(),
 
-  // Workspace template directory - optional (mutually exclusive with cwd)
-  workspace_template: z.string().optional(),
+    // Workspace template directory - optional (mutually exclusive with cwd)
+    workspace_template: z.string().optional(),
 
-  // Timeout in seconds - optional
-  timeout_seconds: z.number().positive().optional(),
+    // Timeout in seconds - optional
+    timeout_seconds: z.number().positive().optional(),
 
-  // Healthcheck configuration - optional
-  healthcheck: CliHealthcheckInputSchema.optional(),
+    // Healthcheck configuration - optional
+    healthcheck: CliHealthcheckInputSchema.optional(),
 
-  // Verbose mode - optional
-  verbose: z.boolean().optional(),
-  cli_verbose: z.boolean().optional(),
+    // Verbose mode - optional
+    verbose: z.boolean().optional(),
+    cli_verbose: z.boolean().optional(),
 
-  // Keep temp files - optional
-  keep_temp_files: z.boolean().optional(),
-  keep_output_files: z.boolean().optional(),
+    // Keep temp files - optional
+    keep_temp_files: z.boolean().optional(),
+    keep_output_files: z.boolean().optional(),
 
-  // Common target fields
-  grader_target: z.string().optional(),
-  judge_target: z.string().optional(), // backward compat
-  workers: z.number().int().min(1).optional(),
-  provider_batching: z.boolean().optional(),
-})
-  .passthrough()
-  .superRefine((value, ctx) => {
-    rejectCamelCaseAliases(value, ctx, CLI_TARGET_CAMEL_CASE_ALIASES);
-  });
+    // Common target fields
+    grader_target: z.string().optional(),
+    judge_target: z.string().optional(), // backward compat
+    workers: z.number().int().min(1).optional(),
+    provider_batching: z.boolean().optional(),
+  })
+  .passthrough();
 
 /**
  * Strict normalized schema for HTTP healthcheck configuration.
@@ -376,9 +335,7 @@ export function normalizeCliTargetInput(
   const verbose = resolveOptionalBoolean(input.verbose ?? input.cli_verbose);
 
   // Coalesce keepTempFiles variants
-  const keepTempFiles = resolveOptionalBoolean(
-    input.keep_temp_files ?? input.keep_output_files,
-  );
+  const keepTempFiles = resolveOptionalBoolean(input.keep_temp_files ?? input.keep_output_files);
 
   // Normalize healthcheck if present
   const healthcheck = input.healthcheck
@@ -843,10 +800,7 @@ function normalizeAzureApiVersion(
 }
 
 function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
-  const maxRetries = resolveOptionalNumber(
-    target.max_retries,
-    `${target.name} max retries`,
-  );
+  const maxRetries = resolveOptionalNumber(target.max_retries, `${target.name} max retries`);
   const initialDelayMs = resolveOptionalNumber(
     target.retry_initial_delay_ms,
     `${target.name} retry initial delay`,
@@ -1182,15 +1136,10 @@ function resolveApiFormat(
   env: EnvLookup,
   targetName: string,
 ): ApiFormat | undefined {
-  const raw = resolveOptionalString(
-    target.api_format,
-    env,
-    `${targetName} api format`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
+  const raw = resolveOptionalString(target.api_format, env, `${targetName} api format`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
   if (raw === undefined) return undefined;
   if (raw === 'chat' || raw === 'responses') return raw;
   throw new Error(
@@ -1873,8 +1822,7 @@ function resolveClaudeConfig(
       ? systemPromptSource.trim()
       : undefined;
 
-  const maxTurns =
-    typeof target.max_turns === 'number' ? target.max_turns : undefined;
+  const maxTurns = typeof target.max_turns === 'number' ? target.max_turns : undefined;
 
   const maxBudgetUsd =
     typeof target.max_budget_usd === 'number' ? target.max_budget_usd : undefined;

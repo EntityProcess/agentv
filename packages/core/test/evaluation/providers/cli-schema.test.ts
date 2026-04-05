@@ -25,15 +25,6 @@ describe('CliHealthcheckInputSchema', () => {
     expect(CliHealthcheckInputSchema.safeParse(commandInput).success).toBe(true);
   });
 
-  it('rejects camelCase healthcheck aliases', () => {
-    expect(
-      CliHealthcheckInputSchema.safeParse({
-        command: 'curl http://localhost:8080/health',
-        timeoutSeconds: 30,
-      }).success,
-    ).toBe(false);
-  });
-
   it('rejects missing required fields', () => {
     // Empty object (no url or command)
     expect(CliHealthcheckInputSchema.safeParse({}).success).toBe(false);
@@ -111,16 +102,6 @@ describe('CliTargetInputSchema', () => {
     expect(CliTargetInputSchema.safeParse(input).success).toBe(false);
   });
 
-  it('rejects camelCase target aliases', () => {
-    expect(
-      CliTargetInputSchema.safeParse({
-        name: 'test-target',
-        provider: 'cli',
-        command: 'agent run {PROMPT}',
-        timeoutSeconds: 60,
-      }).success,
-    ).toBe(false);
-  });
 });
 
 describe('CliHealthcheckSchema (strict)', () => {
