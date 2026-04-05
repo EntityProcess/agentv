@@ -10,13 +10,14 @@
 
 import { execSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { accessSync, createWriteStream } from 'node:fs';
+import { accessSync, createWriteStream, mkdirSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { getAgentvHome } from '../../paths.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
   normalizeAzureSdkBaseUrl,
@@ -57,7 +58,7 @@ async function promptInstall(): Promise<boolean> {
   }
 }
 
-/** Resolve agentv's own package root (where bun add should install peer deps). */
+/** Resolve agentv's own package root (where npm install should add peer deps). */
 function findAgentvRoot(): string {
   const thisFile = fileURLToPath(import.meta.url);
   let dir = path.dirname(thisFile);
@@ -78,30 +79,144 @@ function findAgentvRoot(): string {
   return path.dirname(thisFile);
 }
 
-async function doLoadSdkModules(): Promise<void> {
+function findManagedSdkInstallRoot(): string {
+  return path.join(getAgentvHome(), 'deps', 'pi-sdk');
+}
+
+function resolveGlobalNpmRoot(): string | undefined {
+  try {
+    const root = execSync('npm root -g', {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return root.length > 0 ? root : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildGlobalModuleEntry(moduleName: string, globalNpmRoot: string): string {
+  return path.join(globalNpmRoot, ...moduleName.split('/'), 'dist', 'index.js');
+}
+
+function findAccessiblePath(paths: readonly string[]): string | undefined {
+  for (const candidate of paths) {
+    try {
+      accessSync(candidate);
+      return candidate;
+    } catch {}
+  }
+  return undefined;
+}
+
+async function tryImportLocalSdkModules(): Promise<boolean> {
   try {
     [piCodingAgentModule, piAiModule] = await Promise.all([
       import('@mariozechner/pi-coding-agent'),
       import('@mariozechner/pi-ai'),
     ]);
+    return true;
   } catch {
-    if (await promptInstall()) {
-      const installDir = findAgentvRoot();
-      console.error(`Installing @mariozechner/pi-coding-agent into ${installDir}...`);
-      execSync('bun add @mariozechner/pi-coding-agent', {
-        cwd: installDir,
-        stdio: 'inherit',
-      });
-      [piCodingAgentModule, piAiModule] = await Promise.all([
-        import('@mariozechner/pi-coding-agent'),
-        import('@mariozechner/pi-ai'),
-      ]);
-    } else {
-      throw new Error(
-        'pi-coding-agent SDK is not installed. Install it with:\n  bun add @mariozechner/pi-coding-agent',
-      );
+    return false;
+  }
+}
+
+async function tryImportManagedSdkModules(): Promise<boolean> {
+  const managedRoot = findManagedSdkInstallRoot();
+  const piCodingAgentEntry = findAccessiblePath([
+    path.join(managedRoot, 'node_modules', '@mariozechner', 'pi-coding-agent', 'dist', 'index.js'),
+  ]);
+  const piAiEntry = findAccessiblePath([
+    path.join(managedRoot, 'node_modules', '@mariozechner', 'pi-ai', 'dist', 'index.js'),
+    path.join(
+      managedRoot,
+      'node_modules',
+      '@mariozechner',
+      'pi-coding-agent',
+      'node_modules',
+      '@mariozechner',
+      'pi-ai',
+      'dist',
+      'index.js',
+    ),
+  ]);
+
+  if (!piCodingAgentEntry || !piAiEntry) return false;
+
+  try {
+    [piCodingAgentModule, piAiModule] = await Promise.all([
+      import(pathToFileURL(piCodingAgentEntry).href),
+      import(pathToFileURL(piAiEntry).href),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function tryImportGlobalSdkModules(): Promise<boolean> {
+  const globalNpmRoot = resolveGlobalNpmRoot();
+  if (!globalNpmRoot) return false;
+
+  const piCodingAgentEntry = findAccessiblePath([
+    buildGlobalModuleEntry('@mariozechner/pi-coding-agent', globalNpmRoot),
+  ]);
+  const piAiEntry = findAccessiblePath([
+    buildGlobalModuleEntry('@mariozechner/pi-ai', globalNpmRoot),
+    path.join(
+      globalNpmRoot,
+      '@mariozechner',
+      'pi-coding-agent',
+      'node_modules',
+      '@mariozechner',
+      'pi-ai',
+      'dist',
+      'index.js',
+    ),
+  ]);
+
+  if (!piCodingAgentEntry || !piAiEntry) return false;
+
+  try {
+    [piCodingAgentModule, piAiModule] = await Promise.all([
+      import(pathToFileURL(piCodingAgentEntry).href),
+      import(pathToFileURL(piAiEntry).href),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function installSdkModules(installDir: string): void {
+  console.error(`Installing @mariozechner/pi-coding-agent into ${installDir} via npm...`);
+  mkdirSync(installDir, { recursive: true });
+  execSync('npm install --no-save --no-package-lock @mariozechner/pi-coding-agent', {
+    cwd: installDir,
+    stdio: 'inherit',
+  });
+}
+
+async function doLoadSdkModules(): Promise<void> {
+  if (
+    (await tryImportLocalSdkModules()) ||
+    (await tryImportManagedSdkModules()) ||
+    (await tryImportGlobalSdkModules())
+  ) {
+    return;
+  }
+
+  if (await promptInstall()) {
+    const installDir = findManagedSdkInstallRoot();
+    installSdkModules(installDir);
+    if (await tryImportManagedSdkModules()) {
+      return;
     }
   }
+
+  throw new Error(
+    'pi-coding-agent SDK is not installed. Install it with:\n  npm install @mariozechner/pi-coding-agent',
+  );
 }
 
 async function loadSdkModules() {
@@ -716,3 +831,11 @@ function extractToolCalls(
 
   return toolCalls;
 }
+
+/** @internal Exported for testing only. */
+export const _internal = {
+  buildGlobalModuleEntry,
+  findAgentvRoot,
+  findManagedSdkInstallRoot,
+  resolveGlobalNpmRoot,
+};
