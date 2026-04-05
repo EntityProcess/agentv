@@ -209,13 +209,25 @@ export function formatEvaluationSummary(
   // Overall verdict: all non-error cases must score >= per-test threshold.
   const gradedCount = summary.total - summary.executionErrorCount;
   const threshold = options?.threshold ?? 0.8;
+  const allExecutionErrors = summary.total > 0 && summary.executionErrorCount === summary.total;
   const overallPassed =
-    summary.passedCount === gradedCount ||
-    (summary.qualityFailureCount === 0 && summary.executionErrorCount === 0);
-  const overallVerdict = overallPassed ? 'PASS' : 'FAIL';
+    !allExecutionErrors &&
+    (summary.passedCount === gradedCount ||
+      (summary.qualityFailureCount === 0 && summary.executionErrorCount === 0));
   const useColor = !(process.env.NO_COLOR !== undefined) && (process.stdout.isTTY ?? false);
-  const verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-  const verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${gradedCount} scored >= ${threshold}, mean: ${formatScore(summary.mean)})`;
+
+  let overallVerdict: string;
+  let verdictColor: string;
+  let verdictText: string;
+  if (allExecutionErrors) {
+    overallVerdict = 'INCONCLUSIVE';
+    verdictColor = '\x1b[33m'; // yellow
+    verdictText = `RESULT: INCONCLUSIVE  (all ${summary.total} test(s) had execution errors — no evaluation was performed)`;
+  } else {
+    overallVerdict = overallPassed ? 'PASS' : 'FAIL';
+    verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
+    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${gradedCount} scored >= ${threshold}, mean: ${formatScore(summary.mean)})`;
+  }
 
   lines.push('\n==================================================');
   if (useColor) {

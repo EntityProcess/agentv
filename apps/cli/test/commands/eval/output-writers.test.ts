@@ -19,6 +19,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     assertions: [{ text: 'criterion-1', passed: true }],
     output: [{ role: 'assistant' as const, content: 'answer' }],
     target: 'default',
+    executionStatus: 'ok',
     ...overrides,
   };
 }
@@ -146,7 +147,14 @@ describe('JunitWriter', () => {
 
   it('should handle errors as <error> elements', async () => {
     const writer = await JunitWriter.open(testFilePath);
-    await writer.append(makeResult({ testId: 'err-1', score: 0, error: 'Timeout exceeded' }));
+    await writer.append(
+      makeResult({
+        testId: 'err-1',
+        score: 0,
+        error: 'Timeout exceeded',
+        executionStatus: 'execution_error',
+      }),
+    );
     await writer.close();
 
     const xml = await readFile(testFilePath, 'utf8');
@@ -187,6 +195,74 @@ describe('JunitWriter', () => {
     const xml = await readFile(filePath, 'utf8');
     expect(xml).not.toContain('<failure message="score=0.600"');
     expect(xml).toContain('<failure message="score=0.300"');
+  });
+
+  it('should use executionStatus to classify errors vs failures', async () => {
+    const writer = await JunitWriter.open(testFilePath);
+
+    await writer.append(
+      makeResult({
+        testId: 'exec-err',
+        score: 0,
+        executionStatus: 'execution_error',
+        error: 'Not Found',
+      }),
+    );
+    await writer.append(
+      makeResult({ testId: 'quality-fail', score: 0.3, executionStatus: 'quality_failure' }),
+    );
+    await writer.append(makeResult({ testId: 'pass', score: 0.9, executionStatus: 'ok' }));
+    await writer.close();
+
+    const xml = await readFile(testFilePath, 'utf8');
+    // Execution error produces <error>, not <failure>
+    expect(xml).toContain('<error message="Not Found"');
+    // Quality failure produces <failure>
+    expect(xml).toContain('<failure message="score=0.300"');
+    // Counts: 1 error, 1 failure (execution error excluded from failure count)
+    expect(xml).toContain('errors="1"');
+    expect(xml).toContain('failures="1"');
+  });
+
+  it('should not double-count execution errors as failures', async () => {
+    const writer = await JunitWriter.open(testFilePath);
+
+    // All execution errors — should have 0 failures, 2 errors
+    await writer.append(
+      makeResult({
+        testId: 'err-1',
+        score: 0,
+        executionStatus: 'execution_error',
+        error: 'Provider error',
+      }),
+    );
+    await writer.append(
+      makeResult({
+        testId: 'err-2',
+        score: 0,
+        executionStatus: 'execution_error',
+        error: 'Timeout',
+      }),
+    );
+    await writer.close();
+
+    const xml = await readFile(testFilePath, 'utf8');
+    expect(xml).toContain('failures="0"');
+    expect(xml).toContain('errors="2"');
+  });
+
+  it('should emit <error> for execution_error even without error message', async () => {
+    const writer = await JunitWriter.open(testFilePath);
+
+    await writer.append(
+      makeResult({ testId: 'no-msg', score: 0, executionStatus: 'execution_error' }),
+    );
+    await writer.close();
+
+    const xml = await readFile(testFilePath, 'utf8');
+    expect(xml).toContain('<error message="Execution error"');
+    expect(xml).toContain('errors="1"');
+    expect(xml).toContain('failures="0"');
   });
 });
 

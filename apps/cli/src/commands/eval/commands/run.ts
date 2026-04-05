@@ -238,6 +238,9 @@ export const evalRunCommand = command({
       excludeTag: args.excludeTag,
     };
     const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+    if (result?.allExecutionErrors) {
+      process.exit(2);
+    }
     if (result?.thresholdFailed) {
       process.exit(1);
     }

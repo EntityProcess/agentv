@@ -266,17 +266,18 @@ Before marking any branch as ready for review, complete this checklist:
 
 2. **Run unit tests**: `bun run test` — all must pass.
 
-3. **Manual red/green UAT (REQUIRED for all changes):**
-   Automated tests are not sufficient. Every change must be manually verified from the end user's perspective using a red/green approach:
-   - **Red (before fix):** Reproduce the bug or demonstrate the missing feature on `main` (or before your change). Confirm the undesired behavior is observable from the CLI / user-facing output.
-   - **Green (after fix):** Run the same scenario with your changes applied. Confirm the fix or feature works correctly from the end user's perspective.
-   - Document both the red and green results in the PR or conversation so the user can see the before/after.
+3. **⚠️ BLOCKING: Manual red/green UAT — must complete before steps 4-5:**
+   Unit tests passing is NOT sufficient. Every change must be manually verified from the end user's perspective. Do NOT skip this step or proceed to step 4 until red/green evidence is documented.
+
+   - **Red (before your changes):** Run the scenario on `main` (or the code state before your changes). Confirm the bug or missing feature is observable from the CLI / user-facing output. Capture the output.
+   - **Green (with your changes):** Run the identical scenario with your branch. Confirm the fix or feature works correctly from the end user's perspective. Capture the output.
+   - **Document both** red and green results in the PR description or comments so reviewers can see the before/after evidence.
 
    For evaluator changes, this means running a real eval (not `--dry-run`) and inspecting the output JSONL. For CLI/UX changes, this means running the CLI command and verifying the console output.
 
 4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed evaluator parsing, run an eval that exercises different evaluator types).
 
-5. **Mark PR as ready** only after all above steps pass.
+5. **Mark PR as ready** only after steps 1-4 have been completed AND red/green UAT evidence is included in the PR.
 
 ## Documentation Updates
 
