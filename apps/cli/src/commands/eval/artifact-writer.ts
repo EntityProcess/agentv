@@ -94,7 +94,7 @@ export interface AggregateGradingArtifact {
 export interface IndexArtifactEntry {
   readonly timestamp: string;
   readonly test_id: string;
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly category?: string;
   readonly conversation_id?: string;
   readonly score: number;
@@ -459,13 +459,13 @@ function safeTestId(testId: string | undefined): string {
   return safeArtifactPathSegment(testId, 'unknown');
 }
 
-function getDataset(result: EvaluationResult): string | undefined {
-  return result.dataset;
+function getSuite(result: EvaluationResult): string | undefined {
+  return result.suite;
 }
 
 function buildArtifactSubdir(result: EvaluationResult): string {
   const segments = [];
-  const evalSet = getDataset(result);
+  const evalSet = getSuite(result);
   if (evalSet) {
     segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
@@ -504,7 +504,7 @@ export function buildIndexArtifactEntry(
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
-    dataset: getDataset(result),
+    suite: getSuite(result),
     category: result.category,
     conversation_id: result.conversationId,
     score: result.score,
@@ -536,7 +536,7 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
-    dataset: getDataset(result),
+    suite: getSuite(result),
     category: result.category,
     conversation_id: result.conversationId,
     score: result.score,

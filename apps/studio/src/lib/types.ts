@@ -50,7 +50,7 @@ export interface AssertionEntry {
 export interface EvalResult {
   testId: string;
   timestamp?: string;
-  dataset?: string;
+  suite?: string;
   category?: string;
   target?: string;
   experiment?: string;
@@ -73,7 +73,7 @@ export interface RunDetailResponse {
   source: string;
 }
 
-export interface DatasetSummary {
+export interface SuiteSummary {
   name: string;
   total: number;
   passed: number;
@@ -81,8 +81,8 @@ export interface DatasetSummary {
   avg_score: number;
 }
 
-export interface DatasetsResponse {
-  datasets: DatasetSummary[];
+export interface SuitesResponse {
+  suites: SuiteSummary[];
 }
 
 export interface EvalDetailResponse {
@@ -160,7 +160,7 @@ export interface CategorySummary {
   passed: number;
   failed: number;
   avg_score: number;
-  dataset_count: number;
+  suite_count: number;
 }
 
 export interface CategoriesResponse {

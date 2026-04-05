@@ -23,7 +23,7 @@ agentv trace list [--limit N] [--format json|table]
 agentv trace show <result-file> [--test-id <id>] [--tree] [--format json|table]
 
 # Percentile statistics
-agentv trace stats <result-file> [--group-by target|dataset|test-id] [--format json|table]
+agentv trace stats <result-file> [--group-by target|suite|test-id] [--format json|table]
 
 # A/B comparison between runs
 agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold 0.1] [--format json|table]
@@ -95,8 +95,8 @@ Look for:
 # By target provider
 agentv trace stats <result-file> --group-by target
 
-# By dataset
-agentv trace stats <result-file> --group-by dataset
+# By suite
+agentv trace stats <result-file> --group-by suite
 ```
 
 Compare providers side-by-side: which is cheaper, faster, more accurate?
@@ -114,9 +114,9 @@ agentv trace show <result-file> --format json \
 agentv trace show <result-file> --format json \
   | jq '[.[] | select(.token_usage.input + .token_usage.output > 10000) | {test_id, tokens: (.token_usage.input + .token_usage.output)}]'
 
-# Score distribution by dataset
+# Score distribution by suite
 agentv trace show <result-file> --format json \
-  | jq 'group_by(.dataset) | .[] | {dataset: .[0].dataset, count: length, avg_score: ([.[].score] | add / length)}'
+  | jq 'group_by(.suite) | .[] | {suite: .[0].suite, count: length, avg_score: ([.[].score] | add / length)}'
 
 # Tool usage frequency across all tests
 agentv trace show <result-file> --format json \
@@ -133,7 +133,7 @@ When analyzing traces, think about:
 
 1. **Efficiency**: Are tool calls/tokens proportional to task complexity? High tokens-per-tool may indicate verbose prompts or unnecessary context.
 
-2. **Error patterns**: Do failures cluster by target, dataset, or tool usage? Common patterns:
+2. **Error patterns**: Do failures cluster by target, suite, or tool usage? Common patterns:
    - Tool errors → agent can't access required resources
    - High LLM calls with low tool calls → agent stuck in reasoning loop
    - Missing tool calls → wrong tool routing

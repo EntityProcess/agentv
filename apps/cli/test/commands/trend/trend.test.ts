@@ -21,7 +21,7 @@ const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 interface RunRecordInput {
   readonly test_id: string;
   readonly score: number;
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly target?: string;
   readonly timestamp?: string;
 }
@@ -55,28 +55,28 @@ describe('trend command', () => {
     );
   });
 
-  it('computes a degrading trend over matched tests after dataset and target filtering', async () => {
+  it('computes a degrading trend over matched tests after suite and target filtering', async () => {
     const cwd = await createTempDir();
     cleanupDirs.push(cwd);
 
     const run1 = await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'claude-sonnet',
         score: 0.95,
         timestamp: '2026-03-01T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'claude-sonnet',
         score: 0.85,
         timestamp: '2026-03-01T10:00:00.000Z',
       },
       {
         test_id: 't1',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'gpt-5',
         score: 0.7,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -85,21 +85,21 @@ describe('trend command', () => {
     const run2 = await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'claude-sonnet',
         score: 0.85,
         timestamp: '2026-03-08T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'claude-sonnet',
         score: 0.75,
         timestamp: '2026-03-08T10:00:00.000Z',
       },
       {
         test_id: 't1',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'gpt-5',
         score: 0.8,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -108,21 +108,21 @@ describe('trend command', () => {
     const run3 = await createRunWorkspace(cwd, '2026-03-15T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'claude-sonnet',
         score: 0.75,
         timestamp: '2026-03-15T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'claude-sonnet',
         score: 0.65,
         timestamp: '2026-03-15T10:00:00.000Z',
       },
       {
         test_id: 't1',
-        dataset: 'code-review',
+        suite: 'code-review',
         target: 'gpt-5',
         score: 0.9,
         timestamp: '2026-03-15T10:00:00.000Z',
@@ -131,7 +131,7 @@ describe('trend command', () => {
 
     const output = analyzeTrend({
       sourcePaths: [run1.indexPath, run2.indexPath, run3.indexPath],
-      dataset: 'code-review',
+      suite: 'code-review',
       target: 'claude-sonnet',
       slopeThreshold: 0.01,
       allowMissingTests: false,
@@ -155,14 +155,14 @@ describe('trend command', () => {
     const run1 = await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-01T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.6,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -171,7 +171,7 @@ describe('trend command', () => {
     const run2 = await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.9,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -180,7 +180,7 @@ describe('trend command', () => {
 
     const output = analyzeTrend({
       sourcePaths: [run1.indexPath, run2.indexPath],
-      dataset: 'suite',
+      suite: 'suite',
       target: 'alpha',
       slopeThreshold: 0.01,
       allowMissingTests: true,
@@ -199,7 +199,7 @@ describe('trend command', () => {
     const run1 = await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -208,7 +208,7 @@ describe('trend command', () => {
     const run2 = await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'beta',
         score: 0.7,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -218,7 +218,7 @@ describe('trend command', () => {
     expect(() =>
       analyzeTrend({
         sourcePaths: [run1.indexPath, run2.indexPath],
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         slopeThreshold: 0.01,
         allowMissingTests: false,
@@ -275,14 +275,14 @@ describe('trend command', () => {
     const run1 = await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.9,
         timestamp: '2026-03-01T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -291,14 +291,14 @@ describe('trend command', () => {
     const run2 = await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-08T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.7,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -307,14 +307,14 @@ describe('trend command', () => {
     const run3 = await createRunWorkspace(cwd, '2026-03-15T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.7,
         timestamp: '2026-03-15T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.6,
         timestamp: '2026-03-15T10:00:00.000Z',
@@ -330,7 +330,7 @@ describe('trend command', () => {
         run1.runDir,
         run2.indexPath,
         run3.runDir,
-        '--dataset',
+        '--suite',
         'suite',
         '--target',
         'alpha',
@@ -342,7 +342,7 @@ describe('trend command', () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
     expect(parsed.filters).toEqual({
-      dataset: 'suite',
+      suite: 'suite',
       target: 'alpha',
       allow_missing_tests: false,
     });
@@ -357,14 +357,14 @@ describe('trend command', () => {
     const run1 = await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.9,
         timestamp: '2026-03-01T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -373,14 +373,14 @@ describe('trend command', () => {
     const run2 = await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-08T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.7,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -389,14 +389,14 @@ describe('trend command', () => {
     const run3 = await createRunWorkspace(cwd, '2026-03-15T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.7,
         timestamp: '2026-03-15T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.6,
         timestamp: '2026-03-15T10:00:00.000Z',
@@ -405,7 +405,7 @@ describe('trend command', () => {
 
     const output = analyzeTrend({
       sourcePaths: [run3.runDir, run1.indexPath, run2.runDir],
-      dataset: 'suite',
+      suite: 'suite',
       target: 'alpha',
       slopeThreshold: 0.01,
       allowMissingTests: false,
@@ -431,14 +431,14 @@ describe('trend command', () => {
     await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.95,
         timestamp: '2026-03-01T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.85,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -447,14 +447,14 @@ describe('trend command', () => {
     await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.85,
         timestamp: '2026-03-08T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.75,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -463,14 +463,14 @@ describe('trend command', () => {
     await createRunWorkspace(cwd, '2026-03-15T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.75,
         timestamp: '2026-03-15T10:00:00.000Z',
       },
       {
         test_id: 't2',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.65,
         timestamp: '2026-03-15T10:00:00.000Z',
@@ -485,7 +485,7 @@ describe('trend command', () => {
         'trend',
         '--last',
         '3',
-        '--dataset',
+        '--suite',
         'suite',
         '--target',
         'alpha',
@@ -508,7 +508,7 @@ describe('trend command', () => {
     await createRunWorkspace(cwd, '2026-03-01T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'alpha',
         score: 0.8,
         timestamp: '2026-03-01T10:00:00.000Z',
@@ -517,7 +517,7 @@ describe('trend command', () => {
     await createRunWorkspace(cwd, '2026-03-08T10-00-00-000Z', [
       {
         test_id: 't1',
-        dataset: 'suite',
+        suite: 'suite',
         target: 'beta',
         score: 0.7,
         timestamp: '2026-03-08T10:00:00.000Z',
@@ -526,17 +526,7 @@ describe('trend command', () => {
 
     const result = await execa(
       'bun',
-      [
-        '--no-env-file',
-        CLI_ENTRY,
-        'trend',
-        '--last',
-        '2',
-        '--dataset',
-        'suite',
-        '--target',
-        'alpha',
-      ],
+      ['--no-env-file', CLI_ENTRY, 'trend', '--last', '2', '--suite', 'suite', '--target', 'alpha'],
       { cwd, reject: false },
     );
 

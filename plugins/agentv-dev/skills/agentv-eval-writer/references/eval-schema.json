@@ -4412,7 +4412,7 @@
                   "conversation_id": {
                     "type": "string"
                   },
-                  "dataset": {
+                  "suite": {
                     "type": "string"
                   },
                   "note": {
@@ -8748,7 +8748,7 @@
                   "conversation_id": {
                     "type": "string"
                   },
-                  "dataset": {
+                  "suite": {
                     "type": "string"
                   },
                   "note": {

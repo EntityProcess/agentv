@@ -79,7 +79,7 @@ class SequenceCapturingProvider implements Provider {
 
 const baseTestCase: EvalTest = {
   id: 'case-1',
-  dataset: 'test-dataset',
+  suite: 'test-dataset',
   question: 'Improve the logging implementation',
   input: [{ role: 'user', content: 'Please add logging' }],
   expected_output: [],

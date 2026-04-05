@@ -13,7 +13,7 @@ import {
 export interface ResultManifestRecord {
   readonly timestamp?: string;
   readonly test_id?: string;
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly category?: string;
   readonly experiment?: string;
   readonly target?: string;
@@ -123,7 +123,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
   return {
     timestamp: record.timestamp,
     testId,
-    dataset: record.dataset,
+    suite: record.suite,
     category: record.category,
     target: record.target,
     score: record.score,
@@ -189,6 +189,7 @@ export function loadManifestResults(sourceFile: string): EvaluationResult[] {
 
 export interface LightweightResultRecord {
   readonly testId: string;
+  readonly suite?: string;
   readonly target?: string;
   readonly experiment?: string;
   readonly score: number;
@@ -203,6 +204,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
   const content = readFileSync(resolvedSourceFile, 'utf8');
   return parseResultManifest(content).map((record) => ({
     testId: record.test_id ?? 'unknown',
+    suite: record.suite,
     target: record.target,
     experiment: record.experiment,
     score: record.score,

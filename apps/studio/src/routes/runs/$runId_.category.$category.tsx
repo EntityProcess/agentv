@@ -1,5 +1,5 @@
 /**
- * Category drill-down route: shows datasets filtered to a single category.
+ * Category drill-down route: shows suites filtered to a single category.
  *
  * Uses the `$runId_` trailing-underscore convention so that
  * `/runs/:runId/category/:category` is a sibling of `/runs/:runId`,
@@ -10,7 +10,7 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 
 import { ScoreBar } from '~/components/ScoreBar';
 import { StatsCards } from '~/components/StatsCards';
-import { useCategoryDatasets } from '~/lib/api';
+import { useCategorySuites } from '~/lib/api';
 
 export const Route = createFileRoute('/runs/$runId_/category/$category')({
   component: CategoryPage,
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/runs/$runId_/category/$category')({
 
 function CategoryPage() {
   const { runId, category } = Route.useParams();
-  const { data, isLoading, error } = useCategoryDatasets(runId, category);
+  const { data, isLoading, error } = useCategorySuites(runId, category);
 
   if (isLoading) {
     return (
@@ -41,9 +41,9 @@ function CategoryPage() {
     );
   }
 
-  const datasets = data?.datasets ?? [];
-  const total = datasets.reduce((s, d) => s + d.total, 0);
-  const passed = datasets.reduce((s, d) => s + d.passed, 0);
+  const suites = data?.suites ?? [];
+  const total = suites.reduce((s, d) => s + d.total, 0);
+  const passed = suites.reduce((s, d) => s + d.passed, 0);
   const failed = total - passed;
   const passRate = total > 0 ? passed / total : 0;
 
@@ -56,19 +56,19 @@ function CategoryPage() {
 
       <StatsCards total={total} passed={passed} failed={failed} passRate={passRate} />
 
-      {datasets.length === 0 ? (
+      {suites.length === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-lg text-gray-400">No datasets in this category</p>
+          <p className="text-lg text-gray-400">No suites in this category</p>
         </div>
       ) : (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400">Datasets</h3>
+          <h3 className="text-sm font-medium text-gray-400">Suites</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {datasets.map((ds) => (
+            {suites.map((ds) => (
               <Link
                 key={ds.name}
-                to="/runs/$runId/dataset/$dataset"
-                params={{ runId, dataset: ds.name }}
+                to="/runs/$runId/suite/$suite"
+                params={{ runId, suite: ds.name }}
                 className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
               >
                 <div className="flex items-center justify-between">

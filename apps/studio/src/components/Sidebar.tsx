@@ -4,7 +4,7 @@
  * Adapts its content based on the current route:
  * - At root or run detail: shows list of runs
  * - At eval detail: shows list of evals in the current run with pass/fail indicators
- * - At dataset detail: shows evals filtered to that dataset
+ * - At suite detail: shows evals filtered to that suite
  * - At experiment detail: shows list of experiments
  */
 
@@ -13,7 +13,7 @@ import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   isPassing,
   useAllProjectRuns,
-  useCategoryDatasets,
+  useCategorySuites,
   useExperiments,
   useProjectList,
   useProjectRunDetail,
@@ -68,8 +68,8 @@ export function Sidebar() {
     to: '/runs/$runId/category/$category',
     fuzzy: true,
   });
-  const datasetMatch = matchRoute({
-    to: '/runs/$runId/dataset/$dataset',
+  const suiteMatch = matchRoute({
+    to: '/runs/$runId/suite/$suite',
     fuzzy: true,
   });
   const experimentMatch = matchRoute({
@@ -82,9 +82,9 @@ export function Sidebar() {
     return <CategorySidebar runId={runId} category={category} />;
   }
 
-  if (datasetMatch && typeof datasetMatch === 'object' && 'runId' in datasetMatch) {
-    const { runId, dataset } = datasetMatch as { runId: string; dataset: string };
-    return <DatasetSidebar runId={runId} dataset={dataset} />;
+  if (suiteMatch && typeof suiteMatch === 'object' && 'runId' in suiteMatch) {
+    const { runId, suite } = suiteMatch as { runId: string; suite: string };
+    return <SuiteSidebar runId={runId} suite={suite} />;
   }
 
   if (evalMatch && typeof evalMatch === 'object' && 'runId' in evalMatch) {
@@ -242,13 +242,11 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
   );
 }
 
-function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) {
+function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
   const { data } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
   const passThreshold = config?.pass_threshold ?? 0.8;
-  const datasetResults = (data?.results ?? []).filter(
-    (r) => (r.dataset ?? 'Uncategorized') === dataset,
-  );
+  const suiteResults = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
 
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
@@ -268,7 +266,7 @@ function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) 
           &larr; Back to run
         </Link>
         <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
-        <p className="truncate text-xs text-gray-500">{dataset}</p>
+        <p className="truncate text-xs text-gray-500">{suite}</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -276,7 +274,7 @@ function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) 
           Evaluations
         </div>
 
-        {datasetResults.map((result) => {
+        {suiteResults.map((result) => {
           const passed = isPassing(result.score, passThreshold);
 
           return (
@@ -299,8 +297,8 @@ function DatasetSidebar({ runId, dataset }: { runId: string; dataset: string }) 
 }
 
 function CategorySidebar({ runId, category }: { runId: string; category: string }) {
-  const { data } = useCategoryDatasets(runId, category);
-  const datasets = data?.datasets ?? [];
+  const { data } = useCategorySuites(runId, category);
+  const suites = data?.suites ?? [];
 
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
@@ -324,14 +322,14 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-          Datasets
+          Suites
         </div>
 
-        {datasets.map((ds) => (
+        {suites.map((ds) => (
           <Link
             key={ds.name}
-            to="/runs/$runId/dataset/$dataset"
-            params={{ runId, dataset: ds.name }}
+            to="/runs/$runId/suite/$suite"
+            params={{ runId, suite: ds.name }}
             className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
           >
             <span

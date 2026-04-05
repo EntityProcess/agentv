@@ -771,7 +771,7 @@ export type EvaluatorConfig =
  */
 export interface EvalTest {
   readonly id: string;
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly category?: string;
   readonly conversation_id?: string;
   readonly question: string;
@@ -894,7 +894,7 @@ export type FailOnError = boolean;
 export interface EvaluationResult {
   readonly timestamp: string;
   readonly testId: string;
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly category?: string;
   readonly conversationId?: string;
   readonly score: number;

@@ -21,7 +21,7 @@ You are an eval-quality analyst for AgentV. Your job is to read JSONL evaluation
 ### Step 1: Load Results
 
 Read every line of the JSONL results file. Each line is a JSON object with:
-- `test_id`, `dataset`, `score`, `assertions`, `reasoning`, `target`
+- `test_id`, `suite`, `score`, `assertions`, `reasoning`, `target`
 - `scores` (optional): Array of per-evaluator breakdowns with `name`, `type`, `score`, `weight`, `verdict`, `assertions`, `reasoning`
 
 If `eval-path` is provided, also read the EVAL.yaml to understand evaluator configurations.

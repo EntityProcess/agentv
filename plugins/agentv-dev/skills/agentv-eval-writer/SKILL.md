@@ -105,7 +105,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string path)
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `dataset`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 

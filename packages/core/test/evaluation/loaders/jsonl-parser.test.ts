@@ -9,7 +9,7 @@ import { loadTests } from '../../../src/evaluation/yaml-parser.js';
 describe('detectFormat', () => {
   it('returns jsonl for .jsonl extension', () => {
     expect(detectFormat('test.jsonl')).toBe('jsonl');
-    expect(detectFormat('/path/to/dataset.jsonl')).toBe('jsonl');
+    expect(detectFormat('/path/to/suite.jsonl')).toBe('jsonl');
   });
 
   it('returns yaml for .yaml extension', () => {
@@ -156,7 +156,7 @@ describe('loadTestsFromJsonl', () => {
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].dataset).toBe('my-tests');
+    expect(cases[0].suite).toBe('my-tests');
     expect(cases[0].evaluator).toBe('llm-grader');
   });
 
@@ -178,7 +178,7 @@ describe('loadTestsFromJsonl', () => {
     );
   });
 
-  it('uses default dataset name from filename when no sidecar', async () => {
+  it('uses default suite name from filename when no sidecar', async () => {
     const jsonlPath = path.join(tempDir, 'my-dataset.jsonl');
     await writeFile(
       jsonlPath,
@@ -188,7 +188,7 @@ describe('loadTestsFromJsonl', () => {
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].dataset).toBe('my-dataset');
+    expect(cases[0].suite).toBe('my-dataset');
   });
 
   it('supports per-case evaluators override', async () => {
@@ -430,7 +430,7 @@ tests:
     // Core fields should match
     expect(jsonlCases[0].id).toBe(yamlCases[0].id);
     expect(jsonlCases[0].criteria).toBe(yamlCases[0].criteria);
-    expect(jsonlCases[0].dataset).toBe(yamlCases[0].dataset);
+    expect(jsonlCases[0].suite).toBe(yamlCases[0].suite);
     expect(jsonlCases[0].input.length).toBe(yamlCases[0].input.length);
     expect(jsonlCases[0].input[0].role).toBe(yamlCases[0].input[0].role);
     expect(jsonlCases[0].input[0].content).toBe(yamlCases[0].input[0].content);

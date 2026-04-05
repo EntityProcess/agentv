@@ -9,7 +9,6 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type {
   CategoriesResponse,
-  DatasetsResponse,
   EvalDetailResponse,
   ExperimentsResponse,
   FeedbackData,
@@ -21,6 +20,7 @@ import type {
   RunDetailResponse,
   RunListResponse,
   StudioConfigResponse,
+  SuitesResponse,
   TargetsResponse,
 } from './types';
 
@@ -48,10 +48,10 @@ export function runDetailOptions(filename: string) {
   });
 }
 
-export function runDatasetsOptions(runId: string) {
+export function runSuitesOptions(runId: string) {
   return queryOptions({
-    queryKey: ['runs', runId, 'datasets'],
-    queryFn: () => fetchJson<DatasetsResponse>(`/api/runs/${encodeURIComponent(runId)}/datasets`),
+    queryKey: ['runs', runId, 'suites'],
+    queryFn: () => fetchJson<SuitesResponse>(`/api/runs/${encodeURIComponent(runId)}/suites`),
     enabled: !!runId,
   });
 }
@@ -118,12 +118,12 @@ export function runCategoriesOptions(runId: string) {
   });
 }
 
-export function categoryDatasetsOptions(runId: string, category: string) {
+export function categorySuitesOptions(runId: string, category: string) {
   return queryOptions({
-    queryKey: ['runs', runId, 'categories', category, 'datasets'],
+    queryKey: ['runs', runId, 'categories', category, 'suites'],
     queryFn: () =>
-      fetchJson<DatasetsResponse>(
-        `/api/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/datasets`,
+      fetchJson<SuitesResponse>(
+        `/api/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/suites`,
       ),
     enabled: !!runId && !!category,
   });
@@ -145,8 +145,8 @@ export function useRunDetail(filename: string) {
   return useQuery(runDetailOptions(filename));
 }
 
-export function useRunDatasets(runId: string) {
-  return useQuery(runDatasetsOptions(runId));
+export function useRunSuites(runId: string) {
+  return useQuery(runSuitesOptions(runId));
 }
 
 export function useEvalDetail(runId: string, evalId: string) {
@@ -181,8 +181,8 @@ export function useRunCategories(runId: string) {
   return useQuery(runCategoriesOptions(runId));
 }
 
-export function useCategoryDatasets(runId: string, category: string) {
-  return useQuery(categoryDatasetsOptions(runId, category));
+export function useCategorySuites(runId: string, category: string) {
+  return useQuery(categorySuitesOptions(runId, category));
 }
 
 export function useStudioConfig() {
@@ -287,12 +287,12 @@ export function useProjectRunDetail(projectId: string, filename: string) {
   return useQuery(projectRunDetailOptions(projectId, filename));
 }
 
-export function projectRunDatasetsOptions(projectId: string, runId: string) {
+export function projectRunSuitesOptions(projectId: string, runId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'datasets'],
+    queryKey: ['projects', projectId, 'runs', runId, 'suites'],
     queryFn: () =>
-      fetchJson<DatasetsResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/datasets`,
+      fetchJson<SuitesResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/suites`,
       ),
     enabled: !!projectId && !!runId,
   });
@@ -309,12 +309,12 @@ export function projectRunCategoriesOptions(projectId: string, runId: string) {
   });
 }
 
-export function projectCategoryDatasetsOptions(projectId: string, runId: string, category: string) {
+export function projectCategorySuitesOptions(projectId: string, runId: string, category: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'categories', category, 'datasets'],
+    queryKey: ['projects', projectId, 'runs', runId, 'categories', category, 'suites'],
     queryFn: () =>
-      fetchJson<DatasetsResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/datasets`,
+      fetchJson<SuitesResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/suites`,
       ),
     enabled: !!projectId && !!runId && !!category,
   });

@@ -34,9 +34,9 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
         label: params.category ?? 'Category',
         to: match.pathname,
       });
-    } else if (routeId.includes('/runs/$runId/dataset/$dataset')) {
+    } else if (routeId.includes('/runs/$runId/suite/$suite')) {
       segments.push({
-        label: params.dataset ?? 'Dataset',
+        label: params.suite ?? 'Suite',
         to: match.pathname,
       });
     } else if (routeId.includes('/runs/$runId')) {

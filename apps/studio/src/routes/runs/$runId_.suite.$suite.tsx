@@ -1,8 +1,8 @@
 /**
- * Dataset drill-down route: shows evals filtered to a single dataset.
+ * Suite drill-down route: shows evals filtered to a single suite.
  *
  * Uses the `$runId_` trailing-underscore convention so that
- * `/runs/:runId/dataset/:dataset` is a sibling of `/runs/:runId`,
+ * `/runs/:runId/suite/:suite` is a sibling of `/runs/:runId`,
  * not a child route.
  */
 
@@ -12,12 +12,12 @@ import { ScoreBar } from '~/components/ScoreBar';
 import { StatsCards } from '~/components/StatsCards';
 import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
 
-export const Route = createFileRoute('/runs/$runId_/dataset/$dataset')({
-  component: DatasetPage,
+export const Route = createFileRoute('/runs/$runId_/suite/$suite')({
+  component: SuitePage,
 });
 
-function DatasetPage() {
-  const { runId, dataset } = Route.useParams();
+function SuitePage() {
+  const { runId, suite } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
   const passThreshold = config?.pass_threshold ?? 0.8;
@@ -43,7 +43,7 @@ function DatasetPage() {
     );
   }
 
-  const results = (data?.results ?? []).filter((r) => (r.dataset ?? 'Uncategorized') === dataset);
+  const results = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
   const total = results.length;
   const passed = results.filter((r) => isPassing(r.score, passThreshold)).length;
   const failed = total - passed;
@@ -53,8 +53,8 @@ function DatasetPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">{dataset}</h1>
-        <p className="mt-1 text-sm text-gray-400">Dataset in run: {runId}</p>
+        <h1 className="text-2xl font-semibold text-white">{suite}</h1>
+        <p className="mt-1 text-sm text-gray-400">Suite in run: {runId}</p>
       </div>
 
       <StatsCards
@@ -67,7 +67,7 @@ function DatasetPage() {
 
       {total === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-lg text-gray-400">No evaluations in this dataset</p>
+          <p className="text-lg text-gray-400">No evaluations in this suite</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-800">

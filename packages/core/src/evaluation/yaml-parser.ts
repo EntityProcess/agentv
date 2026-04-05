@@ -273,16 +273,14 @@ async function loadTestsFromYaml(
   }
 
   const suite = interpolated as RawTestSuite;
-  const datasetNameFromSuite = asString(suite.name)?.trim();
-  const fallbackDatasetName =
+  const suiteNameFromFile = asString(suite.name)?.trim();
+  const fallbackSuiteName =
     path
       .basename(absoluteTestPath)
       .replace(/\.eval\.ya?ml$/i, '')
       .replace(/\.ya?ml$/i, '') || 'eval';
-  const datasetName =
-    datasetNameFromSuite && datasetNameFromSuite.length > 0
-      ? datasetNameFromSuite
-      : fallbackDatasetName;
+  const suiteName =
+    suiteNameFromFile && suiteNameFromFile.length > 0 ? suiteNameFromFile : fallbackSuiteName;
 
   const rawTestCases = resolveTests(suite);
 
@@ -490,7 +488,7 @@ async function loadTestsFromYaml(
 
     const testCase: EvalTest = {
       id,
-      dataset: datasetName,
+      suite: suiteName,
       category: options?.category,
       conversation_id: conversationId,
       question: question,

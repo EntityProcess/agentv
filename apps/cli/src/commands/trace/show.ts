@@ -225,7 +225,7 @@ function formatResultDetail(result: RawResult, index: number, tree: boolean): st
   // Standard flat view
   const scoreColor = result.score >= 0.9 ? c.green : result.score >= 0.5 ? c.yellow : c.red;
   lines.push(
-    `${c.bold}${testId}${c.reset}  ${scoreColor}${formatScore(result.score)}${c.reset}${result.target ? `  ${c.dim}target: ${result.target}${c.reset}` : ''}${result.dataset ? `  ${c.dim}dataset: ${result.dataset}${c.reset}` : ''}`,
+    `${c.bold}${testId}${c.reset}  ${scoreColor}${formatScore(result.score)}${c.reset}${result.target ? `  ${c.dim}target: ${result.target}${c.reset}` : ''}${result.suite ? `  ${c.dim}suite: ${result.suite}${c.reset}` : ''}`,
   );
 
   if (result.error) {

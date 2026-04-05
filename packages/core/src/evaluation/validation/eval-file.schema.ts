@@ -345,7 +345,7 @@ const EvalTestSchema = z.object({
   workspace: WorkspaceSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   conversation_id: z.string().optional(),
-  dataset: z.string().optional(),
+  suite: z.string().optional(),
   note: z.string().optional(),
 });
 
