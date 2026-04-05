@@ -100,8 +100,8 @@ export const evalRunCommand = command({
 
     // ── Step 1: Extract inputs (same as pipeline input) ──────────────
     const category = deriveCategory(relative(process.cwd(), resolvedEvalPath));
-    const dataset = await loadTestSuite(resolvedEvalPath, repoRoot, { category });
-    const tests = dataset.tests;
+    const suite = await loadTestSuite(resolvedEvalPath, repoRoot, { category });
+    const tests = suite.tests;
 
     if (tests.length === 0) {
       console.error('No tests found in eval file.');
@@ -145,13 +145,13 @@ export const evalRunCommand = command({
       // No targets file — subagent-as-target mode
     }
 
-    const datasetName = dataset.metadata?.name?.trim() ?? '';
-    const safeDatasetName = datasetName ? datasetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
+    const suiteName = suite.metadata?.name?.trim() ?? '';
+    const safeSuiteName = suiteName ? suiteName.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     const testIds: string[] = [];
 
     for (const test of tests) {
-      const subpath = safeDatasetName ? [safeDatasetName, test.id] : [test.id];
+      const subpath = safeSuiteName ? [safeSuiteName, test.id] : [test.id];
       const testDir = join(outDir, ...subpath);
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
@@ -198,7 +198,7 @@ export const evalRunCommand = command({
 
     await writeJson(join(outDir, 'manifest.json'), {
       eval_file: resolvedEvalPath,
-      dataset: datasetName || undefined,
+      suite: suiteName || undefined,
       experiment: experiment || undefined,
       timestamp: new Date().toISOString(),
       target: { name: targetName, kind: targetKind },
@@ -230,7 +230,7 @@ export const evalRunCommand = command({
       writeInvProgress();
 
       const invokeTarget = async (testId: string): Promise<void> => {
-        const subpath = safeDatasetName ? [safeDatasetName, testId] : [testId];
+        const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
         const testDir = join(outDir, ...subpath);
         const invoke = JSON.parse(await readFile(join(testDir, 'invoke.json'), 'utf8'));
         if (invoke.kind !== 'cli') return;
@@ -341,7 +341,7 @@ export const evalRunCommand = command({
     const graderTasks: GraderTask[] = [];
 
     for (const testId of testIds) {
-      const subpath = safeDatasetName ? [safeDatasetName, testId] : [testId];
+      const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
       const testDir = join(outDir, ...subpath);
       const codeGradersDir = join(testDir, 'code_graders');
       const resultsDir = join(testDir, 'code_grader_results');

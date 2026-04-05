@@ -34,7 +34,7 @@ function matchesFilter(id: string, filter: string | readonly string[]): boolean 
 }
 
 /**
- * Sidecar metadata structure for JSONL datasets.
+ * Sidecar metadata structure for JSONL suites.
  */
 type SidecarMetadata = {
   readonly description?: string;
@@ -73,7 +73,7 @@ export function detectFormat(filePath: string): 'yaml' | 'jsonl' | 'agent-skills
 }
 
 /**
- * Load sidecar YAML metadata file for a JSONL dataset.
+ * Load sidecar YAML metadata file for a JSONL suite.
  */
 async function loadSidecarMetadata(jsonlPath: string, verbose: boolean): Promise<SidecarMetadata> {
   const dir = path.dirname(jsonlPath);
@@ -158,19 +158,19 @@ export async function loadTestsFromJsonl(
   const rawFile = await readFile(absoluteTestPath, 'utf8');
   const rawCases = parseJsonlContent(rawFile, evalFilePath);
 
-  // Derive dataset name: sidecar > filename
-  const fallbackDatasetName = path.basename(absoluteTestPath, '.jsonl') || 'eval';
-  const datasetName =
-    sidecar.name && sidecar.name.trim().length > 0 ? sidecar.name : fallbackDatasetName;
+  // Derive suite name: sidecar > filename
+  const fallbackSuiteName = path.basename(absoluteTestPath, '.jsonl') || 'eval';
+  const suiteName =
+    sidecar.name && sidecar.name.trim().length > 0 ? sidecar.name : fallbackSuiteName;
 
   // Global defaults from sidecar
   const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm-grader';
   const globalExecution = sidecar.execution;
 
   if (verbose) {
-    console.log(`\n[JSONL Dataset: ${evalFilePath}]`);
+    console.log(`\n[JSONL Suite: ${evalFilePath}]`);
     console.log(`  Cases: ${rawCases.length}`);
-    console.log(`  Dataset: ${datasetName}`);
+    console.log(`  Suite: ${suiteName}`);
     if (sidecar.description) {
       console.log(`  Description: ${sidecar.description}`);
     }
@@ -302,7 +302,7 @@ export async function loadTestsFromJsonl(
 
     const testCase: EvalTest = {
       id,
-      dataset: datasetName,
+      suite: suiteName,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,

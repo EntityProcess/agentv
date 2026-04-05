@@ -75,13 +75,13 @@ describe('OtelStreamingObserver', () => {
     const spans: MockSpan[] = [];
     const observer = new OtelStreamingObserver(createMockTracer(spans), createMockApi(), false);
 
-    observer.startEvalCase('test-1', 'my-target', 'my-dataset');
+    observer.startEvalCase('test-1', 'my-target', 'my-suite');
 
     expect(spans).toHaveLength(1);
     expect(spans[0].name).toBe('agentv.eval');
     expect(spans[0].attributes['agentv.test_id']).toBe('test-1');
     expect(spans[0].attributes['agentv.target']).toBe('my-target');
-    expect(spans[0].attributes['agentv.dataset']).toBe('my-dataset');
+    expect(spans[0].attributes['agentv.suite']).toBe('my-suite');
     expect(spans[0].attributes['gen_ai.system']).toBe('agentv');
     expect(spans[0].ended).toBe(false);
   });
@@ -191,7 +191,7 @@ describe('OtelStreamingObserver', () => {
     const spans: MockSpan[] = [];
     const observer = new OtelStreamingObserver(createMockTracer(spans), createMockApi(), true);
 
-    observer.startEvalCase('lifecycle-test', 'claude-target', 'qa-dataset');
+    observer.startEvalCase('lifecycle-test', 'claude-target', 'qa-suite');
     observer.onToolCall('search', { q: 'test' }, ['result1'], 200, 'tc-a');
     observer.onLlmCall('claude-sonnet-4-20250514', { input: 500, output: 100 });
     observer.onToolCall('write', { path: 'out.txt' }, 'ok', 50, 'tc-b');

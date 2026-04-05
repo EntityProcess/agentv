@@ -65,7 +65,7 @@ const KNOWN_TEST_FIELDS = new Set([
   'workspace',
   'metadata',
   'conversation_id',
-  'dataset',
+  'suite',
   'note',
 ]);
 

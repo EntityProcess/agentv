@@ -63,12 +63,12 @@ Falls back to a flat summary when output messages are not present in the run wor
 Compute summary statistics (percentiles) across evaluation results.
 
 ```bash
-agentv trace stats <trace-source> [--group-by target|dataset|test-id] [--format json|table]
+agentv trace stats <trace-source> [--group-by target|suite|test-id] [--format json|table]
 ```
 
 | Option | Description |
 |--------|-------------|
-| `--group-by`, `-g` | Group statistics by: `target`, `dataset`, or `test-id` |
+| `--group-by`, `-g` | Group statistics by: `target`, `suite`, or `test-id` |
 | `--format`, `-f` | Output format: `table` (default), `json` |
 
 Output shows mean, P50, P90, P95, and P99 for score, latency, cost, tokens, tool calls, and LLM calls.

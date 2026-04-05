@@ -14,7 +14,7 @@
  *   - GET /api/projects  — list registered projects
  *   - GET /api/projects/:projectId/runs — project-scoped run list
  *
- * All data routes (runs, datasets, categories, evals, experiments, targets)
+ * All data routes (runs, suites, categories, evals, experiments, targets)
  * exist in both unscoped (/api/...) and project-scoped (/api/projects/:projectId/...)
  * variants. They share handler functions via DataContext, differing only in
  * how searchDir is resolved.
@@ -275,32 +275,32 @@ function handleRunDetail(c: C, { searchDir }: DataContext) {
   }
 }
 
-function handleRunDatasets(c: C, { searchDir, agentvDir }: DataContext) {
+function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
   const filename = c.req.param('filename');
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
     const { pass_threshold } = loadStudioConfig(agentvDir);
-    const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+    const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of loaded) {
-      const ds = r.dataset ?? r.target ?? 'default';
-      const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
+      const ds = r.suite ?? r.target ?? 'default';
+      const entry = suiteMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
       entry.total++;
       if (r.score >= pass_threshold) entry.passed++;
       entry.scoreSum += r.score;
-      datasetMap.set(ds, entry);
+      suiteMap.set(ds, entry);
     }
-    const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
+    const suites = [...suiteMap.entries()].map(([name, entry]) => ({
       name,
       total: entry.total,
       passed: entry.passed,
       failed: entry.total - entry.passed,
       avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
     }));
-    return c.json({ datasets });
+    return c.json({ suites });
   } catch {
-    return c.json({ error: 'Failed to load datasets' }, 500);
+    return c.json({ error: 'Failed to load suites' }, 500);
   }
 }
 
@@ -313,7 +313,7 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
     const { pass_threshold } = loadStudioConfig(agentvDir);
     const categoryMap = new Map<
       string,
-      { total: number; passed: number; scoreSum: number; datasets: Set<string> }
+      { total: number; passed: number; scoreSum: number; suites: Set<string> }
     >();
     for (const r of loaded) {
       const cat = r.category ?? DEFAULT_CATEGORY;
@@ -321,12 +321,12 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
         total: 0,
         passed: 0,
         scoreSum: 0,
-        datasets: new Set<string>(),
+        suites: new Set<string>(),
       };
       entry.total++;
       if (r.score >= pass_threshold) entry.passed++;
       entry.scoreSum += r.score;
-      entry.datasets.add(r.dataset ?? r.target ?? 'default');
+      entry.suites.add(r.suite ?? r.target ?? 'default');
       categoryMap.set(cat, entry);
     }
     const categories = [...categoryMap.entries()].map(([name, entry]) => ({
@@ -335,7 +335,7 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
       passed: entry.passed,
       failed: entry.total - entry.passed,
       avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-      dataset_count: entry.datasets.size,
+      suite_count: entry.suites.size,
     }));
     return c.json({ categories });
   } catch {
@@ -343,7 +343,7 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
   }
 }
 
-function handleCategoryDatasets(c: C, { searchDir, agentvDir }: DataContext) {
+function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext) {
   const filename = c.req.param('filename');
   const category = decodeURIComponent(c.req.param('category') ?? '');
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
@@ -352,25 +352,25 @@ function handleCategoryDatasets(c: C, { searchDir, agentvDir }: DataContext) {
     const loaded = loadManifestResults(meta.path);
     const { pass_threshold } = loadStudioConfig(agentvDir);
     const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
-    const datasetMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+    const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of filtered) {
-      const ds = r.dataset ?? r.target ?? 'default';
-      const entry = datasetMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
+      const ds = r.suite ?? r.target ?? 'default';
+      const entry = suiteMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
       entry.total++;
       if (r.score >= pass_threshold) entry.passed++;
       entry.scoreSum += r.score;
-      datasetMap.set(ds, entry);
+      suiteMap.set(ds, entry);
     }
-    const datasets = [...datasetMap.entries()].map(([name, entry]) => ({
+    const suites = [...suiteMap.entries()].map(([name, entry]) => ({
       name,
       total: entry.total,
       passed: entry.passed,
       failed: entry.total - entry.passed,
       avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
     }));
-    return c.json({ datasets });
+    return c.json({ suites });
   } catch {
-    return c.json({ error: 'Failed to load datasets' }, 500);
+    return c.json({ error: 'Failed to load suites' }, 500);
   }
 }
 
@@ -780,10 +780,10 @@ export function createApp(
   app.get('/api/config', (c) => handleConfig(c, defaultCtx));
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
-  app.get('/api/runs/:filename/datasets', (c) => handleRunDatasets(c, defaultCtx));
+  app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
   app.get('/api/runs/:filename/categories', (c) => handleRunCategories(c, defaultCtx));
-  app.get('/api/runs/:filename/categories/:category/datasets', (c) =>
-    handleCategoryDatasets(c, defaultCtx),
+  app.get('/api/runs/:filename/categories/:category/suites', (c) =>
+    handleCategorySuites(c, defaultCtx),
   );
   app.get('/api/runs/:filename/evals/:evalId', (c) => handleEvalDetail(c, defaultCtx));
   app.get('/api/runs/:filename/evals/:evalId/files', (c) => handleEvalFiles(c, defaultCtx));
@@ -872,14 +872,12 @@ export function createApp(
   app.get('/api/projects/:projectId/config', (c) => withProject(c, handleConfig));
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
-  app.get('/api/projects/:projectId/runs/:filename/datasets', (c) =>
-    withProject(c, handleRunDatasets),
-  );
+  app.get('/api/projects/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
   app.get('/api/projects/:projectId/runs/:filename/categories', (c) =>
     withProject(c, handleRunCategories),
   );
-  app.get('/api/projects/:projectId/runs/:filename/categories/:category/datasets', (c) =>
-    withProject(c, handleCategoryDatasets),
+  app.get('/api/projects/:projectId/runs/:filename/categories/:category/suites', (c) =>
+    withProject(c, handleCategorySuites),
   );
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) =>
     withProject(c, handleEvalDetail),

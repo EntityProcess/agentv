@@ -37,15 +37,15 @@ export const evalBenchCommand = command({
     const manifest = JSON.parse(await readFile(join(exportDir, 'manifest.json'), 'utf8'));
     const testIds: string[] = manifest.test_ids;
     const targetName: string = manifest.target?.name ?? 'unknown';
-    const datasetName: string = manifest.dataset ?? '';
+    const suiteName: string = manifest.suite ?? '';
     const experiment: string | undefined = manifest.experiment;
-    const safeDatasetName = datasetName ? datasetName.replace(/[\/\\:*?"<>|]/g, '_') : '';
+    const safeSuiteName = suiteName ? suiteName.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
     const indexLines: string[] = [];
     const allPassRates: number[] = [];
 
     for (const testId of testIds) {
-      const subpath = safeDatasetName ? [safeDatasetName, testId] : [testId];
+      const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
       const testDir = join(exportDir, ...subpath);
       const artifactSubdir = subpath.join('/');
       const evaluators: EvaluatorScore[] = [];
@@ -177,7 +177,7 @@ export const evalBenchCommand = command({
         JSON.stringify({
           timestamp: manifest.timestamp,
           test_id: testId,
-          dataset: datasetName || undefined,
+          suite: suiteName || undefined,
           experiment: experiment || undefined,
           score: Math.round(weightedScore * 1000) / 1000,
           target: targetName,

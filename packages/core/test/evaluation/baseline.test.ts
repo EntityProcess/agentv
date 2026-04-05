@@ -6,7 +6,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
   return {
     timestamp: '2026-01-01T00:00:00.000Z',
     testId: 'test-case',
-    dataset: 'test-dataset',
+    suite: 'test-dataset',
     conversationId: 'conv-1',
     score: 0.85,
     assertions: [
@@ -56,7 +56,7 @@ describe('trimBaselineResult', () => {
 
     expect(trimmed.timestamp).toBe(full.timestamp);
     expect(trimmed.testId).toBe(full.testId);
-    expect(trimmed.dataset).toBe(full.dataset);
+    expect(trimmed.suite).toBe(full.suite);
     expect(trimmed.conversationId).toBe(full.conversationId);
     expect(trimmed.score).toBe(full.score);
     expect(trimmed.assertions).toEqual(full.assertions);

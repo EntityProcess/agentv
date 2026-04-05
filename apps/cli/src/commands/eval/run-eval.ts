@@ -480,7 +480,7 @@ async function prepareFileMetadata(params: {
   readonly testCases: readonly EvalTest[];
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
-  readonly datasetTargets?: readonly string[];
+  readonly suiteTargets?: readonly string[];
   readonly yamlWorkers?: number;
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
@@ -501,23 +501,23 @@ async function prepareFileMetadata(params: {
   const relativePath = path.relative(cwd, testFilePath);
   const category = deriveCategory(relativePath);
 
-  const dataset = await loadTestSuite(testFilePath, repoRoot, {
+  const suite = await loadTestSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: options.filter,
     category,
   });
-  const testIds = dataset.tests.map((value) => value.id);
+  const testIds = suite.tests.map((value) => value.id);
 
   // Determine target names: CLI --target flags override YAML
   const cliTargets = options.cliTargets;
-  const datasetTargets = dataset.targets;
+  const suiteTargets = suite.targets;
 
-  // Resolve which target names to use (precedence: CLI > dataset YAML targets > default)
+  // Resolve which target names to use (precedence: CLI > suite YAML targets > default)
   let targetNames: readonly string[];
   if (cliTargets.length > 0) {
     targetNames = cliTargets;
-  } else if (datasetTargets && datasetTargets.length > 0) {
-    targetNames = datasetTargets;
+  } else if (suiteTargets && suiteTargets.length > 0) {
+    targetNames = suiteTargets;
   } else {
     targetNames = [];
   }
@@ -568,17 +568,17 @@ async function prepareFileMetadata(params: {
 
   return {
     testIds,
-    testCases: dataset.tests,
+    testCases: suite.tests,
     selections,
-    trialsConfig: dataset.trials,
-    datasetTargets,
-    yamlWorkers: dataset.workers,
-    yamlCache: dataset.cacheConfig?.enabled,
-    yamlCachePath: dataset.cacheConfig?.cachePath,
-    totalBudgetUsd: dataset.totalBudgetUsd,
-    failOnError: dataset.failOnError,
-    threshold: dataset.threshold,
-    tags: dataset.metadata?.tags,
+    trialsConfig: suite.trials,
+    suiteTargets,
+    yamlWorkers: suite.workers,
+    yamlCache: suite.cacheConfig?.enabled,
+    yamlCachePath: suite.cacheConfig?.cachePath,
+    totalBudgetUsd: suite.totalBudgetUsd,
+    failOnError: suite.failOnError,
+    threshold: suite.threshold,
+    tags: suite.metadata?.tags,
   };
 }
 
@@ -1021,7 +1021,7 @@ export async function runEvalCommand(
         inlineTargetLabel: string;
       }[];
       readonly trialsConfig?: TrialsConfig;
-      readonly datasetTargets?: readonly string[];
+      readonly suiteTargets?: readonly string[];
       readonly yamlWorkers?: number;
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
@@ -1104,7 +1104,7 @@ export async function runEvalCommand(
     console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
   }
 
-  // Resolve dataset-level threshold: CLI --threshold takes precedence over YAML execution.threshold.
+  // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold.
   const yamlThreshold = firstMeta?.threshold;
   const resolvedThreshold = options.threshold ?? yamlThreshold;
   if (resolvedThreshold !== undefined && (resolvedThreshold < 0 || resolvedThreshold > 1)) {
@@ -1128,13 +1128,13 @@ export async function runEvalCommand(
   // In matrix mode, total eval count is tests × targets (accounting for per-test target overrides)
   let totalEvalCount = 0;
   for (const meta of fileMetadata.values()) {
-    const datasetTargetNames = meta.selections.map((s) => s.selection.targetName);
+    const suiteTargetNames = meta.selections.map((s) => s.selection.targetName);
     for (const test of meta.testCases) {
-      // Per-test targets override dataset-level targets.
+      // Per-test targets override suite-level targets.
       const testTargetNames =
         test.targets && test.targets.length > 0
-          ? test.targets.filter((t) => datasetTargetNames.includes(t))
-          : datasetTargetNames;
+          ? test.targets.filter((t) => suiteTargetNames.includes(t))
+          : suiteTargetNames;
       totalEvalCount += testTargetNames.length > 0 ? testTargetNames.length : 1;
     }
   }

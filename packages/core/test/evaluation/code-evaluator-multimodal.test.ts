@@ -10,7 +10,7 @@ import type { EvalTest } from '../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
   id: 'case-mm',
-  dataset: 'test-dataset',
+  suite: 'test-dataset',
   question: 'Test question',
   input: [{ role: 'user', content: 'Describe this image' }],
   expected_output: [],

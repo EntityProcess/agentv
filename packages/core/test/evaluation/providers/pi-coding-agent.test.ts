@@ -49,18 +49,33 @@ describe('PiCodingAgentProvider', () => {
   });
 
   it('builds the expected global npm module entry path', () => {
+    const { join } = require('node:path');
     expect(
       _internal.buildGlobalModuleEntry(
         '@mariozechner/pi-coding-agent',
-        'C:\\npm-global\\node_modules',
+        join('C:', 'npm-global', 'node_modules'),
       ),
-    ).toBe('C:\\npm-global\\node_modules\\@mariozechner\\pi-coding-agent\\dist\\index.js');
+    ).toBe(
+      join(
+        'C:',
+        'npm-global',
+        'node_modules',
+        '@mariozechner',
+        'pi-coding-agent',
+        'dist',
+        'index.js',
+      ),
+    );
     expect(
-      _internal.buildGlobalModuleEntry('@mariozechner/pi-ai', 'C:\\npm-global\\node_modules'),
-    ).toBe('C:\\npm-global\\node_modules\\@mariozechner\\pi-ai\\dist\\index.js');
+      _internal.buildGlobalModuleEntry(
+        '@mariozechner/pi-ai',
+        join('C:', 'npm-global', 'node_modules'),
+      ),
+    ).toBe(join('C:', 'npm-global', 'node_modules', '@mariozechner', 'pi-ai', 'dist', 'index.js'));
   });
 
   it('finds the agentv package root', () => {
-    expect(_internal.findAgentvRoot().endsWith('packages\\core')).toBe(true);
+    const { sep } = require('node:path');
+    expect(_internal.findAgentvRoot().endsWith(`packages${sep}core`)).toBe(true);
   });
 });

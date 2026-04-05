@@ -55,7 +55,7 @@ const { LlmGraderEvaluator } = await import('../../src/evaluation/evaluators.js'
 
 const baseTestCase: EvalTest = {
   id: 'mm-case-1',
-  dataset: 'test-dataset',
+  suite: 'test-dataset',
   question: 'Describe the image',
   input: [{ role: 'user', content: 'What is in this image?' }],
   expected_output: [],

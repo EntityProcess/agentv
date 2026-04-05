@@ -123,12 +123,12 @@ describe('JunitWriter', () => {
     expect(xml).toContain('score=0.300');
   });
 
-  it('should group results by dataset as testsuites', async () => {
+  it('should group results by suite as testsuites', async () => {
     const writer = await JunitWriter.open(testFilePath);
 
-    await writer.append(makeResult({ testId: 'a-1', dataset: 'suite-a', score: 1.0 }));
-    await writer.append(makeResult({ testId: 'a-2', dataset: 'suite-a', score: 0.8 }));
-    await writer.append(makeResult({ testId: 'b-1', dataset: 'suite-b', score: 0.5 }));
+    await writer.append(makeResult({ testId: 'a-1', suite: 'suite-a', score: 1.0 }));
+    await writer.append(makeResult({ testId: 'a-2', suite: 'suite-a', score: 0.8 }));
+    await writer.append(makeResult({ testId: 'b-1', suite: 'suite-b', score: 0.5 }));
     await writer.close();
 
     const xml = await readFile(testFilePath, 'utf8');
@@ -136,7 +136,7 @@ describe('JunitWriter', () => {
     expect(xml).toContain('testsuite name="suite-b" tests="1"');
   });
 
-  it('should use default suite name when no dataset', async () => {
+  it('should use default suite name when no suite', async () => {
     const writer = await JunitWriter.open(testFilePath);
     await writer.append(makeResult({ testId: 'test-1', score: 1.0 }));
     await writer.close();

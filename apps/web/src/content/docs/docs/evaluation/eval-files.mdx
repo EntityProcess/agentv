@@ -7,6 +7,10 @@ sidebar:
 
 Evaluation files define the test cases, targets, and evaluators for an evaluation run. AgentV supports two formats: YAML and JSONL.
 
+## Suites
+
+An eval file is a **suite**: it binds test cases to execution context (workspace, hooks, targets, trials). Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
+
 ## YAML Format
 
 The primary format. A single file contains metadata, execution config, and tests:
@@ -33,7 +37,7 @@ tests:
 | Field | Description |
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
-| `dataset` | Optional dataset identifier |
+| `suite` | Optional suite identifier |
 | `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
 | `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config) |
 | `tests` | Array of individual tests, or a string path to an external file |
@@ -221,7 +225,7 @@ An optional YAML sidecar file provides metadata and execution config. Place it a
 
 ```yaml
 description: Math evaluation dataset
-dataset: math-tests
+suite: math-tests
 execution:
   target: azure-base
 assertions:

@@ -1,10 +1,10 @@
 # Trend Analysis Example
 
-This example demonstrates `agentv trend` on three historical runs for the same dataset and target.
+This example demonstrates `agentv trend` on three historical runs for the same suite and target.
 
 Scenario:
 
-- Dataset: `code-review`
+- Suite: `code-review`
 - Target: `claude-sonnet`
 - Test IDs tracked across runs: `summary-accuracy`, `tool-selection`
 - Outcome: scores degrade steadily from `0.92` to `0.86` to `0.80`
@@ -36,7 +36,7 @@ cp -R sample-runs/* .agentv/results/runs/
 Then run:
 
 ```bash
-bun ../../../apps/cli/src/cli.ts trend --last 3 --dataset code-review --target claude-sonnet
+bun ../../../apps/cli/src/cli.ts trend --last 3 --suite code-review --target claude-sonnet
 ```
 
 Expected output:
@@ -45,7 +45,7 @@ Expected output:
 Trend Analysis
 
 Runs: 3 | Range: 2026-03-01T10:00:00.000Z → 2026-03-15T10:00:00.000Z
-Filters: dataset=code-review target=claude-sonnet mode=matched-tests
+Filters: suite=code-review target=claude-sonnet mode=matched-tests
 Matched Tests: 2 | Verdict: degrading
 
   Run                         Tests  Mean Score
@@ -61,7 +61,7 @@ Regression Gate: threshold=0.010 fail_on_degrading=false triggered=false
 Interpretation:
 
 - The command auto-discovers the most recent three runs.
-- It filters to `dataset=code-review` and `target=claude-sonnet`.
+- It filters to `suite=code-review` and `target=claude-sonnet`.
 - It intersects matched test IDs across runs and detects a steady downward score trend.
 
 ## Explicit Inputs
@@ -73,7 +73,7 @@ bun ../../../apps/cli/src/cli.ts trend \
   sample-runs/2026-03-01T10-00-00-000Z \
   sample-runs/2026-03-08T10-00-00-000Z \
   sample-runs/2026-03-15T10-00-00-000Z \
-  --dataset code-review \
+  --suite code-review \
   --target claude-sonnet
 ```
 
@@ -86,7 +86,7 @@ bun ../../../apps/cli/src/cli.ts trend \
   sample-runs/2026-03-01T10-00-00-000Z \
   sample-runs/2026-03-08T10-00-00-000Z \
   sample-runs/2026-03-15T10-00-00-000Z \
-  --dataset code-review \
+  --suite code-review \
   --target claude-sonnet \
   --fail-on-degrading \
   --slope-threshold 0.01

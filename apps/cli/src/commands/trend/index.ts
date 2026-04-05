@@ -39,7 +39,7 @@ export interface TrendRunPoint {
 }
 
 export interface TrendFilters {
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly target?: string;
   readonly allowMissingTests: boolean;
 }
@@ -163,11 +163,11 @@ export function resolveTrendSources(
 function filterRunRecords(
   records: readonly LightweightResultRecord[],
   sourcePath: string,
-  dataset?: string,
+  suite?: string,
   target?: string,
 ): TrendRunRecord[] {
   return records
-    .filter((record) => (dataset ? record.dataset === dataset : true))
+    .filter((record) => (suite ? record.suite === suite : true))
     .filter((record) => (target ? record.target === target : true))
     .map((record) => ({ ...record, sourcePath }));
 }
@@ -268,28 +268,22 @@ export function determineTrendExitCode(
 
 export function analyzeTrend(params: {
   readonly sourcePaths: readonly string[];
-  readonly dataset?: string;
+  readonly suite?: string;
   readonly target?: string;
   readonly slopeThreshold: number;
   readonly allowMissingTests: boolean;
   readonly failOnDegrading: boolean;
 }): TrendOutput {
-  const { sourcePaths, dataset, target, slopeThreshold, allowMissingTests, failOnDegrading } =
-    params;
+  const { sourcePaths, suite, target, slopeThreshold, allowMissingTests, failOnDegrading } = params;
 
   if (sourcePaths.length < 2) {
     throw new Error('Trend analysis requires at least 2 runs');
   }
 
   const filteredRuns = sourcePaths.map((sourcePath) => {
-    const records = filterRunRecords(
-      loadLightweightResults(sourcePath),
-      sourcePath,
-      dataset,
-      target,
-    );
+    const records = filterRunRecords(loadLightweightResults(sourcePath), sourcePath, suite, target);
     if (records.length === 0) {
-      const filters = [dataset ? `dataset=${dataset}` : '', target ? `target=${target}` : '']
+      const filters = [suite ? `suite=${suite}` : '', target ? `target=${target}` : '']
         .filter(Boolean)
         .join(', ');
       const suffix = filters ? ` after filtering by ${filters}` : '';
@@ -339,7 +333,7 @@ export function analyzeTrend(params: {
   return {
     runs,
     filters: {
-      dataset,
+      suite,
       target,
       allowMissingTests,
     },
@@ -377,7 +371,7 @@ export function formatTrendTable(output: TrendOutput): string {
     `${c.bold}Runs:${c.reset} ${output.summary.runCount} | ${c.bold}Range:${c.reset} ${output.summary.dateRange.start ?? 'unknown'} → ${output.summary.dateRange.end ?? 'unknown'}`,
   );
   lines.push(
-    `${c.bold}Filters:${c.reset} dataset=${output.filters.dataset ?? '*'} target=${output.filters.target ?? '*'} mode=${output.filters.allowMissingTests ? 'independent' : 'matched-tests'}`,
+    `${c.bold}Filters:${c.reset} suite=${output.filters.suite ?? '*'} target=${output.filters.target ?? '*'} mode=${output.filters.allowMissingTests ? 'independent' : 'matched-tests'}`,
   );
   lines.push(
     `${c.bold}Matched Tests:${c.reset} ${output.summary.matchedTestCount} | ${c.bold}Verdict:${c.reset} ${colorizeDirection(output.summary.direction)}`,
@@ -422,10 +416,10 @@ export const trendCommand = command({
       long: 'last',
       description: 'Use the most recent N runs from .agentv/results/runs/',
     }),
-    dataset: option({
+    suite: option({
       type: optional(string),
-      long: 'dataset',
-      description: 'Filter records to a dataset name',
+      long: 'suite',
+      description: 'Filter records to a suite name',
     }),
     target: option({
       type: optional(string),
@@ -459,7 +453,7 @@ export const trendCommand = command({
   handler: async ({
     runs,
     last,
-    dataset,
+    suite,
     target,
     slopeThreshold,
     failOnDegrading,
@@ -478,7 +472,7 @@ export const trendCommand = command({
       const sourcePaths = resolveTrendSources(process.cwd(), runs, last);
       const output = analyzeTrend({
         sourcePaths,
-        dataset,
+        suite,
         target,
         slopeThreshold: effectiveSlopeThreshold,
         allowMissingTests,

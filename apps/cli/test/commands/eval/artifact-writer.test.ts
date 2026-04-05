@@ -417,7 +417,7 @@ describe('buildIndexArtifactEntry', () => {
       makeResult({
         testId: 'alpha',
         target: 'claude',
-        dataset: 'demo',
+        suite: 'demo',
         scores: [makeEvaluatorResult({ name: 'quality', score: 0.7 })],
         executionStatus: 'quality_failure',
         error: 'model drift',
@@ -434,7 +434,7 @@ describe('buildIndexArtifactEntry', () => {
     expect(JSON.parse(JSON.stringify(entry))).toEqual({
       timestamp: '2026-03-13T00:00:00.000Z',
       test_id: 'alpha',
-      dataset: 'demo',
+      suite: 'demo',
       score: 0.9,
       target: 'claude',
       scores: [
@@ -699,9 +699,9 @@ describe('writeArtifactsFromResults', () => {
     expect(grading.assertions[0].text).toBe('baseline-check');
   });
 
-  it('prefixes artifact paths with dataset when present', async () => {
+  it('prefixes artifact paths with suite when present', async () => {
     const paths = await writeArtifactsFromResults(
-      [makeResult({ dataset: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
       testDir,
     );
 

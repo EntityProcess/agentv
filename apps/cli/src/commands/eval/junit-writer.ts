@@ -47,7 +47,7 @@ export class JunitWriter {
 
     const grouped = new Map<string, EvaluationResult[]>();
     for (const result of this.results) {
-      const suite = result.dataset ?? 'default';
+      const suite = result.suite ?? 'default';
       const existing = grouped.get(suite);
       if (existing) {
         existing.push(result);

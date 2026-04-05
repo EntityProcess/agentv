@@ -182,7 +182,7 @@ export class OtelTraceExporter {
         // Core attributes
         rootSpan.setAttribute('agentv.test_id', result.testId);
         rootSpan.setAttribute('agentv.target', result.target);
-        if (result.dataset) rootSpan.setAttribute('agentv.dataset', result.dataset);
+        if (result.suite) rootSpan.setAttribute('agentv.suite', result.suite);
         rootSpan.setAttribute('agentv.score', result.score);
         if (captureContent && result.output.length > 0) {
           const lastMsg = result.output[result.output.length - 1];
@@ -455,7 +455,7 @@ export class OtelStreamingObserver {
     this.rootSpan.setAttribute('gen_ai.system', 'agentv');
     this.rootSpan.setAttribute('agentv.test_id', testId);
     this.rootSpan.setAttribute('agentv.target', target);
-    if (evalSet) this.rootSpan.setAttribute('agentv.dataset', evalSet);
+    if (evalSet) this.rootSpan.setAttribute('agentv.suite', evalSet);
     this.rootCtx = this.api.trace.setSpan(this.api.context.active(), this.rootSpan);
   }
 
