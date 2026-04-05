@@ -13,6 +13,7 @@ import { resultsServeCommand } from './commands/results/serve.js';
 import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
 import { transpileCommand } from './commands/transpile/index.js';
+import { trendCommand } from './commands/trend/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
 import { workspaceCommand } from './commands/workspace/index.js';
@@ -35,6 +36,7 @@ export const app = subcommands({
     serve: resultsServeCommand,
     studio: resultsServeCommand,
     trace: traceCommand,
+    trend: trendCommand,
     transpile: transpileCommand,
     trim: trimCommand,
     validate: validateCommand,
@@ -64,6 +66,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'serve',
   'studio',
   'trace',
+  'trend',
   'transpile',
   'trim',
   'validate',

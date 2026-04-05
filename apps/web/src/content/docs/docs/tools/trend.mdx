@@ -1,0 +1,139 @@
+---
+title: Trend
+description: Analyze score drift across multiple historical eval runs
+sidebar:
+  order: 2
+---
+
+The `trend` command analyzes score movement across multiple historical run manifests and reports whether quality is improving, degrading, or stable over time.
+
+Use it when pairwise `compare` is too narrow and you want to detect gradual drift across a sequence of runs.
+
+## Usage
+
+Analyze the last 8 canonical runs in the current workspace:
+
+```bash
+agentv trend --last 8
+```
+
+Filter to one dataset and target:
+
+```bash
+agentv trend --last 8 --dataset code-review --target claude-sonnet
+```
+
+Point directly at run workspaces or `index.jsonl` manifests:
+
+```bash
+agentv trend \
+  .agentv/results/runs/2026-03-01T10-00-00-000Z/ \
+  .agentv/results/runs/2026-03-08T10-00-00-000Z/index.jsonl \
+  .agentv/results/runs/2026-03-15T10-00-00-000Z/
+```
+
+## Supported Inputs
+
+`trend` only accepts canonical run workspaces:
+
+- `.agentv/results/runs/<run-id>/`
+- `.agentv/results/runs/<run-id>/index.jsonl`
+
+Legacy flat `results.jsonl` files are rejected. The command stays on lightweight `index.jsonl` manifests and does not require per-test artifact hydration.
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--last <n>` | Use the most recent `n` runs from `.agentv/results/runs/` |
+| `--dataset <name>` | Filter records to one dataset |
+| `--target <name>` | Filter records to one target inside each run |
+| `--slope-threshold <n>` | Minimum absolute slope required to classify improving or degrading (default: `0.01`) |
+| `--fail-on-degrading` | Exit non-zero when the detected trend is degrading beyond the threshold |
+| `--allow-missing-tests` | Aggregate each run independently instead of intersecting test IDs across runs |
+| `--format`, `-f` | Output format: `table` (default) or `json` |
+| `--json` | Shorthand for `--format=json` |
+
+## How It Works
+
+1. Loads each selected `index.jsonl` manifest.
+2. Applies `dataset` and `target` filters per record.
+3. By default, reduces every run to the intersection of test IDs present in all selected runs.
+4. Computes one mean score per run.
+5. Fits a simple linear regression over run index `0..N-1`.
+6. Classifies the slope as `improving`, `degrading`, or `stable`.
+
+Strict matched-test analysis is the default because changing test composition across runs can create false drift signals.
+
+## Output
+
+### Table format
+
+```text
+Trend Analysis
+
+Runs: 3 | Range: 2026-03-01T10:00:00.000Z → 2026-03-15T10:00:00.000Z
+Filters: dataset=code-review target=claude-sonnet mode=matched-tests
+Matched Tests: 42 | Verdict: degrading
+
+  Run                           Tests  Mean Score
+  ----------------------------  -----  ----------
+  2026-03-01T10:00:00.000Z         42       0.920
+  2026-03-08T10:00:00.000Z         42       0.905
+  2026-03-15T10:00:00.000Z         42       0.892
+
+Summary: slope=-0.014 intercept=0.920 r²=0.943
+Regression Gate: threshold=0.010 fail_on_degrading=true triggered=true
+```
+
+### JSON format
+
+```json
+{
+  "runs": [
+    {
+      "label": "2026-03-01T10:00:00.000Z",
+      "path": "/repo/.agentv/results/runs/2026-03-01T10-00-00-000Z/index.jsonl",
+      "timestamp": "2026-03-01T10:00:00.000Z",
+      "matched_test_count": 42,
+      "mean_score": 0.92
+    }
+  ],
+  "filters": {
+    "dataset": "code-review",
+    "target": "claude-sonnet",
+    "allow_missing_tests": false
+  },
+  "summary": {
+    "run_count": 8,
+    "matched_test_count": 42,
+    "date_range": {
+      "start": "2026-03-01T10:00:00.000Z",
+      "end": "2026-03-15T10:00:00.000Z"
+    },
+    "slope": -0.014,
+    "intercept": 0.923,
+    "r_squared": 0.943,
+    "direction": "degrading"
+  },
+  "regression": {
+    "slope_threshold": 0.01,
+    "fail_on_degrading": true,
+    "triggered": true
+  }
+}
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Informational mode, or no degrading trend triggered |
+| `1` | Invalid input, analysis error, or `--fail-on-degrading` detected a degrading trend |
+
+## Compare vs Trend
+
+- `compare` answers: "Did this run beat that run?"
+- `trend` answers: "Across many runs, are scores drifting up or down?"
+
+Use `compare` for pairwise regressions. Use `trend` for longitudinal drift detection.
