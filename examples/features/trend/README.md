@@ -20,19 +20,23 @@ sample-runs/
   2026-03-15T10-00-00-000Z/index.jsonl
 ```
 
-These are canonical run directories with `index.jsonl`, so you can point `agentv trend` at them directly.
+These are canonical run directories with `index.jsonl`.
 
 ## End-User Flow
 
-From this directory, run:
+Most real users will run `trend` against their latest eval history with `--last`.
+
+To reproduce that flow from this example directory, first copy the sample runs into the normal runtime layout:
 
 ```bash
-bun ../../../apps/cli/src/cli.ts trend \
-  sample-runs/2026-03-01T10-00-00-000Z \
-  sample-runs/2026-03-08T10-00-00-000Z \
-  sample-runs/2026-03-15T10-00-00-000Z \
-  --dataset code-review \
-  --target claude-sonnet
+mkdir -p .agentv/results/runs
+cp -R sample-runs/* .agentv/results/runs/
+```
+
+Then run:
+
+```bash
+bun ../../../apps/cli/src/cli.ts trend --last 3 --dataset code-review --target claude-sonnet
 ```
 
 Expected output:
@@ -56,9 +60,22 @@ Regression Gate: threshold=0.010 fail_on_degrading=false triggered=false
 
 Interpretation:
 
-- The command uses the matched intersection of test IDs across all runs.
-- Mean score declines each run, so the slope is negative.
-- The verdict is `degrading`.
+- The command auto-discovers the most recent three runs.
+- It filters to `dataset=code-review` and `target=claude-sonnet`.
+- It intersects matched test IDs across runs and detects a steady downward score trend.
+
+## Explicit Inputs
+
+If you want to see the same analysis without copying files into `.agentv/results/runs/`, point `trend` at the sample runs directly:
+
+```bash
+bun ../../../apps/cli/src/cli.ts trend \
+  sample-runs/2026-03-01T10-00-00-000Z \
+  sample-runs/2026-03-08T10-00-00-000Z \
+  sample-runs/2026-03-15T10-00-00-000Z \
+  --dataset code-review \
+  --target claude-sonnet
+```
 
 ## CI Gate Example
 
@@ -76,18 +93,3 @@ bun ../../../apps/cli/src/cli.ts trend \
 ```
 
 This exits with code `1` because the degrading slope magnitude exceeds `0.01`.
-
-## `--last` Workflow
-
-If you want to test the exact runtime layout used by `agentv eval`, copy the sample runs into `.agentv/results/runs/` first:
-
-```bash
-mkdir -p .agentv/results/runs
-cp -R sample-runs/* .agentv/results/runs/
-```
-
-Then run:
-
-```bash
-bun ../../../apps/cli/src/cli.ts trend --last 3 --dataset code-review --target claude-sonnet
-```

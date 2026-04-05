@@ -17,13 +17,15 @@ Analyze the last 8 canonical runs in the current workspace:
 agentv trend --last 8
 ```
 
+This is the primary day-to-day workflow. In most cases, users should start with `--last`.
+
 Filter to one dataset and target:
 
 ```bash
 agentv trend --last 8 --dataset code-review --target claude-sonnet
 ```
 
-Point directly at run workspaces or `index.jsonl` manifests:
+Point directly at run workspaces or `index.jsonl` manifests when you need a specific historical slice or want a reproducible example:
 
 ```bash
 agentv trend \
