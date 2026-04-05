@@ -88,7 +88,7 @@ describe('validateTargetsFile', () => {
     ).toBe(false);
   });
 
-  it('warns on deprecated camelCase target aliases', async () => {
+  it('rejects camelCase target aliases', async () => {
     const filePath = path.join(tempDir, 'camel-case-aliases.yaml');
     await writeFile(
       filePath,
@@ -108,35 +108,38 @@ describe('validateTargetsFile', () => {
     );
 
     const result = await validateTargetsFile(filePath);
-    const warnings = result.errors.filter((error) => error.severity === 'warning');
 
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
     expect(
-      warnings.some(
-        (warning) =>
-          warning.location === 'targets[0].timeoutSeconds' &&
-          warning.message.includes("Use 'timeout_seconds' instead"),
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].timeoutSeconds' &&
+          error.message.includes("Use 'timeout_seconds' instead"),
       ),
     ).toBe(true);
     expect(
-      warnings.some(
-        (warning) =>
-          warning.location === 'targets[0].logDir' &&
-          warning.message.includes("Use 'log_dir' instead"),
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].logDir' &&
+          error.message.includes("Use 'log_dir' instead"),
       ),
     ).toBe(true);
     expect(
-      warnings.some(
-        (warning) =>
-          warning.location === 'targets[0].systemPrompt' &&
-          warning.message.includes("Use 'system_prompt' instead"),
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].systemPrompt' &&
+          error.message.includes("Use 'system_prompt' instead"),
       ),
     ).toBe(true);
     expect(
-      warnings.some(
-        (warning) =>
-          warning.location === 'targets[1].healthcheck.timeoutSeconds' &&
-          warning.message.includes("Use 'timeout_seconds' instead"),
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[1].healthcheck.timeoutSeconds' &&
+          error.message.includes("Use 'timeout_seconds' instead"),
       ),
     ).toBe(true);
   });

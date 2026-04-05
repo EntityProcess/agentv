@@ -9,8 +9,7 @@ import type { EnvLookup, TargetDefinition } from './types.js';
 
 /**
  * Loose input schema for HTTP healthcheck configuration.
- * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
- * property names for flexibility in configuration files.
+ * Accepts raw YAML input before normalization and validation.
  *
  * @example
  * ```yaml
@@ -19,16 +18,16 @@ import type { EnvLookup, TargetDefinition } from './types.js';
  *   timeout_seconds: 30
  * ```
  */
-export const CliHealthcheckHttpInputSchema = z.object({
-  url: z.string().min(1, 'healthcheck URL is required'),
-  timeout_seconds: z.number().positive().optional(),
-  timeoutSeconds: z.number().positive().optional(),
-});
+export const CliHealthcheckHttpInputSchema = z
+  .object({
+    url: z.string().min(1, 'healthcheck URL is required'),
+    timeout_seconds: z.number().positive().optional(),
+  })
+  .passthrough();
 
 /**
  * Loose input schema for command healthcheck configuration.
- * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
- * property names for flexibility in configuration files.
+ * Accepts raw YAML input before normalization and validation.
  *
  * @example
  * ```yaml
@@ -38,12 +37,13 @@ export const CliHealthcheckHttpInputSchema = z.object({
  *   timeout_seconds: 10
  * ```
  */
-export const CliHealthcheckCommandInputSchema = z.object({
-  command: z.string().min(1, 'healthcheck command is required'),
-  cwd: z.string().optional(),
-  timeout_seconds: z.number().positive().optional(),
-  timeoutSeconds: z.number().positive().optional(),
-});
+export const CliHealthcheckCommandInputSchema = z
+  .object({
+    command: z.string().min(1, 'healthcheck command is required'),
+    cwd: z.string().optional(),
+    timeout_seconds: z.number().positive().optional(),
+  })
+  .passthrough();
 
 /**
  * Union for healthcheck input configuration.
@@ -60,8 +60,7 @@ export const CliHealthcheckInputSchema = z.union([
 
 /**
  * Loose input schema for CLI target configuration.
- * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
- * property names for maximum flexibility in configuration files.
+ * Accepts raw YAML input before normalization and validation.
  *
  * This schema validates the raw YAML input structure before normalization
  * and environment variable resolution. Unknown properties are allowed
@@ -78,53 +77,47 @@ export const CliHealthcheckInputSchema = z.union([
  *       url: http://localhost:8080/health
  * ```
  */
-export const CliTargetInputSchema = z.object({
-  name: z.string().min(1, 'target name is required'),
-  provider: z
-    .string()
-    .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
+export const CliTargetInputSchema = z
+  .object({
+    name: z.string().min(1, 'target name is required'),
+    provider: z
+      .string()
+      .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
 
-  // Command - required
-  command: z.string(),
+    // Command - required
+    command: z.string(),
 
-  // Files format - optional
-  files_format: z.string().optional(),
-  filesFormat: z.string().optional(),
-  attachments_format: z.string().optional(),
-  attachmentsFormat: z.string().optional(),
+    // Files format - optional
+    files_format: z.string().optional(),
+    attachments_format: z.string().optional(),
 
-  // Working directory - optional
-  cwd: z.string().optional(),
+    // Working directory - optional
+    cwd: z.string().optional(),
 
-  // Workspace template directory - optional (mutually exclusive with cwd)
-  workspace_template: z.string().optional(),
-  workspaceTemplate: z.string().optional(),
+    // Workspace template directory - optional (mutually exclusive with cwd)
+    workspace_template: z.string().optional(),
 
-  // Timeout in seconds - optional
-  timeout_seconds: z.number().positive().optional(),
-  timeoutSeconds: z.number().positive().optional(),
+    // Timeout in seconds - optional
+    timeout_seconds: z.number().positive().optional(),
 
-  // Healthcheck configuration - optional
-  healthcheck: CliHealthcheckInputSchema.optional(),
+    // Healthcheck configuration - optional
+    healthcheck: CliHealthcheckInputSchema.optional(),
 
-  // Verbose mode - optional
-  verbose: z.boolean().optional(),
-  cli_verbose: z.boolean().optional(),
-  cliVerbose: z.boolean().optional(),
+    // Verbose mode - optional
+    verbose: z.boolean().optional(),
+    cli_verbose: z.boolean().optional(),
 
-  // Keep temp files - optional
-  keep_temp_files: z.boolean().optional(),
-  keepTempFiles: z.boolean().optional(),
-  keep_output_files: z.boolean().optional(),
-  keepOutputFiles: z.boolean().optional(),
+    // Keep temp files - optional
+    keep_temp_files: z.boolean().optional(),
+    keep_output_files: z.boolean().optional(),
 
-  // Common target fields
-  grader_target: z.string().optional(),
-  judge_target: z.string().optional(), // backward compat
-  workers: z.number().int().min(1).optional(),
-  provider_batching: z.boolean().optional(),
-  providerBatching: z.boolean().optional(),
-});
+    // Common target fields
+    grader_target: z.string().optional(),
+    judge_target: z.string().optional(), // backward compat
+    workers: z.number().int().min(1).optional(),
+    provider_batching: z.boolean().optional(),
+  })
+  .passthrough();
 
 /**
  * Strict normalized schema for HTTP healthcheck configuration.
@@ -168,7 +161,7 @@ export const CliHealthcheckSchema = z.union([
 /**
  * Strict normalized schema for CLI target configuration.
  * This is the final validated shape after environment variable resolution
- * and snake_case to camelCase normalization.
+ * and internal field normalization.
  *
  * Uses .strict() to reject unknown properties, ensuring configuration
  * errors are caught early rather than silently ignored.
@@ -210,8 +203,8 @@ export type CliNormalizedConfig = z.infer<typeof CliTargetConfigSchema>;
 export type CliResolvedConfig = Readonly<CliNormalizedConfig>;
 
 /**
- * Normalizes a healthcheck input from loose (snake_case + camelCase) to
- * strict normalized form (camelCase only). Resolves environment variables.
+ * Normalizes a healthcheck input from raw YAML input to the strict internal
+ * form used by the CLI provider. Resolves environment variables.
  *
  * @param input - The loose healthcheck input from YAML
  * @param env - Environment variable lookup
@@ -225,7 +218,7 @@ export function normalizeCliHealthcheck(
   targetName: string,
   evalFilePath?: string,
 ): CliNormalizedHealthcheck {
-  const timeoutSeconds = input.timeout_seconds ?? input.timeoutSeconds;
+  const timeoutSeconds = input.timeout_seconds;
   const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
 
   if ('url' in input && input.url) {
@@ -266,12 +259,12 @@ export function normalizeCliHealthcheck(
 }
 
 /**
- * Normalizes a CLI target input from loose (snake_case + camelCase) to
- * strict normalized form (camelCase only). Resolves environment variables.
+ * Normalizes a CLI target input from raw YAML input to the strict internal
+ * form used by the CLI provider. Resolves environment variables.
  *
- * This function coalesces snake_case/camelCase variants and resolves
- * environment variable references using ${{ VAR_NAME }} syntax.
- * snake_case takes precedence over camelCase when both are present (matching YAML convention).
+ * This function resolves environment variable references using
+ * ${{ VAR_NAME }} syntax and converts external YAML field names to the
+ * internal runtime shape.
  *
  * @param input - The loose CLI target input from YAML
  * @param env - Environment variable lookup
@@ -288,12 +281,11 @@ export function normalizeCliTargetInput(
   const command = resolveString(input.command, env, `${targetName} CLI command`, true);
 
   // Coalesce files format variants
-  const filesFormatSource =
-    input.files_format ?? input.filesFormat ?? input.attachments_format ?? input.attachmentsFormat;
+  const filesFormatSource = input.files_format ?? input.attachments_format;
   const filesFormat = resolveOptionalLiteralString(filesFormatSource);
 
   // Resolve workspace template (mutually exclusive with cwd)
-  const workspaceTemplateSource = input.workspace_template ?? input.workspaceTemplate;
+  const workspaceTemplateSource = input.workspace_template;
   let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
@@ -333,19 +325,14 @@ export function normalizeCliTargetInput(
   }
 
   // Coalesce timeout variants (seconds -> ms)
-  const timeoutSeconds = input.timeout_seconds ?? input.timeoutSeconds;
+  const timeoutSeconds = input.timeout_seconds;
   const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
 
   // Coalesce verbose variants
-  const verbose = resolveOptionalBoolean(input.verbose ?? input.cli_verbose ?? input.cliVerbose);
+  const verbose = resolveOptionalBoolean(input.verbose ?? input.cli_verbose);
 
   // Coalesce keepTempFiles variants
-  const keepTempFiles = resolveOptionalBoolean(
-    input.keep_temp_files ??
-      input.keepTempFiles ??
-      input.keep_output_files ??
-      input.keepOutputFiles,
-  );
+  const keepTempFiles = resolveOptionalBoolean(input.keep_temp_files ?? input.keep_output_files);
 
   // Normalize healthcheck if present
   const healthcheck = input.healthcheck
@@ -633,12 +620,36 @@ function collectDeprecatedCamelCaseWarnings(
     if (Object.prototype.hasOwnProperty.call(value, camelCaseField)) {
       warnings.push({
         location: `${location}.${camelCaseField}`,
-        message: `Deprecated camelCase field '${camelCaseField}' in targets.yaml. Use '${snakeCaseField}' instead.`,
+        message: `camelCase field '${camelCaseField}' is no longer supported in targets.yaml. Use '${snakeCaseField}' instead.`,
       });
     }
   }
 
   return warnings;
+}
+
+function assertNoDeprecatedCamelCaseTargetFields(definition: TargetDefinition): void {
+  if (Object.prototype.hasOwnProperty.call(definition, 'workspaceTemplate')) {
+    throw new Error(
+      `${definition.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
+    );
+  }
+
+  const warning = findDeprecatedCamelCaseTargetWarnings(
+    definition,
+    `target "${definition.name}"`,
+  )[0];
+  if (!warning) {
+    return;
+  }
+
+  const fieldMatch = warning.message.match(/field '([^']+)'/);
+  const replacementMatch = warning.message.match(/Use '([^']+)' instead/);
+  const field = fieldMatch?.[1] ?? 'unknown';
+  const replacement = replacementMatch?.[1] ?? 'snake_case';
+  throw new Error(
+    `${warning.location}: camelCase field '${field}' is no longer supported in targets.yaml. Use '${replacement}' instead.`,
+  );
 }
 
 export function findDeprecatedCamelCaseTargetWarnings(
@@ -665,15 +676,6 @@ export function findDeprecatedCamelCaseTargetWarnings(
   );
 
   return warnings;
-}
-
-function emitDeprecatedCamelCaseTargetWarnings(definition: TargetDefinition): void {
-  for (const warning of findDeprecatedCamelCaseTargetWarnings(
-    definition,
-    `target "${definition.name}"`,
-  )) {
-    console.warn(`Warning: ${warning.message}`);
-  }
 }
 
 /**
@@ -750,11 +752,8 @@ export type ResolvedTarget =
 export const COMMON_TARGET_SETTINGS = [
   'use_target',
   'provider_batching',
-  'providerBatching',
   'subagent_mode_allowed',
-  'subagentModeAllowed',
   'fallback_targets',
-  'fallbackTargets',
 ] as const;
 
 const USE_TARGET_ENV_PATTERN = /^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i;
@@ -768,10 +767,8 @@ const BASE_TARGET_SCHEMA = z
     judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
     workspace_template: z.string().optional(),
-    workspaceTemplate: z.string().optional(),
     subagent_mode_allowed: z.boolean().optional(),
     fallback_targets: z.array(z.string().min(1)).optional(),
-    fallbackTargets: z.array(z.string().min(1)).optional(),
   })
   .passthrough();
 
@@ -800,24 +797,21 @@ function normalizeAzureApiVersion(
 }
 
 function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
-  const maxRetries = resolveOptionalNumber(
-    target.max_retries ?? target.maxRetries,
-    `${target.name} max retries`,
-  );
+  const maxRetries = resolveOptionalNumber(target.max_retries, `${target.name} max retries`);
   const initialDelayMs = resolveOptionalNumber(
-    target.retry_initial_delay_ms ?? target.retryInitialDelayMs,
+    target.retry_initial_delay_ms,
     `${target.name} retry initial delay`,
   );
   const maxDelayMs = resolveOptionalNumber(
-    target.retry_max_delay_ms ?? target.retryMaxDelayMs,
+    target.retry_max_delay_ms,
     `${target.name} retry max delay`,
   );
   const backoffFactor = resolveOptionalNumber(
-    target.retry_backoff_factor ?? target.retryBackoffFactor,
+    target.retry_backoff_factor,
     `${target.name} retry backoff factor`,
   );
   const retryableStatusCodes = resolveOptionalNumberArray(
-    target.retry_status_codes ?? target.retryStatusCodes,
+    target.retry_status_codes,
     `${target.name} retry status codes`,
   );
 
@@ -909,12 +903,11 @@ export function resolveTargetDefinition(
   evalFilePath?: string,
   options?: { readonly emitDeprecationWarnings?: boolean },
 ): ResolvedTarget {
-  if (options?.emitDeprecationWarnings !== false) {
-    emitDeprecatedCamelCaseTargetWarnings(definition);
-  }
+  void options;
+  assertNoDeprecatedCamelCaseTargetFields(definition);
 
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
-  if (parsed.workspace_template !== undefined || parsed.workspaceTemplate !== undefined) {
+  if (parsed.workspace_template !== undefined) {
     throw new Error(
       `${parsed.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
     );
@@ -930,15 +923,11 @@ export function resolveTargetDefinition(
     `${parsed.name} provider`,
     true,
   ).toLowerCase();
-  const providerBatching = resolveOptionalBoolean(
-    parsed.provider_batching ?? parsed.providerBatching,
-  );
-  const subagentModeAllowed = resolveOptionalBoolean(
-    parsed.subagent_mode_allowed ?? parsed.subagentModeAllowed,
-  );
+  const providerBatching = resolveOptionalBoolean(parsed.provider_batching);
+  const subagentModeAllowed = resolveOptionalBoolean(parsed.subagent_mode_allowed);
 
   // Shared base fields for all resolved targets
-  const fallbackTargets = parsed.fallback_targets ?? parsed.fallbackTargets;
+  const fallbackTargets = parsed.fallback_targets;
   const base = {
     name: parsed.name,
     graderTarget: parsed.grader_target ?? parsed.judge_target,
@@ -1102,12 +1091,12 @@ function resolveAzureConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): AzureResolvedConfig {
-  const endpointSource = target.endpoint ?? target.resource ?? target.resourceName;
-  const apiKeySource = target.api_key ?? target.apiKey;
-  const deploymentSource = target.deployment ?? target.deploymentName ?? target.model;
+  const endpointSource = target.endpoint ?? target.resource;
+  const apiKeySource = target.api_key;
+  const deploymentSource = target.deployment ?? target.model;
   const versionSource = target.version ?? target.api_version;
   const temperatureSource = target.temperature;
-  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+  const maxTokensSource = target.max_output_tokens;
 
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
@@ -1144,15 +1133,10 @@ function resolveApiFormat(
   env: EnvLookup,
   targetName: string,
 ): ApiFormat | undefined {
-  const raw = resolveOptionalString(
-    target.api_format ?? target.apiFormat,
-    env,
-    `${targetName} api format`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
+  const raw = resolveOptionalString(target.api_format, env, `${targetName} api format`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
   if (raw === undefined) return undefined;
   if (raw === 'chat' || raw === 'responses') return raw;
   throw new Error(
@@ -1164,11 +1148,11 @@ function resolveOpenAIConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): OpenAIResolvedConfig {
-  const endpointSource = target.endpoint ?? target.base_url ?? target.baseUrl;
-  const apiKeySource = target.api_key ?? target.apiKey;
+  const endpointSource = target.endpoint ?? target.base_url;
+  const apiKeySource = target.api_key;
   const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
-  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+  const maxTokensSource = target.max_output_tokens;
 
   const baseURL = normalizeOpenAIBaseUrl(
     resolveOptionalString(endpointSource, env, `${target.name} endpoint`, {
@@ -1195,10 +1179,10 @@ function resolveOpenRouterConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): OpenRouterResolvedConfig {
-  const apiKeySource = target.api_key ?? target.apiKey;
+  const apiKeySource = target.api_key;
   const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
-  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+  const maxTokensSource = target.max_output_tokens;
   const retry = resolveRetryConfig(target);
 
   return {
@@ -1214,11 +1198,11 @@ function resolveAnthropicConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): AnthropicResolvedConfig {
-  const apiKeySource = target.api_key ?? target.apiKey;
+  const apiKeySource = target.api_key;
   const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
-  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
-  const thinkingBudgetSource = target.thinking_budget ?? target.thinkingBudget;
+  const maxTokensSource = target.max_output_tokens;
+  const thinkingBudgetSource = target.thinking_budget;
 
   const apiKey = resolveString(apiKeySource, env, `${target.name} Anthropic api key`);
   const model = resolveString(modelSource, env, `${target.name} Anthropic model`);
@@ -1238,10 +1222,10 @@ function resolveGeminiConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): GeminiResolvedConfig {
-  const apiKeySource = target.api_key ?? target.apiKey;
+  const apiKeySource = target.api_key;
   const modelSource = target.model ?? target.deployment ?? target.variant;
   const temperatureSource = target.temperature;
-  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+  const maxTokensSource = target.max_output_tokens;
 
   const apiKey = resolveString(apiKeySource, env, `${target.name} Google API key`);
   const model =
@@ -1269,17 +1253,12 @@ function resolveCodexConfig(
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const logDirSource =
-    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const workspaceTemplateSource = target.workspace_template;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource =
-    target.log_format ??
-    target.logFormat ??
-    target.log_output_format ??
-    target.logOutputFormat ??
-    env.AGENTV_CODEX_LOG_FORMAT;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+    target.log_format ?? target.log_output_format ?? env.AGENTV_CODEX_LOG_FORMAT;
+  const systemPromptSource = target.system_prompt;
 
   const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
     allowLiteral: true,
@@ -1365,17 +1344,16 @@ function resolveCopilotSdkConfig(
   env: EnvLookup,
   evalFilePath?: string,
 ): CopilotSdkResolvedConfig {
-  const cliUrlSource = target.cli_url ?? target.cliUrl;
-  const cliPathSource = target.cli_path ?? target.cliPath;
-  const githubTokenSource = target.github_token ?? target.githubToken;
+  const cliUrlSource = target.cli_url;
+  const cliPathSource = target.cli_path;
+  const githubTokenSource = target.github_token;
   const modelSource = target.model;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const logDirSource =
-    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
-  const logFormatSource = target.log_format ?? target.logFormat;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+  const workspaceTemplateSource = target.workspace_template;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
+  const logFormatSource = target.log_format;
+  const systemPromptSource = target.system_prompt;
 
   const cliUrl = resolveOptionalString(cliUrlSource, env, `${target.name} copilot-sdk cli URL`, {
     allowLiteral: true,
@@ -1471,12 +1449,11 @@ function resolveCopilotCliConfig(
   const modelSource = target.model;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const logDirSource =
-    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
-  const logFormatSource = target.log_format ?? target.logFormat;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+  const workspaceTemplateSource = target.workspace_template;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
+  const logFormatSource = target.log_format;
+  const systemPromptSource = target.system_prompt;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} copilot-cli executable`, {
@@ -1564,17 +1541,16 @@ function resolvePiCodingAgentConfig(
   evalFilePath?: string,
 ): PiCodingAgentResolvedConfig {
   const subproviderSource = target.subprovider;
-  const modelSource = target.model ?? target.pi_model ?? target.piModel;
-  const apiKeySource = target.api_key ?? target.apiKey;
-  const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
-  const thinkingSource = target.thinking ?? target.pi_thinking ?? target.piThinking;
+  const modelSource = target.model ?? target.pi_model;
+  const apiKeySource = target.api_key;
+  const toolsSource = target.tools ?? target.pi_tools;
+  const thinkingSource = target.thinking ?? target.pi_thinking;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const logDirSource =
-    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
-  const logFormatSource = target.log_format ?? target.logFormat;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+  const workspaceTemplateSource = target.workspace_template;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
+  const logFormatSource = target.log_format;
+  const systemPromptSource = target.system_prompt;
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -1596,7 +1572,7 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
-  const baseUrlSource = target.base_url ?? target.baseUrl ?? target.endpoint;
+  const baseUrlSource = target.base_url ?? target.endpoint;
   const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} pi base url`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -1677,17 +1653,16 @@ function resolvePiCliConfig(
 ): PiCliResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const subproviderSource = target.subprovider;
-  const modelSource = target.model ?? target.pi_model ?? target.piModel;
-  const apiKeySource = target.api_key ?? target.apiKey;
-  const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
-  const thinkingSource = target.thinking ?? target.pi_thinking ?? target.piThinking;
+  const modelSource = target.model ?? target.pi_model;
+  const apiKeySource = target.api_key;
+  const toolsSource = target.tools ?? target.pi_tools;
+  const thinkingSource = target.thinking ?? target.pi_thinking;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const logDirSource =
-    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
-  const logFormatSource = target.log_format ?? target.logFormat;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+  const workspaceTemplateSource = target.workspace_template;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
+  const logFormatSource = target.log_format;
+  const systemPromptSource = target.system_prompt;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
@@ -1712,7 +1687,7 @@ function resolvePiCliConfig(
     optionalEnv: true,
   });
 
-  const baseUrlSource = target.base_url ?? target.baseUrl ?? target.endpoint;
+  const baseUrlSource = target.base_url ?? target.endpoint;
   const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} pi-cli base url`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -1791,17 +1766,12 @@ function resolveClaudeConfig(
 ): ClaudeResolvedConfig {
   const modelSource = target.model;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
-  const logDirSource =
-    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const workspaceTemplateSource = target.workspace_template;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource =
-    target.log_format ??
-    target.logFormat ??
-    target.log_output_format ??
-    target.logOutputFormat ??
-    env.AGENTV_CLAUDE_LOG_FORMAT;
-  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+    target.log_format ?? target.log_output_format ?? env.AGENTV_CLAUDE_LOG_FORMAT;
+  const systemPromptSource = target.system_prompt;
 
   const model = resolveOptionalString(modelSource, env, `${target.name} claude model`, {
     allowLiteral: true,
@@ -1849,19 +1819,10 @@ function resolveClaudeConfig(
       ? systemPromptSource.trim()
       : undefined;
 
-  const maxTurns =
-    typeof target.max_turns === 'number'
-      ? target.max_turns
-      : typeof target.maxTurns === 'number'
-        ? target.maxTurns
-        : undefined;
+  const maxTurns = typeof target.max_turns === 'number' ? target.max_turns : undefined;
 
   const maxBudgetUsd =
-    typeof target.max_budget_usd === 'number'
-      ? target.max_budget_usd
-      : typeof target.maxBudgetUsd === 'number'
-        ? target.maxBudgetUsd
-        : undefined;
+    typeof target.max_budget_usd === 'number' ? target.max_budget_usd : undefined;
 
   return {
     model,
@@ -1901,9 +1862,7 @@ function resolveVSCodeConfig(
   insiders: boolean,
   evalFilePath?: string,
 ): VSCodeResolvedConfig {
-  const workspaceTemplateEnvVar = resolveOptionalLiteralString(
-    target.workspace_template ?? target.workspaceTemplate,
-  );
+  const workspaceTemplateEnvVar = resolveOptionalLiteralString(target.workspace_template);
   let workspaceTemplate = workspaceTemplateEnvVar
     ? resolveOptionalString(
         workspaceTemplateEnvVar,
@@ -1923,9 +1882,9 @@ function resolveVSCodeConfig(
 
   const executableSource = target.executable;
   const waitSource = target.wait;
-  const dryRunSource = target.dry_run ?? target.dryRun;
-  const subagentRootSource = target.subagent_root ?? target.subagentRoot;
-  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const dryRunSource = target.dry_run;
+  const subagentRootSource = target.subagent_root;
+  const timeoutSource = target.timeout_seconds;
 
   const defaultCommand = insiders ? 'code-insiders' : 'code';
   const executable =
@@ -2033,7 +1992,7 @@ function resolveDiscoveredProviderConfig(
     : `bun run .agentv/providers/${providerKind}.ts {PROMPT}`;
 
   // Resolve optional fields using the same patterns as CLI providers
-  const timeoutSeconds = target.timeout_seconds ?? target.timeoutSeconds;
+  const timeoutSeconds = target.timeout_seconds;
   const timeoutMs = resolveTimeoutMs(timeoutSeconds, `${target.name} timeout`);
 
   let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
@@ -2117,10 +2076,10 @@ function resolveCopilotLogConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): CopilotLogResolvedConfig {
-  const sessionDirSource = target.session_dir ?? target.sessionDir;
-  const sessionIdSource = target.session_id ?? target.sessionId;
+  const sessionDirSource = target.session_dir;
+  const sessionIdSource = target.session_id;
   const discoverSource = target.discover;
-  const sessionStateDirSource = target.session_state_dir ?? target.sessionStateDir;
+  const sessionStateDirSource = target.session_state_dir;
   const cwdSource = target.cwd;
 
   return {

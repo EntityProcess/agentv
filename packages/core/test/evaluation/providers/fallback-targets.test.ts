@@ -144,7 +144,7 @@ describe('resolveTargetDefinition - fallback_targets', () => {
     expect(resolved.fallbackTargets).toEqual(['azure-llm', 'gemini-flash']);
   });
 
-  it('resolves fallbackTargets from camelCase field', () => {
+  it('rejects fallbackTargets camelCase field', () => {
     const definition = {
       name: 'test-openai',
       provider: 'openai',
@@ -153,22 +153,9 @@ describe('resolveTargetDefinition - fallback_targets', () => {
       fallbackTargets: ['backup-1'],
     };
 
-    const resolved = resolveTargetDefinition(definition, env);
-    expect(resolved.fallbackTargets).toEqual(['backup-1']);
-  });
-
-  it('snake_case takes priority over camelCase', () => {
-    const definition = {
-      name: 'test-openai',
-      provider: 'openai',
-      api_key: '${{ TEST_KEY }}',
-      model: '${{ TEST_MODEL }}',
-      fallback_targets: ['snake-wins'],
-      fallbackTargets: ['camel-loses'],
-    };
-
-    const resolved = resolveTargetDefinition(definition, env);
-    expect(resolved.fallbackTargets).toEqual(['snake-wins']);
+    expect(() => resolveTargetDefinition(definition, env)).toThrow(
+      /fallbackTargets.*fallback_targets/i,
+    );
   });
 
   it('omits fallbackTargets when not specified', () => {
