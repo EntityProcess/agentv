@@ -101,7 +101,6 @@ describe('CliTargetInputSchema', () => {
     const input = { provider: 'cli', command: 'agent run {PROMPT}' };
     expect(CliTargetInputSchema.safeParse(input).success).toBe(false);
   });
-
 });
 
 describe('CliHealthcheckSchema (strict)', () => {

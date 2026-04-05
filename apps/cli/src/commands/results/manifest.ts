@@ -193,6 +193,7 @@ export function loadManifestResults(sourceFile: string): EvaluationResult[] {
 
 export interface LightweightResultRecord {
   readonly testId: string;
+  readonly dataset?: string;
   readonly target?: string;
   readonly experiment?: string;
   readonly score: number;
@@ -209,6 +210,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
   if (isIndexManifestPath(resolvedSourceFile)) {
     return parseResultManifest(content).map((record) => ({
       testId: record.test_id ?? record.eval_id ?? 'unknown',
+      dataset: record.dataset,
       target: record.target,
       experiment: record.experiment,
       score: record.score,
@@ -244,6 +246,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
 
     records.push({
       testId: rawTestId,
+      dataset: typeof record.dataset === 'string' ? record.dataset : undefined,
       target: typeof record.target === 'string' ? record.target : undefined,
       score: record.score,
       scores: Array.isArray(record.scores)
