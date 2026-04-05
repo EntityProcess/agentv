@@ -19,12 +19,14 @@ The `studio` command launches a web-based dashboard for browsing evaluation runs
 agentv studio
 ```
 
-Studio auto-discovers results from `.agentv/results/` in the current directory and opens at `http://localhost:3117`.
+Studio auto-discovers run workspaces from `.agentv/results/runs/` in the current directory and opens at `http://localhost:3117`.
 
-You can also point it at a specific results file:
+You can also point it at a specific run workspace or `index.jsonl` manifest:
 
 ```bash
 agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z/index.jsonl
+# or
+agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 ```
 
 ## Options

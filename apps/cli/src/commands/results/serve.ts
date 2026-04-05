@@ -1068,13 +1068,8 @@ export const resultsServeCommand = command({
       // When a source is explicitly provided, it must exist.
       // Otherwise, try to auto-discover results; start empty if none found.
       if (source) {
-        const resolved = resolveResultSourcePath(source, cwd);
-        if (!existsSync(resolved)) {
-          console.error(`Error: Source file not found: ${resolved}`);
-          process.exit(1);
-        }
-        sourceFile = resolved;
-        results = loadManifestResults(resolved);
+        sourceFile = await resolveSourceFile(source, cwd);
+        results = loadManifestResults(sourceFile);
       } else {
         // Auto-discover: run cache -> directory scan -> empty state
         const cache = await loadRunCache(cwd);

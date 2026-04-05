@@ -275,10 +275,12 @@ describe('trace utils', () => {
       expect(metas).toHaveLength(2);
       // Most recent first
       expect(metas[0].filename).toBe('2026-02-21T10-00-00-000Z');
+      expect(metas[0].timestamp).toBe('2026-02-21T10:00:00.000Z');
       expect(metas[0].testCount).toBe(1);
       expect(metas[0].passRate).toBe(0);
 
       expect(metas[1].filename).toBe('2026-02-20T21-38-05-833Z');
+      expect(metas[1].timestamp).toBe('2026-02-20T21:38:05.833Z');
       expect(metas[1].testCount).toBe(2);
       expect(metas[1].passRate).toBe(0.5);
     });
@@ -370,6 +372,11 @@ describe('trace utils', () => {
     it('should handle different timestamp values', () => {
       const result = extractTimestampFromFilename('eval_2026-01-01T00-00-00-000Z.jsonl');
       expect(result).toBe('2026-01-01T00:00:00.000Z');
+    });
+
+    it('should extract and format timestamp from bare run directory names', () => {
+      const result = extractTimestampFromFilename('2026-02-20T21-38-05-833Z');
+      expect(result).toBe('2026-02-20T21:38:05.833Z');
     });
   });
 

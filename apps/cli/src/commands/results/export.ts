@@ -30,6 +30,7 @@ import { command, option, optional, positional, string } from 'cmd-ts';
 import type { EvaluationResult } from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
+import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
 import { loadResults as loadSharedResults, resolveSourceFile } from './shared.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ export async function exportResults(
  */
 export function deriveOutputDir(cwd: string, sourceFile: string): string {
   const baseName = path.basename(sourceFile);
-  if (baseName !== 'index.jsonl') {
+  if (baseName !== RESULT_INDEX_FILENAME) {
     const stem = path.basename(sourceFile, path.extname(sourceFile));
     return path.join(
       cwd,

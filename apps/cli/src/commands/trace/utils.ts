@@ -595,7 +595,9 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
  * Extract ISO timestamp from eval filename like eval_2026-02-20T21-38-05-833Z.jsonl
  */
 export function extractTimestampFromFilename(filename: string): string | undefined {
-  const match = filename.match(/eval_(\d{4}-\d{2}-\d{2}T[\d-]+Z)/);
+  const match = filename.match(
+    /(?:^|eval_)(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)(?:\.jsonl)?$/,
+  );
   if (!match) return undefined;
   // Re-convert dashes back to colons/dots for display
   return match[1].replace(/-(\d{2})-(\d{2})-(\d{3})Z$/, ':$1:$2.$3Z');

@@ -13,7 +13,9 @@ import {
   restPositionals,
   string,
 } from 'cmd-ts';
+
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
+import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
 import { loadLightweightResults, resolveResultSourcePath } from '../results/manifest.js';
 
 // ANSI color codes (no dependency needed)
@@ -111,7 +113,7 @@ function loadFlatCompareResults(filePath: string): ParsedCompareResult[] {
 function loadCompareResults(filePath: string): ParsedCompareResult[] {
   try {
     const resolvedPath = resolveResultSourcePath(filePath);
-    if (path.basename(resolvedPath) === 'index.jsonl') {
+    if (path.basename(resolvedPath) === RESULT_INDEX_FILENAME) {
       return loadLightweightResults(resolvedPath).map((record) => ({
         testId: record.testId,
         score: record.score,
