@@ -58,15 +58,18 @@ export class JunitWriter {
 
     const suiteXmls: string[] = [];
     for (const [suiteName, results] of grouped) {
-      const failures = results.filter((r) => r.score < this.threshold).length;
-      const errors = results.filter((r) => r.error !== undefined).length;
+      const errors = results.filter((r) => r.executionStatus === 'execution_error').length;
+      const failures = results.filter(
+        (r) => r.executionStatus !== 'execution_error' && r.score < this.threshold,
+      ).length;
 
       const testCases = results.map((r) => {
         const time = r.durationMs ? (r.durationMs / 1000).toFixed(3) : '0.000';
 
         let inner = '';
-        if (r.error) {
-          inner = `\n      <error message="${escapeXml(r.error)}">${escapeXml(r.error)}</error>\n    `;
+        if (r.executionStatus === 'execution_error') {
+          const errorMsg = r.error ?? 'Execution error';
+          inner = `\n      <error message="${escapeXml(errorMsg)}">${escapeXml(errorMsg)}</error>\n    `;
         } else if (r.score < this.threshold) {
           const message = `score=${r.score.toFixed(3)}`;
           const failedAssertions = r.assertions.filter((a) => !a.passed);
@@ -90,8 +93,10 @@ export class JunitWriter {
     }
 
     const totalTests = this.results.length;
-    const totalFailures = this.results.filter((r) => r.score < this.threshold).length;
-    const totalErrors = this.results.filter((r) => r.error !== undefined).length;
+    const totalErrors = this.results.filter((r) => r.executionStatus === 'execution_error').length;
+    const totalFailures = this.results.filter(
+      (r) => r.executionStatus !== 'execution_error' && r.score < this.threshold,
+    ).length;
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}">\n${suiteXmls.join('\n')}\n</testsuites>\n`;
 

@@ -818,6 +818,8 @@ export interface RunEvalResult {
   readonly target?: string;
   /** True when --threshold is set and mean score is below the threshold */
   readonly thresholdFailed?: boolean;
+  /** True when all tests had execution errors and no evaluation was performed */
+  readonly allExecutionErrors?: boolean;
 }
 
 export async function runEvalCommand(
@@ -1299,7 +1301,9 @@ export async function runEvalCommand(
     const summary = calculateEvaluationSummary(allResults, thresholdOpts);
     console.log(formatEvaluationSummary(summary, thresholdOpts));
 
-    // Exit code matches RESULT verdict: fail if any test scored below threshold.
+    // Exit code: 2 when all tests are execution errors (no evaluation performed),
+    // 1 when any test scored below threshold.
+    const allExecutionErrors = summary.total > 0 && summary.executionErrorCount === summary.total;
     const thresholdFailed = resolvedThreshold !== undefined && summary.qualityFailureCount > 0;
 
     // Print matrix summary when multiple targets were evaluated
@@ -1397,6 +1401,7 @@ export async function runEvalCommand(
       testFiles: activeTestFiles,
       target: options.target,
       thresholdFailed,
+      allExecutionErrors,
     };
   } finally {
     unsubscribeCodexLogs();
