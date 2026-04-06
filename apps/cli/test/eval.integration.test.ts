@@ -165,11 +165,14 @@ async function runCli(
 
 function extractOutputPath(stdout: string): string {
   const lines = stdout.split(/\r?\n/);
-  const outputLine = lines.find((line) => line.startsWith('Output path:'));
+  // Try new format first, then legacy
+  const outputLine =
+    lines.find((line) => line.startsWith('Results written to:')) ??
+    lines.find((line) => line.startsWith('Output path:'));
   if (!outputLine) {
     throw new Error(`Unable to parse output path from CLI output:\n${stdout}`);
   }
-  return outputLine.replace('Output path:', '').trim();
+  return outputLine.replace(/^(Results written to:|Output path:)/, '').trim();
 }
 
 async function readJsonLines(filePath: string): Promise<readonly unknown[]> {

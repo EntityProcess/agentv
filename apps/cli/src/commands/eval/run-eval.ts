@@ -31,12 +31,7 @@ import { enforceRequiredVersion } from '../../version-check.js';
 import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
-import {
-  type OutputFormat,
-  type OutputWriter,
-  createMultiWriter,
-  createOutputWriter,
-} from './output-writer.js';
+import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { buildDefaultRunDir } from './result-layout.js';
 import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
@@ -62,9 +57,12 @@ interface NormalizedOptions {
   readonly targetsPath?: string;
   readonly filter?: string | readonly string[];
   readonly workers?: number;
+  /** --output <dir>: artifact directory (new canonical meaning) */
+  readonly outputDir?: string;
+  /** Legacy --out <path>: deprecated, treated as artifact dir */
   readonly outPath?: string;
-  readonly outputPaths: readonly string[];
-  readonly format: OutputFormat;
+  /** --export <paths...>: additional output files */
+  readonly exportPaths: readonly string[];
   readonly dryRun: boolean;
   readonly dryRunDelay: number;
   readonly dryRunDelayMin: number;
@@ -82,7 +80,9 @@ interface NormalizedOptions {
   readonly retryErrors?: string;
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
+  /** Deprecated: benchmark.json is always written to artifact dir */
   readonly benchmarkJson?: string;
+  /** Deprecated: use --output instead */
   readonly artifacts?: string;
   readonly graderTarget?: string;
   readonly model?: string;
@@ -247,18 +247,17 @@ function normalizeOptions(
   config?: Awaited<ReturnType<typeof loadTsConfig>>,
   yamlExecution?: ExecutionDefaults,
 ): NormalizedOptions {
-  const cliFormat = normalizeString(rawOptions.outputFormat);
-  const configFormat = config?.output?.format;
-  const formatStr = cliFormat ?? configFormat ?? 'jsonl';
-  const format: OutputFormat = formatStr === 'yaml' ? 'yaml' : 'jsonl';
-
   const cliWorkers = normalizeOptionalNumber(rawOptions.workers);
   const configWorkers = config?.execution?.workers;
   const workers = cliWorkers ?? configWorkers ?? 0;
 
-  const rawOutputPaths = rawOptions.output;
-  const outputPaths: string[] = Array.isArray(rawOutputPaths)
-    ? rawOutputPaths.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+  // --output is now a single optional string (artifact directory)
+  const cliOutputDir = normalizeString(rawOptions.output);
+
+  // --export is the new repeatable flag for additional output files
+  const rawExportPaths = rawOptions.export;
+  const exportPaths: string[] = Array.isArray(rawExportPaths)
+    ? rawExportPaths.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
     : [];
 
   // Normalize --target: can be a string (legacy) or string[] (multioption)
@@ -313,9 +312,9 @@ function normalizeOptions(
     targetsPath: normalizeString(rawOptions.targets),
     filter: normalizeFilter(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
+    outputDir: cliOutputDir,
     outPath: cliOut ?? configOut,
-    outputPaths,
-    format,
+    exportPaths,
     dryRun: normalizeBoolean(rawOptions.dryRun),
     dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
     dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
@@ -937,8 +936,51 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  const usesDefaultArtifactWorkspace = !options.outPath;
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd);
+  // Emit deprecation warnings for legacy flags
+  if (options.outPath) {
+    console.warn('Warning: --out is deprecated. Use --output <dir> to set the artifact directory.');
+  }
+  if (options.artifacts) {
+    console.warn(
+      'Warning: --artifacts is deprecated. Use --output <dir> to set the artifact directory.',
+    );
+  }
+  if (options.benchmarkJson) {
+    console.warn(
+      'Warning: --benchmark-json is deprecated. benchmark.json is always written to the artifact directory.',
+    );
+  }
+  if (normalizeString(input.rawOptions.outputFormat)) {
+    console.warn(
+      'Warning: --output-format is deprecated. The artifact directory always uses JSONL.',
+    );
+  }
+
+  // Resolve artifact directory (runDir) and primary output path.
+  // Precedence: --output > --artifacts (deprecated) > --out (deprecated) > default
+  const explicitDir = options.outputDir ?? options.artifacts;
+  let runDir: string;
+  let outputPath: string;
+  let usesDefaultArtifactWorkspace: boolean;
+
+  if (explicitDir) {
+    // --output <dir> or --artifacts <dir>: use as artifact directory
+    runDir = path.resolve(explicitDir);
+    mkdirSync(runDir, { recursive: true });
+    outputPath = path.join(runDir, 'index.jsonl');
+    usesDefaultArtifactWorkspace = true;
+  } else if (options.outPath) {
+    // --out <path> (deprecated): use dirname as artifact dir
+    outputPath = path.resolve(options.outPath);
+    runDir = path.dirname(outputPath);
+    mkdirSync(runDir, { recursive: true });
+    usesDefaultArtifactWorkspace = false;
+  } else {
+    // Default: .agentv/results/runs/<timestamp>/
+    outputPath = buildDefaultOutputPath(cwd);
+    runDir = path.dirname(outputPath);
+    usesDefaultArtifactWorkspace = true;
+  }
 
   // Initialize OTel exporter if --export-otel flag is set or file export flags are used
   let otelExporter: OtelTraceExporterType | null = null;
@@ -998,23 +1040,13 @@ export async function runEvalCommand(
 
   const primaryWritePath = outputPath;
 
-  // Resolve -o / --output paths (new multi-format support)
-  const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
+  // Resolve --export paths (additional output files)
+  const resolvedExportPaths = options.exportPaths.map((p: string) => path.resolve(p));
 
-  // Build the primary output writer (from --out / default)
-  // When extra --output paths are provided, combine all into a multi-writer
-  const allOutputPaths =
-    extraOutputPaths.length > 0 ? [primaryWritePath, ...extraOutputPaths] : [primaryWritePath];
-  const uniqueOutputPaths = [...new Set(allOutputPaths)];
-  const reportedOutputPaths =
-    extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
-  const uniqueReportedOutputPaths = [...new Set(reportedOutputPaths)];
-
-  if (uniqueOutputPaths.length === 1) {
-    console.log(`Output path: ${outputPath}`);
-  } else {
-    console.log('Output paths:');
-    for (const p of uniqueReportedOutputPaths) {
+  console.log(`Artifact directory: ${runDir}`);
+  if (resolvedExportPaths.length > 0) {
+    console.log('Export files:');
+    for (const p of resolvedExportPaths) {
       console.log(`  ${p}`);
     }
   }
@@ -1141,16 +1173,11 @@ export async function runEvalCommand(
     throw new Error('--threshold must be between 0 and 1');
   }
 
-  // Build the output writer (deferred until after threshold is resolved so JUnit
-  // writer can use the resolved threshold for per-test pass/fail decisions)
+  // Build the output writer. Primary output is always JSONL to the artifact directory.
+  // Additional --export paths get their own writers that receive all results after the run.
   const writerOptions =
     resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
-  let outputWriter: OutputWriter;
-  if (uniqueOutputPaths.length === 1) {
-    outputWriter = await createOutputWriter(primaryWritePath, options.format);
-  } else {
-    outputWriter = await createMultiWriter(uniqueOutputPaths, writerOptions);
-  }
+  const outputWriter: OutputWriter = await createOutputWriter(primaryWritePath, 'jsonl');
 
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
@@ -1366,25 +1393,25 @@ export async function runEvalCommand(
       console.log(formatMatrixSummary(allResults));
     }
 
-    // Write Agent Skills benchmark.json if requested
+    // Write Agent Skills benchmark.json if requested (deprecated flag — backward compat)
     if (options.benchmarkJson && allResults.length > 0) {
       const benchmarkPath = path.resolve(options.benchmarkJson);
       await writeBenchmarkJson(benchmarkPath, allResults);
       console.log(`Benchmark written to: ${benchmarkPath}`);
     }
 
-    if (usesDefaultArtifactWorkspace) {
+    // Write artifacts to the run directory (always, not conditional on flags)
+    if (usesDefaultArtifactWorkspace && allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-      const workspaceDir = path.dirname(outputPath);
       const {
         testArtifactDir,
         timingPath,
         benchmarkPath: workspaceBenchmarkPath,
         indexPath,
-      } = await writeArtifactsFromResults(allResults, workspaceDir, {
+      } = await writeArtifactsFromResults(allResults, runDir, {
         evalFile,
       });
-      console.log(`Artifact workspace written to: ${workspaceDir}`);
+      console.log(`Artifact workspace written to: ${runDir}`);
       console.log(`  Index: ${indexPath}`);
       console.log(
         `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
@@ -1393,25 +1420,18 @@ export async function runEvalCommand(
       console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
     }
 
-    // Write companion artifacts (grading, timing, benchmark) if requested
-    if (options.artifacts) {
-      const artifactsDir = path.resolve(options.artifacts);
-      const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-      const {
-        testArtifactDir,
-        indexPath,
-        timingPath,
-        benchmarkPath: abp,
-      } = await writeArtifactsFromResults(allResults, artifactsDir, {
-        evalFile,
-      });
-      console.log(`Artifacts written to: ${artifactsDir}`);
-      console.log(`  Index: ${indexPath}`);
+    // Write --export output files (additional formats)
+    if (resolvedExportPaths.length > 0 && allResults.length > 0) {
+      for (const exportPath of resolvedExportPaths) {
+        const writer = await createWriterFromPath(exportPath, writerOptions);
+        for (const result of allResults) {
+          await writer.append(result);
+        }
+        await writer.close();
+      }
       console.log(
-        `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
+        `Export file(s) written: ${resolvedExportPaths.map((p) => path.relative(cwd, p)).join(', ')}`,
       );
-      console.log(`  Timing:  ${timingPath}`);
-      console.log(`  Benchmark: ${abp}`);
     }
 
     // Print workspace paths for failed cases (when preserved for debugging)
@@ -1426,14 +1446,7 @@ export async function runEvalCommand(
     }
 
     if (allResults.length > 0) {
-      if (uniqueReportedOutputPaths.length === 1) {
-        console.log(`\nResults written to: ${outputPath}`);
-      } else {
-        console.log('\nResults written to:');
-        for (const p of uniqueReportedOutputPaths) {
-          console.log(`  ${p}`);
-        }
-      }
+      console.log(`\nResults written to: ${outputPath}`);
 
       // Persist last run path for `agentv results` commands
       await saveRunCache(cwd, outputPath).catch(() => undefined);

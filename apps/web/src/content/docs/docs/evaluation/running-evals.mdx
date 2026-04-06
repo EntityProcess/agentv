@@ -78,10 +78,24 @@ agentv eval --dry-run evals/my-eval.yaml
 Dry-run returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
 :::
 
-### Output to Specific File
+### Custom Output Directory
+
+Write all artifacts (index.jsonl, benchmark.json, per-test grading/timing) to a specific directory:
 
 ```bash
-agentv eval evals/my-eval.yaml --out results/baseline.jsonl
+agentv eval evals/my-eval.yaml --output ./my-results
+```
+
+### Export Additional Formats
+
+Write additional output files alongside the artifact directory. Format is inferred from the file extension (`.jsonl`, `.json`, `.xml`, `.yaml`, `.html`):
+
+```bash
+# Export JUnit XML for CI test reporters
+agentv eval evals/my-eval.yaml --export results.xml
+
+# Export multiple formats
+agentv eval evals/my-eval.yaml --output ./my-results --export results.xml --export results.html
 ```
 
 ### Trace Persistence

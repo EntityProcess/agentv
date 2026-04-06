@@ -107,10 +107,11 @@ The rest of the bundle follows the same pattern:
 
 ## Benchmark output
 
-Generate an Agent Skills compatible `benchmark.json` alongside the standard result JSONL:
+Generate an Agent Skills compatible `benchmark.json` alongside the standard result JSONL. The `benchmark.json` is automatically written to the artifact directory:
 
 ```bash
-agentv eval evals.json --target claude --benchmark-json benchmark.json
+agentv eval evals.json --target claude --output ./results
+# benchmark.json is written to ./results/benchmark.json
 ```
 
 The benchmark uses AgentV's pass threshold (score >= 0.8) to map continuous scores to the binary pass/fail that Agent Skills `pass_rate` expects:
