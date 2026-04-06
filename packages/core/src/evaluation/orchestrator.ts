@@ -391,6 +391,12 @@ export async function runEvaluation(
     // TODO: When --model is provided without --grader-target, override the model of
     // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
 
+    // Transcript providers are passive replay — they cannot serve as LLM graders.
+    // Return undefined so LLM-based evaluators skip gracefully.
+    if (targetContext.kind === 'transcript') {
+      return undefined;
+    }
+
     const graderName = targetContext.graderTarget ?? targetContext.name;
     const resolvedGrader = resolveTargetByName(graderName);
     if (!resolvedGrader) {
