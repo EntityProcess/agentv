@@ -382,13 +382,17 @@ export type RubricItem = {
   readonly outcome?: string;
   readonly weight: number;
   /**
-   * Legacy boolean gating (deprecated, treated as required_min_score: 10).
-   * Use required_min_score instead for finer control.
+   * Legacy boolean gating (treated as min_score: 1.0 for score-range rubrics).
    */
   readonly required?: boolean;
   /**
-   * Minimum score (0-10) required to pass this criterion.
-   * If the criterion score is below this threshold, the overall verdict is 'fail'.
+   * Minimum score (0-1 scale) required to pass this criterion.
+   * Internally compared against normalized score (rawScore / 10).
+   */
+  readonly min_score?: number;
+  /**
+   * @deprecated Use min_score (0-1 scale) instead.
+   * Legacy: minimum score on 0-10 integer scale.
    */
   readonly required_min_score?: number;
   /**

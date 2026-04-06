@@ -1606,18 +1606,36 @@ function parseRubricItems(
     const expectedOutcome = asString(rawRubric.outcome) ?? '';
     const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
 
-    // Parse required_min_score (new) or required (legacy backward compat)
+    // Parse min_score (0-1 scale), required_min_score (deprecated 0-10 scale), and required
+    let minScore: number | undefined;
     let requiredMinScore: number | undefined;
     let required: boolean | undefined;
 
-    if (typeof rawRubric.required_min_score === 'number') {
-      const minScore = rawRubric.required_min_score;
-      if (!Number.isInteger(minScore) || minScore < 0 || minScore > 10) {
+    if (typeof rawRubric.min_score === 'number') {
+      // New field: 0-1 scale
+      const ms = rawRubric.min_score as number;
+      if (ms <= 0 || ms > 1) {
         throw new Error(
-          `Invalid required_min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an integer 0-10 (got ${minScore})`,
+          `Invalid min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be in (0, 1] (got ${ms})`,
         );
       }
-      requiredMinScore = minScore;
+      minScore = ms;
+      // Compute legacy required_min_score for backward compat with llm-grader internals
+      requiredMinScore = Math.round(ms * 10);
+    } else if (typeof rawRubric.required_min_score === 'number') {
+      // Deprecated: 0-10 integer scale
+      const rms = rawRubric.required_min_score as number;
+      if (!Number.isInteger(rms) || rms < 0 || rms > 10) {
+        throw new Error(
+          `Invalid required_min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an integer 0-10 (got ${rms})`,
+        );
+      }
+      requiredMinScore = rms;
+      minScore = rms / 10;
+      logWarning(
+        `Rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': 'required_min_score: ${rms}' is deprecated. ` +
+          `Use 'min_score: ${rms / 10}' (0-1 scale) instead.`,
+      );
     }
 
     if (typeof rawRubric.required === 'boolean') {
@@ -1644,6 +1662,7 @@ function parseRubricItems(
         weight,
         ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(minScore !== undefined ? { min_score: minScore } : {}),
         ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
         score_ranges: scoreRanges,
       });
@@ -1662,6 +1681,7 @@ function parseRubricItems(
         weight,
         // Default to required: true if not specified (backward compatibility)
         required: required ?? true,
+        ...(minScore !== undefined ? { min_score: minScore } : {}),
         ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
       });
     }
@@ -1883,14 +1903,26 @@ export function parseInlineRubrics(
         weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
       };
 
+      // Parse min_score (0-1) or required_min_score (deprecated 0-10)
+      let inlineMinScore: number | undefined;
+      let inlineRequiredMinScore: number | undefined;
+      if (typeof rubric.min_score === 'number') {
+        inlineMinScore = rubric.min_score as number;
+        inlineRequiredMinScore = Math.round(inlineMinScore * 10);
+      } else if (typeof rubric.required_min_score === 'number') {
+        inlineRequiredMinScore = rubric.required_min_score as number;
+        inlineMinScore = inlineRequiredMinScore / 10;
+      }
+
       // For score_ranges rubrics, outcome at rubric level is optional
       if (scoreRanges && scoreRanges.length > 0) {
         return {
           ...baseRubric,
           ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
           ...(typeof rubric.required === 'boolean' ? { required: rubric.required } : {}),
-          ...(typeof rubric.required_min_score === 'number'
-            ? { required_min_score: rubric.required_min_score }
+          ...(inlineMinScore !== undefined ? { min_score: inlineMinScore } : {}),
+          ...(inlineRequiredMinScore !== undefined
+            ? { required_min_score: inlineRequiredMinScore }
             : {}),
           score_ranges: scoreRanges,
         };
@@ -1901,8 +1933,9 @@ export function parseInlineRubrics(
         ...baseRubric,
         outcome: expectedOutcome,
         required: typeof rubric.required === 'boolean' ? rubric.required : true,
-        ...(typeof rubric.required_min_score === 'number'
-          ? { required_min_score: rubric.required_min_score }
+        ...(inlineMinScore !== undefined ? { min_score: inlineMinScore } : {}),
+        ...(inlineRequiredMinScore !== undefined
+          ? { required_min_score: inlineRequiredMinScore }
           : {}),
       };
     })
