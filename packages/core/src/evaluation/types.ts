@@ -303,6 +303,8 @@ export type CodeEvaluatorConfig = {
   readonly resolvedCwd?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Pass-through configuration for the code-grader (any unrecognized YAML properties) */
@@ -337,6 +339,8 @@ export type LlmGraderEvaluatorConfig = {
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Optional target override for this grader (uses a named LLM target from targets.yaml). */
@@ -413,6 +417,8 @@ export type CompositeEvaluatorConfig = {
   readonly aggregator: CompositeAggregatorConfig;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -461,6 +467,8 @@ export type FieldAccuracyEvaluatorConfig = {
   readonly aggregation?: FieldAggregationType;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -476,6 +484,8 @@ export type LatencyEvaluatorConfig = {
   readonly threshold: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -491,6 +501,8 @@ export type CostEvaluatorConfig = {
   readonly budget: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -510,6 +522,8 @@ export type TokenUsageEvaluatorConfig = {
   readonly max_output?: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -538,6 +552,8 @@ export type ExecutionMetricsEvaluatorConfig = {
   readonly exploration_tolerance?: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -552,6 +568,8 @@ export type ContainsEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -566,6 +584,8 @@ export type ContainsAnyEvaluatorConfig = {
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -580,6 +600,8 @@ export type ContainsAllEvaluatorConfig = {
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -594,6 +616,8 @@ export type IcontainsEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -608,6 +632,8 @@ export type IcontainsAnyEvaluatorConfig = {
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -622,6 +648,8 @@ export type IcontainsAllEvaluatorConfig = {
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -636,6 +664,8 @@ export type StartsWithEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -650,6 +680,8 @@ export type EndsWithEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -666,6 +698,8 @@ export type RegexEvaluatorConfig = {
   readonly flags?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -679,6 +713,8 @@ export type IsJsonEvaluatorConfig = {
   readonly type: 'is-json';
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -693,6 +729,8 @@ export type EqualsEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -707,6 +745,8 @@ export type RubricsEvaluatorConfig = {
   readonly criteria: readonly RubricItem[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
@@ -726,6 +766,8 @@ export type SkillTriggerEvaluatorConfig = {
   readonly should_trigger?: boolean;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   readonly negate?: boolean;
 };
 
@@ -738,6 +780,8 @@ export type InlineAssertEvaluatorConfig = {
   readonly type: 'inline-assert';
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   readonly negate?: boolean;
 };
 

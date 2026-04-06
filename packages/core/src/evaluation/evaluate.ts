@@ -112,6 +112,8 @@ export interface EvalAssertionInput {
   readonly weight?: number;
   /** Whether this assertion is required to pass */
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** Prompt file for llm_grader */
   readonly prompt?: string;
   /** Script for code_grader */

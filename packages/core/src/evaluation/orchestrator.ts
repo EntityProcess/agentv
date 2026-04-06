@@ -2349,6 +2349,7 @@ async function runEvaluatorList(options: {
     readonly type: string;
     readonly weight?: number;
     readonly required?: boolean | number;
+    readonly min_score?: number;
   }> = [];
   const scores: EvaluatorResult[] = [];
 
@@ -2403,6 +2404,7 @@ async function runEvaluatorList(options: {
         type: evaluatorConfig.type,
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
+        ...(evaluatorConfig.min_score !== undefined ? { min_score: evaluatorConfig.min_score } : {}),
       });
       scores.push({
         name: evaluatorConfig.name,
@@ -2438,6 +2440,7 @@ async function runEvaluatorList(options: {
         type: evaluatorConfig.type ?? 'llm-grader',
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
+        ...(evaluatorConfig.min_score !== undefined ? { min_score: evaluatorConfig.min_score } : {}),
       });
       scores.push({
         name: evaluatorConfig.name ?? 'unknown',
@@ -2478,7 +2481,7 @@ async function runEvaluatorList(options: {
   const effectiveThreshold = options.threshold ?? DEFAULT_THRESHOLD;
   const hasRequiredFailure = scored.some((entry) => {
     if (!entry.required) return false;
-    const minScore = typeof entry.required === 'number' ? entry.required : effectiveThreshold;
+    const minScore = entry.min_score ?? (typeof entry.required === 'number' ? entry.required : effectiveThreshold);
     return entry.score.score < minScore;
   });
 
