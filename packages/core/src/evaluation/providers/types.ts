@@ -56,6 +56,24 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
 ] as const;
 
 /**
+ * Provider kinds that can return structured JSON for LLM grading.
+ * Used by the orchestrator to decide whether a target can double as its own
+ * grader when no explicit grader_target is configured.
+ *
+ * Providers NOT in this list (agent providers, transcript, cli, copilot-log)
+ * cannot produce grader responses and should not be used as graders.
+ */
+export const LLM_GRADER_CAPABLE_KINDS: readonly ProviderKind[] = [
+  'openai',
+  'openrouter',
+  'azure',
+  'anthropic',
+  'gemini',
+  'agentv',
+  'mock',
+] as const;
+
+/**
  * List of all supported provider kinds.
  * This is the source of truth for provider validation.
  */

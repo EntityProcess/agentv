@@ -31,7 +31,11 @@ import type {
   ProviderStreamCallbacks,
   TargetDefinition,
 } from './providers/types.js';
-import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
+import {
+  LLM_GRADER_CAPABLE_KINDS,
+  extractLastAssistantContent,
+  isAgentProvider,
+} from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions, discoverGraders } from './registry/index.js';
 import {
   type TokenUsage,
@@ -391,15 +395,14 @@ export async function runEvaluation(
     // TODO: When --model is provided without --grader-target, override the model of
     // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
 
-    // Transcript providers are passive replay — they cannot serve as LLM graders.
-    // Return undefined so LLM-based evaluators skip gracefully.
-    if (targetContext.kind === 'transcript') {
-      return undefined;
-    }
-
     const graderName = targetContext.graderTarget ?? targetContext.name;
     const resolvedGrader = resolveTargetByName(graderName);
     if (!resolvedGrader) {
+      // Only use the eval target as its own grader if it can return structured JSON.
+      // Agent providers, transcript, cli, and copilot-log cannot grade.
+      if (!LLM_GRADER_CAPABLE_KINDS.includes(targetContext.kind)) {
+        return undefined;
+      }
       return getOrCreateProvider(targetContext);
     }
     return getOrCreateProvider(resolvedGrader);
