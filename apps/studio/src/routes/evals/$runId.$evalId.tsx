@@ -7,8 +7,10 @@
  */
 
 import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { EvalDetail } from '~/components/EvalDetail';
+import { RunEvalModal } from '~/components/RunEvalModal';
 import { useRunDetail } from '~/lib/api';
 
 export const Route = createFileRoute('/evals/$runId/$evalId')({
@@ -18,6 +20,7 @@ export const Route = createFileRoute('/evals/$runId/$evalId')({
 function EvalDetailPage() {
   const { runId, evalId } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
+  const [showRunEval, setShowRunEval] = useState(false);
 
   if (isLoading) {
     return (
@@ -51,13 +54,30 @@ function EvalDetailPage() {
 
   return (
     <div className="flex h-full flex-col gap-6">
-      <div>
-        <p className="text-sm text-gray-400">
-          Run: {runId} / Eval: {evalId}
-        </p>
-        <h1 className="text-2xl font-semibold text-white">{evalId}</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-400">
+            Run: {runId} / Eval: {evalId}
+          </p>
+          <h1 className="text-2xl font-semibold text-white">{evalId}</h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowRunEval(true)}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          ▶ Run this Test
+        </button>
       </div>
       <EvalDetail eval={result} runId={runId} />
+      <RunEvalModal
+        open={showRunEval}
+        onClose={() => setShowRunEval(false)}
+        prefill={{
+          testIds: [evalId],
+          target: result.target,
+        }}
+      />
     </div>
   );
 }

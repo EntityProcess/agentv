@@ -10,6 +10,11 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import type {
   CategoriesResponse,
   EvalDetailResponse,
+  EvalDiscoverResponse,
+  EvalPreviewResponse,
+  EvalRunResponse,
+  EvalRunStatus,
+  EvalTargetsResponse,
   ExperimentsResponse,
   FeedbackData,
   FileContentResponse,
@@ -18,6 +23,7 @@ import type {
   ProjectEntry,
   ProjectListResponse,
   RunDetailResponse,
+  RunEvalRequest,
   RunListResponse,
   StudioConfigResponse,
   SuitesResponse,
@@ -395,4 +401,80 @@ export async function saveStudioConfig(
     throw new Error(`Failed to save config: ${res.status}`);
   }
   return res.json() as Promise<StudioConfigResponse>;
+}
+
+// ── Eval runner queries & mutations ──────────────────────────────────────
+
+export function evalDiscoverOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/discover` : '/api/eval/discover';
+  return queryOptions({
+    queryKey: ['eval-discover', projectId ?? ''],
+    queryFn: () => fetchJson<EvalDiscoverResponse>(url),
+    staleTime: 30_000,
+  });
+}
+
+export function useEvalDiscover(projectId?: string) {
+  return useQuery(evalDiscoverOptions(projectId));
+}
+
+export function evalTargetsOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/targets` : '/api/eval/targets';
+  return queryOptions({
+    queryKey: ['eval-targets', projectId ?? ''],
+    queryFn: () => fetchJson<EvalTargetsResponse>(url),
+    staleTime: 30_000,
+  });
+}
+
+export function useEvalTargets(projectId?: string) {
+  return useQuery(evalTargetsOptions(projectId));
+}
+
+export async function launchEvalRun(
+  body: RunEvalRequest,
+  projectId?: string,
+): Promise<EvalRunResponse> {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/run` : '/api/eval/run';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed: ${res.status}`);
+  }
+  return res.json() as Promise<EvalRunResponse>;
+}
+
+export function evalRunStatusOptions(runId: string | null) {
+  return queryOptions({
+    queryKey: ['eval-status', runId],
+    queryFn: () => fetchJson<EvalRunStatus>(`/api/eval/status/${runId}`),
+    enabled: !!runId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'finished' || status === 'failed') return false;
+      return 2_000;
+    },
+  });
+}
+
+export function useEvalRunStatus(runId: string | null) {
+  return useQuery(evalRunStatusOptions(runId));
+}
+
+export async function previewEvalCommand(
+  body: RunEvalRequest,
+  projectId?: string,
+): Promise<EvalPreviewResponse> {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/preview` : '/api/eval/preview';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Preview failed: ${res.status}`);
+  return res.json() as Promise<EvalPreviewResponse>;
 }
