@@ -31,7 +31,8 @@ export type ProviderKind =
   | 'mock'
   | 'vscode'
   | 'vscode-insiders'
-  | 'agentv';
+  | 'agentv'
+  | 'transcript';
 
 /**
  * Agent providers that spawn interactive sessions with filesystem access.
@@ -78,6 +79,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'vscode',
   'vscode-insiders',
   'agentv',
+  'transcript',
 ] as const;
 
 /**

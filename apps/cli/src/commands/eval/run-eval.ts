@@ -90,6 +90,7 @@ interface NormalizedOptions {
   readonly threshold?: number;
   readonly tags: readonly string[];
   readonly excludeTags: readonly string[];
+  readonly transcript?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -357,6 +358,7 @@ function normalizeOptions(
     threshold: normalizeOptionalNumber(rawOptions.threshold),
     tags: normalizeStringArray(rawOptions.tag),
     excludeTags: normalizeStringArray(rawOptions.excludeTag),
+    transcript: normalizeString(rawOptions.transcript),
   } satisfies NormalizedOptions;
 }
 
@@ -507,63 +509,86 @@ async function prepareFileMetadata(params: {
     category,
   });
   const testIds = suite.tests.map((value) => value.id);
-
-  // Determine target names: CLI --target flags override YAML
-  const cliTargets = options.cliTargets;
   const suiteTargets = suite.targets;
-
-  // Resolve which target names to use (precedence: CLI > suite YAML targets > default)
-  let targetNames: readonly string[];
-  if (cliTargets.length > 0) {
-    targetNames = cliTargets;
-  } else if (suiteTargets && suiteTargets.length > 0) {
-    targetNames = suiteTargets;
-  } else {
-    targetNames = [];
-  }
 
   let selections: { selection: TargetSelection; inlineTargetLabel: string }[];
 
-  if (targetNames.length > 1) {
-    // Matrix mode: multiple targets
-    const multiSelections = await selectMultipleTargets({
-      testFilePath,
-      repoRoot,
-      cwd,
-      explicitTargetsPath: options.targetsPath,
-      dryRun: options.dryRun,
-      dryRunDelay: options.dryRunDelay,
-      dryRunDelayMin: options.dryRunDelayMin,
-      dryRunDelayMax: options.dryRunDelayMax,
-      env: process.env,
-      targetNames,
-    });
-
-    selections = multiSelections.map((sel) => ({
-      selection: sel,
-      inlineTargetLabel: sel.targetName,
-    }));
-  } else {
-    // Single target mode (legacy path)
-    const selection = await selectTarget({
-      testFilePath,
-      repoRoot,
-      cwd,
-      explicitTargetsPath: options.targetsPath,
-      cliTargetName: targetNames.length === 1 ? targetNames[0] : options.target,
-      dryRun: options.dryRun,
-      dryRunDelay: options.dryRunDelay,
-      dryRunDelayMin: options.dryRunDelayMin,
-      dryRunDelayMax: options.dryRunDelayMax,
-      env: process.env,
-    });
-
+  if (options.transcript) {
+    // --transcript mode: bypass target resolution entirely.
+    // Create a synthetic TargetSelection for the transcript provider.
+    const transcriptSelection: TargetSelection = {
+      definitions: [],
+      resolvedTarget: {
+        kind: 'transcript',
+        name: 'transcript',
+        config: {} as Record<string, never>,
+      },
+      targetName: 'transcript',
+      targetSource: 'cli',
+      targetsFilePath: options.transcript,
+    };
     selections = [
       {
-        selection,
-        inlineTargetLabel: selection.targetName,
+        selection: transcriptSelection,
+        inlineTargetLabel: `transcript (${path.basename(options.transcript)})`,
       },
     ];
+  } else {
+    // Determine target names: CLI --target flags override YAML
+    const cliTargets = options.cliTargets;
+    const suiteTargets = suite.targets;
+
+    // Resolve which target names to use (precedence: CLI > suite YAML targets > default)
+    let targetNames: readonly string[];
+    if (cliTargets.length > 0) {
+      targetNames = cliTargets;
+    } else if (suiteTargets && suiteTargets.length > 0) {
+      targetNames = suiteTargets;
+    } else {
+      targetNames = [];
+    }
+
+    if (targetNames.length > 1) {
+      // Matrix mode: multiple targets
+      const multiSelections = await selectMultipleTargets({
+        testFilePath,
+        repoRoot,
+        cwd,
+        explicitTargetsPath: options.targetsPath,
+        dryRun: options.dryRun,
+        dryRunDelay: options.dryRunDelay,
+        dryRunDelayMin: options.dryRunDelayMin,
+        dryRunDelayMax: options.dryRunDelayMax,
+        env: process.env,
+        targetNames,
+      });
+
+      selections = multiSelections.map((sel) => ({
+        selection: sel,
+        inlineTargetLabel: sel.targetName,
+      }));
+    } else {
+      // Single target mode (legacy path)
+      const selection = await selectTarget({
+        testFilePath,
+        repoRoot,
+        cwd,
+        explicitTargetsPath: options.targetsPath,
+        cliTargetName: targetNames.length === 1 ? targetNames[0] : options.target,
+        dryRun: options.dryRun,
+        dryRunDelay: options.dryRunDelay,
+        dryRunDelayMin: options.dryRunDelayMin,
+        dryRunDelayMax: options.dryRunDelayMax,
+        env: process.env,
+      });
+
+      selections = [
+        {
+          selection,
+          inlineTargetLabel: selection.targetName,
+        },
+      ];
+    }
   }
 
   return {
@@ -623,6 +648,9 @@ async function runSingleEvalFile(params: {
   readonly totalBudgetUsd?: number;
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
+  readonly providerFactory?: (
+    target: import('@agentv/core').ResolvedTarget,
+  ) => import('@agentv/core').Provider;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -645,6 +673,7 @@ async function runSingleEvalFile(params: {
     matrixMode,
     totalBudgetUsd,
     failOnError,
+    providerFactory,
   } = params;
 
   const targetName = selection.targetName;
@@ -742,6 +771,7 @@ async function runSingleEvalFile(params: {
     graderTarget: options.graderTarget,
     model: options.model,
     threshold: options.threshold,
+    providerFactory,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
       (
@@ -1198,6 +1228,31 @@ export async function runEvalCommand(
   // Use only files that survived tag filtering (fileMetadata keys)
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
 
+  // --transcript: create a shared TranscriptProvider and validate line count
+  let transcriptProviderFactory:
+    | ((target: import('@agentv/core').ResolvedTarget) => import('@agentv/core').Provider)
+    | undefined;
+  if (options.transcript) {
+    const { TranscriptProvider } = await import('@agentv/core');
+    const transcriptProvider = await TranscriptProvider.fromFile(options.transcript);
+
+    // Validate: transcript lines must match total test cases across all files
+    const totalTests = [...fileMetadata.values()].reduce(
+      (sum, meta) => sum + meta.testCases.length,
+      0,
+    );
+    if (transcriptProvider.lineCount !== totalTests) {
+      throw new Error(
+        `Transcript has ${transcriptProvider.lineCount} entry(s) but eval defines ${totalTests} test(s). Each transcript line maps positionally to one test case.`,
+      );
+    }
+
+    transcriptProviderFactory = () => transcriptProvider;
+    console.log(
+      `Using transcript: ${options.transcript} (${transcriptProvider.lineCount} entry(s))`,
+    );
+  }
+
   try {
     await runWithLimit(activeTestFiles, fileConcurrency, async (testFilePath) => {
       const targetPrep = fileMetadata.get(testFilePath);
@@ -1242,11 +1297,12 @@ export async function runEvalCommand(
               selection,
               inlineTargetLabel,
               testCases: applicableTestCases,
-              trialsConfig: targetPrep.trialsConfig,
+              trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
               matrixMode: targetPrep.selections.length > 1,
               totalBudgetUsd: targetPrep.totalBudgetUsd,
               failOnError: targetPrep.failOnError,
               threshold: resolvedThreshold,
+              providerFactory: transcriptProviderFactory,
             });
 
             return result.results;

@@ -7,6 +7,7 @@ import { createCommand } from './commands/create/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { importCommand } from './commands/import/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
+import { inspectCommand } from './commands/inspect/index.js';
 import { pipelineCommand } from './commands/pipeline/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
@@ -35,7 +36,8 @@ export const app = subcommands({
     self: selfCommand,
     serve: resultsServeCommand,
     studio: resultsServeCommand,
-    trace: traceCommand,
+    inspect: inspectCommand,
+    trace: traceCommand, // deprecated alias — use `inspect` instead
     trend: trendCommand,
     transpile: transpileCommand,
     trim: trimCommand,
@@ -56,6 +58,7 @@ const EVAL_SUBCOMMANDS = new Set(['run', 'assert']);
  */
 const TOP_LEVEL_COMMANDS = new Set([
   'import',
+  'inspect',
   'compare',
   'convert',
   'create',

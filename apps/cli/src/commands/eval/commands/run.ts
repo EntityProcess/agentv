@@ -192,6 +192,12 @@ export const evalRunCommand = command({
       long: 'exclude-tag',
       description: 'Skip eval files that have this tag (repeatable, file skipped if any match)',
     }),
+    transcript: option({
+      type: optional(string),
+      long: 'transcript',
+      description:
+        'Grade a pre-recorded transcript JSONL instead of invoking a live provider. Ignores targets.',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -237,6 +243,7 @@ export const evalRunCommand = command({
       threshold: args.threshold,
       tag: args.tag,
       excludeTag: args.excludeTag,
+      transcript: args.transcript,
     };
     const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
     if (result?.allExecutionErrors) {

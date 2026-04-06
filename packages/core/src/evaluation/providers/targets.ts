@@ -742,7 +742,8 @@ export type ResolvedTarget =
       readonly config: VSCodeResolvedConfig;
     })
   | (ResolvedTargetBase & { readonly kind: 'agentv'; readonly config: AgentVResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig });
+  | (ResolvedTargetBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'transcript'; readonly config: Record<string, never> });
 
 /**
  * Optional settings accepted on ALL target definitions regardless of provider.
