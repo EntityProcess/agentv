@@ -17,11 +17,6 @@ export const importClaudeCommand = command({
       long: 'session-id',
       description: 'UUID of the Claude Code session to import',
     }),
-    discover: option({
-      type: optional(string),
-      long: 'discover',
-      description: 'Discovery mode: "latest" to import the most recent session',
-    }),
     projectPath: option({
       type: optional(string),
       long: 'project-path',
@@ -44,7 +39,7 @@ export const importClaudeCommand = command({
       description: 'List available sessions instead of importing',
     }),
   },
-  handler: async ({ sessionId, discover, projectPath, output, projectsDir, list }) => {
+  handler: async ({ sessionId, projectPath, output, projectsDir, list }) => {
     if (list) {
       const sessions = await discoverClaudeSessions({
         projectPath,
@@ -81,22 +76,10 @@ export const importClaudeCommand = command({
         process.exit(1);
       }
       sessionFilePath = sessions[0].filePath;
-    } else if (discover === 'latest') {
-      const sessions = await discoverClaudeSessions({
-        projectPath,
-        projectsDir,
-        latest: true,
-      });
-
-      if (sessions.length === 0) {
-        console.error('Error: no Claude Code sessions found.');
-        process.exit(1);
-      }
-      sessionFilePath = sessions[0].filePath;
-      sessionId = sessions[0].sessionId;
-      console.log(`Discovered latest session: ${sessionId}`);
     } else {
-      console.error('Error: specify --session-id <uuid> or --discover latest to select a session.');
+      console.error(
+        'Error: specify --session-id <uuid> to select a session. Use --list to see available sessions.',
+      );
       process.exit(1);
     }
 

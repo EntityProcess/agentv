@@ -85,7 +85,8 @@ Grade existing agent sessions offline using `agentv import` to convert transcrip
 
 ```bash
 # Import a Claude Code session transcript
-agentv import claude --discover latest
+agentv import claude --list
+agentv import claude --session-id <uuid>
 
 # Run deterministic evaluators against the imported transcript
 agentv eval evals.json --target copilot-log

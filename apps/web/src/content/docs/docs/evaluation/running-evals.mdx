@@ -306,8 +306,9 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 Grade existing agent sessions without re-running them. Import a transcript, then run deterministic evaluators:
 
 ```bash
-# Import a Claude Code session
-agentv import claude --discover latest
+# List sessions and import one
+agentv import claude --list
+agentv import claude --session-id <uuid>
 
 # Run evaluators against the imported transcript
 agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl

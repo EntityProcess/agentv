@@ -539,7 +539,7 @@ agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 
 # Import agent transcripts for offline grading
-agentv import claude --discover latest
+agentv import claude --session-id <uuid>
 
 # Re-run only execution errors from a previous run
 agentv eval <file.yaml> --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
