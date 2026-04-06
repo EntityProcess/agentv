@@ -45,7 +45,7 @@ import { Hono } from 'hono';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
-import { listResultFiles } from '../trace/utils.js';
+import { listResultFiles } from '../inspect/utils.js';
 import {
   loadLightweightResults,
   loadManifestResults,

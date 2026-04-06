@@ -15,7 +15,7 @@ import { optional, positional, string } from 'cmd-ts';
 import type { EvaluationResult } from '@agentv/core';
 import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
-import { listResultFiles } from '../trace/utils.js';
+import { listResultFiles } from '../inspect/utils.js';
 import { loadManifestResults, resolveResultSourcePath } from './manifest.js';
 
 /** cmd-ts positional for optional result source file or workspace directory. */

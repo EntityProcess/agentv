@@ -12,7 +12,6 @@ import { pipelineCommand } from './commands/pipeline/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
 import { selfCommand } from './commands/self/index.js';
-import { traceCommand } from './commands/trace/index.js';
 import { transpileCommand } from './commands/transpile/index.js';
 import { trendCommand } from './commands/trend/index.js';
 import { trimCommand } from './commands/trim/index.js';
@@ -37,7 +36,6 @@ export const app = subcommands({
     serve: resultsServeCommand,
     studio: resultsServeCommand,
     inspect: inspectCommand,
-    trace: traceCommand, // deprecated alias — use `inspect` instead
     trend: trendCommand,
     transpile: transpileCommand,
     trim: trimCommand,
@@ -68,7 +66,6 @@ const TOP_LEVEL_COMMANDS = new Set([
   'self',
   'serve',
   'studio',
-  'trace',
   'trend',
   'transpile',
   'trim',
