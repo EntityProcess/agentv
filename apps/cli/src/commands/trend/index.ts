@@ -4,12 +4,12 @@ import { command, flag, number, oneOf, option, optional, restPositionals, string
 
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
+import { listResultFiles } from '../inspect/utils.js';
 import {
   type LightweightResultRecord,
   loadLightweightResults,
   resolveResultSourcePath,
 } from '../results/manifest.js';
-import { listResultFiles } from '../trace/utils.js';
 
 const colors = {
   reset: '\x1b[0m',

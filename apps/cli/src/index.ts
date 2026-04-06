@@ -7,11 +7,11 @@ import { createCommand } from './commands/create/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { importCommand } from './commands/import/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
+import { inspectCommand } from './commands/inspect/index.js';
 import { pipelineCommand } from './commands/pipeline/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
 import { selfCommand } from './commands/self/index.js';
-import { traceCommand } from './commands/trace/index.js';
 import { transpileCommand } from './commands/transpile/index.js';
 import { trendCommand } from './commands/trend/index.js';
 import { trimCommand } from './commands/trim/index.js';
@@ -35,7 +35,7 @@ export const app = subcommands({
     self: selfCommand,
     serve: resultsServeCommand,
     studio: resultsServeCommand,
-    trace: traceCommand,
+    inspect: inspectCommand,
     trend: trendCommand,
     transpile: transpileCommand,
     trim: trimCommand,
@@ -56,6 +56,7 @@ const EVAL_SUBCOMMANDS = new Set(['run', 'assert']);
  */
 const TOP_LEVEL_COMMANDS = new Set([
   'import',
+  'inspect',
   'compare',
   'convert',
   'create',
@@ -65,7 +66,6 @@ const TOP_LEVEL_COMMANDS = new Set([
   'self',
   'serve',
   'studio',
-  'trace',
   'trend',
   'transpile',
   'trim',

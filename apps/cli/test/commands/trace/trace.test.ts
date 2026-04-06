@@ -3,14 +3,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { parseAssertSpec } from '../../../src/commands/trace/score.js';
-import { percentile } from '../../../src/commands/trace/stats.js';
+import { parseAssertSpec } from '../../../src/commands/inspect/score.js';
+import { percentile } from '../../../src/commands/inspect/stats.js';
 import {
   extractTimestampFromFilename,
   formatDuration,
   listResultFiles,
   loadResultFile,
-} from '../../../src/commands/trace/utils.js';
+} from '../../../src/commands/inspect/utils.js';
 
 // Test JSONL content with trace data
 const RESULT_WITH_TRACE = JSON.stringify({
