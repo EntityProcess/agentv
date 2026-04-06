@@ -872,6 +872,22 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/must use.*VARIABLE_NAME/i);
   });
 
+  it('copilot-sdk byok rejects literal bearer_token', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'copilot-sdk-literal-bearer',
+          provider: 'copilot-sdk',
+          byok: {
+            base_url: 'https://example.com',
+            bearer_token: 'plaintext-bearer-secret',
+          },
+        },
+        {},
+      ),
+    ).toThrow(/must use.*VARIABLE_NAME/i);
+  });
+
   it('copilot-sdk byok supports bearer_token', () => {
     const env = {
       MY_TOKEN: 'bearer-secret',

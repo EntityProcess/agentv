@@ -489,7 +489,7 @@ export interface CopilotSdkResolvedConfig {
   readonly byokApiKey?: string;
   /** BYOK bearer token (takes precedence over apiKey when set). */
   readonly byokBearerToken?: string;
-  /** BYOK Azure API version (defaults to "2024-10-21"). */
+  /** BYOK Azure API version (e.g. "2024-10-21"). Only used when byokType is "azure". */
   readonly byokApiVersion?: string;
   /** BYOK wire API format: "completions" or "responses". */
   readonly byokWireApi?: string;
