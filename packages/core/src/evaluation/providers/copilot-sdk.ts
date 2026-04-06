@@ -115,6 +115,28 @@ export class CopilotSdkProvider implements Provider {
       };
     }
 
+    // BYOK — pass a provider block to route requests through a user-provided endpoint
+    // instead of GitHub's Copilot infrastructure. See copilot-sdk docs/auth/byok.md.
+    if (this.config.byokBaseUrl) {
+      // biome-ignore lint/suspicious/noExplicitAny: SDK provider config shape is dynamic
+      const provider: any = {
+        type: this.config.byokType ?? 'openai',
+        baseUrl: this.config.byokBaseUrl,
+      };
+      if (this.config.byokBearerToken) {
+        provider.bearerToken = this.config.byokBearerToken;
+      } else if (this.config.byokApiKey) {
+        provider.apiKey = this.config.byokApiKey;
+      }
+      if (this.config.byokWireApi) {
+        provider.wireApi = this.config.byokWireApi;
+      }
+      if (this.config.byokType === 'azure' && this.config.byokApiVersion) {
+        provider.azure = { apiVersion: this.config.byokApiVersion };
+      }
+      sessionOptions.provider = provider;
+    }
+
     // biome-ignore lint/suspicious/noExplicitAny: SDK session type is dynamically loaded
     let session: any;
     try {

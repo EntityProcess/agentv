@@ -320,6 +320,144 @@ describe('CopilotSdkProvider', () => {
     expect(result.kind).toBe('approved');
   });
 
+  it('passes byok provider block to createSession for azure', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      model: 'gpt-4o',
+      byokType: 'azure',
+      byokBaseUrl: 'https://my-resource.openai.azure.com',
+      byokApiKey: 'azure-secret',
+      byokApiVersion: '2024-10-21',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider).toBeDefined();
+    expect(sessionOptions.provider.type).toBe('azure');
+    expect(sessionOptions.provider.baseUrl).toBe('https://my-resource.openai.azure.com');
+    expect(sessionOptions.provider.apiKey).toBe('azure-secret');
+    expect(sessionOptions.provider.azure).toEqual({ apiVersion: '2024-10-21' });
+  });
+
+  it('passes byok provider block with bearer token', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      byokType: 'openai',
+      byokBaseUrl: 'https://custom-endpoint.example.com/v1',
+      byokBearerToken: 'bearer-secret',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider).toBeDefined();
+    expect(sessionOptions.provider.bearerToken).toBe('bearer-secret');
+    expect(sessionOptions.provider.apiKey).toBeUndefined();
+  });
+
+  it('passes byok provider block with wireApi', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      byokType: 'openai',
+      byokBaseUrl: 'https://resource.openai.azure.com/openai/v1/',
+      byokApiKey: 'key',
+      byokWireApi: 'responses',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider.wireApi).toBe('responses');
+  });
+
+  it('does not set provider when byok is not configured', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      model: 'gpt-4o',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider).toBeUndefined();
+  });
+
+  it('defaults byok type to openai when not specified', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      byokBaseUrl: 'http://localhost:11434/v1',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider.type).toBe('openai');
+  });
+
+  it('does not set azure block for non-azure byok type', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      byokType: 'openai',
+      byokBaseUrl: 'https://api.openai.com/v1',
+      byokApiKey: 'key',
+      byokApiVersion: '2024-10-21', // should be ignored for non-azure
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider.azure).toBeUndefined();
+  });
+
   it('includes timing information in response', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
