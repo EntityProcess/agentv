@@ -67,10 +67,8 @@ const RubricItemSchema = z.object({
   outcome: z.string().optional(),
   weight: z.number().optional(),
   required: z.boolean().optional(),
-  /** Minimum score (0-1) for this criterion to pass. Replaces required_min_score (0-10). */
+  /** Minimum score (0-1) for this criterion to pass. */
   min_score: z.number().gt(0).lte(1).optional(),
-  /** @deprecated Use min_score (0-1 scale) instead. Legacy: 0-10 integer scale. */
-  required_min_score: z.number().int().min(0).max(10).optional(),
   score_ranges: z.array(ScoreRangeSchema).optional(),
 });
 

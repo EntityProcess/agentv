@@ -12,11 +12,12 @@ import { EvalFileSchema } from '../src/evaluation/validation/eval-file.schema.js
 const jsonSchema = zodToJsonSchema(EvalFileSchema, {
   name: 'EvalFile',
   $refStrategy: 'none',
+  target: 'jsonSchema2019-09',
 });
 
 // Add JSON Schema metadata
 const schema = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: 'https://json-schema.org/draft/2019-09/schema',
   title: 'AgentV Eval File',
   description: 'Schema for AgentV evaluation YAML files (.eval.yaml)',
   ...jsonSchema,
