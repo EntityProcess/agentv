@@ -40,6 +40,16 @@ targets:
     grader_target: grader
     log_format: json
 
+  - name: copilot-sdk-azure
+    provider: copilot-sdk
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    byok:
+      type: azure
+      base_url: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+    grader_target: grader
+    log_format: json
+
   - name: claude
     provider: claude-cli
     grader_target: grader

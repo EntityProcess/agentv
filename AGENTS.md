@@ -110,7 +110,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Subagents for: research, file exploration, running tests, code review.
 - For complex problems, throw more subagents at it — parallelize where possible.
 - Name subagents descriptively.
-- Before declaring a repo change complete or opening/finalizing a PR, spawn a subagent for a final code review pass unless the user explicitly says not to.
+- Before declaring a repo change complete or opening/finalizing a PR, complete manual e2e verification first (see E2E Checklist), **then** spawn a subagent for a final code review pass. E2E must pass before code review — if e2e fails, fix the issue before investing time in review. The user may explicitly skip the review step.
 
 ### Autonomous Bug Fixes
 - When you spot a bug, just fix it. Don't ask for hand-holding.
@@ -382,12 +382,12 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    ```
    Push incremental commits to the draft PR as you work so progress is visible and recoverable.
 
-6. **Before marking the PR ready for review or merging a low-risk change**, ensure:
-   - **E2E verification completed** (see "Completing Work — E2E Checklist")
-   - For CLI or other user-facing changes, run at least one manual end-to-end check of the real user flow, not just unit/integration tests.
-   - A final subagent code review pass has been run and any findings addressed or called out.
-   - CI pipeline passes (all checks green)
-   - No merge conflicts with `main`
+6. **Before marking the PR ready for review or merging a low-risk change**, ensure (in this order):
+   1. **E2E verification completed** (see "Completing Work — E2E Checklist") — this must pass first.
+   2. For CLI or other user-facing changes, run at least one manual end-to-end check of the real user flow, not just unit/integration tests.
+   3. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
+   4. CI pipeline passes (all checks green).
+   5. No merge conflicts with `main`.
 
 7. **Only after verification is complete**:
    - Mark the draft PR ready for review, or

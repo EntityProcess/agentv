@@ -481,6 +481,18 @@ export interface CopilotSdkResolvedConfig {
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
   readonly systemPrompt?: string;
+  /** BYOK provider type: "azure", "openai", or "anthropic". */
+  readonly byokType?: string;
+  /** BYOK base URL for the provider endpoint. */
+  readonly byokBaseUrl?: string;
+  /** BYOK API key for authenticating with the provider. */
+  readonly byokApiKey?: string;
+  /** BYOK bearer token (takes precedence over apiKey when set). */
+  readonly byokBearerToken?: string;
+  /** BYOK Azure API version (e.g. "2024-10-21"). Only used when byokType is "azure". */
+  readonly byokApiVersion?: string;
+  /** BYOK wire API format: "completions" or "responses". */
+  readonly byokWireApi?: string;
 }
 
 export interface CopilotLogResolvedConfig {
@@ -1427,6 +1439,64 @@ function resolveCopilotSdkConfig(
       ? systemPromptSource.trim()
       : undefined;
 
+  // BYOK (Bring Your Own Key) — allows routing through a user-provided endpoint
+  // instead of GitHub's Copilot infrastructure. The byok block maps to the SDK's
+  // `provider` option on createSession(). See copilot-sdk docs/auth/byok.md.
+  const byok = target.byok as Record<string, unknown> | undefined;
+  let byokType: string | undefined;
+  let byokBaseUrl: string | undefined;
+  let byokApiKey: string | undefined;
+  let byokBearerToken: string | undefined;
+  let byokApiVersion: string | undefined;
+  let byokWireApi: string | undefined;
+
+  if (byok && typeof byok === 'object') {
+    byokType = resolveOptionalString(byok.type, env, `${target.name} byok type`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    });
+
+    byokBaseUrl = resolveOptionalString(byok.base_url, env, `${target.name} byok base URL`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    });
+
+    byokApiKey = resolveOptionalString(byok.api_key, env, `${target.name} byok API key`, {
+      allowLiteral: false,
+      optionalEnv: true,
+    });
+
+    byokBearerToken = resolveOptionalString(
+      byok.bearer_token,
+      env,
+      `${target.name} byok bearer token`,
+      {
+        allowLiteral: false,
+        optionalEnv: true,
+      },
+    );
+
+    byokApiVersion = resolveOptionalString(
+      byok.api_version,
+      env,
+      `${target.name} byok API version`,
+      {
+        allowLiteral: true,
+        optionalEnv: true,
+      },
+    );
+
+    byokWireApi = resolveOptionalString(byok.wire_api, env, `${target.name} byok wire API`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    });
+
+    // base_url is required when byok is specified
+    if (!byokBaseUrl) {
+      throw new Error(`${target.name}: 'byok.base_url' is required when 'byok' is specified`);
+    }
+  }
+
   return {
     cliUrl,
     cliPath,
@@ -1438,6 +1508,12 @@ function resolveCopilotSdkConfig(
     logDir,
     logFormat,
     systemPrompt,
+    byokType,
+    byokBaseUrl,
+    byokApiKey,
+    byokBearerToken,
+    byokApiVersion,
+    byokWireApi,
   };
 }
 

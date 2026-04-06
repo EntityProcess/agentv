@@ -123,6 +123,7 @@ const COPILOT_SDK_SETTINGS = new Set([
   'log_format',
   'system_prompt',
   'workspace_template',
+  'byok',
 ]);
 
 const COPILOT_CLI_SETTINGS = new Set([
