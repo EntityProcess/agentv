@@ -5,8 +5,10 @@
  */
 
 import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
+import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { useProjectRunList } from '~/lib/api';
 import { projectExperimentsOptions, projectTargetsOptions } from '~/lib/api';
@@ -30,12 +32,22 @@ function ProjectHomePage() {
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
+  const [showRunEval, setShowRunEval] = useState(false);
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-white">{projectId}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-white">{projectId}</h1>
+        <button
+          type="button"
+          onClick={() => setShowRunEval(true)}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          ▶ Run Eval
+        </button>
+      </div>
 
       {/* Tab navigation */}
       <div className="border-b border-gray-800">
@@ -66,6 +78,12 @@ function ProjectHomePage() {
       {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} />}
       {activeTab === 'experiments' && <ProjectExperimentsTab projectId={projectId} />}
       {activeTab === 'targets' && <ProjectTargetsTab projectId={projectId} />}
+
+      <RunEvalModal
+        open={showRunEval}
+        onClose={() => setShowRunEval(false)}
+        projectId={projectId}
+      />
     </div>
   );
 }

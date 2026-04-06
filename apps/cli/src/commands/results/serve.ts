@@ -46,6 +46,7 @@ import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { listResultFiles } from '../trace/utils.js';
+import { registerEvalRoutes } from './eval-runner.js';
 import {
   loadLightweightResults,
   loadManifestResults,
@@ -891,6 +892,18 @@ export function createApp(
   app.get('/api/projects/:projectId/experiments', (c) => withProject(c, handleExperiments));
   app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
   app.get('/api/projects/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
+
+  // ── Eval runner routes (discovery, launch, status) ────────────────────
+
+  registerEvalRoutes(app, (c) => {
+    // For project-scoped routes, resolve to project path; otherwise use searchDir
+    const projectId = c.req.param('projectId');
+    if (projectId) {
+      const project = getProject(projectId);
+      if (project) return project.path;
+    }
+    return searchDir;
+  });
 
   // ── Static file serving for Studio SPA ────────────────────────────────
 

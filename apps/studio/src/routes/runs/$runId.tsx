@@ -3,8 +3,10 @@
  */
 
 import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { RunDetail } from '~/components/RunDetail';
+import { RunEvalModal } from '~/components/RunEvalModal';
 import { useRunDetail } from '~/lib/api';
 
 export const Route = createFileRoute('/runs/$runId')({
@@ -14,6 +16,7 @@ export const Route = createFileRoute('/runs/$runId')({
 function RunDetailPage() {
   const { runId } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
+  const [showRunEval, setShowRunEval] = useState(false);
 
   if (isLoading) {
     return (
@@ -36,13 +39,27 @@ function RunDetailPage() {
     );
   }
 
+  // Derive prefill from run data
+  const firstResult = data?.results?.[0];
+  const prefill = firstResult?.target ? { target: firstResult.target } : undefined;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Run: {runId}</h1>
-        <p className="mt-1 text-sm text-gray-400">Source: {data?.source}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Run: {runId}</h1>
+          <p className="mt-1 text-sm text-gray-400">Source: {data?.source}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowRunEval(true)}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          ▶ Re-run with Filters
+        </button>
       </div>
       <RunDetail results={data?.results ?? []} runId={runId} />
+      <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} prefill={prefill} />
     </div>
   );
 }

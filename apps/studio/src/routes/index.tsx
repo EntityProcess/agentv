@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
+import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { TargetsTab } from '~/components/TargetsTab';
 import { addProjectApi, discoverProjectsApi, useProjectList, useRunList } from '~/lib/api';
@@ -52,6 +53,7 @@ function ProjectsDashboard() {
   const [discoverPath, setDiscoverPath] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showRunEval, setShowRunEval] = useState(false);
 
   const projects = data?.projects ?? [];
 
@@ -89,13 +91,22 @@ function ProjectsDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-white">Projects</h1>
-        <button
-          type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
-        >
-          {showAddForm ? 'Cancel' : 'Add Project'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowRunEval(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            ▶ Run Eval
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
+          >
+            {showAddForm ? 'Cancel' : 'Add Project'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -144,6 +155,8 @@ function ProjectsDashboard() {
           <ProjectCard key={project.id} project={project} />
         ))}
       </div>
+
+      <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />
     </div>
   );
 }
@@ -156,12 +169,22 @@ function SingleProjectHome() {
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
   const { data, isLoading, error } = useRunList();
+  const [showRunEval, setShowRunEval] = useState(false);
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
+        <button
+          type="button"
+          onClick={() => setShowRunEval(true)}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          ▶ Run Eval
+        </button>
+      </div>
 
       {/* Tab navigation */}
       <div className="border-b border-gray-800">
@@ -187,6 +210,8 @@ function SingleProjectHome() {
       {activeTab === 'runs' && <RunsTabContent data={data} isLoading={isLoading} error={error} />}
       {activeTab === 'experiments' && <ExperimentsTab />}
       {activeTab === 'targets' && <TargetsTab />}
+
+      <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />
     </div>
   );
 }

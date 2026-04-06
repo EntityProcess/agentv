@@ -195,3 +195,60 @@ export interface ProjectEntry {
   added_at: string;
   last_opened_at: string;
 }
+
+// ── Eval runner types ────────────────────────────────────────────────────
+
+export interface DiscoveredEvalFile {
+  path: string;
+  relative_path: string;
+  category: string;
+}
+
+export interface EvalDiscoverResponse {
+  eval_files: DiscoveredEvalFile[];
+}
+
+export interface EvalTargetsResponse {
+  targets: string[];
+}
+
+export interface RunEvalRequest {
+  suite_filter?: string;
+  test_ids?: string[];
+  target?: string;
+  threshold?: number;
+  workers?: number;
+  dry_run?: boolean;
+}
+
+export interface EvalRunResponse {
+  id: string;
+  status: string;
+  command: string;
+}
+
+export interface EvalRunStatus {
+  id: string;
+  status: 'starting' | 'running' | 'finished' | 'failed';
+  command: string;
+  started_at: string;
+  finished_at: string | null;
+  exit_code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+export interface EvalRunListResponse {
+  runs: Array<{
+    id: string;
+    status: string;
+    command: string;
+    started_at: string;
+    finished_at: string | null;
+    exit_code: number | null;
+  }>;
+}
+
+export interface EvalPreviewResponse {
+  command: string;
+}
