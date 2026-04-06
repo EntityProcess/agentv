@@ -179,7 +179,12 @@ async function parseEvaluatorList(
     // Custom assertion types — store with their type name for registry dispatch
     if (isCustomType) {
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       // Collect all properties except known meta-keys as pass-through config
       const knownProps = new Set(['name', 'type', 'weight', 'required', 'min_score', 'negate']);
       const config: Record<string, JsonValue> = {};
@@ -276,7 +281,12 @@ async function parseEvaluatorList(
         }
       }
 
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       // Collect unrecognized properties as pass-through config
       const knownProps = new Set([
@@ -473,7 +483,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -631,7 +646,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name,
@@ -718,7 +738,12 @@ async function parseEvaluatorList(
       const validAggregation = isValidFieldAggregationType(aggregation) ? aggregation : undefined;
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -743,7 +768,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -767,7 +797,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -817,7 +852,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -897,7 +937,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -920,7 +965,12 @@ async function parseEvaluatorList(
       const rawShouldTrigger = rawEvaluator.should_trigger;
       const shouldTrigger = typeof rawShouldTrigger === 'boolean' ? rawShouldTrigger : undefined;
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'skill-trigger',
@@ -941,7 +991,12 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'contains',
@@ -963,7 +1018,12 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: typeValue,
@@ -983,7 +1043,12 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'icontains',
@@ -1005,7 +1070,12 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: typeValue,
@@ -1025,7 +1095,12 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: typeValue,
@@ -1046,7 +1121,12 @@ async function parseEvaluatorList(
       }
       const flags = asString(rawEvaluator.flags);
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'regex',
@@ -1062,7 +1142,12 @@ async function parseEvaluatorList(
 
     if (typeValue === 'is-json') {
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'is-json',
@@ -1081,7 +1166,12 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'equals',
@@ -1130,7 +1220,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -1234,7 +1329,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       // deprecated: `type: rubric` maps to `type: llm-grader` with `rubrics`. Use `type: rubrics` with `criteria` instead.
       evaluators.push({
@@ -1251,7 +1351,12 @@ async function parseEvaluatorList(
     }
 
     const weight = validateWeight(rawEvaluator.weight, name, evalId);
-    const { required, min_score } = parseRequiredAndMinScore(rawEvaluator.required, (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined, name, evalId);
+    const { required, min_score } = parseRequiredAndMinScore(
+      rawEvaluator.required,
+      (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+      name,
+      evalId,
+    );
 
     // Collect unrecognized properties as pass-through config (for text prompt templates)
     // Note: For script prompts, config comes from prompt.config instead

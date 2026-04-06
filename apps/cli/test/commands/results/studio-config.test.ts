@@ -125,10 +125,7 @@ describe('saveStudioConfig', () => {
   });
 
   it('removes legacy pass_threshold from studio section on save', () => {
-    writeFileSync(
-      path.join(tempDir, 'config.yaml'),
-      'studio:\n  pass_threshold: 0.8\n',
-    );
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  pass_threshold: 0.8\n');
     saveStudioConfig(tempDir, { threshold: 0.7 });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');

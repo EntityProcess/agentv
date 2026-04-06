@@ -7,10 +7,10 @@ import pLimit from 'p-limit';
 import { getWorkspacePoolRoot } from '../paths.js';
 import {
   type ChildEvaluatorResult,
+  DEFAULT_THRESHOLD,
   type EvaluationScore,
   type Evaluator,
   LlmGraderEvaluator,
-  DEFAULT_THRESHOLD,
   negateScore,
   scoreToVerdict,
 } from './evaluators.js';
@@ -2404,7 +2404,9 @@ async function runEvaluatorList(options: {
         type: evaluatorConfig.type,
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
-        ...(evaluatorConfig.min_score !== undefined ? { min_score: evaluatorConfig.min_score } : {}),
+        ...(evaluatorConfig.min_score !== undefined
+          ? { min_score: evaluatorConfig.min_score }
+          : {}),
       });
       scores.push({
         name: evaluatorConfig.name,
@@ -2440,7 +2442,9 @@ async function runEvaluatorList(options: {
         type: evaluatorConfig.type ?? 'llm-grader',
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
-        ...(evaluatorConfig.min_score !== undefined ? { min_score: evaluatorConfig.min_score } : {}),
+        ...(evaluatorConfig.min_score !== undefined
+          ? { min_score: evaluatorConfig.min_score }
+          : {}),
       });
       scores.push({
         name: evaluatorConfig.name ?? 'unknown',
@@ -2481,7 +2485,8 @@ async function runEvaluatorList(options: {
   const effectiveThreshold = options.threshold ?? DEFAULT_THRESHOLD;
   const hasRequiredFailure = scored.some((entry) => {
     if (!entry.required) return false;
-    const minScore = entry.min_score ?? (typeof entry.required === 'number' ? entry.required : effectiveThreshold);
+    const minScore =
+      entry.min_score ?? (typeof entry.required === 'number' ? entry.required : effectiveThreshold);
     return entry.score.score < minScore;
   });
 

@@ -118,7 +118,6 @@ export type ResultIndexArtifact = IndexArtifactEntry;
 // Statistics helpers
 // ---------------------------------------------------------------------------
 
-
 function computeStats(values: readonly number[]): { mean: number; stddev: number } {
   if (values.length === 0) {
     return { mean: 0, stddev: 0 };

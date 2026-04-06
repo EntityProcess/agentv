@@ -18,7 +18,8 @@ Rubrics are defined as `assertions` entries with `type: rubrics`. They support b
 | `outcome` | string | required* | Criterion being evaluated (*optional if `score_ranges` used) |
 | `weight` | number | 1.0 | Relative importance |
 | `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
-| `required_min_score` | integer | - | Minimum 0-10 score to pass (score-range mode) |
+| `min_score` | number | - | Minimum score (0–1) to pass this criterion |
+| `required_min_score` | integer | - | **Deprecated.** Use `min_score` instead. Legacy 0–10 scale. |
 | `score_ranges` | map or array | - | Score range definitions for analytic scoring |
 
 ## String Shorthand (Recommended)
@@ -71,7 +72,7 @@ assertions:
     criteria:
       - id: correctness
         weight: 2.0
-        required_min_score: 7
+        min_score: 0.7
         score_ranges:
           0: Critical bugs
           3: Minor bugs
@@ -110,4 +111,4 @@ Ranges must be integers 0-10, non-overlapping, covering all values 0-10.
 | `pass` | score >= 0.8 AND all gating criteria satisfied |
 | `fail` | score < 0.8 OR any gating criterion failed |
 
-Gating: checklist uses `required: true`, score-range uses `required_min_score: N`.
+Gating: checklist uses `required: true`, score-range uses `min_score: N` (0–1 scale).
