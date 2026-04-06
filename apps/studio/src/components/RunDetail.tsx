@@ -86,7 +86,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
 
 export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const { data: config } = useStudioConfig();
-  const passThreshold = config?.pass_threshold ?? 0.8;
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   const total = results.length;
   const passed = results.filter((r) => isPassing(r.score, passThreshold)).length;

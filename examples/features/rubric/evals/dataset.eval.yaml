@@ -210,7 +210,7 @@ tests:
         criteria:
           - id: factual_accuracy
             weight: 2.0
-            required_min_score: 8
+            min_score: 0.8
             score_ranges:
               0: Contains major factual errors or contradicts the article.
               3: Mostly on-topic but includes at least one clear factual error or misstates a key claim.

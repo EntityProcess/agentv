@@ -40,6 +40,8 @@ const EvaluatorCommonSchema = z.object({
   name: z.string().optional(),
   weight: z.number().min(0).optional(),
   required: z.union([z.boolean(), z.number().gt(0).lte(1)]).optional(),
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  min_score: z.number().gt(0).lte(1).optional(),
   negate: z.boolean().optional(),
 });
 
@@ -65,7 +67,8 @@ const RubricItemSchema = z.object({
   outcome: z.string().optional(),
   weight: z.number().optional(),
   required: z.boolean().optional(),
-  required_min_score: z.number().int().min(0).max(10).optional(),
+  /** Minimum score (0-1) for this criterion to pass. */
+  min_score: z.number().gt(0).lte(1).optional(),
   score_ranges: z.array(ScoreRangeSchema).optional(),
 });
 

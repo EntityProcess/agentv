@@ -120,7 +120,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
 
 function StepsTab({ result }: { result: EvalResult }) {
   const { data: config } = useStudioConfig();
-  const passThreshold = config?.pass_threshold ?? 0.8;
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
   const assertions = result.assertions ?? [];
   const hasFailed =
     !isPassing(result.score, passThreshold) ||

@@ -179,9 +179,14 @@ async function parseEvaluatorList(
     // Custom assertion types — store with their type name for registry dispatch
     if (isCustomType) {
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       // Collect all properties except known meta-keys as pass-through config
-      const knownProps = new Set(['name', 'type', 'weight', 'required', 'negate']);
+      const knownProps = new Set(['name', 'type', 'weight', 'required', 'min_score', 'negate']);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
@@ -193,6 +198,7 @@ async function parseEvaluatorList(
         type: customTypeName as unknown as EvaluatorKind,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
       } as EvaluatorConfig);
@@ -275,7 +281,12 @@ async function parseEvaluatorList(
         }
       }
 
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       // Collect unrecognized properties as pass-through config
       const knownProps = new Set([
@@ -304,6 +315,7 @@ async function parseEvaluatorList(
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
         ...(targetConfig !== undefined ? { target: targetConfig } : {}),
@@ -471,7 +483,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -480,6 +497,7 @@ async function parseEvaluatorList(
         aggregator,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -628,7 +646,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name,
@@ -638,6 +661,7 @@ async function parseEvaluatorList(
         ...(expected ? { expected } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
         ...(argsMatch !== undefined ? { argsMatch } : {}),
       };
@@ -714,7 +738,12 @@ async function parseEvaluatorList(
       const validAggregation = isValidFieldAggregationType(aggregation) ? aggregation : undefined;
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -723,6 +752,7 @@ async function parseEvaluatorList(
         ...(validAggregation ? { aggregation: validAggregation } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -738,7 +768,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -746,6 +781,7 @@ async function parseEvaluatorList(
         threshold,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -761,7 +797,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -769,6 +810,7 @@ async function parseEvaluatorList(
         budget,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -810,7 +852,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -818,6 +865,7 @@ async function parseEvaluatorList(
         ...validLimits,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -889,7 +937,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -897,6 +950,7 @@ async function parseEvaluatorList(
         ...validThresholds,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -911,7 +965,12 @@ async function parseEvaluatorList(
       const rawShouldTrigger = rawEvaluator.should_trigger;
       const shouldTrigger = typeof rawShouldTrigger === 'boolean' ? rawShouldTrigger : undefined;
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'skill-trigger',
@@ -919,6 +978,7 @@ async function parseEvaluatorList(
         ...(shouldTrigger !== undefined ? { should_trigger: shouldTrigger } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -931,13 +991,19 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'contains',
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -952,13 +1018,19 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: typeValue,
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       } as import('../types.js').EvaluatorConfig);
       continue;
@@ -971,13 +1043,19 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'icontains',
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       } as import('../types.js').EvaluatorConfig);
       continue;
@@ -992,13 +1070,19 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: typeValue,
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       } as import('../types.js').EvaluatorConfig);
       continue;
@@ -1011,13 +1095,19 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: typeValue,
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       } as import('../types.js').EvaluatorConfig);
       continue;
@@ -1031,7 +1121,12 @@ async function parseEvaluatorList(
       }
       const flags = asString(rawEvaluator.flags);
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'regex',
@@ -1039,6 +1134,7 @@ async function parseEvaluatorList(
         ...(flags !== undefined ? { flags } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -1046,12 +1142,18 @@ async function parseEvaluatorList(
 
     if (typeValue === 'is-json') {
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'is-json',
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -1064,13 +1166,19 @@ async function parseEvaluatorList(
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
       evaluators.push({
         name,
         type: 'equals',
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -1112,7 +1220,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       evaluators.push({
         name,
@@ -1121,6 +1234,7 @@ async function parseEvaluatorList(
         ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
@@ -1215,7 +1329,12 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
 
       // deprecated: `type: rubric` maps to `type: llm-grader` with `rubrics`. Use `type: rubrics` with `criteria` instead.
       evaluators.push({
@@ -1225,13 +1344,19 @@ async function parseEvaluatorList(
         ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
 
     const weight = validateWeight(rawEvaluator.weight, name, evalId);
-    const required = parseRequired(rawEvaluator.required);
+    const { required, min_score } = parseRequiredAndMinScore(
+      rawEvaluator.required,
+      (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+      name,
+      evalId,
+    );
 
     // Collect unrecognized properties as pass-through config (for text prompt templates)
     // Note: For script prompts, config comes from prompt.config instead
@@ -1245,6 +1370,7 @@ async function parseEvaluatorList(
       'weight',
       'config',
       'required',
+      'min_score',
       'negate',
       'max_steps',
       'maxSteps',
@@ -1291,6 +1417,7 @@ async function parseEvaluatorList(
       ...(graderTargetName ? { target: graderTargetName } : {}),
       ...(weight !== undefined ? { weight } : {}),
       ...(required !== undefined ? { required } : {}),
+      ...(min_score !== undefined ? { min_score } : {}),
       ...(negate !== undefined ? { negate } : {}),
       ...(finalConfig ? { config: finalConfig } : {}),
       ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
@@ -1473,6 +1600,46 @@ function parseRequired(value: JsonValue | undefined): boolean | number | undefin
 }
 
 /**
+ * Parse `required` and `min_score` from raw evaluator config, handling deprecated `required: number`.
+ *
+ * - `required: true` → `{ required: true }`
+ * - `required: 0.7` (deprecated) → `{ required: true, min_score: 0.7 }` + deprecation warning
+ * - `min_score: 0.7` → `{ min_score: 0.7 }`
+ * - Explicit `min_score` takes priority over `required: number`
+ */
+function parseRequiredAndMinScore(
+  rawRequired: JsonValue | undefined,
+  rawMinScore: JsonValue | undefined,
+  evaluatorName: string,
+  evalId: string,
+): { required?: boolean | number; min_score?: number } {
+  const result: { required?: boolean | number; min_score?: number } = {};
+
+  // Parse min_score (explicit field, takes priority)
+  if (typeof rawMinScore === 'number' && rawMinScore > 0 && rawMinScore <= 1) {
+    result.min_score = rawMinScore;
+  }
+
+  // Parse required
+  if (rawRequired === true) {
+    result.required = true;
+  } else if (typeof rawRequired === 'number' && rawRequired > 0 && rawRequired <= 1) {
+    // Deprecated: required: number → required: true + min_score
+    if (result.min_score === undefined) {
+      result.min_score = rawRequired;
+    }
+    // Keep numeric required for backward compat (orchestrator reads min_score preferentially)
+    result.required = rawRequired;
+    logWarning(
+      `Evaluator '${evaluatorName}' in '${evalId}': 'required: ${rawRequired}' is deprecated. ` +
+        `Use 'required: true' + 'min_score: ${rawRequired}' instead.`,
+    );
+  }
+
+  return result;
+}
+
+/**
  * Validate and extract weight from evaluator config.
  * Throws if weight is invalid (negative, NaN, or Infinity).
  * Returns undefined if weight is not specified.
@@ -1544,18 +1711,36 @@ function parseRubricItems(
     const expectedOutcome = asString(rawRubric.outcome) ?? '';
     const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
 
-    // Parse required_min_score (new) or required (legacy backward compat)
+    // Parse min_score (0-1 scale), required_min_score (deprecated 0-10 scale), and required
+    let minScore: number | undefined;
     let requiredMinScore: number | undefined;
     let required: boolean | undefined;
 
-    if (typeof rawRubric.required_min_score === 'number') {
-      const minScore = rawRubric.required_min_score;
-      if (!Number.isInteger(minScore) || minScore < 0 || minScore > 10) {
+    if (typeof rawRubric.min_score === 'number') {
+      // New field: 0-1 scale
+      const ms = rawRubric.min_score as number;
+      if (ms <= 0 || ms > 1) {
         throw new Error(
-          `Invalid required_min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an integer 0-10 (got ${minScore})`,
+          `Invalid min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be in (0, 1] (got ${ms})`,
         );
       }
-      requiredMinScore = minScore;
+      minScore = ms;
+      // Compute legacy required_min_score for backward compat with llm-grader internals
+      requiredMinScore = Math.round(ms * 10);
+    } else if (typeof rawRubric.required_min_score === 'number') {
+      // Deprecated: 0-10 integer scale
+      const rms = rawRubric.required_min_score as number;
+      if (!Number.isInteger(rms) || rms < 0 || rms > 10) {
+        throw new Error(
+          `Invalid required_min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an integer 0-10 (got ${rms})`,
+        );
+      }
+      requiredMinScore = rms;
+      minScore = rms / 10;
+      logWarning(
+        `Rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': 'required_min_score: ${rms}' is deprecated. ` +
+          `Use 'min_score: ${rms / 10}' (0-1 scale) instead.`,
+      );
     }
 
     if (typeof rawRubric.required === 'boolean') {
@@ -1582,6 +1767,7 @@ function parseRubricItems(
         weight,
         ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(minScore !== undefined ? { min_score: minScore } : {}),
         ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
         score_ranges: scoreRanges,
       });
@@ -1600,6 +1786,7 @@ function parseRubricItems(
         weight,
         // Default to required: true if not specified (backward compatibility)
         required: required ?? true,
+        ...(minScore !== undefined ? { min_score: minScore } : {}),
         ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
       });
     }
@@ -1821,14 +2008,26 @@ export function parseInlineRubrics(
         weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
       };
 
+      // Parse min_score (0-1) or required_min_score (deprecated 0-10)
+      let inlineMinScore: number | undefined;
+      let inlineRequiredMinScore: number | undefined;
+      if (typeof rubric.min_score === 'number') {
+        inlineMinScore = rubric.min_score as number;
+        inlineRequiredMinScore = Math.round(inlineMinScore * 10);
+      } else if (typeof rubric.required_min_score === 'number') {
+        inlineRequiredMinScore = rubric.required_min_score as number;
+        inlineMinScore = inlineRequiredMinScore / 10;
+      }
+
       // For score_ranges rubrics, outcome at rubric level is optional
       if (scoreRanges && scoreRanges.length > 0) {
         return {
           ...baseRubric,
           ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
           ...(typeof rubric.required === 'boolean' ? { required: rubric.required } : {}),
-          ...(typeof rubric.required_min_score === 'number'
-            ? { required_min_score: rubric.required_min_score }
+          ...(inlineMinScore !== undefined ? { min_score: inlineMinScore } : {}),
+          ...(inlineRequiredMinScore !== undefined
+            ? { required_min_score: inlineRequiredMinScore }
             : {}),
           score_ranges: scoreRanges,
         };
@@ -1839,8 +2038,9 @@ export function parseInlineRubrics(
         ...baseRubric,
         outcome: expectedOutcome,
         required: typeof rubric.required === 'boolean' ? rubric.required : true,
-        ...(typeof rubric.required_min_score === 'number'
-          ? { required_min_score: rubric.required_min_score }
+        ...(inlineMinScore !== undefined ? { min_score: inlineMinScore } : {}),
+        ...(inlineRequiredMinScore !== undefined
+          ? { required_min_score: inlineRequiredMinScore }
           : {}),
       };
     })

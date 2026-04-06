@@ -15,14 +15,15 @@ describe('eval-schema.json sync', () => {
     // Read committed schema
     const committed = JSON.parse(await readFile(schemaPath, 'utf8'));
 
-    // Generate fresh schema from Zod
+    // Generate fresh schema from Zod (must match generate-eval-schema.ts options)
     const generated = zodToJsonSchema(EvalFileSchema, {
       name: 'EvalFile',
       $refStrategy: 'none',
+      target: 'jsonSchema2019-09',
     });
 
     const expected = {
-      $schema: 'http://json-schema.org/draft-07/schema#',
+      $schema: 'https://json-schema.org/draft/2019-09/schema',
       title: 'AgentV Eval File',
       description: 'Schema for AgentV evaluation YAML files (.eval.yaml)',
       ...generated,

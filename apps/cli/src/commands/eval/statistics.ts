@@ -135,7 +135,7 @@ export function calculateEvaluationSummary(
 
   // Count by execution status. When a custom threshold is provided,
   // recompute passed/failed from raw scores instead of executionStatus
-  // (which uses the hardcoded PASS_THRESHOLD of 0.8).
+  // (which uses the hardcoded DEFAULT_THRESHOLD of 0.8).
   const executionErrorCount = executionErrors.length;
   const scoreThreshold = options?.threshold;
   const passedCount =

@@ -277,7 +277,11 @@ Before marking any branch as ready for review, complete this checklist:
 
 4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed evaluator parsing, run an eval that exercises different evaluator types).
 
-5. **Mark PR as ready** only after steps 1-4 have been completed AND red/green UAT evidence is included in the PR.
+5. **Live eval verification**: For changes affecting scoring, thresholds, or evaluator behavior, run at least one real eval with a live provider (not `--dry-run`) and verify the output JSONL has correct scores, verdicts, and execution status.
+
+6. **Studio UX verification**: For changes affecting config, scoring display, or studio API, use `agent-browser` to verify the studio UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
+
+7. **Mark PR as ready** only after steps 1-6 have been completed AND red/green UAT evidence is included in the PR.
 
 ## Documentation Updates
 

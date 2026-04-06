@@ -69,8 +69,12 @@ assertions:
 | `outcome` | — | Description of what to check |
 | `weight` | `1.0` | Relative importance for scoring |
 | `required` | `false` | If true, failing this criterion fails the entire eval |
-| `required_min_score` | — | Minimum score threshold (score-range mode) |
+| `min_score` | — | Minimum score (0–1) for this criterion to pass |
 | `score_ranges` | — | Score range definitions (analytic mode) |
+
+:::note
+`required_min_score` (0–10 integer scale) is deprecated. Use `min_score` (0–1 scale) instead. For example, `required_min_score: 8` becomes `min_score: 0.8`.
+:::
 
 ## Score-Range Mode (Analytic)
 

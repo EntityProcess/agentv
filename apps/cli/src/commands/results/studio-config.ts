@@ -10,10 +10,10 @@
  * config.yaml format:
  *   required_version: ">=4.2.0"
  *   studio:
- *     pass_threshold: 0.8   # score >= this value is considered "pass"
+ *     threshold: 0.8   # score >= this value is considered "pass"
  *
- * Backward compat: reads root-level `pass_threshold` if `studio:` section
- * is absent (legacy format). On save, always writes under `studio:`.
+ * Backward compat: reads `studio.pass_threshold` and root-level `pass_threshold`
+ * as fallback. On save, always writes `threshold` under `studio:`.
  *
  * If no config.yaml exists, defaults are used.
  */
@@ -21,23 +21,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { PASS_THRESHOLD } from '@agentv/core';
+import { DEFAULT_THRESHOLD } from '@agentv/core';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export interface StudioConfig {
-  pass_threshold: number;
+  threshold: number;
 }
 
 const DEFAULTS: StudioConfig = {
-  pass_threshold: PASS_THRESHOLD,
+  threshold: DEFAULT_THRESHOLD,
 };
 
 /**
  * Load studio config from `config.yaml` in the given `.agentv/` directory.
- * Reads from `studio.pass_threshold`, falling back to root-level
- * `pass_threshold` for backward compatibility.
+ * Reads from `studio.threshold`, falling back to `studio.pass_threshold` (legacy),
+ * then root-level `pass_threshold` (legacy) for backward compatibility.
  * Returns defaults when the file does not exist or is empty.
- * Clamps `pass_threshold` to [0, 1].
+ * Clamps `threshold` to [0, 1].
  */
 export function loadStudioConfig(agentvDir: string): StudioConfig {
   const configPath = path.join(agentvDir, 'config.yaml');
@@ -53,20 +53,22 @@ export function loadStudioConfig(agentvDir: string): StudioConfig {
     return { ...DEFAULTS };
   }
 
-  // Prefer studio.pass_threshold, fall back to root-level pass_threshold (legacy)
+  // Prefer studio.threshold, fall back to studio.pass_threshold, then root-level pass_threshold
   const studio = (parsed as Record<string, unknown>).studio;
-  let threshold = DEFAULTS.pass_threshold;
+  let threshold = DEFAULTS.threshold;
   if (studio && typeof studio === 'object' && !Array.isArray(studio)) {
-    const studioThreshold = (studio as Record<string, unknown>).pass_threshold;
-    if (typeof studioThreshold === 'number') {
-      threshold = studioThreshold;
+    const studioObj = studio as Record<string, unknown>;
+    if (typeof studioObj.threshold === 'number') {
+      threshold = studioObj.threshold;
+    } else if (typeof studioObj.pass_threshold === 'number') {
+      threshold = studioObj.pass_threshold;
     }
   } else if (typeof (parsed as Record<string, unknown>).pass_threshold === 'number') {
     threshold = (parsed as Record<string, unknown>).pass_threshold as number;
   }
 
   return {
-    pass_threshold: Math.min(1, Math.max(0, threshold)),
+    threshold: Math.min(1, Math.max(0, threshold)),
   };
 }
 
@@ -97,8 +99,14 @@ export function saveStudioConfig(agentvDir: string, config: StudioConfig): void 
   const { pass_threshold: _, ...rest } = existing;
   existing = rest;
 
-  // Merge studio section
-  existing.studio = { ...config };
+  // Clean legacy pass_threshold from studio section if present
+  const existingStudio = existing.studio;
+  if (existingStudio && typeof existingStudio === 'object' && !Array.isArray(existingStudio)) {
+    const { pass_threshold: __, ...studioRest } = existingStudio as Record<string, unknown>;
+    existing.studio = { ...studioRest, ...config };
+  } else {
+    existing.studio = { ...config };
+  }
 
   const yamlStr = stringifyYaml(existing);
   writeFileSync(configPath, yamlStr, 'utf-8');

@@ -7,10 +7,10 @@ import pLimit from 'p-limit';
 import { getWorkspacePoolRoot } from '../paths.js';
 import {
   type ChildEvaluatorResult,
+  DEFAULT_THRESHOLD,
   type EvaluationScore,
   type Evaluator,
   LlmGraderEvaluator,
-  PASS_THRESHOLD,
   negateScore,
   scoreToVerdict,
 } from './evaluators.js';
@@ -85,7 +85,7 @@ import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.j
 
 type MaybePromise<T> = T | Promise<T>;
 
-function classifyQualityStatus(score: number, threshold = PASS_THRESHOLD): ExecutionStatus {
+function classifyQualityStatus(score: number, threshold = DEFAULT_THRESHOLD): ExecutionStatus {
   return score >= threshold ? 'ok' : 'quality_failure';
 }
 
@@ -1268,7 +1268,7 @@ async function runBatchEvaluation(options: {
         targetResolver,
         availableTargets,
         verbose,
-        threshold: batchThreshold,
+        threshold: evalCase.threshold ?? batchThreshold,
       });
 
       if (providerError) {
@@ -1806,9 +1806,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       fileChanges,
       workspacePath,
       verbose,
-      threshold: caseThreshold,
+      threshold: evalCase.threshold ?? caseThreshold,
     });
 
+    const effectiveThreshold = evalCase.threshold ?? caseThreshold;
     const totalDurationMs = Date.now() - caseStartMs;
 
     // Aggregate grader token usage from individual evaluator results
@@ -1836,7 +1837,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const executionStatus: ExecutionStatus =
       providerError || skippedEvaluatorError
         ? 'execution_error'
-        : classifyQualityStatus(result.score, caseThreshold);
+        : classifyQualityStatus(result.score, effectiveThreshold);
 
     // Include targetUsed only when a fallback target served the response
     const targetUsedField = targetUsed ? { targetUsed } : {};
@@ -2115,6 +2116,7 @@ async function evaluateCandidate(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    threshold: evalThreshold,
   });
 
   const completedAt = nowFn();
@@ -2199,6 +2201,7 @@ async function runEvaluatorsForCase(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly threshold?: number;
 }): Promise<{ score: EvaluationScore; scores?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -2223,6 +2226,7 @@ async function runEvaluatorsForCase(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    threshold,
   } = options;
 
   if (evalCase.assertions && evalCase.assertions.length > 0) {
@@ -2250,6 +2254,7 @@ async function runEvaluatorsForCase(options: {
       availableTargets,
       fileChanges,
       workspacePath,
+      threshold,
     });
   }
 
@@ -2310,6 +2315,7 @@ async function runEvaluatorList(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly threshold?: number;
 }): Promise<{ score: EvaluationScore; scores: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -2343,6 +2349,7 @@ async function runEvaluatorList(options: {
     readonly type: string;
     readonly weight?: number;
     readonly required?: boolean | number;
+    readonly min_score?: number;
   }> = [];
   const scores: EvaluatorResult[] = [];
 
@@ -2397,6 +2404,9 @@ async function runEvaluatorList(options: {
         type: evaluatorConfig.type,
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
+        ...(evaluatorConfig.min_score !== undefined
+          ? { min_score: evaluatorConfig.min_score }
+          : {}),
       });
       scores.push({
         name: evaluatorConfig.name,
@@ -2432,6 +2442,9 @@ async function runEvaluatorList(options: {
         type: evaluatorConfig.type ?? 'llm-grader',
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
+        ...(evaluatorConfig.min_score !== undefined
+          ? { min_score: evaluatorConfig.min_score }
+          : {}),
       });
       scores.push({
         name: evaluatorConfig.name ?? 'unknown',
@@ -2469,9 +2482,11 @@ async function runEvaluatorList(options: {
   }
 
   // Required gate: if any evaluator with `required` flag fails its threshold, aggregate becomes 0
+  const effectiveThreshold = options.threshold ?? DEFAULT_THRESHOLD;
   const hasRequiredFailure = scored.some((entry) => {
     if (!entry.required) return false;
-    const minScore = typeof entry.required === 'number' ? entry.required : PASS_THRESHOLD;
+    const minScore =
+      entry.min_score ?? (typeof entry.required === 'number' ? entry.required : effectiveThreshold);
     return entry.score.score < minScore;
   });
 
@@ -2489,7 +2504,7 @@ async function runEvaluatorList(options: {
 
   const score: EvaluationScore = {
     score: aggregateScore,
-    verdict: scoreToVerdict(aggregateScore),
+    verdict: scoreToVerdict(aggregateScore, effectiveThreshold),
     assertions,
     expectedAspectCount,
   };

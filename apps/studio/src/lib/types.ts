@@ -168,7 +168,9 @@ export interface CategoriesResponse {
 }
 
 export interface StudioConfigResponse {
-  pass_threshold: number;
+  threshold: number;
+  /** @deprecated Use threshold */
+  pass_threshold?: number;
 }
 
 // ── Project types ────────────────────────────────────────────────────────

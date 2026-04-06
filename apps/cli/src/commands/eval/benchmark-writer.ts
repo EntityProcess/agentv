@@ -1,8 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 
-import type { EvaluationResult } from '@agentv/core';
-
-const PASS_THRESHOLD = 0.8;
+import { DEFAULT_THRESHOLD, type EvaluationResult } from '@agentv/core';
 
 interface BenchmarkStats {
   readonly mean: number;
@@ -43,10 +41,10 @@ function computeStats(values: readonly number[]): BenchmarkStats {
 function computePassRate(result: EvaluationResult): number {
   const scores = result.scores;
   if (scores && scores.length > 0) {
-    const passed = scores.filter((s) => s.score >= PASS_THRESHOLD).length;
+    const passed = scores.filter((s) => s.score >= DEFAULT_THRESHOLD).length;
     return passed / scores.length;
   }
-  return result.score >= PASS_THRESHOLD ? 1.0 : 0.0;
+  return result.score >= DEFAULT_THRESHOLD ? 1.0 : 0.0;
 }
 
 /**

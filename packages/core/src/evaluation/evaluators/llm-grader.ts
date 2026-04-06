@@ -878,9 +878,11 @@ export class LlmGraderEvaluator implements Evaluator {
     for (const rubric of rubrics) {
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
       const minScoreLabel =
-        rubric.required_min_score !== undefined
-          ? ` [REQUIRED: min score ${rubric.required_min_score}]`
-          : '';
+        rubric.min_score !== undefined
+          ? ` [REQUIRED: min score ${rubric.min_score}]`
+          : rubric.required_min_score !== undefined
+            ? ` [REQUIRED: min score ${rubric.required_min_score}]`
+            : '';
 
       parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 
@@ -1285,15 +1287,18 @@ function calculateScoreRangeResult(
     totalWeight += rubric.weight;
     weightedScoreSum += normalizedScore * rubric.weight;
 
-    // Determine required minimum score:
-    // - If required_min_score is set, use it directly
-    // - If required is true (legacy), treat as required_min_score: 10
+    // Determine required minimum score (as normalized 0-1):
+    // - If min_score is set (0-1), use directly
+    // - If required_min_score is set (legacy 0-10), normalize to 0-1
+    // - If required is true (legacy), treat as min_score: 1.0
     // - Otherwise, no gating
-    let requiredMinScore: number | undefined;
-    if (rubric.required_min_score !== undefined) {
-      requiredMinScore = rubric.required_min_score;
+    let minScoreThreshold: number | undefined;
+    if (rubric.min_score !== undefined) {
+      minScoreThreshold = rubric.min_score;
+    } else if (rubric.required_min_score !== undefined) {
+      minScoreThreshold = rubric.required_min_score / 10;
     } else if (rubric.required === true) {
-      requiredMinScore = 10; // Legacy: required: true means must score 10/10
+      minScoreThreshold = 1.0; // Legacy: required: true means must score 10/10
     }
 
     // Find the matching score range description for reporting
@@ -1303,10 +1308,10 @@ function calculateScoreRangeResult(
     const rangeDescription = matchingRange?.outcome ?? '';
     const criterionLabel = rubric.outcome ?? rubric.id;
 
-    // Check gating
+    // Check gating — compare normalized score against min_score threshold (both 0-1)
     const passed =
-      !(requiredMinScore !== undefined && rawScore < requiredMinScore) && rawScore >= 7;
-    if (requiredMinScore !== undefined && rawScore < requiredMinScore) {
+      !(minScoreThreshold !== undefined && normalizedScore < minScoreThreshold) && rawScore >= 7;
+    if (minScoreThreshold !== undefined && normalizedScore < minScoreThreshold) {
       failedRequired = true;
     }
 

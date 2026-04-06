@@ -71,6 +71,8 @@ export interface ToolTrajectoryEvaluatorConfig {
   /** Optional weight for top-level aggregation (defaults to 1.0) */
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Default argument matching mode for all expected items (defaults to 'exact') */

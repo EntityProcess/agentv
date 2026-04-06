@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
+import { DEFAULT_THRESHOLD, type EvaluationResult, type EvaluatorResult } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 
@@ -118,8 +118,6 @@ export type ResultIndexArtifact = IndexArtifactEntry;
 // Statistics helpers
 // ---------------------------------------------------------------------------
 
-const PASS_THRESHOLD = 0.8;
-
 function computeStats(values: readonly number[]): { mean: number; stddev: number } {
   if (values.length === 0) {
     return { mean: 0, stddev: 0 };
@@ -135,10 +133,10 @@ function computeStats(values: readonly number[]): { mean: number; stddev: number
 function computePassRate(result: EvaluationResult): number {
   const scores = result.scores;
   if (scores && scores.length > 0) {
-    const passed = scores.filter((s) => s.score >= PASS_THRESHOLD).length;
+    const passed = scores.filter((s) => s.score >= DEFAULT_THRESHOLD).length;
     return passed / scores.length;
   }
-  return (result.score ?? 0) >= PASS_THRESHOLD ? 1.0 : 0.0;
+  return (result.score ?? 0) >= DEFAULT_THRESHOLD ? 1.0 : 0.0;
 }
 
 // ---------------------------------------------------------------------------
