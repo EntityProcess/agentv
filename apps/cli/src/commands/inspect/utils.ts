@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { EvaluationResult, TraceSummary } from '@agentv/core';
-import { PASS_THRESHOLD, toCamelCaseDeep } from '@agentv/core';
+import { DEFAULT_THRESHOLD, toCamelCaseDeep } from '@agentv/core';
 import {
   RESULT_INDEX_FILENAME,
   RESULT_RUNS_DIRNAME,
@@ -567,7 +567,7 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
       const results = loadResultFile(filePath);
 
       const testCount = results.length;
-      const passCount = results.filter((r) => r.score >= PASS_THRESHOLD).length;
+      const passCount = results.filter((r) => r.score >= DEFAULT_THRESHOLD).length;
       const passRate = testCount > 0 ? passCount / testCount : 0;
       const avgScore = testCount > 0 ? results.reduce((sum, r) => sum + r.score, 0) / testCount : 0;
 

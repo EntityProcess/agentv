@@ -195,7 +195,7 @@ export function useStudioConfig() {
   return useQuery(studioConfigOptions);
 }
 
-/** Default pass threshold matching @agentv/core PASS_THRESHOLD */
+/** Default pass threshold matching @agentv/core DEFAULT_THRESHOLD */
 export const DEFAULT_PASS_THRESHOLD = 0.8;
 
 export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_THRESHOLD): boolean {

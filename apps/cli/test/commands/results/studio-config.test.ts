@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { PASS_THRESHOLD } from '@agentv/core';
+import { DEFAULT_THRESHOLD } from '@agentv/core';
 import { parse as parseYaml } from 'yaml';
 
 import { loadStudioConfig, saveStudioConfig } from '../../../src/commands/results/studio-config.js';
@@ -21,7 +21,7 @@ describe('loadStudioConfig', () => {
 
   it('returns defaults when no config.yaml exists', () => {
     const config = loadStudioConfig(tempDir);
-    expect(config.pass_threshold).toBe(PASS_THRESHOLD);
+    expect(config.pass_threshold).toBe(DEFAULT_THRESHOLD);
   });
 
   it('reads pass_threshold from studio section', () => {
@@ -60,13 +60,13 @@ describe('loadStudioConfig', () => {
   it('returns defaults for empty config.yaml', () => {
     writeFileSync(path.join(tempDir, 'config.yaml'), '');
     const config = loadStudioConfig(tempDir);
-    expect(config.pass_threshold).toBe(PASS_THRESHOLD);
+    expect(config.pass_threshold).toBe(DEFAULT_THRESHOLD);
   });
 
   it('returns defaults when pass_threshold is not a number', () => {
     writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  pass_threshold: "high"\n');
     const config = loadStudioConfig(tempDir);
-    expect(config.pass_threshold).toBe(PASS_THRESHOLD);
+    expect(config.pass_threshold).toBe(DEFAULT_THRESHOLD);
   });
 });
 

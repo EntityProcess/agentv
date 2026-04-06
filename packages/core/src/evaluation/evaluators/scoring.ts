@@ -3,24 +3,31 @@
  *
  * Scoring model:
  *   score  ∈ [0, 1]  — continuous quality signal
- *   verdict           — binary classification derived from score via PASS_THRESHOLD
+ *   verdict           — binary classification derived from score via threshold
  *
- *   score >= PASS_THRESHOLD  →  'pass'
- *   score <  PASS_THRESHOLD  →  'fail'
+ *   score >= threshold  →  'pass'
+ *   score <  threshold  →  'fail'
  *   (infrastructure skip)    →  'skip'
  *
- * To change the pass/fail boundary, update PASS_THRESHOLD.
- * All verdict derivation flows through scoreToVerdict().
+ * Scoring scale principle:
+ *   All user-configurable score thresholds use 0-1 scale.
+ *   The only 0-10 values in YAML are `score_ranges` which define LLM integer output band labels.
+ *
+ * Default threshold is 0.8. Override via CLI `--threshold`, suite `execution.threshold`,
+ * or per-test `execution.threshold`. All verdict derivation flows through scoreToVerdict().
  */
 
 import type { EvaluationVerdict } from '../types.js';
 import type { EvaluationScore } from './types.js';
 
-/** Score threshold for pass verdict. Scores below this are fail. */
-export const PASS_THRESHOLD = 0.8;
+/** Default score threshold for pass verdict (0-1). Scores below this are fail. */
+export const DEFAULT_THRESHOLD = 0.8;
 
-export function scoreToVerdict(score: number): EvaluationVerdict {
-  return score >= PASS_THRESHOLD ? 'pass' : 'fail';
+/** @deprecated Use DEFAULT_THRESHOLD instead. */
+export const PASS_THRESHOLD = DEFAULT_THRESHOLD;
+
+export function scoreToVerdict(score: number, threshold = DEFAULT_THRESHOLD): EvaluationVerdict {
+  return score >= threshold ? 'pass' : 'fail';
 }
 
 export function clampScore(value: number): number {

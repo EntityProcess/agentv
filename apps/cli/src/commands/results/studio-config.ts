@@ -21,7 +21,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { PASS_THRESHOLD } from '@agentv/core';
+import { DEFAULT_THRESHOLD } from '@agentv/core';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export interface StudioConfig {
@@ -29,7 +29,7 @@ export interface StudioConfig {
 }
 
 const DEFAULTS: StudioConfig = {
-  pass_threshold: PASS_THRESHOLD,
+  pass_threshold: DEFAULT_THRESHOLD,
 };
 
 /**

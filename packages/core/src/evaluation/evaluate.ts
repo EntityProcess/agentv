@@ -61,7 +61,7 @@ import path from 'node:path';
 import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
 import type { AssertFn } from './assertions.js';
-import { PASS_THRESHOLD } from './evaluators/scoring.js';
+import { DEFAULT_THRESHOLD } from './evaluators/scoring.js';
 import { runEvaluation } from './orchestrator.js';
 import { createFunctionProvider } from './providers/function-provider.js';
 import { readTargetDefinitions } from './providers/targets-file.js';
@@ -158,6 +158,8 @@ export interface EvalConfig {
   readonly verbose?: boolean;
   /** Callback for each completed result */
   readonly onResult?: (result: EvaluationResult) => void;
+  /** Score threshold for pass/fail (0-1). Default: 0.8 (DEFAULT_THRESHOLD). */
+  readonly threshold?: number;
 }
 
 /**
@@ -166,9 +168,9 @@ export interface EvalConfig {
 export interface EvalSummary {
   /** Total number of test cases */
   readonly total: number;
-  /** Number of passing test cases (score >= PASS_THRESHOLD) */
+  /** Number of passing test cases (score >= threshold) */
   readonly passed: number;
-  /** Number of failing test cases (score < PASS_THRESHOLD) */
+  /** Number of failing test cases (score < threshold) */
   readonly failed: number;
   /** Total duration in milliseconds */
   readonly durationMs: number;
@@ -342,6 +344,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     verbose: config.verbose,
     maxConcurrency: config.workers ?? 3,
     filter: config.filter,
+    threshold: config.threshold,
     evalCases,
     onResult: async (result) => {
       collectedResults.push(result);
@@ -354,7 +357,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 
   return {
     results: allResults,
-    summary: computeSummary(allResults, durationMs),
+    summary: computeSummary(allResults, durationMs, config.threshold),
   };
 }
 
@@ -369,14 +372,18 @@ function mapAssertionType(type: string): string {
 /**
  * Compute summary statistics from evaluation results.
  */
-function computeSummary(results: readonly EvaluationResult[], durationMs: number): EvalSummary {
+function computeSummary(
+  results: readonly EvaluationResult[],
+  durationMs: number,
+  threshold = DEFAULT_THRESHOLD,
+): EvalSummary {
   const total = results.length;
   let passed = 0;
   let scoreSum = 0;
 
   for (const r of results) {
     scoreSum += r.score;
-    if (r.score >= PASS_THRESHOLD) {
+    if (r.score >= threshold) {
       passed++;
     }
   }

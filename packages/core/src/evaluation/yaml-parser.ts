@@ -357,6 +357,12 @@ async function loadTestsFromYaml(
       ? testCaseConfig.execution
       : undefined;
     const skipDefaults = caseExecution?.skip_defaults === true;
+    const caseThreshold =
+      typeof caseExecution?.threshold === 'number' &&
+      (caseExecution.threshold as number) >= 0 &&
+      (caseExecution.threshold as number) <= 1
+        ? (caseExecution.threshold as number)
+        : undefined;
 
     // Resolve input with shorthand support (pass suite-level input_files for merge)
     const effectiveSuiteInputFiles = suiteInputFiles && !skipDefaults ? suiteInputFiles : undefined;
@@ -502,6 +508,7 @@ async function loadTestsFromYaml(
       workspace: mergedWorkspace,
       metadata,
       targets: caseTargets,
+      ...(caseThreshold !== undefined ? { threshold: caseThreshold } : {}),
     };
 
     results.push(testCase);

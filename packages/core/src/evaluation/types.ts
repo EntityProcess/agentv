@@ -788,6 +788,8 @@ export interface EvalTest {
   readonly metadata?: Record<string, unknown>;
   /** Per-test target override (matrix evaluation) */
   readonly targets?: readonly string[];
+  /** Per-test score threshold override (0-1). Resolution: CLI > test > suite > DEFAULT_THRESHOLD. */
+  readonly threshold?: number;
 }
 
 /** @deprecated Use `EvalTest` instead */
