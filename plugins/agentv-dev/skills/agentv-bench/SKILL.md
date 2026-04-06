@@ -146,7 +146,7 @@ Set `SUBAGENT_EVAL_MODE` in `.env` at the project root as the default when no mo
 
 **AgentV CLI mode** (end-to-end, EVAL.yaml):
 ```bash
-agentv eval <eval-path> --artifacts .agentv/artifacts/
+agentv eval <eval-path> --output .agentv/artifacts/
 ```
 
 **Subagent mode** — read `references/subagent-pipeline.md` for the detailed procedure. In brief: use `pipeline input` to extract inputs, dispatch one `executor` subagent per test case (all in parallel), then proceed to grading below.

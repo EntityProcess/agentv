@@ -46,19 +46,25 @@ export const evalRunCommand = command({
     out: option({
       type: optional(string),
       long: 'out',
-      description: 'Write results to the specified path',
+      description: '[Deprecated: use --output] Write results to the specified path',
     }),
-    output: multioption({
-      type: array(string),
+    output: option({
+      type: optional(string),
       long: 'output',
       short: 'o',
       description:
-        'Output file path(s). Format inferred from extension: .jsonl, .json, .xml, .yaml, .html',
+        'Artifact directory for run output (index.jsonl, benchmark.json, per-test grading/timing)',
     }),
     outputFormat: option({
       type: optional(string),
       long: 'output-format',
-      description: "Output format: 'jsonl', 'yaml', or 'html' (default: jsonl)",
+      description: "[Deprecated] Output format: 'jsonl', 'yaml', or 'html' (default: jsonl)",
+    }),
+    export: multioption({
+      type: array(string),
+      long: 'export',
+      description:
+        'Write additional output file(s). Format inferred from extension: .jsonl, .json, .xml, .yaml, .html (repeatable)',
     }),
     dryRun: flag({
       long: 'dry-run',
@@ -151,13 +157,14 @@ export const evalRunCommand = command({
     benchmarkJson: option({
       type: optional(string),
       long: 'benchmark-json',
-      description: 'Write Agent Skills benchmark.json to the specified path',
+      description:
+        '[Deprecated: benchmark.json is included in artifact dir] Write Agent Skills benchmark.json to the specified path',
     }),
     artifacts: option({
       type: optional(string),
       long: 'artifacts',
       description:
-        'Write companion artifacts (index.jsonl, <test>/grading.json, <test>/timing.json, timing.json, benchmark.json) to the specified directory',
+        '[Deprecated: use --output] Write companion artifacts to the specified directory',
     }),
     graderTarget: option({
       type: optional(string),
@@ -216,6 +223,7 @@ export const evalRunCommand = command({
       out: args.out,
       output: args.output,
       outputFormat: args.outputFormat,
+      export: args.export,
       dryRun: args.dryRun,
       dryRunDelay: args.dryRunDelay,
       dryRunDelayMin: args.dryRunDelayMin,

@@ -88,9 +88,8 @@ jobs:
             "${TARGET_FLAG[@]}" \
             --workers 3 \
             --threshold ${{ steps.filter.outputs.threshold }} \
-            --output .agentv/ci-results/junit.xml \
-            --benchmark-json .agentv/ci-results/benchmark.json \
-            --artifacts .agentv/ci-results/artifacts
+            --output .agentv/ci-results/artifacts \
+            --export .agentv/ci-results/junit.xml
           EXIT_CODE=$?
 
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
