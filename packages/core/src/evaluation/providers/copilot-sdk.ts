@@ -118,10 +118,11 @@ export class CopilotSdkProvider implements Provider {
     // BYOK — pass a provider block to route requests through a user-provided endpoint
     // instead of GitHub's Copilot infrastructure. See copilot-sdk docs/auth/byok.md.
     if (this.config.byokBaseUrl) {
+      const byokType = this.config.byokType ?? 'openai';
       // biome-ignore lint/suspicious/noExplicitAny: SDK provider config shape is dynamic
       const provider: any = {
-        type: this.config.byokType ?? 'openai',
-        baseUrl: this.config.byokBaseUrl,
+        type: byokType,
+        baseUrl: normalizeByokBaseUrl(this.config.byokBaseUrl, byokType),
       };
       if (this.config.byokBearerToken) {
         provider.bearerToken = this.config.byokBearerToken;
@@ -406,6 +407,23 @@ function resolveSkillDirectories(cwd: string): string[] {
     path.join(cwd, '.codex', 'skills'),
   ];
   return candidates.filter((dir) => existsSync(dir));
+}
+
+/**
+ * Normalize a BYOK base URL for the Copilot SDK.
+ * For Azure type, if the value is a bare resource name (no https:// prefix),
+ * construct the full URL: https://{resourceName}.openai.azure.com
+ * This lets users reuse AZURE_OPENAI_ENDPOINT without a separate env var.
+ */
+function normalizeByokBaseUrl(baseUrl: string, type: string): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (type === 'azure') {
+    return `https://${trimmed}.openai.azure.com`;
+  }
+  return trimmed;
 }
 
 function summarizeSdkEvent(eventType: string, data: unknown): string | undefined {

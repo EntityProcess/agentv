@@ -348,6 +348,50 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.azure).toEqual({ apiVersion: '2024-10-21' });
   });
 
+  it('normalizes bare azure resource name to full URL', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      byokType: 'azure',
+      byokBaseUrl: 'my-resource-eastus2',
+      byokApiKey: 'key',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider.baseUrl).toBe('https://my-resource-eastus2.openai.azure.com');
+  });
+
+  it('passes full URL through unchanged for azure byok', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      byokType: 'azure',
+      byokBaseUrl: 'https://my-resource.openai.azure.com',
+      byokApiKey: 'key',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider.baseUrl).toBe('https://my-resource.openai.azure.com');
+  });
+
   it('passes byok provider block with bearer token', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],

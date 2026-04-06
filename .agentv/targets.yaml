@@ -45,7 +45,7 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     byok:
       type: azure
-      base_url: ${{ AZURE_OPENAI_BYOK_URL }}
+      base_url: ${{ AZURE_OPENAI_ENDPOINT }}
       api_key: ${{ AZURE_OPENAI_API_KEY }}
     grader_target: grader
     timeout_seconds: 120
