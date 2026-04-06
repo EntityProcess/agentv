@@ -20,7 +20,7 @@ function SuitePage() {
   const { runId, suite } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
-  const passThreshold = config?.pass_threshold ?? 0.8;
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   if (isLoading) {
     return (

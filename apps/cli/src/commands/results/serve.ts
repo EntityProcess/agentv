@@ -282,7 +282,7 @@ function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
-    const { pass_threshold } = loadStudioConfig(agentvDir);
+    const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of loaded) {
       const ds = r.suite ?? r.target ?? 'default';
@@ -311,7 +311,7 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
-    const { pass_threshold } = loadStudioConfig(agentvDir);
+    const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const categoryMap = new Map<
       string,
       { total: number; passed: number; scoreSum: number; suites: Set<string> }
@@ -351,7 +351,7 @@ function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
-    const { pass_threshold } = loadStudioConfig(agentvDir);
+    const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
     const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of filtered) {
@@ -467,7 +467,7 @@ function handleEvalFileContent(c: C, { searchDir }: DataContext) {
 
 function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
   const metas = listResultFiles(searchDir);
-  const { pass_threshold } = loadStudioConfig(agentvDir);
+  const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
   const experimentMap = new Map<
     string,
     {
@@ -520,7 +520,7 @@ function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
 
 function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
   const metas = listResultFiles(searchDir);
-  const { pass_threshold } = loadStudioConfig(agentvDir);
+  const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
   const targetMap = new Map<
     string,
     {
@@ -615,8 +615,8 @@ export function createApp(
       const body = await c.req.json<Partial<StudioConfig>>();
       const current = loadStudioConfig(agentvDir);
       const updated = { ...current, ...body };
-      if (typeof updated.pass_threshold === 'number') {
-        updated.pass_threshold = Math.min(1, Math.max(0, updated.pass_threshold));
+      if (typeof updated.threshold === 'number') {
+        updated.threshold = Math.min(1, Math.max(0, updated.threshold));
       }
       saveStudioConfig(agentvDir, updated);
       return c.json(updated);

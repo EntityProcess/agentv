@@ -188,7 +188,7 @@ function RunSidebar() {
 function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: string }) {
   const { data } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
-  const passThreshold = config?.pass_threshold ?? 0.8;
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
@@ -245,7 +245,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
 function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
   const { data } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
-  const passThreshold = config?.pass_threshold ?? 0.8;
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
   const suiteResults = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
 
   return (
@@ -408,7 +408,7 @@ function ProjectEvalSidebar({
 }) {
   const { data } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig();
-  const passThreshold = config?.pass_threshold ?? 0.8;
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">

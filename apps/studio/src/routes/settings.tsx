@@ -22,7 +22,7 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const currentThreshold = config?.pass_threshold ?? DEFAULT_PASS_THRESHOLD;
+  const currentThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
   const displayThreshold = threshold || String(currentThreshold);
 
   const handleSave = async () => {
@@ -35,7 +35,7 @@ function SettingsPage() {
     setSaving(true);
     setMessage(null);
     try {
-      await saveStudioConfig({ pass_threshold: value });
+      await saveStudioConfig({ threshold: value });
       await queryClient.invalidateQueries({ queryKey: ['config'] });
       setThreshold('');
       setMessage({ type: 'success', text: 'Settings saved' });
