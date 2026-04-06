@@ -12,10 +12,10 @@ export const importCodexCommand = command({
   name: 'codex',
   description: 'Import a Codex CLI session transcript for offline grading',
   args: {
-    discover: option({
+    sessionId: option({
       type: optional(string),
-      long: 'discover',
-      description: 'Discovery mode: "latest" to import the most recent session',
+      long: 'session-id',
+      description: 'UUID of the Codex CLI session to import',
     }),
     date: option({
       type: optional(string),
@@ -38,7 +38,7 @@ export const importCodexCommand = command({
       description: 'List available sessions instead of importing',
     }),
   },
-  handler: async ({ discover, date, output, sessionsDir, list }) => {
+  handler: async ({ sessionId, date, output, sessionsDir, list }) => {
     if (list) {
       const sessions = await discoverCodexSessions({
         date,
@@ -59,24 +59,26 @@ export const importCodexCommand = command({
       return;
     }
 
-    if (discover !== 'latest') {
-      console.error('Error: specify --discover latest to select a session.');
+    let session: Awaited<ReturnType<typeof discoverCodexSessions>>[number];
+
+    if (sessionId) {
+      const sessions = await discoverCodexSessions({
+        date,
+        sessionsDir,
+        limit: 100,
+      });
+      const match = sessions.find((s) => s.sessionId === sessionId);
+      if (!match) {
+        console.error(`Error: session ${sessionId} not found.`);
+        process.exit(1);
+      }
+      session = match;
+    } else {
+      console.error(
+        'Error: specify --session-id <uuid> to select a session. Use --list to see available sessions.',
+      );
       process.exit(1);
     }
-
-    const sessions = await discoverCodexSessions({
-      date,
-      sessionsDir,
-      latest: true,
-    });
-
-    if (sessions.length === 0) {
-      console.error('Error: no Codex CLI sessions found.');
-      process.exit(1);
-    }
-
-    const session = sessions[0];
-    console.log(`Discovered latest session: ${session.filename}`);
 
     // Parse the session
     const rawJsonl = await readTranscriptFile(session.filePath);

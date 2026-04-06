@@ -19,12 +19,6 @@ claude -p "List all TypeScript files in this project"
 ### 2. Import the session transcript
 
 ```bash
-agentv import claude --discover latest -o transcripts/session.jsonl
-```
-
-Or import a specific session:
-
-```bash
 # List available sessions
 agentv import claude --list
 

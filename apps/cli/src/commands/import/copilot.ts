@@ -12,11 +12,6 @@ export const importCopilotCommand = command({
       long: 'session-id',
       description: 'UUID of the Copilot CLI session to import',
     }),
-    discover: option({
-      type: optional(string),
-      long: 'discover',
-      description: 'Discovery mode: "latest" to import the most recent session',
-    }),
     output: option({
       type: optional(string),
       long: 'output',
@@ -34,7 +29,7 @@ export const importCopilotCommand = command({
       description: 'List available sessions instead of importing',
     }),
   },
-  handler: async ({ sessionId, discover, output, sessionStateDir, list }) => {
+  handler: async ({ sessionId, output, sessionStateDir, list }) => {
     if (list) {
       const sessions = await discoverCopilotSessions({
         sessionStateDir,
@@ -70,21 +65,10 @@ export const importCopilotCommand = command({
       }
       sessionDir = match.sessionDir;
       resolvedSessionId = sessionId;
-    } else if (discover === 'latest') {
-      const sessions = await discoverCopilotSessions({
-        sessionStateDir,
-        limit: 1,
-      });
-
-      if (sessions.length === 0) {
-        console.error('Error: no Copilot CLI sessions found.');
-        process.exit(1);
-      }
-      sessionDir = sessions[0].sessionDir;
-      resolvedSessionId = sessions[0].sessionId;
-      console.log(`Discovered latest session: ${resolvedSessionId}`);
     } else {
-      console.error('Error: specify --session-id <uuid> or --discover latest to select a session.');
+      console.error(
+        'Error: specify --session-id <uuid> to select a session. Use --list to see available sessions.',
+      );
       process.exit(1);
     }
 
