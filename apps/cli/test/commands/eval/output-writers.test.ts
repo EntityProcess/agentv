@@ -116,7 +116,7 @@ describe('JunitWriter', () => {
 
     const xml = await readFile(testFilePath, 'utf8');
     expect(xml).toStartWith('<?xml version="1.0" encoding="UTF-8"?>');
-    expect(xml).toContain('<testsuites tests="2" failures="1" errors="0">');
+    expect(xml).toContain('<testsuites tests="2" failures="1" errors="0" time="0.000">');
     expect(xml).toContain('<testcase name="pass-1"');
     expect(xml).toContain('<testcase name="fail-1"');
     expect(xml).toContain('<failure');

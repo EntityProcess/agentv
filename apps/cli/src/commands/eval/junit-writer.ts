@@ -87,8 +87,10 @@ export class JunitWriter {
         return `    <testcase name="${escapeXml(r.testId)}" classname="${escapeXml(suiteName)}" time="${time}">${inner}</testcase>`;
       });
 
+      const suiteTime = results.reduce((sum, r) => sum + (r.durationMs ?? 0), 0) / 1000;
+
       suiteXmls.push(
-        `  <testsuite name="${escapeXml(suiteName)}" tests="${results.length}" failures="${failures}" errors="${errors}">\n${testCases.join('\n')}\n  </testsuite>`,
+        `  <testsuite name="${escapeXml(suiteName)}" tests="${results.length}" failures="${failures}" errors="${errors}" time="${suiteTime.toFixed(3)}">\n${testCases.join('\n')}\n  </testsuite>`,
       );
     }
 
@@ -98,7 +100,9 @@ export class JunitWriter {
       (r) => r.executionStatus !== 'execution_error' && r.score < this.threshold,
     ).length;
 
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}">\n${suiteXmls.join('\n')}\n</testsuites>\n`;
+    const totalTime = this.results.reduce((sum, r) => sum + (r.durationMs ?? 0), 0) / 1000;
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" time="${totalTime.toFixed(3)}">\n${suiteXmls.join('\n')}\n</testsuites>\n`;
 
     await writeFile(this.filePath, xml, 'utf8');
   }
