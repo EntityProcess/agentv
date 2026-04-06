@@ -1,0 +1,31 @@
+name: Promote to latest
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to promote (e.g. 2.18.0). Leave empty to use version from package.json."
+        required: false
+        type: string
+
+jobs:
+  promote:
+    name: Promote npm dist-tag to latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Promote to latest
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            bun run promote:latest "${{ inputs.version }}"
+          else
+            bun run promote:latest
+          fi
