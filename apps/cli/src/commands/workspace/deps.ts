@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { command, restPositionals, string } from 'cmd-ts';
+import { command, flag, restPositionals, string } from 'cmd-ts';
 
 import { scanRepoDeps } from '@agentv/core';
 
@@ -14,8 +14,12 @@ export const depsCommand = command({
       displayName: 'eval-paths',
       description: 'Path(s) or glob(s) to evaluation .yaml file(s)',
     }),
+    usedBy: flag({
+      long: 'used-by',
+      description: 'Include list of eval files that reference each repo',
+    }),
   },
-  handler: async ({ evalPaths }) => {
+  handler: async ({ evalPaths, usedBy }) => {
     if (evalPaths.length === 0) {
       console.error('Usage: agentv workspace deps <eval-paths...>');
       process.exit(1);
@@ -37,7 +41,7 @@ export const depsCommand = command({
         ...(r.ref !== undefined && { ref: r.ref }),
         ...(r.clone !== undefined && { clone: r.clone }),
         ...(r.checkout !== undefined && { checkout: r.checkout }),
-        used_by: r.usedBy.map((p) => path.relative(cwd, p)),
+        ...(usedBy && { used_by: r.usedBy.map((p) => path.relative(cwd, p)) }),
       })),
     };
 
