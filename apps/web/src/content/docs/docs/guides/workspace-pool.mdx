@@ -179,9 +179,11 @@ For workspaces you manage outside AgentV, use static mode:
 agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/my-workspace
 ```
 
-**Auto-materialisation:** When `workspace.path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, it is reused as-is. This makes static mode convenient for first-run bootstrap without manual workspace preparation.
+**Auto-materialisation:** When `workspace.path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, AgentV checks each repo individually — existing repos are reused as-is, and only missing repos are cloned. This makes static mode convenient for both first-run bootstrap and incremental setup.
 
-When the directory is already populated, clone, copy, and pool are bypassed entirely. AgentV never deletes a user-provided workspace. Lifecycle hooks still execute (unless `hooks.enabled: false`). This is useful for local development where you already have the repo checked out.
+AgentV never deletes a user-provided workspace. Lifecycle hooks still execute (unless `hooks.enabled: false`). This is useful for local development where you already have repos checked out.
+
+**Note:** When using `--workspace-path` (CLI flag) instead of `workspace.path` (YAML), the directory is always used as-is with no auto-materialisation or repo cloning.
 
 **Precedence:** `workspace.mode` / `--workspace-mode` first, then default pooled behavior for shared repo workspaces.
 
@@ -199,7 +201,7 @@ CLI flags `--retain-on-success` / `--retain-on-failure` control temporary eval-r
 |------|-----------|-----------|--------------------------|-------------------|
 | **Pooled** (default) | First run only; reset on reuse | Yes | Yes (`.gitignore`d files) | Yes (slot per worker) |
 | **Temp** (`mode: temp`) | Full clone + checkout every run | No | No | Sequential only |
-| **Static** (`mode: static`) | None if populated; auto-materialised if empty/missing | Yes | User-managed | Sequential only |
+| **Static** (`mode: static`) | Per-repo: clones only missing repos; auto-materialises if empty | Yes | User-managed | Sequential only |
 
 ## When to disable pooling
 
