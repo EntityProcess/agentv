@@ -19,8 +19,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
-import type { RepoCheckout, RepoClone } from '../types.js';
 import { interpolateEnv } from '../interpolation.js';
+import type { RepoCheckout, RepoClone } from '../types.js';
 
 /** A single git repo dependency discovered from eval files. */
 export interface RepoDep {
@@ -124,10 +124,7 @@ async function extractReposFromEvalFile(filePath: string): Promise<RawRepo[]> {
  * Extract repos from a raw workspace value.
  * Handles both inline objects and string references to external workspace files.
  */
-async function extractReposFromWorkspaceRaw(
-  raw: unknown,
-  evalFileDir: string,
-): Promise<RawRepo[]> {
+async function extractReposFromWorkspaceRaw(raw: unknown, evalFileDir: string): Promise<RawRepo[]> {
   if (typeof raw === 'string') {
     // External workspace file reference
     const workspaceFilePath = path.resolve(evalFileDir, raw);
