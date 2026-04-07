@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
@@ -629,12 +630,14 @@ export async function runEvaluation(
 
   // Track whether a static workspace was freshly materialised (needs repo clone + hooks)
   let staticMaterialised = false;
+  // YAML-configured static paths support auto-materialisation and per-repo checks.
+  // CLI-provided paths (--workspace-path) always reuse the directory as-is.
+  const isYamlConfiguredPath = !cliWorkspacePath && !!yamlWorkspacePath;
 
   // Static workspace: auto-materialise if path is empty or missing, reuse if populated.
   // Auto-materialisation only applies to YAML-configured paths (workspace.path), not CLI flags
   // (--workspace / --workspace-path), which always reuse the directory as-is.
   if (useStaticWorkspace && configuredStaticPath) {
-    const isYamlConfiguredPath = !cliWorkspacePath && !!yamlWorkspacePath;
     const dirExists = await stat(configuredStaticPath).then(
       (s) => s.isDirectory(),
       () => false,
@@ -714,16 +717,37 @@ export async function runEvaluation(
       }
     }
 
-    // Materialize repos into shared workspace (skip for per_test, pool, and existing static workspace)
+    // Materialize repos into shared workspace (skip for per_test and pool modes).
+    // For static workspaces: materialize only repos whose target path is missing (per-repo reuse).
+    // For non-static workspaces: materialize all repos when freshly created.
+    const hasReposToMaterialize =
+      !!suiteWorkspace?.repos?.length && !usePool && !isPerTestIsolation;
     const needsRepoMaterialisation =
-      !!suiteWorkspace?.repos?.length && !usePool && (!useStaticWorkspace || staticMaterialised);
-    const repoManager = needsRepoMaterialisation ? new RepoManager(verbose) : undefined;
-    if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
-      setupLog(
-        `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
-      );
+      hasReposToMaterialize && (!useStaticWorkspace || staticMaterialised);
+    const needsPerRepoCheck =
+      hasReposToMaterialize && useStaticWorkspace && !staticMaterialised && isYamlConfiguredPath;
+    const repoManager =
+      needsRepoMaterialisation || needsPerRepoCheck ? new RepoManager(verbose) : undefined;
+
+    if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos) {
       try {
-        await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
+        if (needsPerRepoCheck) {
+          // Static workspace with existing content: materialize only missing repos
+          for (const repo of suiteWorkspace.repos) {
+            const targetDir = path.join(sharedWorkspacePath, repo.path);
+            if (existsSync(targetDir)) {
+              setupLog(`reusing existing repo at: ${targetDir}`);
+              continue;
+            }
+            setupLog(`materializing missing repo: ${repo.path}`);
+            await repoManager.materialize(repo, sharedWorkspacePath);
+          }
+        } else {
+          setupLog(
+            `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
+          );
+          await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
+        }
         setupLog('shared repo materialization complete');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

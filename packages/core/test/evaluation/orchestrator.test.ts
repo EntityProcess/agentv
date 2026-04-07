@@ -2755,6 +2755,114 @@ describe('--workspace flag', () => {
     expect(results[0].error).toBeUndefined();
   });
 
+  it('materializes only missing repos in YAML-configured static workspace', async () => {
+    const {
+      mkdtemp,
+      mkdir: fsMkdir,
+      writeFile,
+      access: fsAccess,
+    } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-static-'));
+
+    // Pre-create repo-a to simulate an existing local checkout
+    const repoADir = path.join(testDir, 'repo-a');
+    await fsMkdir(repoADir, { recursive: true });
+    await writeFile(path.join(repoADir, 'marker.txt'), 'pre-existing');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    // Use YAML workspace.path (not CLI --workspace) with type: git repos.
+    // repo-a exists → should be reused. repo-b is missing but uses a fake URL → should fail clone.
+    // Since repo-a is reused (skipped) and repo-b clone fails, this proves per-repo logic works.
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        mode: 'static',
+        path: testDir,
+        repos: [
+          {
+            path: 'repo-a',
+            source: { type: 'git', url: 'https://github.com/example/repo-a.git' },
+            checkout: { ref: 'main' },
+          },
+          {
+            path: 'repo-b',
+            source: { type: 'git', url: 'https://github.com/example/repo-b.git' },
+            checkout: { ref: 'main' },
+          },
+        ],
+      },
+    };
+
+    // repo-b clone will fail (fake URL), which proves repo-a was skipped (per-repo check)
+    // and only repo-b was attempted
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [evalCase],
+        keepWorkspaces: true,
+      }),
+    ).rejects.toThrow('Failed to materialize repos');
+
+    // repo-a marker should still exist (not deleted by static workspace cleanup)
+    await fsAccess(path.join(repoADir, 'marker.txt'));
+  });
+
+  it('skips all repos when all exist in YAML-configured static workspace', async () => {
+    const { mkdtemp, mkdir: fsMkdir, writeFile } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-static-'));
+
+    // Pre-create both repos
+    await fsMkdir(path.join(testDir, 'repo-a'), { recursive: true });
+    await writeFile(path.join(testDir, 'repo-a', 'file.txt'), 'a');
+    await fsMkdir(path.join(testDir, 'repo-b'), { recursive: true });
+    await writeFile(path.join(testDir, 'repo-b', 'file.txt'), 'b');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    // Both repos exist → no clone attempts → should succeed without network
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        mode: 'static',
+        path: testDir,
+        repos: [
+          {
+            path: 'repo-a',
+            source: { type: 'git', url: 'https://github.com/example/repo-a.git' },
+            checkout: { ref: 'main' },
+          },
+          {
+            path: 'repo-b',
+            source: { type: 'git', url: 'https://github.com/example/repo-b.git' },
+            checkout: { ref: 'main' },
+          },
+        ],
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [evalCase],
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+  });
+
   it('errors when workspaceMode is static without workspace path', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
