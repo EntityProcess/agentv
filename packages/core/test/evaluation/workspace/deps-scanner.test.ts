@@ -183,7 +183,7 @@ tests:
   });
 
   it('resolves external workspace file references', async () => {
-    const wsFile = await writeYaml(
+    await writeYaml(
       'shared/workspace.yaml',
       `
 repos:
@@ -367,5 +367,93 @@ tests:
     const urls = result.repos.map((r) => r.url);
     expect(urls).toContain('https://github.com/org/suite.git');
     expect(urls).toContain('https://github.com/org/test-only.git');
+  });
+
+  it('interpolates env vars in repo URLs', async () => {
+    const originalEnv = process.env.TEST_REPO_URL;
+    process.env.TEST_REPO_URL = 'https://github.com/org/from-env.git';
+    try {
+      const file = await writeYaml(
+        'env-var.eval.yaml',
+        `
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: \${{ TEST_REPO_URL }}
+tests:
+  - id: test-1
+    input: hello
+    criteria: world
+`,
+      );
+
+      const result = await scanRepoDeps([file]);
+      expect(result.repos).toHaveLength(1);
+      expect(result.repos[0].url).toBe('https://github.com/org/from-env.git');
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.TEST_REPO_URL;
+      } else {
+        process.env.TEST_REPO_URL = originalEnv;
+      }
+    }
+  });
+
+  it('collects malformed YAML as error without crashing', async () => {
+    const file = await writeYaml('bad-yaml.eval.yaml', ':\n  bad: yaml: [unclosed');
+
+    const result = await scanRepoDeps([file]);
+    expect(result.repos).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].file).toBe(file);
+  });
+
+  it('collects error for broken external workspace file reference', async () => {
+    const file = await writeYaml(
+      'broken-ref.eval.yaml',
+      `
+workspace: ./nonexistent-workspace.yaml
+tests:
+  - id: test-1
+    input: hello
+    criteria: world
+`,
+    );
+
+    const result = await scanRepoDeps([file]);
+    expect(result.repos).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].file).toBe(file);
+  });
+
+  it('deduplicates URLs with and without trailing .git', async () => {
+    const file = await writeYaml(
+      'url-normalize.eval.yaml',
+      `
+workspace:
+  repos:
+    - path: ./repo-a
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+      checkout:
+        ref: main
+    - path: ./repo-b
+      source:
+        type: git
+        url: https://github.com/org/repo
+      checkout:
+        ref: main
+tests:
+  - id: test-1
+    input: hello
+    criteria: world
+`,
+    );
+
+    const result = await scanRepoDeps([file]);
+    expect(result.repos).toHaveLength(1);
   });
 });
