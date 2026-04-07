@@ -153,6 +153,10 @@ agentv workspace clean
 
 # Remove only pools for a specific repo
 agentv workspace clean --repo github.com/org/my-repo
+
+# Scan eval files and output a JSON manifest of required git repos
+# Useful in CI to determine what to clone before running evals
+agentv workspace deps evals/**/*.eval.yaml
 ```
 
 ## External workspace config

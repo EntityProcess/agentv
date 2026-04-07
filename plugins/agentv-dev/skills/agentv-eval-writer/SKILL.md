@@ -341,6 +341,7 @@ workspace:
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
 - Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)
 - Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
+- `agentv workspace deps <eval-paths>` scans eval files and outputs a JSON manifest of required git repos (useful for CI pre-cloning)
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
 
