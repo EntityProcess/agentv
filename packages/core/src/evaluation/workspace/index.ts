@@ -21,3 +21,4 @@ export {
   type AcquireWorkspaceOptions,
   type PoolSlot,
 } from './pool-manager.js';
+export { scanRepoDeps, type RepoDep, type DepsScanResult } from './deps-scanner.js';

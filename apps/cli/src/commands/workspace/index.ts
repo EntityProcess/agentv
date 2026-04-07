@@ -1,6 +1,7 @@
 import { subcommands } from 'cmd-ts';
 
 import { cleanCommand } from './clean.js';
+import { depsCommand } from './deps.js';
 import { listCommand } from './list.js';
 
 export const workspaceCommand = subcommands({
@@ -9,5 +10,6 @@ export const workspaceCommand = subcommands({
   cmds: {
     list: listCommand,
     clean: cleanCommand,
+    deps: depsCommand,
   },
 });
