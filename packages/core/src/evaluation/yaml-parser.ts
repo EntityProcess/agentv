@@ -23,6 +23,7 @@ import {
   coerceEvaluator,
   parseEvaluators,
   parseInlineRubrics,
+  parsePreprocessors,
   warnUnconsumedCriteria,
 } from './loaders/evaluator-parser.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
@@ -95,6 +96,7 @@ type RawTestSuite = JsonObject & {
   readonly execution?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
+  readonly preprocessors?: JsonValue;
   /** @deprecated Use `assertions` instead */
   readonly assert?: JsonValue;
   readonly input?: JsonValue;
@@ -283,6 +285,12 @@ async function loadTestsFromYaml(
   const rawTestCases = resolveTests(suite);
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm-grader';
+  const suitePreprocessors = await parsePreprocessors(
+    suite.preprocessors,
+    searchRoots,
+    '<suite>',
+    absoluteTestPath,
+  );
 
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);
@@ -456,6 +464,7 @@ async function loadTestsFromYaml(
         globalExecution,
         searchRoots,
         id ?? 'unknown',
+        suitePreprocessors,
       );
     } catch (error) {
       // Skip entire test if evaluator validation fails

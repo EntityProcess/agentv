@@ -9,7 +9,10 @@
  * - Images in non-assistant messages are ignored
  */
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type { Message } from '../../src/evaluation/providers/types.js';
@@ -194,8 +197,17 @@ describe('extractImageBlocks', () => {
 // ---------------------------------------------------------------------------
 
 describe('LlmGraderEvaluator multimodal', () => {
+  let tempDir: string | undefined;
+
   beforeEach(() => {
     capturedGenerateTextArgs = undefined;
+  });
+
+  afterEach(async () => {
+    if (tempDir) {
+      await rm(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
   });
 
   it('sends plain text prompt when output has no images', async () => {
@@ -352,5 +364,54 @@ describe('LlmGraderEvaluator multimodal', () => {
     // No images in assistant messages → should use plain prompt
     expect(capturedGenerateTextArgs?.prompt).toBeTypeOf('string');
     expect(capturedGenerateTextArgs?.messages).toBeUndefined();
+  });
+
+  it('injects preprocessed file text into the plain prompt', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'agentv-llm-file-'));
+    const filePath = join(tempDir, 'report.xlsx');
+    const scriptPath = join(tempDir, 'xlsx-to-text.js');
+    await writeFile(filePath, 'unused', 'utf8');
+    await writeFile(
+      scriptPath,
+      `const fs = require('node:fs');
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+console.log('spreadsheet:' + payload.original_path.split('/').pop());`,
+      'utf8',
+    );
+
+    const provider = createLmProvider();
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => provider,
+    });
+
+    await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: '',
+      target: baseTarget,
+      provider,
+      attempt: 0,
+      promptInputs: { question: 'Describe the image' },
+      now: new Date(),
+      evaluator: {
+        name: 'grade',
+        type: 'llm-grader',
+        preprocessors: [{ type: 'xlsx', command: [process.execPath, scriptPath] }],
+      },
+      output: [
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'file',
+              media_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              path: filePath,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(capturedGenerateTextArgs?.prompt).toBeTypeOf('string');
+    expect(String(capturedGenerateTextArgs?.prompt)).toContain('spreadsheet:report.xlsx');
   });
 });

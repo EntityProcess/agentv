@@ -55,6 +55,11 @@ const PromptSchema = z.union([
   }),
 ]);
 
+const PreprocessorSchema = z.object({
+  type: z.string().min(1),
+  command: z.union([z.string(), z.array(z.string())]),
+});
+
 /** Score range for analytic rubrics */
 const ScoreRangeSchema = z.object({
   score_range: z.tuple([z.number().int().min(0).max(10), z.number().int().min(0).max(10)]),
@@ -81,6 +86,7 @@ const CodeGraderSchema = EvaluatorCommonSchema.extend({
   cwd: z.string().optional(),
   target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
   config: z.record(z.unknown()).optional(),
+  preprocessors: z.array(PreprocessorSchema).optional(),
 });
 
 const LlmGraderSchema = EvaluatorCommonSchema.extend({
@@ -92,6 +98,7 @@ const LlmGraderSchema = EvaluatorCommonSchema.extend({
   config: z.record(z.unknown()).optional(),
   max_steps: z.number().int().min(1).max(50).optional(),
   temperature: z.number().min(0).max(2).optional(),
+  preprocessors: z.array(PreprocessorSchema).optional(),
 });
 
 /** Aggregator configs for composite evaluator */
@@ -383,6 +390,8 @@ export const EvalFileSchema = z.object({
   execution: ExecutionSchema.optional(),
   // Suite-level assertions
   assertions: z.array(EvaluatorSchema).optional(),
+  // Suite-level content preprocessors shared by evaluators
+  preprocessors: z.array(PreprocessorSchema).optional(),
   // Workspace (inline object or path to external workspace YAML file)
   workspace: z.union([WorkspaceSchema, z.string()]).optional(),
 });
