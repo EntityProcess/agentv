@@ -394,7 +394,7 @@ tests:
       expect(result.repos[0].url).toBe('https://github.com/org/from-env.git');
     } finally {
       if (originalEnv === undefined) {
-        delete process.env.TEST_REPO_URL;
+        process.env.TEST_REPO_URL = undefined;
       } else {
         process.env.TEST_REPO_URL = originalEnv;
       }
