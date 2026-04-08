@@ -24,6 +24,7 @@ function SettingsPage() {
 
   const currentThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
   const displayThreshold = threshold || String(currentThreshold);
+  const isReadOnly = config?.read_only === true;
 
   const handleSave = async () => {
     const value = Number.parseFloat(threshold || String(currentThreshold));
@@ -87,6 +88,7 @@ function SettingsPage() {
                 step="0.05"
                 value={displayThreshold}
                 onChange={(e) => setThreshold(e.target.value)}
+                disabled={isReadOnly}
                 className="w-32 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
               />
               <span className="text-sm text-gray-400">
@@ -97,14 +99,17 @@ function SettingsPage() {
         </div>
 
         <div className="mt-6 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500 disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Settings'}
+            </button>
+          )}
+          {isReadOnly && <span className="text-sm text-gray-400">Read-only mode is enabled.</span>}
           {message && (
             <span
               className={`text-sm ${message.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}

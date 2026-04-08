@@ -251,6 +251,7 @@ function handleRuns(c: C, { searchDir }: DataContext) {
       }
       return {
         filename: m.filename,
+        display_name: m.displayName,
         path: m.path,
         timestamp: m.timestamp,
         test_count: m.testCount,
@@ -270,7 +271,7 @@ function handleRunDetail(c: C, { searchDir }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
-    return c.json({ results: stripHeavyFields(loaded), source: meta.filename });
+    return c.json({ results: stripHeavyFields(loaded), source: meta.displayName });
   } catch {
     return c.json({ error: 'Failed to load run' }, 500);
   }
@@ -430,12 +431,11 @@ function handleEvalFiles(c: C, { searchDir }: DataContext) {
 
 function handleEvalFileContent(c: C, { searchDir }: DataContext) {
   const filename = c.req.param('filename');
-  const evalId = c.req.param('evalId');
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
-  // Extract file path from wildcard using a mount-agnostic marker
-  const marker = `/runs/${filename}/evals/${evalId}/files/`;
+  // Extract the wildcard suffix without depending on decoded route params.
+  const marker = '/files/';
   const markerIdx = c.req.path.indexOf(marker);
   const filePath = markerIdx >= 0 ? c.req.path.slice(markerIdx + marker.length) : '';
 
@@ -565,8 +565,11 @@ function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
   return c.json({ targets });
 }
 
-function handleConfig(c: C, { agentvDir }: DataContext) {
-  return c.json(loadStudioConfig(agentvDir));
+function handleConfig(c: C, { agentvDir }: DataContext, options?: { readOnly?: boolean }) {
+  return c.json({
+    ...loadStudioConfig(agentvDir),
+    read_only: options?.readOnly === true,
+  });
 }
 
 function handleFeedbackRead(c: C, { searchDir }: DataContext) {
@@ -585,11 +588,12 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string },
+  options?: { studioDir?: string; readOnly?: boolean },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
   const defaultCtx: DataContext = { searchDir, agentvDir };
+  const readOnly = options?.readOnly === true;
   const app = new Hono();
 
   // ── Project resolution wrapper ────────────────────────────────────────
@@ -611,6 +615,9 @@ export function createApp(
   // ── Studio configuration ──────────────────────────────────────────────
 
   app.post('/api/config', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     try {
       const body = await c.req.json<Partial<StudioConfig>>();
       const current = loadStudioConfig(agentvDir);
@@ -672,6 +679,9 @@ export function createApp(
   });
 
   app.post('/api/projects', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     try {
       const body = await c.req.json<{ path: string }>();
       if (!body.path) return c.json({ error: 'Missing path' }, 400);
@@ -683,6 +693,9 @@ export function createApp(
   });
 
   app.delete('/api/projects/:projectId', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     const removed = removeProject(c.req.param('projectId') ?? '');
     if (!removed) return c.json({ error: 'Project not found' }, 404);
     return c.json({ ok: true });
@@ -710,6 +723,9 @@ export function createApp(
   });
 
   app.post('/api/projects/discover', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     try {
       const body = await c.req.json<{ path: string }>();
       if (!body.path) return c.json({ error: 'Missing path' }, 400);
@@ -726,6 +742,7 @@ export function createApp(
     const registry = loadProjectRegistry();
     const allRuns: Array<{
       filename: string;
+      display_name: string;
       path: string;
       timestamp: string;
       test_count: number;
@@ -755,6 +772,7 @@ export function createApp(
           }
           allRuns.push({
             filename: m.filename,
+            display_name: m.displayName,
             path: m.path,
             timestamp: m.timestamp,
             test_count: m.testCount,
@@ -778,7 +796,7 @@ export function createApp(
 
   // ── Data routes (unscoped) ────────────────────────────────────────────
 
-  app.get('/api/config', (c) => handleConfig(c, defaultCtx));
+  app.get('/api/config', (c) => handleConfig(c, defaultCtx, { readOnly }));
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
@@ -799,6 +817,9 @@ export function createApp(
   });
 
   app.post('/api/feedback', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     let body: unknown;
     try {
       body = await c.req.json();
@@ -857,6 +878,7 @@ export function createApp(
       }
       return {
         run_filename: m.filename,
+        display_name: m.displayName,
         test_count: m.testCount,
         pass_rate: m.passRate,
         avg_score: m.avgScore,
@@ -870,7 +892,9 @@ export function createApp(
   // ── Data routes (project-scoped) ──────────────────────────────────────
   // Same handlers as above, with project-resolved DataContext via withProject.
 
-  app.get('/api/projects/:projectId/config', (c) => withProject(c, handleConfig));
+  app.get('/api/projects/:projectId/config', (c) =>
+    withProject(c, (ctx, dataCtx) => handleConfig(ctx, dataCtx, { readOnly })),
+  );
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
   app.get('/api/projects/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
@@ -895,15 +919,19 @@ export function createApp(
 
   // ── Eval runner routes (discovery, launch, status) ────────────────────
 
-  registerEvalRoutes(app, (c) => {
-    // For project-scoped routes, resolve to project path; otherwise use searchDir
-    const projectId = c.req.param('projectId');
-    if (projectId) {
-      const project = getProject(projectId);
-      if (project) return project.path;
-    }
-    return searchDir;
-  });
+  registerEvalRoutes(
+    app,
+    (c) => {
+      // For project-scoped routes, resolve to project path; otherwise use searchDir
+      const projectId = c.req.param('projectId');
+      if (projectId) {
+        const project = getProject(projectId);
+        if (project) return project.path;
+      }
+      return searchDir;
+    },
+    { readOnly },
+  );
 
   // ── Static file serving for Studio SPA ────────────────────────────────
 
@@ -1026,8 +1054,12 @@ export const resultsServeCommand = command({
       long: 'discover',
       description: 'Scan a directory tree for repos with .agentv/',
     }),
+    readOnly: flag({
+      long: 'read-only',
+      description: 'Disable write operations and launch Studio in read-only leaderboard mode',
+    }),
   },
-  handler: async ({ source, port, dir, multi, add, remove, discover }) => {
+  handler: async ({ source, port, dir, multi, add, remove, discover, readOnly }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
@@ -1100,7 +1132,7 @@ export const resultsServeCommand = command({
 
       // Use the run directory for feedback storage (matches #764 behavior)
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
-      const app = createApp(results, resultDir, cwd, sourceFile);
+      const app = createApp(results, resultDir, cwd, sourceFile, { readOnly });
 
       if (isMultiProject) {
         console.log(`Multi-project mode: ${registry.projects.length} project(s) registered`);

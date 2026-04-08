@@ -12,6 +12,14 @@ interface BreadcrumbSegment {
   to?: string;
 }
 
+function formatRunLabel(runId: string | undefined): string {
+  if (!runId) {
+    return 'Run';
+  }
+  const [, timestamp] = runId.split('::');
+  return timestamp || runId;
+}
+
 function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegment[] {
   const segments: BreadcrumbSegment[] = [];
 
@@ -26,7 +34,7 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
     if (routeId.includes('/runs/$runId/category/$category')) {
       if (!segments.some((s) => s.label === params.runId)) {
         segments.push({
-          label: params.runId ?? 'Run',
+          label: formatRunLabel(params.runId),
           to: `/runs/${encodeURIComponent(params.runId)}`,
         });
       }
@@ -41,14 +49,14 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
       });
     } else if (routeId.includes('/runs/$runId')) {
       segments.push({
-        label: params.runId ?? 'Run',
+        label: formatRunLabel(params.runId),
         to: match.pathname,
       });
     } else if (routeId.includes('/evals/$runId/$evalId')) {
       // For eval pages, show the run as a parent segment too
       if (!segments.some((s) => s.label === params.runId)) {
         segments.push({
-          label: params.runId ?? 'Run',
+          label: formatRunLabel(params.runId),
           to: `/runs/${encodeURIComponent(params.runId)}`,
         });
       }

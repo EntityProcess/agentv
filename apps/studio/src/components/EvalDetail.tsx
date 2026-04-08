@@ -41,11 +41,13 @@ function findFirstFile(nodes: FileNode[]): string | null {
 
 export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('checks');
+  const { data: config } = useStudioConfig();
+  const isReadOnly = config?.read_only === true;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'checks', label: 'Checks' },
     { id: 'files', label: 'Files' },
-    { id: 'feedback', label: 'Feedback' },
+    ...(isReadOnly ? [] : [{ id: 'feedback' as const, label: 'Feedback' }]),
   ];
 
   return (
@@ -112,7 +114,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
       <div className="min-h-0 flex-1">
         {activeTab === 'checks' && <StepsTab result={result} />}
         {activeTab === 'files' && <FilesTab result={result} runId={runId} projectId={projectId} />}
-        {activeTab === 'feedback' && <FeedbackPanel testId={result.testId} />}
+        {!isReadOnly && activeTab === 'feedback' && <FeedbackPanel testId={result.testId} />}
       </div>
     </div>
   );

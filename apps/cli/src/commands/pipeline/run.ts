@@ -73,7 +73,8 @@ export const evalRunCommand = command({
     out: option({
       type: optional(string),
       long: 'out',
-      description: 'Output directory for results (default: .agentv/results/runs/<timestamp>)',
+      description:
+        'Output directory for results (default: .agentv/results/runs/<experiment>/<timestamp>)',
     }),
     workers: option({
       type: optional(number),
@@ -94,7 +95,7 @@ export const evalRunCommand = command({
   },
   handler: async ({ evalPath, out, workers, experiment, graderType }) => {
     const resolvedEvalPath = resolve(evalPath);
-    const outDir = resolve(out ?? buildDefaultRunDir(process.cwd()));
+    const outDir = resolve(out ?? buildDefaultRunDir(process.cwd(), experiment));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
     const evalDir = dirname(resolvedEvalPath);
 

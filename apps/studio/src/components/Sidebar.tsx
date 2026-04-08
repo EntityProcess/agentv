@@ -150,7 +150,7 @@ function RunSidebar() {
                 className="mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
                 title={run.project_name}
               >
-                {run.filename}
+                {run.display_name ?? run.filename}
               </Link>
             );
           }
@@ -166,7 +166,7 @@ function RunSidebar() {
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {run.filename}
+              {run.display_name ?? run.filename}
             </Link>
           );
         })}
@@ -388,7 +388,7 @@ function ProjectRunDetailSidebar({
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {run.filename}
+              {run.display_name ?? run.filename}
             </Link>
           );
         })}

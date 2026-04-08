@@ -3,7 +3,7 @@
  * artifacts compatible with the AgentV dashboard and results commands.
  *
  * Checks:
- *   1. Directory follows the `runs/<timestamp>` naming convention
+ *   1. Directory follows the `runs/<experiment>/<timestamp>` naming convention
  *   2. index.jsonl exists and each line has required fields
  *   3. Per-test grading.json exists for every entry in the index
  *   4. Per-test timing.json exists (warning if missing)
@@ -43,13 +43,15 @@ interface IndexEntry {
 
 function checkDirectoryNaming(runDir: string): Diagnostic[] {
   const dirName = path.basename(runDir);
-  const parentName = path.basename(path.dirname(runDir));
+  const pathSegments = path.normalize(runDir).split(path.sep).filter(Boolean);
+  const runsIndex = pathSegments.lastIndexOf('runs');
   const diagnostics: Diagnostic[] = [];
 
-  if (parentName !== 'runs') {
+  if (runsIndex < 0 || runsIndex >= pathSegments.length - 1) {
     diagnostics.push({
       severity: 'warning',
-      message: `Directory is not under a 'runs/' parent (found '${parentName}/'). Expected: .agentv/results/runs/<run-dir>`,
+      message:
+        "Directory is not under a 'runs/' tree. Expected: .agentv/results/runs/<experiment>/<run-dir>",
     });
   }
 
@@ -63,6 +65,24 @@ function checkDirectoryNaming(runDir: string): Diagnostic[] {
   }
 
   return diagnostics;
+}
+
+export function validateRunDirectory(runDir: string): {
+  diagnostics: Diagnostic[];
+  entries: IndexEntry[];
+} {
+  const diagnostics: Diagnostic[] = [];
+
+  diagnostics.push(...checkDirectoryNaming(runDir));
+
+  const { diagnostics: indexDiags, entries } = checkIndexJsonl(runDir);
+  diagnostics.push(...indexDiags);
+
+  if (entries.length > 0) {
+    diagnostics.push(...checkArtifactFiles(runDir, entries));
+  }
+
+  return { diagnostics, entries };
 }
 
 function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: IndexEntry[] } {
@@ -251,17 +271,7 @@ export const resultsValidateCommand = command({
       process.exit(1);
     }
 
-    const allDiagnostics: Diagnostic[] = [];
-
-    // Run all checks
-    allDiagnostics.push(...checkDirectoryNaming(resolvedDir));
-
-    const { diagnostics: indexDiags, entries } = checkIndexJsonl(resolvedDir);
-    allDiagnostics.push(...indexDiags);
-
-    if (entries.length > 0) {
-      allDiagnostics.push(...checkArtifactFiles(resolvedDir, entries));
-    }
+    const { diagnostics: allDiagnostics, entries } = validateRunDirectory(resolvedDir);
 
     // Report
     const errors = allDiagnostics.filter((d) => d.severity === 'error');

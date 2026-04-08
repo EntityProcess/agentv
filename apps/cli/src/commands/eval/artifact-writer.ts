@@ -61,6 +61,7 @@ export interface BenchmarkArtifact {
     readonly timestamp: string;
     readonly targets: readonly string[];
     readonly tests_run: readonly string[];
+    readonly experiment?: string;
   };
   readonly run_summary: Record<
     string,
@@ -97,6 +98,7 @@ export interface IndexArtifactEntry {
   readonly suite?: string;
   readonly category?: string;
   readonly conversation_id?: string;
+  readonly experiment?: string;
   readonly score: number;
   readonly target: string;
   readonly scores?: readonly Record<string, unknown>[];
@@ -313,6 +315,7 @@ export function buildTimingArtifact(results: readonly EvaluationResult[]): Timin
 export function buildBenchmarkArtifact(
   results: readonly EvaluationResult[],
   evalFile = '',
+  experiment?: string,
 ): BenchmarkArtifact {
   const targetSet = new Set<string>();
   const testIdSet = new Set<string>();
@@ -405,6 +408,7 @@ export function buildBenchmarkArtifact(
       timestamp,
       targets,
       tests_run: testIds,
+      experiment,
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
@@ -689,7 +693,7 @@ export function parseJsonlResults(content: string): EvaluationResult[] {
 export async function writeArtifacts(
   jsonlPath: string,
   outputDir: string,
-  options?: { evalFile?: string },
+  options?: { evalFile?: string; experiment?: string },
 ): Promise<{
   testArtifactDir: string;
   timingPath: string;
@@ -705,7 +709,7 @@ export async function writeArtifacts(
 export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
-  options?: { evalFile?: string },
+  options?: { evalFile?: string; experiment?: string },
 ): Promise<{
   testArtifactDir: string;
   timingPath: string;
@@ -746,7 +750,10 @@ export async function writeArtifactsFromResults(
       );
     }
 
-    indexRecords.push(buildResultIndexArtifact(result));
+    indexRecords.push({
+      ...buildResultIndexArtifact(result),
+      experiment: options?.experiment,
+    });
   }
 
   // Write aggregate timing
@@ -754,7 +761,7 @@ export async function writeArtifactsFromResults(
   await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
 
   // Write benchmark
-  const benchmark = buildBenchmarkArtifact(results, options?.evalFile);
+  const benchmark = buildBenchmarkArtifact(results, options?.evalFile, options?.experiment);
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
   await writeJsonlFile(indexPath, indexRecords);

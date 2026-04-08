@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
-import { useProjectRunList } from '~/lib/api';
+import { useProjectRunList, useStudioConfig } from '~/lib/api';
 import { projectExperimentsOptions, projectTargetsOptions } from '~/lib/api';
 import type { ExperimentsResponse, TargetsResponse } from '~/lib/types';
 
@@ -33,20 +33,24 @@ function ProjectHomePage() {
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
   const [showRunEval, setShowRunEval] = useState(false);
+  const { data: config } = useStudioConfig();
+  const isReadOnly = config?.read_only === true;
 
-  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
+  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-white">{projectId}</h1>
-        <button
-          type="button"
-          onClick={() => setShowRunEval(true)}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          ▶ Run Eval
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => setShowRunEval(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            ▶ Run Eval
+          </button>
+        )}
       </div>
 
       {/* Tab navigation */}
@@ -79,11 +83,13 @@ function ProjectHomePage() {
       {activeTab === 'experiments' && <ProjectExperimentsTab projectId={projectId} />}
       {activeTab === 'targets' && <ProjectTargetsTab projectId={projectId} />}
 
-      <RunEvalModal
-        open={showRunEval}
-        onClose={() => setShowRunEval(false)}
-        projectId={projectId}
-      />
+      {!isReadOnly && (
+        <RunEvalModal
+          open={showRunEval}
+          onClose={() => setShowRunEval(false)}
+          projectId={projectId}
+        />
+      )}
     </div>
   );
 }

@@ -43,7 +43,7 @@ export const evalInputCommand = command({
       type: optional(string),
       long: 'out',
       description:
-        'Output directory for extracted inputs (default: .agentv/results/runs/<timestamp>)',
+        'Output directory for extracted inputs (default: .agentv/results/runs/<experiment>/<timestamp>)',
     }),
     experiment: option({
       type: optional(string),
@@ -53,7 +53,7 @@ export const evalInputCommand = command({
   },
   handler: async ({ evalPath, out, experiment }) => {
     const resolvedEvalPath = resolve(evalPath);
-    const outDir = resolve(out ?? buildDefaultRunDir(process.cwd()));
+    const outDir = resolve(out ?? buildDefaultRunDir(process.cwd(), experiment));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
     const evalDir = dirname(resolvedEvalPath);
 

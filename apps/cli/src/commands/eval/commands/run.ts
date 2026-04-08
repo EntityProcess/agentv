@@ -60,6 +60,11 @@ export const evalRunCommand = command({
       long: 'output-format',
       description: "[Deprecated] Output format: 'jsonl', 'yaml', or 'html' (default: jsonl)",
     }),
+    experiment: option({
+      type: optional(string),
+      long: 'experiment',
+      description: 'Experiment label for canonical run output (default: default)',
+    }),
     export: multioption({
       type: array(string),
       long: 'export',
@@ -223,6 +228,7 @@ export const evalRunCommand = command({
       out: args.out,
       output: args.output,
       outputFormat: args.outputFormat,
+      experiment: args.experiment,
       export: args.export,
       dryRun: args.dryRun,
       dryRunDelay: args.dryRunDelay,

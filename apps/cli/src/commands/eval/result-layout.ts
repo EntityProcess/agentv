@@ -3,17 +3,42 @@ import path from 'node:path';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RESULT_RUNS_DIRNAME = 'runs';
+export const DEFAULT_EXPERIMENT_NAME = 'default';
+
+export function normalizeExperimentName(experiment?: string): string {
+  const trimmed = experiment?.trim();
+  if (!trimmed) {
+    return DEFAULT_EXPERIMENT_NAME;
+  }
+  if (!/^[A-Za-z0-9._-]+$/.test(trimmed)) {
+    throw new Error(
+      `Invalid experiment name "${trimmed}". Use only letters, numbers, ".", "_" and "-".`,
+    );
+  }
+  return trimmed;
+}
 
 export function createRunDirName(timestamp = new Date()): string {
   return timestamp.toISOString().replace(/[:.]/g, '-');
 }
 
-export function buildDefaultRunDir(cwd: string): string {
-  return path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME, createRunDirName());
+export function buildDefaultRunDir(
+  cwd: string,
+  experiment?: string,
+  timestamp = new Date(),
+): string {
+  return path.join(
+    cwd,
+    '.agentv',
+    'results',
+    RESULT_RUNS_DIRNAME,
+    normalizeExperimentName(experiment),
+    createRunDirName(timestamp),
+  );
 }
 
-export function buildDefaultIndexPath(cwd: string): string {
-  return path.join(buildDefaultRunDir(cwd), RESULT_INDEX_FILENAME);
+export function buildDefaultIndexPath(cwd: string, experiment?: string): string {
+  return path.join(buildDefaultRunDir(cwd, experiment), RESULT_INDEX_FILENAME);
 }
 
 export function resolveRunIndexPath(runDir: string): string {

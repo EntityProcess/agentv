@@ -15,7 +15,13 @@ import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { TargetsTab } from '~/components/TargetsTab';
-import { addProjectApi, discoverProjectsApi, useProjectList, useRunList } from '~/lib/api';
+import {
+  addProjectApi,
+  discoverProjectsApi,
+  useProjectList,
+  useRunList,
+  useStudioConfig,
+} from '~/lib/api';
 
 type TabId = 'runs' | 'experiments' | 'targets';
 
@@ -48,6 +54,7 @@ function HomePage() {
 
 function ProjectsDashboard() {
   const { data } = useProjectList();
+  const { data: config } = useStudioConfig();
   const queryClient = useQueryClient();
   const [addPath, setAddPath] = useState('');
   const [discoverPath, setDiscoverPath] = useState('');
@@ -56,6 +63,7 @@ function ProjectsDashboard() {
   const [showRunEval, setShowRunEval] = useState(false);
 
   const projects = data?.projects ?? [];
+  const isReadOnly = config?.read_only === true;
 
   async function handleAddProject(e: React.FormEvent) {
     e.preventDefault();
@@ -92,20 +100,24 @@ function ProjectsDashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-white">Projects</h1>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setShowRunEval(true)}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-          >
-            ▶ Run Eval
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
-          >
-            {showAddForm ? 'Cancel' : 'Add Project'}
-          </button>
+          {!isReadOnly && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowRunEval(true)}
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+              >
+                ▶ Run Eval
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
+              >
+                {showAddForm ? 'Cancel' : 'Add Project'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -115,7 +127,7 @@ function ProjectsDashboard() {
         </div>
       )}
 
-      {showAddForm && (
+      {!isReadOnly && showAddForm && (
         <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
           <form onSubmit={handleAddProject} className="flex gap-2">
             <input
@@ -156,7 +168,7 @@ function ProjectsDashboard() {
         ))}
       </div>
 
-      <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />
+      {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
     </div>
   );
 }
@@ -169,21 +181,25 @@ function SingleProjectHome() {
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
   const { data, isLoading, error } = useRunList();
+  const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
+  const isReadOnly = config?.read_only === true;
 
-  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
+  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
-        <button
-          type="button"
-          onClick={() => setShowRunEval(true)}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          ▶ Run Eval
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => setShowRunEval(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            ▶ Run Eval
+          </button>
+        )}
       </div>
 
       {/* Tab navigation */}
@@ -211,7 +227,7 @@ function SingleProjectHome() {
       {activeTab === 'experiments' && <ExperimentsTab />}
       {activeTab === 'targets' && <TargetsTab />}
 
-      <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />
+      {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
     </div>
   );
 }

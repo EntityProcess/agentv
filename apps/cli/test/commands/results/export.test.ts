@@ -138,6 +138,24 @@ describe('results export', () => {
     );
   });
 
+  it('deriveOutputDir preserves experiment directories for canonical nested runs', () => {
+    const outputDir = deriveOutputDir(
+      tempDir,
+      path.join(
+        tempDir,
+        '.agentv',
+        'results',
+        'runs',
+        'with-skills',
+        '2026-03-18T10-00-00-000Z',
+        'index.jsonl',
+      ),
+    );
+    expect(outputDir).toBe(
+      path.join(tempDir, '.agentv', 'results', 'export', 'with-skills', '2026-03-18T10-00-00-000Z'),
+    );
+  });
+
   it('deriveOutputDir rejects non-manifest paths', () => {
     expect(() => deriveOutputDir(tempDir, path.join(tempDir, 'results.jsonl'))).toThrow(
       'Expected a run manifest named index.jsonl',

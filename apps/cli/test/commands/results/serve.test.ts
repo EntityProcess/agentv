@@ -291,6 +291,41 @@ describe('serve app', () => {
       });
       expect(res3.status).toBe(400);
     });
+
+    it('returns 403 in read-only mode', async () => {
+      const content = toJsonl(RESULT_A, RESULT_B);
+      const results = loadResults(content);
+      const app = createApp(results, tempDir, undefined, undefined, {
+        studioDir,
+        readOnly: true,
+      });
+
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: 'blocked' }],
+        }),
+      });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('GET /api/config', () => {
+    it('includes read_only mode in the config payload', async () => {
+      const content = toJsonl(RESULT_A, RESULT_B);
+      const results = loadResults(content);
+      const app = createApp(results, tempDir, undefined, undefined, {
+        studioDir,
+        readOnly: true,
+      });
+
+      const res = await app.request('/api/config');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { read_only?: boolean };
+      expect(data.read_only).toBe(true);
+    });
   });
 
   // ── Empty state (no results) ────────────────────────────────────────
@@ -351,6 +386,41 @@ describe('serve app', () => {
       expect(data.results).toHaveLength(2);
       expect(data.results[0].testId).toBe('test-greeting');
       expect(data.source).toBe(filename);
+    });
+  });
+
+  describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
+    it('loads file content for experiment-scoped run ids', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-skills');
+      const runId = 'with-skills::2026-03-25T10-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const responsePath = path.join(
+        timestampDir,
+        'demo',
+        'test-greeting',
+        'outputs',
+        'response.md',
+      );
+
+      mkdirSync(path.dirname(responsePath), { recursive: true });
+      writeFileSync(responsePath, '@[assistant]:\nHello, Alice!');
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'with-skills',
+          output_path: 'demo/test-greeting/outputs/response.md',
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/demo/test-greeting/outputs/response.md`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { content: string };
+      expect(data.content).toContain('Hello, Alice!');
     });
   });
 
