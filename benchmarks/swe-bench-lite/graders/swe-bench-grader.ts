@@ -20,7 +20,7 @@
  *   pass_to_pass_count: Number of tests that must remain passing
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { defineCodeGrader } from '@agentv/eval';
 
 interface SWEBenchConfig {
@@ -31,12 +31,15 @@ interface SWEBenchConfig {
   pass_to_pass_count: number;
 }
 
-function runCommand(
-  cmd: string,
+/** Safe test name pattern — only allow expected SWE-bench test identifiers */
+const SAFE_TEST_NAME = /^[\w./:\-[\]]+$/;
+
+function runArgs(
+  args: readonly string[],
   cwd = '/testbed',
 ): { stdout: string; stderr: string; exitCode: number } {
   try {
-    const stdout = execSync(cmd, {
+    const stdout = execFileSync(args[0], args.slice(1), {
       cwd,
       encoding: 'utf8',
       timeout: 300_000,
@@ -57,7 +60,11 @@ export default defineCodeGrader(async ({ output, config }) => {
   const swebenchConfig = config as unknown as SWEBenchConfig;
   const { instance_id, fail_to_pass } = swebenchConfig;
 
-  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
+  const assertions: Array<{
+    text: string;
+    passed: boolean;
+    evidence?: string;
+  }> = [];
 
   // Extract the patch from agent output
   const agentOutput = output?.map((m) => String(m.content ?? '')).join('\n') ?? '';
@@ -90,35 +97,50 @@ export default defineCodeGrader(async ({ output, config }) => {
   const { writeFileSync } = await import('node:fs');
   writeFileSync(patchPath, patch);
 
-  const applyResult = runCommand(`git apply --verbose ${patchPath}`);
+  const applyResult = runArgs(['git', 'apply', '--verbose', patchPath]);
   const patchApplied = applyResult.exitCode === 0;
 
   if (!patchApplied) {
     // Try with --3way as fallback
-    const apply3way = runCommand(`git apply --3way ${patchPath}`);
+    const apply3way = runArgs(['git', 'apply', '--3way', patchPath]);
     if (apply3way.exitCode !== 0) {
       assertions.push({
         text: 'Patch applies cleanly',
         passed: false,
         evidence: `git apply failed: ${applyResult.stderr.slice(0, 500)}`,
       });
-      return { score: 0, assertions, metadata: { instance_id, patch_length: patch.length } };
+      return {
+        score: 0,
+        assertions,
+        metadata: { instance_id, patch_length: patch.length },
+      };
     }
   }
   assertions.push({ text: 'Patch applies cleanly', passed: true });
 
-  // Step 2: Run FAIL_TO_PASS tests
+  // Step 2: Run FAIL_TO_PASS tests (using execFileSync to avoid shell injection)
   let passedCount = 0;
   for (const testName of fail_to_pass) {
-    const testResult = runCommand(`python -m pytest ${testName} -x --tb=short -q 2>&1 || true`);
-    const passed = testResult.stdout.includes(' passed') && !testResult.stdout.includes(' failed');
+    // Validate test name to prevent injection
+    if (!SAFE_TEST_NAME.test(testName)) {
+      assertions.push({
+        text: `FAIL→PASS: ${testName}`,
+        passed: false,
+        evidence: 'Skipped: test name contains unsafe characters',
+      });
+      continue;
+    }
+
+    const testResult = runArgs(['python', '-m', 'pytest', testName, '-x', '--tb=short', '-q']);
+    const combinedOutput = `${testResult.stdout}\n${testResult.stderr}`;
+    const passed = combinedOutput.includes(' passed') && !combinedOutput.includes(' failed');
 
     assertions.push({
       text: `FAIL→PASS: ${testName}`,
       passed,
       evidence: passed
         ? 'Test now passes after patch'
-        : `Test still fails: ${testResult.stdout.slice(0, 300)}`,
+        : `Test still fails: ${combinedOutput.slice(0, 300)}`,
     });
 
     if (passed) passedCount++;

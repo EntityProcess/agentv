@@ -64,17 +64,19 @@ function validateResult(data: unknown): ValidationError[] {
   }
   if (errors.length > 0) return errors;
 
-  // Type checks
-  if (typeof obj.model !== 'string') errors.push({ path: 'model', message: 'Must be a string' });
-  if (typeof obj.provider !== 'string')
-    errors.push({ path: 'provider', message: 'Must be a string' });
+  // Type checks with length limits
+  if (typeof obj.model !== 'string' || (obj.model as string).length > 100)
+    errors.push({ path: 'model', message: 'Must be a string (max 100 chars)' });
+  if (typeof obj.provider !== 'string' || !/^[a-z0-9-]+$/.test(obj.provider as string))
+    errors.push({ path: 'provider', message: 'Must be lowercase alphanumeric with hyphens' });
   if (!VALID_MODEL_TYPES.includes(obj.model_type as string))
     errors.push({ path: 'model_type', message: `Must be one of: ${VALID_MODEL_TYPES.join(', ')}` });
   if (typeof obj.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(obj.date as string))
     errors.push({ path: 'date', message: 'Must be YYYY-MM-DD format' });
-  if (typeof obj.agent !== 'string') errors.push({ path: 'agent', message: 'Must be a string' });
-  if (typeof obj.agent_version !== 'string')
-    errors.push({ path: 'agent_version', message: 'Must be a string' });
+  if (typeof obj.agent !== 'string' || (obj.agent as string).length > 100)
+    errors.push({ path: 'agent', message: 'Must be a string (max 100 chars)' });
+  if (typeof obj.agent_version !== 'string' || (obj.agent_version as string).length > 50)
+    errors.push({ path: 'agent_version', message: 'Must be a string (max 50 chars)' });
   if (obj.dataset !== 'swe-bench-lite')
     errors.push({ path: 'dataset', message: 'Must be "swe-bench-lite"' });
 

@@ -33,6 +33,11 @@ interface ResultData {
 const resultsDir = join(process.cwd(), '../../benchmarks/swe-bench-lite/results');
 let results: ResultData[] = [];
 
+// Sanitize string for use in CSS class names (alphanumeric + hyphens only)
+function safeCssClass(s: string): string {
+  return s.replace(/[^a-z0-9-]/gi, '').toLowerCase();
+}
+
 try {
   const files = readdirSync(resultsDir).filter((f) => f.endsWith('.json'));
   results = files.map((f) => {
@@ -423,7 +428,7 @@ const providers = [...new Set(results.map((r) => r.provider))].sort();
                     <span class="av-model-name">{r.model}</span>
                     {isFrontier && <span class="av-frontier-badge" title="Pareto optimal"></span>}
                   </td>
-                  <td><span class={`av-provider-badge av-provider-${r.provider}`}>{r.provider}</span></td>
+                  <td><span class={`av-provider-badge av-provider-${safeCssClass(r.provider)}`}>{r.provider}</span></td>
                   <td class="av-resolved">{(r.resolution_rate * 100).toFixed(1)}%</td>
                   <td class="av-cost">${r.avg_cost_usd.toFixed(2)}</td>
                   <td class={`av-cost-fix ${costClass}`}>${r.avg_cost_per_fix_usd.toFixed(2)}</td>

@@ -39,6 +39,14 @@ interface SWEBenchInstance {
   environment_setup_commit: string;
 }
 
+/** Validate SWE-bench field values to prevent YAML injection */
+const SAFE_ID = /^[\w./-]+$/;
+function assertSafeField(name: string, value: string): void {
+  if (!SAFE_ID.test(value)) {
+    throw new Error(`Unsafe ${name}: ${JSON.stringify(value)}`);
+  }
+}
+
 /** Convert instance_id to Docker image tag (SWE-bench convention). */
 function instanceToImageTag(instanceId: string): string {
   // SWE-bench image naming: swebench/sweb.eval.x86_64.<repo>__<id>:<version>
@@ -94,6 +102,12 @@ async function fetchDataset(limit?: number): Promise<SWEBenchInstance[]> {
 
 /** Generate an EVAL.yaml file for a single SWE-bench instance. */
 function generateEvalYaml(instance: SWEBenchInstance): string {
+  // Validate fields that are interpolated into YAML outside block scalars
+  assertSafeField('instance_id', instance.instance_id);
+  assertSafeField('repo', instance.repo);
+  assertSafeField('base_commit', instance.base_commit);
+  assertSafeField('version', instance.version);
+
   const failToPass = JSON.parse(instance.FAIL_TO_PASS) as string[];
   const passToPass = JSON.parse(instance.PASS_TO_PASS) as string[];
   const imageTag = instanceToImageTag(instance.instance_id);
