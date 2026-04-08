@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
-  loadCompletedTestIds,
+  buildExclusionFilter,
   loadErrorTestIds,
+  loadFullyCompletedTestIds,
   loadNonErrorResults,
 } from '../../src/commands/eval/retry-errors.js';
 
@@ -135,7 +136,7 @@ describe('retry-errors', () => {
     expect(ids).toEqual(['case-2']);
   });
 
-  it('loadCompletedTestIds returns only non-error test IDs', async () => {
+  it('loadFullyCompletedTestIds returns only non-error test IDs', async () => {
     const filePath = createIndexFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0, error: 'timeout' },
@@ -148,28 +149,42 @@ describe('retry-errors', () => {
       },
     ]);
 
-    const ids = await loadCompletedTestIds(filePath);
+    const ids = await loadFullyCompletedTestIds(filePath);
     expect(ids).toEqual(['case-1', 'case-3']);
   });
 
-  it('loadCompletedTestIds returns empty array when all are errors', async () => {
+  it('loadFullyCompletedTestIds returns empty array when all are errors', async () => {
     const filePath = createIndexFile([
       { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
     ]);
 
-    const ids = await loadCompletedTestIds(filePath);
+    const ids = await loadFullyCompletedTestIds(filePath);
     expect(ids).toEqual([]);
   });
 
-  it('loadCompletedTestIds deduplicates IDs', async () => {
+  it('loadFullyCompletedTestIds excludes IDs that errored on any target (matrix safety)', async () => {
     const filePath = createIndexFile([
-      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
-      { test_id: 'case-1', execution_status: 'ok', score: 0.8 },
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9, target: 'gpt-4' },
+      { test_id: 'case-1', execution_status: 'execution_error', score: 0, target: 'claude' },
+      { test_id: 'case-2', execution_status: 'ok', score: 0.8, target: 'gpt-4' },
+      { test_id: 'case-2', execution_status: 'ok', score: 0.7, target: 'claude' },
     ]);
 
-    const ids = await loadCompletedTestIds(filePath);
-    expect(ids).toEqual(['case-1']);
+    const ids = await loadFullyCompletedTestIds(filePath);
+    // case-1 errored on claude, so it should NOT be excluded from retry
+    expect(ids).toEqual(['case-2']);
+  });
+
+  it('buildExclusionFilter escapes glob metacharacters in test IDs', () => {
+    expect(buildExclusionFilter(['simple'])).toBe('!simple');
+    expect(buildExclusionFilter(['a', 'b'])).toBe('!{a,b}');
+    // Braces, brackets, stars, question marks should be escaped
+    expect(buildExclusionFilter(['test[1]'])).toBe('!test\\[1\\]');
+    expect(buildExclusionFilter(['test{a}'])).toBe('!test\\{a\\}');
+    expect(buildExclusionFilter(['test*'])).toBe('!test\\*');
+    expect(buildExclusionFilter(['test?'])).toBe('!test\\?');
+    expect(buildExclusionFilter(['!negated'])).toBe('!\\!negated');
   });
 
   it('throws on malformed index.jsonl lines', async () => {
