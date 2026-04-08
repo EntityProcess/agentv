@@ -127,6 +127,29 @@ export interface ExperimentsResponse {
   experiments: ExperimentSummary[];
 }
 
+export interface CompareTestResult {
+  test_id: string;
+  score: number;
+  passed: boolean;
+  execution_status?: string;
+}
+
+export interface CompareCell {
+  experiment: string;
+  target: string;
+  eval_count: number;
+  passed_count: number;
+  pass_rate: number;
+  avg_score: number;
+  tests: CompareTestResult[];
+}
+
+export interface CompareResponse {
+  experiments: string[];
+  targets: string[];
+  cells: CompareCell[];
+}
+
 export interface TargetSummary {
   name: string;
   run_count: number;

@@ -8,17 +8,19 @@ import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-ro
 import { useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
+import { CompareTab } from '~/components/CompareTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { useProjectRunList, useStudioConfig } from '~/lib/api';
-import { projectExperimentsOptions, projectTargetsOptions } from '~/lib/api';
-import type { ExperimentsResponse, TargetsResponse } from '~/lib/types';
+import { projectCompareOptions, projectExperimentsOptions, projectTargetsOptions } from '~/lib/api';
+import type { CompareResponse, ExperimentsResponse, TargetsResponse } from '~/lib/types';
 
-type TabId = 'runs' | 'experiments' | 'targets';
+type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: 'Recent Runs' },
   { id: 'experiments', label: 'Experiments' },
+  { id: 'compare', label: 'Compare' },
   { id: 'targets', label: 'Targets' },
 ];
 
@@ -81,6 +83,7 @@ function ProjectHomePage() {
 
       {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} />}
       {activeTab === 'experiments' && <ProjectExperimentsTab projectId={projectId} />}
+      {activeTab === 'compare' && <ProjectCompareTab projectId={projectId} />}
       {activeTab === 'targets' && <ProjectTargetsTab projectId={projectId} />}
 
       {!isReadOnly && (
@@ -160,6 +163,11 @@ function ProjectExperimentsTab({ projectId }: { projectId: string }) {
       ))}
     </div>
   );
+}
+
+function ProjectCompareTab({ projectId }: { projectId: string }) {
+  const { data, isLoading } = useQuery(projectCompareOptions(projectId));
+  return <CompareTab data={data as CompareResponse | undefined} isLoading={isLoading} />;
 }
 
 function ProjectTargetsTab({ projectId }: { projectId: string }) {

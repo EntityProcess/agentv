@@ -518,6 +518,82 @@ function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
   return c.json({ experiments });
 }
 
+function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
+  const metas = listResultFiles(searchDir);
+  const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
+
+  // Collect per-test-case results keyed by experiment × target
+  const cellMap = new Map<
+    string,
+    {
+      experiment: string;
+      target: string;
+      evalCount: number;
+      passedCount: number;
+      scoreSum: number;
+      tests: Array<{
+        test_id: string;
+        score: number;
+        passed: boolean;
+        execution_status?: string;
+      }>;
+    }
+  >();
+
+  const experimentsSet = new Set<string>();
+  const targetsSet = new Set<string>();
+
+  for (const m of metas) {
+    try {
+      const records = loadLightweightResults(m.path);
+      for (const r of records) {
+        const experiment = r.experiment ?? 'default';
+        const target = r.target ?? 'default';
+        experimentsSet.add(experiment);
+        targetsSet.add(target);
+        const key = `${experiment}\0${target}`;
+        const entry = cellMap.get(key) ?? {
+          experiment,
+          target,
+          evalCount: 0,
+          passedCount: 0,
+          scoreSum: 0,
+          tests: [],
+        };
+        const passed = r.score >= pass_threshold;
+        entry.evalCount++;
+        if (passed) entry.passedCount++;
+        entry.scoreSum += r.score;
+        entry.tests.push({
+          test_id: r.testId,
+          score: r.score,
+          passed,
+          execution_status: r.executionStatus,
+        });
+        cellMap.set(key, entry);
+      }
+    } catch {
+      // skip runs that fail to load
+    }
+  }
+
+  const cells = [...cellMap.values()].map((entry) => ({
+    experiment: entry.experiment,
+    target: entry.target,
+    eval_count: entry.evalCount,
+    passed_count: entry.passedCount,
+    pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+    avg_score: entry.evalCount > 0 ? entry.scoreSum / entry.evalCount : 0,
+    tests: entry.tests,
+  }));
+
+  return c.json({
+    experiments: [...experimentsSet].sort(),
+    targets: [...targetsSet].sort(),
+    cells,
+  });
+}
+
 function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
   const metas = listResultFiles(searchDir);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
@@ -808,6 +884,7 @@ export function createApp(
   app.get('/api/runs/:filename/evals/:evalId/files', (c) => handleEvalFiles(c, defaultCtx));
   app.get('/api/runs/:filename/evals/:evalId/files/*', (c) => handleEvalFileContent(c, defaultCtx));
   app.get('/api/experiments', (c) => handleExperiments(c, defaultCtx));
+  app.get('/api/compare', (c) => handleCompare(c, defaultCtx));
   app.get('/api/targets', (c) => handleTargets(c, defaultCtx));
 
   // Feedback (unscoped — read uses defaultCtx.searchDir as resultDir)
@@ -914,6 +991,7 @@ export function createApp(
     withProject(c, handleEvalFileContent),
   );
   app.get('/api/projects/:projectId/experiments', (c) => withProject(c, handleExperiments));
+  app.get('/api/projects/:projectId/compare', (c) => withProject(c, handleCompare));
   app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
   app.get('/api/projects/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
 
