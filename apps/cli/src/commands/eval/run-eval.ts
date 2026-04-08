@@ -870,9 +870,6 @@ export async function runEvalCommand(
       .replace(/:/g, '-')
       .replace(/\./g, '-');
   }
-  if (!process.env.AGENTV_EXPERIMENT) {
-    process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
-  }
 
   // Load agentv.config.ts (if present) for default values
   let config: Awaited<ReturnType<typeof loadTsConfig>> = null;
@@ -899,6 +896,9 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  if (!process.env.AGENTV_EXPERIMENT) {
+    process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
+  }
 
   // Validate --grader-target / --model combinations
   if (options.graderTarget === 'agentv' && !options.model) {

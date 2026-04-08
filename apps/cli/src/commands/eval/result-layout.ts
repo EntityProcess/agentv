@@ -22,7 +22,11 @@ export function createRunDirName(timestamp = new Date()): string {
   return timestamp.toISOString().replace(/[:.]/g, '-');
 }
 
-export function buildDefaultRunDir(cwd: string, experiment?: string, timestamp = new Date()): string {
+export function buildDefaultRunDir(
+  cwd: string,
+  experiment?: string,
+  timestamp = new Date(),
+): string {
   return path.join(
     cwd,
     '.agentv',

@@ -923,7 +923,7 @@ export function createApp(
   registerEvalRoutes(
     app,
     (c) => {
-    // For project-scoped routes, resolve to project path; otherwise use searchDir
+      // For project-scoped routes, resolve to project path; otherwise use searchDir
       const projectId = c.req.param('projectId');
       if (projectId) {
         const project = getProject(projectId);
