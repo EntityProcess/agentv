@@ -85,18 +85,13 @@ export const importHuggingFaceCommand = command({
     // Execute via uv run
     try {
       await new Promise<void>((resolve, reject) => {
-        const child = execFile(
-          'uv',
-          ['run', ...args],
-          { maxBuffer: 50 * 1024 * 1024 },
-          (error) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          },
-        );
+        const child = execFile('uv', ['run', ...args], { maxBuffer: 50 * 1024 * 1024 }, (error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
 
         // Collect stderr for error reporting
         let stderrBuf = '';
@@ -127,7 +122,7 @@ export const importHuggingFaceCommand = command({
             // Surface a bounded stderr summary so the user sees what went wrong
             const tail = stderrBuf.trim().slice(-2000);
             if (tail) {
-              console.error(`\n--- import-huggingface.py stderr (last 2 000 chars) ---`);
+              console.error('\n--- import-huggingface.py stderr (last 2 000 chars) ---');
               console.error(tail);
             }
           }
