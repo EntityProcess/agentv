@@ -34,7 +34,12 @@ import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { buildDefaultRunDir } from './result-layout.js';
-import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
+import {
+  buildExclusionFilter,
+  loadErrorTestIds,
+  loadFullyCompletedTestIds,
+  loadNonErrorResults,
+} from './retry-errors.js';
 import { saveRunCache } from './run-cache.js';
 import { findRepoRoot } from './shared.js';
 import {
@@ -895,23 +900,29 @@ export async function runEvalCommand(
     throw new Error('--grader-target agentv requires --model (e.g., --model openai:gpt-5-mini)');
   }
 
-  // --retry-errors: override filter to only re-run execution_error test cases.
+  // --retry-errors: resume from a previous run by re-running execution_error and missing test cases.
+  // Uses an exclusion filter to skip already-completed (non-error) cases, which naturally includes
+  // both error cases and cases that never ran (e.g., due to a crash or interrupt).
   // IMPORTANT: JSONL must be fully loaded here, before the output writer is created below,
   // since the retry source and output destination may refer to the same file.
   let retryNonErrorResults: readonly EvaluationResult[] | undefined;
   if (options.retryErrors) {
     const retryPath = path.resolve(options.retryErrors);
     await ensureFileExists(retryPath, 'Retry-errors JSONL file');
+    const completedIds = await loadFullyCompletedTestIds(retryPath);
     const errorIds = await loadErrorTestIds(retryPath);
-    if (errorIds.length === 0) {
-      console.log('No execution errors found in the previous output. Nothing to retry.');
-      return;
-    }
-    console.log(`Retrying ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`);
-    // Override the filter to match only error test IDs using micromatch brace expansion
-    const filterPattern = errorIds.length === 1 ? errorIds[0] : `{${errorIds.join(',')}}`;
-    options = { ...options, filter: filterPattern };
     retryNonErrorResults = await loadNonErrorResults(retryPath);
+
+    if (errorIds.length > 0) {
+      console.log(`Found ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`);
+    }
+    // Use a negation filter to exclude fully-completed (non-error across all targets) cases.
+    // This re-runs error cases, cases missing from the output (crash recovery), and cases
+    // that errored on some targets even if they succeeded on others (matrix safety).
+    if (completedIds.length > 0) {
+      options = { ...options, filter: buildExclusionFilter(completedIds) };
+      console.log(`Skipping ${completedIds.length} already-completed test(s).`);
+    }
   }
 
   // Validate static workspace path exists and is a directory
@@ -1197,6 +1208,11 @@ export async function runEvalCommand(
   }
 
   if (totalEvalCount === 0) {
+    // When using --retry-errors, all tests being filtered means no errors or missing cases remain
+    if (options.retryErrors && retryNonErrorResults && retryNonErrorResults.length > 0) {
+      console.log('No execution errors or missing cases in the previous run. Nothing to retry.');
+      return;
+    }
     throw new Error('No tests matched the provided filters.');
   }
   const progressReporter = createProgressReporter(totalWorkers, { verbose: options.verbose });
