@@ -843,6 +843,8 @@ export interface EvalTest {
   readonly criteria: string;
   readonly evaluator?: EvaluatorKind;
   readonly assertions?: readonly EvaluatorConfig[];
+  /** Suite-level preprocessors used by the implicit default llm-grader. */
+  readonly preprocessors?: readonly ContentPreprocessorConfig[];
   /** Workspace configuration (merged from suite-level and case-level) */
   readonly workspace?: WorkspaceConfig;
   /** Arbitrary metadata passed to workspace scripts via stdin */

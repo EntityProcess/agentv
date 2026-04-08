@@ -512,6 +512,7 @@ async function loadTestsFromYaml(
       criteria: outcome ?? '',
       evaluator: testCaseEvaluatorKind,
       assertions: evaluators,
+      ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
       workspace: mergedWorkspace,
       metadata,
       targets: caseTargets,

@@ -58,6 +58,7 @@ import type {
   FailureStage,
   JsonObject,
   JsonValue,
+  LlmGraderEvaluatorConfig,
   TrialResult,
   TrialsConfig,
   WorkspaceHookConfig,
@@ -2287,6 +2288,10 @@ async function runEvaluatorsForCase(options: {
   if (!activeEvaluator) {
     throw new Error(`No evaluator registered for kind '${evaluatorKind}'`);
   }
+  const implicitEvaluator =
+    evaluatorKind === 'llm-grader' && !evalCase.assertions
+      ? buildImplicitLlmGraderConfig(evalCase)
+      : undefined;
 
   const score = await activeEvaluator.evaluate({
     evalCase,
@@ -2308,9 +2313,22 @@ async function runEvaluatorsForCase(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    ...(implicitEvaluator ? { evaluator: implicitEvaluator } : {}),
   });
 
   return { score };
+}
+
+function buildImplicitLlmGraderConfig(evalCase: EvalTest): LlmGraderEvaluatorConfig | undefined {
+  if (!evalCase.preprocessors || evalCase.preprocessors.length === 0) {
+    return undefined;
+  }
+
+  return {
+    name: 'llm-grader',
+    type: 'llm-grader',
+    preprocessors: evalCase.preprocessors,
+  };
 }
 
 async function runEvaluatorList(options: {

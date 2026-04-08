@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import { normalizePreprocessorType } from '../content-preprocessor.js';
 import type { ToolTrajectoryEvaluatorConfig, ToolTrajectoryExpectedItem } from '../trace.js';
 import type {
   ContentPreprocessorConfig,
@@ -1475,10 +1476,10 @@ async function parseMergedPreprocessors(
 
   const merged = new Map<string, ContentPreprocessorConfig>();
   for (const entry of parsedDefaults) {
-    merged.set(entry.type.toLowerCase(), entry);
+    merged.set(normalizePreprocessorType(entry.type), entry);
   }
   for (const entry of parsedOverrides ?? []) {
-    merged.set(entry.type.toLowerCase(), entry);
+    merged.set(normalizePreprocessorType(entry.type), entry);
   }
 
   return [...merged.values()];

@@ -155,6 +155,24 @@ interface StructuredGenerationResult {
   readonly tokenUsage?: TokenUsage;
 }
 
+function resolveContentBasePath(context: EvaluationContext): string | undefined {
+  if (context.workspacePath) {
+    return context.workspacePath;
+  }
+
+  if (
+    'config' in context.target &&
+    context.target.config &&
+    typeof context.target.config === 'object' &&
+    'cwd' in context.target.config &&
+    typeof context.target.config.cwd === 'string'
+  ) {
+    return context.target.config.cwd;
+  }
+
+  return undefined;
+}
+
 export class LlmGraderEvaluator implements Evaluator {
   readonly kind = 'llm-grader';
 
@@ -223,6 +241,9 @@ export class LlmGraderEvaluator implements Evaluator {
     const extracted = await extractTextWithPreprocessors(
       lastAssistant.content,
       config.preprocessors,
+      {
+        basePath: resolveContentBasePath(context),
+      },
     );
     return {
       ...context,

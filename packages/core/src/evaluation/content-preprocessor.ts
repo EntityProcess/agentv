@@ -41,6 +41,7 @@ export interface ExtractedContentText {
 export async function extractTextWithPreprocessors(
   content: string | readonly Content[] | undefined,
   preprocessors: readonly ContentPreprocessorConfig[] | undefined,
+  options: { readonly basePath?: string } = {},
 ): Promise<ExtractedContentText> {
   if (typeof content === 'string') {
     return { text: content, warnings: [] };
@@ -61,7 +62,7 @@ export async function extractTextWithPreprocessors(
       continue;
     }
 
-    const result = await preprocessContentFile(block, preprocessors);
+    const result = await preprocessContentFile(block, preprocessors, options.basePath);
     if (result.text) {
       parts.push(result.text);
     }
@@ -74,9 +75,10 @@ export async function extractTextWithPreprocessors(
 async function preprocessContentFile(
   block: ContentFile,
   preprocessors: readonly ContentPreprocessorConfig[] | undefined,
+  basePath?: string,
 ): Promise<ExtractedContentText> {
   const mediaType = normalizePreprocessorType(block.media_type);
-  const resolvedPath = resolveLocalFilePath(block.path);
+  const resolvedPath = resolveLocalFilePath(block.path, basePath);
 
   if (!resolvedPath) {
     return {
@@ -193,14 +195,14 @@ export function normalizePreprocessorType(value: string): string {
   return MIME_TYPE_ALIASES[normalized] ?? normalized;
 }
 
-function resolveLocalFilePath(value: string): string | undefined {
+function resolveLocalFilePath(value: string, basePath?: string): string | undefined {
   if (value.startsWith('file://')) {
     return fileURLToPath(value);
   }
   if (/^[a-z]+:\/\//i.test(value)) {
     return undefined;
   }
-  return path.resolve(value);
+  return basePath ? path.resolve(basePath, value) : path.resolve(value);
 }
 
 function formatFileText(filePath: string, text: string): string {

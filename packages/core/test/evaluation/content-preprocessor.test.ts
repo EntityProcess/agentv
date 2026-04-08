@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -60,6 +60,23 @@ console.log('sheet:' + payload.original_path.split('/').pop());`,
 
     expect(result.warnings).toEqual([]);
     expect(result.text).toContain('sheet:report.xlsx');
+  });
+
+  it('resolves relative file paths against the provided base path', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'agentv-preprocessor-'));
+    tempDirs.push(dir);
+    const nestedDir = join(dir, 'workspace');
+    await mkdir(nestedDir, { recursive: true });
+    await writeFile(join(nestedDir, 'report.txt'), 'from workspace', 'utf8');
+
+    const result = await extractTextWithPreprocessors(
+      [{ type: 'file', media_type: 'text/plain', path: 'report.txt' }],
+      undefined,
+      { basePath: nestedDir },
+    );
+
+    expect(result.warnings).toEqual([]);
+    expect(result.text).toContain('from workspace');
   });
 
   it('records a warning when default UTF-8 extraction looks binary', async () => {
