@@ -106,9 +106,12 @@ export class DockerWorkspaceProvider {
   /** Pull the configured Docker image. No-op if already cached locally. */
   async pullImage(): Promise<void> {
     // Skip pull if image already exists locally (e.g. locally-built images)
-    const inspectResult = await this.executor.exec(['docker', 'image', 'inspect', this.config.image], {
-      timeoutMs: 10_000,
-    });
+    const inspectResult = await this.executor.exec(
+      ['docker', 'image', 'inspect', this.config.image],
+      {
+        timeoutMs: 10_000,
+      },
+    );
     if (inspectResult.exitCode === 0) {
       return; // Image exists locally, no pull needed
     }
