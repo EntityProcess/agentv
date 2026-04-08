@@ -4,6 +4,12 @@ Run [SWE-bench Lite](https://www.swebench.com/) (300 instances) through AgentV w
 
 ## Quick Start
 
+### Prerequisites
+
+- **Docker** — Required for running SWE-bench instances. Each instance runs in a pre-built Docker container.
+- **Bun** — Used to run setup and CLI scripts
+- **An LLM API key** — Set via `--target` flag or provider env vars
+
 ### 1. Setup
 
 Download the dataset from HuggingFace and generate EVAL.yaml files:

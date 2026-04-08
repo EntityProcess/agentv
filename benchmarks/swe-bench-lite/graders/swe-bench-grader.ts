@@ -3,13 +3,13 @@
  * SWE-bench Grader for AgentV
  *
  * A code-grader that evaluates agent patches against SWE-bench test suites.
- * Runs inside the Docker container alongside the repository under test.
+ * Runs inside the Docker container via `docker exec` (handled by Docker workspace provider).
  *
  * Flow:
  * 1. Receives agent output (patch/diff) via stdin payload
  * 2. Applies the patch to the repository at /testbed
- * 3. Runs the test suite
- * 4. Checks FAIL_TO_PASS transitions (tests that should now pass)
+ * 3. Runs the FAIL_TO_PASS tests
+ * 4. Checks which failing tests now pass
  * 5. Returns structured score + assertions
  *
  * Config (from EVAL.yaml):
@@ -20,6 +20,7 @@
  *   pass_to_pass_count: Number of tests that must remain passing
  */
 
+import { execSync } from 'node:child_process';
 import { defineCodeGrader } from '@agentv/eval';
 
 interface SWEBenchConfig {
@@ -30,14 +31,38 @@ interface SWEBenchConfig {
   pass_to_pass_count: number;
 }
 
-export default defineCodeGrader(async ({ output, config, workspacePath }) => {
+function runCommand(
+  cmd: string,
+  cwd = '/testbed',
+): { stdout: string; stderr: string; exitCode: number } {
+  try {
+    const stdout = execSync(cmd, {
+      cwd,
+      encoding: 'utf8',
+      timeout: 300_000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { stdout, stderr: '', exitCode: 0 };
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string; status?: number };
+    return {
+      stdout: String(e.stdout ?? ''),
+      stderr: String(e.stderr ?? ''),
+      exitCode: typeof e.status === 'number' ? e.status : 1,
+    };
+  }
+}
+
+export default defineCodeGrader(async ({ output, config }) => {
   const swebenchConfig = config as unknown as SWEBenchConfig;
   const { instance_id, fail_to_pass } = swebenchConfig;
+
+  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
   // Extract the patch from agent output
   const agentOutput = output?.map((m) => String(m.content ?? '')).join('\n') ?? '';
 
-  // Extract diff content from agent output (look for unified diff markers)
+  // Extract diff content (unified diff format)
   const diffMatch = agentOutput.match(/^(---|\+\+\+|diff --git)[\s\S]*$/m);
   const patch = diffMatch ? diffMatch[0] : agentOutput;
 
@@ -54,50 +79,53 @@ export default defineCodeGrader(async ({ output, config, workspacePath }) => {
     };
   }
 
-  // In Docker execution mode, AgentV handles:
-  // 1. Writing the patch to /tmp/patch.diff inside the container
-  // 2. The grader script runs inside the container with access to /testbed
-  //
-  // Here we simulate the grading logic that would run inside the container.
-  // The actual container execution is handled by the Docker workspace provider.
-
-  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
-
-  // Check 1: Agent produced a patch
   assertions.push({
     text: 'Agent produced a patch',
-    passed: patch.length > 0,
-    evidence: `Patch length: ${patch.length} characters`,
+    passed: true,
+    evidence: `Patch length: ${patch.length} chars`,
   });
 
-  // Check 2: Patch applies cleanly (would be validated inside container)
-  const hasDiffMarkers =
-    patch.includes('diff --git') || patch.includes('---') || patch.includes('+++');
-  assertions.push({
-    text: 'Patch has valid diff format',
-    passed: hasDiffMarkers,
-    evidence: hasDiffMarkers ? 'Contains unified diff markers' : 'Missing diff markers',
-  });
+  // Step 1: Write patch to a temp file and apply it
+  const patchPath = '/tmp/agent-patch.diff';
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(patchPath, patch);
 
-  // Check 3: FAIL_TO_PASS tests (the core SWE-bench metric)
-  // In real execution, this would run pytest inside the container and check results.
-  // The Docker workspace provider pipes the grader command into the container.
-  //
-  // For the grader template, we structure the assertions so the Docker provider
-  // can populate them with real test results.
+  const applyResult = runCommand(`git apply --verbose ${patchPath}`);
+  const patchApplied = applyResult.exitCode === 0;
+
+  if (!patchApplied) {
+    // Try with --3way as fallback
+    const apply3way = runCommand(`git apply --3way ${patchPath}`);
+    if (apply3way.exitCode !== 0) {
+      assertions.push({
+        text: 'Patch applies cleanly',
+        passed: false,
+        evidence: `git apply failed: ${applyResult.stderr.slice(0, 500)}`,
+      });
+      return { score: 0, assertions, metadata: { instance_id, patch_length: patch.length } };
+    }
+  }
+  assertions.push({ text: 'Patch applies cleanly', passed: true });
+
+  // Step 2: Run FAIL_TO_PASS tests
+  let passedCount = 0;
   for (const testName of fail_to_pass) {
+    const testResult = runCommand(`python -m pytest ${testName} -x --tb=short -q 2>&1 || true`);
+    const passed = testResult.stdout.includes(' passed') && !testResult.stdout.includes(' failed');
+
     assertions.push({
       text: `FAIL→PASS: ${testName}`,
-      passed: false, // Will be set by container execution
-      evidence: 'Pending container execution',
+      passed,
+      evidence: passed
+        ? 'Test now passes after patch'
+        : `Test still fails: ${testResult.stdout.slice(0, 300)}`,
     });
+
+    if (passed) passedCount++;
   }
 
   // Score: proportion of FAIL_TO_PASS tests that now pass
-  const failToPassPassed = assertions.filter(
-    (a) => a.text.startsWith('FAIL→PASS:') && a.passed,
-  ).length;
-  const score = fail_to_pass.length > 0 ? failToPassPassed / fail_to_pass.length : 0;
+  const score = fail_to_pass.length > 0 ? passedCount / fail_to_pass.length : 0;
 
   return {
     score,
@@ -106,7 +134,7 @@ export default defineCodeGrader(async ({ output, config, workspacePath }) => {
       instance_id,
       patch_length: patch.length,
       fail_to_pass_total: fail_to_pass.length,
-      fail_to_pass_resolved: failToPassPassed,
+      fail_to_pass_resolved: passedCount,
     },
   };
 });
