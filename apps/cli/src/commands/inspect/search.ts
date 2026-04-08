@@ -176,7 +176,9 @@ function formatSearchResults(matches: SearchMatch[], pattern: string): string {
 
   lines.push('');
   lines.push(`${c.bold}Search Results${c.reset} ${c.dim}pattern: /${pattern}/${c.reset}`);
-  lines.push(`${c.dim}${matches.length} record${matches.length !== 1 ? 's' : ''} matched${c.reset}`);
+  lines.push(
+    `${c.dim}${matches.length} record${matches.length !== 1 ? 's' : ''} matched${c.reset}`,
+  );
   lines.push('');
 
   // Group by file
