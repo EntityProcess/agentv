@@ -1,0 +1,12 @@
+$schema: agentv-targets-v2.2
+targets:
+  - name: file_output
+    provider: file-output
+    command: bun run .agentv/providers/file-output.ts {OUTPUT_FILE}
+    cwd: ..
+    grader_target: grader_check
+
+  - name: grader_check
+    provider: grader-check
+    command: bun run .agentv/providers/grader-check.ts {PROMPT_FILE} {OUTPUT_FILE}
+    cwd: ..
