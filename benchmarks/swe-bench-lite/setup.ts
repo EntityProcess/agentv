@@ -158,14 +158,13 @@ ${problemBlock}
           Important: Only output the diff, no explanation needed.
     assertions:
       - type: code-grader
-        value: ./graders/swe-bench-grader.ts
-        config:
-          instance_id: "${instance.instance_id}"
-          repo: "${instance.repo}"
-          base_commit: "${instance.base_commit}"
-          fail_to_pass:
-${failToPass.map((t) => `            - "${t.replace(/"/g, '\\"')}"`).join('\n')}
-          pass_to_pass_count: ${passToPass.length}
+        command: ["python", "/grader.py"]
+        instance_id: "${instance.instance_id}"
+        repo: "${instance.repo}"
+        base_commit: "${instance.base_commit}"
+        fail_to_pass:
+${failToPass.map((t) => `          - "${t.replace(/"/g, '\\"')}"`).join('\n')}
+        pass_to_pass_count: ${passToPass.length}
 `;
 }
 

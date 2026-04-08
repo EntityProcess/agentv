@@ -1,0 +1,38 @@
+# E2E test eval - validates Docker workspace + grader pipeline
+description: "E2E test: fix calculator bug in Docker container"
+
+workspace:
+  docker:
+    image: "agentv-test-eval:latest"
+    timeout: 120
+    memory: "1g"
+
+tests:
+  - id: "calculator-add-bug"
+    input:
+      - role: user
+        content: |
+          You are a software engineer. The repository at /testbed has a bug in calculator.py.
+          The function add(a, b) returns a - b instead of a + b.
+
+          Here is the buggy file:
+          ```python
+          def add(a, b):
+              return a - b  # BUG: should be a + b
+
+          def subtract(a, b):
+              return a - b
+          ```
+
+          The test test_calculator.py::test_add is failing because add(2,3) returns -1 instead of 5.
+
+          Fix the bug and output ONLY a unified diff (git diff format) that changes `return a - b` to `return a + b` in the add function. No explanation, just the diff.
+    assertions:
+      - type: code-grader
+        command: ["python", "/grader.py"]
+        instance_id: "calculator-add-bug"
+        repo: "test/calculator"
+        base_commit: "initial"
+        fail_to_pass:
+          - "test_calculator.py::test_add"
+        pass_to_pass_count: 0
