@@ -551,7 +551,7 @@ function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
         const target = r.target ?? 'default';
         experimentsSet.add(experiment);
         targetsSet.add(target);
-        const key = `${experiment}\0${target}`;
+        const key = JSON.stringify([experiment, target]);
         const entry = cellMap.get(key) ?? {
           experiment,
           target,
@@ -577,15 +577,29 @@ function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     }
   }
 
-  const cells = [...cellMap.values()].map((entry) => ({
-    experiment: entry.experiment,
-    target: entry.target,
-    eval_count: entry.evalCount,
-    passed_count: entry.passedCount,
-    pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
-    avg_score: entry.evalCount > 0 ? entry.scoreSum / entry.evalCount : 0,
-    tests: entry.tests,
-  }));
+  const MAX_TESTS_PER_CELL = 100;
+
+  const cells = [...cellMap.values()].map((entry) => {
+    // Deduplicate tests: keep only the latest entry per test_id (last wins by insertion order)
+    const dedupMap = new Map<string, (typeof entry.tests)[number]>();
+    for (const t of entry.tests) {
+      dedupMap.set(t.test_id, t);
+    }
+    const dedupedTests = [...dedupMap.values()];
+
+    // Cap to most recent entries to prevent unbounded payloads
+    const cappedTests = dedupedTests.slice(-MAX_TESTS_PER_CELL);
+
+    return {
+      experiment: entry.experiment,
+      target: entry.target,
+      eval_count: entry.evalCount,
+      passed_count: entry.passedCount,
+      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+      avg_score: entry.evalCount > 0 ? entry.scoreSum / entry.evalCount : 0,
+      tests: cappedTests,
+    };
+  });
 
   return c.json({
     experiments: [...experimentsSet].sort(),

@@ -237,8 +237,8 @@ function SingleProjectHome() {
 }
 
 function CompareTabContent() {
-  const { data, isLoading } = useCompare();
-  return <CompareTab data={data} isLoading={isLoading} />;
+  const { data, isLoading, isError, error } = useCompare();
+  return <CompareTab data={data} isLoading={isLoading} isError={isError} error={error} />;
 }
 
 function RunsTabContent({

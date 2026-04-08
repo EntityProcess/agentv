@@ -16,11 +16,21 @@ import type { CompareCell, CompareResponse, CompareTestResult } from '~/lib/type
 interface CompareTabProps {
   data: CompareResponse | undefined;
   isLoading: boolean;
+  isError?: boolean;
+  error?: Error | null;
 }
 
-export function CompareTab({ data, isLoading }: CompareTabProps) {
+export function CompareTab({ data, isLoading, isError, error }: CompareTabProps) {
   if (isLoading) {
     return <LoadingSkeleton />;
+  }
+
+  if (isError && error) {
+    return (
+      <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-6 text-red-400">
+        Failed to load comparison data: {error.message}
+      </div>
+    );
   }
 
   if (!data || data.cells.length === 0) {
@@ -54,7 +64,7 @@ export function CompareTab({ data, isLoading }: CompareTabProps) {
   // Build a lookup map for cells
   const cellMap = new Map<string, CompareCell>();
   for (const cell of cells) {
-    cellMap.set(`${cell.experiment}\0${cell.target}`, cell);
+    cellMap.set(JSON.stringify([cell.experiment, cell.target]), cell);
   }
 
   // Find best pass rate per row (target) for highlighting
@@ -64,7 +74,7 @@ export function CompareTab({ data, isLoading }: CompareTabProps) {
     let best = -1;
     let worst = 2;
     for (const experiment of experiments) {
-      const cell = cellMap.get(`${experiment}\0${target}`);
+      const cell = cellMap.get(JSON.stringify([experiment, target]));
       if (cell) {
         if (cell.pass_rate > best) best = cell.pass_rate;
         if (cell.pass_rate < worst) worst = cell.pass_rate;
@@ -142,7 +152,7 @@ function CompareRow({
     <tr className="transition-colors hover:bg-gray-900/30">
       <td className="px-4 py-3 font-medium text-gray-200">{target}</td>
       {experiments.map((exp) => {
-        const cell = cellMap.get(`${exp}\0${target}`);
+        const cell = cellMap.get(JSON.stringify([exp, target]));
         return (
           <td key={exp} className="px-2 py-2">
             {cell ? (
@@ -197,6 +207,7 @@ function CompareMatrixCell({
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         className={`w-full rounded-lg px-3 py-3 text-center ring-1 transition-colors ${passRateColorClass(cell.pass_rate)} hover:brightness-110 ${
           isBest ? 'ring-2 ring-emerald-500/60' : isWorst ? 'ring-2 ring-red-500/40' : ''
         }`}

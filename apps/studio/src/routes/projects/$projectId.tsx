@@ -13,7 +13,7 @@ import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { useProjectRunList, useStudioConfig } from '~/lib/api';
 import { projectCompareOptions, projectExperimentsOptions, projectTargetsOptions } from '~/lib/api';
-import type { CompareResponse, ExperimentsResponse, TargetsResponse } from '~/lib/types';
+import type { ExperimentsResponse, TargetsResponse } from '~/lib/types';
 
 type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
 
@@ -166,8 +166,8 @@ function ProjectExperimentsTab({ projectId }: { projectId: string }) {
 }
 
 function ProjectCompareTab({ projectId }: { projectId: string }) {
-  const { data, isLoading } = useQuery(projectCompareOptions(projectId));
-  return <CompareTab data={data as CompareResponse | undefined} isLoading={isLoading} />;
+  const { data, isLoading, isError, error } = useQuery(projectCompareOptions(projectId));
+  return <CompareTab data={data} isLoading={isLoading} isError={isError} error={error} />;
 }
 
 function ProjectTargetsTab({ projectId }: { projectId: string }) {
