@@ -53,3 +53,22 @@ jobs:
 
       - name: Validate eval schemas
         run: bun apps/cli/dist/cli.js validate 'examples/features/**/evals/**/*.eval.yaml' 'examples/features/**/*.EVAL.yaml'
+
+  benchmark-results:
+    name: Validate Benchmark Results
+    runs-on: ubuntu-latest
+    if: >-
+      contains(github.event.pull_request.title, 'benchmark') ||
+      contains(join(github.event.pull_request.labels.*.name, ','), 'benchmark') ||
+      github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bun
+
+      - name: Validate SWE-bench Lite result JSON files
+        run: |
+          if ls benchmarks/swe-bench-lite/results/*.json 1> /dev/null 2>&1; then
+            bun benchmarks/swe-bench-lite/validate-result.ts benchmarks/swe-bench-lite/results/*.json
+          else
+            echo "No result files found — skipping"
+          fi
