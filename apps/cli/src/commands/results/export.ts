@@ -59,7 +59,14 @@ export function deriveOutputDir(cwd: string, sourceFile: string): string {
     throw new Error(`Expected a run manifest named ${RESULT_INDEX_FILENAME}: ${sourceFile}`);
   }
 
-  const parentDir = path.basename(path.dirname(sourceFile));
+  const runDir = path.dirname(sourceFile);
+  const segments = path.normalize(runDir).split(path.sep).filter(Boolean);
+  const runsIndex = segments.lastIndexOf('runs');
+  if (runsIndex >= 0 && runsIndex < segments.length - 1) {
+    return path.join(cwd, '.agentv', 'results', 'export', ...segments.slice(runsIndex + 1));
+  }
+
+  const parentDir = path.basename(runDir);
   if (parentDir.startsWith('eval_')) {
     return path.join(cwd, '.agentv', 'results', 'export', parentDir.slice(5));
   }

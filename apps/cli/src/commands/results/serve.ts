@@ -431,12 +431,11 @@ function handleEvalFiles(c: C, { searchDir }: DataContext) {
 
 function handleEvalFileContent(c: C, { searchDir }: DataContext) {
   const filename = c.req.param('filename');
-  const evalId = c.req.param('evalId');
   const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
-  // Extract file path from wildcard using a mount-agnostic marker
-  const marker = `/runs/${filename}/evals/${evalId}/files/`;
+  // Extract the wildcard suffix without depending on decoded route params.
+  const marker = '/files/';
   const markerIdx = c.req.path.indexOf(marker);
   const filePath = markerIdx >= 0 ? c.req.path.slice(markerIdx + marker.length) : '';
 

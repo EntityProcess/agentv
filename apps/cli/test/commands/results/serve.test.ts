@@ -389,6 +389,41 @@ describe('serve app', () => {
     });
   });
 
+  describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
+    it('loads file content for experiment-scoped run ids', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-skills');
+      const runId = 'with-skills::2026-03-25T10-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const responsePath = path.join(
+        timestampDir,
+        'demo',
+        'test-greeting',
+        'outputs',
+        'response.md',
+      );
+
+      mkdirSync(path.dirname(responsePath), { recursive: true });
+      writeFileSync(responsePath, '@[assistant]:\nHello, Alice!');
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'with-skills',
+          output_path: 'demo/test-greeting/outputs/response.md',
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/demo/test-greeting/outputs/response.md`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { content: string };
+      expect(data.content).toContain('Hello, Alice!');
+    });
+  });
+
   // ── SPA fallback ──────────────────────────────────────────────────────
 
   describe('SPA fallback', () => {
