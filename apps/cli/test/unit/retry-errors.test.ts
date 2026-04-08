@@ -3,7 +3,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { loadErrorTestIds, loadNonErrorResults } from '../../src/commands/eval/retry-errors.js';
+import {
+  loadCompletedTestIds,
+  loadErrorTestIds,
+  loadNonErrorResults,
+} from '../../src/commands/eval/retry-errors.js';
 
 describe('retry-errors', () => {
   let tmpDir: string;
@@ -129,6 +133,38 @@ describe('retry-errors', () => {
 
     const ids = await loadErrorTestIds(filePath);
     expect(ids).toEqual(['case-2']);
+  });
+
+  it('loadCompletedTestIds returns only non-error test IDs', async () => {
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-2', execution_status: 'execution_error', score: 0, error: 'timeout' },
+      { test_id: 'case-3', execution_status: 'quality_failure', score: 0.3 },
+      { test_id: 'case-4', execution_status: 'execution_error', score: 0, error: 'provider failed' },
+    ]);
+
+    const ids = await loadCompletedTestIds(filePath);
+    expect(ids).toEqual(['case-1', 'case-3']);
+  });
+
+  it('loadCompletedTestIds returns empty array when all are errors', async () => {
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
+      { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
+    ]);
+
+    const ids = await loadCompletedTestIds(filePath);
+    expect(ids).toEqual([]);
+  });
+
+  it('loadCompletedTestIds deduplicates IDs', async () => {
+    const filePath = createIndexFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-1', execution_status: 'ok', score: 0.8 },
+    ]);
+
+    const ids = await loadCompletedTestIds(filePath);
+    expect(ids).toEqual(['case-1']);
   });
 
   it('throws on malformed index.jsonl lines', async () => {

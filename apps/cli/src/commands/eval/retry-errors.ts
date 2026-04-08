@@ -18,6 +18,18 @@ export async function loadErrorTestIds(jsonlPath: string): Promise<readonly stri
 }
 
 /**
+ * Load test IDs from an index/results source that completed successfully (non-error).
+ * Used for resume: any test NOT in this set needs to be re-run.
+ */
+export async function loadCompletedTestIds(jsonlPath: string): Promise<readonly string[]> {
+  const ids = (await loadRetrySourceResults(jsonlPath))
+    .filter((result) => result.testId && result.executionStatus !== 'execution_error')
+    .map((result) => result.testId);
+
+  return [...new Set(ids)];
+}
+
+/**
  * Load results from an index/results source that do NOT have executionStatus === 'execution_error'.
  * These are the "good" results that should be preserved when merging retry output.
  */
