@@ -140,7 +140,12 @@ describe('retry-errors', () => {
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0, error: 'timeout' },
       { test_id: 'case-3', execution_status: 'quality_failure', score: 0.3 },
-      { test_id: 'case-4', execution_status: 'execution_error', score: 0, error: 'provider failed' },
+      {
+        test_id: 'case-4',
+        execution_status: 'execution_error',
+        score: 0,
+        error: 'provider failed',
+      },
     ]);
 
     const ids = await loadCompletedTestIds(filePath);
