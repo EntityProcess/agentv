@@ -183,7 +183,7 @@ async function parseEvaluatorList(
 
     const customTypeName = isCustomType ? typeValue : undefined;
 
-    // Auto-generate name for assertion types if not provided
+    // Auto-generate name from type if not provided
     const name =
       rawName ??
       (isCustomType ? typeValue : generateAssertionName(typeValue as EvaluatorKind, rawEvaluator));
@@ -1539,32 +1539,12 @@ export async function parsePreprocessors(
   return preprocessors;
 }
 
-/** Assertion evaluator types that support auto-generated names. */
-const ASSERTION_TYPES = new Set([
-  'skill-trigger',
-  'contains',
-  'contains-any',
-  'contains-all',
-  'icontains',
-  'icontains-any',
-  'icontains-all',
-  'starts-with',
-  'ends-with',
-  'regex',
-  'is-json',
-  'equals',
-  'rubrics',
-]);
-
 /**
- * Generate a descriptive name for assertion-type evaluators when no explicit name is given.
- * Returns undefined for non-assertion types (those still require an explicit name).
+ * Generate a descriptive name for evaluators when no explicit name is given.
+ * Returns the type name as a fallback so evaluators are never skipped just
+ * because the author omitted `name`.
  */
-function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): string | undefined {
-  if (!ASSERTION_TYPES.has(typeValue)) {
-    return undefined;
-  }
-
+function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): string {
   const value = asString(rawEvaluator.value);
   const arrayValue = Array.isArray(rawEvaluator.value) ? rawEvaluator.value : undefined;
 
@@ -1598,7 +1578,9 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
     case 'rubrics':
       return 'rubrics';
     default:
-      return undefined;
+      // For all other evaluator types (llm-grader, code-grader, latency, etc.),
+      // use the type name itself as the auto-derived name.
+      return typeValue;
   }
 }
 
