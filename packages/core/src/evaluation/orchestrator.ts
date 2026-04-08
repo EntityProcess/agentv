@@ -1215,11 +1215,9 @@ async function runBatchEvaluation(options: {
     const promptInputs = promptInputsList[index];
     return {
       question: promptInputs.question,
+      systemPrompt: promptInputs.systemMessage,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
-      metadata: {
-        systemPrompt: promptInputs.systemMessage ?? '',
-      },
     };
   });
 
@@ -2665,13 +2663,11 @@ async function invokeProvider(
 
     return await provider.invoke({
       question: promptInputs.question,
+      systemPrompt: promptInputs.systemMessage,
       chatPrompt: promptInputs.chatPrompt,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       attempt,
-      metadata: {
-        systemPrompt: promptInputs.systemMessage ?? '',
-      },
       signal: controller.signal,
       cwd,
       workspaceFile,
