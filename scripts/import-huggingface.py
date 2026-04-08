@@ -165,12 +165,10 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     if assertions:
         test_case["assertions"] = assertions
 
-    # Add metadata
+    # Add metadata (informational only — repo/base_commit are in workspace.docker)
     metadata: dict[str, Any] = {}
     if repo:
         metadata["repo"] = repo
-    if base_commit:
-        metadata["base_commit"] = base_commit
     if difficulty is not None:
         metadata["difficulty"] = str(difficulty)
     if metadata:
@@ -183,14 +181,17 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     }
 
     # Docker workspace config
+    # base_commit is part of the workspace, not metadata — the container must be
+    # checked out at this commit for the patch to apply and tests to match.
     if repo:
-        eval_doc["workspace"] = {
-            "docker": {
-                "image": _docker_image_for_repo(repo),
-                "timeout": 600,
-                "memory": "4g",
-            },
+        docker_config: dict[str, Any] = {
+            "image": _docker_image_for_repo(repo),
+            "timeout": 600,
+            "memory": "4g",
         }
+        if base_commit:
+            docker_config["base_commit"] = base_commit
+        eval_doc["workspace"] = {"docker": docker_config}
 
     eval_doc["tests"] = [test_case]
 
