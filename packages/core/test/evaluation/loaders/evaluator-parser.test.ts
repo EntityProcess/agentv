@@ -779,9 +779,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       // Rubric should be skipped since it has no 'outcome' field
       expect(config.rubrics ?? []).toHaveLength(0);
     }
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("missing outcome"),
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing outcome'));
     warnSpy.mockRestore();
   });
 });
