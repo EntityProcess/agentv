@@ -83,8 +83,7 @@ export async function resolveCustomPrompt(
  */
 export function containsTemplateVariables(text: string): boolean {
   const variablePattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = variablePattern.exec(text)) !== null) {
+  for (const match of text.matchAll(variablePattern)) {
     if (VALID_TEMPLATE_VARIABLES.has(match[1])) {
       return true;
     }

@@ -31,10 +31,7 @@ import {
   runStartsWithAssertion,
 } from '../evaluators.js';
 import { InlineAssertEvaluator } from '../evaluators/inline-assert.js';
-import {
-  containsTemplateVariables,
-  resolveCustomPrompt,
-} from '../evaluators/prompt-resolution.js';
+import { containsTemplateVariables, resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
 import { isAgentProvider } from '../providers/types.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
