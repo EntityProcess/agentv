@@ -11,9 +11,9 @@
  * To extend: add new filter predicates in `buildFilterPredicate()`.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { command, number, option, optional, positional, string } from 'cmd-ts';
+import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
 import { c, formatScore, padLeft, padRight } from './utils.js';
 
 /** A lightweight result record with fields needed for filtering. */
@@ -191,6 +191,10 @@ export function buildFilterPredicate(opts: {
 function discoverFilterSources(searchPath: string | undefined, cwd: string): string[] {
   if (searchPath) {
     const resolved = path.isAbsolute(searchPath) ? searchPath : path.resolve(cwd, searchPath);
+    if (!existsSync(resolved)) {
+      console.error(`${c.red}Error:${c.reset} Path does not exist: ${resolved}`);
+      process.exit(1);
+    }
     try {
       if (statSync(resolved).isDirectory()) {
         return collectIndexFiles(resolved);
@@ -301,7 +305,7 @@ export const inspectFilterCommand = command({
       description: 'Working directory (default: current directory)',
     }),
     format: option({
-      type: optional(string),
+      type: optional(oneOf(['table', 'json'])),
       long: 'format',
       short: 'f',
       description: 'Output format: table (default) or json',

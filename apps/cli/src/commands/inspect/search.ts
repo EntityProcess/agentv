@@ -13,9 +13,10 @@
  * JSONL-based data directories.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { command, option, optional, positional, string } from 'cmd-ts';
+import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
+import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { c, padRight } from './utils.js';
 
 /** A single search match within a JSONL line. */
@@ -144,6 +145,10 @@ export function searchJsonlFile(
 function discoverSources(basePath: string | undefined, cwd: string): string[] {
   if (basePath) {
     const resolved = path.isAbsolute(basePath) ? basePath : path.resolve(cwd, basePath);
+    if (!existsSync(resolved)) {
+      console.error(`${c.red}Error:${c.reset} Path does not exist: ${resolved}`);
+      process.exit(1);
+    }
     try {
       if (statSync(resolved).isDirectory()) {
         return collectJsonlFiles(resolved);
@@ -171,7 +176,7 @@ function formatSearchResults(matches: SearchMatch[], pattern: string): string {
 
   lines.push('');
   lines.push(`${c.bold}Search Results${c.reset} ${c.dim}pattern: /${pattern}/${c.reset}`);
-  lines.push(`${c.dim}${matches.length} match${matches.length !== 1 ? 'es' : ''} found${c.reset}`);
+  lines.push(`${c.dim}${matches.length} record${matches.length !== 1 ? 's' : ''} matched${c.reset}`);
   lines.push('');
 
   // Group by file
@@ -236,7 +241,7 @@ export const inspectSearchCommand = command({
       description: 'Working directory (default: current directory)',
     }),
     format: option({
-      type: optional(string),
+      type: optional(oneOf(['table', 'json'])),
       long: 'format',
       short: 'f',
       description: 'Output format: table (default) or json',
@@ -270,7 +275,7 @@ export const inspectSearchCommand = command({
     }
 
     if (format === 'json') {
-      console.log(JSON.stringify(allMatches, null, 2));
+      console.log(JSON.stringify(toSnakeCaseDeep(allMatches), null, 2));
     } else {
       console.log(formatSearchResults(allMatches, pattern));
     }
