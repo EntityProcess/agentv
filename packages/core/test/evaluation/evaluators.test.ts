@@ -788,6 +788,111 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     expect(warnSpy.mock.calls[0][0]).toContain('skipped');
     warnSpy.mockRestore();
   });
+
+  it('treats bare prompt string as criteria, not full template override (#982)', async () => {
+    // When a user writes `prompt: "Check step-by-step work"` in an assertion,
+    // the grader should receive the DEFAULT_EVALUATOR_TEMPLATE (which contains
+    // {{output}}, {{input}}, etc.) with the prompt text injected as {{criteria}},
+    // NOT use the bare text as the entire template replacement.
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            score: 0.9,
+            assertions: [{ text: 'Shows step-by-step work', passed: true }],
+          }),
+        },
+      ],
+    });
+
+    const evaluator = llmGraderFactory(
+      {
+        name: 'step-check',
+        type: 'llm-grader',
+        prompt: 'Check if the response shows step-by-step work',
+      },
+      {
+        graderProvider,
+        llmGrader: new LlmGraderEvaluator({
+          resolveGraderProvider: async () => graderProvider,
+        }),
+        registry: {} as never,
+      },
+    );
+
+    await evaluator.evaluate({
+      evalCase: {
+        ...baseTestCase,
+        criteria: 'Original criteria from test case',
+      },
+      candidate: 'Step 1: Read the code\nStep 2: Write tests\nStep 3: Refactor',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    // The user prompt should contain the full default template structure
+    const userPrompt = graderProvider.lastRequest?.question ?? '';
+    expect(userPrompt).toContain('[[ ## criteria ## ]]');
+    expect(userPrompt).toContain('[[ ## answer ## ]]');
+    expect(userPrompt).toContain('[[ ## question ## ]]');
+    // The bare prompt text should appear as the criteria
+    expect(userPrompt).toContain('Check if the response shows step-by-step work');
+    // The candidate answer should be present in the template
+    expect(userPrompt).toContain('Step 1: Read the code');
+  });
+
+  it('uses prompt with {{output}} as full template override', async () => {
+    // When a user provides a template with known variables, it SHOULD replace
+    // the default template (backward compatible with intentional overrides).
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            score: 0.8,
+            assertions: [{ text: 'Custom template used', passed: true }],
+          }),
+        },
+      ],
+    });
+
+    const customTemplate = 'Custom grader: evaluate {{output}} against {{criteria}}';
+
+    const evaluator = llmGraderFactory(
+      {
+        name: 'custom-template',
+        type: 'llm-grader',
+        prompt: customTemplate,
+      },
+      {
+        graderProvider,
+        llmGrader: new LlmGraderEvaluator({
+          resolveGraderProvider: async () => graderProvider,
+        }),
+        registry: {} as never,
+      },
+    );
+
+    await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Some answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+    });
+
+    // The custom template should be used as-is (with substitutions)
+    const userPrompt = graderProvider.lastRequest?.question ?? '';
+    expect(userPrompt).toContain('Custom grader: evaluate');
+    // Should NOT contain the default template's structure
+    expect(userPrompt).not.toContain('[[ ## answer ## ]]');
+  });
 });
 
 describe('CodeEvaluator', () => {

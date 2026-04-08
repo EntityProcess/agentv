@@ -2,6 +2,13 @@
  * Prompt resolution utilities for LLM judge evaluators.
  *
  * Extracted from orchestrator.ts to enable reuse by the evaluator registry.
+ *
+ * Key behavior: When a user writes `prompt: "some text"` in an assertion,
+ * `resolveCustomPrompt()` returns that text. The caller must then decide
+ * whether the text is a **full template** (contains `{{output}}` etc.) or
+ * **bare criteria** (no template variables). Use `containsTemplateVariables()`
+ * to distinguish: full templates become `evaluatorTemplateOverride`, while
+ * bare criteria are injected into the default template's `{{criteria}}` slot.
  */
 
 import path from 'node:path';
@@ -9,6 +16,7 @@ import path from 'node:path';
 import { toSnakeCaseDeep } from '../case-conversion.js';
 import { readTextFile } from '../file-utils.js';
 import type { Message } from '../providers/types.js';
+import { VALID_TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TraceSummary } from '../trace.js';
 import type { EvalTest, PromptScriptConfig } from '../types.js';
 import { executeScript } from './code-evaluator.js';
@@ -64,6 +72,24 @@ export async function resolveCustomPrompt(
   }
 
   return undefined;
+}
+
+/**
+ * Checks whether a prompt string contains any known `{{ variable }}` template
+ * placeholders (e.g. `{{output}}`, `{{input}}`). If it does, the string is a
+ * full evaluator template and should replace the default template. If not,
+ * it's bare criteria text and should be injected into the `{{criteria}}` slot
+ * of the default template.
+ */
+export function containsTemplateVariables(text: string): boolean {
+  const variablePattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = variablePattern.exec(text)) !== null) {
+    if (VALID_TEMPLATE_VARIABLES.has(match[1])) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function executePromptTemplate(
