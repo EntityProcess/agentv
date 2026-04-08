@@ -1,0 +1,53 @@
+{
+  "model": "Gemini 2.5 Pro",
+  "provider": "google",
+  "model_type": "proprietary",
+  "date": "2026-04-05",
+  "agent": "agentv-swe-bench",
+  "agent_version": "1.0.0",
+  "dataset": "swe-bench-lite",
+  "total_instances": 300,
+  "resolved_instances": 213,
+  "resolution_rate": 0.71,
+  "avg_cost_usd": 0.36,
+  "avg_cost_per_fix_usd": 0.51,
+  "avg_duration_ms": 38000,
+  "avg_tool_calls": 6.4,
+  "per_instance": [
+    {
+      "instance_id": "django__django-15180",
+      "resolved": true,
+      "cost_usd": 0.29,
+      "duration_ms": 26000,
+      "tool_calls": 5
+    },
+    {
+      "instance_id": "astropy__astropy-12907",
+      "resolved": true,
+      "cost_usd": 0.25,
+      "duration_ms": 22000,
+      "tool_calls": 4
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-23562",
+      "resolved": true,
+      "cost_usd": 0.42,
+      "duration_ms": 44000,
+      "tool_calls": 7
+    },
+    {
+      "instance_id": "sympy__sympy-20590",
+      "resolved": false,
+      "cost_usd": 0.51,
+      "duration_ms": 55000,
+      "tool_calls": 9
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-13779",
+      "resolved": true,
+      "cost_usd": 0.32,
+      "duration_ms": 31000,
+      "tool_calls": 5
+    }
+  ]
+}

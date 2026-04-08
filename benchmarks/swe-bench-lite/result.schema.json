@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentV SWE-bench Lite Result",
+  "description": "Schema for benchmark result submissions to benchmarks/swe-bench-lite/results/",
+  "type": "object",
+  "required": [
+    "model",
+    "provider",
+    "model_type",
+    "date",
+    "agent",
+    "agent_version",
+    "dataset",
+    "total_instances",
+    "resolved_instances",
+    "resolution_rate",
+    "avg_cost_usd",
+    "avg_cost_per_fix_usd",
+    "avg_duration_ms",
+    "avg_tool_calls",
+    "per_instance"
+  ],
+  "properties": {
+    "model": { "type": "string", "description": "Model name (e.g. 'Claude Opus 4.6')" },
+    "provider": { "type": "string", "description": "Provider identifier (e.g. 'anthropic')" },
+    "model_type": { "type": "string", "enum": ["proprietary", "open-source", "open-weights"] },
+    "date": { "type": "string", "format": "date", "description": "Evaluation date (YYYY-MM-DD)" },
+    "agent": { "type": "string", "description": "Agent name/identifier" },
+    "agent_version": { "type": "string", "description": "Agent version string" },
+    "dataset": { "type": "string", "const": "swe-bench-lite" },
+    "total_instances": { "type": "integer", "minimum": 1 },
+    "resolved_instances": { "type": "integer", "minimum": 0 },
+    "resolution_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "avg_cost_usd": { "type": "number", "minimum": 0 },
+    "avg_cost_per_fix_usd": { "type": "number", "minimum": 0 },
+    "avg_duration_ms": { "type": "number", "minimum": 0 },
+    "avg_tool_calls": { "type": "number", "minimum": 0 },
+    "per_instance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["instance_id", "resolved", "cost_usd", "duration_ms", "tool_calls"],
+        "properties": {
+          "instance_id": { "type": "string" },
+          "resolved": { "type": "boolean" },
+          "cost_usd": { "type": "number", "minimum": 0 },
+          "duration_ms": { "type": "number", "minimum": 0 },
+          "tool_calls": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

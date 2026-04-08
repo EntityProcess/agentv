@@ -1,0 +1,4 @@
+# Generated eval files from setup.ts
+evals/
+# Cache directory for HuggingFace downloads
+.cache/

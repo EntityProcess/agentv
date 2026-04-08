@@ -1,0 +1,53 @@
+{
+  "model": "Codex o3",
+  "provider": "openai",
+  "model_type": "proprietary",
+  "date": "2026-04-04",
+  "agent": "agentv-swe-bench",
+  "agent_version": "1.0.0",
+  "dataset": "swe-bench-lite",
+  "total_instances": 300,
+  "resolved_instances": 231,
+  "resolution_rate": 0.77,
+  "avg_cost_usd": 0.82,
+  "avg_cost_per_fix_usd": 1.06,
+  "avg_duration_ms": 62000,
+  "avg_tool_calls": 11.5,
+  "per_instance": [
+    {
+      "instance_id": "django__django-15180",
+      "resolved": true,
+      "cost_usd": 0.68,
+      "duration_ms": 48000,
+      "tool_calls": 9
+    },
+    {
+      "instance_id": "astropy__astropy-12907",
+      "resolved": true,
+      "cost_usd": 0.59,
+      "duration_ms": 41000,
+      "tool_calls": 8
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-23562",
+      "resolved": true,
+      "cost_usd": 0.91,
+      "duration_ms": 72000,
+      "tool_calls": 13
+    },
+    {
+      "instance_id": "sympy__sympy-20590",
+      "resolved": true,
+      "cost_usd": 1.12,
+      "duration_ms": 95000,
+      "tool_calls": 16
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-13779",
+      "resolved": true,
+      "cost_usd": 0.74,
+      "duration_ms": 55000,
+      "tool_calls": 10
+    }
+  ]
+}

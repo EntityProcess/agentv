@@ -1,0 +1,53 @@
+{
+  "model": "Claude Sonnet 4.5",
+  "provider": "anthropic",
+  "model_type": "proprietary",
+  "date": "2026-04-07",
+  "agent": "agentv-swe-bench",
+  "agent_version": "1.0.0",
+  "dataset": "swe-bench-lite",
+  "total_instances": 300,
+  "resolved_instances": 196,
+  "resolution_rate": 0.653,
+  "avg_cost_usd": 0.28,
+  "avg_cost_per_fix_usd": 0.43,
+  "avg_duration_ms": 35000,
+  "avg_tool_calls": 7.1,
+  "per_instance": [
+    {
+      "instance_id": "django__django-15180",
+      "resolved": true,
+      "cost_usd": 0.22,
+      "duration_ms": 24000,
+      "tool_calls": 5
+    },
+    {
+      "instance_id": "astropy__astropy-12907",
+      "resolved": true,
+      "cost_usd": 0.19,
+      "duration_ms": 21000,
+      "tool_calls": 4
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-23562",
+      "resolved": false,
+      "cost_usd": 0.35,
+      "duration_ms": 42000,
+      "tool_calls": 8
+    },
+    {
+      "instance_id": "sympy__sympy-20590",
+      "resolved": false,
+      "cost_usd": 0.41,
+      "duration_ms": 52000,
+      "tool_calls": 10
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-13779",
+      "resolved": true,
+      "cost_usd": 0.25,
+      "duration_ms": 29000,
+      "tool_calls": 6
+    }
+  ]
+}
