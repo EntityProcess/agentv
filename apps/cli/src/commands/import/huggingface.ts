@@ -83,39 +83,67 @@ export const importHuggingFaceCommand = command({
     console.log(`Importing from HuggingFace: ${repo} (split=${split ?? 'test'})...`);
 
     // Execute via uv run
-    await new Promise<void>((resolve, reject) => {
-      const child = execFile('uv', ['run', ...args], { maxBuffer: 50 * 1024 * 1024 }, (error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const child = execFile(
+          'uv',
+          ['run', ...args],
+          { maxBuffer: 50 * 1024 * 1024 },
+          (error) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          },
+        );
 
-      // Stream stderr (progress messages) to console
-      child.stderr?.on('data', (data: Buffer) => {
-        process.stderr.write(data);
-      });
+        // Collect stderr for error reporting
+        let stderrBuf = '';
+        child.stderr?.on('data', (data: Buffer) => {
+          const chunk = data.toString();
+          stderrBuf += chunk;
+          process.stderr.write(data);
+        });
 
-      // Capture stdout (JSON summary)
-      let stdout = '';
-      child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString();
-      });
+        // Capture stdout (JSON summary)
+        let stdout = '';
+        child.stdout?.on('data', (data: Buffer) => {
+          stdout += data.toString();
+        });
 
-      child.on('close', (code) => {
-        if (code === 0 && stdout.trim()) {
-          try {
-            const summary = JSON.parse(stdout.trim());
-            console.log(
-              `\nImported ${summary.files_created} eval(s) from ${summary.dataset} → ${summary.output_dir}/`,
-            );
-          } catch {
-            // If JSON parsing fails, just print raw output
-            if (stdout.trim()) console.log(stdout.trim());
+        child.on('close', (code) => {
+          if (code === 0 && stdout.trim()) {
+            try {
+              const summary = JSON.parse(stdout.trim());
+              console.log(
+                `\nImported ${summary.files_created} eval(s) from ${summary.dataset} → ${summary.output_dir}/`,
+              );
+            } catch {
+              // If JSON parsing fails, just print raw output
+              if (stdout.trim()) console.log(stdout.trim());
+            }
+          } else if (code !== 0) {
+            // Surface a bounded stderr summary so the user sees what went wrong
+            const tail = stderrBuf.trim().slice(-2000);
+            if (tail) {
+              console.error(`\n--- import-huggingface.py stderr (last 2 000 chars) ---`);
+              console.error(tail);
+            }
           }
-        }
+        });
       });
-    });
+    } catch (err: unknown) {
+      // Handle missing `uv` binary (ENOENT) with a clear message
+      if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+        console.error(
+          'Error: `uv` is not installed or not found on PATH.\n' +
+            'Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh\n' +
+            'See https://docs.astral.sh/uv/ for details.',
+        );
+        process.exit(1);
+      }
+      throw err;
+    }
   },
 });

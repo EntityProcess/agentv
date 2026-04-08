@@ -116,12 +116,13 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     repo = str(row.get("repo", ""))
     base_commit = str(row.get("base_commit", ""))
     fail_to_pass = _parse_test_list(row.get("FAIL_TO_PASS"))
+    pass_to_pass = _parse_test_list(row.get("PASS_TO_PASS"))
     difficulty = row.get("difficulty")
 
-    # Build assertions from FAIL_TO_PASS test names
+    # Build assertions from FAIL_TO_PASS and PASS_TO_PASS test names
     assertions: list[dict[str, Any]] = []
     if fail_to_pass:
-        # Single code-grader that runs the failing tests
+        # Code-grader that runs the previously-failing tests (should pass after patch)
         assertions.append({
             "type": "code-grader",
             "command": [
@@ -133,6 +134,23 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
                     "passed = result.returncode == 0; "
                     "print(json.dumps({'score': 1.0 if passed else 0.0, "
                     "'assertions': [{'text': 'FAIL_TO_PASS tests pass after patch', 'passed': passed, "
+                    "'evidence': result.stdout[-500:] if result.stdout else result.stderr[-500:]}]}))"
+                ),
+            ],
+        })
+    if pass_to_pass:
+        # Code-grader that verifies existing passing tests still pass (no regression)
+        assertions.append({
+            "type": "code-grader",
+            "command": [
+                "python", "-c",
+                (
+                    "import subprocess, sys, json; "
+                    f"result = subprocess.run({json.dumps(['python', '-m', 'pytest'] + pass_to_pass)}, "
+                    "capture_output=True, text=True); "
+                    "passed = result.returncode == 0; "
+                    "print(json.dumps({'score': 1.0 if passed else 0.0, "
+                    "'assertions': [{'text': 'PASS_TO_PASS tests still pass (no regression)', 'passed': passed, "
                     "'evidence': result.stdout[-500:] if result.stdout else result.stderr[-500:]}]}))"
                 ),
             ],
@@ -230,8 +248,20 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    if args.limit is not None and args.limit <= 0:
+        parser.error("--limit must be a positive integer")
+
     # Import datasets here so uv can auto-install the dependency
-    from datasets import load_dataset
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        print(
+            "Error: the 'datasets' package is not installed.\n"
+            "Run this script via `uv run` (which auto-installs dependencies) or:\n"
+            "  pip install datasets>=2.14.0",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     print(f"Loading dataset {args.repo} (split={args.split})...", file=sys.stderr)
 
