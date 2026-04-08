@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { useRunDetail } from '~/lib/api';
+import { useRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/runs/$runId')({
   component: RunDetailPage,
@@ -16,7 +16,9 @@ export const Route = createFileRoute('/runs/$runId')({
 function RunDetailPage() {
   const { runId } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
+  const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
+  const isReadOnly = config?.read_only === true;
 
   if (isLoading) {
     return (
@@ -50,16 +52,20 @@ function RunDetailPage() {
           <h1 className="text-2xl font-semibold text-white">Run: {runId}</h1>
           <p className="mt-1 text-sm text-gray-400">Source: {data?.source}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowRunEval(true)}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          ▶ Re-run with Filters
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => setShowRunEval(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            ▶ Re-run with Filters
+          </button>
+        )}
       </div>
       <RunDetail results={data?.results ?? []} runId={runId} />
-      <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} prefill={prefill} />
+      {!isReadOnly && (
+        <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} prefill={prefill} />
+      )}
     </div>
   );
 }

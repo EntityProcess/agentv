@@ -77,7 +77,7 @@ export function RunList({ runs, projectId }: RunListProps) {
                     params={{ projectId, runId: run.filename }}
                     className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                   >
-                    {run.filename}
+                    {run.display_name ?? run.filename}
                   </Link>
                 ) : (
                   <Link
@@ -85,7 +85,7 @@ export function RunList({ runs, projectId }: RunListProps) {
                     params={{ runId: run.filename }}
                     className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                   >
-                    {run.filename}
+                    {run.display_name ?? run.filename}
                   </Link>
                 )}
               </td>

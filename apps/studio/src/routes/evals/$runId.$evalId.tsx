@@ -11,7 +11,7 @@ import { useState } from 'react';
 
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { useRunDetail } from '~/lib/api';
+import { useRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/evals/$runId/$evalId')({
   component: EvalDetailPage,
@@ -20,7 +20,9 @@ export const Route = createFileRoute('/evals/$runId/$evalId')({
 function EvalDetailPage() {
   const { runId, evalId } = Route.useParams();
   const { data, isLoading, error } = useRunDetail(runId);
+  const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
+  const isReadOnly = config?.read_only === true;
 
   if (isLoading) {
     return (
@@ -61,23 +63,27 @@ function EvalDetailPage() {
           </p>
           <h1 className="text-2xl font-semibold text-white">{evalId}</h1>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowRunEval(true)}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          ▶ Run this Test
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => setShowRunEval(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            ▶ Run this Test
+          </button>
+        )}
       </div>
       <EvalDetail eval={result} runId={runId} />
-      <RunEvalModal
-        open={showRunEval}
-        onClose={() => setShowRunEval(false)}
-        prefill={{
-          testIds: [evalId],
-          target: result.target,
-        }}
-      />
+      {!isReadOnly && (
+        <RunEvalModal
+          open={showRunEval}
+          onClose={() => setShowRunEval(false)}
+          prefill={{
+            testIds: [evalId],
+            target: result.target,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
-import { buildDefaultRunDir } from './result-layout.js';
+import { buildDefaultRunDir, normalizeExperimentName } from './result-layout.js';
 import {
   buildExclusionFilter,
   loadErrorTestIds,
@@ -96,6 +96,7 @@ interface NormalizedOptions {
   readonly tags: readonly string[];
   readonly excludeTags: readonly string[];
   readonly transcript?: string;
+  readonly experiment?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -363,6 +364,7 @@ function normalizeOptions(
     tags: normalizeStringArray(rawOptions.tag),
     excludeTags: normalizeStringArray(rawOptions.excludeTag),
     transcript: normalizeString(rawOptions.transcript),
+    experiment: normalizeString(rawOptions.experiment),
   } satisfies NormalizedOptions;
 }
 
@@ -374,8 +376,8 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   }
 }
 
-function buildDefaultOutputPath(cwd: string): string {
-  const runDir = buildDefaultRunDir(cwd);
+function buildDefaultOutputPathForExperiment(cwd: string, experiment?: string): string {
+  const runDir = buildDefaultRunDir(cwd, experiment);
   mkdirSync(runDir, { recursive: true });
   return path.join(runDir, 'index.jsonl');
 }
@@ -868,6 +870,9 @@ export async function runEvalCommand(
       .replace(/:/g, '-')
       .replace(/\./g, '-');
   }
+  if (!process.env.AGENTV_EXPERIMENT) {
+    process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
+  }
 
   // Load agentv.config.ts (if present) for default values
   let config: Awaited<ReturnType<typeof loadTsConfig>> = null;
@@ -987,8 +992,8 @@ export async function runEvalCommand(
     mkdirSync(runDir, { recursive: true });
     usesDefaultArtifactWorkspace = false;
   } else {
-    // Default: .agentv/results/runs/<timestamp>/
-    outputPath = buildDefaultOutputPath(cwd);
+    // Default: .agentv/results/runs/<experiment>/<timestamp>/
+    outputPath = buildDefaultOutputPathForExperiment(cwd, options.experiment);
     runDir = path.dirname(outputPath);
     usesDefaultArtifactWorkspace = true;
   }
@@ -1426,6 +1431,7 @@ export async function runEvalCommand(
         indexPath,
       } = await writeArtifactsFromResults(allResults, runDir, {
         evalFile,
+        experiment: normalizeExperimentName(options.experiment),
       });
       console.log(`Artifact workspace written to: ${runDir}`);
       console.log(`  Index: ${indexPath}`);

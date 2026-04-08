@@ -291,6 +291,41 @@ describe('serve app', () => {
       });
       expect(res3.status).toBe(400);
     });
+
+    it('returns 403 in read-only mode', async () => {
+      const content = toJsonl(RESULT_A, RESULT_B);
+      const results = loadResults(content);
+      const app = createApp(results, tempDir, undefined, undefined, {
+        studioDir,
+        readOnly: true,
+      });
+
+      const res = await app.request('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviews: [{ test_id: 'test-greeting', comment: 'blocked' }],
+        }),
+      });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('GET /api/config', () => {
+    it('includes read_only mode in the config payload', async () => {
+      const content = toJsonl(RESULT_A, RESULT_B);
+      const results = loadResults(content);
+      const app = createApp(results, tempDir, undefined, undefined, {
+        studioDir,
+        readOnly: true,
+      });
+
+      const res = await app.request('/api/config');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { read_only?: boolean };
+      expect(data.read_only).toBe(true);
+    });
   });
 
   // ── Empty state (no results) ────────────────────────────────────────

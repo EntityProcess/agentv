@@ -523,11 +523,50 @@ export function toTraceSummary(result: RawResult): TraceSummary | undefined {
 export interface ResultFileMeta {
   path: string;
   filename: string;
+  displayName: string;
   timestamp: string;
   testCount: number;
   passRate: number;
   avgScore: number;
   sizeBytes: number;
+}
+
+function buildRunId(relativeRunPath: string): string {
+  const normalized = relativeRunPath.split(path.sep).join('/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (segments.length >= 2) {
+    const experiment = segments.slice(0, -1).join('/');
+    const timestamp = segments.at(-1);
+    if (experiment === 'default') {
+      return timestamp ?? normalized;
+    }
+    return `${experiment}::${timestamp}`;
+  }
+  return segments[0];
+}
+
+function collectRunManifestPaths(
+  runsDir: string,
+  currentDir: string,
+  files: { filePath: string; displayName: string; runId: string }[],
+): void {
+  const primaryPath = resolveExistingRunPrimaryPath(currentDir);
+  if (primaryPath) {
+    const relativeRunPath = path.relative(runsDir, currentDir);
+    files.push({
+      filePath: primaryPath,
+      displayName: path.basename(currentDir),
+      runId: buildRunId(relativeRunPath),
+    });
+    return;
+  }
+
+  const entries = readdirSync(currentDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      collectRunManifestPaths(runsDir, path.join(currentDir, entry.name), files);
+    }
+  }
 }
 
 /**
@@ -536,18 +575,13 @@ export interface ResultFileMeta {
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
   const runsDir = path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME);
 
-  const files: { filePath: string; displayName: string }[] = [];
+  const files: { filePath: string; displayName: string; runId: string }[] = [];
 
   try {
     const entries = readdirSync(runsDir, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-
-      const primaryPath = resolveExistingRunPrimaryPath(path.join(runsDir, entry.name));
-      if (primaryPath) {
-        files.push({ filePath: primaryPath, displayName: entry.name });
+      if (entry.isDirectory()) {
+        collectRunManifestPaths(runsDir, path.join(runsDir, entry.name), files);
       }
     }
   } catch {
@@ -561,7 +595,7 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
 
   const metas: ResultFileMeta[] = [];
 
-  for (const { filePath, displayName } of limited) {
+  for (const { filePath, displayName, runId } of limited) {
     try {
       const fileStat = statSync(filePath);
       const results = loadResultFile(filePath);
@@ -576,7 +610,8 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
 
       metas.push({
         path: filePath,
-        filename: displayName,
+        filename: runId,
+        displayName,
         timestamp,
         testCount,
         passRate,

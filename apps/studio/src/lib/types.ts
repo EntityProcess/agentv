@@ -7,6 +7,7 @@
 
 export interface RunMeta {
   filename: string;
+  display_name?: string;
   path: string;
   timestamp: string;
   test_count: number;
@@ -91,6 +92,7 @@ export interface EvalDetailResponse {
 
 export interface IndexEntry {
   run_filename: string;
+  display_name?: string;
   target?: string;
   test_count: number;
   pass_rate: number;
@@ -171,6 +173,7 @@ export interface StudioConfigResponse {
   threshold: number;
   /** @deprecated Use threshold */
   pass_threshold?: number;
+  read_only?: boolean;
 }
 
 // ── Project types ────────────────────────────────────────────────────────

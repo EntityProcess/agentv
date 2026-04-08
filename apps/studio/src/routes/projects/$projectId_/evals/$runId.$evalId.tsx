@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { useProjectRunDetail } from '~/lib/api';
+import { useProjectRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/projects/$projectId_/evals/$runId/$evalId')({
   component: ProjectEvalDetailPage,
@@ -16,7 +16,9 @@ export const Route = createFileRoute('/projects/$projectId_/evals/$runId/$evalId
 function ProjectEvalDetailPage() {
   const { projectId, runId, evalId } = Route.useParams();
   const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
+  const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
+  const isReadOnly = config?.read_only === true;
 
   if (isLoading) {
     return (
@@ -57,24 +59,28 @@ function ProjectEvalDetailPage() {
           </p>
           <h1 className="text-2xl font-semibold text-white">{evalId}</h1>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowRunEval(true)}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          ▶ Run this Test
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => setShowRunEval(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            ▶ Run this Test
+          </button>
+        )}
       </div>
       <EvalDetail eval={result} runId={runId} projectId={projectId} />
-      <RunEvalModal
-        open={showRunEval}
-        onClose={() => setShowRunEval(false)}
-        projectId={projectId}
-        prefill={{
-          testIds: [evalId],
-          target: result.target,
-        }}
-      />
+      {!isReadOnly && (
+        <RunEvalModal
+          open={showRunEval}
+          onClose={() => setShowRunEval(false)}
+          projectId={projectId}
+          prefill={{
+            testIds: [evalId],
+            target: result.target,
+          }}
+        />
+      )}
     </div>
   );
 }

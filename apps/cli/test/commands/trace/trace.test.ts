@@ -345,6 +345,20 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('2026-02-20T21-38-05-833Z');
     });
 
+    it('should discover nested experiment run directories and emit safe run ids', () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      const runDir = path.join(runsDir, 'with-skills', '2026-02-20T21-38-05-833Z');
+      mkdirSync(runDir, { recursive: true });
+
+      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      const metas = listResultFiles(tempDir);
+
+      expect(metas).toHaveLength(1);
+      expect(metas[0].filename).toBe('with-skills::2026-02-20T21-38-05-833Z');
+      expect(metas[0].displayName).toBe('2026-02-20T21-38-05-833Z');
+    });
+
     it('should skip directories without index.jsonl', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       const emptyDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');

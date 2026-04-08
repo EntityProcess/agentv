@@ -185,7 +185,12 @@ function resolveCliPath(cwd: string): { bunPath: string; cliPath: string } | und
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
 type C = Context<any, any, any>;
 
-export function registerEvalRoutes(app: Hono, getCwd: (c: C) => string) {
+export function registerEvalRoutes(
+  app: Hono,
+  getCwd: (c: C) => string,
+  options?: { readOnly?: boolean },
+) {
+  const readOnly = options?.readOnly === true;
   // ── Discovery: eval files ──────────────────────────────────────────────
   app.get('/api/eval/discover', async (c) => {
     const cwd = getCwd(c);
@@ -216,6 +221,9 @@ export function registerEvalRoutes(app: Hono, getCwd: (c: C) => string) {
 
   // ── Launch eval run ────────────────────────────────────────────────────
   app.post('/api/eval/run', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     const cwd = getCwd(c);
 
     let body: RunEvalRequest;
