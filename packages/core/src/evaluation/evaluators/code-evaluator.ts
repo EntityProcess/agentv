@@ -210,13 +210,33 @@ export class CodeEvaluator implements Evaluator {
     const env = proxyEnv || workspaceEnv ? { ...proxyEnv, ...workspaceEnv } : undefined;
 
     try {
-      const stdout = await executeScript(
-        this.command,
-        inputPayload,
-        this.agentTimeoutMs,
-        this.cwd,
-        env,
-      );
+      let stdout: string;
+      if (context.dockerConfig) {
+        // Docker execution mode: run grader inside a container
+        const { DockerWorkspaceProvider } = await import('../workspace/docker-workspace.js');
+        const dockerProvider = new DockerWorkspaceProvider(context.dockerConfig);
+        const result = await dockerProvider.runGraderInContainer({
+          command: [...this.command],
+          stdin: inputPayload,
+        });
+        if (result.exitCode !== 0) {
+          const trimmedErr = result.stderr.trim();
+          throw new Error(
+            trimmedErr.length > 0
+              ? `Code evaluator exited with code ${result.exitCode}: ${trimmedErr}`
+              : `Code evaluator exited with code ${result.exitCode}`,
+          );
+        }
+        stdout = result.stdout.trim();
+      } else {
+        stdout = await executeScript(
+          this.command,
+          inputPayload,
+          this.agentTimeoutMs,
+          this.cwd,
+          env,
+        );
+      }
       const parsed = parseJsonSafe(stdout);
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
       const assertions: AssertionEntry[] = Array.isArray(parsed?.assertions)

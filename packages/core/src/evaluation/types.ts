@@ -276,6 +276,22 @@ export type WorkspaceHooksConfig = {
   readonly after_all?: WorkspaceHookConfig;
 };
 
+/**
+ * Docker-based workspace configuration.
+ * When present, code-grader commands run inside a Docker container
+ * instead of on the host.
+ */
+export type DockerWorkspaceConfig = {
+  /** Docker image to use (e.g. 'swebench/sweb.eval.x86_64.django__django-15180') */
+  readonly image: string;
+  /** Container execution timeout in seconds (default: 1800) */
+  readonly timeout?: number;
+  /** Memory limit (e.g. '4g', '512m') */
+  readonly memory?: string;
+  /** CPU limit (e.g. 2, 0.5) */
+  readonly cpus?: number;
+};
+
 export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
@@ -290,6 +306,8 @@ export type WorkspaceConfig = {
   readonly mode?: 'pooled' | 'temp' | 'static';
   /** Required when mode=static: use this existing directory directly */
   readonly path?: string;
+  /** Docker-based workspace: run grader commands inside a container */
+  readonly docker?: DockerWorkspaceConfig;
 };
 
 export type CodeEvaluatorConfig = {
