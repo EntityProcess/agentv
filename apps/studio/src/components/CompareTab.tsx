@@ -148,8 +148,12 @@ function CompareRow({
             {cell ? (
               <CompareMatrixCell
                 cell={cell}
-                isBest={experiments.length > 1 && cell.pass_rate === bestRate && bestRate !== worstRate}
-                isWorst={experiments.length > 1 && cell.pass_rate === worstRate && bestRate !== worstRate}
+                isBest={
+                  experiments.length > 1 && cell.pass_rate === bestRate && bestRate !== worstRate
+                }
+                isWorst={
+                  experiments.length > 1 && cell.pass_rate === worstRate && bestRate !== worstRate
+                }
               />
             ) : (
               <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 px-3 py-4 text-gray-600">
@@ -198,20 +202,28 @@ function CompareMatrixCell({
         }`}
       >
         <div className="flex items-center justify-center gap-1">
-          <span className={`text-lg font-semibold tabular-nums ${passRateTextClass(cell.pass_rate)}`}>
+          <span
+            className={`text-lg font-semibold tabular-nums ${passRateTextClass(cell.pass_rate)}`}
+          >
             {pct}%
           </span>
-          {isBest && <span className="text-xs text-emerald-400" title="Best performer">&#9650;</span>}
-          {isWorst && <span className="text-xs text-red-400" title="Worst performer">&#9660;</span>}
+          {isBest && (
+            <span className="text-xs text-emerald-400" title="Best performer">
+              &#9650;
+            </span>
+          )}
+          {isWorst && (
+            <span className="text-xs text-red-400" title="Worst performer">
+              &#9660;
+            </span>
+          )}
         </div>
         <div className="mt-0.5 text-xs text-gray-400">
           {cell.passed_count}/{cell.eval_count} pass | avg {avgPct}%
         </div>
       </button>
 
-      {expanded && (
-        <TestCaseBreakdown tests={cell.tests} />
-      )}
+      {expanded && <TestCaseBreakdown tests={cell.tests} />}
     </div>
   );
 }
@@ -222,10 +234,7 @@ function TestCaseBreakdown({ tests }: { tests: CompareTestResult[] }) {
       <div className="mb-1 text-xs font-medium text-gray-500">Test Cases</div>
       <div className="space-y-0.5">
         {tests.map((t) => (
-          <div
-            key={t.test_id}
-            className="flex items-center gap-2 rounded px-1.5 py-0.5 text-xs"
-          >
+          <div key={t.test_id} className="flex items-center gap-2 rounded px-1.5 py-0.5 text-xs">
             <span className={t.passed ? 'text-emerald-400' : 'text-red-400'}>
               {t.passed ? '\u2713' : '\u2717'}
             </span>
