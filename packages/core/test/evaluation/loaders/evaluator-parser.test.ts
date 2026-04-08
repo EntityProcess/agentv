@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -665,7 +665,7 @@ describe('parseEvaluators - kebab-case type normalization', () => {
 });
 
 describe('parseEvaluators - score_ranges rubrics', () => {
-  it('parses valid score_ranges with required_min_score', async () => {
+  it('parses valid score_ranges with min_score', async () => {
     const rawEvalCase = {
       evaluators: [
         {
@@ -675,7 +675,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
             {
               id: 'accuracy',
               weight: 2.0,
-              required_min_score: 7,
+              min_score: 0.7,
               score_ranges: [
                 { score_range: [0, 3], outcome: 'Incorrect' },
                 { score_range: [4, 6], outcome: 'Partially correct' },
@@ -698,6 +698,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
       expect(rubric?.weight).toBe(2.0);
+      expect(rubric?.min_score).toBe(0.7);
       expect(rubric?.required_min_score).toBe(7);
       expect(rubric?.score_ranges).toHaveLength(4);
     }
@@ -752,6 +753,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
   });
 
   it('skips rubric items that use legacy description field without outcome', async () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     const rawEvalCase = {
       evaluators: [
         {
@@ -777,6 +779,10 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       // Rubric should be skipped since it has no 'outcome' field
       expect(config.rubrics ?? []).toHaveLength(0);
     }
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("missing outcome"),
+    );
+    warnSpy.mockRestore();
   });
 });
 
@@ -791,7 +797,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
             {
               id: 'accuracy',
               weight: 2.0,
-              required_min_score: 7,
+              min_score: 0.7,
               score_ranges: {
                 0: 'Completely wrong',
                 3: 'Partially correct',
@@ -813,6 +819,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
+      expect(rubric?.min_score).toBe(0.7);
       expect(rubric?.required_min_score).toBe(7);
       expect(rubric?.score_ranges).toHaveLength(4);
       expect(rubric?.score_ranges?.[0]).toEqual({
@@ -1430,6 +1437,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
   });
 
   it('skips rubrics with empty criteria array', async () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     const evaluators = await parseEvaluators(
       {
         assertions: [
@@ -1444,9 +1452,14 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('criteria must be a non-empty array'),
+    );
+    warnSpy.mockRestore();
   });
 
   it('skips rubrics with missing criteria', async () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     const evaluators = await parseEvaluators(
       {
         assertions: [
@@ -1460,6 +1473,10 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('criteria must be a non-empty array'),
+    );
+    warnSpy.mockRestore();
   });
 
   it('supports string shorthand in criteria', async () => {
