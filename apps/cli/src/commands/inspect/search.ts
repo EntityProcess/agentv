@@ -13,7 +13,7 @@
  * JSONL-based data directories.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { command, option, optional, positional, string } from 'cmd-ts';
 import { c, padRight } from './utils.js';
@@ -59,7 +59,12 @@ function collectJsonlFiles(dir: string): string[] {
  * Extract a human-readable snippet around a regex match within a string.
  * Returns up to `contextChars` characters on each side of the match.
  */
-function extractSnippet(text: string, matchIndex: number, matchLength: number, contextChars = 60): string {
+function extractSnippet(
+  text: string,
+  matchIndex: number,
+  matchLength: number,
+  contextChars = 60,
+): string {
   const start = Math.max(0, matchIndex - contextChars);
   const end = Math.min(text.length, matchIndex + matchLength + contextChars);
   let snippet = text.slice(start, end);
@@ -105,7 +110,7 @@ export function searchJsonlFile(
       typeof record.test_id === 'string'
         ? record.test_id
         : typeof record.source === 'object' && record.source !== null
-          ? (record.source as Record<string, unknown>).session_id as string | undefined
+          ? ((record.source as Record<string, unknown>).session_id as string | undefined)
           : undefined;
 
     // Apply metadata filters before regex search
@@ -165,9 +170,7 @@ function formatSearchResults(matches: SearchMatch[], pattern: string): string {
   }
 
   lines.push('');
-  lines.push(
-    `${c.bold}Search Results${c.reset} ${c.dim}pattern: /${pattern}/${c.reset}`,
-  );
+  lines.push(`${c.bold}Search Results${c.reset} ${c.dim}pattern: /${pattern}/${c.reset}`);
   lines.push(`${c.dim}${matches.length} match${matches.length !== 1 ? 'es' : ''} found${c.reset}`);
   lines.push('');
 
@@ -202,8 +205,7 @@ function formatSearchResults(matches: SearchMatch[], pattern: string): string {
 
 export const inspectSearchCommand = command({
   name: 'search',
-  description:
-    'Search across evaluation results and transcripts for a regex pattern',
+  description: 'Search across evaluation results and transcripts for a regex pattern',
   args: {
     pattern: option({
       type: string,
@@ -248,21 +250,15 @@ export const inspectSearchCommand = command({
     try {
       regex = new RegExp(pattern, 'i');
     } catch (err) {
-      console.error(
-        `${c.red}Error:${c.reset} Invalid regex pattern: ${(err as Error).message}`,
-      );
+      console.error(`${c.red}Error:${c.reset} Invalid regex pattern: ${(err as Error).message}`);
       process.exit(1);
     }
 
     // Discover files to search
     const sources = discoverSources(searchPath, cwd);
     if (sources.length === 0) {
-      console.error(
-        `${c.yellow}No JSONL files found to search.${c.reset}`,
-      );
-      console.error(
-        `${c.dim}Run an evaluation first, or specify a path to search.${c.reset}`,
-      );
+      console.error(`${c.yellow}No JSONL files found to search.${c.reset}`);
+      console.error(`${c.dim}Run an evaluation first, or specify a path to search.${c.reset}`);
       process.exit(0);
     }
 

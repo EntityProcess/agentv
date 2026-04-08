@@ -11,7 +11,7 @@
  * To extend: add new filter predicates in `buildFilterPredicate()`.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 import { c, formatScore, padLeft, padRight } from './utils.js';
@@ -71,7 +71,11 @@ function extractToolNames(record: Record<string, unknown>): string[] {
   const output = record.output;
   if (Array.isArray(output)) {
     for (const msg of output) {
-      if (typeof msg === 'object' && msg !== null && Array.isArray((msg as Record<string, unknown>).tool_calls)) {
+      if (
+        typeof msg === 'object' &&
+        msg !== null &&
+        Array.isArray((msg as Record<string, unknown>).tool_calls)
+      ) {
         for (const tc of (msg as Record<string, unknown>).tool_calls as Record<string, unknown>[]) {
           if (typeof tc.tool === 'string') {
             tools.add(tc.tool);
@@ -90,9 +94,7 @@ function extractToolNames(record: Record<string, unknown>): string[] {
 /**
  * Parse a single JSONL index file into filterable records.
  */
-export function parseFilterableRecords(
-  filePath: string,
-): FilterableRecord[] {
+export function parseFilterableRecords(filePath: string): FilterableRecord[] {
   let content: string;
   try {
     content = readFileSync(filePath, 'utf8');
@@ -129,7 +131,7 @@ export function parseFilterableRecords(
 
     records.push({
       file: filePath,
-      test_id: typeof raw.test_id === 'string' ? raw.test_id : `unknown`,
+      test_id: typeof raw.test_id === 'string' ? raw.test_id : 'unknown',
       suite: typeof raw.suite === 'string' ? raw.suite : undefined,
       target: typeof raw.target === 'string' ? raw.target : undefined,
       experiment,
@@ -168,7 +170,8 @@ export function buildFilterPredicate(opts: {
         error: ['error', 'timeout', 'provider_error'],
       };
       const allowedStatuses = statusMap[opts.status] ?? [opts.status];
-      if (record.execution_status && !allowedStatuses.includes(record.execution_status)) return false;
+      if (record.execution_status && !allowedStatuses.includes(record.execution_status))
+        return false;
       if (!record.execution_status) {
         // Infer from score if execution_status is missing
         if (opts.status === 'pass' && record.score < 1) return false;
@@ -229,7 +232,9 @@ function formatFilterTable(records: FilterableRecord[]): string {
 
   for (const record of records) {
     const scoreColor = record.score >= 1 ? c.green : record.score >= 0.5 ? c.yellow : c.red;
-    const status = record.execution_status ?? (record.error ? 'error' : record.score >= 1 ? 'ok' : 'quality_failure');
+    const status =
+      record.execution_status ??
+      (record.error ? 'error' : record.score >= 1 ? 'ok' : 'quality_failure');
     const statusColor = status === 'ok' ? c.green : status === 'error' ? c.red : c.yellow;
 
     const row = `  ${padRight(record.test_id.slice(0, maxIdLen), maxIdLen)}  ${padRight((record.target ?? '-').slice(0, maxTargetLen), maxTargetLen)}  ${padRight((record.experiment ?? '-').slice(0, maxExpLen), maxExpLen)}  ${padLeft(`${scoreColor}${formatScore(record.score)}${c.reset}`, 6)}  ${statusColor}${status}${c.reset}`;
@@ -240,9 +245,7 @@ function formatFilterTable(records: FilterableRecord[]): string {
   lines.push('');
   const passCount = records.filter((r) => r.score >= 1).length;
   const avgScore =
-    records.length > 0
-      ? records.reduce((sum, r) => sum + r.score, 0) / records.length
-      : 0;
+    records.length > 0 ? records.reduce((sum, r) => sum + r.score, 0) / records.length : 0;
   lines.push(
     `${c.dim}${records.length} result${records.length !== 1 ? 's' : ''} | ${passCount} passed | avg score: ${formatScore(avgScore)}${c.reset}`,
   );
@@ -253,14 +256,12 @@ function formatFilterTable(records: FilterableRecord[]): string {
 
 export const inspectFilterCommand = command({
   name: 'filter',
-  description:
-    'Filter evaluation results by target, experiment, score, status, or tool usage',
+  description: 'Filter evaluation results by target, experiment, score, status, or tool usage',
   args: {
     path: positional({
       type: optional(string),
       displayName: 'path',
-      description:
-        'Directory or file to filter (default: .agentv/results/runs/)',
+      description: 'Directory or file to filter (default: .agentv/results/runs/)',
     }),
     target: option({
       type: optional(string),
@@ -322,12 +323,8 @@ export const inspectFilterCommand = command({
     // Discover sources
     const sources = discoverFilterSources(searchPath, cwd);
     if (sources.length === 0) {
-      console.error(
-        `${c.yellow}No result files found.${c.reset}`,
-      );
-      console.error(
-        `${c.dim}Run an evaluation first, or specify a path.${c.reset}`,
-      );
+      console.error(`${c.yellow}No result files found.${c.reset}`);
+      console.error(`${c.dim}Run an evaluation first, or specify a path.${c.reset}`);
       process.exit(0);
     }
 

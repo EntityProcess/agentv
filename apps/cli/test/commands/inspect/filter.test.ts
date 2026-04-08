@@ -110,9 +110,7 @@ describe('inspect filter', () => {
     });
 
     it('returns empty array for unreadable files', () => {
-      const records = parseFilterableRecords(
-        path.join(tempDir, 'nonexistent.jsonl'),
-      );
+      const records = parseFilterableRecords(path.join(tempDir, 'nonexistent.jsonl'));
 
       expect(records).toHaveLength(0);
     });

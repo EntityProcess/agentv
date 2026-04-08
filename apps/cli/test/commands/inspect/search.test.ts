@@ -3,10 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import {
-  type SearchMatch,
-  searchJsonlFile,
-} from '../../../src/commands/inspect/search.js';
+import { type SearchMatch, searchJsonlFile } from '../../../src/commands/inspect/search.js';
 
 // Minimal JSONL records for search testing
 const RECORD_A = JSON.stringify({
@@ -78,11 +75,7 @@ describe('inspect search', () => {
       const matches = searchJsonlFile(filePath, /test-/);
 
       expect(matches).toHaveLength(3);
-      expect(matches.map((m) => m.id)).toEqual([
-        'test-alpha',
-        'test-beta',
-        'test-gamma',
-      ]);
+      expect(matches.map((m) => m.id)).toEqual(['test-alpha', 'test-beta', 'test-gamma']);
     });
 
     it('applies target filter', () => {
@@ -100,12 +93,7 @@ describe('inspect search', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(filePath, `${RECORD_A}\n${RECORD_B}\n${RECORD_C}\n`);
 
-      const matches = searchJsonlFile(
-        filePath,
-        /test-/,
-        undefined,
-        'with-skills',
-      );
+      const matches = searchJsonlFile(filePath, /test-/, undefined, 'with-skills');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].id).toBe('test-gamma');
@@ -116,22 +104,14 @@ describe('inspect search', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(filePath, `${RECORD_A}\n${RECORD_B}\n${RECORD_C}\n`);
 
-      const matches = searchJsonlFile(
-        filePath,
-        /test-/,
-        'claude',
-        'with-skills',
-      );
+      const matches = searchJsonlFile(filePath, /test-/, 'claude', 'with-skills');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].id).toBe('test-gamma');
     });
 
     it('returns empty array for unreadable files', () => {
-      const matches = searchJsonlFile(
-        path.join(tempDir, 'nonexistent.jsonl'),
-        /pattern/,
-      );
+      const matches = searchJsonlFile(path.join(tempDir, 'nonexistent.jsonl'), /pattern/);
 
       expect(matches).toHaveLength(0);
     });
@@ -161,7 +141,7 @@ describe('inspect search', () => {
     });
 
     it('extracts snippet with context around the match', () => {
-      const longOutput = 'A'.repeat(100) + 'NEEDLE' + 'B'.repeat(100);
+      const longOutput = `${'A'.repeat(100)}NEEDLE${'B'.repeat(100)}`;
       const record = JSON.stringify({
         test_id: 'test-long',
         score: 1,
