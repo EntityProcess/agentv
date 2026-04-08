@@ -85,9 +85,14 @@ export async function buildPromptInputs(
       })
     : undefined;
 
+  // Extract system message from leading system-role messages in the input.
+  // This is used by the orchestrator to pass the system prompt as a direct field
+  // on ProviderRequest and by evaluators that need the system context separately.
+  const systemMessage = extractSystemMessage(testCase.input, segmentsByMessage, mode);
+
   // Both question (flat string) and chatPrompt (structured messages) are returned:
   // chatPrompt is used for the API call, question is retained for logging/debugging.
-  return { question, chatPrompt };
+  return { question, chatPrompt, systemMessage };
 }
 
 /**
@@ -116,6 +121,40 @@ function needsRoleMarkers(
   }
 
   return messagesWithContent > 1;
+}
+
+/**
+ * Extract the system message text from leading system-role messages in the input.
+ * Returns undefined if no system messages are present.
+ */
+function extractSystemMessage(
+  messages: readonly TestMessage[],
+  segmentsByMessage: readonly JsonObject[][],
+  mode: FormattingMode,
+): string | undefined {
+  const systemParts: string[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role !== 'system') {
+      break;
+    }
+
+    const segments = segmentsByMessage[i];
+    const contentParts: string[] = [];
+
+    for (const segment of segments) {
+      const formatted = formatSegment(segment, mode);
+      if (formatted) {
+        contentParts.push(formatted);
+      }
+    }
+
+    if (contentParts.length > 0) {
+      systemParts.push(contentParts.join('\n'));
+    }
+  }
+
+  return systemParts.length > 0 ? systemParts.join('\n\n') : undefined;
 }
 
 function buildChatPromptFromSegments(options: {

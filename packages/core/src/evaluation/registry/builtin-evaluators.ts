@@ -31,7 +31,7 @@ import {
   runStartsWithAssertion,
 } from '../evaluators.js';
 import { InlineAssertEvaluator } from '../evaluators/inline-assert.js';
-import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
+import { containsTemplateVariables, resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
 import { isAgentProvider } from '../providers/types.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
@@ -126,9 +126,39 @@ export const llmGraderFactory: EvaluatorFactoryFn = (config, context) => {
         },
         agentTimeoutMs,
       );
+
+      // Determine whether the resolved prompt should replace the entire
+      // evaluator template or be injected as the {{criteria}} in the default
+      // template.
+      //
+      // Script-based prompts (resolvedPromptScript) and file-based prompts
+      // (resolvedPromptPath/promptPath) are always treated as full template
+      // overrides — they're expected to produce the complete grader prompt.
+      //
+      // Inline `prompt:` strings are checked for template variables like
+      // {{output}}, {{input}}, etc.  If present, the string is a full custom
+      // template.  If absent, it's bare criteria text (e.g. "Check if the
+      // response shows step-by-step work") and gets injected into the default
+      // template's {{criteria}} slot so the grader still receives the
+      // candidate output, input, and reference answer.  (#982)
+      const isFromInlinePrompt =
+        !c.resolvedPromptScript?.length && !c.resolvedPromptPath && !c.promptPath;
+
+      let evaluatorTemplateOverride: string | undefined;
+      let evalCase = evalContext.evalCase;
+      if (customPrompt) {
+        if (!isFromInlinePrompt || containsTemplateVariables(customPrompt)) {
+          evaluatorTemplateOverride = customPrompt;
+        } else {
+          // Bare inline text — use as criteria in the default template
+          evalCase = { ...evalCase, criteria: customPrompt };
+        }
+      }
+
       return evaluator.evaluate({
         ...evalContext,
-        evaluatorTemplateOverride: customPrompt,
+        evalCase,
+        evaluatorTemplateOverride,
         evaluator: c,
       });
     },
