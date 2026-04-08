@@ -9,6 +9,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type {
   CategoriesResponse,
+  CompareResponse,
   EvalDetailResponse,
   EvalDiscoverResponse,
   EvalPreviewResponse,
@@ -86,6 +87,11 @@ export const feedbackOptions = queryOptions({
 export const experimentsOptions = queryOptions({
   queryKey: ['experiments'],
   queryFn: () => fetchJson<ExperimentsResponse>('/api/experiments'),
+});
+
+export const compareOptions = queryOptions({
+  queryKey: ['compare'],
+  queryFn: () => fetchJson<CompareResponse>('/api/compare'),
 });
 
 export const targetsOptions = queryOptions({
@@ -169,6 +175,10 @@ export function useFeedback() {
 
 export function useExperiments() {
   return useQuery(experimentsOptions);
+}
+
+export function useCompare() {
+  return useQuery(compareOptions);
 }
 
 export function useTargets() {
@@ -368,6 +378,14 @@ export function projectExperimentsOptions(projectId: string) {
   return queryOptions({
     queryKey: ['projects', projectId, 'experiments'],
     queryFn: () => fetchJson<ExperimentsResponse>(`${projectApiBase(projectId)}/experiments`),
+    enabled: !!projectId,
+  });
+}
+
+export function projectCompareOptions(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'compare'],
+    queryFn: () => fetchJson<CompareResponse>(`${projectApiBase(projectId)}/compare`),
     enabled: !!projectId,
   });
 }

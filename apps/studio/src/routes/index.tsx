@@ -10,6 +10,7 @@ import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-ro
 import { useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { CompareTab } from '~/components/CompareTab';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
@@ -18,16 +19,18 @@ import { TargetsTab } from '~/components/TargetsTab';
 import {
   addProjectApi,
   discoverProjectsApi,
+  useCompare,
   useProjectList,
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
 
-type TabId = 'runs' | 'experiments' | 'targets';
+type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: 'Recent Runs' },
   { id: 'experiments', label: 'Experiments' },
+  { id: 'compare', label: 'Compare' },
   { id: 'targets', label: 'Targets' },
 ];
 
@@ -225,11 +228,17 @@ function SingleProjectHome() {
       {/* Tab content */}
       {activeTab === 'runs' && <RunsTabContent data={data} isLoading={isLoading} error={error} />}
       {activeTab === 'experiments' && <ExperimentsTab />}
+      {activeTab === 'compare' && <CompareTabContent />}
       {activeTab === 'targets' && <TargetsTab />}
 
       {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
     </div>
   );
+}
+
+function CompareTabContent() {
+  const { data, isLoading, isError, error } = useCompare();
+  return <CompareTab data={data} isLoading={isLoading} isError={isError} error={error} />;
 }
 
 function RunsTabContent({
