@@ -22,3 +22,10 @@ export {
   type PoolSlot,
 } from './pool-manager.js';
 export { scanRepoDeps, type RepoDep, type DepsScanResult } from './deps-scanner.js';
+export {
+  DockerWorkspaceProvider,
+  type CommandExecutor,
+  type ExecResult,
+  type CreateContainerOptions,
+  type ExecInContainerOptions,
+} from './docker-workspace.js';

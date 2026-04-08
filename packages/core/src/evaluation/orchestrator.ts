@@ -759,6 +759,21 @@ export async function runEvaluation(
       }
     }
 
+    // --- Docker workspace: pull image once at setup ---
+    const suiteDockerConfig = suiteWorkspace?.docker;
+    if (suiteDockerConfig) {
+      setupLog(`pulling Docker image: ${suiteDockerConfig.image}`);
+      const { DockerWorkspaceProvider } = await import('./workspace/docker-workspace.js');
+      const dockerSetup = new DockerWorkspaceProvider(suiteDockerConfig);
+      if (!(await dockerSetup.isDockerAvailable())) {
+        throw new Error(
+          'Docker workspace configured but Docker CLI is not available. Install Docker and ensure it is running.',
+        );
+      }
+      await dockerSetup.pullImage();
+      setupLog('Docker image pull complete');
+    }
+
     // Execute before_all (runs ONCE before first test per workspace)
     const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
     const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
@@ -1830,6 +1845,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       availableTargets,
       fileChanges,
       workspacePath,
+      dockerConfig: evalCase.workspace?.docker,
       verbose,
       threshold: evalCase.threshold ?? caseThreshold,
     });
@@ -2088,6 +2104,7 @@ async function evaluateCandidate(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly verbose?: boolean;
   readonly threshold?: number;
 }): Promise<EvaluationResult> {
@@ -2114,6 +2131,7 @@ async function evaluateCandidate(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    dockerConfig,
     threshold: evalThreshold,
   } = options;
 
@@ -2141,6 +2159,7 @@ async function evaluateCandidate(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    dockerConfig,
     threshold: evalThreshold,
   });
 
@@ -2226,6 +2245,7 @@ async function runEvaluatorsForCase(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
 }): Promise<{ score: EvaluationScore; scores?: EvaluatorResult[] }> {
   const {
@@ -2251,6 +2271,7 @@ async function runEvaluatorsForCase(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    dockerConfig,
     threshold,
   } = options;
 
@@ -2279,6 +2300,7 @@ async function runEvaluatorsForCase(options: {
       availableTargets,
       fileChanges,
       workspacePath,
+      dockerConfig,
       threshold,
     });
   }
@@ -2313,6 +2335,7 @@ async function runEvaluatorsForCase(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    dockerConfig,
     ...(implicitEvaluator ? { evaluator: implicitEvaluator } : {}),
   });
 
@@ -2357,6 +2380,7 @@ async function runEvaluatorList(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
 }): Promise<{ score: EvaluationScore; scores: EvaluatorResult[] }> {
   const {
@@ -2383,6 +2407,7 @@ async function runEvaluatorList(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    dockerConfig,
   } = options;
 
   const scored: Array<{
@@ -2416,6 +2441,7 @@ async function runEvaluatorList(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    dockerConfig,
   };
 
   // Build the dispatch context for evaluator factories

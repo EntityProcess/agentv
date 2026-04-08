@@ -36,6 +36,7 @@ import {
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
 import type {
+  DockerWorkspaceConfig,
   EvalTest,
   JsonObject,
   JsonValue,
@@ -706,7 +707,10 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const workspacePath = typeof obj.path === 'string' ? obj.path : undefined;
   const mode = explicitMode ?? (workspacePath ? 'static' : undefined);
 
-  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath) return undefined;
+  const docker = parseDockerWorkspaceConfig(obj.docker);
+
+  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath && !docker)
+    return undefined;
 
   return {
     ...(template !== undefined && { template }),
@@ -715,6 +719,23 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(hooks !== undefined && { hooks }),
     ...(mode !== undefined && { mode }),
     ...(workspacePath !== undefined && { path: workspacePath }),
+    ...(docker !== undefined && { docker }),
+  };
+}
+
+/**
+ * Parse a DockerWorkspaceConfig from raw YAML value.
+ */
+function parseDockerWorkspaceConfig(raw: unknown): DockerWorkspaceConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.image !== 'string') return undefined;
+
+  return {
+    image: obj.image,
+    ...(typeof obj.timeout === 'number' && { timeout: obj.timeout }),
+    ...(typeof obj.memory === 'string' && { memory: obj.memory }),
+    ...(typeof obj.cpus === 'number' && { cpus: obj.cpus }),
   };
 }
 
@@ -759,6 +780,7 @@ function mergeWorkspaceConfigs(
     ...(hasHooks && { hooks: mergedHooks as WorkspaceHooksConfig }),
     mode: caseLevel.mode ?? suiteLevel.mode,
     path: caseLevel.path ?? suiteLevel.path,
+    docker: caseLevel.docker ?? suiteLevel.docker,
   };
 }
 

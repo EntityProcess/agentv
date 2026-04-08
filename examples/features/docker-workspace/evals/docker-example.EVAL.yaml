@@ -1,0 +1,31 @@
+# Docker Workspace Example
+# Demonstrates running a code-grader inside a Docker container.
+#
+# This eval sends a coding prompt to an agent, then grades the agent's output
+# inside a Docker container that has the target repository and test environment.
+#
+# Prerequisites:
+#   - Docker installed and running
+#   - The specified image available (will be pulled automatically)
+
+name: docker-workspace-example
+description: Example eval using Docker workspace for grading
+
+workspace:
+  docker:
+    image: python:3.11-slim
+    timeout: 300
+    memory: 2g
+    cpus: 1
+
+execution:
+  target: dry-run
+  workers: 1
+
+tests:
+  - id: hello-world
+    input: "Write a Python function that returns 'hello world'"
+    criteria: "The output should contain a working Python function"
+    assertions:
+      - type: code-grader
+        command: ["python", "-c", "import sys, json; data = json.load(sys.stdin); print(json.dumps({'score': 1.0, 'assertions': [{'text': 'grader ran in container', 'passed': True}]}))"]

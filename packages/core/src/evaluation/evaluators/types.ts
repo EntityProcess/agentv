@@ -1,7 +1,13 @@
 import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
 import type { TokenUsage, TraceSummary } from '../trace.js';
-import type { EvalTest, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
+import type {
+  DockerWorkspaceConfig,
+  EvalTest,
+  EvaluationVerdict,
+  EvaluatorConfig,
+  JsonObject,
+} from '../types.js';
 
 export type { EvaluationVerdict };
 
@@ -50,6 +56,8 @@ export interface EvaluationContext {
   readonly fileChanges?: string;
   /** Absolute path to the workspace directory (when workspace_template is configured) */
   readonly workspacePath?: string;
+  /** Docker workspace config: when present, code-grader commands run inside a container */
+  readonly dockerConfig?: DockerWorkspaceConfig;
 }
 
 export interface EvaluationScore {

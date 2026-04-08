@@ -298,6 +298,13 @@ const WorkspaceHooksSchema = z.object({
   after_all: WorkspaceHookSchema.optional(),
 });
 
+const DockerWorkspaceSchema = z.object({
+  image: z.string(),
+  timeout: z.number().int().min(1).optional(),
+  memory: z.string().optional(),
+  cpus: z.number().min(0.1).optional(),
+});
+
 const WorkspaceSchema = z
   .object({
     template: z.string().optional(),
@@ -306,6 +313,7 @@ const WorkspaceSchema = z
     hooks: WorkspaceHooksSchema.optional(),
     mode: z.enum(['pooled', 'temp', 'static']).optional(),
     path: z.string().optional(),
+    docker: DockerWorkspaceSchema.optional(),
   })
   .strict();
 
