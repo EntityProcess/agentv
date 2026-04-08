@@ -84,24 +84,43 @@ describe('DockerWorkspaceProvider', () => {
   });
 
   describe('pullImage', () => {
-    it('calls docker pull with the configured image', async () => {
+    it('skips pull when image exists locally', async () => {
+      // docker image inspect succeeds → image exists locally
+      executor.pushResponse({ exitCode: 0 });
+      const provider = new DockerWorkspaceProvider({ image: 'myimage:v1' }, executor);
+      await provider.pullImage();
+      expect(executor.callArgv(0)).toEqual(['docker', 'image', 'inspect', 'myimage:v1']);
+      expect(executor.calls.length).toBe(1); // no pull call
+    });
+
+    it('calls docker pull when image not found locally', async () => {
+      // docker image inspect fails → pull needed
+      executor.pushResponse({ exitCode: 1, stderr: 'No such image' });
       executor.pushResponse({ stdout: 'Pull complete\n', exitCode: 0 });
       const provider = new DockerWorkspaceProvider({ image: 'myimage:v1' }, executor);
       await provider.pullImage();
-      expect(executor.callArgv(0)).toEqual(['docker', 'pull', 'myimage:v1']);
+      expect(executor.callArgv(0)).toEqual(['docker', 'image', 'inspect', 'myimage:v1']);
+      expect(executor.callArgv(1)).toEqual(['docker', 'pull', 'myimage:v1']);
     });
 
     it('throws on pull failure', async () => {
+      // inspect fails, pull also fails
+      executor.pushResponse({ exitCode: 1, stderr: 'No such image' });
       executor.pushResponse({ exitCode: 1, stderr: 'manifest not found' });
       const provider = new DockerWorkspaceProvider({ image: 'bad:image' }, executor);
       await expect(provider.pullImage()).rejects.toThrow('docker pull failed');
     });
 
-    it('uses configured timeout', async () => {
+    it('uses configured timeout for pull', async () => {
+      // inspect fails, then pull happens with configured timeout
+      executor.pushResponse({ exitCode: 1, stderr: 'No such image' });
       executor.pushResponse({ exitCode: 0 });
       const provider = new DockerWorkspaceProvider({ image: 'img:1', timeout: 60 }, executor);
       await provider.pullImage();
-      expect(executor.callOptions(0)?.timeoutMs).toBe(60_000);
+      // First call (inspect) uses 10s timeout
+      expect(executor.callOptions(0)?.timeoutMs).toBe(10_000);
+      // Second call (pull) uses configured timeout
+      expect(executor.callOptions(1)?.timeoutMs).toBe(60_000);
     });
   });
 
@@ -351,18 +370,24 @@ describe('DockerWorkspaceProvider', () => {
   });
 
   describe('timeout configuration', () => {
-    it('defaults to 1800s (30 min) timeout', async () => {
+    it('defaults to 1800s (30 min) timeout for pull', async () => {
+      // inspect fails → pull with default timeout
+      executor.pushResponse({ exitCode: 1, stderr: 'No such image' });
       executor.pushResponse({ exitCode: 0 });
       const provider = new DockerWorkspaceProvider({ image: 'img:1' }, executor);
       await provider.pullImage();
-      expect(executor.callOptions(0)?.timeoutMs).toBe(1_800_000);
+      // Pull call (second) uses default timeout
+      expect(executor.callOptions(1)?.timeoutMs).toBe(1_800_000);
     });
 
     it('uses custom timeout from config', async () => {
+      // inspect fails → pull with custom timeout
+      executor.pushResponse({ exitCode: 1, stderr: 'No such image' });
       executor.pushResponse({ exitCode: 0 });
       const provider = new DockerWorkspaceProvider({ image: 'img:1', timeout: 300 }, executor);
       await provider.pullImage();
-      expect(executor.callOptions(0)?.timeoutMs).toBe(300_000);
+      // Pull call (second) uses custom timeout
+      expect(executor.callOptions(1)?.timeoutMs).toBe(300_000);
     });
   });
 });
