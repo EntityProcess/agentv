@@ -1,0 +1,594 @@
+---
+/**
+ * AgentV Leaderboard — SWE-bench Lite
+ *
+ * Static page that reads benchmark result JSON files at build time
+ * and renders a sortable table + Pareto frontier chart.
+ *
+ * Data source: /benchmarks/swe-bench-lite/results/*.json
+ * Route: /leaderboard
+ */
+
+// Read result files at build time
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+interface ResultData {
+  model: string;
+  provider: string;
+  model_type: string;
+  date: string;
+  agent: string;
+  agent_version: string;
+  dataset: string;
+  total_instances: number;
+  resolved_instances: number;
+  resolution_rate: number;
+  avg_cost_usd: number;
+  avg_cost_per_fix_usd: number;
+  avg_duration_ms: number;
+  avg_tool_calls: number;
+}
+
+const resultsDir = join(process.cwd(), '../../benchmarks/swe-bench-lite/results');
+let results: ResultData[] = [];
+
+try {
+  const files = readdirSync(resultsDir).filter(f => f.endsWith('.json'));
+  results = files.map(f => {
+    const data = JSON.parse(readFileSync(join(resultsDir, f), 'utf8'));
+    return data as ResultData;
+  });
+  // Sort by resolution rate descending
+  results.sort((a, b) => b.resolution_rate - a.resolution_rate);
+} catch {
+  // Results dir may not exist in all environments
+}
+
+// Provider colors for chart
+const providerColors: Record<string, string> = {
+  anthropic: '#06b6d4',
+  openai: '#10b981',
+  google: '#f59e0b',
+  deepseek: '#8b5cf6',
+  meta: '#ef4444',
+};
+
+// Compute Pareto frontier
+function computeParetoFrontier(data: ResultData[]): ResultData[] {
+  const sorted = [...data].sort((a, b) => a.avg_cost_usd - b.avg_cost_usd);
+  const frontier: ResultData[] = [];
+  let maxRate = -1;
+  for (const d of sorted) {
+    if (d.resolution_rate > maxRate) {
+      frontier.push(d);
+      maxRate = d.resolution_rate;
+    }
+  }
+  return frontier;
+}
+
+const frontier = computeParetoFrontier(results);
+const frontierSet = new Set(frontier.map(f => f.model));
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leaderboard — AgentV SWE-bench Lite</title>
+    <meta name="description" content="Multi-dimensional agent benchmark. Compare models on resolution rate, cost efficiency, latency, and tool usage." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html { background: hsl(240, 10%, 8%); color: #e2e8f0; }
+      body {
+        min-height: 100vh;
+        font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+        line-height: 1.6;
+      }
+
+      /* Nav */
+      .av-nav {
+        position: sticky; top: 0; z-index: 100;
+        background: rgba(15, 15, 20, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .av-nav-inner {
+        max-width: 1200px; margin: 0 auto;
+        padding: 0.75rem 1.5rem;
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .av-nav-logo {
+        display: flex; align-items: center; gap: 0.5rem;
+        text-decoration: none; color: #e2e8f0;
+        font-weight: 700; font-size: 1.1rem;
+      }
+      .av-nav-logo svg { flex-shrink: 0; }
+      .av-wordmark-v { color: #06b6d4; }
+      .av-nav-links { display: flex; align-items: center; gap: 1.5rem; }
+      .av-nav-links a {
+        color: #94a3b8; text-decoration: none; font-size: 0.875rem;
+        transition: color 0.2s;
+      }
+      .av-nav-links a:hover { color: #e2e8f0; }
+
+      /* Layout */
+      .av-container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+
+      /* Hero */
+      .av-lb-hero {
+        padding: 3rem 0 2rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .av-lb-hero h1 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 2rem; font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-bottom: 0.5rem;
+      }
+      .av-lb-hero h1 span {
+        background: linear-gradient(135deg, #06b6d4, #22d3ee);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .av-lb-hero p {
+        color: #94a3b8; font-size: 0.9rem;
+        max-width: 600px;
+      }
+
+      /* Filters */
+      .av-filters {
+        display: flex; gap: 0.75rem; margin: 1.5rem 0;
+        flex-wrap: wrap;
+      }
+      .av-filter-btn {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #94a3b8;
+        padding: 0.375rem 0.75rem;
+        border-radius: 4px;
+        font-family: inherit; font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .av-filter-btn:hover, .av-filter-btn.active {
+        color: #06b6d4;
+        border-color: rgba(6, 182, 212, 0.3);
+        background: rgba(6, 182, 212, 0.08);
+      }
+
+      /* Table */
+      .av-table-wrap {
+        overflow-x: auto;
+        margin: 1rem 0 2rem;
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px;
+        background: rgba(255,255,255,0.02);
+      }
+      .av-table {
+        width: 100%; border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .av-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        font-weight: 600; font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+        transition: color 0.2s;
+      }
+      .av-table th:hover { color: #06b6d4; }
+      .av-table th .sort-arrow { margin-left: 0.25rem; opacity: 0.3; }
+      .av-table th.sorted .sort-arrow { opacity: 1; color: #06b6d4; }
+      .av-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        white-space: nowrap;
+      }
+      .av-table tbody tr {
+        transition: background 0.15s;
+      }
+      .av-table tbody tr:hover {
+        background: rgba(6, 182, 212, 0.04);
+      }
+      .av-rank {
+        color: #64748b; font-weight: 600;
+        width: 2rem; text-align: center;
+      }
+      .av-model-name {
+        font-weight: 600; color: #e2e8f0;
+      }
+      .av-provider-badge {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+      }
+      .av-provider-anthropic { background: rgba(6,182,212,0.15); color: #06b6d4; }
+      .av-provider-openai { background: rgba(16,185,129,0.15); color: #10b981; }
+      .av-provider-google { background: rgba(245,158,11,0.15); color: #f59e0b; }
+      .av-provider-deepseek { background: rgba(139,92,246,0.15); color: #8b5cf6; }
+      .av-provider-meta { background: rgba(239,68,68,0.15); color: #ef4444; }
+      .av-resolved { color: #22d3ee; font-weight: 600; }
+      .av-cost { color: #94a3b8; }
+      .av-cost-fix {
+        font-weight: 600;
+      }
+      .av-cost-fix.good { color: #10b981; }
+      .av-cost-fix.mid { color: #f59e0b; }
+      .av-cost-fix.bad { color: #ef4444; }
+      .av-frontier-badge {
+        display: inline-block;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #06b6d4;
+        box-shadow: 0 0 6px rgba(6,182,212,0.5);
+        margin-left: 0.375rem;
+        vertical-align: middle;
+      }
+
+      /* Chart Section */
+      .av-chart-section {
+        padding: 2rem 0 3rem;
+        border-top: 1px solid rgba(255,255,255,0.06);
+      }
+      .av-chart-section h2 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.25rem; font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      .av-chart-section p {
+        color: #64748b; font-size: 0.8rem;
+        margin-bottom: 1.5rem;
+      }
+      .av-chart-container {
+        position: relative;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px;
+        padding: 1.5rem;
+        min-height: 400px;
+      }
+      .av-chart-svg { width: 100%; height: 380px; }
+
+      /* Legend */
+      .av-legend {
+        display: flex; gap: 1.25rem; flex-wrap: wrap;
+        margin-top: 1rem;
+      }
+      .av-legend-item {
+        display: flex; align-items: center; gap: 0.375rem;
+        font-size: 0.75rem; color: #94a3b8;
+      }
+      .av-legend-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+      }
+
+      /* CTA */
+      .av-cta-section {
+        padding: 3rem 0;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        text-align: center;
+      }
+      .av-cta-section h2 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.25rem; margin-bottom: 0.75rem;
+      }
+      .av-cta-code {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 6px;
+        padding: 1rem 1.5rem;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        display: inline-block;
+        text-align: left;
+        margin: 1rem 0;
+        line-height: 1.8;
+      }
+      .av-cta-code .cmd { color: #22d3ee; }
+      .av-cta-code .comment { color: #475569; }
+      .av-btn-primary {
+        display: inline-block;
+        padding: 0.625rem 1.5rem;
+        background: linear-gradient(135deg, #06b6d4, #22d3ee);
+        color: #0a1628;
+        font-weight: 600;
+        font-family: inherit;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      .av-btn-primary:hover {
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+      }
+
+      /* Footer */
+      .av-footer {
+        padding: 1.5rem 0;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        text-align: center;
+        color: #475569;
+        font-size: 0.75rem;
+      }
+      .av-footer a { color: #06b6d4; text-decoration: none; }
+      .av-footer a:hover { text-decoration: underline; }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .av-lb-hero h1 { font-size: 1.5rem; }
+        .av-table { font-size: 0.78rem; }
+        .av-table th, .av-table td { padding: 0.5rem 0.625rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Nav -->
+    <nav class="av-nav">
+      <div class="av-nav-inner">
+        <a href="/" class="av-nav-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="28" height="28">
+            <rect width="120" height="120" rx="24" fill="#06b6d4"/>
+            <text x="60" y="82" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-weight="bold" font-size="64" fill="#0a2a30">v</text>
+          </svg>
+          <span>agent<span class="av-wordmark-v">v</span></span>
+        </a>
+        <div class="av-nav-links">
+          <a href="/docs/">Docs</a>
+          <a href="/leaderboard" style="color:#06b6d4;">Leaderboard</a>
+          <a href="https://github.com/EntityProcess/agentv" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="av-container">
+      <!-- Hero -->
+      <section class="av-lb-hero">
+        <h1>AgentV Leaderboard — <span>SWE-bench Lite</span></h1>
+        <p>The multi-dimensional agent benchmark. Same SWE-bench tasks, richer metrics — cost efficiency, tool usage, and Pareto-optimal rankings.</p>
+      </section>
+
+      <!-- Filters -->
+      <div class="av-filters" id="filters">
+        <button class="av-filter-btn active" data-filter="all">All Models</button>
+        <button class="av-filter-btn" data-filter="proprietary">Proprietary</button>
+        <button class="av-filter-btn" data-filter="open-weights">Open Weights</button>
+        <button class="av-filter-btn" data-filter="open-source">Open Source</button>
+      </div>
+
+      <!-- Table -->
+      <div class="av-table-wrap">
+        <table class="av-table" id="leaderboard-table">
+          <thead>
+            <tr>
+              <th class="sorted" data-sort="rank"># <span class="sort-arrow">▲</span></th>
+              <th data-sort="model">Model <span class="sort-arrow">▲</span></th>
+              <th data-sort="provider">Provider <span class="sort-arrow">▲</span></th>
+              <th data-sort="resolved">% Resolved <span class="sort-arrow">▲</span></th>
+              <th data-sort="cost">Avg $ <span class="sort-arrow">▲</span></th>
+              <th data-sort="costfix">$/Fix <span class="sort-arrow">▲</span></th>
+              <th data-sort="tools">Tools <span class="sort-arrow">▲</span></th>
+              <th data-sort="duration">Latency <span class="sort-arrow">▲</span></th>
+              <th data-sort="date">Date <span class="sort-arrow">▲</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((r, i) => {
+              const costClass = r.avg_cost_per_fix_usd < 0.5 ? 'good' : r.avg_cost_per_fix_usd < 0.8 ? 'mid' : 'bad';
+              const isFrontier = frontierSet.has(r.model);
+              return (
+                <tr data-model-type={r.model_type} data-provider={r.provider}>
+                  <td class="av-rank">{i + 1}</td>
+                  <td>
+                    <span class="av-model-name">{r.model}</span>
+                    {isFrontier && <span class="av-frontier-badge" title="Pareto optimal"></span>}
+                  </td>
+                  <td><span class={`av-provider-badge av-provider-${r.provider}`}>{r.provider}</span></td>
+                  <td class="av-resolved">{(r.resolution_rate * 100).toFixed(1)}%</td>
+                  <td class="av-cost">${r.avg_cost_usd.toFixed(2)}</td>
+                  <td class={`av-cost-fix ${costClass}`}>${r.avg_cost_per_fix_usd.toFixed(2)}</td>
+                  <td>{r.avg_tool_calls.toFixed(1)}</td>
+                  <td>{(r.avg_duration_ms / 1000).toFixed(0)}s</td>
+                  <td style="color:#64748b">{r.date}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pareto Chart -->
+      <section class="av-chart-section">
+        <h2>Pareto Frontier — Score vs Cost</h2>
+        <p>Models on the frontier line achieve the best resolution rate for their cost. Closer to top-left is better.</p>
+        <div class="av-chart-container">
+          <svg class="av-chart-svg" id="pareto-chart" viewBox="0 0 800 380">
+            <!-- Grid and axes rendered by client JS -->
+          </svg>
+        </div>
+        <div class="av-legend" id="chart-legend"></div>
+      </section>
+
+      <!-- CTA -->
+      <section class="av-cta-section">
+        <h2>Run it yourself</h2>
+        <div class="av-cta-code">
+          <div><span class="cmd">$</span> git clone https://github.com/EntityProcess/agentv</div>
+          <div><span class="cmd">$</span> cd agentv/benchmarks/swe-bench-lite</div>
+          <div><span class="cmd">$</span> bun run setup.ts</div>
+          <div><span class="cmd">$</span> agentv eval ./evals/ --target claude</div>
+          <div class="comment"># Then submit your results via PR →</div>
+        </div>
+        <br />
+        <a href="https://github.com/EntityProcess/agentv/tree/main/benchmarks/swe-bench-lite" class="av-btn-primary">
+          Submit your results →
+        </a>
+      </section>
+
+      <!-- Footer -->
+      <footer class="av-footer">
+        <p>
+          <a href="/">AgentV</a> — CLI-first agent evaluation framework.
+          Data from <a href="https://www.swebench.com/" target="_blank" rel="noopener noreferrer">SWE-bench Lite</a> (300 instances).
+        </p>
+      </footer>
+    </div>
+
+    <!-- Client-side interactivity -->
+    <script define:vars={{ results: JSON.stringify(results), providerColors: JSON.stringify(providerColors), frontierModels: JSON.stringify(Array.from(frontierSet)) }}>
+      const data = JSON.parse(results);
+      const colors = JSON.parse(providerColors);
+      const frontierSet = new Set(JSON.parse(frontierModels));
+
+      // --- Filters ---
+      document.querySelectorAll('.av-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.av-filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const filter = btn.dataset.filter;
+          document.querySelectorAll('#leaderboard-table tbody tr').forEach(row => {
+            if (filter === 'all' || row.dataset.modelType === filter) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+          // Re-rank visible rows
+          let rank = 1;
+          document.querySelectorAll('#leaderboard-table tbody tr').forEach(row => {
+            if (row.style.display !== 'none') {
+              row.querySelector('.av-rank').textContent = rank++;
+            }
+          });
+        });
+      });
+
+      // --- Sortable columns ---
+      const sortState = { col: 'rank', asc: true };
+      const sortKeys = {
+        rank: (r) => data.indexOf(data.find(d => d.model === r.querySelector('.av-model-name')?.textContent)),
+        model: (r) => r.querySelector('.av-model-name')?.textContent?.toLowerCase() || '',
+        provider: (r) => r.dataset.provider || '',
+        resolved: (r) => parseFloat(r.querySelector('.av-resolved')?.textContent) || 0,
+        cost: (r) => parseFloat(r.querySelector('.av-cost')?.textContent?.replace('$','')) || 0,
+        costfix: (r) => parseFloat(r.querySelector('.av-cost-fix')?.textContent?.replace('$','')) || 0,
+        tools: (r) => parseFloat(r.cells[6]?.textContent) || 0,
+        duration: (r) => parseFloat(r.cells[7]?.textContent) || 0,
+        date: (r) => r.cells[8]?.textContent || '',
+      };
+
+      document.querySelectorAll('.av-table th').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.sort;
+          if (!col) return;
+          if (sortState.col === col) {
+            sortState.asc = !sortState.asc;
+          } else {
+            sortState.col = col;
+            sortState.asc = col === 'model' || col === 'provider' || col === 'date';
+          }
+          document.querySelectorAll('.av-table th').forEach(h => h.classList.remove('sorted'));
+          th.classList.add('sorted');
+          th.querySelector('.sort-arrow').textContent = sortState.asc ? '▲' : '▼';
+
+          const tbody = document.querySelector('#leaderboard-table tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          const keyFn = sortKeys[col] || sortKeys.rank;
+          rows.sort((a, b) => {
+            const va = keyFn(a), vb = keyFn(b);
+            const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+            return sortState.asc ? cmp : -cmp;
+          });
+          rows.forEach((row, i) => {
+            tbody.appendChild(row);
+            row.querySelector('.av-rank').textContent = i + 1;
+          });
+        });
+      });
+
+      // --- Pareto Chart ---
+      function renderChart() {
+        const svg = document.getElementById('pareto-chart');
+        if (!svg || data.length === 0) return;
+
+        const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+        const width = 800 - margin.left - margin.right;
+        const height = 380 - margin.top - margin.bottom;
+
+        const maxCost = Math.max(...data.map(d => d.avg_cost_usd)) * 1.15;
+        const maxRate = Math.min(Math.max(...data.map(d => d.resolution_rate)) * 1.1, 1);
+        const minRate = Math.max(Math.min(...data.map(d => d.resolution_rate)) * 0.9, 0);
+
+        const scaleX = (v) => margin.left + (v / maxCost) * width;
+        const scaleY = (v) => margin.top + height - ((v - minRate) / (maxRate - minRate)) * height;
+
+        let html = '';
+
+        // Grid lines
+        for (let i = 0; i <= 5; i++) {
+          const y = margin.top + (i / 5) * height;
+          const rate = maxRate - (i / 5) * (maxRate - minRate);
+          html += `<line x1="${margin.left}" y1="${y}" x2="${margin.left + width}" y2="${y}" stroke="rgba(255,255,255,0.05)" />`;
+          html += `<text x="${margin.left - 8}" y="${y + 4}" text-anchor="end" fill="#475569" font-size="11" font-family="'IBM Plex Mono', monospace">${(rate*100).toFixed(0)}%</text>`;
+        }
+        for (let i = 0; i <= 5; i++) {
+          const x = margin.left + (i / 5) * width;
+          const cost = (i / 5) * maxCost;
+          html += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${margin.top + height}" stroke="rgba(255,255,255,0.05)" />`;
+          html += `<text x="${x}" y="${margin.top + height + 20}" text-anchor="middle" fill="#475569" font-size="11" font-family="'IBM Plex Mono', monospace">$${cost.toFixed(2)}</text>`;
+        }
+
+        // Axis labels
+        html += `<text x="${margin.left + width/2}" y="${margin.top + height + 36}" text-anchor="middle" fill="#64748b" font-size="12" font-family="'IBM Plex Mono', monospace">Avg Cost per Instance</text>`;
+        html += `<text x="14" y="${margin.top + height/2}" text-anchor="middle" fill="#64748b" font-size="12" font-family="'IBM Plex Mono', monospace" transform="rotate(-90, 14, ${margin.top + height/2})">% Resolved</text>`;
+
+        // Frontier line
+        const frontierData = data.filter(d => frontierSet.has(d.model)).sort((a,b) => a.avg_cost_usd - b.avg_cost_usd);
+        if (frontierData.length >= 2) {
+          const points = frontierData.map(d => `${scaleX(d.avg_cost_usd)},${scaleY(d.resolution_rate)}`).join(' ');
+          html += `<polyline points="${points}" fill="none" stroke="rgba(6,182,212,0.3)" stroke-width="2" stroke-dasharray="6,4" />`;
+        }
+
+        // Data points
+        for (const d of data) {
+          const x = scaleX(d.avg_cost_usd);
+          const y = scaleY(d.resolution_rate);
+          const color = colors[d.provider] || '#94a3b8';
+          const isFrontier = frontierSet.has(d.model);
+          const r = isFrontier ? 8 : 6;
+          html += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.85" stroke="${isFrontier ? '#fff' : 'none'}" stroke-width="${isFrontier ? 2 : 0}" />`;
+          html += `<text x="${x}" y="${y - r - 4}" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="'IBM Plex Mono', monospace">${d.model}</text>`;
+        }
+
+        // Axes
+        html += `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + height}" stroke="rgba(255,255,255,0.1)" />`;
+        html += `<line x1="${margin.left}" y1="${margin.top + height}" x2="${margin.left + width}" y2="${margin.top + height}" stroke="rgba(255,255,255,0.1)" />`;
+
+        svg.innerHTML = html;
+
+        // Legend
+        const legend = document.getElementById('chart-legend');
+        const providers = [...new Set(data.map(d => d.provider))];
+        legend.innerHTML = providers.map(p =>
+          `<span class="av-legend-item"><span class="av-legend-dot" style="background:${colors[p] || '#94a3b8'}"></span>${p}</span>`
+        ).join('') + '<span class="av-legend-item"><span class="av-legend-dot" style="background:#06b6d4;box-shadow:0 0 4px rgba(6,182,212,0.5)"></span>Pareto frontier</span>';
+      }
+
+      renderChart();
+    </script>
+  </body>
+</html>
