@@ -328,6 +328,19 @@ tests:
     # No assertions → default llm-grader evaluates against criteria
 ```
 
+Suite-level `preprocessors` also apply to this implicit grader. That matters when the agent output is a `ContentFile` block rather than plain text:
+
+```yaml
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+
+tests:
+  - id: spreadsheet-eval
+    criteria: Output includes the revenue rows
+    input: Generate the spreadsheet report
+```
+
 ### `assertions` present — explicit evaluators only
 
 When `assertions` is defined, only the declared evaluators run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
@@ -349,6 +362,26 @@ tests:
     input: "Debug this function..."
     assertions:
       - type: llm-grader        # explicit — receives criteria automatically
+      - type: contains
+        value: "fix"
+```
+
+When you need a custom file conversion for only one grader, add `preprocessors` directly to that evaluator:
+
+```yaml
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+
+tests:
+  - id: mixed-eval
+    criteria: Response is helpful and mentions the fix
+    input: "Debug this function..."
+    assertions:
+      - type: llm-grader
+        preprocessors:
+          - type: xlsx
+            command: ["bun", "run", "scripts/preprocessors/xlsx-to-json.ts"]
       - type: contains
         value: "fix"
 ```

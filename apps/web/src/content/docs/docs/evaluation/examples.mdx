@@ -103,6 +103,35 @@ tests:
       }
 ```
 
+## File Output Preprocessing
+
+Convert a binary file output into text before the `llm-grader` sees it:
+
+```yaml
+description: Grade spreadsheet output via a preprocessor
+
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "../scripts/preprocessors/xlsx-to-csv.ts"]
+
+execution:
+  target: file_output
+
+tests:
+  - id: spreadsheet-output
+    input: Generate the spreadsheet report
+    criteria: The extracted spreadsheet content includes the revenue rows
+    assertions:
+      - name: file-check
+        type: llm-grader
+        prompt: |
+          Check whether the transformed spreadsheet text contains the revenue rows:
+
+          {{ output }}
+```
+
+See [`examples/features/preprocessors/`](../../../../examples/features/preprocessors/) for a runnable end-to-end example with a file-producing target and custom grader target.
+
 ## Tool Trajectory
 
 Validate that an agent uses specific tools during execution:

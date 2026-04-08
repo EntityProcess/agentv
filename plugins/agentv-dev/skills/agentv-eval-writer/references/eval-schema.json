@@ -294,6 +294,33 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type", "command"],
@@ -455,6 +482,33 @@
                               "type": "number",
                               "minimum": 0,
                               "maximum": 2
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type"],
@@ -1368,6 +1422,33 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type", "command"],
@@ -1529,6 +1610,33 @@
                               "type": "number",
                               "minimum": 0,
                               "maximum": 2
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type"],
@@ -2459,6 +2567,33 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type", "command"],
@@ -2620,6 +2755,33 @@
                                   "type": "number",
                                   "minimum": 0,
                                   "maximum": 2
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type"],
@@ -3533,6 +3695,33 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type", "command"],
@@ -3694,6 +3883,33 @@
                                   "type": "number",
                                   "minimum": 0,
                                   "maximum": 2
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type"],
@@ -5030,6 +5246,33 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type", "command"],
@@ -5191,6 +5434,33 @@
                               "type": "number",
                               "minimum": 0,
                               "maximum": 2
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type"],
@@ -6104,6 +6374,33 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type", "command"],
@@ -6265,6 +6562,33 @@
                               "type": "number",
                               "minimum": 0,
                               "maximum": 2
+                            },
+                            "preprocessors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "command": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": ["type", "command"],
+                                "additionalProperties": false
+                              }
                             }
                           },
                           "required": ["type"],
@@ -7195,6 +7519,33 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type", "command"],
@@ -7356,6 +7707,33 @@
                                   "type": "number",
                                   "minimum": 0,
                                   "maximum": 2
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type"],
@@ -8269,6 +8647,33 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type", "command"],
@@ -8430,6 +8835,33 @@
                                   "type": "number",
                                   "minimum": 0,
                                   "maximum": 2
+                                },
+                                "preprocessors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "command": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": ["type", "command"],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": ["type"],
@@ -9672,6 +10104,33 @@
                       "config": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "preprocessors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "command": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["type", "command"],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": ["type", "command"],
@@ -9833,6 +10292,33 @@
                         "type": "number",
                         "minimum": 0,
                         "maximum": 2
+                      },
+                      "preprocessors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "command": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["type", "command"],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": ["type"],
@@ -10746,6 +11232,33 @@
                       "config": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "preprocessors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "command": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["type", "command"],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": ["type", "command"],
@@ -10907,6 +11420,33 @@
                         "type": "number",
                         "minimum": 0,
                         "maximum": 2
+                      },
+                      "preprocessors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "command": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["type", "command"],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": ["type"],
@@ -11871,6 +12411,33 @@
                   "config": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "preprocessors": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "command": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "required": ["type", "command"],
+                      "additionalProperties": false
+                    }
                   }
                 },
                 "required": ["type", "command"],
@@ -12032,6 +12599,33 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 2
+                  },
+                  "preprocessors": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "command": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "required": ["type", "command"],
+                      "additionalProperties": false
+                    }
                   }
                 },
                 "required": ["type"],
@@ -12855,6 +13449,33 @@
                 "additionalProperties": false
               }
             ]
+          }
+        },
+        "preprocessors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "command": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["type", "command"],
+            "additionalProperties": false
           }
         },
         "workspace": {

@@ -143,6 +143,42 @@ assertions:
 
 The `config` object is available as `ctx.config` inside the template function.
 
+## Preprocessing File Outputs
+
+If an agent returns a `ContentFile` block instead of plain text, you can preprocess that file into text before `llm-grader` builds the candidate prompt.
+
+AgentV always tries a default UTF-8 text read first. That is enough for text-based formats such as CSV, JSON, SQL, Markdown, YAML, HTML, XML, and plain text. For binary formats such as `.xlsx`, `.pdf`, or `.docx`, add a preprocessor command:
+
+```yaml
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+
+tests:
+  - id: spreadsheet-output
+    criteria: Output includes the revenue rows
+    input: Generate the spreadsheet report
+    assertions:
+      - name: spreadsheet-check
+        type: llm-grader
+        prompt: |
+          Check whether the transformed spreadsheet text contains the revenue rows:
+
+          {{ output }}
+```
+
+`type` accepts either a short alias such as `xlsx` or a full MIME type such as `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+
+Resolution order:
+
+- per-evaluator `preprocessors` override suite-level entries
+- if no preprocessor matches, AgentV falls back to a UTF-8 text read
+- if the fallback read looks binary or invalid, the grader receives a warning note instead of failing the test run
+
+The implicit default `llm-grader` also inherits suite-level `preprocessors`, so you can omit `assertions` and still preprocess file outputs before grading.
+
+See [`examples/features/preprocessors/`](../../../../examples/features/preprocessors/) for a runnable example with a file-producing target and a custom preprocessor script.
+
 ## Available Context Fields
 
 TypeScript templates receive a context object with these fields:

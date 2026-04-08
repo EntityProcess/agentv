@@ -179,6 +179,78 @@ describe('runTestCase', () => {
     expect(result.failureReasonCode).toBeUndefined();
   });
 
+  it('applies suite-level preprocessors to the implicit default llm-grader', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-orchestrator-preprocessor-'));
+    const reportPath = path.join(tempDir, 'report.xlsx');
+    const scriptPath = path.join(tempDir, 'xlsx-to-text.js');
+    writeFileSync(reportPath, Buffer.from([0, 159, 146, 150]));
+    writeFileSync(
+      scriptPath,
+      `const fs = require('node:fs');
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+if (!payload.path) throw new Error('missing path');
+console.log('spreadsheet: revenue,total\\nQ1,42');`,
+      'utf8',
+    );
+
+    const answerProvider = new SequenceProvider('file-output', {
+      responses: [
+        {
+          output: [
+            {
+              role: 'assistant',
+              content: [
+                {
+                  type: 'file',
+                  media_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  path: reportPath,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const graderProvider = new CapturingGraderProvider('grader', {
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            score: 1,
+            assertions: [{ text: 'ok', passed: true }],
+          }),
+        },
+      ],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      id: 'implicit-preprocessors',
+      assertions: undefined,
+      preprocessors: [{ type: 'xlsx', command: [process.execPath, scriptPath] }],
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: tempDir,
+      target: { ...baseTarget, name: 'file-output', graderTarget: 'grader' },
+      targets: [
+        { name: 'grader', provider: 'mock' },
+        { name: 'file-output', provider: 'mock', grader_target: 'grader' },
+      ],
+      providerFactory: (target) => {
+        if (target.name === 'grader') return graderProvider;
+        return answerProvider;
+      },
+      evaluators: undefined,
+      evalCases: [evalCase],
+    });
+
+    expect(results[0]?.score).toBe(1);
+    expect(graderProvider.lastRequest?.question).toContain('spreadsheet: revenue,total');
+    expect(graderProvider.lastRequest?.question).toContain('Q1,42');
+  });
+
   it('reuses cached provider response when available', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [

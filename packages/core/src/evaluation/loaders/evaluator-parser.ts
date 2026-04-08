@@ -1,7 +1,14 @@
 import path from 'node:path';
 
+import { normalizePreprocessorType } from '../content-preprocessor.js';
 import type { ToolTrajectoryEvaluatorConfig, ToolTrajectoryExpectedItem } from '../trace.js';
-import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from '../types.js';
+import type {
+  ContentPreprocessorConfig,
+  EvaluatorConfig,
+  EvaluatorKind,
+  JsonObject,
+  JsonValue,
+} from '../types.js';
 import { isEvaluatorKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
 import { resolveFileReference } from './file-resolver.js';
@@ -48,6 +55,7 @@ export async function parseEvaluators(
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
   evalId: string,
+  defaultPreprocessors?: readonly ContentPreprocessorConfig[],
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
@@ -66,9 +74,19 @@ export async function parseEvaluators(
     : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assertions
 
   // Parse case-level evaluators
-  const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);
+  const parsedCase = await parseEvaluatorList(
+    caseEvaluators,
+    searchRoots,
+    evalId,
+    defaultPreprocessors,
+  );
   // Parse root-level evaluators (appended after case-level)
-  const parsedRoot = await parseEvaluatorList(rootEvaluators, searchRoots, evalId);
+  const parsedRoot = await parseEvaluatorList(
+    rootEvaluators,
+    searchRoots,
+    evalId,
+    defaultPreprocessors,
+  );
 
   if (!parsedCase && !parsedRoot) {
     return undefined;
@@ -87,6 +105,7 @@ async function parseEvaluatorList(
   candidateEvaluators: JsonValue | undefined,
   searchRoots: readonly string[],
   evalId: string,
+  defaultPreprocessors?: readonly ContentPreprocessorConfig[],
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   if (candidateEvaluators === undefined) {
     return undefined;
@@ -175,6 +194,13 @@ async function parseEvaluatorList(
     }
 
     const negate = rawEvaluator.negate === true ? true : undefined;
+    const mergedPreprocessors = await parseMergedPreprocessors(
+      rawEvaluator.preprocessors as JsonValue | undefined,
+      defaultPreprocessors,
+      searchRoots,
+      name,
+      evalId,
+    );
 
     // Custom assertion types — store with their type name for registry dispatch
     if (isCustomType) {
@@ -297,6 +323,7 @@ async function parseEvaluatorList(
         'cwd',
         'weight',
         'target',
+        'preprocessors',
         'required',
         'negate',
       ]);
@@ -318,6 +345,7 @@ async function parseEvaluatorList(
         ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
+        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
         ...(targetConfig !== undefined ? { target: targetConfig } : {}),
       });
       continue;
@@ -1236,6 +1264,7 @@ async function parseEvaluatorList(
         ...(required !== undefined ? { required } : {}),
         ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
+        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
       });
       continue;
     }
@@ -1346,6 +1375,7 @@ async function parseEvaluatorList(
         ...(required !== undefined ? { required } : {}),
         ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
+        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
       });
       continue;
     }
@@ -1375,6 +1405,7 @@ async function parseEvaluatorList(
       'max_steps',
       'maxSteps',
       'temperature',
+      'preprocessors',
     ]);
     const config: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(rawEvaluator)) {
@@ -1422,10 +1453,90 @@ async function parseEvaluatorList(
       ...(finalConfig ? { config: finalConfig } : {}),
       ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
       ...(llmTemperature !== undefined ? { temperature: llmTemperature } : {}),
+      ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
     });
   }
 
   return evaluators.length > 0 ? evaluators : undefined;
+}
+
+async function parseMergedPreprocessors(
+  rawValue: JsonValue | undefined,
+  defaultPreprocessors: readonly ContentPreprocessorConfig[] | undefined,
+  searchRoots: readonly string[],
+  evaluatorName: string,
+  evalId: string,
+): Promise<readonly ContentPreprocessorConfig[] | undefined> {
+  const parsedDefaults = defaultPreprocessors ?? [];
+  const parsedOverrides = await parsePreprocessors(rawValue, searchRoots, evaluatorName, evalId);
+
+  if (parsedDefaults.length === 0 && (!parsedOverrides || parsedOverrides.length === 0)) {
+    return undefined;
+  }
+
+  const merged = new Map<string, ContentPreprocessorConfig>();
+  for (const entry of parsedDefaults) {
+    merged.set(normalizePreprocessorType(entry.type), entry);
+  }
+  for (const entry of parsedOverrides ?? []) {
+    merged.set(normalizePreprocessorType(entry.type), entry);
+  }
+
+  return [...merged.values()];
+}
+
+export async function parsePreprocessors(
+  rawValue: JsonValue | undefined,
+  searchRoots: readonly string[],
+  evaluatorName: string,
+  evalId: string,
+): Promise<readonly ContentPreprocessorConfig[] | undefined> {
+  if (rawValue === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(rawValue)) {
+    throw new Error(`Evaluator '${evaluatorName}' in '${evalId}': preprocessors must be an array`);
+  }
+
+  const preprocessors: ContentPreprocessorConfig[] = [];
+  for (const rawEntry of rawValue) {
+    if (!isJsonObject(rawEntry)) {
+      throw new Error(
+        `Evaluator '${evaluatorName}' in '${evalId}': each preprocessor must be an object`,
+      );
+    }
+
+    const type = asString(rawEntry.type)?.trim();
+    if (!type) {
+      throw new Error(`Evaluator '${evaluatorName}' in '${evalId}': preprocessor.type is required`);
+    }
+
+    const command = asStringArray(
+      rawEntry.command,
+      `preprocessor command for evaluator '${evaluatorName}' in '${evalId}'`,
+    );
+    if (!command || command.length === 0) {
+      throw new Error(
+        `Evaluator '${evaluatorName}' in '${evalId}': preprocessor '${type}' requires command`,
+      );
+    }
+
+    const commandPath = command[command.length - 1];
+    const resolved = await resolveFileReference(commandPath, searchRoots);
+    if (!resolved.resolvedPath) {
+      throw new Error(
+        `Evaluator '${evaluatorName}' in '${evalId}': preprocessor command file not found: ${resolved.displayPath}`,
+      );
+    }
+
+    preprocessors.push({
+      type,
+      command,
+      resolvedCommand: [...command.slice(0, -1), path.resolve(resolved.resolvedPath)],
+    });
+  }
+
+  return preprocessors;
 }
 
 /** Assertion evaluator types that support auto-generated names. */

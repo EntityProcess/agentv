@@ -21,6 +21,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [composite](composite/) | Safety gate and weighted aggregation patterns |
 | [threshold-evaluator](threshold-evaluator/) | Pass a test if a configurable percentage of sub-evaluators pass |
 | [multi-turn-conversation](multi-turn-conversation/) | Grade a multi-turn conversation with per-turn score breakdowns |
+| [preprocessors](preprocessors/) | Convert `ContentFile` outputs into grader-readable text before `llm-grader` runs |
 
 ---
 
@@ -159,6 +160,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [matrix-evaluation](matrix-evaluation/) | Benchmarking |
 | [multi-turn-conversation](multi-turn-conversation/) | LLM grading |
 | [nlp-metrics](nlp-metrics/) | Deterministic assertions |
+| [preprocessors](preprocessors/) | LLM grading |
 | [prompt-template-sdk](prompt-template-sdk/) | TypeScript SDK |
 | [repo-lifecycle](repo-lifecycle/) | Workspace & targets |
 | [rubric](rubric/) | LLM grading |

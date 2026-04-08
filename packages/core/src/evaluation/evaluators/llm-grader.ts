@@ -4,6 +4,10 @@ import path from 'node:path';
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 
+import {
+  appendPreprocessingWarnings,
+  extractTextWithPreprocessors,
+} from '../content-preprocessor.js';
 import type { ContentImage } from '../content.js';
 import { isContentArray } from '../content.js';
 import type { Message, Provider, ProviderResponse } from '../providers/types.js';
@@ -151,6 +155,24 @@ interface StructuredGenerationResult {
   readonly tokenUsage?: TokenUsage;
 }
 
+function resolveContentBasePath(context: EvaluationContext): string | undefined {
+  if (context.workspacePath) {
+    return context.workspacePath;
+  }
+
+  if (
+    'config' in context.target &&
+    context.target.config &&
+    typeof context.target.config === 'object' &&
+    'cwd' in context.target.config &&
+    typeof context.target.config.cwd === 'string'
+  ) {
+    return context.target.config.cwd;
+  }
+
+  return undefined;
+}
+
 export class LlmGraderEvaluator implements Evaluator {
   readonly kind = 'llm-grader';
 
@@ -172,33 +194,61 @@ export class LlmGraderEvaluator implements Evaluator {
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
+    const preparedContext = await this.prepareContext(context);
+
     // Delegate mode: grader target provider is an agent provider — send prompt via invoke()
     if (this.graderTargetProvider) {
-      return this.evaluateWithGraderTarget(context);
+      return this.evaluateWithGraderTarget(preparedContext);
     }
 
-    const graderProvider = await this.resolveGraderProvider(context);
+    const graderProvider = await this.resolveGraderProvider(preparedContext);
     if (!graderProvider) {
       throw new Error('No grader provider available for LLM grading');
     }
 
     // Built-in agent mode: agentv provider → AI SDK generateText with filesystem tools
     if (graderProvider.kind === 'agentv') {
-      return this.evaluateBuiltIn(context, graderProvider);
+      return this.evaluateBuiltIn(preparedContext, graderProvider);
     }
 
     // Delegate mode: resolved provider is an agent provider → send prompt via invoke()
     if (isAgentProvider(graderProvider)) {
-      return this.evaluateWithDelegatedAgent(context, graderProvider);
+      return this.evaluateWithDelegatedAgent(preparedContext, graderProvider);
     }
 
     // LLM mode: structured JSON evaluation
-    const config = context.evaluator;
+    const config = preparedContext.evaluator;
     if (config?.type === 'llm-grader' && config.rubrics && config.rubrics.length > 0) {
-      return this.evaluateWithRubrics(context, graderProvider, config.rubrics);
+      return this.evaluateWithRubrics(preparedContext, graderProvider, config.rubrics);
     }
 
-    return this.evaluateFreeform(context, graderProvider);
+    return this.evaluateFreeform(preparedContext, graderProvider);
+  }
+
+  private async prepareContext(context: EvaluationContext): Promise<EvaluationContext> {
+    const config = context.evaluator;
+    if (config?.type !== 'llm-grader' || !context.output) {
+      return context;
+    }
+
+    const lastAssistant = [...context.output]
+      .reverse()
+      .find((message) => message.role === 'assistant' && message.content !== undefined);
+    if (!lastAssistant || typeof lastAssistant.content === 'string') {
+      return context;
+    }
+
+    const extracted = await extractTextWithPreprocessors(
+      lastAssistant.content,
+      config.preprocessors,
+      {
+        basePath: resolveContentBasePath(context),
+      },
+    );
+    return {
+      ...context,
+      candidate: appendPreprocessingWarnings(extracted.text, extracted.warnings),
+    };
   }
 
   // ---------------------------------------------------------------------------

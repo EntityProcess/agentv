@@ -311,6 +311,8 @@ export type CodeEvaluatorConfig = {
   readonly config?: JsonObject;
   /** When present, enables target access via local proxy */
   readonly target?: TargetAccessConfig;
+  /** Optional content preprocessors inherited from suite/evaluator config */
+  readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
 
 /**
@@ -324,6 +326,15 @@ export type PromptScriptConfig = {
   readonly script?: readonly string[];
   /** Pass-through configuration for the prompt template */
   readonly config?: Record<string, unknown>;
+};
+
+export type ContentPreprocessorConfig = {
+  /** MIME type or short alias such as "xlsx" or "html" */
+  readonly type: string;
+  /** Command array to execute (stdin JSON payload -> stdout text) */
+  readonly command: readonly string[];
+  /** Resolved absolute path for the command script (last argv element) */
+  readonly resolvedCommand?: readonly string[];
 };
 
 export type LlmGraderEvaluatorConfig = {
@@ -351,6 +362,8 @@ export type LlmGraderEvaluatorConfig = {
   readonly max_steps?: number;
   /** Temperature override for grader calls */
   readonly temperature?: number;
+  /** Optional content preprocessors for ContentFile blocks in assistant output */
+  readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
 
 /** @deprecated Use `LlmGraderEvaluatorConfig` instead */
@@ -830,6 +843,8 @@ export interface EvalTest {
   readonly criteria: string;
   readonly evaluator?: EvaluatorKind;
   readonly assertions?: readonly EvaluatorConfig[];
+  /** Suite-level preprocessors used by the implicit default llm-grader. */
+  readonly preprocessors?: readonly ContentPreprocessorConfig[];
   /** Workspace configuration (merged from suite-level and case-level) */
   readonly workspace?: WorkspaceConfig;
   /** Arbitrary metadata passed to workspace scripts via stdin */
