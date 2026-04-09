@@ -11,11 +11,11 @@
  *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
- *   - GET /api/projects  — list registered projects
- *   - GET /api/projects/:projectId/runs — project-scoped run list
+ *   - GET /api/benchmarks  — list registered benchmarks
+ *   - GET /api/benchmarks/:projectId/runs — benchmark-scoped run list
  *
  * All data routes (runs, suites, categories, evals, experiments, targets)
- * exist in both unscoped (/api/...) and project-scoped (/api/projects/:projectId/...)
+ * exist in both unscoped (/api/...) and benchmark-scoped (/api/benchmarks/:projectId/...)
  * variants. They share handler functions via DataContext, differing only in
  * how searchDir is resolved.
  *
@@ -773,7 +773,7 @@ export function createApp(
     };
   }
 
-  app.get('/api/projects', async (c) => {
+  app.get('/api/benchmarks', async (c) => {
     const registry = loadProjectRegistry();
     const projects = await Promise.all(
       registry.projects.map(async (p) => {
@@ -802,7 +802,7 @@ export function createApp(
     return c.json({ projects });
   });
 
-  app.post('/api/projects', async (c) => {
+  app.post('/api/benchmarks', async (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -816,7 +816,7 @@ export function createApp(
     }
   });
 
-  app.delete('/api/projects/:projectId', (c) => {
+  app.delete('/api/benchmarks/:projectId', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -825,7 +825,7 @@ export function createApp(
     return c.json({ ok: true });
   });
 
-  app.get('/api/projects/:projectId/summary', async (c) => {
+  app.get('/api/benchmarks/:projectId/summary', async (c) => {
     const project = getProject(c.req.param('projectId') ?? '');
     if (!project) return c.json({ error: 'Project not found' }, 404);
     try {
@@ -846,7 +846,7 @@ export function createApp(
     }
   });
 
-  app.post('/api/projects/discover', async (c) => {
+  app.post('/api/benchmarks/discover', async (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -862,7 +862,7 @@ export function createApp(
   });
 
   /** Aggregate runs from all registered projects, sorted by timestamp descending. */
-  app.get('/api/projects/all-runs', async (c) => {
+  app.get('/api/benchmarks/all-runs', async (c) => {
     const registry = loadProjectRegistry();
     const allRuns: Array<{
       filename: string;
@@ -1026,7 +1026,7 @@ export function createApp(
   // ── Data routes (project-scoped) ──────────────────────────────────────
   // Same handlers as above, with project-resolved DataContext via withProject.
 
-  app.get('/api/projects/:projectId/config', (c) =>
+  app.get('/api/benchmarks/:projectId/config', (c) =>
     withProject(c, (ctx, dataCtx) =>
       handleConfig(ctx, dataCtx, {
         readOnly,
@@ -1034,36 +1034,38 @@ export function createApp(
       }),
     ),
   );
-  app.get('/api/projects/:projectId/remote/status', (c) =>
+  app.get('/api/benchmarks/:projectId/remote/status', (c) =>
     withProject(c, async (ctx, dataCtx) =>
       ctx.json(await getRemoteResultsStatus(dataCtx.searchDir)),
     ),
   );
-  app.post('/api/projects/:projectId/remote/sync', (c) =>
+  app.post('/api/benchmarks/:projectId/remote/sync', (c) =>
     withProject(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
   );
-  app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
-  app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
-  app.get('/api/projects/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
-  app.get('/api/projects/:projectId/runs/:filename/categories', (c) =>
+  app.get('/api/benchmarks/:projectId/runs', (c) => withProject(c, handleRuns));
+  app.get('/api/benchmarks/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
+  app.get('/api/benchmarks/:projectId/runs/:filename/suites', (c) =>
+    withProject(c, handleRunSuites),
+  );
+  app.get('/api/benchmarks/:projectId/runs/:filename/categories', (c) =>
     withProject(c, handleRunCategories),
   );
-  app.get('/api/projects/:projectId/runs/:filename/categories/:category/suites', (c) =>
+  app.get('/api/benchmarks/:projectId/runs/:filename/categories/:category/suites', (c) =>
     withProject(c, handleCategorySuites),
   );
-  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) =>
+  app.get('/api/benchmarks/:projectId/runs/:filename/evals/:evalId', (c) =>
     withProject(c, handleEvalDetail),
   );
-  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files', (c) =>
+  app.get('/api/benchmarks/:projectId/runs/:filename/evals/:evalId/files', (c) =>
     withProject(c, handleEvalFiles),
   );
-  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files/*', (c) =>
+  app.get('/api/benchmarks/:projectId/runs/:filename/evals/:evalId/files/*', (c) =>
     withProject(c, handleEvalFileContent),
   );
-  app.get('/api/projects/:projectId/experiments', (c) => withProject(c, handleExperiments));
-  app.get('/api/projects/:projectId/compare', (c) => withProject(c, handleCompare));
-  app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
-  app.get('/api/projects/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
+  app.get('/api/benchmarks/:projectId/experiments', (c) => withProject(c, handleExperiments));
+  app.get('/api/benchmarks/:projectId/compare', (c) => withProject(c, handleCompare));
+  app.get('/api/benchmarks/:projectId/targets', (c) => withProject(c, handleTargets));
+  app.get('/api/benchmarks/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
 
   // ── Eval runner routes (discovery, launch, status) ────────────────────
 
@@ -1308,7 +1310,7 @@ export const resultsServeCommand = command({
         console.log('Run an evaluation to see results: agentv eval <eval-file>');
       }
       console.log(`Dashboard: http://localhost:${listenPort}`);
-      console.log(`Projects API: http://localhost:${listenPort}/api/projects`);
+      console.log(`Benchmarks API: http://localhost:${listenPort}/api/benchmarks`);
       console.log('Press Ctrl+C to stop');
 
       const { serve: startServer } = await import('@hono/node-server');
