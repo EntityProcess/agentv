@@ -9,7 +9,7 @@
 import { useTargets } from '~/lib/api';
 import type { TargetSummary } from '~/lib/types';
 
-import { ScoreBar } from './ScoreBar';
+import { PassRatePill } from './PassRatePill';
 
 export function TargetsTab() {
   const { data, isLoading } = useTargets();
@@ -39,7 +39,7 @@ export function TargetsTab() {
             <th className="px-4 py-3 font-medium text-gray-400">Target</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Experiments</th>
-            <th className="w-48 px-4 py-3 font-medium text-gray-400">Pass Rate</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
           </tr>
         </thead>
@@ -54,7 +54,7 @@ export function TargetsTab() {
                 {target.experiment_count}
               </td>
               <td className="px-4 py-3">
-                <ScoreBar score={target.pass_rate} />
+                <PassRatePill rate={target.pass_rate} />
               </td>
               <td className="px-4 py-3 text-right tabular-nums text-gray-400">
                 <span className="text-emerald-400">{target.passed_count}</span>
