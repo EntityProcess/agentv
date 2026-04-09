@@ -23,7 +23,7 @@ SWE-bench field mapping:
     problem_statement  -> input (user message)
     repo               -> metadata.repo
     instance_id        -> workspace.docker.image (ghcr.io/epoch-research/swe-bench.eval.x86_64.<id>:latest)
-    base_commit        -> legacy workspace.docker compatibility bridge
+    base_commit        -> workspace.repos[].checkout.base_commit
     FAIL_TO_PASS       -> assertions (code-grader commands)
     difficulty         -> metadata.difficulty
 

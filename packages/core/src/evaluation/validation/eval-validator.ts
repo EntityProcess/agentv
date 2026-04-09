@@ -431,7 +431,7 @@ function validateWorkspaceRepoConfig(
           errors.push({
             severity: 'warning',
             filePath,
-            location: `workspace.repos[path=${repo.path}]`,
+            location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
             message:
               'checkout.resolve has no effect for a local source. ' +
               'Use source.type to choose where the repo comes from; keep checkout.ref, checkout.base_commit, or checkout.ancestor only when pinning a local source.',
@@ -446,7 +446,7 @@ function validateWorkspaceRepoConfig(
           errors.push({
             severity: 'warning',
             filePath,
-            location: `workspace.repos[path=${repo.path}]`,
+            location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
             message:
               `clone.depth (${depth}) may be insufficient for checkout.ancestor (${ancestor}). ` +
               `Recommend depth >= ${ancestor + 1}.`,

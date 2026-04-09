@@ -215,7 +215,7 @@ describe('DockerWorkspaceProvider', () => {
       ]);
     });
 
-    it('skips reset when base_commit is not set', async () => {
+    it('skips reset when no checkout targets are provided', async () => {
       const provider = new DockerWorkspaceProvider({ image: 'img:1' }, executor);
       await provider.resetContainerCheckout('container-1');
       expect(executor.calls).toHaveLength(0);

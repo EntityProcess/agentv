@@ -167,7 +167,7 @@ export class DockerWorkspaceProvider {
   }
 
   /**
-   * Reset the container checkout to the configured base commit, if present.
+   * Reset the container checkout to the specified target refs, if any.
    * This is used for SWE-bench images where the repo state must match the
    * dataset's base snapshot before grading begins.
    */
