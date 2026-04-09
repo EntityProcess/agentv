@@ -12,7 +12,7 @@
  * - <md: hidden by default, slides in as an overlay when toggled via the hamburger
  */
 
-import { useEffect, type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 import { Link, useLocation, useMatchRoute } from '@tanstack/react-router';
 
@@ -36,9 +36,10 @@ function SidebarShell({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   // Close sidebar on navigation (mobile UX)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: location.pathname is the intended trigger
   useEffect(() => {
     close();
-  }, [location.pathname]);
+  }, [close, location.pathname]);
 
   return (
     <>
