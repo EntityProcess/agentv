@@ -20,14 +20,19 @@ interface RunListProps {
   emptyMessage?: React.ReactNode;
 }
 
-function formatTimestamp(ts: string | undefined | null): string {
-  if (!ts) return 'N/A';
+function formatTimestamp(ts: string | undefined | null): { date: string; full: string } {
+  if (!ts) return { date: 'N/A', full: 'N/A' };
   try {
     const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleString();
+    if (Number.isNaN(d.getTime())) return { date: 'N/A', full: 'N/A' };
+    const date = d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return { date, full: d.toLocaleString() };
   } catch {
-    return 'N/A';
+    return { date: 'N/A', full: 'N/A' };
   }
 }
 
@@ -76,50 +81,55 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800/50">
-          {runs.map((run) => (
-            <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
-              <td className="px-4 py-3">
-                {projectId ? (
-                  <Link
-                    to="/projects/$projectId/runs/$runId"
-                    params={{ projectId, runId: run.filename }}
-                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+          {runs.map((run) => {
+            const ts = formatTimestamp(run.timestamp);
+            return (
+              <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
+                <td className="px-4 py-3">
+                  {projectId ? (
+                    <Link
+                      to="/projects/$projectId/runs/$runId"
+                      params={{ projectId, runId: run.filename }}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {run.display_name ?? run.filename}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/runs/$runId"
+                      params={{ runId: run.filename }}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {run.display_name ?? run.filename}
+                    </Link>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      run.source === 'remote'
+                        ? 'bg-amber-500/10 text-amber-300'
+                        : 'bg-emerald-500/10 text-emerald-300'
+                    }`}
                   >
-                    {run.display_name ?? run.filename}
-                  </Link>
-                ) : (
-                  <Link
-                    to="/runs/$runId"
-                    params={{ runId: run.filename }}
-                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                  >
-                    {run.display_name ?? run.filename}
-                  </Link>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    run.source === 'remote'
-                      ? 'bg-amber-500/10 text-amber-300'
-                      : 'bg-emerald-500/10 text-emerald-300'
-                  }`}
-                >
-                  {run.source}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-gray-400">{run.target ?? '-'}</td>
-              <td className="px-4 py-3 text-gray-400">{run.experiment ?? '-'}</td>
-              <td className="px-4 py-3 text-gray-400">{formatTimestamp(run.timestamp)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{run.test_count}</td>
-              <td className="px-4 py-3">
-                <ScoreBar score={run.pass_rate} />
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {(run.avg_score * 100).toFixed(1)}%
-              </td>
-            </tr>
-          ))}
+                    {run.source}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-400">{run.target ?? '-'}</td>
+                <td className="px-4 py-3 text-gray-400">{run.experiment ?? '-'}</td>
+                <td className="px-4 py-3 text-gray-400" title={ts.full}>
+                  {ts.date}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">{run.test_count}</td>
+                <td className="px-4 py-3">
+                  <ScoreBar score={run.pass_rate} />
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {(run.avg_score * 100).toFixed(1)}%
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
