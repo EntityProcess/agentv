@@ -18,7 +18,7 @@ import { StatsCards } from './StatsCards';
 interface RunDetailProps {
   results: EvalResult[];
   runId: string;
-  projectId?: string;
+  benchmarkId?: string;
 }
 
 interface SuiteStats {
@@ -85,7 +85,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function RunDetail({ results, runId, projectId }: RunDetailProps) {
+export function RunDetail({ results, runId, benchmarkId }: RunDetailProps) {
   const { data: config } = useStudioConfig();
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
@@ -191,10 +191,10 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {projectId ? (
+                      {benchmarkId ? (
                         <Link
-                          to="/projects/$projectId/evals/$runId/$evalId"
-                          params={{ projectId, runId, evalId: result.testId }}
+                          to="/projects/$benchmarkId/evals/$runId/$evalId"
+                          params={{ benchmarkId, runId, evalId: result.testId }}
                           className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         >
                           {result.testId}

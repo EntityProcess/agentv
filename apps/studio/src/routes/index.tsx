@@ -18,11 +18,11 @@ import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
-  addProjectApi,
-  discoverProjectsApi,
+  addBenchmarkApi,
+  discoverBenchmarksApi,
   syncRemoteResultsApi,
+  useBenchmarkList,
   useCompare,
-  useProjectList,
   useRemoteStatus,
   useRunList,
   useStudioConfig,
@@ -42,7 +42,7 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
-  const { data: projectData, isLoading: projectsLoading } = useProjectList();
+  const { data: projectData, isLoading: projectsLoading } = useBenchmarkList();
   const { data: config, isLoading: configLoading } = useStudioConfig();
   const hasProjects = (projectData?.projects.length ?? 0) > 0;
   const multiProjectDashboard = config?.multi_project_dashboard;
@@ -61,7 +61,7 @@ function HomePage() {
 // ── Projects Dashboard ──────────────────────────────────────────────────
 
 function ProjectsDashboard() {
-  const { data } = useProjectList();
+  const { data } = useBenchmarkList();
   const { data: config } = useStudioConfig();
   const queryClient = useQueryClient();
   const [addPath, setAddPath] = useState('');
@@ -78,10 +78,10 @@ function ProjectsDashboard() {
     if (!addPath.trim()) return;
     setError(null);
     try {
-      await addProjectApi(addPath.trim());
+      await addBenchmarkApi(addPath.trim());
       setAddPath('');
       setShowAddForm(false);
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -92,12 +92,12 @@ function ProjectsDashboard() {
     if (!discoverPath.trim()) return;
     setError(null);
     try {
-      const discovered = await discoverProjectsApi(discoverPath.trim());
+      const discovered = await discoverBenchmarksApi(discoverPath.trim());
       setDiscoverPath('');
       if (discovered.length === 0) {
         setError('No projects with .agentv/ found in that directory.');
       }
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
     } catch (err) {
       setError((err as Error).message);
     }

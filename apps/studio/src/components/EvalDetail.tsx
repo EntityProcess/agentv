@@ -10,8 +10,14 @@
 import { useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
-import { isPassing, useEvalFileContent, useEvalFiles, useStudioConfig } from '~/lib/api';
-import { projectEvalFileContentOptions, projectEvalFilesOptions } from '~/lib/api';
+import {
+  benchmarkEvalFileContentOptions,
+  benchmarkEvalFilesOptions,
+  isPassing,
+  useEvalFileContent,
+  useEvalFiles,
+  useStudioConfig,
+} from '~/lib/api';
 import type { AssertionEntry, EvalResult, ScoreEntry } from '~/lib/types';
 
 import { FeedbackPanel } from './FeedbackPanel';
@@ -23,7 +29,7 @@ import { ScoreBar } from './ScoreBar';
 interface EvalDetailProps {
   eval: EvalResult;
   runId: string;
-  projectId?: string;
+  benchmarkId?: string;
 }
 
 type Tab = 'checks' | 'files' | 'feedback';
@@ -40,7 +46,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
   return null;
 }
 
-export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
+export function EvalDetail({ eval: result, runId, benchmarkId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('checks');
   const { data: config } = useStudioConfig();
   const isReadOnly = config?.read_only === true;
@@ -96,7 +102,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
         )}
         {activeTab === 'files' && (
           <div className="h-full p-4">
-            <FilesTab result={result} runId={runId} projectId={projectId} />
+            <FilesTab result={result} runId={runId} benchmarkId={benchmarkId} />
           </div>
         )}
         {!isReadOnly && activeTab === 'feedback' && (
@@ -280,13 +286,13 @@ function ChecksTab({ result }: { result: EvalResult }) {
 function FilesTab({
   result,
   runId,
-  projectId,
-}: { result: EvalResult; runId: string; projectId?: string }) {
+  benchmarkId,
+}: { result: EvalResult; runId: string; benchmarkId?: string }) {
   const evalId = result.testId;
 
-  // Use project-scoped API hooks when projectId is present
-  const { data: filesData } = projectId
-    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId))
+  // Use benchmark-scoped API hooks when benchmarkId is present
+  const { data: filesData } = benchmarkId
+    ? useQuery(benchmarkEvalFilesOptions(benchmarkId, runId, evalId))
     : useEvalFiles(runId, evalId);
   const files = filesData?.files ?? [];
 
@@ -294,8 +300,8 @@ function FilesTab({
 
   const effectivePath = selectedPath ?? (files.length > 0 ? findFirstFile(files) : null);
 
-  const { data: fileContentData, isLoading: isLoadingContent } = projectId
-    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? ''))
+  const { data: fileContentData, isLoading: isLoadingContent } = benchmarkId
+    ? useQuery(benchmarkEvalFileContentOptions(benchmarkId, runId, evalId, effectivePath ?? ''))
     : useEvalFileContent(runId, evalId, effectivePath ?? '');
 
   if (files.length === 0) {

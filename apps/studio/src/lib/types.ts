@@ -218,9 +218,9 @@ export interface RemoteStatusResponse {
   last_error?: string;
 }
 
-// ── Project types ────────────────────────────────────────────────────────
+// ── Benchmark types ──────────────────────────────────────────────────────
 
-export interface ProjectSummary {
+export interface BenchmarkSummary {
   id: string;
   name: string;
   path: string;
@@ -231,11 +231,11 @@ export interface ProjectSummary {
   last_run: string | null;
 }
 
-export interface ProjectListResponse {
-  projects: ProjectSummary[];
+export interface BenchmarkListResponse {
+  projects: BenchmarkSummary[];
 }
 
-export interface ProjectEntry {
+export interface BenchmarkEntry {
   id: string;
   name: string;
   path: string;
