@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { command, positional, string } from 'cmd-ts';
 
-import type { EvaluationResult } from '@agentv/core';
+import { DEFAULT_THRESHOLD, type EvaluationResult } from '@agentv/core';
 import { maybeAutoExportRunArtifacts } from '../results/remote.js';
 
 interface EvaluatorScore {
@@ -250,7 +250,7 @@ export const evalBenchCommand = command({
         {
           eval_file: manifest.eval_file ?? 'pipeline',
           total: results.length,
-          passed: results.filter((result) => result.score >= 0.8).length,
+          passed: results.filter((result) => result.score >= DEFAULT_THRESHOLD).length,
           avg_score:
             results.length > 0
               ? results.reduce((sum, result) => sum + result.score, 0) / results.length
@@ -261,7 +261,7 @@ export const evalBenchCommand = command({
             status:
               result.execution_status === 'execution_error'
                 ? 'ERROR'
-                : result.score >= 0.8
+                : result.score >= DEFAULT_THRESHOLD
                   ? 'PASS'
                   : 'FAIL',
           })),
