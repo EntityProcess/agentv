@@ -84,21 +84,17 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Coloured pass-rate pill: green ≥80%, amber 60–79%, red <60%. */
+/** Progress-bar pill: coloured fill proportional to rate, percentage text inside. */
 function PassRatePill({ rate }: { rate: number }) {
   const pct = Math.round(rate * 100);
-  const color =
-    pct >= 80
-      ? 'bg-emerald-500/15 text-emerald-300'
-      : pct >= 60
-        ? 'bg-amber-500/15 text-amber-300'
-        : 'bg-red-500/15 text-red-300';
+  const fill = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500';
   return (
-    <span
-      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${color}`}
-    >
-      {pct}%
-    </span>
+    <div className="relative h-5 w-20 overflow-hidden rounded-full bg-gray-800">
+      <div className={`absolute inset-y-0 left-0 ${fill}`} style={{ width: `${pct}%` }} />
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums text-white">
+        {pct}%
+      </span>
+    </div>
   );
 }
 
