@@ -49,7 +49,7 @@ describe('eval pipeline e2e', () => {
     const grading = JSON.parse(
       await readFile(join(OUT_DIR, 'input-test', 'test-01', 'grading.json'), 'utf8'),
     );
-    expect(grading.evaluators).toHaveLength(2);
+    expect(grading.graders).toHaveLength(2);
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');

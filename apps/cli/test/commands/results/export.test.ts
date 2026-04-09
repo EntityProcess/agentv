@@ -261,10 +261,10 @@ describe('results export', () => {
     expect(grading.execution_metrics).toBeDefined();
 
     // Has evaluators
-    expect(grading.evaluators).toBeDefined();
-    expect(grading.evaluators).toHaveLength(1);
-    expect(grading.evaluators?.[0].name).toBe('greeting_quality');
-    expect(grading.evaluators?.[0].type).toBe('llm-grader');
+    expect(grading.graders).toBeDefined();
+    expect(grading.graders).toHaveLength(1);
+    expect(grading.graders?.[0].name).toBe('greeting_quality');
+    expect(grading.graders?.[0].type).toBe('llm-grader');
 
     const perTestTimingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'timing.json');
     expect(existsSync(perTestTimingPath)).toBe(true);

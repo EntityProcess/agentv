@@ -135,7 +135,13 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
       evidence: assertion.evidence,
     })),
     scores:
-      grading?.evaluators?.map((evaluator) => ({
+      // `evaluators` was renamed to `graders` in v4.13 — read both for backwards compat with old artifacts.
+      // TODO: remove `evaluators` fallback once old run directories are no longer in use.
+      (
+        grading?.graders ??
+        (grading as (GradingArtifact & { evaluators?: GradingArtifact['graders'] }) | undefined)
+          ?.evaluators
+      )?.map((evaluator) => ({
         name: evaluator.name,
         type: evaluator.type,
         score: evaluator.score,
