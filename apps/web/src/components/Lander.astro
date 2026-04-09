@@ -14,14 +14,22 @@
     </a>
     <div class="av-nav-links">
       <a href="/docs/">Docs</a>
-      <a href="https://github.com/EntityProcess/agentv" target="_blank" rel="noopener noreferrer">GitHub</a>
-      <button class="av-nav-pill" data-command="npm install -g agentv">
-        <code>npm install -g agentv</code>
-        <span class="av-copy-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="av-check-icon"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
+      <button class="av-nav-search" id="av-nav-search" type="button" aria-label="Search docs">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg>
+        <span class="av-nav-search-label">Search docs...</span>
+        <span class="av-nav-search-kbd"><kbd>Ctrl</kbd><kbd>K</kbd></span>
       </button>
+      <dialog class="av-search-dialog" id="av-search-dialog">
+        <div class="av-search-dialog-frame">
+          <button class="av-search-close" id="av-search-close" type="button" aria-label="Close search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+          <div id="av-search-container"></div>
+        </div>
+      </dialog>
+      <a href="https://github.com/EntityProcess/agentv" class="av-nav-github" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+      </a>
     </div>
   </div>
 </nav>
@@ -45,6 +53,14 @@
             GitHub
           </a>
         </div>
+        <button class="av-hero-install" data-command="npm install -g agentv">
+          <span class="av-hero-install-prompt">$</span>
+          <code>npm install -g agentv</code>
+          <span class="av-copy-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="av-check-icon"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </button>
       </div>
       <div class="av-hero-terminal">
         <div class="av-terminal">
@@ -340,7 +356,7 @@ tests:
 .av-nav-links {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .av-nav-links > a {
@@ -353,6 +369,128 @@ tests:
 
 .av-nav-links > a:hover {
   color: var(--av-text);
+}
+
+.av-nav-github {
+  display: flex;
+  align-items: center;
+  color: hsl(240, 5%, 65%) !important;
+  transition: color 0.15s !important;
+}
+
+.av-nav-github:hover {
+  color: var(--av-text) !important;
+}
+
+/* Search button */
+.av-nav-search {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--av-surface-border);
+  border-radius: 0.5rem;
+  background: var(--av-surface);
+  color: hsl(240, 5%, 65%);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+  min-width: 12rem;
+}
+
+.av-nav-search:hover {
+  border-color: hsl(240, 5%, 40%);
+  color: var(--av-text-muted);
+  background: hsl(240, 10%, 14%);
+}
+
+.av-nav-search-label {
+  color: inherit;
+  flex: 1;
+  text-align: left;
+}
+
+.av-nav-search-kbd {
+  display: inline-flex;
+  gap: 0.2rem;
+  margin-left: auto;
+}
+
+.av-nav-search-kbd kbd {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid hsl(240, 5%, 30%);
+  border-radius: 0.25rem;
+  background: hsl(240, 10%, 12%);
+  font-family: inherit;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: hsl(240, 5%, 50%);
+}
+
+/* Search dialog */
+.av-search-dialog {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  background: transparent;
+}
+
+.av-search-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.av-search-dialog[open] {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.av-search-dialog-frame {
+  position: relative;
+  margin-top: 4rem;
+  width: 90%;
+  max-width: 40rem;
+  max-height: calc(100vh - 8rem);
+  overflow: auto;
+  background: hsl(240, 10%, 10%);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.av-search-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: hsl(240, 5%, 50%);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  z-index: 1;
+}
+
+.av-search-close:hover {
+  color: var(--av-text);
+  background: hsl(240, 10%, 16%);
 }
 
 .av-nav-pill {
@@ -464,6 +602,38 @@ tests:
   display: flex;
   gap: 0.875rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.av-hero-install {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  background: var(--av-surface);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 6px;
+  font-family: var(--av-font-mono);
+  font-size: 0.8rem;
+  color: hsl(240, 5%, 65%);
+  transition: border-color 0.15s, color 0.15s;
+  margin-top: 1.5rem;
+}
+
+.av-hero-install:hover {
+  border-color: var(--av-indigo);
+  color: hsl(240, 5%, 85%);
+}
+
+.av-hero-install-prompt {
+  color: var(--av-cyan);
+  font-weight: 600;
+}
+
+.av-hero-install code {
+  font-family: inherit;
 }
 
 .av-btn-primary {
@@ -1024,8 +1194,17 @@ td code {
     grid-template-columns: 1fr;
   }
 
-  .av-nav-pill {
+  .av-nav-search {
+    min-width: auto;
+  }
+
+  .av-nav-search-label,
+  .av-nav-search-kbd {
     display: none;
+  }
+
+  .av-hero-install {
+    font-size: 0.75rem;
   }
 
   .av-table-fade {
@@ -1125,6 +1304,87 @@ td code {
       setTimeout(() => btn.classList.remove("av-copied"), 1500);
     });
   });
+
+  // Search modal
+  const searchBtn = document.getElementById('av-nav-search');
+  const dialog = document.getElementById('av-search-dialog') as HTMLDialogElement;
+  let pagefindLoaded = false;
+
+  function openSearch() {
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
+    if (!pagefindLoaded) {
+      pagefindLoaded = true;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/pagefind/pagefind-ui.css';
+      document.head.appendChild(link);
+      const darkStyles = document.createElement('style');
+      darkStyles.textContent = `
+        #av-search-container {
+          --pagefind-ui-scale: 0.8;
+          --pagefind-ui-primary: #e2e8f0;
+          --pagefind-ui-text: #cbd5e1;
+          --pagefind-ui-font: system-ui, -apple-system, sans-serif;
+          --pagefind-ui-background: hsl(240,10%,6%);
+          --pagefind-ui-border: #475569;
+          --pagefind-ui-border-width: 1px;
+          --pagefind-ui-tag: #475569;
+        }
+        #av-search-container .pagefind-ui__form::before { --pagefind-ui-text: #e2e8f0; opacity: 1; }
+        #av-search-container .pagefind-ui__search-input { color: #f8fafc; font-weight: 400; }
+        #av-search-container input:focus { --pagefind-ui-border: #06b6d4; }
+        #av-search-container .pagefind-ui__search-clear { width: calc(60px * var(--pagefind-ui-scale)); padding: 0; background-color: transparent; overflow: hidden; }
+      `;
+      document.head.appendChild(darkStyles);
+      const script = document.createElement('script');
+      script.src = '/pagefind/pagefind-ui.js';
+      script.onload = () => {
+        // @ts-ignore
+        new PagefindUI({ element: '#av-search-container', showImages: false, showSubResults: true, baseUrl: '/' });
+        setTimeout(() => {
+          const input = dialog.querySelector<HTMLInputElement>('.pagefind-ui__search-input');
+          if (input) input.focus();
+        }, 50);
+      };
+      document.head.appendChild(script);
+    } else {
+      setTimeout(() => {
+        const input = dialog.querySelector<HTMLInputElement>('.pagefind-ui__search-input');
+        if (input) { input.focus(); input.select(); }
+      }, 50);
+    }
+  }
+
+  function closeSearch() {
+    dialog.close();
+    document.body.style.overflow = '';
+  }
+
+  if (searchBtn) searchBtn.addEventListener('click', openSearch);
+  const closeSearchBtn = document.getElementById('av-search-close');
+  if (closeSearchBtn) closeSearchBtn.addEventListener('click', closeSearch);
+  dialog?.addEventListener('click', (e) => { if (e.target === dialog) closeSearch(); });
+  dialog?.addEventListener('close', () => { document.body.style.overflow = ''; });
+  dialog?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('a[href]')) closeSearch();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      dialog?.open ? closeSearch() : openSearch();
+    }
+    if (e.key === 'Escape' && dialog?.open) closeSearch();
+  });
+
+  // Update kbd hint for Mac
+  if (navigator.platform.includes('Mac') || navigator.userAgent.includes('Mac')) {
+    document.querySelectorAll('.av-nav-search-kbd').forEach((el) => {
+      el.innerHTML = '<kbd>\u2318</kbd><kbd>K</kbd>';
+    });
+  }
 
   // Nav scroll detection
   const nav = document.getElementById("av-nav");
