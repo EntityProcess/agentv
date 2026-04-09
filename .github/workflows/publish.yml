@@ -46,6 +46,19 @@ jobs:
         env:
           NPM_CONFIG_PROVENANCE: true
 
+      - name: Configure npm auth via OIDC (promote only)
+        if: inputs.action == 'promote-latest'
+        run: |
+          OIDC_TOKEN=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org" \
+            | jq -r '.value')
+          NPM_TOKEN=$(curl -sS -X POST \
+            "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40agentv%2Fcore" \
+            -H "Authorization: Bearer ${OIDC_TOKEN}" \
+            | jq -r '.token')
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+
       - name: Promote to latest
         if: inputs.action == 'promote-latest'
         run: |
