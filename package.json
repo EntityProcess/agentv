@@ -22,8 +22,6 @@
     "eval:baseline-check": "bun scripts/check-eval-baselines.ts",
     "release": "bun scripts/release.ts",
     "release:next": "bun scripts/release.ts next",
-    "tag:next": "bun scripts/tag-channel.ts next",
-    "promote:latest": "bun scripts/tag-channel.ts latest",
     "examples:install": "bun scripts/install-examples.ts",
     "publish": "bun run build && bun scripts/publish.ts",
     "publish:next": "bun run build && bun scripts/publish.ts next",

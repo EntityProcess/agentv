@@ -481,28 +481,19 @@ This project uses a simple release script for version bumping. The git commit hi
 
 ### Releasing a new version
 
-Run the release script for a version bump:
+Use the **GitHub Actions workflows** — do not publish manually from a local machine.
 
-```bash
-bun run release          # patch bump (default)
-bun run release minor    # minor bump
-bun run release major    # major bump
-```
+**Standard flow (pre-release → stable):**
+1. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=next` (and desired bump: patch/minor/major). This bumps the version to `x.y.z-next.1`, commits, tags, and pushes.
+2. The [Publish workflow](https://github.com/EntityProcess/agentv/actions/workflows/publish.yml) triggers automatically and publishes to npm `next`.
+3. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=finalize`. This strips the `-next.N` suffix (e.g. `4.12.0-next.1` → `4.12.0`), commits, tags, and pushes.
+4. The Publish workflow triggers automatically and publishes to npm `latest`.
 
-The script will:
-1. Validate you're on the `main` branch with no uncommitted changes
-2. Pull latest changes from origin
-3. Bump version in all package.json files
-4. Commit the version bump
-5. Create and push a git tag
+**Direct stable release (skip pre-release):**
+1. Run the Release workflow with `channel=stable` (and bump).
+2. Publish workflow auto-publishes to npm `latest`.
 
-Recommended publish flow:
-```bash
-bun run publish:next   # publish current version to npm `next`
-bun run promote:latest # promote same version to npm `latest`
-bun run tag:next 2.18.0
-bun run promote:latest 2.18.0
-```
+The release script (`bun scripts/release.ts`) is what the Release workflow calls; it can also be run locally for non-publishing tasks (e.g. inspecting version state), but **do not run `bun run publish` or `bun run publish:next` locally** — npm publish uses OIDC trusted publishing which only works in GitHub Actions.
 
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
