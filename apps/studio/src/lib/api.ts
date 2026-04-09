@@ -230,7 +230,7 @@ export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_TH
 
 export const projectListOptions = queryOptions({
   queryKey: ['projects'],
-  queryFn: () => fetchJson<ProjectListResponse>('/api/projects'),
+  queryFn: () => fetchJson<ProjectListResponse>('/api/benchmarks'),
   refetchInterval: 10_000,
 });
 
@@ -240,7 +240,7 @@ export function useProjectList() {
 
 export const allProjectRunsOptions = queryOptions({
   queryKey: ['projects', 'all-runs'],
-  queryFn: () => fetchJson<RunListResponse>('/api/projects/all-runs'),
+  queryFn: () => fetchJson<RunListResponse>('/api/benchmarks/all-runs'),
   refetchInterval: 5_000,
 });
 
@@ -249,7 +249,7 @@ export function useAllProjectRuns() {
 }
 
 export async function addProjectApi(projectPath: string): Promise<ProjectEntry> {
-  const res = await fetch('/api/projects', {
+  const res = await fetch('/api/benchmarks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: projectPath }),
@@ -262,7 +262,7 @@ export async function addProjectApi(projectPath: string): Promise<ProjectEntry> 
 }
 
 export async function removeProjectApi(projectId: string): Promise<void> {
-  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+  const res = await fetch(`/api/benchmarks/${encodeURIComponent(projectId)}`, {
     method: 'DELETE',
   });
   if (!res.ok) {
@@ -271,7 +271,7 @@ export async function removeProjectApi(projectId: string): Promise<void> {
 }
 
 export async function discoverProjectsApi(dirPath: string): Promise<ProjectEntry[]> {
-  const res = await fetch('/api/projects/discover', {
+  const res = await fetch('/api/benchmarks/discover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: dirPath }),
@@ -286,7 +286,7 @@ export async function discoverProjectsApi(dirPath: string): Promise<ProjectEntry
 
 /** Build the API base URL for a project-scoped request. */
 function projectApiBase(projectId: string): string {
-  return `/api/projects/${encodeURIComponent(projectId)}`;
+  return `/api/benchmarks/${encodeURIComponent(projectId)}`;
 }
 
 export function projectRunListOptions(projectId: string) {
