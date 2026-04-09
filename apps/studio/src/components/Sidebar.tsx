@@ -6,9 +6,15 @@
  * - At eval detail: shows list of evals in the current run with pass/fail indicators
  * - At suite detail: shows evals filtered to that suite
  * - At experiment detail: shows list of experiments
+ *
+ * Responsive behavior is handled by SidebarShell:
+ * - md+ (≥768px): always-visible fixed left panel
+ * - <md: hidden by default, slides in as an overlay when toggled via the hamburger
  */
 
-import { Link, useMatchRoute } from '@tanstack/react-router';
+import { useEffect, type ReactNode } from 'react';
+
+import { Link, useLocation, useMatchRoute } from '@tanstack/react-router';
 
 import {
   isPassing,
@@ -22,6 +28,42 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
+import { useSidebarContext } from '~/lib/sidebar-context';
+
+/** Responsive <aside> wrapper. Handles mobile overlay and desktop static placement. */
+function SidebarShell({ children }: { children: ReactNode }) {
+  const { isOpen, close } = useSidebarContext();
+  const location = useLocation();
+
+  // Close sidebar on navigation (mobile UX)
+  useEffect(() => {
+    close();
+  }, [location.pathname]);
+
+  return (
+    <>
+      {/* Backdrop — mobile only, shown when sidebar is open */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={close}
+          onKeyDown={(e) => e.key === 'Escape' && close()}
+          role="button"
+          tabIndex={-1}
+          aria-label="Close navigation"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-800 bg-gray-900/50 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {children}
+      </aside>
+    </>
+  );
+}
 
 export function Sidebar() {
   const matchRoute = useMatchRoute();
@@ -120,7 +162,7 @@ function RunSidebar() {
   const data = useAggregated ? aggregatedData : localData;
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -181,7 +223,7 @@ function RunSidebar() {
           Settings
         </Link>
       </div>
-    </aside>
+    </SidebarShell>
   );
 }
 
@@ -191,7 +233,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -238,7 +280,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
           );
         })}
       </nav>
-    </aside>
+    </SidebarShell>
   );
 }
 
@@ -249,7 +291,7 @@ function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
   const suiteResults = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -292,7 +334,7 @@ function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
           );
         })}
       </nav>
-    </aside>
+    </SidebarShell>
   );
 }
 
@@ -301,7 +343,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
   const suites = data?.suites ?? [];
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -341,7 +383,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
           </Link>
         ))}
       </nav>
-    </aside>
+    </SidebarShell>
   );
 }
 
@@ -357,7 +399,7 @@ function ProjectRunDetailSidebar({
   const { data } = useProjectRunList(projectId);
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -393,7 +435,7 @@ function ProjectRunDetailSidebar({
           );
         })}
       </nav>
-    </aside>
+    </SidebarShell>
   );
 }
 
@@ -411,7 +453,7 @@ function ProjectEvalSidebar({
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -455,7 +497,7 @@ function ProjectEvalSidebar({
           );
         })}
       </nav>
-    </aside>
+    </SidebarShell>
   );
 }
 
@@ -464,7 +506,7 @@ function ExperimentSidebar({ currentExperiment }: { currentExperiment: string })
   const experiments = data?.experiments ?? [];
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900/50">
+    <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
@@ -506,6 +548,6 @@ function ExperimentSidebar({ currentExperiment }: { currentExperiment: string })
           );
         })}
       </nav>
-    </aside>
+    </SidebarShell>
   );
 }
