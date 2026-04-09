@@ -167,7 +167,7 @@ export class DockerWorkspaceProvider {
   }
 
   /**
-   * Reset the container checkout to the configured base commit, if present.
+   * Reset the container checkout to the specified target refs, if any.
    * This is used for SWE-bench images where the repo state must match the
    * dataset's base snapshot before grading begins.
    */
@@ -175,18 +175,11 @@ export class DockerWorkspaceProvider {
     containerId: string,
     repoCheckouts?: readonly RepoCheckoutTarget[],
   ): Promise<void> {
-    const checkoutTargets =
-      repoCheckouts && repoCheckouts.length > 0
-        ? repoCheckouts
-        : this.config.base_commit
-          ? [{ ref: this.config.base_commit }]
-          : [];
-
-    if (checkoutTargets.length === 0) {
+    if (!repoCheckouts || repoCheckouts.length === 0) {
       return;
     }
 
-    for (const target of checkoutTargets) {
+    for (const target of repoCheckouts) {
       const resetResult = await this.execInContainer({
         containerId,
         command: buildGitCommand(target, ['reset', '--hard', target.ref]),

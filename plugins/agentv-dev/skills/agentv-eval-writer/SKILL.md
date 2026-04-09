@@ -311,7 +311,7 @@ tests:
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].checkout.base_commit`; treat `metadata.base_commit` as informational only. `workspace.docker.base_commit` remains a deprecated compatibility bridge for legacy Docker-backed evals.
+For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].checkout.base_commit`; treat `metadata.base_commit` as informational only.
 
 ### Repository Lifecycle
 

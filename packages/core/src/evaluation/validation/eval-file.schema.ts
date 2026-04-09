@@ -283,8 +283,8 @@ const RepoCloneSchema = z.object({
 });
 
 const RepoSchema = z.object({
-  path: z.string(),
-  source: RepoSourceSchema,
+  path: z.string().optional(),
+  source: RepoSourceSchema.optional(),
   checkout: RepoCheckoutSchema.optional(),
   clone: RepoCloneSchema.optional(),
 });
@@ -311,7 +311,6 @@ const DockerWorkspaceSchema = z.object({
   timeout: z.number().int().min(1).optional(),
   memory: z.string().optional(),
   cpus: z.number().min(0.1).optional(),
-  base_commit: z.string().min(1).optional(),
 });
 
 const WorkspaceSchema = z

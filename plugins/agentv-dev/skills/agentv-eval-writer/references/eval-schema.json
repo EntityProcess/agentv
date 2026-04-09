@@ -4925,7 +4925,6 @@
                               "additionalProperties": false
                             }
                           },
-                          "required": ["path", "source"],
                           "additionalProperties": false
                         }
                       },
@@ -5085,10 +5084,6 @@
                           "cpus": {
                             "type": "number",
                             "minimum": 0.1
-                          },
-                          "base_commit": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": ["image"],
@@ -9950,7 +9945,6 @@
                               "additionalProperties": false
                             }
                           },
-                          "required": ["path", "source"],
                           "additionalProperties": false
                         }
                       },
@@ -10110,10 +10104,6 @@
                           "cpus": {
                             "type": "number",
                             "minimum": 0.1
-                          },
-                          "base_commit": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": ["image"],
@@ -13754,7 +13744,6 @@
                         "additionalProperties": false
                       }
                     },
-                    "required": ["path", "source"],
                     "additionalProperties": false
                   }
                 },
@@ -13914,10 +13903,6 @@
                     "cpus": {
                       "type": "number",
                       "minimum": 0.1
-                    },
-                    "base_commit": {
-                      "type": "string",
-                      "minLength": 1
                     }
                   },
                   "required": ["image"],

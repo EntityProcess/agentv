@@ -402,6 +402,8 @@ function validateWorkspaceRepoConfig(
   const afterEachHook = isObject(hooks) ? hooks.after_each : undefined;
   const isolation = workspace.isolation;
 
+  const docker = workspace.docker;
+
   // Depth vs ancestor warning
   if (Array.isArray(repos)) {
     for (const repo of repos) {
@@ -410,6 +412,18 @@ function validateWorkspaceRepoConfig(
       const checkout = repo.checkout;
       const clone = repo.clone;
 
+      // Source-less repos are only valid with Docker (repo exists inside container)
+      if (!isObject(source) && !isObject(docker)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          message:
+            'repos[].source is required for non-Docker workspaces. ' +
+            'Source-less repos are only valid when workspace.docker is configured (repo exists inside the container).',
+        });
+      }
+
       if (isObject(source) && isObject(checkout)) {
         const sourceType = source.type;
         const resolve = checkout.resolve;
@@ -417,7 +431,7 @@ function validateWorkspaceRepoConfig(
           errors.push({
             severity: 'warning',
             filePath,
-            location: `workspace.repos[path=${repo.path}]`,
+            location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
             message:
               'checkout.resolve has no effect for a local source. ' +
               'Use source.type to choose where the repo comes from; keep checkout.ref, checkout.base_commit, or checkout.ancestor only when pinning a local source.',
@@ -432,7 +446,7 @@ function validateWorkspaceRepoConfig(
           errors.push({
             severity: 'warning',
             filePath,
-            location: `workspace.repos[path=${repo.path}]`,
+            location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
             message:
               `clone.depth (${depth}) may be insufficient for checkout.ancestor (${ancestor}). ` +
               `Recommend depth >= ${ancestor + 1}.`,
@@ -452,17 +466,6 @@ function validateWorkspaceRepoConfig(
         message: `hooks.after_each.reset '${afterEachHook.reset}' has no effect without repos.`,
       });
     }
-  }
-
-  const docker = workspace.docker;
-  if (isObject(docker) && typeof docker.base_commit === 'string') {
-    errors.push({
-      severity: 'warning',
-      filePath,
-      location: 'workspace.docker.base_commit',
-      message:
-        'workspace.docker.base_commit is deprecated. Prefer workspace.repos[].checkout.base_commit so checkout state remains backend-agnostic.',
-    });
   }
 
   // after_each reset with per_test isolation warning

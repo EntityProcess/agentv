@@ -188,19 +188,22 @@ tests:
     expect(cases[0].workspace?.template).toBe(path.join(testDir, 'workspace-template'));
   });
 
-  it('should parse docker workspace base_commit', async () => {
-    const evalFile = path.join(testDir, 'workspace-docker-base-commit.yaml');
+  it('should parse Docker repos without source (prebuilt image)', async () => {
+    const evalFile = path.join(testDir, 'workspace-docker-no-source.yaml');
     await writeFile(
       evalFile,
       `
 tests:
-  - id: docker-base-commit
+  - id: docker-no-source
     input: "Do something"
     criteria: "Should work"
     workspace:
       docker:
         image: swebench/sweb.eval.django__django:latest
-        base_commit: abc123def
+      repos:
+        - path: /testbed
+          checkout:
+            base_commit: abc123def
 `,
     );
 
@@ -208,8 +211,39 @@ tests:
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace?.docker).toEqual({
       image: 'swebench/sweb.eval.django__django:latest',
+    });
+    expect(cases[0].workspace?.repos).toHaveLength(1);
+    expect(cases[0].workspace?.repos?.[0].path).toBe('/testbed');
+    expect(cases[0].workspace?.repos?.[0].source).toBeUndefined();
+    expect(cases[0].workspace?.repos?.[0].checkout).toEqual({
       base_commit: 'abc123def',
     });
+  });
+
+  it('should parse repos with path + checkout but no source', async () => {
+    const evalFile = path.join(testDir, 'workspace-repo-path-checkout-only.yaml');
+    await writeFile(
+      evalFile,
+      `
+tests:
+  - id: path-checkout-only
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      docker:
+        image: myimage:latest
+      repos:
+        - path: /workspace/project
+          checkout:
+            ref: v2.0.0
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.repos?.[0].path).toBe('/workspace/project');
+    expect(cases[0].workspace?.repos?.[0].source).toBeUndefined();
+    expect(cases[0].workspace?.repos?.[0].checkout?.ref).toBe('v2.0.0');
   });
 
   it('should parse repo checkout base_commit', async () => {

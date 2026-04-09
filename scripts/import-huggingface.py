@@ -23,7 +23,7 @@ SWE-bench field mapping:
     problem_statement  -> input (user message)
     repo               -> metadata.repo
     instance_id        -> workspace.docker.image (ghcr.io/epoch-research/swe-bench.eval.x86_64.<id>:latest)
-    base_commit        -> legacy workspace.docker compatibility bridge
+    base_commit        -> workspace.repos[].checkout.base_commit
     FAIL_TO_PASS       -> assertions (code-grader commands)
     difficulty         -> metadata.difficulty
 
@@ -183,17 +183,18 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     }
 
     # Docker workspace config
-    # base_commit remains here as a compatibility bridge until Docker-backed
-    # prebuilt images consume workspace.repos[].checkout directly.
     if repo:
         docker_config: dict[str, Any] = {
             "image": _docker_image_for_instance(instance_id),
             "timeout": 600,
             "memory": "4g",
         }
+        workspace: dict[str, Any] = {"docker": docker_config}
         if base_commit:
-            docker_config["base_commit"] = base_commit
-        eval_doc["workspace"] = {"docker": docker_config}
+            workspace["repos"] = [
+                {"path": "/testbed", "checkout": {"base_commit": base_commit}}
+            ]
+        eval_doc["workspace"] = workspace
 
     eval_doc["tests"] = [test_case]
 

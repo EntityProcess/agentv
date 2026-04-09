@@ -67,16 +67,20 @@ interface PoolMetadata {
  * Git URLs are lowercased with .git suffix stripped; local paths are kept as-is.
  */
 function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> {
-  const source =
-    repo.source.type === 'git'
-      ? { type: 'git', url: repo.source.url.toLowerCase().replace(/\.git$/, '') }
-      : { type: 'local', path: repo.source.path };
+  const result: Record<string, unknown> = {};
 
-  const result: Record<string, unknown> = {
-    path: repo.path,
-    source,
-    ref: getRepoCheckoutRef(repo.checkout),
-  };
+  if (repo.path) {
+    result.path = repo.path;
+  }
+
+  if (repo.source) {
+    result.source =
+      repo.source.type === 'git'
+        ? { type: 'git', url: repo.source.url.toLowerCase().replace(/\.git$/, '') }
+        : { type: 'local', path: repo.source.path };
+  }
+
+  result.ref = getRepoCheckoutRef(repo.checkout);
 
   if (repo.clone?.depth !== undefined) {
     result.depth = repo.clone.depth;
@@ -99,7 +103,9 @@ function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> 
  */
 export function computeWorkspaceFingerprint(repos: readonly RepoConfig[]): string {
   const canonical = {
-    repos: [...repos].sort((a, b) => a.path.localeCompare(b.path)).map(normalizeRepoForFingerprint),
+    repos: [...repos]
+      .sort((a, b) => (a.path ?? '').localeCompare(b.path ?? ''))
+      .map(normalizeRepoForFingerprint),
   };
 
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
@@ -364,8 +370,9 @@ export class WorkspacePoolManager {
     repos: readonly RepoConfig[],
     poolReset: 'none' | 'fast' | 'strict' = 'fast',
   ): Promise<void> {
-    // Reset each repo
+    // Reset each repo (skip source-less repos — they live inside Docker only)
     for (const repo of repos) {
+      if (!repo.path || !repo.source) continue;
       const repoDir = path.join(slotPath, repo.path);
       if (!existsSync(repoDir)) {
         continue;
@@ -398,12 +405,14 @@ export class WorkspacePoolManager {
     // Re-copy template files, skipping repo directories
     if (templatePath) {
       const repoDirNames = new Set(
-        repos.map((r) => {
-          // Get the top-level directory name from the repo path
-          // e.g., './my-repo' -> 'my-repo', 'repos/foo' -> 'repos'
-          const normalized = r.path.replace(/^\.\//, '');
-          return normalized.split('/')[0];
-        }),
+        repos
+          .filter((r) => r.path)
+          .map((r) => {
+            // Get the top-level directory name from the repo path
+            // e.g., './my-repo' -> 'my-repo', 'repos/foo' -> 'repos'
+            const normalized = (r.path ?? '').replace(/^\.\//, '');
+            return normalized.split('/')[0];
+          }),
       );
       await copyDirectoryRecursive(templatePath, slotPath, repoDirNames);
     }
