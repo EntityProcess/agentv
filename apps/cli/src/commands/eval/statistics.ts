@@ -226,7 +226,7 @@ export function formatEvaluationSummary(
   } else {
     overallVerdict = overallPassed ? 'PASS' : 'FAIL';
     verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${gradedCount} scored >= ${threshold}, mean: ${formatScore(summary.mean)})`;
+    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} scored >= ${threshold}, mean: ${formatScore(summary.mean)})`;
   }
 
   lines.push('\n==================================================');
