@@ -1,11 +1,11 @@
 ---
-title: Trace
-description: Inspect and analyze evaluation traces from the CLI
+title: Inspect
+description: Inspect and analyze evaluation results from the CLI
 sidebar:
   order: 5
 ---
 
-The `trace` command provides headless trace inspection and analysis — no server or dashboard needed.
+The `inspect` command provides headless trace inspection and analysis — no server or dashboard needed.
 
 Supported sources:
 
@@ -17,22 +17,22 @@ For full tool-call inspection, prefer OTLP JSON exports over eval manifests.
 
 ## Subcommands
 
-### `trace list`
+### `inspect list`
 
 Enumerate canonical evaluation run workspaces from `.agentv/results/runs/`.
 
 ```bash
-agentv trace list [--limit N] [--format json|table]
+agentv inspect list [--limit N] [--format json|table]
 ```
 
 Shows filename, test count, pass rate, average score, file size, and timestamp for each run workspace.
 
-### `trace show`
+### `inspect show`
 
 Display evaluation results with trace details.
 
 ```bash
-agentv trace show <trace-source> [--test-id <id>] [--tree] [--format json|table]
+agentv inspect show <trace-source> [--test-id <id>] [--tree] [--format json|table]
 ```
 
 | Option | Description |
@@ -58,12 +58,12 @@ Scores: response_quality 75% | routing_accuracy 100%
 
 Falls back to a flat summary when output messages are not present in the run workspace.
 
-### `trace stats`
+### `inspect stats`
 
 Compute summary statistics (percentiles) across evaluation results.
 
 ```bash
-agentv trace stats <trace-source> [--group-by target|suite|test-id] [--format json|table]
+agentv inspect stats <trace-source> [--group-by target|suite|test-id] [--format json|table]
 ```
 
 | Option | Description |
@@ -90,11 +90,11 @@ All commands support `--format json` for piping to `jq`:
 
 ```bash
 # Find tests costing more than $0.10
-agentv trace show trace.otlp.json --format json \
+agentv inspect show trace.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
-agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target --format json \
+agentv inspect stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```
 

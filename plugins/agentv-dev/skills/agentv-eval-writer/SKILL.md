@@ -681,7 +681,7 @@ After running evals, perform a human review before iterating. Create `feedback.j
 
 Use `evaluator_overrides` for workspace evaluations to annotate specific grader results (e.g., "code-grader was too strict"). Use `workspace_notes` for observations about workspace state.
 
-Review workflow: run evals → inspect results (`agentv trace show`) → write feedback → tune prompts/graders → re-run.
+Review workflow: run evals → inspect results (`agentv inspect show`) → write feedback → tune prompts/graders → re-run.
 
 Full guide: https://agentv.dev/guides/human-review/
 
