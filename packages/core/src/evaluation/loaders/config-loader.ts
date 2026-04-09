@@ -27,10 +27,20 @@ export type ExecutionDefaults = {
   readonly pool_slots?: number;
 };
 
+export type ResultsExportConfig = {
+  readonly repo: string;
+  readonly path: string;
+  readonly auto_push?: boolean;
+  readonly branch_prefix?: string;
+};
+
 export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
   readonly execution?: ExecutionDefaults;
+  readonly results?: {
+    readonly export?: ResultsExportConfig;
+  };
 };
 
 /**
@@ -82,11 +92,13 @@ export async function loadConfig(
         (parsed as Record<string, unknown>).execution,
         configPath,
       );
+      const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
 
       return {
         required_version: requiredVersion as string | undefined,
         eval_patterns: evalPatterns as readonly string[] | undefined,
         execution: executionDefaults,
+        results,
       };
     } catch (error) {
       logWarning(
@@ -433,6 +445,77 @@ export function parseExecutionDefaults(
   }
 
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
+}
+
+export function parseResultsConfig(
+  raw: unknown,
+  configPath: string,
+): AgentVConfig['results'] | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid results in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const exportConfig = parseResultsExportConfig(obj.export, configPath);
+  if (!exportConfig) {
+    return undefined;
+  }
+
+  return { export: exportConfig };
+}
+
+export function parseResultsExportConfig(
+  raw: unknown,
+  configPath: string,
+): ResultsExportConfig | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid results.export in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const repo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
+  const exportPath = typeof obj.path === 'string' ? obj.path.trim() : '';
+
+  if (!repo) {
+    logWarning(`Invalid results.export.repo in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+
+  if (!exportPath) {
+    logWarning(`Invalid results.export.path in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+
+  if (obj.auto_push !== undefined && typeof obj.auto_push !== 'boolean') {
+    logWarning(`Invalid results.export.auto_push in ${configPath}, expected boolean`);
+    return undefined;
+  }
+
+  let branchPrefix: string | undefined;
+  if (obj.branch_prefix !== undefined) {
+    if (typeof obj.branch_prefix !== 'string' || obj.branch_prefix.trim().length === 0) {
+      logWarning(
+        `Invalid results.export.branch_prefix in ${configPath}, expected non-empty string`,
+      );
+      return undefined;
+    }
+    branchPrefix = obj.branch_prefix.trim();
+  }
+
+  return {
+    repo,
+    path: exportPath,
+    ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
+    ...(branchPrefix && { branch_prefix: branchPrefix }),
+  };
 }
 
 function logWarning(message: string): void {

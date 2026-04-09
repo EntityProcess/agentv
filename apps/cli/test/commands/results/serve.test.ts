@@ -358,6 +358,105 @@ describe('serve app', () => {
       const data = (await res.json()) as { runs: unknown[] };
       expect(data.runs).toEqual([]);
     });
+
+    it('tags local runs with source metadata', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs');
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { runs: Array<{ filename: string; source: string }> };
+      expect(data.runs).toHaveLength(1);
+      expect(data.runs[0]).toMatchObject({
+        filename,
+        source: 'local',
+      });
+    });
+
+    it('merges cached remote runs and tags them with remote source metadata', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+
+      try {
+        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+        writeFileSync(
+          path.join(tempDir, '.agentv', 'config.yaml'),
+          `results:
+  export:
+    repo: EntityProcess/agentv-evals
+    path: autopilot-dev/runs
+`,
+        );
+
+        const remoteRunDir = path.join(
+          process.env.AGENTV_HOME,
+          'cache',
+          'results-repo',
+          'EntityProcess-agentv-evals',
+          'repo',
+          'autopilot-dev',
+          'runs',
+          'default',
+          '2026-03-26T10-00-00-000Z',
+        );
+        mkdirSync(remoteRunDir, { recursive: true });
+        writeFileSync(path.join(remoteRunDir, 'index.jsonl'), toJsonl(RESULT_A));
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/runs');
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          runs: Array<{ filename: string; source: string }>;
+        };
+        expect(data.runs).toHaveLength(1);
+        expect(data.runs[0]).toMatchObject({
+          filename: 'remote::2026-03-26T10-00-00-000Z',
+          source: 'remote',
+        });
+      } finally {
+        if (previousHome === undefined) {
+          delete process.env.AGENTV_HOME;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+  });
+
+  describe('GET /api/remote/status', () => {
+    it('reports configured remote status with graceful local-only fallback', async () => {
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  export:
+    repo: EntityProcess/agentv-evals
+    path: autopilot-dev/runs
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/remote/status');
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        configured: boolean;
+        available: boolean;
+        repo: string;
+        path: string;
+      };
+      expect(data.configured).toBe(true);
+      expect(data.available).toBe(false);
+      expect(data.repo).toBe('EntityProcess/agentv-evals');
+      expect(data.path).toBe('autopilot-dev/runs');
+    });
   });
 
   // ── GET /api/runs/:filename ─────────────────────────────────────────
@@ -382,10 +481,15 @@ describe('serve app', () => {
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request(`/api/runs/${filename}`);
       expect(res.status).toBe(200);
-      const data = (await res.json()) as { results: { testId: string }[]; source: string };
+      const data = (await res.json()) as {
+        results: { testId: string }[];
+        source: 'local' | 'remote';
+        source_label: string;
+      };
       expect(data.results).toHaveLength(2);
       expect(data.results[0].testId).toBe('test-greeting');
-      expect(data.source).toBe(filename);
+      expect(data.source).toBe('local');
+      expect(data.source_label).toBe(filename);
     });
   });
 

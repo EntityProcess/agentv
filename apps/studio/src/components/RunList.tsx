@@ -49,6 +49,7 @@ export function RunList({ runs, projectId }: RunListProps) {
         <thead className="border-b border-gray-800 bg-gray-900/50">
           <tr>
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Source</th>
             <th className="px-4 py-3 font-medium text-gray-400">Target</th>
             <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
             <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
@@ -88,6 +89,17 @@ export function RunList({ runs, projectId }: RunListProps) {
                     {run.display_name ?? run.filename}
                   </Link>
                 )}
+              </td>
+              <td className="px-4 py-3">
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                    run.source === 'remote'
+                      ? 'bg-amber-500/10 text-amber-300'
+                      : 'bg-emerald-500/10 text-emerald-300'
+                  }`}
+                >
+                  {run.source}
+                </span>
               </td>
               <td className="px-4 py-3 text-gray-400">{run.target ?? '-'}</td>
               <td className="px-4 py-3 text-gray-400">{run.experiment ?? '-'}</td>

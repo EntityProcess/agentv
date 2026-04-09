@@ -9,6 +9,7 @@ import {
   extractTotalBudgetUsd,
   extractTrialsConfig,
   parseExecutionDefaults,
+  parseResultsConfig,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
 
@@ -131,6 +132,45 @@ describe('extractTrialsConfig', () => {
   it('returns undefined when trials is an array', () => {
     const suite: JsonObject = { execution: { trials: [1, 2, 3] } };
     expect(extractTrialsConfig(suite)).toBeUndefined();
+  });
+});
+
+describe('parseResultsConfig', () => {
+  it('parses valid results.export config', () => {
+    const result = parseResultsConfig(
+      {
+        export: {
+          repo: 'EntityProcess/agentv-evals',
+          path: 'autopilot-dev/runs',
+          auto_push: true,
+          branch_prefix: 'eval-results',
+        },
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      export: {
+        repo: 'EntityProcess/agentv-evals',
+        path: 'autopilot-dev/runs',
+        auto_push: true,
+        branch_prefix: 'eval-results',
+      },
+    });
+  });
+
+  it('returns undefined for invalid export config', () => {
+    const result = parseResultsConfig(
+      {
+        export: {
+          repo: '',
+          path: 'autopilot-dev/runs',
+        },
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
   });
 });
 
@@ -462,5 +502,44 @@ describe('parseExecutionDefaults', () => {
       otel_capture_content: false,
       otel_group_turns: true,
     });
+  });
+});
+
+describe('parseResultsConfig', () => {
+  it('parses valid results export configuration', () => {
+    expect(
+      parseResultsConfig(
+        {
+          export: {
+            repo: 'EntityProcess/agentv-evals',
+            path: 'autopilot-dev/runs',
+            auto_push: true,
+            branch_prefix: 'eval-results',
+          },
+        },
+        '/test/.agentv/config.yaml',
+      ),
+    ).toEqual({
+      export: {
+        repo: 'EntityProcess/agentv-evals',
+        path: 'autopilot-dev/runs',
+        auto_push: true,
+        branch_prefix: 'eval-results',
+      },
+    });
+  });
+
+  it('returns undefined for invalid results export configuration', () => {
+    expect(
+      parseResultsConfig(
+        {
+          export: {
+            repo: 123,
+            path: 'autopilot-dev/runs',
+          },
+        },
+        '/test/.agentv/config.yaml',
+      ),
+    ).toBeUndefined();
   });
 });

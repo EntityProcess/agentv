@@ -15,6 +15,9 @@ import { join } from 'node:path';
 
 import { command, positional, string } from 'cmd-ts';
 
+import type { EvaluationResult } from '@agentv/core';
+import { maybeAutoExportRunArtifacts } from '../results/remote.js';
+
 interface EvaluatorScore {
   readonly name: string;
   readonly type: string;
@@ -223,6 +226,48 @@ export const evalBenchCommand = command({
     );
 
     console.log(`Benchmark: ${testIds.length} test(s), pass_rate=${passRateStats.mean}`);
+
+    const results = indexLines.map((line) => JSON.parse(line)) as Array<{
+      test_id: string;
+      score: number;
+      execution_status?: string;
+      target?: string;
+      timestamp?: string;
+    }>;
+    await maybeAutoExportRunArtifacts({
+      cwd: process.cwd(),
+      run_dir: exportDir,
+      experiment,
+      test_files: manifest.eval_file ? [manifest.eval_file] : [],
+      results: results.map((result) => ({
+        testId: result.test_id,
+        score: result.score,
+        executionStatus: result.execution_status,
+        target: result.target,
+        timestamp: result.timestamp,
+      })) as EvaluationResult[],
+      eval_summaries: [
+        {
+          eval_file: manifest.eval_file ?? 'pipeline',
+          total: results.length,
+          passed: results.filter((result) => result.score >= 0.8).length,
+          avg_score:
+            results.length > 0
+              ? results.reduce((sum, result) => sum + result.score, 0) / results.length
+              : 0,
+          results: results.map((result) => ({
+            test_id: result.test_id,
+            score: result.score,
+            status:
+              result.execution_status === 'execution_error'
+                ? 'ERROR'
+                : result.score >= 0.8
+                  ? 'PASS'
+                  : 'FAIL',
+          })),
+        },
+      ],
+    });
   },
 });
 

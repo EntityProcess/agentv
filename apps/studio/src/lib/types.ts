@@ -16,6 +16,7 @@ export interface RunMeta {
   size_bytes: number;
   target?: string;
   experiment?: string;
+  source: 'local' | 'remote';
   project_id?: string;
   project_name?: string;
 }
@@ -71,7 +72,8 @@ export interface EvalResult {
 
 export interface RunDetailResponse {
   results: EvalResult[];
-  source: string;
+  source: 'local' | 'remote';
+  source_label?: string;
 }
 
 export interface SuiteSummary {
@@ -197,6 +199,19 @@ export interface StudioConfigResponse {
   /** @deprecated Use threshold */
   pass_threshold?: number;
   read_only?: boolean;
+}
+
+export interface RemoteStatusResponse {
+  configured: boolean;
+  available: boolean;
+  repo?: string;
+  cache_dir?: string;
+  path?: string;
+  auto_push?: boolean;
+  branch_prefix?: string;
+  run_count?: number;
+  last_synced_at?: string;
+  last_error?: string;
 }
 
 // ── Project types ────────────────────────────────────────────────────────

@@ -46,6 +46,25 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts results.export field without warnings', async () => {
+    const filePath = path.join(tempDir, 'config-results.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  export:
+    repo: EntityProcess/agentv-evals
+    path: autopilot-dev/runs
+    auto_push: true
+    branch_prefix: eval-results
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('errors on invalid required_version type', async () => {
     const filePath = path.join(tempDir, 'config-bad-version.yaml');
     await writeFile(filePath, 'required_version: 3\n');

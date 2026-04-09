@@ -15,12 +15,15 @@ import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
+import { RunSourceToolbar, type RunSourceFilter } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   addProjectApi,
   discoverProjectsApi,
+  syncRemoteResultsApi,
   useCompare,
   useProjectList,
+  useRemoteStatus,
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
@@ -183,12 +186,36 @@ function SingleProjectHome() {
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useRunList();
+  const { data: remoteStatus } = useRemoteStatus();
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
+  const [syncInFlight, setSyncInFlight] = useState(false);
   const isReadOnly = config?.read_only === true;
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
+  const filteredRuns =
+    sourceFilter === 'all'
+      ? (data?.runs ?? [])
+      : (data?.runs ?? []).filter((run) => run.source === sourceFilter);
+
+  async function handleSyncRemote() {
+    setSyncInFlight(true);
+    try {
+      await syncRemoteResultsApi();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['runs'] }),
+        queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['compare'] }),
+        queryClient.invalidateQueries({ queryKey: ['targets'] }),
+        queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
+      ]);
+    } finally {
+      setSyncInFlight(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -226,7 +253,18 @@ function SingleProjectHome() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'runs' && <RunsTabContent data={data} isLoading={isLoading} error={error} />}
+      {activeTab === 'runs' && (
+        <RunsTabContent
+          runs={filteredRuns}
+          isLoading={isLoading}
+          error={error}
+          sourceFilter={sourceFilter}
+          onSourceFilterChange={setSourceFilter}
+          remoteStatus={remoteStatus}
+          syncInFlight={syncInFlight}
+          onSyncRemote={handleSyncRemote}
+        />
+      )}
       {activeTab === 'experiments' && <ExperimentsTab />}
       {activeTab === 'compare' && <CompareTabContent />}
       {activeTab === 'targets' && <TargetsTab />}
@@ -242,13 +280,23 @@ function CompareTabContent() {
 }
 
 function RunsTabContent({
-  data,
+  runs,
   isLoading,
   error,
+  sourceFilter,
+  onSourceFilterChange,
+  remoteStatus,
+  syncInFlight,
+  onSyncRemote,
 }: {
-  data: ReturnType<typeof useRunList>['data'];
+  runs: NonNullable<ReturnType<typeof useRunList>['data']>['runs'];
   isLoading: boolean;
   error: Error | null;
+  sourceFilter: RunSourceFilter;
+  onSourceFilterChange: (filter: RunSourceFilter) => void;
+  remoteStatus: ReturnType<typeof useRemoteStatus>['data'];
+  syncInFlight: boolean;
+  onSyncRemote: () => void;
 }) {
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -262,7 +310,18 @@ function RunsTabContent({
     );
   }
 
-  return <RunList runs={data?.runs ?? []} />;
+  return (
+    <div className="space-y-4">
+      <RunSourceToolbar
+        filter={sourceFilter}
+        onFilterChange={onSourceFilterChange}
+        remoteStatus={remoteStatus}
+        syncInFlight={syncInFlight}
+        onSync={onSyncRemote}
+      />
+      <RunList runs={runs} />
+    </div>
+  );
 }
 
 function LoadingSkeleton() {

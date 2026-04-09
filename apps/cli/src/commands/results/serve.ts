@@ -53,6 +53,12 @@ import {
   parseResultManifest,
   resolveResultSourcePath,
 } from './manifest.js';
+import {
+  findRunById,
+  getRemoteResultsStatus,
+  listMergedResultFiles,
+  syncRemoteResults,
+} from './remote.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -234,8 +240,8 @@ interface DataContext {
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
 type C = Context<any, any, any>;
 
-function handleRuns(c: C, { searchDir }: DataContext) {
-  const metas = listResultFiles(searchDir);
+async function handleRuns(c: C, { searchDir }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir);
   return c.json({
     runs: metas.map((m) => {
       let target: string | undefined;
@@ -258,6 +264,7 @@ function handleRuns(c: C, { searchDir }: DataContext) {
         pass_rate: m.passRate,
         avg_score: m.avgScore,
         size_bytes: m.sizeBytes,
+        source: m.source,
         ...(target && { target }),
         ...(experiment && { experiment }),
       };
@@ -265,21 +272,25 @@ function handleRuns(c: C, { searchDir }: DataContext) {
   });
 }
 
-function handleRunDetail(c: C, { searchDir }: DataContext) {
-  const filename = c.req.param('filename');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+async function handleRunDetail(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
-    return c.json({ results: stripHeavyFields(loaded), source: meta.displayName });
+    return c.json({
+      results: stripHeavyFields(loaded),
+      source: meta.source,
+      source_label: meta.displayName,
+    });
   } catch {
     return c.json({ error: 'Failed to load run' }, 500);
   }
 }
 
-function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
-  const filename = c.req.param('filename');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+async function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
@@ -306,9 +317,9 @@ function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
   }
 }
 
-function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
-  const filename = c.req.param('filename');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+async function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
@@ -345,10 +356,10 @@ function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
   }
 }
 
-function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext) {
-  const filename = c.req.param('filename');
+async function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
   const category = decodeURIComponent(c.req.param('category') ?? '');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
@@ -376,10 +387,10 @@ function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext) {
   }
 }
 
-function handleEvalDetail(c: C, { searchDir }: DataContext) {
-  const filename = c.req.param('filename');
+async function handleEvalDetail(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
   const evalId = c.req.param('evalId');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
@@ -391,10 +402,10 @@ function handleEvalDetail(c: C, { searchDir }: DataContext) {
   }
 }
 
-function handleEvalFiles(c: C, { searchDir }: DataContext) {
-  const filename = c.req.param('filename');
+async function handleEvalFiles(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
   const evalId = c.req.param('evalId');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const content = readFileSync(meta.path, 'utf8');
@@ -429,9 +440,9 @@ function handleEvalFiles(c: C, { searchDir }: DataContext) {
   }
 }
 
-function handleEvalFileContent(c: C, { searchDir }: DataContext) {
-  const filename = c.req.param('filename');
-  const meta = listResultFiles(searchDir).find((m) => m.filename === filename);
+async function handleEvalFileContent(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
   // Extract the wildcard suffix without depending on decoded route params.
@@ -465,8 +476,8 @@ function handleEvalFileContent(c: C, { searchDir }: DataContext) {
   }
 }
 
-function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
-  const metas = listResultFiles(searchDir);
+async function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
   const experimentMap = new Map<
     string,
@@ -518,8 +529,8 @@ function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
   return c.json({ experiments });
 }
 
-function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
-  const metas = listResultFiles(searchDir);
+async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
 
   // Collect per-test-case results keyed by experiment × target
@@ -608,8 +619,8 @@ function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
   });
 }
 
-function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
-  const metas = listResultFiles(searchDir);
+async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
   const targetMap = new Map<
     string,
@@ -741,30 +752,32 @@ export function createApp(
     };
   }
 
-  app.get('/api/projects', (c) => {
+  app.get('/api/projects', async (c) => {
     const registry = loadProjectRegistry();
-    const projects = registry.projects.map((p) => {
-      let runCount = 0;
-      let passRate = 0;
-      let lastRun: string | null = null;
-      try {
-        const metas = listResultFiles(p.path);
-        runCount = metas.length;
-        if (metas.length > 0) {
-          const totalPassRate = metas.reduce((sum, m) => sum + m.passRate, 0);
-          passRate = totalPassRate / metas.length;
-          lastRun = metas[0].timestamp;
+    const projects = await Promise.all(
+      registry.projects.map(async (p) => {
+        let runCount = 0;
+        let passRate = 0;
+        let lastRun: string | null = null;
+        try {
+          const { runs: metas } = await listMergedResultFiles(p.path);
+          runCount = metas.length;
+          if (metas.length > 0) {
+            const totalPassRate = metas.reduce((sum, m) => sum + m.passRate, 0);
+            passRate = totalPassRate / metas.length;
+            lastRun = metas[0].timestamp;
+          }
+        } catch {
+          // Project path may be missing or inaccessible
         }
-      } catch {
-        // Project path may be missing or inaccessible
-      }
-      return {
-        ...projectEntryToWire(p),
-        run_count: runCount,
-        pass_rate: passRate,
-        last_run: lastRun,
-      };
-    });
+        return {
+          ...projectEntryToWire(p),
+          run_count: runCount,
+          pass_rate: passRate,
+          last_run: lastRun,
+        };
+      }),
+    );
     return c.json({ projects });
   });
 
@@ -791,11 +804,11 @@ export function createApp(
     return c.json({ ok: true });
   });
 
-  app.get('/api/projects/:projectId/summary', (c) => {
+  app.get('/api/projects/:projectId/summary', async (c) => {
     const project = getProject(c.req.param('projectId') ?? '');
     if (!project) return c.json({ error: 'Project not found' }, 404);
     try {
-      const metas = listResultFiles(project.path);
+      const { runs: metas } = await listMergedResultFiles(project.path);
       const runCount = metas.length;
       const passRate = runCount > 0 ? metas.reduce((s, m) => s + m.passRate, 0) / runCount : 0;
       const lastRun = metas.length > 0 ? metas[0].timestamp : null;
@@ -828,7 +841,7 @@ export function createApp(
   });
 
   /** Aggregate runs from all registered projects, sorted by timestamp descending. */
-  app.get('/api/projects/all-runs', (c) => {
+  app.get('/api/projects/all-runs', async (c) => {
     const registry = loadProjectRegistry();
     const allRuns: Array<{
       filename: string;
@@ -841,13 +854,14 @@ export function createApp(
       size_bytes: number;
       target?: string;
       experiment?: string;
+      source: 'local' | 'remote';
       project_id: string;
       project_name: string;
     }> = [];
 
     for (const p of registry.projects) {
       try {
-        const metas = listResultFiles(p.path);
+        const { runs: metas } = await listMergedResultFiles(p.path);
         for (const m of metas) {
           let target: string | undefined;
           let experiment: string | undefined;
@@ -869,6 +883,7 @@ export function createApp(
             pass_rate: m.passRate,
             avg_score: m.avgScore,
             size_bytes: m.sizeBytes,
+            source: m.source,
             ...(target && { target }),
             ...(experiment && { experiment }),
             project_id: p.id,
@@ -887,6 +902,8 @@ export function createApp(
   // ── Data routes (unscoped) ────────────────────────────────────────────
 
   app.get('/api/config', (c) => handleConfig(c, defaultCtx, { readOnly }));
+  app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
+  app.post('/api/remote/sync', async (c) => c.json(await syncRemoteResults(searchDir)));
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
@@ -957,8 +974,8 @@ export function createApp(
   });
 
   // Aggregated index (unscoped only)
-  app.get('/api/index', (c) => {
-    const metas = listResultFiles(searchDir);
+  app.get('/api/index', async (c) => {
+    const { runs: metas } = await listMergedResultFiles(searchDir);
     const entries = metas.map((m) => {
       let totalCostUsd = 0;
       try {
@@ -985,6 +1002,14 @@ export function createApp(
 
   app.get('/api/projects/:projectId/config', (c) =>
     withProject(c, (ctx, dataCtx) => handleConfig(ctx, dataCtx, { readOnly })),
+  );
+  app.get('/api/projects/:projectId/remote/status', (c) =>
+    withProject(c, async (ctx, dataCtx) =>
+      ctx.json(await getRemoteResultsStatus(dataCtx.searchDir)),
+    ),
+  );
+  app.post('/api/projects/:projectId/remote/sync', (c) =>
+    withProject(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
   );
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
