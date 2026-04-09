@@ -87,9 +87,9 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
             <th className="w-8 px-4 py-3" />
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
             <th className="px-4 py-3 font-medium text-gray-400">Source</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Date</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
             <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
+            <th className="px-4 py-3 font-medium text-gray-400">When</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800/50">
@@ -142,11 +142,6 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                   </span>
                 </td>
 
-                {/* Date */}
-                <td className="px-4 py-3 text-gray-400" title={ts.full}>
-                  {ts.date}
-                </td>
-
                 {/* Test count */}
                 <td className="px-4 py-3 text-right tabular-nums text-gray-400">
                   {run.test_count}
@@ -155,6 +150,11 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                 {/* Pass rate pill */}
                 <td className="px-4 py-3">
                   <PassRatePill rate={run.pass_rate} />
+                </td>
+
+                {/* When */}
+                <td className="px-4 py-3 text-gray-400" title={ts.full}>
+                  {ts.date}
                 </td>
               </tr>
             );
