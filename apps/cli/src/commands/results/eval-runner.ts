@@ -14,9 +14,10 @@
  * process state in memory.
  */
 
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { listTargetNames, readTargetDefinitions } from '@agentv/core';
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
@@ -156,28 +157,44 @@ function buildCliPreview(args: string[]): string {
 
 // ── Resolve the bun + cli.ts path ────────────────────────────────────────
 
-function resolveCliPath(cwd: string): { bunPath: string; cliPath: string } | undefined {
-  // Try to find cli.ts in the project (monorepo dev context)
+function resolveCliPath(cwd: string): { binPath: string; args: string[] } | undefined {
+  // 1. Try to find cli.ts in the project (monorepo dev context)
   const candidates = [
     path.join(cwd, 'apps/cli/src/cli.ts'),
     path.join(cwd, 'apps/cli/dist/cli.js'),
   ];
   for (const c of candidates) {
     if (existsSync(c)) {
-      return { bunPath: 'bun', cliPath: c };
+      return { binPath: 'bun', args: [c] };
     }
   }
 
-  // Try from the current running process location
+  // 2. Try from the current running process location (handles both CJS __dirname
+  //    and ESM import.meta.url; fileURLToPath works correctly on Windows)
   const currentDir =
-    typeof __dirname !== 'undefined' ? __dirname : path.dirname(new URL(import.meta.url).pathname);
+    typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
   const fromSrc = path.resolve(currentDir, '../../../cli.ts');
   const fromDist = path.resolve(currentDir, '../../cli.js');
 
-  if (existsSync(fromSrc)) return { bunPath: 'bun', cliPath: fromSrc };
-  if (existsSync(fromDist)) return { bunPath: 'bun', cliPath: fromDist };
+  if (existsSync(fromSrc)) return { binPath: 'bun', args: [fromSrc] };
+  if (existsSync(fromDist)) return { binPath: 'bun', args: [fromDist] };
+
+  // 3. Fall back to the globally installed `agentv` command.
+  //    This covers npm/bun global installs where source files aren't adjacent.
+  if (isCommandAvailable('agentv')) {
+    return { binPath: 'agentv', args: [] };
+  }
 
   return undefined;
+}
+
+function isCommandAvailable(cmd: string): boolean {
+  try {
+    execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ── Route registration ───────────────────────────────────────────────────
@@ -258,7 +275,7 @@ export function registerEvalRoutes(
     activeRuns.set(runId, run);
 
     try {
-      const child = spawn(cliPaths.bunPath, [cliPaths.cliPath, ...args], {
+      const child = spawn(cliPaths.binPath, [...cliPaths.args, ...args], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
@@ -419,7 +436,7 @@ export function registerEvalRoutes(
     activeRuns.set(runId, run);
 
     try {
-      const child = spawn(cliPaths.bunPath, [cliPaths.cliPath, ...args], {
+      const child = spawn(cliPaths.binPath, [...cliPaths.args, ...args], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
