@@ -435,6 +435,62 @@ describe('serve app', () => {
       });
     });
 
+    it('computes pass_rate using the configured studio threshold (strict threshold yields lower rate)', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      // Two results: score=0.8 and score=0.6
+      // With DEFAULT_THRESHOLD=0.8: score=0.8 passes → 1/2 = 50%
+      // With threshold=0.9: neither passes → 0%
+      const resultHigh = { ...RESULT_A, test_id: 'high', score: 0.8 };
+      const resultLow = { ...RESULT_B, test_id: 'low', score: 0.6 };
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultHigh, resultLow));
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        'studio:\n  threshold: 0.9\n',
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { runs: Array<{ pass_rate: number }> };
+      expect(data.runs).toHaveLength(1);
+      // With threshold=0.9: neither 0.8 nor 0.6 passes → 0%
+      expect(data.runs[0].pass_rate).toBe(0);
+    });
+
+    it('computes pass_rate using the configured studio threshold (lenient threshold yields higher rate)', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T12-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      // Two results: score=0.8 and score=0.6
+      // With DEFAULT_THRESHOLD=0.8: score=0.8 passes → 1/2 = 50%
+      // With threshold=0.5: both pass → 2/2 = 100%
+      const resultHigh = { ...RESULT_A, test_id: 'high', score: 0.8 };
+      const resultLow = { ...RESULT_B, test_id: 'low', score: 0.6 };
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultHigh, resultLow));
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        'studio:\n  threshold: 0.5\n',
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { runs: Array<{ pass_rate: number }> };
+      expect(data.runs).toHaveLength(1);
+      // With threshold=0.5: both 0.8 and 0.6 pass → 100%
+      expect(data.runs[0].pass_rate).toBe(1);
+    });
+
     it('merges cached remote runs and tags them with remote source metadata', async () => {
       const previousHome = process.env.AGENTV_HOME;
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');

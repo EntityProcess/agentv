@@ -255,17 +255,20 @@ interface DataContext {
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
 type C = Context<any, any, any>;
 
-async function handleRuns(c: C, { searchDir }: DataContext) {
+async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir);
+  const { threshold: passThreshold } = loadStudioConfig(agentvDir);
   return c.json({
     runs: metas.map((m) => {
       let target: string | undefined;
       let experiment: string | undefined;
+      let passRate = m.passRate;
       try {
         const records = loadLightweightResults(m.path);
         if (records.length > 0) {
           target = records[0].target;
           experiment = records[0].experiment;
+          passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
         }
       } catch {
         // ignore enrichment errors
@@ -276,7 +279,7 @@ async function handleRuns(c: C, { searchDir }: DataContext) {
         path: m.path,
         timestamp: m.timestamp,
         test_count: m.testCount,
-        pass_rate: m.passRate,
+        pass_rate: passRate,
         avg_score: m.avgScore,
         size_bytes: m.sizeBytes,
         source: m.source,

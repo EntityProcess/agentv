@@ -10,6 +10,7 @@ import type React from 'react';
 
 import { Link } from '@tanstack/react-router';
 
+import { DEFAULT_PASS_THRESHOLD, useStudioConfig } from '~/lib/api';
 import type { RunMeta } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -49,6 +50,9 @@ function runLabel(run: RunMeta): string {
 }
 
 export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
+  const { data: config } = useStudioConfig();
+  const passThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
+
   if (runs.length === 0) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
@@ -84,7 +88,7 @@ export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
         <tbody className="divide-y divide-gray-800/50">
           {runs.map((run) => {
             const ts = formatDate(run.timestamp);
-            const passing = run.pass_rate >= 0.8;
+            const passing = run.pass_rate >= passThreshold;
             const label = runLabel(run);
             const passedCount = Math.round(run.pass_rate * run.test_count);
             const failedCount = run.test_count - passedCount;
