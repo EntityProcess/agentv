@@ -212,22 +212,12 @@ function CompareMatrixCell({
           isBest ? 'ring-2 ring-emerald-500/60' : isWorst ? 'ring-2 ring-red-500/40' : ''
         }`}
       >
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center">
           <span
             className={`text-lg font-semibold tabular-nums ${passRateTextClass(cell.pass_rate)}`}
           >
             {pct}%
           </span>
-          {isBest && (
-            <span className="text-xs text-emerald-400" title="Best performer">
-              &#9650;
-            </span>
-          )}
-          {isWorst && (
-            <span className="text-xs text-red-400" title="Worst performer">
-              &#9660;
-            </span>
-          )}
         </div>
         <div className="mt-0.5 text-xs text-gray-400">
           {cell.passed_count}/{cell.eval_count} pass | avg {avgPct}%
