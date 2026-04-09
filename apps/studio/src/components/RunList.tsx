@@ -6,6 +6,8 @@
  * the run detail view.
  */
 
+import type React from 'react';
+
 import { Link } from '@tanstack/react-router';
 
 import type { RunMeta } from '~/lib/types';
@@ -15,6 +17,7 @@ import { ScoreBar } from './ScoreBar';
 interface RunListProps {
   runs: RunMeta[];
   projectId?: string;
+  emptyMessage?: React.ReactNode;
 }
 
 function formatTimestamp(ts: string | undefined | null): string {
@@ -28,17 +31,21 @@ function formatTimestamp(ts: string | undefined | null): string {
   }
 }
 
-export function RunList({ runs, projectId }: RunListProps) {
+export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
   if (runs.length === 0) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-        <p className="text-lg text-gray-400">No evaluation runs found.</p>
-        <p className="mt-2 text-sm text-gray-500">
-          Run an evaluation first:{' '}
-          <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
-            agentv eval &lt;eval-file&gt;
-          </code>
-        </p>
+        {emptyMessage ?? (
+          <>
+            <p className="text-lg text-gray-400">No evaluation runs found.</p>
+            <p className="mt-2 text-sm text-gray-500">
+              Run an evaluation first:{' '}
+              <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
+                agentv eval &lt;eval-file&gt;
+              </code>
+            </p>
+          </>
+        )}
       </div>
     );
   }

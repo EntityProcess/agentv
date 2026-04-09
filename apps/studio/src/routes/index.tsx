@@ -319,7 +319,40 @@ function RunsTabContent({
         syncInFlight={syncInFlight}
         onSync={onSyncRemote}
       />
-      <RunList runs={runs} />
+      <RunList
+        runs={runs}
+        emptyMessage={
+          sourceFilter === 'remote' ? (
+            remoteStatus?.configured ? (
+              <>
+                <p className="text-lg text-gray-400">No remote runs found.</p>
+                <p className="mt-2 text-sm text-gray-500">
+                  Sync remote results or run an eval with{' '}
+                  <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
+                    auto_push: true
+                  </code>{' '}
+                  in your config.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg text-gray-400">Remote results are not configured.</p>
+                <p className="mt-2 text-sm text-gray-500">
+                  Add{' '}
+                  <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
+                    results.export
+                  </code>{' '}
+                  to{' '}
+                  <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
+                    .agentv/config.yaml
+                  </code>{' '}
+                  to enable remote result syncing.
+                </p>
+              </>
+            )
+          ) : undefined
+        }
+      />
     </div>
   );
 }
