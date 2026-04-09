@@ -1571,7 +1571,7 @@ assertions:
         [tempDir],
         'test-5',
       ),
-    ).rejects.toThrow(/\.agentv\/templates\/missing-template\.yaml/);
+    ).rejects.toThrow(/\.agentv[/\\]templates[/\\]missing-template\.yaml/);
   });
 });
 
