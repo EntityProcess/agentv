@@ -15,6 +15,7 @@ import type {
   EvalDetailResponse,
   EvalDiscoverResponse,
   EvalPreviewResponse,
+  EvalRunListResponse,
   EvalRunResponse,
   EvalRunStatus,
   EvalTargetsResponse,
@@ -510,6 +511,19 @@ export function evalRunStatusOptions(runId: string | null) {
 
 export function useEvalRunStatus(runId: string | null) {
   return useQuery(evalRunStatusOptions(runId));
+}
+
+export function evalRunsOptions(benchmarkId?: string) {
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/runs` : '/api/eval/runs';
+  return queryOptions({
+    queryKey: ['eval-runs', benchmarkId ?? ''],
+    queryFn: () => fetchJson<EvalRunListResponse>(url),
+    refetchInterval: 3_000,
+  });
+}
+
+export function useEvalRuns(benchmarkId?: string) {
+  return useQuery(evalRunsOptions(benchmarkId));
 }
 
 export async function previewEvalCommand(

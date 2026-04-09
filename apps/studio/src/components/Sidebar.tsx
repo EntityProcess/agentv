@@ -23,6 +23,7 @@ import {
   useBenchmarkRunDetail,
   useBenchmarkRunList,
   useCategorySuites,
+  useEvalRuns,
   useExperiments,
   useRunDetail,
   useRunList,
@@ -166,12 +167,23 @@ function RunSidebar() {
   const { data: aggregatedData } = useAllBenchmarkRuns();
   const data = useAggregated ? aggregatedData : localData;
 
+  const { data: evalRunsData } = useEvalRuns();
+  const activeRunCount = (evalRunsData?.runs ?? []).filter(
+    (r) => r.status === 'starting' || r.status === 'running',
+  ).length;
+
   return (
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
           AgentV Studio
         </Link>
+        {activeRunCount > 0 && (
+          <span className="flex items-center gap-1 rounded-full bg-cyan-900/40 px-2 py-0.5 text-xs text-cyan-400">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
+            {activeRunCount}
+          </span>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
