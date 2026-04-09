@@ -249,7 +249,7 @@ function ChecksTab({ result }: { result: EvalResult }) {
                   <AssertionCard
                     key={`${a.text}-${ai}`}
                     assertion={a}
-                    graderLabel={s.type ?? undefined}
+                    graderLabel={s.name ?? s.type ?? undefined}
                   />
                 ))}
               </div>
