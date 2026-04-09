@@ -75,7 +75,7 @@ describe('pipeline bench', () => {
     const grading = JSON.parse(await readFile(join(OUT_DIR, 'test-01', 'grading.json'), 'utf8'));
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
     expect(grading.assertions.length).toBeGreaterThan(0);
-    expect(grading.evaluators).toHaveLength(2);
+    expect(grading.graders).toHaveLength(2);
   });
 
   it('writes index.jsonl with one entry per test', async () => {

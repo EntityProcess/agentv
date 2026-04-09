@@ -127,10 +127,10 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.evaluators).toHaveLength(2);
-    expect(grading.evaluators?.[0].name).toBe('format-check');
-    expect(grading.evaluators?.[0].type).toBe('code-grader');
-    expect(grading.evaluators?.[1].score).toBe(0.7);
+    expect(grading.graders).toHaveLength(2);
+    expect(grading.graders?.[0].name).toBe('format-check');
+    expect(grading.graders?.[0].type).toBe('code-grader');
+    expect(grading.graders?.[1].score).toBe(0.7);
   });
 
   it('records error as errors_encountered', () => {
@@ -150,7 +150,7 @@ describe('buildGradingArtifact', () => {
       total: 0,
       pass_rate: 0,
     });
-    expect(grading.evaluators).toBeUndefined();
+    expect(grading.graders).toBeUndefined();
   });
 
   it('includes workspace_changes when fileChanges present', () => {

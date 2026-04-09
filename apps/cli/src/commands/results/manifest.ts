@@ -135,7 +135,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
       evidence: assertion.evidence,
     })),
     scores:
-      grading?.evaluators?.map((evaluator) => ({
+      grading?.graders?.map((evaluator) => ({
         name: evaluator.name,
         type: evaluator.type,
         score: evaluator.score,

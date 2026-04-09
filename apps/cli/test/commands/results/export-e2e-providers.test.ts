@@ -472,8 +472,8 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.execution_metrics.tool_calls.Write).toBe(1);
 
       // Evaluators
-      expect(grading.evaluators).toHaveLength(1);
-      expect(grading.evaluators?.[0].name).toBe('accuracy');
+      expect(grading.graders).toHaveLength(1);
+      expect(grading.graders?.[0].name).toBe('accuracy');
     });
 
     it('should produce correct grading for Copilot CLI result with mixed assertions', async () => {

@@ -26,7 +26,7 @@ export interface GradingArtifact {
     readonly total_tool_calls: number;
     readonly errors_encountered: number;
   };
-  readonly evaluators?: readonly {
+  readonly graders?: readonly {
     readonly name: string;
     readonly type: string;
     readonly score: number;
@@ -219,12 +219,12 @@ function buildAssertions(result: EvaluationResult): GradingArtifact['assertions'
 }
 
 // ---------------------------------------------------------------------------
-// Build evaluators list
+// Build graders list
 // ---------------------------------------------------------------------------
 
 function buildEvaluators(
   scores: readonly EvaluatorResult[] | undefined,
-): GradingArtifact['evaluators'] {
+): GradingArtifact['graders'] {
   if (!scores || scores.length === 0) {
     return undefined;
   }
@@ -267,7 +267,7 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
       total_tool_calls: totalToolCalls,
       errors_encountered: errorsEncountered,
     },
-    evaluators: buildEvaluators(result.scores),
+    graders: buildEvaluators(result.scores),
     workspace_changes: parseWorkspaceChanges(result.fileChanges),
     conversation: result.conversationId
       ? {
