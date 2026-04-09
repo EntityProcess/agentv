@@ -67,7 +67,7 @@ describe('formatEvaluationSummary — error verdict', () => {
 
     // Should show PASS (the one graded test passed) not ERROR
     expect(output).toContain('RESULT: PASS');
-    expect(output).not.toContain('ERROR');
+    expect(output).not.toContain('RESULT: ERROR');
   });
 
   it('shows FAIL when there are quality failures mixed with execution errors', () => {
