@@ -67,37 +67,20 @@ export function CompareTab({ data, isLoading, isError, error }: CompareTabProps)
     cellMap.set(JSON.stringify([cell.experiment, cell.target]), cell);
   }
 
-  // Find best pass rate per row (target) for highlighting
-  const bestByTarget = new Map<string, number>();
-  const worstByTarget = new Map<string, number>();
-  for (const target of targets) {
-    let best = -1;
-    let worst = 2;
-    for (const experiment of experiments) {
-      const cell = cellMap.get(JSON.stringify([experiment, target]));
-      if (cell) {
-        if (cell.pass_rate > best) best = cell.pass_rate;
-        if (cell.pass_rate < worst) worst = cell.pass_rate;
-      }
-    }
-    bestByTarget.set(target, best);
-    worstByTarget.set(target, worst);
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4 text-sm text-gray-400">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-emerald-900/60 ring-1 ring-emerald-700/40" />
-          &gt;80%
+          <span className="inline-block h-3 w-3 rounded-sm bg-gray-800/60 ring-1 ring-emerald-500/60" />
+          <span className="text-emerald-400">80%+</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-amber-900/40 ring-1 ring-amber-700/40" />
-          50-80%
+          <span className="inline-block h-3 w-3 rounded-sm bg-gray-800/60 ring-1 ring-amber-500/60" />
+          <span className="text-amber-400">50–80%</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-red-900/40 ring-1 ring-red-700/40" />
-          &lt;50%
+          <span className="inline-block h-3 w-3 rounded-sm bg-gray-800/60 ring-1 ring-red-500/60" />
+          <span className="text-red-400">&lt;50%</span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-sm border border-dashed border-gray-700" />
@@ -124,8 +107,6 @@ export function CompareTab({ data, isLoading, isError, error }: CompareTabProps)
                 target={target}
                 experiments={experiments}
                 cellMap={cellMap}
-                bestRate={bestByTarget.get(target) ?? 0}
-                worstRate={worstByTarget.get(target) ?? 0}
               />
             ))}
           </tbody>
@@ -139,14 +120,10 @@ function CompareRow({
   target,
   experiments,
   cellMap,
-  bestRate,
-  worstRate,
 }: {
   target: string;
   experiments: string[];
   cellMap: Map<string, CompareCell>;
-  bestRate: number;
-  worstRate: number;
 }) {
   return (
     <tr className="transition-colors hover:bg-gray-900/30">
@@ -156,15 +133,7 @@ function CompareRow({
         return (
           <td key={exp} className="px-2 py-2">
             {cell ? (
-              <CompareMatrixCell
-                cell={cell}
-                isBest={
-                  experiments.length > 1 && cell.pass_rate === bestRate && bestRate !== worstRate
-                }
-                isWorst={
-                  experiments.length > 1 && cell.pass_rate === worstRate && bestRate !== worstRate
-                }
-              />
+              <CompareMatrixCell cell={cell} />
             ) : (
               <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 px-3 py-4 text-gray-600">
                 --
@@ -177,10 +146,10 @@ function CompareRow({
   );
 }
 
-function passRateColorClass(rate: number): string {
-  if (rate >= 0.8) return 'bg-emerald-900/60 ring-emerald-700/40';
-  if (rate >= 0.5) return 'bg-amber-900/40 ring-amber-700/40';
-  return 'bg-red-900/40 ring-red-700/40';
+function passRateRingClass(rate: number): string {
+  if (rate >= 0.8) return 'ring-emerald-500/60';
+  if (rate >= 0.5) return 'ring-amber-500/60';
+  return 'ring-red-500/60';
 }
 
 function passRateTextClass(rate: number): string {
@@ -189,15 +158,7 @@ function passRateTextClass(rate: number): string {
   return 'text-red-400';
 }
 
-function CompareMatrixCell({
-  cell,
-  isBest,
-  isWorst,
-}: {
-  cell: CompareCell;
-  isBest: boolean;
-  isWorst: boolean;
-}) {
+function CompareMatrixCell({ cell }: { cell: CompareCell }) {
   const [expanded, setExpanded] = useState(false);
   const pct = Math.round(cell.pass_rate * 100);
   const avgPct = Math.round(cell.avg_score * 100);
@@ -208,26 +169,14 @@ function CompareMatrixCell({
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className={`w-full rounded-lg px-3 py-3 text-center ring-1 transition-colors ${passRateColorClass(cell.pass_rate)} hover:brightness-110 ${
-          isBest ? 'ring-2 ring-emerald-500/60' : isWorst ? 'ring-2 ring-red-500/40' : ''
-        }`}
+        className={`w-full rounded-lg bg-gray-800/60 px-3 py-3 text-center ring-1 transition-colors hover:bg-gray-700/60 ${passRateRingClass(cell.pass_rate)}`}
       >
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center">
           <span
             className={`text-lg font-semibold tabular-nums ${passRateTextClass(cell.pass_rate)}`}
           >
             {pct}%
           </span>
-          {isBest && (
-            <span className="text-xs text-emerald-400" title="Best performer">
-              &#9650;
-            </span>
-          )}
-          {isWorst && (
-            <span className="text-xs text-red-400" title="Worst performer">
-              &#9660;
-            </span>
-          )}
         </div>
         <div className="mt-0.5 text-xs text-gray-400">
           {cell.passed_count}/{cell.eval_count} pass | avg {avgPct}%

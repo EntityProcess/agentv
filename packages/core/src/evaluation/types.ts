@@ -232,6 +232,8 @@ export type RepoSource =
 
 export type RepoCheckout = {
   readonly ref?: string;
+  /** SWE-bench-friendly alias for ref when pinning a dataset snapshot commit */
+  readonly base_commit?: string;
   readonly resolve?: 'remote' | 'local';
   readonly ancestor?: number;
 };
@@ -290,6 +292,8 @@ export type DockerWorkspaceConfig = {
   readonly memory?: string;
   /** CPU limit (e.g. 2, 0.5) */
   readonly cpus?: number;
+  /** @deprecated Prefer workspace.repos[].checkout.base_commit as the checkout source of truth */
+  readonly base_commit?: string;
 };
 
 export type WorkspaceConfig = {

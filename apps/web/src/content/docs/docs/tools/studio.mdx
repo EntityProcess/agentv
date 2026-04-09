@@ -10,10 +10,13 @@ import studioRuns from '../../../../assets/screenshots/studio-runs.png';
 import studioRunDetail from '../../../../assets/screenshots/studio-run-detail.png';
 import studioExperiments from '../../../../assets/screenshots/studio-experiments.png';
 import studioProjects from '../../../../assets/screenshots/studio-projects.png';
+import studioProjectsMulti from '../../../../assets/screenshots/studio-projects-multi.png';
+import studioCompare from '../../../../assets/screenshots/studio-compare.png';
+import studioRunsBench from '../../../../assets/screenshots/studio-runs-bench.png';
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
-<Image src={studioRuns} alt="AgentV Studio showing evaluation runs with source badges, pass rates, and scores" />
+<Image src={studioRunsBench} alt="AgentV Studio showing evaluation runs with pass rates, targets, and experiment names" />
 
 ## Usage
 
@@ -37,7 +40,8 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 |--------|-------------|
 | `--port`, `-p` | Port to listen on (flag > `PORT` env var > 3117) |
 | `--dir`, `-d` | Working directory (default: current directory) |
-| `--multi` | Launch in multi-project dashboard mode |
+| `--multi` | Launch in multi-project dashboard mode (deprecated; use auto-detect or `--single`) |
+| `--single` | Force single-project dashboard mode |
 | `--add <path>` | Register a project by path |
 | `--remove <id>` | Unregister a project by ID |
 | `--discover <path>` | Scan a directory tree for repos with `.agentv/` |
@@ -49,6 +53,7 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 - **Targets** — group runs by target (model/agent)
 - **Run Detail** — drill into a run to see per-test results, scores, and evaluator output
 - **Human Review** — add feedback annotations to individual test results
+- **Comparison Matrix** — experiment × target matrix showing pass rates across dimensions
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
 ## Run Detail
@@ -63,24 +68,43 @@ The Experiments tab groups runs by experiment name so you can compare the impact
 
 <Image src={studioExperiments} alt="AgentV Studio experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
 
-## Multi-Project Dashboard
+## Comparison Matrix
 
-By default, Studio shows results for the current directory. The multi-project mode lets you view results across multiple repositories from a single dashboard.
+The **Compare** tab shows a cross-model, cross-experiment performance matrix. Cells are color-coded by pass rate: green (80%+), yellow (50–80%), red (below 50%). The best performer per row has an emerald ring; the worst has a red ring. Click any cell to expand per-test-case results.
 
-### Registering Projects
+<Image src={studioCompare} alt="AgentV Studio comparison matrix showing experiment vs target pass rates with color coding" />
 
-Register projects one at a time:
+Run the same eval against multiple providers or experiment variants, then open the Compare tab:
 
 ```bash
-agentv studio --add /path/to/project-a
-agentv studio --add /path/to/project-b
+agentv eval my.EVAL.yaml --target azure --experiment baseline
+agentv eval my.EVAL.yaml --target azure --experiment with-caching
+agentv eval my.EVAL.yaml --target gemini --experiment baseline
+agentv eval my.EVAL.yaml --target gemini --experiment with-caching
+agentv studio  # Compare tab shows 2x2 matrix
 ```
 
-Each path must contain a `.agentv/` directory. Projects are stored in `~/.agentv/projects.yaml`.
+The matrix is available per-project under the **Compare** tab.
+
+
+## Benchmarks Dashboard
+
+By default, Studio shows results for the current directory. Register multiple benchmark repos to view them from a single dashboard.
+
+### Registering Benchmarks
+
+Register benchmark repos one at a time:
+
+```bash
+agentv studio --add /path/to/my-evals
+agentv studio --add /path/to/other-evals
+```
+
+Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/projects.yaml`.
 
 ### Auto-Discovery
 
-Scan a parent directory to find and register all projects:
+Scan a parent directory to find and register all benchmark repos:
 
 ```bash
 agentv studio --discover /path/to/repos
@@ -90,25 +114,29 @@ This recursively searches (up to 2 levels deep) for directories containing `.age
 
 ### Launching the Dashboard
 
-Once projects are registered, launch the multi-project dashboard:
+Studio auto-detects the mode based on how many benchmarks are registered:
+
+- `0` or `1` registered: single-project view
+- `2+` registered: Benchmarks dashboard
 
 ```bash
-agentv studio --multi
+agentv studio          # auto-detects
+agentv studio --single # force single-project view
 ```
 
-If you have any registered projects, `--multi` is automatically enabled. The landing page shows a card for each project with run count, pass rate, and last run time. Click a project to view its runs.
+The landing page shows a card for each benchmark with run count, pass rate, and last run time.
 
-<Image src={studioProjects} alt="AgentV Studio multi-project dashboard showing project cards with pass rates" />
+<Image src={studioProjectsMulti} alt="AgentV Studio benchmarks dashboard showing benchmark cards with pass rates" />
 
-### Removing Projects
+### Removing a Benchmark
 
-Unregister a project by its ID:
+Unregister by its ID:
 
 ```bash
-agentv studio --remove my-project
+agentv studio --remove my-evals
 ```
 
-Project IDs are derived from the directory name (e.g., `/home/user/repos/my-project` becomes `my-project`).
+IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becomes `my-evals`).
 
 ## Remote Results
 

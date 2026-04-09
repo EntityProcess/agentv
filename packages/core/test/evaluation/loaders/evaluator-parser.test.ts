@@ -1380,6 +1380,201 @@ describe('parseEvaluators - assert field', () => {
   });
 });
 
+describe('parseEvaluators - assertion templates', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-templates-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function writeTemplate(relativePath: string, content: string): Promise<string> {
+    const filePath = path.join(tempDir, relativePath);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, content);
+    return filePath;
+  }
+
+  it('resolves convention-based includes from .agentv/templates', async () => {
+    await writeTemplate(
+      '.agentv/templates/shared.yaml',
+      `
+assertions:
+  - type: contains
+    value: shared
+`,
+    );
+
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ include: 'shared' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'shared' });
+  });
+
+  it('resolves relative template paths and respects skip_defaults', async () => {
+    await writeTemplate(
+      'shared/local.yaml',
+      `
+assertions:
+  - type: contains
+    value: local
+`,
+    );
+
+    const evaluators = await parseEvaluators(
+      {
+        assertions: [{ type: 'contains', value: 'case-only' }],
+        execution: { skip_defaults: true },
+      },
+      {
+        assertions: [{ include: './shared/local.yaml' }],
+      },
+      [tempDir],
+      'test-2',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'case-only' });
+  });
+
+  it('resolves nested relative includes from the template file directory', async () => {
+    await writeTemplate(
+      'templates/nested/outer.yaml',
+      `
+assertions:
+  - include: ./inner.yaml
+  - type: regex
+    value: nested
+`,
+    );
+    await writeTemplate(
+      'templates/nested/inner.yaml',
+      `
+assertions:
+  - type: contains
+    value: inner
+`,
+    );
+
+    const evaluators = await parseEvaluators(
+      {
+        assertions: [{ include: './templates/nested/outer.yaml' }],
+      },
+      undefined,
+      [tempDir],
+      'test-relative-nested',
+    );
+
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'inner' });
+    expect(evaluators?.[1]).toMatchObject({ type: 'regex', value: 'nested' });
+  });
+
+  it('expands nested template includes up to depth 3', async () => {
+    await writeTemplate(
+      '.agentv/templates/level-a.yaml',
+      `
+assertions:
+  - include: level-b
+`,
+    );
+    await writeTemplate(
+      '.agentv/templates/level-b.yaml',
+      `
+assertions:
+  - include: level-c
+`,
+    );
+    await writeTemplate(
+      '.agentv/templates/level-c.yaml',
+      `
+assertions:
+  - type: contains
+    value: nested-ok
+`,
+    );
+
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ include: 'level-a' }],
+      },
+      undefined,
+      [tempDir],
+      'test-3',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'nested-ok' });
+  });
+
+  it('throws when nested includes exceed depth 3', async () => {
+    await writeTemplate(
+      '.agentv/templates/depth-a.yaml',
+      `
+assertions:
+  - include: depth-b
+`,
+    );
+    await writeTemplate(
+      '.agentv/templates/depth-b.yaml',
+      `
+assertions:
+  - include: depth-c
+`,
+    );
+    await writeTemplate(
+      '.agentv/templates/depth-c.yaml',
+      `
+assertions:
+  - include: depth-d
+`,
+    );
+    await writeTemplate(
+      '.agentv/templates/depth-d.yaml',
+      `
+assertions:
+  - type: contains
+    value: too-deep
+`,
+    );
+
+    await expect(
+      parseEvaluators(
+        {
+          evaluators: [{ include: 'depth-a' }],
+        },
+        undefined,
+        [tempDir],
+        'test-4',
+      ),
+    ).rejects.toThrow(/depth exceeded 3/i);
+  });
+
+  it('throws a clear error when a template is missing', async () => {
+    await expect(
+      parseEvaluators(
+        {
+          evaluators: [{ include: 'missing-template' }],
+        },
+        undefined,
+        [tempDir],
+        'test-5',
+      ),
+    ).rejects.toThrow(/\.agentv\/templates\/missing-template\.yaml/);
+  });
+});
+
 describe('parseEvaluators - type: rubrics with criteria', () => {
   let tempDir: string;
 

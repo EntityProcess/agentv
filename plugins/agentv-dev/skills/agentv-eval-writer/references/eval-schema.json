@@ -520,6 +520,17 @@
                         {
                           "type": "object",
                           "properties": {
+                            "include": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["include"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
                             "name": {
                               "type": "string"
                             },
@@ -1643,6 +1654,17 @@
                             }
                           },
                           "required": ["type"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "include": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["include"],
                           "additionalProperties": false
                         },
                         {
@@ -2793,6 +2815,17 @@
                             {
                               "type": "object",
                               "properties": {
+                                "include": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["include"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
                                 "name": {
                                   "type": "string"
                                 },
@@ -3921,6 +3954,17 @@
                             {
                               "type": "object",
                               "properties": {
+                                "include": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["include"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
                                 "name": {
                                   "type": "string"
                                 },
@@ -4846,6 +4890,10 @@
                                 "ref": {
                                   "type": "string"
                                 },
+                                "base_commit": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
                                 "resolve": {
                                   "type": "string",
                                   "enum": ["remote", "local"]
@@ -5037,6 +5085,10 @@
                           "cpus": {
                             "type": "number",
                             "minimum": 0.1
+                          },
+                          "base_commit": {
+                            "type": "string",
+                            "minLength": 1
                           }
                         },
                         "required": ["image"],
@@ -5493,6 +5545,17 @@
                         {
                           "type": "object",
                           "properties": {
+                            "include": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["include"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
                             "name": {
                               "type": "string"
                             },
@@ -6616,6 +6679,17 @@
                             }
                           },
                           "required": ["type"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "include": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["include"],
                           "additionalProperties": false
                         },
                         {
@@ -7766,6 +7840,17 @@
                             {
                               "type": "object",
                               "properties": {
+                                "include": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["include"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
                                 "name": {
                                   "type": "string"
                                 },
@@ -8894,6 +8979,17 @@
                             {
                               "type": "object",
                               "properties": {
+                                "include": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["include"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
                                 "name": {
                                   "type": "string"
                                 },
@@ -9819,6 +9915,10 @@
                                 "ref": {
                                   "type": "string"
                                 },
+                                "base_commit": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
                                 "resolve": {
                                   "type": "string",
                                   "enum": ["remote", "local"]
@@ -10010,6 +10110,10 @@
                           "cpus": {
                             "type": "number",
                             "minimum": 0.1
+                          },
+                          "base_commit": {
+                            "type": "string",
+                            "minLength": 1
                           }
                         },
                         "required": ["image"],
@@ -10367,6 +10471,17 @@
                       }
                     },
                     "required": ["type"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "include": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["include"],
                     "additionalProperties": false
                   },
                   {
@@ -11495,6 +11610,17 @@
                       }
                     },
                     "required": ["type"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "include": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["include"],
                     "additionalProperties": false
                   },
                   {
@@ -12679,6 +12805,17 @@
               {
                 "type": "object",
                 "properties": {
+                  "include": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["include"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
                   "name": {
                     "type": "string"
                   },
@@ -13582,6 +13719,10 @@
                           "ref": {
                             "type": "string"
                           },
+                          "base_commit": {
+                            "type": "string",
+                            "minLength": 1
+                          },
                           "resolve": {
                             "type": "string",
                             "enum": ["remote", "local"]
@@ -13773,6 +13914,10 @@
                     "cpus": {
                       "type": "number",
                       "minimum": 0.1
+                    },
+                    "base_commit": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   },
                   "required": ["image"],

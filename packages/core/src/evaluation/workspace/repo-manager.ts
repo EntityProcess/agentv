@@ -4,6 +4,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import type { RepoConfig, RepoSource } from '../types.js';
+import { getRepoCheckoutRef } from './repo-checkout.js';
 
 /**
  * Validation error for a local repo source path that doesn't exist or is unresolved.
@@ -160,7 +161,7 @@ export class RepoManager {
     }
 
     // Resolve ref
-    const ref = repo.checkout?.ref ?? 'HEAD';
+    const ref = getRepoCheckoutRef(repo.checkout);
     const resolve = repo.checkout?.resolve ?? 'remote';
 
     let resolvedSha: string;

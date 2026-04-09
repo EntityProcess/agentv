@@ -147,3 +147,36 @@ agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.
 ```
 
 See `examples/features/import-claude/` for a complete working example.
+
+## HuggingFace Datasets (SWE-bench)
+
+Use `scripts/import-huggingface.py` to convert HuggingFace benchmark datasets into AgentV eval files. Currently supports SWE-bench-style datasets.
+
+```bash
+uv run scripts/import-huggingface.py \
+  --repo SWE-bench/SWE-bench_Verified \
+  --split test \
+  --limit 10 \
+  --output evals/swebench/
+```
+
+Each instance becomes an EVAL.yaml with:
+- `input` — the problem statement
+- `workspace.docker.image` — the pre-built SWE-bench Docker image (`ghcr.io/epoch-research/swe-bench.eval.x86_64.<instance_id>:latest`)
+- `workspace.docker.base_commit` — the commit to reset to before the agent runs
+- `assertions` — `code-grader` tasks that run `FAIL_TO_PASS` and `PASS_TO_PASS` pytest suites inside the container
+
+Run an imported SWE-bench eval against any coding agent target:
+
+```bash
+# Import one instance
+uv run scripts/import-huggingface.py \
+  --repo SWE-bench/SWE-bench_Verified \
+  --limit 1 \
+  --output /tmp/swebench-eval/
+
+# Run with a coding agent target
+agentv eval /tmp/swebench-eval/*.EVAL.yaml --target codex
+```
+
+The Docker workspace spins up the pre-built SWE-bench image, checks out `base_commit`, runs the agent to apply a patch, then grades by running the test suite inside the container.

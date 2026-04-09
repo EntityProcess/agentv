@@ -1,6 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { parse } from 'yaml';
 
 import { normalizePreprocessorType } from '../content-preprocessor.js';
+import { interpolateEnv } from '../interpolation.js';
 import type { ToolTrajectoryEvaluatorConfig, ToolTrajectoryExpectedItem } from '../trace.js';
 import type {
   ContentPreprocessorConfig,
@@ -15,6 +18,7 @@ import { resolveFileReference } from './file-resolver.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
+const MAX_ASSERTION_INCLUDE_DEPTH = 3;
 
 /**
  * Prefix for explicit file references in prompt strings.
@@ -98,15 +102,121 @@ export async function parseEvaluators(
   return evaluators.length > 0 ? evaluators : undefined;
 }
 
-/**
- * Parse a raw evaluator array into typed EvaluatorConfig objects.
- */
-async function parseEvaluatorList(
+interface IncludeContext {
+  readonly depth: number;
+  readonly chain: readonly string[];
+}
+
+function isIncludeEntry(value: unknown): value is { include: string } {
+  return (
+    isJsonObject(value) && typeof value.include === 'string' && Object.keys(value).length === 1
+  );
+}
+
+function isTemplateReference(value: string): boolean {
+  return !value.startsWith('.') && !value.includes('/') && !value.includes('\\');
+}
+
+async function resolveAssertionTemplateReference(
+  include: string,
+  searchRoots: readonly string[],
+): Promise<{
+  readonly displayPath: string;
+  readonly resolvedPath: string;
+  readonly attempted: readonly string[];
+}> {
+  const templateCandidates = isTemplateReference(include)
+    ? [
+        path.join('.agentv', 'templates', `${include}.yaml`),
+        path.join('.agentv', 'templates', `${include}.yml`),
+      ]
+    : [include];
+
+  const attempted: string[] = [];
+  for (const candidate of templateCandidates) {
+    const resolved = await resolveFileReference(candidate, searchRoots);
+    attempted.push(...resolved.attempted);
+    if (resolved.resolvedPath) {
+      return {
+        displayPath: resolved.displayPath,
+        resolvedPath: resolved.resolvedPath,
+        attempted,
+      };
+    }
+  }
+
+  return {
+    displayPath: templateCandidates[0] ?? include,
+    resolvedPath: '',
+    attempted,
+  };
+}
+
+async function loadAssertionTemplateEntries(
+  include: string,
+  searchRoots: readonly string[],
+  evalId: string,
+  includeContext: IncludeContext,
+): Promise<readonly unknown[]> {
+  const nextDepth = includeContext.depth + 1;
+  if (nextDepth > MAX_ASSERTION_INCLUDE_DEPTH) {
+    const chain = [...includeContext.chain, include].join(' -> ');
+    throw new Error(
+      `Assertion template include depth exceeded ${MAX_ASSERTION_INCLUDE_DEPTH} in '${evalId}'. Include chain: ${chain}`,
+    );
+  }
+
+  const resolved = await resolveAssertionTemplateReference(include, searchRoots);
+  if (!resolved.resolvedPath) {
+    const attempted =
+      resolved.attempted.length > 0
+        ? `\n${resolved.attempted.map((attempt) => `  Tried: ${attempt}`).join('\n')}`
+        : '';
+    throw new Error(
+      `Assertion template not found in '${evalId}': ${resolved.displayPath}${attempted}`,
+    );
+  }
+
+  if (includeContext.chain.includes(resolved.resolvedPath)) {
+    const cycle = [...includeContext.chain, resolved.resolvedPath].join(' -> ');
+    throw new Error(`Assertion template cycle detected in '${evalId}': ${cycle}`);
+  }
+
+  const content = await readFile(resolved.resolvedPath, 'utf8');
+  const parsed = interpolateEnv(parse(content), process.env) as unknown;
+  if (!isJsonObject(parsed)) {
+    throw new Error(
+      `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} (expected a YAML object with an assertions array)`,
+    );
+  }
+
+  const assertions = (parsed as Record<string, unknown>).assertions;
+  if (!Array.isArray(assertions)) {
+    throw new Error(
+      `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} is missing a top-level assertions array`,
+    );
+  }
+
+  const templateDir = path.dirname(resolved.resolvedPath);
+  const nestedSearchRoots = [
+    templateDir,
+    ...searchRoots.filter((root) => path.resolve(root) !== templateDir),
+  ];
+
+  return (
+    (await expandEvaluatorEntries(assertions, nestedSearchRoots, evalId, {
+      depth: nextDepth,
+      chain: [...includeContext.chain, resolved.resolvedPath],
+    })) ?? []
+  );
+}
+
+async function expandEvaluatorEntries(
   candidateEvaluators: JsonValue | undefined,
   searchRoots: readonly string[],
   evalId: string,
-  defaultPreprocessors?: readonly ContentPreprocessorConfig[],
-): Promise<readonly EvaluatorConfig[] | undefined> {
+  includeContext: IncludeContext = { depth: 0, chain: [] },
+): Promise<readonly unknown[] | undefined> {
   if (candidateEvaluators === undefined) {
     return undefined;
   }
@@ -116,19 +226,51 @@ async function parseEvaluatorList(
     return undefined;
   }
 
+  const expanded: unknown[] = [];
+  for (const rawEvaluator of candidateEvaluators) {
+    if (isIncludeEntry(rawEvaluator)) {
+      const included = await loadAssertionTemplateEntries(
+        rawEvaluator.include,
+        searchRoots,
+        evalId,
+        includeContext,
+      );
+      expanded.push(...included);
+      continue;
+    }
+    expanded.push(rawEvaluator);
+  }
+
+  return expanded;
+}
+
+/**
+ * Parse a raw evaluator array into typed EvaluatorConfig objects.
+ */
+async function parseEvaluatorList(
+  candidateEvaluators: JsonValue | undefined,
+  searchRoots: readonly string[],
+  evalId: string,
+  defaultPreprocessors?: readonly ContentPreprocessorConfig[],
+): Promise<readonly EvaluatorConfig[] | undefined> {
+  const expandedEvaluators = await expandEvaluatorEntries(candidateEvaluators, searchRoots, evalId);
+  if (!expandedEvaluators) {
+    return undefined;
+  }
+
   // Pre-process: collect all string entries across the array (regardless of position) and
   // group them into a single rubrics evaluator inserted at the first-string position.
   // Non-string entries are preserved in their original relative order.
-  const firstStringIndex = candidateEvaluators.findIndex((e) => typeof e === 'string');
+  const firstStringIndex = expandedEvaluators.findIndex((e) => typeof e === 'string');
   const processedEvaluators: unknown[] =
     firstStringIndex === -1
-      ? [...candidateEvaluators]
+      ? [...expandedEvaluators]
       : (() => {
           const PLACEHOLDER = Symbol('rubric-placeholder');
           const strings: string[] = [];
           const result: unknown[] = [];
           let rubricInserted = false;
-          for (const item of candidateEvaluators) {
+          for (const item of expandedEvaluators) {
             if (typeof item === 'string') {
               const trimmed = item.trim();
               if (trimmed.length === 0) {
@@ -395,9 +537,18 @@ async function parseEvaluatorList(
         continue;
       }
 
+      const expandedMembers = await expandEvaluatorEntries(
+        rawMembers,
+        searchRoots,
+        `${evalId}:${name}`,
+      );
+      if (!expandedMembers) {
+        continue;
+      }
+
       // Recursively parse member evaluators
       const memberEvaluators: EvaluatorConfig[] = [];
-      for (const rawMember of rawMembers) {
+      for (const rawMember of expandedMembers) {
         if (!isJsonObject(rawMember)) {
           logWarning(`Skipping invalid member evaluator in composite '${name}' (expected object)`);
           continue;

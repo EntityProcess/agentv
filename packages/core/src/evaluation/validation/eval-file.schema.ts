@@ -101,6 +101,12 @@ const LlmGraderSchema = EvaluatorCommonSchema.extend({
   preprocessors: z.array(PreprocessorSchema).optional(),
 });
 
+const IncludeSchema = z
+  .object({
+    include: z.string().min(1),
+  })
+  .strict();
+
 /** Aggregator configs for composite evaluator */
 const AggregatorSchema = z.discriminatedUnion('type', [
   z.object({
@@ -228,6 +234,7 @@ const RubricsSchema = EvaluatorCommonSchema.extend({
 const EvaluatorSchema = z.union([
   CodeGraderSchema,
   LlmGraderSchema,
+  IncludeSchema,
   CompositeSchema,
   ToolTrajectorySchema,
   FieldAccuracySchema,
@@ -264,6 +271,7 @@ const RepoSourceSchema = z.discriminatedUnion('type', [
 
 const RepoCheckoutSchema = z.object({
   ref: z.string().optional(),
+  base_commit: z.string().min(1).optional(),
   resolve: z.enum(['remote', 'local']).optional(),
   ancestor: z.number().int().min(0).optional(),
 });
@@ -303,6 +311,7 @@ const DockerWorkspaceSchema = z.object({
   timeout: z.number().int().min(1).optional(),
   memory: z.string().optional(),
   cpus: z.number().min(0.1).optional(),
+  base_commit: z.string().min(1).optional(),
 });
 
 const WorkspaceSchema = z

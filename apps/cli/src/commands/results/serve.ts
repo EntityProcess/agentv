@@ -1,5 +1,5 @@
 /**
- * `agentv studio` — starts the AgentV Studio server, a React SPA for
+ * `agentv studio` / `agentv serve` — starts the AgentV Studio server, a React SPA for
  * reviewing evaluation results.
  *
  * The server uses Hono for routing and @hono/node-server to listen.
@@ -112,6 +112,21 @@ export function loadResults(content: string): EvaluationResult[] {
   }
 
   return results;
+}
+
+export function resolveDashboardMode(
+  projectCount: number,
+  options: { multi?: boolean; single?: boolean },
+): { isMultiProject: boolean; showMultiWarning: boolean } {
+  if (options.single === true) {
+    return { isMultiProject: false, showMultiWarning: options.multi === true };
+  }
+
+  if (options.multi === true) {
+    return { isMultiProject: true, showMultiWarning: true };
+  }
+
+  return { isMultiProject: projectCount > 1, showMultiWarning: false };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -669,12 +684,13 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 function handleConfig(
   c: C,
   { agentvDir, searchDir }: DataContext,
-  options?: { readOnly?: boolean },
+  options?: { readOnly?: boolean; multiProjectDashboard?: boolean },
 ) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
     project_name: path.basename(searchDir),
+    multi_project_dashboard: options?.multiProjectDashboard === true,
   });
 }
 
@@ -694,7 +710,7 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string; readOnly?: boolean },
+  options?: { studioDir?: string; readOnly?: boolean; multiProjectDashboard?: boolean },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
@@ -906,7 +922,12 @@ export function createApp(
 
   // ── Data routes (unscoped) ────────────────────────────────────────────
 
-  app.get('/api/config', (c) => handleConfig(c, defaultCtx, { readOnly }));
+  app.get('/api/config', (c) =>
+    handleConfig(c, defaultCtx, {
+      readOnly,
+      multiProjectDashboard: options?.multiProjectDashboard,
+    }),
+  );
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
   app.post('/api/remote/sync', async (c) => c.json(await syncRemoteResults(searchDir)));
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
@@ -1006,7 +1027,12 @@ export function createApp(
   // Same handlers as above, with project-resolved DataContext via withProject.
 
   app.get('/api/projects/:projectId/config', (c) =>
-    withProject(c, (ctx, dataCtx) => handleConfig(ctx, dataCtx, { readOnly })),
+    withProject(c, (ctx, dataCtx) =>
+      handleConfig(ctx, dataCtx, {
+        readOnly,
+        multiProjectDashboard: options?.multiProjectDashboard,
+      }),
+    ),
   );
   app.get('/api/projects/:projectId/remote/status', (c) =>
     withProject(c, async (ctx, dataCtx) =>
@@ -1159,7 +1185,12 @@ export const resultsServeCommand = command({
     }),
     multi: flag({
       long: 'multi',
-      description: 'Launch in multi-project dashboard mode',
+      description:
+        'Launch in multi-project dashboard mode (deprecated; use auto-detect or --single)',
+    }),
+    single: flag({
+      long: 'single',
+      description: 'Force single-project dashboard mode',
     }),
     add: option({
       type: optional(string),
@@ -1181,7 +1212,7 @@ export const resultsServeCommand = command({
       description: 'Disable write operations and launch Studio in read-only leaderboard mode',
     }),
   },
-  handler: async ({ source, port, dir, multi, add, remove, discover, readOnly }) => {
+  handler: async ({ source, port, dir, multi, single, add, remove, discover, readOnly }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
@@ -1224,7 +1255,10 @@ export const resultsServeCommand = command({
 
     // ── Determine multi-project mode ────────────────────────────────
     const registry = loadProjectRegistry();
-    const isMultiProject = multi || registry.projects.length > 0;
+    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.projects.length, {
+      multi,
+      single,
+    });
 
     try {
       let results: EvaluationResult[] = [];
@@ -1254,7 +1288,16 @@ export const resultsServeCommand = command({
 
       // Use the run directory for feedback storage (matches #764 behavior)
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
-      const app = createApp(results, resultDir, cwd, sourceFile, { readOnly });
+      const app = createApp(results, resultDir, cwd, sourceFile, {
+        readOnly,
+        multiProjectDashboard: isMultiProject,
+      });
+
+      if (showMultiWarning) {
+        console.warn(
+          'Warning: --multi is deprecated. Studio now auto-detects multi-project mode when multiple projects are registered. Use --single to force the single-project view.',
+        );
+      }
 
       if (isMultiProject) {
         console.log(`Multi-project mode: ${registry.projects.length} project(s) registered`);

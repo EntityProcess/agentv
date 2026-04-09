@@ -181,6 +181,121 @@ describe('DockerWorkspaceProvider', () => {
     });
   });
 
+  describe('resetContainerCheckout', () => {
+    it('resets the container to repo checkout targets and verifies HEAD', async () => {
+      executor.pushResponse({ exitCode: 0 }); // docker start
+      executor.pushResponse({ exitCode: 0 }); // git reset --hard
+      executor.pushResponse({ stdout: 'abc123\n', exitCode: 0 }); // git rev-parse HEAD
+
+      const provider = new DockerWorkspaceProvider({ image: 'img:1' }, executor);
+
+      await provider.startContainer('container-1');
+      await provider.resetContainerCheckout('container-1', [{ path: '/testbed', ref: 'abc123' }]);
+
+      expect(executor.callArgv(1)).toEqual([
+        'docker',
+        'exec',
+        'container-1',
+        'git',
+        '-C',
+        '/testbed',
+        'reset',
+        '--hard',
+        'abc123',
+      ]);
+      expect(executor.callArgv(2)).toEqual([
+        'docker',
+        'exec',
+        'container-1',
+        'git',
+        '-C',
+        '/testbed',
+        'rev-parse',
+        'HEAD',
+      ]);
+    });
+
+    it('skips reset when base_commit is not set', async () => {
+      const provider = new DockerWorkspaceProvider({ image: 'img:1' }, executor);
+      await provider.resetContainerCheckout('container-1');
+      expect(executor.calls).toHaveLength(0);
+    });
+
+    it('falls back to deprecated docker base_commit when repo checkout targets are absent', async () => {
+      executor.pushResponse({ exitCode: 0 }); // git reset --hard
+      executor.pushResponse({ stdout: 'abc123\n', exitCode: 0 }); // git rev-parse HEAD
+
+      const provider = new DockerWorkspaceProvider(
+        { image: 'img:1', base_commit: 'abc123' },
+        executor,
+      );
+
+      await provider.resetContainerCheckout('container-1');
+
+      expect(executor.callArgv(0)).toEqual([
+        'docker',
+        'exec',
+        'container-1',
+        'git',
+        'reset',
+        '--hard',
+        'abc123',
+      ]);
+      expect(executor.callArgv(1)).toEqual([
+        'docker',
+        'exec',
+        'container-1',
+        'git',
+        'rev-parse',
+        'HEAD',
+      ]);
+    });
+  });
+
+  describe('runGraderInContainer', () => {
+    it('resets the container to repo checkout targets before running the grader', async () => {
+      executor.pushResponse({ stdout: 'container-1\n', exitCode: 0 }); // docker create
+      executor.pushResponse({ exitCode: 0 }); // docker start
+      executor.pushResponse({ exitCode: 0 }); // git reset --hard
+      executor.pushResponse({ stdout: 'abc123\n', exitCode: 0 }); // git rev-parse HEAD
+      executor.pushResponse({ stdout: '{"score": 1, "assertions": []}', exitCode: 0 }); // grader
+      executor.pushResponse({ exitCode: 0 }); // docker rm -f
+
+      const provider = new DockerWorkspaceProvider({ image: 'img:1' }, executor);
+
+      const result = await provider.runGraderInContainer({
+        command: ['python', 'grade.py'],
+        repoCheckouts: [{ path: '/testbed', ref: 'abc123' }],
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(executor.callArgv(0)).toEqual(['docker', 'create', 'img:1', 'sleep', 'infinity']);
+      expect(executor.callArgv(1)).toEqual(['docker', 'start', 'container-1']);
+      expect(executor.callArgv(2)).toEqual([
+        'docker',
+        'exec',
+        'container-1',
+        'git',
+        '-C',
+        '/testbed',
+        'reset',
+        '--hard',
+        'abc123',
+      ]);
+      expect(executor.callArgv(3)).toEqual([
+        'docker',
+        'exec',
+        'container-1',
+        'git',
+        '-C',
+        '/testbed',
+        'rev-parse',
+        'HEAD',
+      ]);
+      expect(executor.callArgv(4)).toEqual(['docker', 'exec', 'container-1', 'python', 'grade.py']);
+    });
+  });
+
   describe('copyToContainer', () => {
     it('copies local path to container path', async () => {
       executor.pushResponse({ exitCode: 0 });

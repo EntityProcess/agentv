@@ -188,6 +188,57 @@ tests:
     expect(cases[0].workspace?.template).toBe(path.join(testDir, 'workspace-template'));
   });
 
+  it('should parse docker workspace base_commit', async () => {
+    const evalFile = path.join(testDir, 'workspace-docker-base-commit.yaml');
+    await writeFile(
+      evalFile,
+      `
+tests:
+  - id: docker-base-commit
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      docker:
+        image: swebench/sweb.eval.django__django:latest
+        base_commit: abc123def
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.docker).toEqual({
+      image: 'swebench/sweb.eval.django__django:latest',
+      base_commit: 'abc123def',
+    });
+  });
+
+  it('should parse repo checkout base_commit', async () => {
+    const evalFile = path.join(testDir, 'workspace-repo-base-commit.yaml');
+    await writeFile(
+      evalFile,
+      `
+tests:
+  - id: repo-base-commit
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      repos:
+        - path: /testbed
+          source:
+            type: git
+            url: https://github.com/org/repo.git
+          checkout:
+            base_commit: abc123def
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.repos?.[0].checkout).toEqual({
+      base_commit: 'abc123def',
+    });
+  });
+
   it('parses workspace repos from YAML', async () => {
     const evalFile = path.join(testDir, 'workspace-repos.yaml');
     await writeFile(

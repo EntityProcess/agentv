@@ -295,16 +295,23 @@ tests:
     criteria: Bug is fixed
     metadata:
       repo: sympy/sympy
-      base_commit: "abc123"
     workspace:
-      setup:
-        command: ["python", "custom-setup.py"]  # overrides suite-level
+      repos:
+        - path: /testbed
+          source:
+            type: git
+            url: https://github.com/sympy/sympy.git
+          checkout:
+            base_commit: "abc123"
+      docker:
+        image: swebench/sweb.eval.django__django:latest
 ```
 
 **Lifecycle:** template copy → repo clone → setup → git baseline → agent → file changes → teardown → repo reset → cleanup
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
+For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].checkout.base_commit`; treat `metadata.base_commit` as informational only. `workspace.docker.base_commit` remains a deprecated compatibility bridge for legacy Docker-backed evals.
 
 ### Repository Lifecycle
 

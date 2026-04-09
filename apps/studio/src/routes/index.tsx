@@ -1,7 +1,7 @@
 /**
- * Home route: shows Projects Dashboard when projects are registered,
- * or the existing tabbed landing page (Runs, Experiments, Targets)
- * when in single-project mode.
+ * Home route: shows the multi-project dashboard when the server enables it,
+ * or the existing tabbed landing page (Runs, Experiments, Compare, Targets)
+ * in single-project mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
@@ -43,13 +43,15 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const { data: projectData, isLoading: projectsLoading } = useProjectList();
+  const { data: config, isLoading: configLoading } = useStudioConfig();
   const hasProjects = (projectData?.projects.length ?? 0) > 0;
+  const multiProjectDashboard = config?.multi_project_dashboard;
 
-  if (projectsLoading) {
+  if (projectsLoading || configLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (hasProjects) {
+  if (multiProjectDashboard === true || (multiProjectDashboard === undefined && hasProjects)) {
     return <ProjectsDashboard />;
   }
 
@@ -104,7 +106,7 @@ function ProjectsDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Projects</h1>
+        <h1 className="text-2xl font-semibold text-white">Benchmarks</h1>
         <div className="flex gap-2">
           {!isReadOnly && (
             <>
@@ -120,7 +122,7 @@ function ProjectsDashboard() {
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
               >
-                {showAddForm ? 'Cancel' : 'Add Project'}
+                {showAddForm ? 'Cancel' : 'Add Benchmark'}
               </button>
             </>
           )}
@@ -140,7 +142,7 @@ function ProjectsDashboard() {
               type="text"
               value={addPath}
               onChange={(e) => setAddPath(e.target.value)}
-              placeholder="Project path (e.g., /home/user/projects/my-app)"
+              placeholder="Benchmark path (e.g., /home/user/projects/my-evals)"
               className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
             />
             <button
@@ -155,7 +157,7 @@ function ProjectsDashboard() {
               type="text"
               value={discoverPath}
               onChange={(e) => setDiscoverPath(e.target.value)}
-              placeholder="Discover projects in directory..."
+              placeholder="Discover benchmarks in directory..."
               className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
             />
             <button

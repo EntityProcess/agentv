@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 
 import { getWorkspacePoolRoot } from '../../paths.js';
 import type { RepoConfig } from '../types.js';
+import { getRepoCheckoutRef } from './repo-checkout.js';
 import type { RepoManager } from './repo-manager.js';
 
 const execFileAsync = promisify(execFile);
@@ -74,7 +75,7 @@ function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> 
   const result: Record<string, unknown> = {
     path: repo.path,
     source,
-    ref: repo.checkout?.ref ?? 'HEAD',
+    ref: getRepoCheckoutRef(repo.checkout),
   };
 
   if (repo.clone?.depth !== undefined) {
@@ -372,7 +373,7 @@ export class WorkspacePoolManager {
       if (poolReset === 'none') {
         continue;
       }
-      const ref = repo.checkout?.ref ?? 'HEAD';
+      const ref = getRepoCheckoutRef(repo.checkout);
       const resolve = repo.checkout?.resolve ?? 'remote';
 
       // When resolve is 'remote', fetch latest from origin before resetting
