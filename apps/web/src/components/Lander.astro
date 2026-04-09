@@ -1246,6 +1246,16 @@ td code {
   .av-footer-cta {
     padding: 3rem 0;
   }
+
+  /* Hide "What it does" column on narrow mobile so remaining columns fit */
+  table thead th:last-child,
+  table tbody td:last-child {
+    display: none;
+  }
+
+  .av-table-fade {
+    display: none;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
