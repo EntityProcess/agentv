@@ -220,9 +220,9 @@ export function formatEvaluationSummary(
   let verdictColor: string;
   let verdictText: string;
   if (allExecutionErrors) {
-    overallVerdict = 'INCONCLUSIVE';
+    overallVerdict = 'ERROR';
     verdictColor = '\x1b[33m'; // yellow
-    verdictText = `RESULT: INCONCLUSIVE  (all ${summary.total} test(s) had execution errors — no evaluation was performed)`;
+    verdictText = `RESULT: ERROR  (all ${summary.total} test(s) had execution errors — no evaluation was performed)`;
   } else {
     overallVerdict = overallPassed ? 'PASS' : 'FAIL';
     verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
