@@ -227,14 +227,11 @@ function ChecksTab({ result }: { result: EvalResult }) {
             const graderLabel = s.name ?? s.type ?? `Evaluator ${si + 1}`;
             return (
               <div key={`${s.name ?? s.type ?? si}`} className="space-y-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
                   {graderLabel}
                 </h4>
                 {s.assertions.map((a, ai) => (
-                  <AssertionCard
-                    key={`${a.text}-${ai}`}
-                    assertion={a}
-                  />
+                  <AssertionCard key={`${a.text}-${ai}`} assertion={a} />
                 ))}
               </div>
             );
