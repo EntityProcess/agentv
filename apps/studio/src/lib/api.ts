@@ -395,8 +395,7 @@ export function benchmarkEvalFileContentOptions(
 export function benchmarkExperimentsOptions(benchmarkId: string) {
   return queryOptions({
     queryKey: ['benchmarks', benchmarkId, 'experiments'],
-    queryFn: () =>
-      fetchJson<ExperimentsResponse>(`${benchmarkApiBase(benchmarkId)}/experiments`),
+    queryFn: () => fetchJson<ExperimentsResponse>(`${benchmarkApiBase(benchmarkId)}/experiments`),
     enabled: !!benchmarkId,
   });
 }
@@ -420,8 +419,7 @@ export function benchmarkTargetsOptions(benchmarkId: string) {
 export function benchmarkConfigOptions(benchmarkId: string) {
   return queryOptions({
     queryKey: ['benchmarks', benchmarkId, 'config'],
-    queryFn: () =>
-      fetchJson<StudioConfigResponse>(`${benchmarkApiBase(benchmarkId)}/config`),
+    queryFn: () => fetchJson<StudioConfigResponse>(`${benchmarkApiBase(benchmarkId)}/config`),
     enabled: !!benchmarkId,
     staleTime: 5_000,
   });
@@ -455,9 +453,7 @@ export async function saveStudioConfig(
 // ── Eval runner queries & mutations ──────────────────────────────────────
 
 export function evalDiscoverOptions(benchmarkId?: string) {
-  const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/eval/discover`
-    : '/api/eval/discover';
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/discover` : '/api/eval/discover';
   return queryOptions({
     queryKey: ['eval-discover', benchmarkId ?? ''],
     queryFn: () => fetchJson<EvalDiscoverResponse>(url),
@@ -520,9 +516,7 @@ export async function previewEvalCommand(
   body: RunEvalRequest,
   benchmarkId?: string,
 ): Promise<EvalPreviewResponse> {
-  const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/eval/preview`
-    : '/api/eval/preview';
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/preview` : '/api/eval/preview';
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -51,17 +51,11 @@ export function Sidebar() {
       runId: string;
       evalId: string;
     };
-    return (
-      <ProjectEvalSidebar benchmarkId={benchmarkId} runId={runId} currentEvalId={evalId} />
-    );
+    return <ProjectEvalSidebar benchmarkId={benchmarkId} runId={runId} currentEvalId={evalId} />;
   }
 
   // Project-scoped run detail
-  if (
-    projectRunMatch &&
-    typeof projectRunMatch === 'object' &&
-    'benchmarkId' in projectRunMatch
-  ) {
+  if (projectRunMatch && typeof projectRunMatch === 'object' && 'benchmarkId' in projectRunMatch) {
     const { benchmarkId, runId } = projectRunMatch as { benchmarkId: string; runId: string };
     return <ProjectRunDetailSidebar benchmarkId={benchmarkId} currentRunId={runId} />;
   }
