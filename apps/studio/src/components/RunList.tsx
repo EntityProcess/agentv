@@ -25,10 +25,16 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
   try {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return { date: 'N/A', full: 'N/A' };
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = d.toLocaleString('en', { month: 'short' });
-    const date = `${day} ${month} ${d.getFullYear()}`;
-    return { date, full: d.toLocaleString() };
+    const full = d.toLocaleString();
+    const diffMs = Date.now() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    const diffHour = Math.floor(diffMs / 3_600_000);
+    let date: string;
+    if (diffMin < 1) date = 'just now';
+    else if (diffMin < 60) date = `${diffMin} min ago`;
+    else if (diffHour < 24) date = `${diffHour} hour${diffHour === 1 ? '' : 's'} ago`;
+    else date = d.toLocaleDateString();
+    return { date, full };
   } catch {
     return { date: 'N/A', full: 'N/A' };
   }
