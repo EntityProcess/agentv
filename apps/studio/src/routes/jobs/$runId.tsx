@@ -56,9 +56,9 @@ function JobDetailPage() {
       <BackLink />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-white">{runId}</h1>
+      <div className="flex min-w-0 items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="truncate font-mono text-base font-semibold text-white">{runId}</h1>
           <p className="mt-0.5 text-xs text-gray-500">
             Started {new Date(status.started_at).toLocaleString()}
             {status.finished_at && (
@@ -74,7 +74,7 @@ function JobDetailPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <span className={`text-sm font-medium ${statusColor}`}>
             {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
           </span>
