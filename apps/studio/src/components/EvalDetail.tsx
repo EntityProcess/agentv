@@ -131,9 +131,7 @@ function AssertionCard({
           : 'border-red-900/50 bg-red-950/20'
       }`}
     >
-      <span
-        className={`mt-0.5 text-lg ${assertion.passed ? 'text-emerald-400' : 'text-red-400'}`}
-      >
+      <span className={`mt-0.5 text-lg ${assertion.passed ? 'text-emerald-400' : 'text-red-400'}`}>
         {assertion.passed ? '\u2713' : '\u2717'}
       </span>
       <div className="min-w-0 flex-1">
@@ -148,9 +146,7 @@ function AssertionCard({
           </p>
           {graderLabel && <GraderPill label={graderLabel} />}
         </div>
-        {assertion.evidence && (
-          <p className="mt-1 text-xs text-gray-400">{assertion.evidence}</p>
-        )}
+        {assertion.evidence && <p className="mt-1 text-xs text-gray-400">{assertion.evidence}</p>}
       </div>
     </div>
   );
