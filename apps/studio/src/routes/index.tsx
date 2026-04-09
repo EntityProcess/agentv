@@ -6,7 +6,7 @@
  * Uses URL search param `?tab=` for tab persistence.
  */
 
-import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ import {
   syncRemoteResultsApi,
   useBenchmarkList,
   useCompare,
+  useEvalRuns,
   useRemoteStatus,
   useRunList,
   useStudioConfig,
@@ -319,6 +320,7 @@ function RunsTabContent({
 
   return (
     <div className="space-y-4">
+      <ActiveRunsSection />
       <RunSourceToolbar
         filter={sourceFilter}
         onFilterChange={onSourceFilterChange}
@@ -360,6 +362,45 @@ function RunsTabContent({
           ) : undefined
         }
       />
+    </div>
+  );
+}
+
+// ── Active runs section ───────────────────────────────────────────────────
+
+function ActiveRunsSection() {
+  const { data } = useEvalRuns();
+  const activeRuns = (data?.runs ?? []).filter(
+    (r) => r.status === 'starting' || r.status === 'running',
+  );
+
+  if (activeRuns.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/10">
+      <div className="border-b border-cyan-900/30 px-4 py-2.5">
+        <span className="text-xs font-medium uppercase tracking-wider text-cyan-400">Active</span>
+      </div>
+      <ul className="divide-y divide-gray-800/50">
+        {activeRuns.map((run) => (
+          <li key={run.id} className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="inline-block h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-cyan-400" />
+              <span className="truncate font-mono text-sm text-gray-300">{run.id}</span>
+              <span className="flex-shrink-0 text-xs text-gray-500">
+                {new Date(run.started_at).toLocaleTimeString()}
+              </span>
+            </div>
+            <Link
+              to="/jobs/$runId"
+              params={{ runId: run.id }}
+              className="ml-4 flex-shrink-0 text-xs text-cyan-400 hover:text-cyan-300"
+            >
+              View Log →
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

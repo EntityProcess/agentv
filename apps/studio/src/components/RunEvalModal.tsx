@@ -14,6 +14,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useNavigate } from '@tanstack/react-router';
 import {
   launchEvalRun,
   previewEvalCommand,
@@ -40,6 +41,7 @@ export interface RunEvalModalProps {
 
 export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalModalProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Form state
   const [suiteFilter, setSuiteFilter] = useState(prefill?.suiteFilter ?? '');
@@ -148,9 +150,18 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
   // ── Active run view ────────────────────────────────────────────────────
 
   if (activeRunId && runStatus) {
+    function handleRunInBackground() {
+      onClose();
+      navigate({ to: '/', search: { tab: 'runs' } as Record<string, string> });
+    }
     return (
       <ModalShell onClose={onClose} title="Eval Run">
-        <RunStatusView status={runStatus} onClose={onClose} />
+        <RunStatusView
+          status={runStatus}
+          onClose={onClose}
+          onRunInBackground={handleRunInBackground}
+          runId={activeRunId}
+        />
       </ModalShell>
     );
   }
@@ -392,9 +403,13 @@ function ModalShell({
 function RunStatusView({
   status,
   onClose,
+  onRunInBackground,
+  runId,
 }: {
   status: import('~/lib/types').EvalRunStatus;
   onClose: () => void;
+  onRunInBackground?: () => void;
+  runId?: string;
 }) {
   const isTerminal = status.status === 'finished' || status.status === 'failed';
 
@@ -437,12 +452,26 @@ function RunStatusView({
         </div>
       )}
 
-      {isTerminal && (
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">
-            Exit code: {status.exit_code}
-            {status.finished_at && ` · ${new Date(status.finished_at).toLocaleTimeString()}`}
-          </span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-500">
+          {isTerminal ? (
+            <>
+              Exit code: {status.exit_code}
+              {status.finished_at && ` · ${new Date(status.finished_at).toLocaleTimeString()}`}
+            </>
+          ) : (
+            runId && (
+              <button
+                type="button"
+                onClick={onRunInBackground}
+                className="text-xs text-gray-400 hover:text-cyan-400"
+              >
+                Run in background
+              </button>
+            )
+          )}
+        </span>
+        {isTerminal && (
           <button
             type="button"
             onClick={onClose}
@@ -450,8 +479,8 @@ function RunStatusView({
           >
             Close
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

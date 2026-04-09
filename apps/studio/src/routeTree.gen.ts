@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsRunIdRouteImport } from './routes/runs/$runId'
 import { Route as ProjectsBenchmarkIdRouteImport } from './routes/projects/$benchmarkId'
+import { Route as JobsRunIdRouteImport } from './routes/jobs/$runId'
 import { Route as ExperimentsExperimentNameRouteImport } from './routes/experiments/$experimentName'
 import { Route as EvalsRunIdEvalIdRouteImport } from './routes/evals/$runId.$evalId'
 import { Route as RunsRunIdSuiteSuiteRouteImport } from './routes/runs/$runId_.suite.$suite'
@@ -38,6 +39,11 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
 const ProjectsBenchmarkIdRoute = ProjectsBenchmarkIdRouteImport.update({
   id: '/projects/$benchmarkId',
   path: '/projects/$benchmarkId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRunIdRoute = JobsRunIdRouteImport.update({
+  id: '/jobs/$runId',
+  path: '/jobs/$runId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExperimentsExperimentNameRoute =
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
+  '/jobs/$runId': typeof JobsRunIdRoute
   '/projects/$benchmarkId': typeof ProjectsBenchmarkIdRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
+  '/jobs/$runId': typeof JobsRunIdRoute
   '/projects/$benchmarkId': typeof ProjectsBenchmarkIdRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
+  '/jobs/$runId': typeof JobsRunIdRoute
   '/projects/$benchmarkId': typeof ProjectsBenchmarkIdRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/experiments/$experimentName'
+    | '/jobs/$runId'
     | '/projects/$benchmarkId'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/experiments/$experimentName'
+    | '/jobs/$runId'
     | '/projects/$benchmarkId'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/experiments/$experimentName'
+    | '/jobs/$runId'
     | '/projects/$benchmarkId'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
   ExperimentsExperimentNameRoute: typeof ExperimentsExperimentNameRoute
+  JobsRunIdRoute: typeof JobsRunIdRoute
   ProjectsBenchmarkIdRoute: typeof ProjectsBenchmarkIdRoute
   RunsRunIdRoute: typeof RunsRunIdRoute
   EvalsRunIdEvalIdRoute: typeof EvalsRunIdEvalIdRoute
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/projects/$benchmarkId'
       fullPath: '/projects/$benchmarkId'
       preLoaderRoute: typeof ProjectsBenchmarkIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs/$runId': {
+      id: '/jobs/$runId'
+      path: '/jobs/$runId'
+      fullPath: '/jobs/$runId'
+      preLoaderRoute: typeof JobsRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/experiments/$experimentName': {
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
   ExperimentsExperimentNameRoute: ExperimentsExperimentNameRoute,
+  JobsRunIdRoute: JobsRunIdRoute,
   ProjectsBenchmarkIdRoute: ProjectsBenchmarkIdRoute,
   RunsRunIdRoute: RunsRunIdRoute,
   EvalsRunIdEvalIdRoute: EvalsRunIdEvalIdRoute,
