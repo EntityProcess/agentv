@@ -449,10 +449,7 @@ describe('serve app', () => {
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultHigh, resultLow));
 
       mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        'studio:\n  threshold: 0.9\n',
-      );
+      writeFileSync(path.join(tempDir, '.agentv', 'config.yaml'), 'studio:\n  threshold: 0.9\n');
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request('/api/runs');
@@ -477,10 +474,7 @@ describe('serve app', () => {
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultHigh, resultLow));
 
       mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        'studio:\n  threshold: 0.5\n',
-      );
+      writeFileSync(path.join(tempDir, '.agentv', 'config.yaml'), 'studio:\n  threshold: 0.5\n');
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request('/api/runs');
