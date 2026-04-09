@@ -15,7 +15,7 @@ import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
-import { RunSourceToolbar, type RunSourceFilter } from '~/components/RunSourceToolbar';
+import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   addProjectApi,

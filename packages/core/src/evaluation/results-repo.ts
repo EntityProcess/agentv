@@ -1,12 +1,12 @@
+import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cp, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import type { ResultsExportConfig } from './loaders/config-loader.js';
 import { getAgentvHome } from '../paths.js';
+import type { ResultsExportConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
 

@@ -422,7 +422,7 @@ describe('serve app', () => {
         });
       } finally {
         if (previousHome === undefined) {
-          delete process.env.AGENTV_HOME;
+          process.env.AGENTV_HOME = undefined;
         } else {
           process.env.AGENTV_HOME = previousHome;
         }

@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CompareTab } from '~/components/CompareTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
-import { RunSourceToolbar, type RunSourceFilter } from '~/components/RunSourceToolbar';
+import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import {
   projectCompareOptions,
   projectExperimentsOptions,

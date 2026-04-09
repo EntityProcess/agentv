@@ -29,6 +29,7 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
+import { maybeAutoExportRunArtifacts } from '../results/remote.js';
 import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
@@ -49,7 +50,6 @@ import {
   formatMatrixSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
-import { maybeAutoExportRunArtifacts } from '../results/remote.js';
 
 const DEFAULT_WORKERS = 3;
 
