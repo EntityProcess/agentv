@@ -45,7 +45,7 @@ function runLabel(run: RunMeta): string {
 /** Progress-bar pill: coloured fill proportional to rate, percentage text inside. */
 function PassRatePill({ rate }: { rate: number }) {
   const pct = Math.round(rate * 100);
-  const fill = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500';
+  const fill = 'bg-blue-500';
   return (
     <div className="relative h-5 w-20 overflow-hidden rounded-full bg-gray-800">
       <div className={`absolute inset-y-0 left-0 ${fill}`} style={{ width: `${pct}%` }} />
