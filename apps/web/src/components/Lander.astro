@@ -1031,7 +1031,18 @@ th.av-col-highlight {
 tbody td {
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--av-surface-border);
-  color: var(--av-text-muted);
+  color: hsl(240, 5%, 78%);
+}
+
+tbody td a {
+  color: var(--av-indigo);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+tbody td a:hover {
+  color: hsl(185, 80%, 65%);
+  text-decoration: underline;
 }
 
 td.av-col-highlight {
@@ -1234,6 +1245,14 @@ td code {
   .av-comparison,
   .av-footer-cta {
     padding: 3rem 0;
+  }
+
+  .av-table-fade {
+    display: none;
+  }
+
+  table {
+    min-width: 480px;
   }
 }
 
