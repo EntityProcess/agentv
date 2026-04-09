@@ -82,7 +82,9 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
           <tr>
             <th className="w-8 px-4 py-3" />
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Failed</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Total</th>
             <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
             <th className="px-4 py-3 font-medium text-gray-400">When</th>
           </tr>
@@ -92,6 +94,8 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
             const ts = formatDate(run.timestamp);
             const passing = run.pass_rate >= 0.8;
             const label = runLabel(run);
+            const passedCount = Math.round(run.pass_rate * run.test_count);
+            const failedCount = run.test_count - passedCount;
             return (
               <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
                 {/* Status dot */}
@@ -124,7 +128,13 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                   )}
                 </td>
 
-                {/* Test count */}
+                {/* Passed / Failed / Total */}
+                <td className="px-4 py-3 text-right tabular-nums text-emerald-300">
+                  {passedCount}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-red-400">
+                  {failedCount > 0 ? failedCount : <span className="text-gray-600">0</span>}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-400">
                   {run.test_count}
                 </td>
