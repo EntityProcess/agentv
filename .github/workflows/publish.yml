@@ -43,6 +43,8 @@ jobs:
       - name: Publish to npm (next)
         if: inputs.action == 'publish-next'
         run: bun run publish:next
+        env:
+          NPM_CONFIG_PROVENANCE: true
 
       - name: Promote to latest
         if: inputs.action == 'promote-latest'
