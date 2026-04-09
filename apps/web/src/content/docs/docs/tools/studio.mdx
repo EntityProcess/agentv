@@ -16,7 +16,7 @@ import studioRunsBench from '../../../../assets/screenshots/studio-runs-bench.pn
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
-<Image src={studioRuns} alt="AgentV Studio showing evaluation runs with source badges, pass rates, and scores" />
+<Image src={studioRunsBench} alt="AgentV Studio showing evaluation runs with pass rates, targets, and experiment names" />
 
 ## Usage
 
@@ -83,6 +83,9 @@ agentv eval my.EVAL.yaml --target gemini --experiment baseline
 agentv eval my.EVAL.yaml --target gemini --experiment with-caching
 agentv studio  # Compare tab shows 2x2 matrix
 ```
+
+The matrix is available per-project under the **Compare** tab.
+
 
 ## Multi-Project Dashboard
 
