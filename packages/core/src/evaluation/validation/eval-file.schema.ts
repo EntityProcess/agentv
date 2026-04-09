@@ -379,6 +379,7 @@ export const EvalFileSchema = z.object({
     .regex(/^[a-z0-9-]+$/)
     .optional(),
   description: z.string().optional(),
+  category: z.string().optional(),
   version: z.string().optional(),
   author: z.string().optional(),
   tags: z.array(z.string()).optional(),
