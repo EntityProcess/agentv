@@ -1,9 +1,9 @@
 /**
  * Sortable run table component.
  *
- * Displays all available runs with filename, timestamp, test count,
- * pass rate score bar, and avg score. Clicking a row navigates to
- * the run detail view.
+ * Displays all available runs with a pass/fail status dot, human-readable name,
+ * source badge, date, test count, and coloured pass-rate pill.
+ * Clicking a row navigates to the run detail view.
  */
 
 import type React from 'react';
@@ -12,15 +12,13 @@ import { Link } from '@tanstack/react-router';
 
 import type { RunMeta } from '~/lib/types';
 
-import { ScoreBar } from './ScoreBar';
-
 interface RunListProps {
   runs: RunMeta[];
   projectId?: string;
   emptyMessage?: React.ReactNode;
 }
 
-function formatTimestamp(ts: string | undefined | null): { date: string; full: string } {
+function formatDate(ts: string | undefined | null): { date: string; full: string } {
   if (!ts) return { date: 'N/A', full: 'N/A' };
   try {
     const d = new Date(ts);
@@ -34,6 +32,32 @@ function formatTimestamp(ts: string | undefined | null): { date: string; full: s
   } catch {
     return { date: 'N/A', full: 'N/A' };
   }
+}
+
+/** Human-readable run label: "target · experiment" or filename fallback. */
+function runLabel(run: RunMeta): string {
+  const parts = [run.target, run.experiment].filter((p) => p && p !== 'default' && p !== '-');
+  if (parts.length > 0) return parts.join(' · ');
+  if (run.target) return run.target;
+  return run.display_name ?? run.filename;
+}
+
+/** Coloured pass-rate pill: green ≥80%, amber 60–79%, red <60%. */
+function PassRatePill({ rate }: { rate: number }) {
+  const pct = Math.round(rate * 100);
+  const color =
+    pct >= 80
+      ? 'text-emerald-400 bg-emerald-900/30'
+      : pct >= 60
+        ? 'text-amber-400 bg-amber-900/30'
+        : 'text-red-400 bg-red-900/30';
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-sm font-semibold tabular-nums ${color}`}
+    >
+      {pct}%
+    </span>
+  );
 }
 
 export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
@@ -60,31 +84,31 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
       <table className="w-full text-left text-sm">
         <thead className="border-b border-gray-800 bg-gray-900/50">
           <tr>
+            <th className="w-8 px-4 py-3" />
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
             <th className="px-4 py-3 font-medium text-gray-400">Source</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Date</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
-            <th
-              className="w-48 px-4 py-3 font-medium text-gray-400"
-              title="Percentage of tests with a perfect score (1.0)"
-            >
-              Tests Passing
-            </th>
-            <th
-              className="px-4 py-3 text-right font-medium text-gray-400"
-              title="Mean score across all tests (0-100%)"
-            >
-              Mean Score
-            </th>
+            <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800/50">
           {runs.map((run) => {
-            const ts = formatTimestamp(run.timestamp);
+            const ts = formatDate(run.timestamp);
+            const passing = run.pass_rate >= 0.8;
+            const label = runLabel(run);
             return (
               <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
+                {/* Status dot */}
+                <td className="px-4 py-3 text-center">
+                  <span
+                    className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
+                  >
+                    {passing ? '✓' : '✗'}
+                  </span>
+                </td>
+
+                {/* Run name */}
                 <td className="px-4 py-3">
                   {projectId ? (
                     <Link
@@ -92,7 +116,7 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                       params={{ projectId, runId: run.filename }}
                       className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                     >
-                      {run.display_name ?? run.filename}
+                      {label}
                     </Link>
                   ) : (
                     <Link
@@ -100,10 +124,12 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                       params={{ runId: run.filename }}
                       className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                     >
-                      {run.display_name ?? run.filename}
+                      {label}
                     </Link>
                   )}
                 </td>
+
+                {/* Source badge */}
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -115,17 +141,20 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                     {run.source}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-400">{run.target ?? '-'}</td>
-                <td className="px-4 py-3 text-gray-400">{run.experiment ?? '-'}</td>
+
+                {/* Date */}
                 <td className="px-4 py-3 text-gray-400" title={ts.full}>
                   {ts.date}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums">{run.test_count}</td>
-                <td className="px-4 py-3">
-                  <ScoreBar score={run.pass_rate} />
+
+                {/* Test count */}
+                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                  {run.test_count}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  {(run.avg_score * 100).toFixed(1)}%
+
+                {/* Pass rate pill */}
+                <td className="px-4 py-3">
+                  <PassRatePill rate={run.pass_rate} />
                 </td>
               </tr>
             );
