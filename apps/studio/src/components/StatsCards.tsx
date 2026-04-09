@@ -14,14 +14,14 @@ interface StatsCardsProps {
 
 export function StatsCards({ total, passed, failed, passRate, totalCost }: StatsCardsProps) {
   const pct = Math.round(passRate * 100);
-  const rateColor = pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-amber-400' : 'text-red-400';
+  const rateColor = pct >= 80 ? 'text-blue-300' : pct >= 60 ? 'text-amber-300' : 'text-red-300';
 
   return (
     <div className="flex flex-wrap items-center gap-6 rounded-lg border border-gray-800 bg-gray-900/60 px-5 py-3">
       <Stat label="Pass Rate" value={`${pct}%`} accent={rateColor} large />
       <div className="h-6 w-px bg-gray-700" />
-      <Stat label="Passed" value={String(passed)} accent="text-emerald-400" />
-      <Stat label="Failed" value={String(failed)} accent="text-red-400" />
+      <Stat label="Passed" value={String(passed)} accent="text-gray-200" />
+      <Stat label="Failed" value={String(failed)} accent="text-gray-200" />
       <Stat label="Total" value={String(total)} />
       {totalCost !== undefined && (
         <>

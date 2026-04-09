@@ -87,7 +87,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
 /** Progress-bar pill: coloured fill proportional to rate, percentage text inside. */
 function PassRatePill({ rate }: { rate: number }) {
   const pct = Math.round(rate * 100);
-  const fill = 'bg-blue-500';
+  const fill = 'bg-gradient-to-r from-blue-400 to-blue-600';
   return (
     <div className="relative h-5 w-20 overflow-hidden rounded-full bg-gray-800">
       <div className={`absolute inset-y-0 left-0 ${fill}`} style={{ width: `${pct}%` }} />
@@ -197,7 +197,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                         <span className="text-base font-bold text-red-400">!</span>
                       ) : (
                         <span
-                          className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
+                          className={`text-base font-bold ${passing ? 'text-emerald-300' : 'text-red-400'}`}
                         >
                           {passing ? '✓' : '✗'}
                         </span>

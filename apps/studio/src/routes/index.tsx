@@ -31,10 +31,10 @@ import {
 type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
 
 const tabs: { id: TabId; label: string }[] = [
-  { id: 'runs', label: 'Recent Runs' },
-  { id: 'experiments', label: 'Experiments' },
-  { id: 'compare', label: 'Compare' },
-  { id: 'targets', label: 'Targets' },
+  { id: 'runs', label: '🏃 Recent Runs' },
+  { id: 'experiments', label: '🧪 Experiments' },
+  { id: 'compare', label: '📊 Compare' },
+  { id: 'targets', label: '🤖 Targets' },
 ];
 
 export const Route = createFileRoute('/')({
