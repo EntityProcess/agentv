@@ -23,11 +23,13 @@ export function parseRepoCheckout(raw: unknown): RepoCheckout | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
   const ref = typeof obj.ref === 'string' ? obj.ref : undefined;
+  const baseCommit = typeof obj.base_commit === 'string' ? obj.base_commit : undefined;
   const resolve = obj.resolve === 'remote' || obj.resolve === 'local' ? obj.resolve : undefined;
   const ancestor = typeof obj.ancestor === 'number' ? obj.ancestor : undefined;
-  if (!ref && !resolve && ancestor === undefined) return undefined;
+  if (!ref && !baseCommit && !resolve && ancestor === undefined) return undefined;
   return {
     ...(ref !== undefined && { ref }),
+    ...(baseCommit !== undefined && { base_commit: baseCommit }),
     ...(resolve !== undefined && { resolve }),
     ...(ancestor !== undefined && { ancestor }),
   };

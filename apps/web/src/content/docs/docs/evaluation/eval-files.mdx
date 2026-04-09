@@ -94,6 +94,22 @@ tests:
 
 `assertions` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
 
+### Assertion Includes
+
+Reusable assertion sets can be factored into template files and referenced from any `assertions` array:
+
+```yaml
+assertions:
+  - include: safe-response
+  - include: ./shared/format.yaml
+```
+
+Resolution rules:
+- `include: name` resolves to `.agentv/templates/{name}.yaml` with the closest matching directory winning
+- Relative paths resolve from the eval file location, so `include: ./shared/format.yaml` works as expected
+- Nested includes are allowed up to depth 3 to keep cycles and runaway recursion bounded
+- Suite-level includes follow the same merge behavior as other suite-level assertions and still respect `execution.skip_defaults: true`
+
 ### Suite-level Input
 
 The `input` field defines messages that are **prepended** to every test's input. This avoids repeating the same prompt or system context in each test case — following the same pattern as suite-level `assertions`.

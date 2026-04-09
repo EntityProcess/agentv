@@ -737,6 +737,7 @@ function parseDockerWorkspaceConfig(raw: unknown): DockerWorkspaceConfig | undef
     ...(typeof obj.timeout === 'number' && { timeout: obj.timeout }),
     ...(typeof obj.memory === 'string' && { memory: obj.memory }),
     ...(typeof obj.cpus === 'number' && { cpus: obj.cpus }),
+    ...(typeof obj.base_commit === 'string' && { base_commit: obj.base_commit }),
   };
 }
 

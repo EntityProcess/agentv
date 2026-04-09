@@ -37,7 +37,8 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 |--------|-------------|
 | `--port`, `-p` | Port to listen on (flag > `PORT` env var > 3117) |
 | `--dir`, `-d` | Working directory (default: current directory) |
-| `--multi` | Launch in multi-project dashboard mode |
+| `--multi` | Launch in multi-project dashboard mode (deprecated; use auto-detect or `--single`) |
+| `--single` | Force single-project dashboard mode |
 | `--add <path>` | Register a project by path |
 | `--remove <id>` | Unregister a project by ID |
 | `--discover <path>` | Scan a directory tree for repos with `.agentv/` |
@@ -96,7 +97,14 @@ Once projects are registered, launch the multi-project dashboard:
 agentv studio --multi
 ```
 
-If you have any registered projects, `--multi` is automatically enabled. The landing page shows a card for each project with run count, pass rate, and last run time. Click a project to view its runs.
+By default, Studio now auto-detects project mode:
+
+- `0` or `1` registered project: single-project view
+- `2+` registered projects: multi-project dashboard
+
+Use `--multi` only if you need to force the multi-project dashboard for a one-off session; it prints a deprecation warning. Use `--single` to override auto-detection and stay in the single-project view.
+
+The landing page shows a card for each project with run count, pass rate, and last run time. Click a project to view its runs.
 
 <Image src={studioProjects} alt="AgentV Studio multi-project dashboard showing project cards with pass rates" />
 

@@ -37,6 +37,8 @@ workspace:
     cpus: 2          # optional Docker CPU limit
 ```
 
+For evals that need a repo pinned to a dataset snapshot, prefer `workspace.repos[].checkout.base_commit`. `workspace.docker.base_commit` still works as a compatibility bridge for existing Docker-backed SWE-bench configs, but new configs should keep checkout state in the repo model rather than in the Docker block.
+
 ## Running
 
 ```bash

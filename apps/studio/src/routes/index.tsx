@@ -1,7 +1,7 @@
 /**
- * Home route: shows Projects Dashboard when projects are registered,
- * or the existing tabbed landing page (Runs, Experiments, Targets)
- * when in single-project mode.
+ * Home route: shows the multi-project dashboard when the server enables it,
+ * or the existing tabbed landing page (Runs, Experiments, Compare, Targets)
+ * in single-project mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
@@ -43,13 +43,15 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const { data: projectData, isLoading: projectsLoading } = useProjectList();
+  const { data: config, isLoading: configLoading } = useStudioConfig();
   const hasProjects = (projectData?.projects.length ?? 0) > 0;
+  const multiProjectDashboard = config?.multi_project_dashboard;
 
-  if (projectsLoading) {
+  if (projectsLoading || configLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (hasProjects) {
+  if (multiProjectDashboard === true || (multiProjectDashboard === undefined && hasProjects)) {
     return <ProjectsDashboard />;
   }
 

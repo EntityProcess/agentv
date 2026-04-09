@@ -13,6 +13,7 @@
  */
 
 import type { DockerWorkspaceConfig } from '../types.js';
+import type { RepoCheckoutTarget } from './repo-checkout.js';
 
 /** Result of a command execution */
 export interface ExecResult {
@@ -61,6 +62,16 @@ export interface ExecInContainerOptions {
 }
 
 const DEFAULT_TIMEOUT_S = 1800;
+
+function buildGitCommand(
+  target: RepoCheckoutTarget | undefined,
+  args: readonly string[],
+): string[] {
+  if (!target?.path) {
+    return ['git', ...args];
+  }
+  return ['git', '-C', target.path, ...args];
+}
 
 /**
  * Manages Docker container lifecycle for workspace-based evaluations.
@@ -155,6 +166,57 @@ export class DockerWorkspaceProvider {
     }
   }
 
+  /**
+   * Reset the container checkout to the configured base commit, if present.
+   * This is used for SWE-bench images where the repo state must match the
+   * dataset's base snapshot before grading begins.
+   */
+  async resetContainerCheckout(
+    containerId: string,
+    repoCheckouts?: readonly RepoCheckoutTarget[],
+  ): Promise<void> {
+    const checkoutTargets =
+      repoCheckouts && repoCheckouts.length > 0
+        ? repoCheckouts
+        : this.config.base_commit
+          ? [{ ref: this.config.base_commit }]
+          : [];
+
+    if (checkoutTargets.length === 0) {
+      return;
+    }
+
+    for (const target of checkoutTargets) {
+      const resetResult = await this.execInContainer({
+        containerId,
+        command: buildGitCommand(target, ['reset', '--hard', target.ref]),
+      });
+      if (resetResult.exitCode !== 0) {
+        throw new Error(
+          `docker git reset failed (exit ${resetResult.exitCode}): ${resetResult.stderr.trim()}`,
+        );
+      }
+
+      const verifyResult = await this.execInContainer({
+        containerId,
+        command: buildGitCommand(target, ['rev-parse', 'HEAD']),
+        timeoutMs: 30_000,
+      });
+      if (verifyResult.exitCode !== 0) {
+        throw new Error(
+          `docker checkout verification failed (exit ${verifyResult.exitCode}): ${verifyResult.stderr.trim()}`,
+        );
+      }
+
+      const head = verifyResult.stdout.trim();
+      if (head !== target.ref) {
+        throw new Error(
+          `docker checkout verification failed: expected ${target.ref} but found ${head || '<empty>'}`,
+        );
+      }
+    }
+  }
+
   /** Copy a local file or directory into a running container. */
   async copyToContainer(
     containerId: string,
@@ -206,10 +268,12 @@ export class DockerWorkspaceProvider {
     readonly command: readonly string[];
     readonly stdin?: string;
     readonly copyFiles?: ReadonlyArray<{ localPath: string; containerPath: string }>;
+    readonly repoCheckouts?: readonly RepoCheckoutTarget[];
   }): Promise<ExecResult> {
     const containerId = await this.createContainer();
     try {
       await this.startContainer(containerId);
+      await this.resetContainerCheckout(containerId, options.repoCheckouts);
 
       if (options.copyFiles) {
         for (const file of options.copyFiles) {

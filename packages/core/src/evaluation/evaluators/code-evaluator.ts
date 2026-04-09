@@ -11,6 +11,7 @@ import {
 import { toSnakeCaseDeep } from '../case-conversion.js';
 import { type ContentImage, isContentArray } from '../content.js';
 import type { AssertionEntry, JsonObject, TargetAccessConfig } from '../types.js';
+import { getRepoCheckoutTargets } from '../workspace/repo-checkout.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -218,6 +219,7 @@ export class CodeEvaluator implements Evaluator {
         const result = await dockerProvider.runGraderInContainer({
           command: [...this.command],
           stdin: inputPayload,
+          repoCheckouts: getRepoCheckoutTargets(context.evalCase.workspace?.repos),
         });
         if (result.exitCode !== 0) {
           const trimmedErr = result.stderr.trim();

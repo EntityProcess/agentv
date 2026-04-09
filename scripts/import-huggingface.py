@@ -21,7 +21,9 @@ Usage (via uv):
 SWE-bench field mapping:
     instance_id        -> test id
     problem_statement  -> input (user message)
-    repo + base_commit -> workspace.docker metadata
+    repo               -> metadata.repo
+    instance_id        -> workspace.docker.image (ghcr.io/epoch-research/swe-bench.eval.x86_64.<id>:latest)
+    base_commit        -> legacy workspace.docker compatibility bridge
     FAIL_TO_PASS       -> assertions (code-grader commands)
     difficulty         -> metadata.difficulty
 
@@ -77,15 +79,13 @@ def _to_eval_name(instance_id: str) -> str:
     return name.strip("-")
 
 
-def _docker_image_for_repo(repo: str) -> str:
-    """Derive a Docker image name for a SWE-bench repo.
+def _docker_image_for_instance(instance_id: str) -> str:
+    """Derive a Docker image name for a SWE-bench instance.
 
-    Uses the swebench Docker image naming convention:
-    swebench/sweb.eval.<owner>__<repo>:latest
+    Uses the Epoch Research GHCR naming convention:
+    ghcr.io/epoch-research/swe-bench.eval.x86_64.<instance_id>:latest
     """
-    # repo format: "owner/name" e.g. "django/django"
-    safe = repo.replace("/", "__")
-    return f"swebench/sweb.eval.{safe}:latest"
+    return f"ghcr.io/epoch-research/swe-bench.eval.x86_64.{instance_id}:latest"
 
 
 def _parse_test_list(value: Any) -> list[str]:
@@ -120,13 +120,15 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     difficulty = row.get("difficulty")
 
     # Build assertions from FAIL_TO_PASS and PASS_TO_PASS test names
+    # SWE-bench Docker images use a conda env named "testbed" for all repo dependencies.
+    # Commands must run through `conda run -n testbed` to pick up pytest and the installed repo.
     assertions: list[dict[str, Any]] = []
     if fail_to_pass:
         # Code-grader that runs the previously-failing tests (should pass after patch)
         assertions.append({
             "type": "code-grader",
             "command": [
-                "python", "-c",
+                "conda", "run", "-n", "testbed", "python", "-c",
                 (
                     "import subprocess, sys, json; "
                     f"result = subprocess.run({json.dumps(['python', '-m', 'pytest'] + fail_to_pass)}, "
@@ -143,7 +145,7 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
         assertions.append({
             "type": "code-grader",
             "command": [
-                "python", "-c",
+                "conda", "run", "-n", "testbed", "python", "-c",
                 (
                     "import subprocess, sys, json; "
                     f"result = subprocess.run({json.dumps(['python', '-m', 'pytest'] + pass_to_pass)}, "
@@ -165,7 +167,7 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     if assertions:
         test_case["assertions"] = assertions
 
-    # Add metadata (informational only — repo/base_commit are in workspace.docker)
+    # Add metadata (informational only)
     metadata: dict[str, Any] = {}
     if repo:
         metadata["repo"] = repo
@@ -181,11 +183,11 @@ def _convert_swebench_instance(row: dict[str, Any]) -> dict[str, Any]:
     }
 
     # Docker workspace config
-    # base_commit is part of the workspace, not metadata — the container must be
-    # checked out at this commit for the patch to apply and tests to match.
+    # base_commit remains here as a compatibility bridge until Docker-backed
+    # prebuilt images consume workspace.repos[].checkout directly.
     if repo:
         docker_config: dict[str, Any] = {
-            "image": _docker_image_for_repo(repo),
+            "image": _docker_image_for_instance(instance_id),
             "timeout": 600,
             "memory": "4g",
         }

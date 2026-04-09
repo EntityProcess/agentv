@@ -420,7 +420,7 @@ function validateWorkspaceRepoConfig(
             location: `workspace.repos[path=${repo.path}]`,
             message:
               'checkout.resolve has no effect for a local source. ' +
-              'Use source.type to choose where the repo comes from; keep checkout.ref or checkout.ancestor only when pinning a local source.',
+              'Use source.type to choose where the repo comes from; keep checkout.ref, checkout.base_commit, or checkout.ancestor only when pinning a local source.',
           });
         }
       }
@@ -452,6 +452,17 @@ function validateWorkspaceRepoConfig(
         message: `hooks.after_each.reset '${afterEachHook.reset}' has no effect without repos.`,
       });
     }
+  }
+
+  const docker = workspace.docker;
+  if (isObject(docker) && typeof docker.base_commit === 'string') {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: 'workspace.docker.base_commit',
+      message:
+        'workspace.docker.base_commit is deprecated. Prefer workspace.repos[].checkout.base_commit so checkout state remains backend-agnostic.',
+    });
   }
 
   // after_each reset with per_test isolation warning
