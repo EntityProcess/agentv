@@ -7,12 +7,20 @@
 import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CompareTab } from '~/components/CompareTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
-import { useProjectRunList, useStudioConfig } from '~/lib/api';
-import { projectCompareOptions, projectExperimentsOptions, projectTargetsOptions } from '~/lib/api';
+import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
+import {
+  projectCompareOptions,
+  projectExperimentsOptions,
+  projectTargetsOptions,
+  syncRemoteResultsApi,
+  useProjectRunList,
+  useRemoteStatus,
+  useStudioConfig,
+} from '~/lib/api';
 import type { ExperimentsResponse, TargetsResponse } from '~/lib/types';
 
 type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
@@ -98,7 +106,32 @@ function ProjectHomePage() {
 }
 
 function ProjectRunsTab({ projectId }: { projectId: string }) {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useProjectRunList(projectId);
+  const { data: remoteStatus } = useRemoteStatus(projectId);
+  const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
+  const [syncInFlight, setSyncInFlight] = useState(false);
+
+  const filteredRuns =
+    sourceFilter === 'all'
+      ? (data?.runs ?? [])
+      : (data?.runs ?? []).filter((run) => run.source === sourceFilter);
+
+  async function handleSyncRemote() {
+    setSyncInFlight(true);
+    try {
+      await syncRemoteResultsApi(projectId);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
+        queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
+      ]);
+    } finally {
+      setSyncInFlight(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -118,7 +151,18 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
     );
   }
 
-  return <RunList runs={data?.runs ?? []} projectId={projectId} />;
+  return (
+    <div className="space-y-4">
+      <RunSourceToolbar
+        filter={sourceFilter}
+        onFilterChange={setSourceFilter}
+        remoteStatus={remoteStatus}
+        syncInFlight={syncInFlight}
+        onSync={handleSyncRemote}
+      />
+      <RunList runs={filteredRuns} projectId={projectId} />
+    </div>
+  );
 }
 
 function ProjectExperimentsTab({ projectId }: { projectId: string }) {

@@ -8,7 +8,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 
-import { ScoreBar } from '~/components/ScoreBar';
+import { PassRatePill } from '~/components/PassRatePill';
 import { StatsCards } from '~/components/StatsCards';
 import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
 
@@ -77,7 +77,6 @@ function SuitePage() {
                 <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Target</th>
                 <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Status</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
               </tr>
@@ -99,10 +98,13 @@ function SuitePage() {
                   </td>
                   <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
                   <td className="px-4 py-3">
-                    <ScoreBar score={result.score} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={result.executionStatus} />
+                    {result.executionStatus === 'execution_error' ? (
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-red-900/50 text-red-400">
+                        ERR
+                      </span>
+                    ) : (
+                      <PassRatePill rate={result.score} />
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-400">
                     {result.durationMs != null ? `${(result.durationMs / 1000).toFixed(1)}s` : '-'}
@@ -117,26 +119,5 @@ function SuitePage() {
         </div>
       )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status?: string }) {
-  if (!status) return <span className="text-gray-500">-</span>;
-
-  const isSuccess = status === 'success' || status === 'completed';
-  const isError = status === 'error' || status === 'failed';
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-        isSuccess
-          ? 'bg-emerald-900/50 text-emerald-400'
-          : isError
-            ? 'bg-red-900/50 text-red-400'
-            : 'bg-gray-800 text-gray-400'
-      }`}
-    >
-      {status}
-    </span>
   );
 }

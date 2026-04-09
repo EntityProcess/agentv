@@ -17,6 +17,9 @@
         "description": {
           "type": "string"
         },
+        "category": {
+          "type": "string"
+        },
         "version": {
           "type": "string"
         },

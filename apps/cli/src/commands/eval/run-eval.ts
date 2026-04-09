@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  DEFAULT_THRESHOLD,
   type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
@@ -28,6 +29,7 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
+import { maybeAutoExportRunArtifacts } from '../results/remote.js';
 import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
@@ -858,6 +860,11 @@ export interface RunEvalResult {
   readonly allExecutionErrors?: boolean;
 }
 
+interface RemoteEvalSummaryInput {
+  readonly evalFile: string;
+  readonly results: EvaluationResult[];
+}
+
 export async function runEvalCommand(
   input: RunEvalCommandInput,
 ): Promise<RunEvalResult | undefined> {
@@ -1077,6 +1084,7 @@ export async function runEvalCommand(
   // We defer cache creation until after file metadata is loaded
   const evaluationRunner = await resolveEvaluationRunner();
   const allResults: EvaluationResult[] = [];
+  const remoteEvalSummaries: RemoteEvalSummaryInput[] = [];
   const seenTestCases = new Set<string>();
   const displayIdTracker = createDisplayIdTracker();
 
@@ -1352,6 +1360,18 @@ export async function runEvalCommand(
               threshold: resolvedThreshold,
               providerFactory: transcriptProviderFactory,
             });
+            const evalFile = path.relative(cwd, testFilePath);
+            const existingSummary = remoteEvalSummaries.find(
+              (summary) => summary.evalFile === evalFile,
+            );
+            if (existingSummary) {
+              existingSummary.results.push(...result.results);
+            } else {
+              remoteEvalSummaries.push({
+                evalFile,
+                results: [...result.results],
+              });
+            }
 
             return result.results;
           } catch (fileError) {
@@ -1472,6 +1492,34 @@ export async function runEvalCommand(
 
       // Persist last run path for `agentv results` commands
       await saveRunCache(cwd, outputPath).catch(() => undefined);
+
+      await maybeAutoExportRunArtifacts({
+        cwd,
+        run_dir: runDir,
+        test_files: activeTestFiles,
+        results: allResults,
+        eval_summaries: remoteEvalSummaries.map((summary) => ({
+          eval_file: summary.evalFile,
+          total: summary.results.length,
+          passed: summary.results.filter((result) => result.score >= DEFAULT_THRESHOLD).length,
+          avg_score:
+            summary.results.length > 0
+              ? summary.results.reduce((sum, result) => sum + result.score, 0) /
+                summary.results.length
+              : 0,
+          results: summary.results.map((result) => ({
+            test_id: result.testId,
+            score: result.score,
+            status:
+              result.executionStatus === 'execution_error' || result.error
+                ? 'ERROR'
+                : result.score >= DEFAULT_THRESHOLD
+                  ? 'PASS'
+                  : 'FAIL',
+          })),
+        })),
+        experiment: normalizeExperimentName(options.experiment),
+      });
     }
 
     // Suggest retry-errors command when execution errors are detected

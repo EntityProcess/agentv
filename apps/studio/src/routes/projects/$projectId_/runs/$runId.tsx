@@ -42,14 +42,31 @@ function ProjectRunDetailPage() {
   }
 
   const firstResult = data?.results?.[0];
-  const prefill = firstResult?.target ? { target: firstResult.target } : undefined;
+  const target = firstResult?.target;
+  const experiment = firstResult?.experiment;
+  const timestamp = firstResult?.timestamp;
+  const prefill = target ? { target } : undefined;
+
+  const heading = (() => {
+    const parts = [experiment, target].filter((p) => p && p !== 'default');
+    return parts.length > 0 ? parts.join(' · ') : runId;
+  })();
+
+  const meta = [
+    target,
+    experiment && experiment !== 'default' ? experiment : null,
+    timestamp ? new Date(timestamp).toLocaleString() : null,
+    data?.source,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Run: {runId}</h1>
-          <p className="mt-1 text-sm text-gray-400">Source: {data?.source}</p>
+          <h1 className="text-2xl font-semibold text-white">{heading}</h1>
+          <p className="mt-1 text-sm text-gray-500">{meta}</p>
         </div>
         {!isReadOnly && (
           <button

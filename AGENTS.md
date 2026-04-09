@@ -512,3 +512,4 @@ bun run promote:latest 2.18.0
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
+

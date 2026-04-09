@@ -23,6 +23,7 @@ import type {
   IndexResponse,
   ProjectEntry,
   ProjectListResponse,
+  RemoteStatusResponse,
   RunDetailResponse,
   RunEvalRequest,
   RunListResponse,
@@ -147,6 +148,15 @@ export const studioConfigOptions = queryOptions({
   staleTime: 5_000,
 });
 
+export function remoteStatusOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/remote/status` : '/api/remote/status';
+  return queryOptions({
+    queryKey: ['remote-status', projectId ?? ''],
+    queryFn: () => fetchJson<RemoteStatusResponse>(url),
+    staleTime: 5_000,
+  });
+}
+
 // ── Hooks ───────────────────────────────────────────────────────────────
 
 export function useRunList() {
@@ -203,6 +213,10 @@ export function useCategorySuites(runId: string, category: string) {
 
 export function useStudioConfig() {
   return useQuery(studioConfigOptions);
+}
+
+export function useRemoteStatus(projectId?: string) {
+  return useQuery(remoteStatusOptions(projectId));
 }
 
 /** Default pass threshold matching @agentv/core DEFAULT_THRESHOLD */
@@ -405,6 +419,17 @@ export function projectConfigOptions(projectId: string) {
     enabled: !!projectId,
     staleTime: 5_000,
   });
+}
+
+export async function syncRemoteResultsApi(projectId?: string): Promise<RemoteStatusResponse> {
+  const url = projectId ? `${projectApiBase(projectId)}/remote/sync` : '/api/remote/sync';
+  const res = await fetch(url, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to sync remote results: ${res.status}`);
+  }
+  return res.json() as Promise<RemoteStatusResponse>;
 }
 
 export async function saveStudioConfig(

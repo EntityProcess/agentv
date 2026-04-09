@@ -106,6 +106,7 @@ type RawTestSuite = JsonObject & {
   // Suite-level metadata fields
   readonly name?: JsonValue;
   readonly description?: JsonValue;
+  readonly category?: string;
   readonly version?: JsonValue;
   readonly author?: JsonValue;
   readonly tags?: JsonValue;
@@ -503,7 +504,7 @@ async function loadTestsFromYaml(
     const testCase: EvalTest = {
       id,
       suite: suiteName,
-      category: options?.category,
+      category: suite.category ?? options?.category,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,

@@ -1,17 +1,18 @@
 /**
  * Run detail component showing per-eval breakdown with score bars.
  *
- * Groups results by category (from file path), then by suite within each category.
- * Categories are shown as collapsible sections with suite cards inside.
+ * Groups results by category, then by suite within each category.
+ * Category Breakdown is shown as a clean table with coloured pass-rate pills.
+ * The All Evals table shows ERR badge instead of 0% for execution errors.
  */
 
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
 
 import type { EvalResult } from '~/lib/types';
 
 import { isPassing, useStudioConfig } from '~/lib/api';
-import { ScoreBar } from './ScoreBar';
+
+import { PassRatePill } from './PassRatePill';
 import { StatsCards } from './StatsCards';
 
 interface RunDetailProps {
@@ -95,7 +96,6 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   const categories = buildCategoryGroups(results, passThreshold);
-  const hasMultipleCategories = categories.length > 1;
 
   if (total === 0) {
     return (
@@ -119,162 +119,121 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
 
-      {hasMultipleCategories ? (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-400">Categories</h3>
-          {categories.map((cat) => (
-            <CategorySection key={cat.name} category={cat} runId={runId} />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400">Suites</h3>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {categories[0]?.suites.map((ds) => (
-              <SuiteCard key={ds.name} suite={ds} runId={runId} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="overflow-hidden rounded-lg border border-gray-800">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-800 bg-gray-900/50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-              <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Status</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800/50">
-            {results.map((result, idx) => (
-              <tr
-                key={`${result.testId}-${idx}`}
-                className="transition-colors hover:bg-gray-900/30"
-              >
-                <td className="px-4 py-3">
-                  {projectId ? (
-                    <Link
-                      to="/projects/$projectId/evals/$runId/$evalId"
-                      params={{ projectId, runId, evalId: result.testId }}
-                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                    >
-                      {result.testId}
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/evals/$runId/$evalId"
-                      params={{ runId, evalId: result.testId }}
-                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                    >
-                      {result.testId}
-                    </Link>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
-                <td className="px-4 py-3">
-                  <ScoreBar score={result.score} />
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={result.executionStatus} />
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                  {result.durationMs != null ? `${(result.durationMs / 1000).toFixed(1)}s` : '-'}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                  {result.costUsd != null ? `$${result.costUsd.toFixed(4)}` : '-'}
-                </td>
+      {/* Category Breakdown */}
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-gray-400">Category Breakdown</h3>
+        <div className="overflow-hidden rounded-lg border border-gray-800">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-800 bg-gray-900/50">
+              <tr>
+                <th className="px-4 py-2.5 font-medium text-gray-400">Category</th>
+                <th className="px-4 py-2.5 font-medium text-gray-400">Pass Rate</th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-400">Passed</th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-400">Failed</th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-400">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-800/50">
+              {categories.map((cat) => (
+                <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
+                  <td className="px-4 py-2.5 font-medium text-gray-200">{cat.name}</td>
+                  <td className="px-4 py-2.5">
+                    <PassRatePill rate={cat.total > 0 ? cat.passed / cat.total : 0} />
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-emerald-400">
+                    {cat.passed}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-red-400">
+                    {cat.failed > 0 ? cat.failed : <span className="text-gray-600">0</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">{cat.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* All Evals */}
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-gray-400">All Evals</h3>
+        <div className="overflow-hidden rounded-lg border border-gray-800">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-800 bg-gray-900/50">
+              <tr>
+                <th className="w-8 px-4 py-3" />
+                <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
+                <th className="px-4 py-3 font-medium text-gray-400">Target</th>
+                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800/50">
+              {results.map((result, idx) => {
+                const isError = result.executionStatus === 'execution_error';
+                const passing = isPassing(result.score, passThreshold);
+                return (
+                  <tr
+                    key={`${result.testId}-${idx}`}
+                    className="transition-colors hover:bg-gray-900/30"
+                  >
+                    {/* Status dot */}
+                    <td className="px-4 py-3 text-center">
+                      {isError ? (
+                        <span className="text-base font-bold text-red-400">!</span>
+                      ) : (
+                        <span
+                          className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
+                        >
+                          {passing ? '✓' : '✗'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {projectId ? (
+                        <Link
+                          to="/projects/$projectId/evals/$runId/$evalId"
+                          params={{ projectId, runId, evalId: result.testId }}
+                          className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                        >
+                          {result.testId}
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/evals/$runId/$evalId"
+                          params={{ runId, evalId: result.testId }}
+                          className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                        >
+                          {result.testId}
+                        </Link>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
+                    <td className="px-4 py-3">
+                      {isError ? (
+                        <span className="inline-flex rounded-full bg-red-900/50 px-2 py-0.5 text-xs font-medium text-red-400">
+                          ERR
+                        </span>
+                      ) : (
+                        <PassRatePill rate={result.score} />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                      {result.durationMs != null
+                        ? `${(result.durationMs / 1000).toFixed(1)}s`
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                      {result.costUsd != null ? `$${result.costUsd.toFixed(4)}` : '-'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  );
-}
-
-function CategorySection({ category, runId }: { category: CategoryGroup; runId: string }) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <div className="rounded-lg border border-gray-800">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-900/50"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500">{expanded ? '\u25BC' : '\u25B6'}</span>
-          <span className="text-sm font-medium text-gray-200">{category.name}</span>
-          <span className="text-xs text-gray-500">
-            {category.suites.length} suite{category.suites.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-emerald-400">{category.passed} passed</span>
-          {category.failed > 0 && <span className="text-red-400">{category.failed} failed</span>}
-          <span className="text-gray-500">
-            {category.passed}/{category.total}
-          </span>
-        </div>
-      </button>
-      {expanded && (
-        <div className="border-t border-gray-800 p-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {category.suites.map((ds) => (
-              <SuiteCard key={ds.name} suite={ds} runId={runId} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SuiteCard({ suite, runId }: { suite: SuiteStats; runId: string }) {
-  return (
-    <Link
-      to="/runs/$runId/suite/$suite"
-      params={{ runId, suite: suite.name }}
-      className="rounded-lg border border-gray-800 bg-gray-900 p-3 text-left transition-colors hover:border-gray-700"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-200 truncate">{suite.name}</span>
-        <span className="ml-2 text-xs text-gray-500">
-          {suite.passed}/{suite.total}
-        </span>
-      </div>
-      <div className="mt-2">
-        <ScoreBar score={suite.avgScore} />
-      </div>
-      <div className="mt-1 flex gap-3 text-xs">
-        <span className="text-emerald-400">{suite.passed} passed</span>
-        {suite.failed > 0 && <span className="text-red-400">{suite.failed} failed</span>}
-      </div>
-    </Link>
-  );
-}
-
-function StatusBadge({ status }: { status?: string }) {
-  if (!status) return <span className="text-gray-500">-</span>;
-
-  const isSuccess = status === 'success' || status === 'completed';
-  const isError = status === 'error' || status === 'failed';
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-        isSuccess
-          ? 'bg-emerald-900/50 text-emerald-400'
-          : isError
-            ? 'bg-red-900/50 text-red-400'
-            : 'bg-gray-800 text-gray-400'
-      }`}
-    >
-      {status}
-    </span>
   );
 }

@@ -7,6 +7,11 @@ export {
   parseAgentSkillsEvals,
 } from './evaluation/loaders/agent-skills-parser.js';
 export {
+  loadConfig,
+  type AgentVConfig as AgentVYamlConfig,
+  type ResultsExportConfig,
+} from './evaluation/loaders/config-loader.js';
+export {
   transpileEvalYaml,
   transpileEvalYamlFile,
   getOutputFilenames,
@@ -47,6 +52,26 @@ export {
   shouldSkipCacheForTemperature,
 } from './evaluation/cache/response-cache.js';
 export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
+export {
+  ensureResultsRepoClone,
+  syncResultsRepo,
+  getResultsRepoCachePaths,
+  getResultsRepoStatus,
+  normalizeResultsExportConfig,
+  resolveResultsRepoRunsDir,
+  resolveResultsRepoUrl,
+  prepareResultsRepoBranch,
+  checkoutResultsRepoBranch,
+  stageResultsArtifacts,
+  directorySizeBytes,
+  commitAndPushResultsBranch,
+  pushResultsRepoBranch,
+  createDraftResultsPr,
+  type CheckedOutResultsRepoBranch,
+  type PreparedResultsRepoBranch,
+  type ResultsRepoCachePaths,
+  type ResultsRepoStatus,
+} from './evaluation/results-repo.js';
 export {
   getAgentvHome,
   getWorkspacesRoot,

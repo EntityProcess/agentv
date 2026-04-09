@@ -569,12 +569,7 @@ function collectRunManifestPaths(
   }
 }
 
-/**
- * Enumerate canonical run manifests in `.agentv/results/runs/`.
- */
-export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
-  const runsDir = path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME);
-
+export function listResultFilesFromRunsDir(runsDir: string, limit?: number): ResultFileMeta[] {
   const files: { filePath: string; displayName: string; runId: string }[] = [];
 
   try {
@@ -624,6 +619,16 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
   }
 
   return metas;
+}
+
+/**
+ * Enumerate canonical run manifests in `.agentv/results/runs/`.
+ */
+export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
+  return listResultFilesFromRunsDir(
+    path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME),
+    limit,
+  );
 }
 
 /**
