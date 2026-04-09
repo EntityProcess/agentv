@@ -211,6 +211,21 @@ Use `agent-browser` for visual verification of docs site changes. Environment-sp
 - **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
 - **Never use `--headed`** — no display server available; headless (default) works correctly
 
+**Troubleshooting: `--session` hangs with EAGAIN on ARM64**
+
+If `agent-browser --session <name> open <url>` consistently fails with "Resource temporarily unavailable" or times out, Chrome is taking longer to start than the client's retry window. Workaround: pre-start Chrome manually and use `--cdp`:
+
+```bash
+nohup chromium --headless=new --remote-debugging-port=9222 \
+  --no-first-run --disable-background-networking --disable-default-apps \
+  --disable-sync --ozone-platform=headless --window-size=1280,720 \
+  --user-data-dir=/tmp/ab-chrome > /tmp/chrome.log 2>&1 &
+curl -s http://localhost:9222/json/version  # verify ready
+
+agent-browser --cdp 9222 open <url>
+agent-browser --cdp 9222 screenshot output.png
+```
+
 ### Agent Provider Eval Concurrency
 
 When running evals against agent provider targets (claude, claude-sdk, codex, copilot, copilot-sdk, pi, pi-cli), **limit concurrency to 3 targets at a time**. Each agent provider spawns heavyweight subprocesses (CLI binaries, SDK sessions) that consume significant memory and CPU. Running more than 3 in parallel can exhaust system resources.
