@@ -199,6 +199,7 @@ export interface StudioConfigResponse {
   /** @deprecated Use threshold */
   pass_threshold?: number;
   read_only?: boolean;
+  project_name?: string;
 }
 
 export interface RemoteStatusResponse {

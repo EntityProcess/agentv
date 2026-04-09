@@ -666,10 +666,15 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
   return c.json({ targets });
 }
 
-function handleConfig(c: C, { agentvDir }: DataContext, options?: { readOnly?: boolean }) {
+function handleConfig(
+  c: C,
+  { agentvDir, searchDir }: DataContext,
+  options?: { readOnly?: boolean },
+) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
+    project_name: path.basename(searchDir),
   });
 }
 

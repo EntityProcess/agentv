@@ -82,7 +82,6 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
           <tr>
             <th className="w-8 px-4 py-3" />
             <th className="px-4 py-3 font-medium text-gray-400">Run</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Source</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
             <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
             <th className="px-4 py-3 font-medium text-gray-400">When</th>
@@ -123,19 +122,6 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                       {label}
                     </Link>
                   )}
-                </td>
-
-                {/* Source badge */}
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      run.source === 'remote'
-                        ? 'bg-amber-500/10 text-amber-300'
-                        : 'bg-emerald-500/10 text-emerald-300'
-                    }`}
-                  >
-                    {run.source}
-                  </span>
                 </td>
 
                 {/* Test count */}

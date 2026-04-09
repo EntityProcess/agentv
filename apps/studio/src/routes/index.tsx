@@ -220,7 +220,12 @@ function SingleProjectHome() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
+          {config?.project_name && (
+            <p className="mt-0.5 text-sm text-gray-500">{config.project_name}</p>
+          )}
+        </div>
         {!isReadOnly && (
           <button
             type="button"
