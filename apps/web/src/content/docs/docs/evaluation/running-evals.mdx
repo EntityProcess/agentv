@@ -107,13 +107,13 @@ result-oriented workflows. For full-fidelity span inspection, export OTLP JSON e
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv trace stats .agentv/results/runs/<timestamp>/index.jsonl
+agentv inspect stats .agentv/results/runs/<timestamp>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
 
-# Inspect the OTLP trace export
-agentv trace show traces/eval.otlp.json --tree
+# Inspect the OTLP export
+agentv inspect show traces/eval.otlp.json --tree
 ```
 
 `index.jsonl` contains aggregate metrics such as score, latency, cost, token usage, and summary

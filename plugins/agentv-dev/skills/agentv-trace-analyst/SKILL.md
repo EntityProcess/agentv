@@ -1,7 +1,7 @@
 ---
 name: agentv-trace-analyst
 description: >-
-  Analyze AgentV evaluation traces and result JSONL files using `agentv trace` and `agentv compare` CLI commands.
+  Analyze AgentV evaluation traces and result JSONL files using `agentv inspect` and `agentv compare` CLI commands.
   Use when asked to inspect AgentV eval results, find regressions between AgentV evaluation runs,
   identify failure patterns in AgentV trace data, analyze tool trajectories, or compute cost/latency/score statistics
   from AgentV result files.
@@ -11,19 +11,19 @@ description: >-
 
 # AgentV Trace Analyst
 
-Analyze evaluation traces headlessly using `agentv trace` primitives and `jq`.
+Analyze evaluation traces headlessly using `agentv inspect` primitives and `jq`.
 
 ## Primitives
 
 ```bash
 # List result files (most recent first)
-agentv trace list [--limit N] [--format json|table]
+agentv inspect list [--limit N] [--format json|table]
 
 # Show results with trace details
-agentv trace show <result-file> [--test-id <id>] [--tree] [--format json|table]
+agentv inspect show <result-file> [--test-id <id>] [--tree] [--format json|table]
 
 # Percentile statistics
-agentv trace stats <result-file> [--group-by target|suite|test-id] [--format json|table]
+agentv inspect stats <result-file> [--group-by target|suite|test-id] [--format json|table]
 
 # A/B comparison between runs
 agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold 0.1] [--format json|table]
@@ -34,7 +34,7 @@ agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold 0.1] [--format js
 ### 1. Discover results
 
 ```bash
-agentv trace list
+agentv inspect list
 ```
 
 Pick the result file to analyze. Most recent is first.
@@ -42,7 +42,7 @@ Pick the result file to analyze. Most recent is first.
 ### 2. Get overview
 
 ```bash
-agentv trace stats <result-file>
+agentv inspect stats <result-file>
 ```
 
 Read the percentile table. Key signals:
@@ -54,7 +54,7 @@ Read the percentile table. Key signals:
 ### 3. Investigate failures
 
 ```bash
-agentv trace show <result-file> --format json | jq '[.[] | select(.score < 0.8) | {test_id, score, assertions: [.assertions[] | select(.passed | not)], trace: {tools: (.trace.tool_calls | keys)}, duration_ms, cost_usd}]'
+agentv inspect show <result-file> --format json | jq '[.[] | select(.score < 0.8) | {test_id, score, assertions: [.assertions[] | select(.passed | not)], trace: {tools: (.trace.tool_calls | keys)}, duration_ms, cost_usd}]'
 ```
 
 For each failing test, examine:
@@ -67,10 +67,10 @@ For each failing test, examine:
 
 ```bash
 # Flat view with trace summary
-agentv trace show <result-file> --test-id <id>
+agentv inspect show <result-file> --test-id <id>
 
 # Tree view (if output messages available)
-agentv trace show <result-file> --test-id <id> --tree
+agentv inspect show <result-file> --test-id <id> --tree
 ```
 
 The tree view shows the agent's execution path — LLM calls interspersed with tool invocations. Look for:
@@ -93,10 +93,10 @@ Look for:
 
 ```bash
 # By target provider
-agentv trace stats <result-file> --group-by target
+agentv inspect stats <result-file> --group-by target
 
 # By suite
-agentv trace stats <result-file> --group-by suite
+agentv inspect stats <result-file> --group-by suite
 ```
 
 Compare providers side-by-side: which is cheaper, faster, more accurate?
@@ -107,19 +107,19 @@ All commands support `--format json` for piping to `jq`:
 
 ```bash
 # Top 3 most expensive tests
-agentv trace show <result-file> --format json \
+agentv inspect show <result-file> --format json \
   | jq 'sort_by(-.cost_usd) | .[0:3] | .[] | {test_id, cost: .cost_usd, score}'
 
 # Tests where token usage exceeds 10k
-agentv trace show <result-file> --format json \
+agentv inspect show <result-file> --format json \
   | jq '[.[] | select(.token_usage.input + .token_usage.output > 10000) | {test_id, tokens: (.token_usage.input + .token_usage.output)}]'
 
 # Score distribution by suite
-agentv trace show <result-file> --format json \
+agentv inspect show <result-file> --format json \
   | jq 'group_by(.suite) | .[] | {suite: .[0].suite, count: length, avg_score: ([.[].score] | add / length)}'
 
 # Tool usage frequency across all tests
-agentv trace show <result-file> --format json \
+agentv inspect show <result-file> --format json \
   | jq '[.[].trace.tool_calls // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
 
 # Find regressions > 0.1 between two runs

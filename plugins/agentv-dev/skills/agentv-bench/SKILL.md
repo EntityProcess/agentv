@@ -263,7 +263,7 @@ Read the JSONL results and look for:
 
 Use CLI tools for deeper investigation:
 ```bash
-agentv trace <results-file>          # Detailed execution trace inspection
+agentv inspect <results-file>          # Detailed execution trace inspection
 agentv compare <file-a> <file-b>     # Structured diff between runs
 ```
 
