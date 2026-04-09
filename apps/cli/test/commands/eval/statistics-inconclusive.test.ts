@@ -20,8 +20,8 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
   };
 }
 
-describe('formatEvaluationSummary — inconclusive verdict', () => {
-  it('shows INCONCLUSIVE when all tests are execution errors', () => {
+describe('formatEvaluationSummary — error verdict', () => {
+  it('shows ERROR when all tests are execution errors', () => {
     const results = [
       makeResult({
         testId: 'err-1',
@@ -46,7 +46,7 @@ describe('formatEvaluationSummary — inconclusive verdict', () => {
     const summary = calculateEvaluationSummary(results);
     const output = formatEvaluationSummary(summary);
 
-    expect(output).toContain('RESULT: INCONCLUSIVE');
+    expect(output).toContain('RESULT: ERROR');
     expect(output).toContain('all 3 test(s) had execution errors');
     expect(output).toContain('no evaluation was performed');
   });
@@ -65,9 +65,9 @@ describe('formatEvaluationSummary — inconclusive verdict', () => {
     const summary = calculateEvaluationSummary(results);
     const output = formatEvaluationSummary(summary);
 
-    // Should show PASS (the one graded test passed) not INCONCLUSIVE
+    // Should show PASS (the one graded test passed) not ERROR
     expect(output).toContain('RESULT: PASS');
-    expect(output).not.toContain('INCONCLUSIVE');
+    expect(output).not.toContain('ERROR');
   });
 
   it('shows FAIL when there are quality failures mixed with execution errors', () => {
@@ -85,7 +85,7 @@ describe('formatEvaluationSummary — inconclusive verdict', () => {
     const output = formatEvaluationSummary(summary, { threshold: 0.8 });
 
     expect(output).toContain('RESULT: FAIL');
-    expect(output).not.toContain('INCONCLUSIVE');
+    expect(output).not.toContain('RESULT: ERROR');
   });
 
   it('shows PASS when all tests pass and none are errors', () => {
@@ -98,6 +98,6 @@ describe('formatEvaluationSummary — inconclusive verdict', () => {
     const output = formatEvaluationSummary(summary);
 
     expect(output).toContain('RESULT: PASS');
-    expect(output).not.toContain('INCONCLUSIVE');
+    expect(output).not.toContain('RESULT: ERROR');
   });
 });
