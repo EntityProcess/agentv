@@ -1,0 +1,8 @@
+# Cloudflare Pages custom headers
+# Serve Pagefind WASM bundles with the correct MIME type so that
+# WebAssembly.instantiateStreaming() works on WebKit (iOS Safari/Chrome).
+# Without this, WebKit consumes the response body during the failed
+# streaming attempt, breaking the ArrayBuffer fallback and making
+# all searches return "no results" on iOS.
+/pagefind/wasm.*
+  Content-Type: application/wasm
