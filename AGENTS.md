@@ -505,7 +505,7 @@ When running Python scripts, always use: `uv run <script.py>`
 <skill>
 <name>image-compress-and-docs</name>
 <description>Capture, optimize, and publish screenshots to Astro docs. Use when asked to take screenshots for docs, update doc images, compress PNG assets, or add visual documentation to the agentv.dev docs site. Triggers include "add screenshots to docs", "update docs images", "compress screenshots", "optimize PNG", "document with screenshots".</description>
-<location>project</location>
+<location>.agents/skills/image-compress-and-docs/SKILL.md</location>
 </skill>
 
 </available_skills>
