@@ -101,7 +101,7 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
                 {/* Status dot */}
                 <td className="px-4 py-3 text-center">
                   <span
-                    className={`text-base font-bold ${passing ? 'text-emerald-300' : 'text-red-400'}`}
+                    className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
                   >
                     {passing ? '✓' : '✗'}
                   </span>

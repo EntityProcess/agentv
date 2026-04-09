@@ -197,7 +197,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                         <span className="text-base font-bold text-red-400">!</span>
                       ) : (
                         <span
-                          className={`text-base font-bold ${passing ? 'text-emerald-300' : 'text-red-400'}`}
+                          className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
                         >
                           {passing ? '✓' : '✗'}
                         </span>
