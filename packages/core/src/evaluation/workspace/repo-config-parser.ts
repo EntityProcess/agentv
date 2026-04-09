@@ -56,12 +56,13 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
   const obj = raw as Record<string, unknown>;
   const repoPath = typeof obj.path === 'string' ? obj.path : undefined;
   const source = parseRepoSource(obj.source);
-  if (!repoPath || !source) return undefined;
   const checkout = parseRepoCheckout(obj.checkout);
   const clone = parseRepoClone(obj.clone);
+  // At least one meaningful field must be present
+  if (!repoPath && !source && !checkout && !clone) return undefined;
   return {
-    path: repoPath,
-    source,
+    ...(repoPath !== undefined && { path: repoPath }),
+    ...(source !== undefined && { source }),
     ...(checkout !== undefined && { checkout }),
     ...(clone !== undefined && { clone }),
   };

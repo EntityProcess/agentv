@@ -245,8 +245,10 @@ export type RepoClone = {
 };
 
 export type RepoConfig = {
-  readonly path: string;
-  readonly source: RepoSource;
+  /** Target path inside the workspace. Optional for Docker repos targeting the container's working directory. */
+  readonly path?: string;
+  /** Clone source. Optional for Docker prebuilt images where repos exist inside the container. */
+  readonly source?: RepoSource;
   readonly checkout?: RepoCheckout;
   readonly clone?: RepoClone;
 };
@@ -292,8 +294,6 @@ export type DockerWorkspaceConfig = {
   readonly memory?: string;
   /** CPU limit (e.g. 2, 0.5) */
   readonly cpus?: number;
-  /** @deprecated Prefer workspace.repos[].checkout.base_commit as the checkout source of truth */
-  readonly base_commit?: string;
 };
 
 export type WorkspaceConfig = {

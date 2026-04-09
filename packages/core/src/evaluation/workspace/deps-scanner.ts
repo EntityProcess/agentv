@@ -74,7 +74,7 @@ export async function scanRepoDeps(evalFilePaths: readonly string[]): Promise<De
     try {
       const repos = await extractReposFromEvalFile(filePath);
       for (const repo of repos) {
-        if (repo.source.type !== 'git') continue;
+        if (!repo.source || repo.source.type !== 'git') continue;
         const ref = repo.checkout?.ref;
         const key = `${normalizeGitUrl(repo.source.url)}\0${ref ?? ''}`;
         const existing = seen.get(key);

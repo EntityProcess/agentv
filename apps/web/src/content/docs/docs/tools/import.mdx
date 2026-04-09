@@ -163,7 +163,7 @@ uv run scripts/import-huggingface.py \
 Each instance becomes an EVAL.yaml with:
 - `input` — the problem statement
 - `workspace.docker.image` — the pre-built SWE-bench Docker image (`ghcr.io/epoch-research/swe-bench.eval.x86_64.<instance_id>:latest`)
-- `workspace.docker.base_commit` — the commit to reset to before the agent runs
+- `workspace.repos[].checkout.base_commit` — the commit to reset to before the agent runs
 - `assertions` — `code-grader` tasks that run `FAIL_TO_PASS` and `PASS_TO_PASS` pytest suites inside the container
 
 Run an imported SWE-bench eval against any coding agent target:

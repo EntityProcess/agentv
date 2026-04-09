@@ -527,8 +527,9 @@ export async function runEvaluation(
   for (const ec of filteredEvalCases) {
     if (ec.workspace?.repos) {
       for (const repo of ec.workspace.repos) {
-        // Deduplicate by repo path + source path
-        const key = `${repo.path}::${repo.source.type === 'local' ? repo.source.path : ''}`;
+        // Deduplicate by repo path + source path (skip source-less Docker repos)
+        if (!repo.source) continue;
+        const key = `${repo.path ?? ''}::${repo.source.type === 'local' ? repo.source.path : ''}`;
         if (!allRepos.has(key)) {
           allRepos.set(key, repo);
         }
@@ -543,7 +544,7 @@ export async function runEvaluation(
       // Store invalid repo paths so affected tests can be failed with execution_error
       const invalidLocalRepoPaths = new Set(localPathErrors.map((e) => e.repoPath));
       // If suite-level repos have invalid paths, fail the entire run early
-      if (suiteWorkspace?.repos?.some((r) => invalidLocalRepoPaths.has(r.path))) {
+      if (suiteWorkspace?.repos?.some((r) => r.path && invalidLocalRepoPaths.has(r.path))) {
         throw new Error(message);
       }
     }
@@ -735,6 +736,7 @@ export async function runEvaluation(
         if (needsPerRepoCheck) {
           // Static workspace with existing content: materialize only missing repos
           for (const repo of suiteWorkspace.repos) {
+            if (!repo.path || !repo.source) continue;
             const targetDir = path.join(sharedWorkspacePath, repo.path);
             if (existsSync(targetDir)) {
               setupLog(`reusing existing repo at: ${targetDir}`);

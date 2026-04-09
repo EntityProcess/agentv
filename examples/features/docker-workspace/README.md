@@ -37,7 +37,19 @@ workspace:
     cpus: 2          # optional Docker CPU limit
 ```
 
-For evals that need a repo pinned to a dataset snapshot, prefer `workspace.repos[].checkout.base_commit`. `workspace.docker.base_commit` still works as a compatibility bridge for existing Docker-backed SWE-bench configs, but new configs should keep checkout state in the repo model rather than in the Docker block.
+For evals that need a repo pinned to a dataset snapshot, use `workspace.repos[].checkout.base_commit`:
+
+```yaml
+workspace:
+  docker:
+    image: swebench/sweb.eval.x86_64.django__django-15180
+  repos:
+    - path: /testbed
+      checkout:
+        base_commit: abc123def
+```
+
+Repos defined without `source` are assumed to already exist inside the container (e.g., SWE-bench prebuilt images).
 
 ## Running
 

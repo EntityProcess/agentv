@@ -63,18 +63,18 @@ export class RepoManager {
   static validateLocalPaths(repos: readonly RepoConfig[]): readonly LocalPathValidationError[] {
     const errors: LocalPathValidationError[] = [];
     for (const repo of repos) {
-      if (repo.source.type !== 'local') continue;
+      if (!repo.source || repo.source.type !== 'local') continue;
 
       const sourcePath = repo.source.path;
       if (!sourcePath || sourcePath.trim() === '') {
         errors.push({
-          repoPath: repo.path,
+          repoPath: repo.path ?? '(none)',
           resolvedSourcePath: sourcePath ?? '',
           reason: 'empty_path',
         });
       } else if (!existsSync(sourcePath)) {
         errors.push({
-          repoPath: repo.path,
+          repoPath: repo.path ?? '(none)',
           resolvedSourcePath: sourcePath,
           reason: 'not_found',
         });
@@ -124,6 +124,12 @@ export class RepoManager {
    * Handles checkout, ref resolution, ancestor walking, shallow clone, sparse checkout.
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
+    if (!repo.source || !repo.path) {
+      if (this.verbose) {
+        console.log(`[repo] materialize skip path=${repo.path ?? '(none)'} (no source or path)`);
+      }
+      return;
+    }
     const targetDir = path.join(workspacePath, repo.path);
     const sourceUrl = getSourceUrl(repo.source);
     const startedAt = Date.now();
@@ -225,12 +231,15 @@ export class RepoManager {
     }
   }
 
-  /** Materialize all repos into the workspace. */
+  /** Materialize all repos into the workspace. Skips repos without source (Docker-only repos). */
   async materializeAll(repos: readonly RepoConfig[], workspacePath: string): Promise<void> {
+    const materializableRepos = repos.filter((r) => r.source);
     if (this.verbose) {
-      console.log(`[repo] materializeAll count=${repos.length} workspace=${workspacePath}`);
+      console.log(
+        `[repo] materializeAll count=${materializableRepos.length} (${repos.length - materializableRepos.length} skipped, no source) workspace=${workspacePath}`,
+      );
     }
-    for (const repo of repos) {
+    for (const repo of materializableRepos) {
       await this.materialize(repo, workspacePath);
     }
     if (this.verbose) {
@@ -238,7 +247,7 @@ export class RepoManager {
     }
   }
 
-  /** Reset repos in workspace to their checkout state. */
+  /** Reset repos in workspace to their checkout state. Skips repos without path or source. */
   async reset(
     repos: readonly RepoConfig[],
     workspacePath: string,
@@ -246,6 +255,7 @@ export class RepoManager {
   ): Promise<void> {
     const cleanFlag = reset === 'strict' ? '-fdx' : '-fd';
     for (const repo of repos) {
+      if (!repo.path || !repo.source) continue;
       const targetDir = path.join(workspacePath, repo.path);
       await this.runGit(['reset', '--hard', 'HEAD'], { cwd: targetDir });
       await this.runGit(['clean', cleanFlag], { cwd: targetDir });
