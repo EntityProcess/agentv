@@ -374,8 +374,9 @@ describe('LlmGraderEvaluator multimodal', () => {
     await writeFile(
       scriptPath,
       `const fs = require('node:fs');
+const path = require('node:path');
 const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
-console.log('spreadsheet:' + payload.original_path.split('/').pop());`,
+console.log('spreadsheet:' + path.basename(payload.original_path));`,
       'utf8',
     );
 

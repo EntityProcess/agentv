@@ -279,6 +279,8 @@ export function registerEvalRoutes(
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
+        // Windows requires shell:true to execute .cmd/.bat wrappers (e.g. npm-installed agentv.cmd)
+        shell: process.platform === 'win32',
       });
 
       run.process = child;
@@ -440,6 +442,7 @@ export function registerEvalRoutes(
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
+        shell: process.platform === 'win32',
       });
 
       run.process = child;

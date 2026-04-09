@@ -42,8 +42,9 @@ describe('content preprocessors', () => {
     await writeFile(
       scriptPath,
       `const fs = require('node:fs');
+const path = require('node:path');
 const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
-console.log('sheet:' + payload.original_path.split('/').pop());`,
+console.log('sheet:' + path.basename(payload.original_path));`,
       'utf8',
     );
 
