@@ -1,0 +1,54 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - publish-next
+          - promote-latest
+        default: publish-next
+      version:
+        description: "Version to promote (promote-latest only; leave empty to use package.json version)"
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: ${{ inputs.action == 'promote-latest' && 'Promote to latest' || 'Publish to npm (next)' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Publish to npm (next)
+        if: inputs.action == 'publish-next'
+        run: bun run publish:next
+
+      - name: Promote to latest
+        if: inputs.action == 'promote-latest'
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            bun run promote:latest "${{ inputs.version }}"
+          else
+            bun run promote:latest
+          fi
