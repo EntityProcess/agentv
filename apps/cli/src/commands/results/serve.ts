@@ -1044,7 +1044,9 @@ export function createApp(
   );
   app.get('/api/benchmarks/:projectId/runs', (c) => withProject(c, handleRuns));
   app.get('/api/benchmarks/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
-  app.get('/api/benchmarks/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
+  app.get('/api/benchmarks/:projectId/runs/:filename/suites', (c) =>
+    withProject(c, handleRunSuites),
+  );
   app.get('/api/benchmarks/:projectId/runs/:filename/categories', (c) =>
     withProject(c, handleRunCategories),
   );
