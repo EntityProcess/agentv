@@ -8,6 +8,8 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type {
+  BenchmarkEntry,
+  BenchmarkListResponse,
   CategoriesResponse,
   CompareResponse,
   EvalDetailResponse,
@@ -21,8 +23,6 @@ import type {
   FileContentResponse,
   FileTreeResponse,
   IndexResponse,
-  ProjectEntry,
-  ProjectListResponse,
   RemoteStatusResponse,
   RunDetailResponse,
   RunEvalRequest,
@@ -148,10 +148,10 @@ export const studioConfigOptions = queryOptions({
   staleTime: 5_000,
 });
 
-export function remoteStatusOptions(projectId?: string) {
-  const url = projectId ? `${projectApiBase(projectId)}/remote/status` : '/api/remote/status';
+export function remoteStatusOptions(benchmarkId?: string) {
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/remote/status` : '/api/remote/status';
   return queryOptions({
-    queryKey: ['remote-status', projectId ?? ''],
+    queryKey: ['remote-status', benchmarkId ?? ''],
     queryFn: () => fetchJson<RemoteStatusResponse>(url),
     staleTime: 5_000,
   });
@@ -215,8 +215,8 @@ export function useStudioConfig() {
   return useQuery(studioConfigOptions);
 }
 
-export function useRemoteStatus(projectId?: string) {
-  return useQuery(remoteStatusOptions(projectId));
+export function useRemoteStatus(benchmarkId?: string) {
+  return useQuery(remoteStatusOptions(benchmarkId));
 }
 
 /** Default pass threshold matching @agentv/core DEFAULT_THRESHOLD */
@@ -226,43 +226,43 @@ export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_TH
   return score >= passThreshold;
 }
 
-// ── Project API ─────────────────────────────────────────────────────────
+// ── Benchmark API ────────────────────────────────────────────────────────
 
-export const projectListOptions = queryOptions({
-  queryKey: ['projects'],
-  queryFn: () => fetchJson<ProjectListResponse>('/api/benchmarks'),
+export const benchmarkListOptions = queryOptions({
+  queryKey: ['benchmarks'],
+  queryFn: () => fetchJson<BenchmarkListResponse>('/api/benchmarks'),
   refetchInterval: 10_000,
 });
 
-export function useProjectList() {
-  return useQuery(projectListOptions);
+export function useBenchmarkList() {
+  return useQuery(benchmarkListOptions);
 }
 
-export const allProjectRunsOptions = queryOptions({
-  queryKey: ['projects', 'all-runs'],
+export const allBenchmarkRunsOptions = queryOptions({
+  queryKey: ['benchmarks', 'all-runs'],
   queryFn: () => fetchJson<RunListResponse>('/api/benchmarks/all-runs'),
   refetchInterval: 5_000,
 });
 
-export function useAllProjectRuns() {
-  return useQuery(allProjectRunsOptions);
+export function useAllBenchmarkRuns() {
+  return useQuery(allBenchmarkRunsOptions);
 }
 
-export async function addProjectApi(projectPath: string): Promise<ProjectEntry> {
+export async function addBenchmarkApi(benchmarkPath: string): Promise<BenchmarkEntry> {
   const res = await fetch('/api/benchmarks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: projectPath }),
+    body: JSON.stringify({ path: benchmarkPath }),
   });
   if (!res.ok) {
     const err = (await res.json()) as { error: string };
     throw new Error(err.error || `Failed to add project: ${res.status}`);
   }
-  return res.json() as Promise<ProjectEntry>;
+  return res.json() as Promise<BenchmarkEntry>;
 }
 
-export async function removeProjectApi(projectId: string): Promise<void> {
-  const res = await fetch(`/api/benchmarks/${encodeURIComponent(projectId)}`, {
+export async function removeBenchmarkApi(benchmarkId: string): Promise<void> {
+  const res = await fetch(`/api/benchmarks/${encodeURIComponent(benchmarkId)}`, {
     method: 'DELETE',
   });
   if (!res.ok) {
@@ -270,7 +270,7 @@ export async function removeProjectApi(projectId: string): Promise<void> {
   }
 }
 
-export async function discoverProjectsApi(dirPath: string): Promise<ProjectEntry[]> {
+export async function discoverBenchmarksApi(dirPath: string): Promise<BenchmarkEntry[]> {
   const res = await fetch('/api/benchmarks/discover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -280,149 +280,155 @@ export async function discoverProjectsApi(dirPath: string): Promise<ProjectEntry
     const err = (await res.json()) as { error: string };
     throw new Error(err.error || `Failed to discover: ${res.status}`);
   }
-  const data = (await res.json()) as { discovered: ProjectEntry[] };
+  const data = (await res.json()) as { discovered: BenchmarkEntry[] };
   return data.discovered;
 }
 
-/** Build the API base URL for a project-scoped request. */
-function projectApiBase(projectId: string): string {
-  return `/api/benchmarks/${encodeURIComponent(projectId)}`;
+/** Build the API base URL for a benchmark-scoped request. */
+function benchmarkApiBase(benchmarkId: string): string {
+  return `/api/benchmarks/${encodeURIComponent(benchmarkId)}`;
 }
 
-export function projectRunListOptions(projectId: string) {
+export function benchmarkRunListOptions(benchmarkId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs'],
-    queryFn: () => fetchJson<RunListResponse>(`${projectApiBase(projectId)}/runs`),
-    enabled: !!projectId,
+    queryKey: ['benchmarks', benchmarkId, 'runs'],
+    queryFn: () => fetchJson<RunListResponse>(`${benchmarkApiBase(benchmarkId)}/runs`),
+    enabled: !!benchmarkId,
     refetchInterval: 5_000,
   });
 }
 
-export function useProjectRunList(projectId: string) {
-  return useQuery(projectRunListOptions(projectId));
+export function useBenchmarkRunList(benchmarkId: string) {
+  return useQuery(benchmarkRunListOptions(benchmarkId));
 }
 
-export function projectRunDetailOptions(projectId: string, filename: string) {
+export function benchmarkRunDetailOptions(benchmarkId: string, filename: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', filename],
+    queryKey: ['benchmarks', benchmarkId, 'runs', filename],
     queryFn: () =>
       fetchJson<RunDetailResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(filename)}`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(filename)}`,
       ),
-    enabled: !!projectId && !!filename,
+    enabled: !!benchmarkId && !!filename,
   });
 }
 
-export function useProjectRunDetail(projectId: string, filename: string) {
-  return useQuery(projectRunDetailOptions(projectId, filename));
+export function useBenchmarkRunDetail(benchmarkId: string, filename: string) {
+  return useQuery(benchmarkRunDetailOptions(benchmarkId, filename));
 }
 
-export function projectRunSuitesOptions(projectId: string, runId: string) {
+export function benchmarkRunSuitesOptions(benchmarkId: string, runId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'suites'],
+    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'suites'],
     queryFn: () =>
       fetchJson<SuitesResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/suites`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/suites`,
       ),
-    enabled: !!projectId && !!runId,
+    enabled: !!benchmarkId && !!runId,
   });
 }
 
-export function projectRunCategoriesOptions(projectId: string, runId: string) {
+export function benchmarkRunCategoriesOptions(benchmarkId: string, runId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'categories'],
+    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'categories'],
     queryFn: () =>
       fetchJson<CategoriesResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/categories`,
       ),
-    enabled: !!projectId && !!runId,
+    enabled: !!benchmarkId && !!runId,
   });
 }
 
-export function projectCategorySuitesOptions(projectId: string, runId: string, category: string) {
+export function benchmarkCategorySuitesOptions(
+  benchmarkId: string,
+  runId: string,
+  category: string,
+) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'categories', category, 'suites'],
+    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'categories', category, 'suites'],
     queryFn: () =>
       fetchJson<SuitesResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/suites`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/suites`,
       ),
-    enabled: !!projectId && !!runId && !!category,
+    enabled: !!benchmarkId && !!runId && !!category,
   });
 }
 
-export function projectEvalDetailOptions(projectId: string, runId: string, evalId: string) {
+export function benchmarkEvalDetailOptions(benchmarkId: string, runId: string, evalId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId],
+    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'evals', evalId],
     queryFn: () =>
       fetchJson<EvalDetailResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`,
       ),
-    enabled: !!projectId && !!runId && !!evalId,
+    enabled: !!benchmarkId && !!runId && !!evalId,
   });
 }
 
-export function projectEvalFilesOptions(projectId: string, runId: string, evalId: string) {
+export function benchmarkEvalFilesOptions(benchmarkId: string, runId: string, evalId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files'],
+    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'evals', evalId, 'files'],
     queryFn: () =>
       fetchJson<FileTreeResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`,
       ),
-    enabled: !!projectId && !!runId && !!evalId,
+    enabled: !!benchmarkId && !!runId && !!evalId,
   });
 }
 
-export function projectEvalFileContentOptions(
-  projectId: string,
+export function benchmarkEvalFileContentOptions(
+  benchmarkId: string,
   runId: string,
   evalId: string,
   filePath: string,
 ) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files', filePath],
+    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'evals', evalId, 'files', filePath],
     queryFn: () =>
       fetchJson<FileContentResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
+        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
       ),
-    enabled: !!projectId && !!runId && !!evalId && !!filePath,
+    enabled: !!benchmarkId && !!runId && !!evalId && !!filePath,
   });
 }
 
-export function projectExperimentsOptions(projectId: string) {
+export function benchmarkExperimentsOptions(benchmarkId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'experiments'],
-    queryFn: () => fetchJson<ExperimentsResponse>(`${projectApiBase(projectId)}/experiments`),
-    enabled: !!projectId,
+    queryKey: ['benchmarks', benchmarkId, 'experiments'],
+    queryFn: () =>
+      fetchJson<ExperimentsResponse>(`${benchmarkApiBase(benchmarkId)}/experiments`),
+    enabled: !!benchmarkId,
   });
 }
 
-export function projectCompareOptions(projectId: string) {
+export function benchmarkCompareOptions(benchmarkId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'compare'],
-    queryFn: () => fetchJson<CompareResponse>(`${projectApiBase(projectId)}/compare`),
-    enabled: !!projectId,
+    queryKey: ['benchmarks', benchmarkId, 'compare'],
+    queryFn: () => fetchJson<CompareResponse>(`${benchmarkApiBase(benchmarkId)}/compare`),
+    enabled: !!benchmarkId,
   });
 }
 
-export function projectTargetsOptions(projectId: string) {
+export function benchmarkTargetsOptions(benchmarkId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'targets'],
-    queryFn: () => fetchJson<TargetsResponse>(`${projectApiBase(projectId)}/targets`),
-    enabled: !!projectId,
+    queryKey: ['benchmarks', benchmarkId, 'targets'],
+    queryFn: () => fetchJson<TargetsResponse>(`${benchmarkApiBase(benchmarkId)}/targets`),
+    enabled: !!benchmarkId,
   });
 }
 
-export function projectConfigOptions(projectId: string) {
+export function benchmarkConfigOptions(benchmarkId: string) {
   return queryOptions({
-    queryKey: ['projects', projectId, 'config'],
-    queryFn: () => fetchJson<StudioConfigResponse>(`${projectApiBase(projectId)}/config`),
-    enabled: !!projectId,
+    queryKey: ['benchmarks', benchmarkId, 'config'],
+    queryFn: () =>
+      fetchJson<StudioConfigResponse>(`${benchmarkApiBase(benchmarkId)}/config`),
+    enabled: !!benchmarkId,
     staleTime: 5_000,
   });
 }
 
-export async function syncRemoteResultsApi(projectId?: string): Promise<RemoteStatusResponse> {
-  const url = projectId ? `${projectApiBase(projectId)}/remote/sync` : '/api/remote/sync';
+export async function syncRemoteResultsApi(benchmarkId?: string): Promise<RemoteStatusResponse> {
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/remote/sync` : '/api/remote/sync';
   const res = await fetch(url, {
     method: 'POST',
   });
@@ -448,37 +454,39 @@ export async function saveStudioConfig(
 
 // ── Eval runner queries & mutations ──────────────────────────────────────
 
-export function evalDiscoverOptions(projectId?: string) {
-  const url = projectId ? `${projectApiBase(projectId)}/eval/discover` : '/api/eval/discover';
+export function evalDiscoverOptions(benchmarkId?: string) {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/eval/discover`
+    : '/api/eval/discover';
   return queryOptions({
-    queryKey: ['eval-discover', projectId ?? ''],
+    queryKey: ['eval-discover', benchmarkId ?? ''],
     queryFn: () => fetchJson<EvalDiscoverResponse>(url),
     staleTime: 30_000,
   });
 }
 
-export function useEvalDiscover(projectId?: string) {
-  return useQuery(evalDiscoverOptions(projectId));
+export function useEvalDiscover(benchmarkId?: string) {
+  return useQuery(evalDiscoverOptions(benchmarkId));
 }
 
-export function evalTargetsOptions(projectId?: string) {
-  const url = projectId ? `${projectApiBase(projectId)}/eval/targets` : '/api/eval/targets';
+export function evalTargetsOptions(benchmarkId?: string) {
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/targets` : '/api/eval/targets';
   return queryOptions({
-    queryKey: ['eval-targets', projectId ?? ''],
+    queryKey: ['eval-targets', benchmarkId ?? ''],
     queryFn: () => fetchJson<EvalTargetsResponse>(url),
     staleTime: 30_000,
   });
 }
 
-export function useEvalTargets(projectId?: string) {
-  return useQuery(evalTargetsOptions(projectId));
+export function useEvalTargets(benchmarkId?: string) {
+  return useQuery(evalTargetsOptions(benchmarkId));
 }
 
 export async function launchEvalRun(
   body: RunEvalRequest,
-  projectId?: string,
+  benchmarkId?: string,
 ): Promise<EvalRunResponse> {
-  const url = projectId ? `${projectApiBase(projectId)}/eval/run` : '/api/eval/run';
+  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/run` : '/api/eval/run';
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -510,9 +518,11 @@ export function useEvalRunStatus(runId: string | null) {
 
 export async function previewEvalCommand(
   body: RunEvalRequest,
-  projectId?: string,
+  benchmarkId?: string,
 ): Promise<EvalPreviewResponse> {
-  const url = projectId ? `${projectApiBase(projectId)}/eval/preview` : '/api/eval/preview';
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/eval/preview`
+    : '/api/eval/preview';
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

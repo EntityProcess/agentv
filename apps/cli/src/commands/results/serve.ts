@@ -12,10 +12,10 @@
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
  *   - GET /api/benchmarks  — list registered benchmarks
- *   - GET /api/benchmarks/:projectId/runs — benchmark-scoped run list
+ *   - GET /api/benchmarks/:benchmarkId/runs — benchmark-scoped run list
  *
  * All data routes (runs, suites, categories, evals, experiments, targets)
- * exist in both unscoped (/api/...) and benchmark-scoped (/api/benchmarks/:projectId/...)
+ * exist in both unscoped (/api/...) and benchmark-scoped (/api/benchmarks/:benchmarkId/...)
  * variants. They share handler functions via DataContext, differing only in
  * how searchDir is resolved.
  *
@@ -33,11 +33,11 @@ import { command, flag, number, option, optional, positional, string } from 'cmd
 import {
   DEFAULT_CATEGORY,
   type EvaluationResult,
-  addProject,
-  discoverProjects,
-  getProject,
-  loadProjectRegistry,
-  removeProject,
+  addBenchmark,
+  discoverBenchmarks,
+  getBenchmark,
+  loadBenchmarkRegistry,
+  removeBenchmark,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -718,19 +718,19 @@ export function createApp(
   const readOnly = options?.readOnly === true;
   const app = new Hono();
 
-  // ── Project resolution wrapper ────────────────────────────────────────
-  // Resolves projectId → DataContext, returning 404 if not found.
-  function withProject(
+  // ── Benchmark resolution wrapper ──────────────────────────────────────
+  // Resolves benchmarkId → DataContext, returning 404 if not found.
+  function withBenchmark(
     c: C,
     handler: (c: C, ctx: DataContext) => Response | Promise<Response>,
   ): Response | Promise<Response> {
-    const project = getProject(c.req.param('projectId') ?? '');
-    if (!project || !existsSync(project.path)) {
+    const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
+    if (!benchmark || !existsSync(benchmark.path)) {
       return c.json({ error: 'Project not found' }, 404);
     }
     return handler(c, {
-      searchDir: project.path,
-      agentvDir: path.join(project.path, '.agentv'),
+      searchDir: benchmark.path,
+      agentvDir: path.join(benchmark.path, '.agentv'),
     });
   }
 
@@ -754,10 +754,10 @@ export function createApp(
     }
   });
 
-  // ── Project management endpoints ─────────────────────────────────────
+  // ── Benchmark management endpoints ───────────────────────────────────
 
-  /** Convert a ProjectEntry to snake_case wire format. */
-  function projectEntryToWire(entry: {
+  /** Convert a BenchmarkEntry to snake_case wire format. */
+  function benchmarkEntryToWire(entry: {
     id: string;
     name: string;
     path: string;
@@ -774,9 +774,9 @@ export function createApp(
   }
 
   app.get('/api/benchmarks', async (c) => {
-    const registry = loadProjectRegistry();
-    const projects = await Promise.all(
-      registry.projects.map(async (p) => {
+    const registry = loadBenchmarkRegistry();
+    const benchmarks = await Promise.all(
+      registry.benchmarks.map(async (p) => {
         let runCount = 0;
         let passRate = 0;
         let lastRun: string | null = null;
@@ -789,17 +789,17 @@ export function createApp(
             lastRun = metas[0].timestamp;
           }
         } catch {
-          // Project path may be missing or inaccessible
+          // Benchmark path may be missing or inaccessible
         }
         return {
-          ...projectEntryToWire(p),
+          ...benchmarkEntryToWire(p),
           run_count: runCount,
           pass_rate: passRate,
           last_run: lastRun,
         };
       }),
     );
-    return c.json({ projects });
+    return c.json({ projects: benchmarks });
   });
 
   app.post('/api/benchmarks', async (c) => {
@@ -809,34 +809,34 @@ export function createApp(
     try {
       const body = await c.req.json<{ path: string }>();
       if (!body.path) return c.json({ error: 'Missing path' }, 400);
-      const entry = addProject(body.path);
-      return c.json(projectEntryToWire(entry), 201);
+      const entry = addBenchmark(body.path);
+      return c.json(benchmarkEntryToWire(entry), 201);
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
   });
 
-  app.delete('/api/benchmarks/:projectId', (c) => {
+  app.delete('/api/benchmarks/:benchmarkId', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    const removed = removeProject(c.req.param('projectId') ?? '');
+    const removed = removeBenchmark(c.req.param('benchmarkId') ?? '');
     if (!removed) return c.json({ error: 'Project not found' }, 404);
     return c.json({ ok: true });
   });
 
-  app.get('/api/benchmarks/:projectId/summary', async (c) => {
-    const project = getProject(c.req.param('projectId') ?? '');
-    if (!project) return c.json({ error: 'Project not found' }, 404);
+  app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
+    const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
+    if (!benchmark) return c.json({ error: 'Project not found' }, 404);
     try {
-      const { runs: metas } = await listMergedResultFiles(project.path);
+      const { runs: metas } = await listMergedResultFiles(benchmark.path);
       const runCount = metas.length;
       const passRate = runCount > 0 ? metas.reduce((s, m) => s + m.passRate, 0) / runCount : 0;
       const lastRun = metas.length > 0 ? metas[0].timestamp : null;
       return c.json({
-        id: project.id,
-        name: project.name,
-        path: project.path,
+        id: benchmark.id,
+        name: benchmark.name,
+        path: benchmark.path,
         run_count: runCount,
         pass_rate: passRate,
         last_run: lastRun,
@@ -853,17 +853,17 @@ export function createApp(
     try {
       const body = await c.req.json<{ path: string }>();
       if (!body.path) return c.json({ error: 'Missing path' }, 400);
-      const discovered = discoverProjects(body.path);
-      const registered = discovered.map((p) => projectEntryToWire(addProject(p)));
+      const discovered = discoverBenchmarks(body.path);
+      const registered = discovered.map((p) => benchmarkEntryToWire(addBenchmark(p)));
       return c.json({ discovered: registered });
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
   });
 
-  /** Aggregate runs from all registered projects, sorted by timestamp descending. */
+  /** Aggregate runs from all registered benchmarks, sorted by timestamp descending. */
   app.get('/api/benchmarks/all-runs', async (c) => {
-    const registry = loadProjectRegistry();
+    const registry = loadBenchmarkRegistry();
     const allRuns: Array<{
       filename: string;
       display_name: string;
@@ -880,7 +880,7 @@ export function createApp(
       project_name: string;
     }> = [];
 
-    for (const p of registry.projects) {
+    for (const p of registry.benchmarks) {
       try {
         const { runs: metas } = await listMergedResultFiles(p.path);
         for (const m of metas) {
@@ -1023,60 +1023,60 @@ export function createApp(
     return c.json({ entries });
   });
 
-  // ── Data routes (project-scoped) ──────────────────────────────────────
-  // Same handlers as above, with project-resolved DataContext via withProject.
+  // ── Data routes (benchmark-scoped) ───────────────────────────────────
+  // Same handlers as above, with benchmark-resolved DataContext via withBenchmark.
 
-  app.get('/api/benchmarks/:projectId/config', (c) =>
-    withProject(c, (ctx, dataCtx) =>
+  app.get('/api/benchmarks/:benchmarkId/config', (c) =>
+    withBenchmark(c, (ctx, dataCtx) =>
       handleConfig(ctx, dataCtx, {
         readOnly,
         multiProjectDashboard: options?.multiProjectDashboard,
       }),
     ),
   );
-  app.get('/api/benchmarks/:projectId/remote/status', (c) =>
-    withProject(c, async (ctx, dataCtx) =>
+  app.get('/api/benchmarks/:benchmarkId/remote/status', (c) =>
+    withBenchmark(c, async (ctx, dataCtx) =>
       ctx.json(await getRemoteResultsStatus(dataCtx.searchDir)),
     ),
   );
-  app.post('/api/benchmarks/:projectId/remote/sync', (c) =>
-    withProject(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
+  app.post('/api/benchmarks/:benchmarkId/remote/sync', (c) =>
+    withBenchmark(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
   );
-  app.get('/api/benchmarks/:projectId/runs', (c) => withProject(c, handleRuns));
-  app.get('/api/benchmarks/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
-  app.get('/api/benchmarks/:projectId/runs/:filename/suites', (c) =>
-    withProject(c, handleRunSuites),
+  app.get('/api/benchmarks/:benchmarkId/runs', (c) => withBenchmark(c, handleRuns));
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename', (c) => withBenchmark(c, handleRunDetail));
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/suites', (c) =>
+    withBenchmark(c, handleRunSuites),
   );
-  app.get('/api/benchmarks/:projectId/runs/:filename/categories', (c) =>
-    withProject(c, handleRunCategories),
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/categories', (c) =>
+    withBenchmark(c, handleRunCategories),
   );
-  app.get('/api/benchmarks/:projectId/runs/:filename/categories/:category/suites', (c) =>
-    withProject(c, handleCategorySuites),
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/categories/:category/suites', (c) =>
+    withBenchmark(c, handleCategorySuites),
   );
-  app.get('/api/benchmarks/:projectId/runs/:filename/evals/:evalId', (c) =>
-    withProject(c, handleEvalDetail),
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/evals/:evalId', (c) =>
+    withBenchmark(c, handleEvalDetail),
   );
-  app.get('/api/benchmarks/:projectId/runs/:filename/evals/:evalId/files', (c) =>
-    withProject(c, handleEvalFiles),
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/evals/:evalId/files', (c) =>
+    withBenchmark(c, handleEvalFiles),
   );
-  app.get('/api/benchmarks/:projectId/runs/:filename/evals/:evalId/files/*', (c) =>
-    withProject(c, handleEvalFileContent),
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/evals/:evalId/files/*', (c) =>
+    withBenchmark(c, handleEvalFileContent),
   );
-  app.get('/api/benchmarks/:projectId/experiments', (c) => withProject(c, handleExperiments));
-  app.get('/api/benchmarks/:projectId/compare', (c) => withProject(c, handleCompare));
-  app.get('/api/benchmarks/:projectId/targets', (c) => withProject(c, handleTargets));
-  app.get('/api/benchmarks/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
+  app.get('/api/benchmarks/:benchmarkId/experiments', (c) => withBenchmark(c, handleExperiments));
+  app.get('/api/benchmarks/:benchmarkId/compare', (c) => withBenchmark(c, handleCompare));
+  app.get('/api/benchmarks/:benchmarkId/targets', (c) => withBenchmark(c, handleTargets));
+  app.get('/api/benchmarks/:benchmarkId/feedback', (c) => withBenchmark(c, handleFeedbackRead));
 
   // ── Eval runner routes (discovery, launch, status) ────────────────────
 
   registerEvalRoutes(
     app,
     (c) => {
-      // For project-scoped routes, resolve to project path; otherwise use searchDir
-      const projectId = c.req.param('projectId');
-      if (projectId) {
-        const project = getProject(projectId);
-        if (project) return project.path;
+      // For benchmark-scoped routes, resolve to benchmark path; otherwise use searchDir
+      const benchmarkId = c.req.param('benchmarkId');
+      if (benchmarkId) {
+        const benchmark = getBenchmark(benchmarkId);
+        if (benchmark) return benchmark.path;
       }
       return searchDir;
     },
@@ -1218,10 +1218,10 @@ export const resultsServeCommand = command({
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
-    // ── Project management commands (non-server) ─────────────────────
+    // ── Benchmark management commands (non-server) ───────────────────
     if (add) {
       try {
-        const entry = addProject(add);
+        const entry = addBenchmark(add);
         console.log(`Registered project: ${entry.name} (${entry.id}) at ${entry.path}`);
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
@@ -1231,7 +1231,7 @@ export const resultsServeCommand = command({
     }
 
     if (remove) {
-      const removed = removeProject(remove);
+      const removed = removeBenchmark(remove);
       if (removed) {
         console.log(`Unregistered project: ${remove}`);
       } else {
@@ -1242,13 +1242,13 @@ export const resultsServeCommand = command({
     }
 
     if (discover) {
-      const discovered = discoverProjects(discover);
+      const discovered = discoverBenchmarks(discover);
       if (discovered.length === 0) {
         console.log(`No projects with .agentv/ found under ${discover}`);
         return;
       }
       for (const p of discovered) {
-        const entry = addProject(p);
+        const entry = addBenchmark(p);
         console.log(`Registered: ${entry.name} (${entry.id}) at ${entry.path}`);
       }
       console.log(`\nDiscovered ${discovered.length} project(s).`);
@@ -1256,8 +1256,8 @@ export const resultsServeCommand = command({
     }
 
     // ── Determine multi-project mode ────────────────────────────────
-    const registry = loadProjectRegistry();
-    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.projects.length, {
+    const registry = loadBenchmarkRegistry();
+    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.benchmarks.length, {
       multi,
       single,
     });
@@ -1302,7 +1302,7 @@ export const resultsServeCommand = command({
       }
 
       if (isMultiProject) {
-        console.log(`Multi-project mode: ${registry.projects.length} project(s) registered`);
+        console.log(`Multi-project mode: ${registry.benchmarks.length} project(s) registered`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {

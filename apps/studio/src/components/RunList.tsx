@@ -16,7 +16,7 @@ import { PassRatePill } from './PassRatePill';
 
 interface RunListProps {
   runs: RunMeta[];
-  projectId?: string;
+  benchmarkId?: string;
   emptyMessage?: React.ReactNode;
 }
 
@@ -48,7 +48,7 @@ function runLabel(run: RunMeta): string {
   return run.display_name ?? run.filename;
 }
 
-export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
+export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
   if (runs.length === 0) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
@@ -101,10 +101,10 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
 
                 {/* Run name */}
                 <td className="px-4 py-3">
-                  {projectId ? (
+                  {benchmarkId ? (
                     <Link
-                      to="/projects/$projectId/runs/$runId"
-                      params={{ projectId, runId: run.filename }}
+                      to="/projects/$benchmarkId/runs/$runId"
+                      params={{ benchmarkId, runId: run.filename }}
                       className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                     >
                       {label}

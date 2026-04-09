@@ -7,15 +7,15 @@ import { useState } from 'react';
 
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { useProjectRunDetail, useStudioConfig } from '~/lib/api';
+import { useBenchmarkRunDetail, useStudioConfig } from '~/lib/api';
 
-export const Route = createFileRoute('/projects/$projectId_/evals/$runId/$evalId')({
+export const Route = createFileRoute('/projects/$benchmarkId_/evals/$runId/$evalId')({
   component: ProjectEvalDetailPage,
 });
 
 function ProjectEvalDetailPage() {
-  const { projectId, runId, evalId } = Route.useParams();
-  const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
+  const { benchmarkId, runId, evalId } = Route.useParams();
+  const { data, isLoading, error } = useBenchmarkRunDetail(benchmarkId, runId);
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
   const isReadOnly = config?.read_only === true;
@@ -69,12 +69,12 @@ function ProjectEvalDetailPage() {
           </button>
         )}
       </div>
-      <EvalDetail eval={result} runId={runId} projectId={projectId} />
+      <EvalDetail eval={result} runId={runId} benchmarkId={benchmarkId} />
       {!isReadOnly && (
         <RunEvalModal
           open={showRunEval}
           onClose={() => setShowRunEval(false)}
-          projectId={projectId}
+          benchmarkId={benchmarkId}
           prefill={{
             testIds: [evalId],
             target: result.target,

@@ -28,7 +28,7 @@ import type { RunEvalRequest } from '~/lib/types';
 export interface RunEvalModalProps {
   open: boolean;
   onClose: () => void;
-  projectId?: string;
+  benchmarkId?: string;
   prefill?: {
     suiteFilter?: string;
     testIds?: string[];
@@ -38,7 +38,7 @@ export interface RunEvalModalProps {
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModalProps) {
+export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalModalProps) {
   const queryClient = useQueryClient();
 
   // Form state
@@ -58,8 +58,8 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   const [cliPreview, setCliPreview] = useState<string | null>(null);
 
   // Data
-  const { data: discoverData } = useEvalDiscover(projectId);
-  const { data: targetsData } = useEvalTargets(projectId);
+  const { data: discoverData } = useEvalDiscover(benchmarkId);
+  const { data: targetsData } = useEvalTargets(benchmarkId);
   const { data: runStatus } = useEvalRunStatus(activeRunId);
 
   const evalFiles = useMemo(() => discoverData?.eval_files ?? [], [discoverData]);
@@ -110,10 +110,10 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
       setCliPreview(null);
       return;
     }
-    previewEvalCommand(req, projectId)
+    previewEvalCommand(req, benchmarkId)
       .then((r) => setCliPreview(r.command))
       .catch(() => setCliPreview(null));
-  }, [buildRequest, projectId]);
+  }, [buildRequest, benchmarkId]);
 
   // Add a test ID pill
   function addTestId() {
@@ -134,7 +134,7 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
     setLaunching(true);
     try {
       const req = buildRequest();
-      const result = await launchEvalRun(req, projectId);
+      const result = await launchEvalRun(req, benchmarkId);
       setActiveRunId(result.id);
     } catch (err) {
       setError((err as Error).message);

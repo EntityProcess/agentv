@@ -80,18 +80,18 @@ export {
   getWorkspacePoolRoot,
 } from './paths.js';
 export {
-  type ProjectEntry,
-  type ProjectRegistry,
-  loadProjectRegistry,
-  saveProjectRegistry,
-  addProject,
-  removeProject,
-  getProject,
-  touchProject,
-  discoverProjects,
-  deriveProjectId,
-  getProjectsRegistryPath,
-} from './projects.js';
+  type BenchmarkEntry,
+  type BenchmarkRegistry,
+  loadBenchmarkRegistry,
+  saveBenchmarkRegistry,
+  addBenchmark,
+  removeBenchmark,
+  getBenchmark,
+  touchBenchmark,
+  discoverBenchmarks,
+  deriveBenchmarkId,
+  getBenchmarksRegistryPath,
+} from './benchmarks.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';
 export * from './observability/index.js';

@@ -7,7 +7,7 @@
 
 import { Link } from '@tanstack/react-router';
 
-import type { ProjectSummary } from '~/lib/types';
+import type { BenchmarkSummary } from '~/lib/types';
 
 function formatTimeAgo(timestamp: string | null): string {
   if (!timestamp) return 'No runs';
@@ -23,13 +23,13 @@ function formatTimeAgo(timestamp: string | null): string {
   return `${days}d ago`;
 }
 
-export function ProjectCard({ project }: { project: ProjectSummary }) {
+export function ProjectCard({ project }: { project: BenchmarkSummary }) {
   const passPercent = Math.round(project.pass_rate * 100);
 
   return (
     <Link
-      to="/projects/$projectId"
-      params={{ projectId: project.id }}
+      to="/projects/$benchmarkId"
+      params={{ benchmarkId: project.id }}
       className="group block rounded-lg border border-gray-800 bg-gray-900/50 p-5 transition-colors hover:border-cyan-800 hover:bg-gray-900"
     >
       <div className="flex items-start justify-between">
