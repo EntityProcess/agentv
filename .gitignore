@@ -18,3 +18,4 @@ __pycache__/
 **/.agentv/logs/
 **/.agentv/cache/
 **/.agentv/cache.json
+**/.agentv/version-check.json
