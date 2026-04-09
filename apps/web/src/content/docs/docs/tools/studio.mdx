@@ -87,24 +87,24 @@ agentv studio  # Compare tab shows 2x2 matrix
 The matrix is available per-project under the **Compare** tab.
 
 
-## Multi-Project Dashboard
+## Benchmarks Dashboard
 
-By default, Studio shows results for the current directory. The multi-project mode lets you view results across multiple repositories from a single dashboard.
+By default, Studio shows results for the current directory. Register multiple benchmark repos to view them from a single dashboard.
 
-### Registering Projects
+### Registering Benchmarks
 
-Register projects one at a time:
+Register benchmark repos one at a time:
 
 ```bash
-agentv studio --add /path/to/project-a
-agentv studio --add /path/to/project-b
+agentv studio --add /path/to/my-evals
+agentv studio --add /path/to/other-evals
 ```
 
-Each path must contain a `.agentv/` directory. Projects are stored in `~/.agentv/projects.yaml`.
+Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/projects.yaml`.
 
 ### Auto-Discovery
 
-Scan a parent directory to find and register all projects:
+Scan a parent directory to find and register all benchmark repos:
 
 ```bash
 agentv studio --discover /path/to/repos
@@ -114,32 +114,29 @@ This recursively searches (up to 2 levels deep) for directories containing `.age
 
 ### Launching the Dashboard
 
-Once projects are registered, launch the multi-project dashboard:
+Studio auto-detects the mode based on how many benchmarks are registered:
+
+- `0` or `1` registered: single-project view
+- `2+` registered: Benchmarks dashboard
 
 ```bash
-agentv studio --multi
+agentv studio          # auto-detects
+agentv studio --single # force single-project view
 ```
 
-By default, Studio now auto-detects project mode:
+The landing page shows a card for each benchmark with run count, pass rate, and last run time.
 
-- `0` or `1` registered project: single-project view
-- `2+` registered projects: multi-project dashboard
+<Image src={studioProjectsMulti} alt="AgentV Studio benchmarks dashboard showing benchmark cards with pass rates" />
 
-Use `--multi` only if you need to force the multi-project dashboard for a one-off session; it prints a deprecation warning. Use `--single` to override auto-detection and stay in the single-project view.
+### Removing a Benchmark
 
-The landing page shows a card for each project with run count, pass rate, and last run time. Click a project to view its runs.
-
-<Image src={studioProjectsMulti} alt="AgentV Studio multi-project dashboard showing project cards with pass rates" />
-
-### Removing Projects
-
-Unregister a project by its ID:
+Unregister by its ID:
 
 ```bash
-agentv studio --remove my-project
+agentv studio --remove my-evals
 ```
 
-Project IDs are derived from the directory name (e.g., `/home/user/repos/my-project` becomes `my-project`).
+IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becomes `my-evals`).
 
 ## Remote Results
 

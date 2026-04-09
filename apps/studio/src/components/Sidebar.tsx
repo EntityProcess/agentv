@@ -366,7 +366,7 @@ function ProjectRunDetailSidebar({
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link to="/" className="text-xs text-gray-400 hover:text-cyan-400">
-          &larr; All Projects
+          &larr; All Benchmarks
         </Link>
         <p className="mt-1 truncate text-sm font-medium text-gray-300">{projectId}</p>
       </div>
