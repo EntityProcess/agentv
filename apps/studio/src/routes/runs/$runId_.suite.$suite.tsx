@@ -8,7 +8,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 
-import { ScoreBar } from '~/components/ScoreBar';
+import { PassRatePill } from '~/components/PassRatePill';
 import { StatsCards } from '~/components/StatsCards';
 import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
 
@@ -103,7 +103,7 @@ function SuitePage() {
                         ERR
                       </span>
                     ) : (
-                      <ScoreBar score={result.score} />
+                      <PassRatePill rate={result.score} />
                     )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-400">

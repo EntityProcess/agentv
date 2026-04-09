@@ -10,7 +10,7 @@ import { Link } from '@tanstack/react-router';
 import { useExperiments } from '~/lib/api';
 import type { ExperimentSummary } from '~/lib/types';
 
-import { ScoreBar } from './ScoreBar';
+import { PassRatePill } from './PassRatePill';
 
 export function ExperimentsTab() {
   const { data, isLoading } = useExperiments();
@@ -40,7 +40,8 @@ export function ExperimentsTab() {
             <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Targets</th>
-            <th className="w-48 px-4 py-3 font-medium text-gray-400">Pass Rate</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
             <th className="px-4 py-3 font-medium text-gray-400">Last Run</th>
           </tr>
         </thead>
@@ -60,10 +61,17 @@ export function ExperimentsTab() {
               <td className="px-4 py-3 text-right tabular-nums text-gray-400">
                 {exp.target_count}
               </td>
-              <td className="px-4 py-3">
-                <ScoreBar score={exp.pass_rate} />
+              <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                <span className="text-emerald-400">{exp.passed_count}</span>
+                <span className="text-gray-600"> / </span>
+                {exp.eval_count}
               </td>
-              <td className="px-4 py-3 text-gray-400">{formatTimestamp(exp.last_run)}</td>
+              <td className="px-4 py-3">
+                <PassRatePill rate={exp.pass_rate} />
+              </td>
+              <td className="px-4 py-3 text-gray-400" title={formatTimestamp(exp.last_run).full}>
+                {formatTimestamp(exp.last_run).date}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -72,14 +80,17 @@ export function ExperimentsTab() {
   );
 }
 
-function formatTimestamp(ts: string | undefined | null): string {
-  if (!ts) return 'N/A';
+function formatTimestamp(ts: string | undefined | null): { date: string; full: string } {
+  if (!ts) return { date: 'N/A', full: 'N/A' };
   try {
     const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleString();
+    if (Number.isNaN(d.getTime())) return { date: 'N/A', full: 'N/A' };
+    return {
+      date: d.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }),
+      full: d.toLocaleString(),
+    };
   } catch {
-    return 'N/A';
+    return { date: 'N/A', full: 'N/A' };
   }
 }
 

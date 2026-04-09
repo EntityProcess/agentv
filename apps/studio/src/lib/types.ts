@@ -121,6 +121,8 @@ export interface ExperimentSummary {
   name: string;
   run_count: number;
   target_count: number;
+  eval_count: number;
+  passed_count: number;
   pass_rate: number;
   last_run: string;
 }
