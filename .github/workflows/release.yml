@@ -3,9 +3,18 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      bump:
-        description: "Version bump type"
+      channel:
+        description: "Release channel"
         required: true
+        type: choice
+        options:
+          - next
+          - finalize
+          - stable
+        default: next
+      bump:
+        description: "Version bump (next and stable only)"
+        required: false
         type: choice
         options:
           - patch
@@ -22,7 +31,7 @@ permissions:
 
 jobs:
   release:
-    name: Release
+    name: Release (${{ inputs.channel }}${{ inputs.channel != 'finalize' && format(' {0}', inputs.bump) || '' }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +47,22 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Bump version, commit, and tag
-        run: bun run release ${{ inputs.bump }}
+        run: |
+          if [ "${{ inputs.channel }}" = "next" ]; then
+            bun run release next ${{ inputs.bump }}
+          elif [ "${{ inputs.channel }}" = "finalize" ]; then
+            bun run release finalize
+          else
+            bun run release ${{ inputs.bump }}
+          fi
 
       - name: Create GitHub Release
         run: |
           VERSION=$(node -p "require('./apps/cli/package.json').version")
-          gh release create "v${VERSION}" --generate-notes
+          if [[ "$VERSION" == *"-next."* ]]; then
+            gh release create "v${VERSION}" --generate-notes --prerelease
+          else
+            gh release create "v${VERSION}" --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

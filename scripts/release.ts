@@ -3,8 +3,10 @@
  * Simple version bump and release script
  *
  * Usage:
- *   bun scripts/release.ts [patch|minor|major]
- *   bun scripts/release.ts next [patch|minor|major]
+ *   bun scripts/release.ts [patch|minor|major]         # stable release
+ *   bun scripts/release.ts next [patch|minor|major]    # new pre-release series
+ *   bun scripts/release.ts next                        # increment pre-release (e.g. next.1 -> next.2)
+ *   bun scripts/release.ts finalize                    # promote pre-release to stable (e.g. 4.12.0-next.3 -> 4.12.0)
  *
  * This script:
  *   1. Validates we're on the main branch
@@ -21,7 +23,7 @@ import { resolve } from 'node:path';
 import { $ } from 'bun';
 
 type BumpType = 'patch' | 'minor' | 'major';
-type ReleaseChannel = 'stable' | 'next';
+type ReleaseChannel = 'stable' | 'next' | 'finalize';
 
 const VALID_BUMP_TYPES: BumpType[] = ['patch', 'minor', 'major'];
 const NEXT_PRERELEASE_TAG = 'next';
@@ -83,6 +85,16 @@ function parseNextPrerelease(version: string): { baseVersion: string; number: nu
   };
 }
 
+function finalizeVersion(currentVersion: string): string {
+  const parsed = parseNextPrerelease(currentVersion);
+  if (!parsed) {
+    throw new Error(
+      `Version ${currentVersion} is not a pre-release version (expected format: X.Y.Z-next.N)`,
+    );
+  }
+  return parsed.baseVersion;
+}
+
 function bumpNextVersion(currentVersion: string, bumpType?: BumpType): string {
   const parsedNext = parseNextPrerelease(currentVersion);
 
@@ -102,6 +114,10 @@ function parseArgs(argv: readonly string[]): { channel: ReleaseChannel; bumpType
 
   if (!first) {
     return { channel: 'stable', bumpType: 'patch' };
+  }
+
+  if (first === 'finalize') {
+    return { channel: 'finalize' };
   }
 
   if (first === NEXT_PRERELEASE_TAG) {
@@ -135,6 +151,7 @@ async function main() {
     console.error(`❌ ${message}`);
     console.error('   Usage: bun scripts/release.ts [patch|minor|major]');
     console.error(`          bun scripts/release.ts ${NEXT_PRERELEASE_TAG} [patch|minor|major]`);
+    console.error('          bun scripts/release.ts finalize');
     process.exit(1);
   }
 
@@ -164,12 +181,16 @@ async function main() {
   const newVersion =
     channel === 'next'
       ? bumpNextVersion(currentVersion, bumpType)
-      : bumpVersion(currentVersion, bumpType ?? 'patch');
+      : channel === 'finalize'
+        ? finalizeVersion(currentVersion)
+        : bumpVersion(currentVersion, bumpType ?? 'patch');
 
   const releaseMode =
     channel === 'next'
       ? `${NEXT_PRERELEASE_TAG}${bumpType ? ` (${bumpType})` : ' (increment)'}`
-      : (bumpType ?? 'patch');
+      : channel === 'finalize'
+        ? 'finalize'
+        : (bumpType ?? 'patch');
   console.log(`\n📦 Bumping version: ${currentVersion} → ${newVersion} [${releaseMode}]\n`);
 
   // Check if tag already exists
@@ -214,8 +235,7 @@ async function main() {
 
   console.log(`\n✅ Released v${newVersion}\n`);
   console.log('Next steps:');
-  console.log(`  1. Run: bun run ${channel === 'next' ? 'publish:next' : 'publish'}`);
-  console.log('  2. Create GitHub release (optional)');
+  console.log('  1. Trigger the Publish workflow in GitHub Actions');
 }
 
 main().catch((error) => {
