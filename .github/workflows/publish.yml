@@ -60,6 +60,7 @@ jobs:
           if [ "${{ steps.channel.outputs.action }}" = "publish-next" ]; then
             bun run publish:next
           elif [ "${{ steps.channel.outputs.action }}" = "promote-latest" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
             bun run promote:latest
           else
             bun run publish
@@ -67,3 +68,4 @@ jobs:
         env:
           NPM_CONFIG_PROVENANCE: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
