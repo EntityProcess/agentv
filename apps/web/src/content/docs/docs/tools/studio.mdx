@@ -7,11 +7,13 @@ sidebar:
 
 import { Image } from 'astro:assets';
 import studioRuns from '../../../../assets/screenshots/studio-runs.png';
+import studioRunDetail from '../../../../assets/screenshots/studio-run-detail.png';
+import studioExperiments from '../../../../assets/screenshots/studio-experiments.png';
 import studioProjects from '../../../../assets/screenshots/studio-projects.png';
 
-The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores.
+The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
-<Image src={studioRuns} alt="AgentV Studio showing evaluation runs with pass rates and scores" />
+<Image src={studioRuns} alt="AgentV Studio showing evaluation runs with source badges, pass rates, and scores" />
 
 ## Usage
 
@@ -42,11 +44,24 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 
 ## Features
 
-- **Recent Runs** -- table of all evaluation runs with target, experiment, timestamp, test count, pass rate, and mean score
-- **Experiments** -- group and compare runs by experiment name
-- **Targets** -- group runs by target (model/agent)
-- **Run Detail** -- drill into a run to see per-test results, scores, and evaluator output
-- **Human Review** -- add feedback annotations to individual test results
+- **Recent Runs** — table of all evaluation runs with source badge (`local` / `remote`), target, experiment, timestamp, test count, pass rate, and mean score
+- **Experiments** — group and compare runs by experiment name
+- **Targets** — group runs by target (model/agent)
+- **Run Detail** — drill into a run to see per-test results, scores, and evaluator output
+- **Human Review** — add feedback annotations to individual test results
+- **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
+
+## Run Detail
+
+Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from.
+
+<Image src={studioRunDetail} alt="AgentV Studio run detail showing 100% pass rate across 5 tests with scores and duration" />
+
+## Experiments
+
+The Experiments tab groups runs by experiment name so you can compare the impact of changes — for example, `with_skills` vs `without_skills`.
+
+<Image src={studioExperiments} alt="AgentV Studio experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
 
 ## Multi-Project Dashboard
 
@@ -94,3 +109,32 @@ agentv studio --remove my-project
 ```
 
 Project IDs are derived from the directory name (e.g., `/home/user/repos/my-project` becomes `my-project`).
+
+## Remote Results
+
+Studio can display runs pushed to a remote git repository by other machines or CI — alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber).
+
+### Configuration
+
+Add a `results.export` block to `.agentv/config.yaml`:
+
+```yaml
+results:
+  export:
+    repo: EntityProcess/agentv-evals   # GitHub repo (owner/repo or full URL)
+    path: runs                          # Directory within the repo
+    auto_push: true                     # Push automatically after every eval run
+    branch_prefix: eval-results         # Branch naming prefix (default: eval-results)
+```
+
+With `auto_push: true`, every `agentv eval run` or `agentv pipeline bench` automatically creates a draft PR in the configured repo with a structured results table.
+
+### Authentication
+
+Uses `gh` CLI and `git` credentials already configured on the machine. If authentication is missing, AgentV warns and skips the export — the eval run itself is never blocked.
+
+### Syncing in Studio
+
+Once configured, Studio fetches remote runs on load. Use the **Sync Remote Results** button in the source toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
+
+Use the **All Sources / Local Only / Remote Only** filter to narrow the run list by origin.
