@@ -25,7 +25,7 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
   try {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return { date: 'N/A', full: 'N/A' };
-    const date = d.toLocaleDateString(undefined, {
+    const date = d.toLocaleDateString('en-AU', {
       year: 'numeric',
       month: 'short',
       day: '2-digit',

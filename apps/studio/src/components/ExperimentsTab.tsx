@@ -86,7 +86,7 @@ function formatTimestamp(ts: string | undefined | null): { date: string; full: s
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return { date: 'N/A', full: 'N/A' };
     return {
-      date: d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' }),
+      date: d.toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: '2-digit' }),
       full: d.toLocaleString(),
     };
   } catch {
