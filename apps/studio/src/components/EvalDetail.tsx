@@ -4,7 +4,7 @@
  *
  * Layout: compact header → tabs → full-height content area.
  * Scores and assertions are only visible in the Checks tab.
- * Each assertion card shows a grader-name pill identifying its evaluator.
+ * Assertions are grouped by evaluator name.
  */
 
 import { useState } from 'react';
@@ -115,20 +115,8 @@ export function EvalDetail({ eval: result, runId, benchmarkId }: EvalDetailProps
   );
 }
 
-/** Pill showing the grader/evaluator name on an assertion card. */
-function GraderPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-400">
-      {label}
-    </span>
-  );
-}
-
-/** A single assertion row, optionally annotated with its grader name. */
-function AssertionCard({
-  assertion,
-  graderLabel,
-}: { assertion: AssertionEntry; graderLabel?: string }) {
+/** A single assertion row. */
+function AssertionCard({ assertion }: { assertion: AssertionEntry }) {
   return (
     <div
       className={`flex items-start gap-3 rounded-lg border p-3 ${
@@ -141,17 +129,14 @@ function AssertionCard({
         {assertion.passed ? '\u2713' : '\u2717'}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-gray-200">
-            {assertion.text}
-            {assertion.durationMs != null && (
-              <span className="ml-2 text-xs text-gray-500">
-                ({(assertion.durationMs / 1000).toFixed(1)}s)
-              </span>
-            )}
-          </p>
-          {graderLabel && <GraderPill label={graderLabel} />}
-        </div>
+        <p className="text-sm text-gray-200">
+          {assertion.text}
+          {assertion.durationMs != null && (
+            <span className="ml-2 text-xs text-gray-500">
+              ({(assertion.durationMs / 1000).toFixed(1)}s)
+            </span>
+          )}
+        </p>
         {assertion.evidence && <p className="mt-1 text-xs text-gray-400">{assertion.evidence}</p>}
       </div>
     </div>
@@ -159,7 +144,7 @@ function AssertionCard({
 }
 
 /**
- * Checks tab: overall score → per-evaluator scores → assertions (with grader pills) → failure reasons.
+ * Checks tab: overall score → per-evaluator scores → assertions → failure reasons.
  * Assertions are grouped by evaluator when per-score assertion data is available.
  */
 function ChecksTab({ result }: { result: EvalResult }) {
@@ -249,7 +234,6 @@ function ChecksTab({ result }: { result: EvalResult }) {
                   <AssertionCard
                     key={`${a.text}-${ai}`}
                     assertion={a}
-                    graderLabel={s.name ?? s.type ?? undefined}
                   />
                 ))}
               </div>
