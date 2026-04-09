@@ -89,10 +89,10 @@ function PassRatePill({ rate }: { rate: number }) {
   const pct = Math.round(rate * 100);
   const color =
     pct >= 80
-      ? 'bg-emerald-500 text-white'
+      ? 'bg-emerald-500/15 text-emerald-300'
       : pct >= 60
-        ? 'bg-amber-500 text-white'
-        : 'bg-red-500 text-white';
+        ? 'bg-amber-500/15 text-amber-300'
+        : 'bg-red-500/15 text-red-300';
   return (
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${color}`}
