@@ -10,6 +10,9 @@ import studioRuns from '../../../../assets/screenshots/studio-runs.png';
 import studioRunDetail from '../../../../assets/screenshots/studio-run-detail.png';
 import studioExperiments from '../../../../assets/screenshots/studio-experiments.png';
 import studioProjects from '../../../../assets/screenshots/studio-projects.png';
+import studioProjectsMulti from '../../../../assets/screenshots/studio-projects-multi.png';
+import studioCompare from '../../../../assets/screenshots/studio-compare.png';
+import studioRunsBench from '../../../../assets/screenshots/studio-runs-bench.png';
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
@@ -50,6 +53,7 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 - **Targets** — group runs by target (model/agent)
 - **Run Detail** — drill into a run to see per-test results, scores, and evaluator output
 - **Human Review** — add feedback annotations to individual test results
+- **Comparison Matrix** — experiment × target matrix showing pass rates across dimensions
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
 ## Run Detail
@@ -63,6 +67,22 @@ Click any run to see a breakdown by suite, per-test scores, target, duration, an
 The Experiments tab groups runs by experiment name so you can compare the impact of changes — for example, `with_skills` vs `without_skills`.
 
 <Image src={studioExperiments} alt="AgentV Studio experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
+
+## Comparison Matrix
+
+The **Compare** tab shows a cross-model, cross-experiment performance matrix. Cells are color-coded by pass rate: green (80%+), yellow (50–80%), red (below 50%). The best and worst performers per row are marked with ▲/▼ indicators. Click any cell to expand per-test-case results.
+
+<Image src={studioCompare} alt="AgentV Studio comparison matrix showing experiment vs target pass rates with color coding" />
+
+Run the same eval against multiple providers or experiment variants, then open the Compare tab:
+
+```bash
+agentv eval my.EVAL.yaml --target azure --experiment baseline
+agentv eval my.EVAL.yaml --target azure --experiment with-caching
+agentv eval my.EVAL.yaml --target gemini --experiment baseline
+agentv eval my.EVAL.yaml --target gemini --experiment with-caching
+agentv studio  # Compare tab shows 2x2 matrix
+```
 
 ## Multi-Project Dashboard
 
@@ -106,7 +126,7 @@ Use `--multi` only if you need to force the multi-project dashboard for a one-of
 
 The landing page shows a card for each project with run count, pass rate, and last run time. Click a project to view its runs.
 
-<Image src={studioProjects} alt="AgentV Studio multi-project dashboard showing project cards with pass rates" />
+<Image src={studioProjectsMulti} alt="AgentV Studio multi-project dashboard showing project cards with pass rates" />
 
 ### Removing Projects
 
