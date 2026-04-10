@@ -53,6 +53,14 @@ export function extractContentSegments(content: TestMessageContent): JsonObject[
   const segments: JsonObject[] = [];
 
   for (const segment of content) {
+    // Plain string items inside a content array are treated as text segments.
+    // This matches the validator, which accepts string items in content arrays.
+    if (typeof segment === 'string') {
+      if (segment.trim().length > 0) {
+        segments.push({ type: 'text', value: segment });
+      }
+      continue;
+    }
     if (!isJsonObject(segment)) {
       continue;
     }

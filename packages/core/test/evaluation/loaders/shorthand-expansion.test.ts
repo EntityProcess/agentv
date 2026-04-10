@@ -61,6 +61,25 @@ describe('expandInputShorthand', () => {
     const messages = [{ invalid: 'message' }, { also: 'invalid' }];
     expect(expandInputShorthand(messages)).toBeUndefined();
   });
+
+  it('accepts messages whose content array mixes plain strings and structured blocks', () => {
+    const messages = [
+      {
+        role: 'user',
+        content: ['Use the local file.', { type: 'file', value: '/README.md' }],
+      },
+    ];
+
+    const result = expandInputShorthand(messages);
+
+    expect(result).toHaveLength(1);
+    const content = result?.[0].content;
+    expect(Array.isArray(content)).toBe(true);
+    const items = content as Array<unknown>;
+    expect(items).toHaveLength(2);
+    expect(items[0]).toBe('Use the local file.');
+    expect(items[1]).toEqual({ type: 'file', value: '/README.md' });
+  });
 });
 
 describe('expandExpectedOutputShorthand', () => {

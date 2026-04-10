@@ -162,6 +162,39 @@ describe('processMessages – image content', () => {
     }
   });
 
+  it('converts plain string items in content arrays into text segments', async () => {
+    await setupFixtures();
+    try {
+      const messages: TestMessage[] = [
+        {
+          role: 'user',
+          content: ['Use the local file.', { type: 'file', value: './test-file.txt' }],
+        },
+      ];
+
+      const textParts: string[] = [];
+      const result = await processMessages({
+        messages,
+        searchRoots: [FIXTURE_DIR],
+        repoRootPath: FIXTURE_DIR,
+        textParts,
+        messageType: 'input',
+        verbose: false,
+      });
+
+      const items = result[0].content as Record<string, unknown>[];
+      expect(items).toHaveLength(2);
+      expect(items[0].type).toBe('text');
+      expect(items[0].value).toBe('Use the local file.');
+      expect(items[1].type).toBe('file');
+      expect(items[1].text).toBe('hello world');
+      // Inline string was also surfaced through textParts for prompt building.
+      expect(textParts).toContain('Use the local file.');
+    } finally {
+      await cleanupFixtures();
+    }
+  });
+
   it('preserves existing type: text and type: file behavior', async () => {
     await setupFixtures();
     try {
