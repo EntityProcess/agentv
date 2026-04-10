@@ -79,6 +79,18 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
     const processedContent: JsonObject[] = [];
 
     for (const rawSegment of content) {
+      // Plain string items inside a content array are treated as inline text segments.
+      // This matches the validator, which accepts string items alongside structured blocks.
+      if (typeof rawSegment === 'string') {
+        if (rawSegment.length > 0) {
+          processedContent.push({ type: 'text', value: rawSegment });
+          if (textParts) {
+            textParts.push(rawSegment);
+          }
+        }
+        continue;
+      }
+
       if (!isJsonObject(rawSegment)) {
         continue;
       }
@@ -334,6 +346,14 @@ export async function processExpectedMessages(
       // Process content array, resolving file references
       const processedContent: JsonObject[] = [];
       for (const rawSegment of content) {
+        // Plain string items are treated as inline text segments (matches validator).
+        if (typeof rawSegment === 'string') {
+          if (rawSegment.length > 0) {
+            processedContent.push({ type: 'text', value: rawSegment });
+          }
+          continue;
+        }
+
         if (!isJsonObject(rawSegment)) {
           continue;
         }

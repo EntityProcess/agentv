@@ -40,8 +40,12 @@ const TEST_MESSAGE_ROLE_SET: ReadonlySet<string> = new Set(TEST_MESSAGE_ROLE_VAL
 
 /**
  * Text or structured payload attached to a message.
+ *
+ * Content arrays may mix plain string items with structured content blocks
+ * (e.g. `{ type: 'text' | 'file' | 'image', value: ... }`). Plain string items
+ * are treated as text segments by the loader and prompt builder.
  */
-export type TestMessageContent = string | JsonObject | readonly JsonObject[];
+export type TestMessageContent = string | JsonObject | readonly (string | JsonObject)[];
 
 /**
  * System-authored instruction message.
@@ -140,7 +144,12 @@ export function isTestMessage(value: unknown): value is TestMessage {
   if (typeof candidate.content === 'string') {
     return true;
   }
-  if (Array.isArray(candidate.content) && candidate.content.every(isJsonObject)) {
+  // Content arrays may mix plain string items with structured content blocks.
+  // The loader treats string items as text segments (see message-processor.ts).
+  if (
+    Array.isArray(candidate.content) &&
+    candidate.content.every((item) => typeof item === 'string' || isJsonObject(item))
+  ) {
     return true;
   }
   // Allow messages with tool_calls but no content (for expected_output format)
