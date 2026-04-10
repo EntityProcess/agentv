@@ -145,6 +145,17 @@ function Masthead({
 function AggregatedView({ data }: { data: CompareResponse }) {
   const { experiments, targets, cells } = data;
 
+  // Hooks must run on every render regardless of the early-return below,
+  // so this memo is declared before any conditional return. When you add a
+  // new hook-using sub-path here, keep it above the guard.
+  const cellMap = useMemo(() => {
+    const map = new Map<string, CompareCell>();
+    for (const cell of cells) {
+      map.set(`${cell.experiment}::${cell.target}`, cell);
+    }
+    return map;
+  }, [cells]);
+
   if (experiments.length <= 1 && targets.length <= 1) {
     return (
       <Notice
@@ -153,14 +164,6 @@ function AggregatedView({ data }: { data: CompareResponse }) {
       />
     );
   }
-
-  const cellMap = useMemo(() => {
-    const map = new Map<string, CompareCell>();
-    for (const cell of cells) {
-      map.set(`${cell.experiment}::${cell.target}`, cell);
-    }
-    return map;
-  }, [cells]);
 
   return (
     <section className="compare-section compare-enter">
@@ -615,7 +618,10 @@ function LabelEditor({
             <button
               type="button"
               className="compare-btn-destructive"
-              onClick={() => clearMut.mutate()}
+              onClick={() => {
+                if (busy) return;
+                clearMut.mutate();
+              }}
               disabled={busy}
             >
               Clear label
@@ -625,7 +631,10 @@ function LabelEditor({
             type="button"
             className="compare-btn-primary"
             disabled={!value.trim() || busy}
-            onClick={() => saveMut.mutate()}
+            onClick={() => {
+              if (busy || !value.trim()) return;
+              saveMut.mutate();
+            }}
           >
             {saveMut.isPending ? 'Saving…' : 'Save'}
           </button>

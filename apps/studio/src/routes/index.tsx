@@ -274,7 +274,7 @@ function SingleProjectHome() {
         />
       )}
       {activeTab === 'experiments' && <ExperimentsTab />}
-      {activeTab === 'compare' && <CompareTabContent />}
+      {activeTab === 'compare' && <CompareTabContent readOnly={isReadOnly} />}
       {activeTab === 'targets' && <TargetsTab />}
 
       {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
@@ -282,9 +282,17 @@ function SingleProjectHome() {
   );
 }
 
-function CompareTabContent() {
+function CompareTabContent({ readOnly }: { readOnly: boolean }) {
   const { data, isLoading, isError, error } = useCompare();
-  return <CompareTab data={data} isLoading={isLoading} isError={isError} error={error} />;
+  return (
+    <CompareTab
+      data={data}
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      readOnly={readOnly}
+    />
+  );
 }
 
 function RunsTabContent({

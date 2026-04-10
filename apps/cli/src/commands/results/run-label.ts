@@ -62,6 +62,14 @@ export function writeRunLabel(manifestPath: string, label: string): RunLabelFile
   if (trimmed.length > 120) {
     throw new Error('Label must be at most 120 characters');
   }
+  // Reject control characters (newlines, tabs, DEL, etc.) — they break
+  // column headers in compare views and confuse test assertions.
+  for (let i = 0; i < trimmed.length; i++) {
+    const code = trimmed.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) {
+      throw new Error('Label must not contain control characters');
+    }
+  }
   const entry: RunLabelFile = {
     label: trimmed,
     updated_at: new Date().toISOString(),
