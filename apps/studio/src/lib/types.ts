@@ -19,6 +19,8 @@ export interface RunMeta {
   source: 'local' | 'remote';
   project_id?: string;
   project_name?: string;
+  /** Optional user-assigned label from the run's sidecar label.json. */
+  label?: string;
 }
 
 export interface RunListResponse {
@@ -148,10 +150,39 @@ export interface CompareCell {
   tests: CompareTestResult[];
 }
 
+/**
+ * A single evaluation run surfaced in the per-run compare view.
+ *
+ * Each run workspace contributes exactly one entry, independent of the
+ * aggregated `(experiment, target)` cells. Users select multiple runs to
+ * compare them side-by-side, regardless of whether the runs share an
+ * experiment or target.
+ */
+export interface CompareRunEntry {
+  run_id: string;
+  started_at: string;
+  experiment: string;
+  target: string;
+  label?: string;
+  source: 'local' | 'remote';
+  eval_count: number;
+  passed_count: number;
+  pass_rate: number;
+  avg_score: number;
+  tests: CompareTestResult[];
+}
+
 export interface CompareResponse {
   experiments: string[];
   targets: string[];
   cells: CompareCell[];
+  /** Per-run entries, sorted newest first. */
+  runs?: CompareRunEntry[];
+}
+
+export interface RunLabelResponse {
+  label: string;
+  updated_at: string;
 }
 
 export interface TargetSummary {

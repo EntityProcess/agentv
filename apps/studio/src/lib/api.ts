@@ -27,6 +27,7 @@ import type {
   RemoteStatusResponse,
   RunDetailResponse,
   RunEvalRequest,
+  RunLabelResponse,
   RunListResponse,
   StudioConfigResponse,
   SuitesResponse,
@@ -435,6 +436,45 @@ export async function syncRemoteResultsApi(benchmarkId?: string): Promise<Remote
     throw new Error(`Failed to sync remote results: ${res.status}`);
   }
   return res.json() as Promise<RemoteStatusResponse>;
+}
+
+// ── Run label mutations ──────────────────────────────────────────────────
+
+/**
+ * Save (create or update) a label for a run. Labels are stored as a sidecar
+ * `label.json` file next to the run's manifest and replace the formatted
+ * timestamp in compare view column headers.
+ */
+export async function saveRunLabelApi(
+  runId: string,
+  label: string,
+  benchmarkId?: string,
+): Promise<RunLabelResponse> {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/label`
+    : `/api/runs/${encodeURIComponent(runId)}/label`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed to save label: ${res.status}`);
+  }
+  return res.json() as Promise<RunLabelResponse>;
+}
+
+/** Remove the label sidecar for a run. */
+export async function deleteRunLabelApi(runId: string, benchmarkId?: string): Promise<void> {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/label`
+    : `/api/runs/${encodeURIComponent(runId)}/label`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed to delete label: ${res.status}`);
+  }
 }
 
 export async function saveStudioConfig(

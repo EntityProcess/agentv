@@ -59,6 +59,7 @@ import {
   listMergedResultFiles,
   syncRemoteResults,
 } from './remote.js';
+import { deleteRunLabel, readRunLabel, writeRunLabel } from './run-label.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -273,6 +274,7 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
       } catch {
         // ignore enrichment errors
       }
+      const labelEntry = readRunLabel(m.path);
       return {
         filename: m.filename,
         display_name: m.displayName,
@@ -285,6 +287,7 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
         source: m.source,
         ...(target && { target }),
         ...(experiment && { experiment }),
+        ...(labelEntry && { label: labelEntry.label }),
       };
     }),
   });
@@ -551,7 +554,7 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
 
-  // Collect per-test-case results keyed by experiment × target
+  // Collect per-test-case results keyed by experiment × target (aggregated view)
   const cellMap = new Map<
     string,
     {
@@ -569,17 +572,54 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     }
   >();
 
+  // Per-run entries (per-run view). Each run workspace contributes exactly
+  // one entry, independent of the aggregated matrix.
+  const runEntries: Array<{
+    run_id: string;
+    started_at: string;
+    experiment: string;
+    target: string;
+    label?: string;
+    source: 'local' | 'remote';
+    eval_count: number;
+    passed_count: number;
+    pass_rate: number;
+    avg_score: number;
+    tests: Array<{
+      test_id: string;
+      score: number;
+      passed: boolean;
+      execution_status?: string;
+    }>;
+  }> = [];
+
   const experimentsSet = new Set<string>();
   const targetsSet = new Set<string>();
+  const MAX_TESTS_PER_CELL = 100;
 
   for (const m of metas) {
     try {
       const records = loadLightweightResults(m.path);
+      const runTestMap = new Map<
+        string,
+        { test_id: string; score: number; passed: boolean; execution_status?: string }
+      >();
+      let runEvalCount = 0;
+      let runPassedCount = 0;
+      let runScoreSum = 0;
+      let runExperiment = 'default';
+      let runTarget = 'default';
+      let runStartedAt = m.timestamp;
+
       for (const r of records) {
         const experiment = r.experiment ?? 'default';
         const target = r.target ?? 'default';
         experimentsSet.add(experiment);
         targetsSet.add(target);
+        runExperiment = experiment;
+        runTarget = target;
+        if (r.timestamp && r.timestamp < runStartedAt) runStartedAt = r.timestamp;
+
         const key = JSON.stringify([experiment, target]);
         const entry = cellMap.get(key) ?? {
           experiment,
@@ -600,13 +640,40 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
           execution_status: r.executionStatus,
         });
         cellMap.set(key, entry);
+
+        // Per-run accumulation. Dedupe tests within the run by last-wins.
+        runTestMap.set(r.testId, {
+          test_id: r.testId,
+          score: r.score,
+          passed,
+          execution_status: r.executionStatus,
+        });
+        runEvalCount++;
+        if (passed) runPassedCount++;
+        runScoreSum += r.score;
       }
+
+      if (runEvalCount === 0) continue;
+
+      const runTests = [...runTestMap.values()].slice(-MAX_TESTS_PER_CELL);
+      const labelEntry = readRunLabel(m.path);
+      runEntries.push({
+        run_id: m.filename,
+        started_at: runStartedAt,
+        experiment: runExperiment,
+        target: runTarget,
+        ...(labelEntry && { label: labelEntry.label }),
+        source: m.source,
+        eval_count: runEvalCount,
+        passed_count: runPassedCount,
+        pass_rate: runPassedCount / runEvalCount,
+        avg_score: runScoreSum / runEvalCount,
+        tests: runTests,
+      });
     } catch {
       // skip runs that fail to load
     }
   }
-
-  const MAX_TESTS_PER_CELL = 100;
 
   const cells = [...cellMap.values()].map((entry) => {
     // Deduplicate tests: keep only the latest entry per test_id (last wins by insertion order)
@@ -630,10 +697,14 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     };
   });
 
+  // Per-run entries sorted by timestamp descending (newest first).
+  runEntries.sort((a, b) => b.started_at.localeCompare(a.started_at));
+
   return c.json({
     experiments: [...experimentsSet].sort(),
     targets: [...targetsSet].sort(),
     cells,
+    runs: runEntries,
   });
 }
 
@@ -700,6 +771,49 @@ function handleConfig(
 function handleFeedbackRead(c: C, { searchDir }: DataContext) {
   const resultsDir = path.join(searchDir, '.agentv', 'results');
   return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : searchDir));
+}
+
+async function handleRunLabelPut(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+  if (meta.source === 'remote') {
+    return c.json({ error: 'Labels can only be set on local runs' }, 400);
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON' }, 400);
+  }
+  if (!body || typeof body !== 'object') {
+    return c.json({ error: 'Invalid payload' }, 400);
+  }
+  const label = (body as Record<string, unknown>).label;
+  if (typeof label !== 'string') {
+    return c.json({ error: 'Missing label string' }, 400);
+  }
+  try {
+    const entry = writeRunLabel(meta.path, label);
+    return c.json({ label: entry.label, updated_at: entry.updated_at });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 400);
+  }
+}
+
+async function handleRunLabelDelete(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+  if (meta.source === 'remote') {
+    return c.json({ error: 'Labels can only be removed on local runs' }, 400);
+  }
+  try {
+    deleteRunLabel(meta.path);
+    return c.json({ ok: true });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
 }
 
 // ── Hono app factory ─────────────────────────────────────────────────────
@@ -934,6 +1048,18 @@ export function createApp(
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
   app.post('/api/remote/sync', async (c) => c.json(await syncRemoteResults(searchDir)));
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
+  app.put('/api/runs/:filename/label', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    return handleRunLabelPut(c, defaultCtx);
+  });
+  app.delete('/api/runs/:filename/label', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    return handleRunLabelDelete(c, defaultCtx);
+  });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
   app.get('/api/runs/:filename/categories', (c) => handleRunCategories(c, defaultCtx));
@@ -1046,6 +1172,18 @@ export function createApp(
     withBenchmark(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
   );
   app.get('/api/benchmarks/:benchmarkId/runs', (c) => withBenchmark(c, handleRuns));
+  app.put('/api/benchmarks/:benchmarkId/runs/:filename/label', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    return withBenchmark(c, handleRunLabelPut);
+  });
+  app.delete('/api/benchmarks/:benchmarkId/runs/:filename/label', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    return withBenchmark(c, handleRunLabelDelete);
+  });
   app.get('/api/benchmarks/:benchmarkId/runs/:filename', (c) => withBenchmark(c, handleRunDetail));
   app.get('/api/benchmarks/:benchmarkId/runs/:filename/suites', (c) =>
     withBenchmark(c, handleRunSuites),
