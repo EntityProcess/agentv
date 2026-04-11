@@ -204,6 +204,14 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 **Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes.
 
+**Studio frontend exception — rebuild `apps/studio/dist/` before UAT.** Running `agentv studio` from source (`bun apps/cli/src/cli.ts studio ...`) only reloads the CLI and backend routes from source. The Studio web UI (React/Tailwind bundle) is served as static assets from `apps/studio/dist/`, which is build output and does **not** recompile on change. If you are testing Studio UI changes — especially post-merge on `main` or after pulling — rebuild the frontend first:
+
+```bash
+cd apps/studio && bun run build
+```
+
+Skipping this step silently serves the previous bundle, so you'll see the old UI even though your source edits and the backend API are live. This has burned at least one post-merge UAT; always rebuild before screenshotting or driving Studio with `agent-browser`.
+
 ### Browser E2E Testing (Docs Site)
 
 Use `agent-browser` for visual verification of docs site changes. Environment-specific rules:
