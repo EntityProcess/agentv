@@ -55,7 +55,99 @@ export function CompareTab({
   readOnly,
 }: CompareTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
-  const runsCount = data?.runs?.length ?? 0;
+  const [filterTags, setFilterTags] = useState<string[]>([]);
+
+  // Chip list is derived from the UNFILTERED response so chips stay visible
+  // even when the active filter would otherwise hide the runs that supplied
+  // them. Sorted alphabetically for stable UI.
+  const { allTags, tagCounts } = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const run of data?.runs ?? []) {
+      for (const tag of run.tags ?? []) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return { allTags: [...counts.keys()].sort(), tagCounts: counts };
+  }, [data?.runs]);
+
+  // When a filter is active, re-aggregate cells/runs client-side from the
+  // filtered subset of runs. This avoids a network round-trip on every chip
+  // click and keeps the backend responsible only for the initial fetch.
+  // Safe because the server already exposes per-run totals (`eval_count`,
+  // `passed_count`, `avg_score`); we just sum them per (experiment, target)
+  // bucket, weighting averages by run eval_count.
+  const filteredData = useMemo<CompareResponse | undefined>(() => {
+    if (!data) return data;
+    if (filterTags.length === 0) return data;
+    const filterSet = new Set(filterTags);
+    const filteredRuns = (data.runs ?? []).filter((r) =>
+      (r.tags ?? []).some((t) => filterSet.has(t)),
+    );
+
+    type CellAccum = {
+      experiment: string;
+      target: string;
+      eval_count: number;
+      passed_count: number;
+      score_sum: number;
+      tests: CompareTestResult[];
+    };
+    const cellMap = new Map<string, CellAccum>();
+    const experimentsSet = new Set<string>();
+    const targetsSet = new Set<string>();
+
+    for (const run of filteredRuns) {
+      experimentsSet.add(run.experiment);
+      targetsSet.add(run.target);
+      const key = `${run.experiment}::${run.target}`;
+      const entry = cellMap.get(key) ?? {
+        experiment: run.experiment,
+        target: run.target,
+        eval_count: 0,
+        passed_count: 0,
+        score_sum: 0,
+        tests: [],
+      };
+      entry.eval_count += run.eval_count;
+      entry.passed_count += run.passed_count;
+      entry.score_sum += run.avg_score * run.eval_count;
+      for (const t of run.tests) entry.tests.push(t);
+      cellMap.set(key, entry);
+    }
+
+    const cells: CompareCell[] = [...cellMap.values()].map((e) => {
+      // Dedupe tests by test_id, last-wins (same pattern as the server).
+      const dedup = new Map<string, CompareTestResult>();
+      for (const t of e.tests) dedup.set(t.test_id, t);
+      return {
+        experiment: e.experiment,
+        target: e.target,
+        eval_count: e.eval_count,
+        passed_count: e.passed_count,
+        pass_rate: e.eval_count > 0 ? e.passed_count / e.eval_count : 0,
+        avg_score: e.eval_count > 0 ? e.score_sum / e.eval_count : 0,
+        tests: [...dedup.values()].slice(-100),
+      };
+    });
+
+    return {
+      ...data,
+      experiments: [...experimentsSet].sort(),
+      targets: [...targetsSet].sort(),
+      cells,
+      runs: filteredRuns,
+    };
+  }, [data, filterTags]);
+
+  const toggleFilterTag = (tag: string) => {
+    setFilterTags((prev) => (prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]));
+  };
+  const clearFilterTags = () => setFilterTags([]);
+
+  const runsCount = filteredData?.runs?.length ?? 0;
+  const underlyingHasData = data && data.cells.length > 0;
+  const filterYieldsNoRuns =
+    filterTags.length > 0 && filteredData && (filteredData.runs?.length ?? 0) === 0;
 
   return (
     <div className="space-y-4">
@@ -65,15 +157,106 @@ export function CompareTab({
       {!isLoading && isError && error && (
         <ErrorPanel message={`Failed to load comparison data: ${error.message}`} />
       )}
-      {!isLoading && !isError && (!data || data.cells.length === 0) && <EmptyState />}
-      {!isLoading && !isError && data && data.cells.length > 0 && (
+      {!isLoading && !isError && !underlyingHasData && <EmptyState />}
+      {!isLoading && !isError && underlyingHasData && (
         <>
-          {mode === 'aggregated' && <AggregatedView data={data} />}
-          {mode === 'per-run' && (
-            <PerRunView data={data} benchmarkId={benchmarkId} readOnly={readOnly ?? false} />
+          {allTags.length > 0 && (
+            <TagFilterBar
+              allTags={allTags}
+              tagCounts={tagCounts}
+              selected={filterTags}
+              onToggle={toggleFilterTag}
+              onClear={clearFilterTags}
+            />
+          )}
+          {filterYieldsNoRuns ? (
+            <Notice
+              headline={`No runs match ${filterTags.map((t) => `\`${t}\``).join(' + ')}`}
+              body="Clear the filter or pick a different tag combination."
+              action={{ label: 'Clear filter', onClick: clearFilterTags }}
+            />
+          ) : (
+            filteredData && (
+              <>
+                {mode === 'aggregated' && <AggregatedView data={filteredData} />}
+                {mode === 'per-run' && (
+                  <PerRunView
+                    data={filteredData}
+                    benchmarkId={benchmarkId}
+                    readOnly={readOnly ?? false}
+                  />
+                )}
+              </>
+            )
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ── Tag filter bar ──────────────────────────────────────────────────────
+
+function TagFilterBar({
+  allTags,
+  tagCounts,
+  selected,
+  onToggle,
+  onClear,
+}: {
+  allTags: string[];
+  tagCounts: Map<string, number>;
+  selected: string[];
+  onToggle: (tag: string) => void;
+  onClear: () => void;
+}) {
+  const selectedSet = new Set(selected);
+  const anySelected = selected.length > 0;
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900/40 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+          Filter by tag
+        </span>
+        {allTags.map((tag) => {
+          const isActive = selectedSet.has(tag);
+          const count = tagCounts.get(tag) ?? 0;
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => onToggle(tag)}
+              aria-pressed={isActive}
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors ${
+                isActive
+                  ? 'border-cyan-900/60 bg-cyan-950/30 text-cyan-300 hover:border-cyan-800/80'
+                  : 'border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-200'
+              }`}
+            >
+              <span>{tag}</span>
+              <span
+                className={`rounded px-1 text-[0.65rem] tabular-nums ${
+                  isActive ? 'bg-cyan-900/50 text-cyan-200' : 'bg-gray-800 text-gray-500'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+        {anySelected && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-1 text-xs text-gray-500 underline-offset-2 transition-colors hover:text-gray-300 hover:underline"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-gray-500">
+        Showing runs with <span className="text-gray-400">any</span> selected tag.
+      </p>
     </div>
   );
 }
@@ -904,11 +1087,28 @@ function EmptyState() {
   );
 }
 
-function Notice({ headline, body }: { headline: string; body: string }) {
+function Notice({
+  headline,
+  body,
+  action,
+}: {
+  headline: string;
+  body: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
     <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
       <p className="text-lg text-gray-300">{headline}</p>
       <p className="mt-2 text-sm text-gray-500">{body}</p>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="mt-4 inline-flex items-center rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-medium text-gray-950 transition-colors hover:bg-cyan-400"
+        >
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }

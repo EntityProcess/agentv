@@ -634,6 +634,158 @@ describe('serve app', () => {
     });
   });
 
+  // ── GET /api/compare (tag filter) ───────────────────────────────────
+
+  describe('GET /api/compare', () => {
+    function seedCompareFixture() {
+      // Four runs, each in its own run workspace, with the tags documented
+      // below. This setup exercises the OR filter semantics used by
+      // `/api/compare?tags=`.
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+
+      const runs: Array<{
+        name: string;
+        experiment: string;
+        target: string;
+        score: number;
+        tags?: string[];
+      }> = [
+        {
+          name: '2026-04-01T10-00-00-000Z',
+          experiment: 'exp-a',
+          target: 'gpt-4o',
+          score: 1.0,
+          tags: ['baseline'],
+        },
+        {
+          name: '2026-04-02T10-00-00-000Z',
+          experiment: 'exp-a',
+          target: 'claude',
+          score: 0.9,
+          tags: ['baseline'],
+        },
+        {
+          name: '2026-04-03T10-00-00-000Z',
+          experiment: 'exp-b',
+          target: 'gpt-4o',
+          score: 0.85,
+          tags: ['v2-prompt'],
+        },
+        {
+          // Intentionally untagged — should never match any tag filter.
+          name: '2026-04-04T10-00-00-000Z',
+          experiment: 'exp-b',
+          target: 'claude',
+          score: 0.7,
+        },
+      ];
+
+      for (const run of runs) {
+        const runDir = path.join(runsDir, run.name);
+        mkdirSync(runDir, { recursive: true });
+        writeFileSync(
+          path.join(runDir, 'index.jsonl'),
+          toJsonl({
+            ...RESULT_A,
+            test_id: `test-${run.name}`,
+            experiment: run.experiment,
+            target: run.target,
+            score: run.score,
+          }),
+        );
+        if (run.tags && run.tags.length > 0) {
+          writeFileSync(
+            path.join(runDir, 'tags.json'),
+            `${JSON.stringify({ tags: run.tags, updated_at: '2026-04-10T00:00:00.000Z' }, null, 2)}\n`,
+          );
+        }
+      }
+    }
+
+    type CompareJson = {
+      experiments: string[];
+      targets: string[];
+      cells: Array<{ experiment: string; target: string; eval_count: number }>;
+      runs?: Array<{ run_id: string; experiment: string; target: string; tags?: string[] }>;
+    };
+
+    it('returns all runs when no filter is provided', async () => {
+      seedCompareFixture();
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/compare');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+
+      expect(data.runs).toHaveLength(4);
+      expect(data.experiments.sort()).toEqual(['exp-a', 'exp-b']);
+      expect(data.targets.sort()).toEqual(['claude', 'gpt-4o']);
+      expect(data.cells).toHaveLength(4);
+    });
+
+    it('filters to a single tag', async () => {
+      seedCompareFixture();
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/compare?tags=baseline');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+
+      expect(data.runs).toHaveLength(2);
+      for (const run of data.runs ?? []) {
+        expect(run.tags ?? []).toContain('baseline');
+      }
+      // Only exp-a is represented; targets narrow to the two used by exp-a runs.
+      expect(data.experiments).toEqual(['exp-a']);
+      expect(data.targets.sort()).toEqual(['claude', 'gpt-4o']);
+      expect(data.cells).toHaveLength(2);
+    });
+
+    it('applies OR semantics across multiple tags', async () => {
+      seedCompareFixture();
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/compare?tags=baseline,v2-prompt');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+
+      // Three tagged runs; the untagged run is excluded.
+      expect(data.runs).toHaveLength(3);
+      expect(data.experiments.sort()).toEqual(['exp-a', 'exp-b']);
+      // (exp-a, gpt-4o), (exp-a, claude), (exp-b, gpt-4o) — the (exp-b, claude)
+      // cell is missing because the only contributing run was untagged.
+      expect(data.cells).toHaveLength(3);
+      const cellKeys = (data.cells ?? []).map((c) => `${c.experiment}::${c.target}`).sort();
+      expect(cellKeys).toEqual(['exp-a::claude', 'exp-a::gpt-4o', 'exp-b::gpt-4o']);
+    });
+
+    it('returns empty payload when no runs match the filter', async () => {
+      seedCompareFixture();
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/compare?tags=nonexistent');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+
+      expect(data.runs).toEqual([]);
+      expect(data.cells).toEqual([]);
+      expect(data.experiments).toEqual([]);
+      expect(data.targets).toEqual([]);
+    });
+
+    it('ignores whitespace and empty segments in the tags query', async () => {
+      seedCompareFixture();
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      // ` , baseline , ` should parse to just ['baseline'].
+      const res = await app.request('/api/compare?tags=%20,%20baseline%20,%20');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+      expect(data.runs).toHaveLength(2);
+    });
+  });
+
   // ── SPA fallback ──────────────────────────────────────────────────────
 
   describe('SPA fallback', () => {

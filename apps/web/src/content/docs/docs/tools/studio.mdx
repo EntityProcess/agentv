@@ -112,6 +112,12 @@ Click any row's **Tags** cell to tag a run after the fact. Each run can carry mu
 
 Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
 
+### Filtering by tag
+
+Once runs are tagged, a chip row appears above the compare view listing every distinct tag with a usage count. Click a chip to narrow both the aggregated matrix and the per-run table to runs carrying at least one of the selected tags (OR semantics — clicking a second chip widens the set). A **Clear** link resets the filter, and filter selections persist as you switch between Aggregated and Per-run modes.
+
+The same filter is available to API consumers via `GET /api/compare?tags=baseline,v2-prompt`, which returns only the cells and runs whose tags intersect the query.
+
 
 ## Benchmarks Dashboard
 
