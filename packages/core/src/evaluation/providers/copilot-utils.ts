@@ -10,7 +10,7 @@ import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createWriteStream, existsSync, readdirSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
-import { arch, platform } from 'node:os';
+import { arch, homedir, platform } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,19 @@ import type { ProviderRequest } from './types.js';
  * optional dependency. The SDK's default `getBundledCliPath()` points to a JS entry
  * that imports `node:sqlite` (unsupported by Bun). This function locates the native
  * binary directly.
+ *
+ * Resolution order:
+ *   1. `import.meta.resolve()` of `@github/copilot-<os>-<arch>/package.json`
+ *   2. Walk upward from `process.cwd()` probing local `node_modules` layouts
+ *      (standard and Bun's deduped `.bun/` directory)
+ *   3. Probe common global npm install roots (e.g. `%APPDATA%\npm\node_modules`
+ *      on Windows, `/usr/local/lib/node_modules` on Unix). Users often install
+ *      `@github/copilot` globally via `npm install -g`, and on Windows the
+ *      `copilot` command on PATH is a `.ps1`/`.cmd` shim — `spawn()` needs the
+ *      native `copilot.exe` directly. See #1036.
+ *
+ * To teach the resolver about a new global install location, add it to
+ * `globalNpmRoots()` below — no other change required.
  */
 export function resolvePlatformCliPath(): string | undefined {
   const os = platform();
@@ -106,7 +119,68 @@ export function resolvePlatformCliPath(): string | undefined {
     searchDir = parent;
   }
 
+  // Global npm install roots (e.g. `npm install -g @github/copilot`).
+  // For each root, probe both the hoisted layout and the nested layout where
+  // the platform package lives under the parent `@github/copilot` package.
+  for (const root of globalNpmRoots()) {
+    const hoisted = path.join(root, '@github', `copilot-${osPart}-${archPart}`, binaryName);
+    if (existsSync(hoisted)) {
+      return hoisted;
+    }
+    const nested = path.join(
+      root,
+      '@github',
+      'copilot',
+      'node_modules',
+      '@github',
+      `copilot-${osPart}-${archPart}`,
+      binaryName,
+    );
+    if (existsSync(nested)) {
+      return nested;
+    }
+  }
+
   return undefined;
+}
+
+/**
+ * Candidate global `node_modules` roots to probe for `@github/copilot`.
+ *
+ * Ordered by how commonly each root is used on the relevant platform. To add
+ * a new location, append to the platform block below.
+ */
+function globalNpmRoots(): string[] {
+  const roots: string[] = [];
+  const os = platform();
+  const home = homedir();
+
+  if (os === 'win32') {
+    // npm default on Windows: %APPDATA%\npm\node_modules
+    if (process.env.APPDATA) {
+      roots.push(path.join(process.env.APPDATA, 'npm', 'node_modules'));
+    }
+    // nvm-windows / manual installs sometimes live under the user profile
+    roots.push(path.join(home, 'AppData', 'Roaming', 'npm', 'node_modules'));
+  } else {
+    // Homebrew (Apple Silicon) and common Unix prefixes
+    roots.push('/opt/homebrew/lib/node_modules');
+    roots.push('/usr/local/lib/node_modules');
+    roots.push('/usr/lib/node_modules');
+    // User-local npm prefixes (`npm config set prefix ~/.npm-global`)
+    roots.push(path.join(home, '.npm-global', 'lib', 'node_modules'));
+    roots.push(path.join(home, '.local', 'lib', 'node_modules'));
+  }
+
+  // Honour an explicit npm prefix override if present in the environment.
+  if (process.env.npm_config_prefix) {
+    const prefix = process.env.npm_config_prefix;
+    roots.push(
+      os === 'win32' ? path.join(prefix, 'node_modules') : path.join(prefix, 'lib', 'node_modules'),
+    );
+  }
+
+  return Array.from(new Set(roots));
 }
 
 // ---------------------------------------------------------------------------
