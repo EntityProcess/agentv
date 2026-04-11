@@ -436,6 +436,17 @@ function PerRunRow({
   const avgPct = Math.round(run.avg_score * 100);
   const tone = rateTone(run.pass_rate);
   const canEdit = !readOnly && run.source !== 'remote';
+  const labelBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Restore focus to the label trigger button once the inline editor closes,
+  // so keyboard users don't lose their place in the table.
+  const wasEditing = useRef(editing);
+  useEffect(() => {
+    if (wasEditing.current && !editing) {
+      labelBtnRef.current?.focus();
+    }
+    wasEditing.current = editing;
+  }, [editing]);
 
   return (
     <>
@@ -479,6 +490,7 @@ function PerRunRow({
         <td className="compare-col-label-big">
           {canEdit ? (
             <button
+              ref={labelBtnRef}
               type="button"
               className={`compare-label-cell-btn ${run.label ? 'has-label' : 'no-label'}`}
               onClick={(e) => {
@@ -2136,6 +2148,23 @@ const STYLES = `
   }
   [data-compare-root] .compare-title {
     font-size: 2.2rem;
+  }
+}
+
+/* Honor user's reduced-motion preference — disable entrance animations,
+   row staggering, and hover translations. Colour transitions still work. */
+@media (prefers-reduced-motion: reduce) {
+  [data-compare-root] .compare-enter,
+  [data-compare-root] .compare-row,
+  [data-compare-root] .compare-label-editor-row,
+  [data-compare-root] .compare-stickybar {
+    animation: none !important;
+  }
+  [data-compare-root] .compare-row:hover {
+    transform: none !important;
+  }
+  [data-compare-root] .compare-tab-underline {
+    transition: none !important;
   }
 }
 `;
