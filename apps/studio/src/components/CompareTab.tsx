@@ -146,8 +146,8 @@ export function CompareTab({
 
   const runsCount = filteredData?.runs?.length ?? 0;
   const underlyingHasData = data && data.cells.length > 0;
-  const filterActive = filterTags.length > 0;
-  const filterYieldsNoRuns = filterActive && filteredData && (filteredData.runs?.length ?? 0) === 0;
+  const filterYieldsNoRuns =
+    filterTags.length > 0 && filteredData && (filteredData.runs?.length ?? 0) === 0;
 
   return (
     <div className="space-y-4">
