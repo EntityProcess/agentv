@@ -91,7 +91,9 @@ function ProjectHomePage() {
 
       {activeTab === 'runs' && <ProjectRunsTab benchmarkId={benchmarkId} />}
       {activeTab === 'experiments' && <ProjectExperimentsTab benchmarkId={benchmarkId} />}
-      {activeTab === 'compare' && <ProjectCompareTab benchmarkId={benchmarkId} />}
+      {activeTab === 'compare' && (
+        <ProjectCompareTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
+      )}
       {activeTab === 'targets' && <ProjectTargetsTab benchmarkId={benchmarkId} />}
 
       {!isReadOnly && (
@@ -209,9 +211,24 @@ function ProjectExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
   );
 }
 
-function ProjectCompareTab({ benchmarkId }: { benchmarkId: string }) {
+function ProjectCompareTab({
+  benchmarkId,
+  readOnly,
+}: {
+  benchmarkId: string;
+  readOnly: boolean;
+}) {
   const { data, isLoading, isError, error } = useQuery(benchmarkCompareOptions(benchmarkId));
-  return <CompareTab data={data} isLoading={isLoading} isError={isError} error={error} />;
+  return (
+    <CompareTab
+      data={data}
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      benchmarkId={benchmarkId}
+      readOnly={readOnly}
+    />
+  );
 }
 
 function ProjectTargetsTab({ benchmarkId }: { benchmarkId: string }) {

@@ -11,7 +11,9 @@ import studioRunDetail from '../../../../assets/screenshots/studio-run-detail.pn
 import studioExperiments from '../../../../assets/screenshots/studio-experiments.png';
 import studioProjects from '../../../../assets/screenshots/studio-projects.png';
 import studioProjectsMulti from '../../../../assets/screenshots/studio-projects-multi.png';
-import studioCompare from '../../../../assets/screenshots/studio-compare.png';
+import studioCompareAggregated from '../../../../assets/screenshots/studio-compare-aggregated.png';
+import studioComparePerRun from '../../../../assets/screenshots/studio-compare-per-run.png';
+import studioCompareSideBySide from '../../../../assets/screenshots/studio-compare-side-by-side.png';
 import studioRunsBench from '../../../../assets/screenshots/studio-runs-bench.png';
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
@@ -53,7 +55,7 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 - **Targets** — group runs by target (model/agent)
 - **Run Detail** — drill into a run to see per-test results, scores, and evaluator output
 - **Human Review** — add feedback annotations to individual test results
-- **Comparison Matrix** — experiment × target matrix showing pass rates across dimensions
+- **Compare** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
 ## Run Detail
@@ -68,11 +70,17 @@ The Experiments tab groups runs by experiment name so you can compare the impact
 
 <Image src={studioExperiments} alt="AgentV Studio experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
 
-## Comparison Matrix
+## Compare
 
-The **Compare** tab shows a cross-model, cross-experiment performance matrix. Cells are color-coded by pass rate: green (80%+), yellow (50–80%), red (below 50%). The best performer per row has an emerald ring; the worst has a red ring. Click any cell to expand per-test-case results.
+The **Compare** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
 
-<Image src={studioCompare} alt="AgentV Studio comparison matrix showing experiment vs target pass rates with color coding" />
+<Image src={studioCompareSideBySide} alt="AgentV Studio side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
+
+### Aggregated matrix
+
+The default view shows a cross-experiment, cross-target performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
+
+<Image src={studioCompareAggregated} alt="AgentV Studio aggregated compare matrix showing experiment × target pass rates" />
 
 Run the same eval against multiple providers or experiment variants, then open the Compare tab:
 
@@ -84,7 +92,25 @@ agentv eval my.EVAL.yaml --target gemini --experiment with-caching
 agentv studio  # Compare tab shows 2x2 matrix
 ```
 
-The matrix is available per-project under the **Compare** tab.
+### Per-run comparison
+
+Running the same `(experiment, target)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
+
+<Image src={studioComparePerRun} alt="AgentV Studio per-run compare mode listing individual runs with timestamps, tags, experiment, target, and pass rate" />
+
+Use per-run mode when you want to:
+
+- Compare back-to-back runs of the same agent + eval after a prompt or parameter tweak
+- Pit a fresh run against a tagged baseline without touching the eval YAML
+- Debug flakiness by inspecting two identical-configuration runs side-by-side
+
+Select 2+ rows with the checkboxes and click the sticky **Compare N** action to open the side-by-side view. Column headers show the run's timestamp, with any assigned tags as chips below it. The per-test breakdown reuses the same scoring and colour tones as the aggregated matrix.
+
+### Retroactive tags
+
+Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to remove every tag (deletes the sidecar). Remote runs are read-only.
+
+Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
 
 
 ## Benchmarks Dashboard

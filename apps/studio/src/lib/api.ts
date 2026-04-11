@@ -28,6 +28,7 @@ import type {
   RunDetailResponse,
   RunEvalRequest,
   RunListResponse,
+  RunTagsResponse,
   StudioConfigResponse,
   SuitesResponse,
   TargetsResponse,
@@ -435,6 +436,45 @@ export async function syncRemoteResultsApi(benchmarkId?: string): Promise<Remote
     throw new Error(`Failed to sync remote results: ${res.status}`);
   }
   return res.json() as Promise<RemoteStatusResponse>;
+}
+
+// ── Run tag mutations ────────────────────────────────────────────────────
+
+/**
+ * Replace the tags on a run. Tags are stored as a sidecar `tags.json` file
+ * next to the run's manifest and surface as chips in the compare views.
+ * Pass an empty array to clear all tags (server deletes the sidecar).
+ */
+export async function saveRunTagsApi(
+  runId: string,
+  tags: string[],
+  benchmarkId?: string,
+): Promise<RunTagsResponse> {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/tags`
+    : `/api/runs/${encodeURIComponent(runId)}/tags`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed to save tags: ${res.status}`);
+  }
+  return res.json() as Promise<RunTagsResponse>;
+}
+
+/** Remove the tags sidecar for a run. */
+export async function deleteRunTagsApi(runId: string, benchmarkId?: string): Promise<void> {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/tags`
+    : `/api/runs/${encodeURIComponent(runId)}/tags`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed to delete tags: ${res.status}`);
+  }
 }
 
 export async function saveStudioConfig(
