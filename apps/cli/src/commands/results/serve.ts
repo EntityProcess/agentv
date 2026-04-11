@@ -554,6 +554,19 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
 
+  // Optional tag filter: `?tags=baseline,v2-prompt` keeps only runs that
+  // carry at least one of the given tags (OR semantics). Empty / missing
+  // param is a no-op. Filtering is applied before aggregation so it
+  // propagates through `cells[]`, `runs[]`, `experiments[]`, and
+  // `targets[]` uniformly.
+  const tagsParam = c.req.query('tags') ?? '';
+  const filterTags = new Set(
+    tagsParam
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean),
+  );
+
   // Collect per-test-case results keyed by experiment × target (aggregated view)
   const cellMap = new Map<
     string,
@@ -599,6 +612,14 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
 
   for (const m of metas) {
     try {
+      // Read tags before any heavy work so the `?tags=` filter can skip
+      // non-matching runs without loading their JSONL records.
+      const tagsEntry = readRunTags(m.path);
+      if (filterTags.size > 0) {
+        const runTags = tagsEntry?.tags ?? [];
+        if (!runTags.some((t) => filterTags.has(t))) continue;
+      }
+
       const records = loadLightweightResults(m.path);
       const runTestMap = new Map<
         string,
@@ -656,7 +677,6 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
       if (runEvalCount === 0) continue;
 
       const runTests = [...runTestMap.values()].slice(-MAX_TESTS_PER_CELL);
-      const tagsEntry = readRunTags(m.path);
       runEntries.push({
         run_id: m.filename,
         started_at: runStartedAt,
