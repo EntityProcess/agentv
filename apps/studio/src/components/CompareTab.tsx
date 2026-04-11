@@ -660,7 +660,7 @@ function PerRunRow({
           <div className="font-medium text-gray-200 tabular-nums">
             {formatTimestamp(run.started_at)}
           </div>
-          {subLabel && <div className="text-xs text-gray-500 tabular-nums">{subLabel}</div>}
+          {subLabel && <div className="text-xs text-gray-500">{subLabel}</div>}
         </td>
         <td className="px-4 py-3 align-middle">
           {canEdit ? (
