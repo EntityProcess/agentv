@@ -628,6 +628,7 @@ function PerRunRow({
   const tagsBtnRef = useRef<HTMLButtonElement>(null);
   const tags = run.tags ?? [];
   const runLabel = tags[0] ?? run.run_id;
+  const subLabel = runSubLabel(run.run_id);
 
   // Restore focus to the tags trigger button once the inline editor closes,
   // so keyboard users don't lose their place in the table.
@@ -655,13 +656,11 @@ function PerRunRow({
             aria-label={`Select run ${runLabel}`}
           />
         </td>
-        <td className="px-4 py-3 align-middle">
+        <td className="px-4 py-3 align-middle" title={run.run_id}>
           <div className="font-medium text-gray-200 tabular-nums">
             {formatTimestamp(run.started_at)}
           </div>
-          <div className="text-xs text-gray-500 tabular-nums" title={run.run_id}>
-            {shortenRunId(run.run_id)}
-          </div>
+          {subLabel && <div className="text-xs text-gray-500 tabular-nums">{subLabel}</div>}
         </td>
         <td className="px-4 py-3 align-middle">
           {canEdit ? (
@@ -1152,12 +1151,26 @@ function formatTimestamp(iso: string): string {
   }
 }
 
-/** Abbreviate the run id for display (keeps the last segment). */
-function shortenRunId(id: string): string {
-  const parts = id.split('::');
-  if (parts.length >= 2) {
-    const tail = parts[parts.length - 1];
-    return tail.length > 22 ? `${tail.slice(0, 10)}…${tail.slice(-8)}` : tail;
-  }
-  return id.length > 22 ? `${id.slice(0, 10)}…${id.slice(-8)}` : id;
+/**
+ * Derive a sub-label shown below the formatted timestamp in the per-run
+ * compare view. Returns `null` when the run id is a plain timestamp —
+ * the common case where the sub-label would just repeat what the
+ * formatted timestamp already shows, adding visual noise.
+ *
+ * Run ids are built by `buildRunId` in `apps/cli/src/commands/inspect/
+ * utils.ts` and optionally wrapped with `remote::` by
+ * `encodeRemoteRunId` in `apps/cli/src/commands/results/remote.ts`, so
+ * the shape is one of:
+ *   - `2026-04-01T10-00-00-000Z`                   → null
+ *   - `with-skills::2026-04-01T10-00-00-000Z`      → "with-skills"
+ *   - `remote::2026-04-01T10-00-00-000Z`           → "remote"
+ *   - `remote::with-skills::2026-04-01T10-...`     → "remote · with-skills"
+ *
+ * The full run id stays available via the `title` attribute on the
+ * timestamp cell so keyboard / pointer users can always recover it.
+ */
+function runSubLabel(runId: string): string | null {
+  const parts = runId.split('::');
+  if (parts.length < 2) return null;
+  return parts.slice(0, -1).join(' · ');
 }
