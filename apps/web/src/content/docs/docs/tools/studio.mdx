@@ -55,7 +55,7 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 - **Targets** — group runs by target (model/agent)
 - **Run Detail** — drill into a run to see per-test results, scores, and evaluator output
 - **Human Review** — add feedback annotations to individual test results
-- **Compare** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive labels
+- **Compare** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
 ## Run Detail
@@ -74,7 +74,7 @@ The Experiments tab groups runs by experiment name so you can compare the impact
 
 The **Compare** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
 
-<Image src={studioCompareSideBySide} alt="AgentV Studio side-by-side comparison of two runs labelled improved-prompt and baseline, with per-test pass rates" />
+<Image src={studioCompareSideBySide} alt="AgentV Studio side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
 
 ### Aggregated matrix
 
@@ -96,21 +96,21 @@ agentv studio  # Compare tab shows 2x2 matrix
 
 Running the same `(experiment, target)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
 
-<Image src={studioComparePerRun} alt="AgentV Studio per-run compare mode listing individual runs with timestamps, labels, experiment, target, and pass rate" />
+<Image src={studioComparePerRun} alt="AgentV Studio per-run compare mode listing individual runs with timestamps, tags, experiment, target, and pass rate" />
 
 Use per-run mode when you want to:
 
 - Compare back-to-back runs of the same agent + eval after a prompt or parameter tweak
-- Pit a fresh run against a labelled baseline without touching the eval YAML
+- Pit a fresh run against a tagged baseline without touching the eval YAML
 - Debug flakiness by inspecting two identical-configuration runs side-by-side
 
-Select 2+ rows with the checkboxes and click the sticky **Compare N** action to open the side-by-side view. Column headers use the run's label if one is set, otherwise its formatted timestamp. The per-test breakdown reuses the same scoring and colour tones as the aggregated matrix.
+Select 2+ rows with the checkboxes and click the sticky **Compare N** action to open the side-by-side view. Column headers show the run's timestamp, with any assigned tags as chips below it. The per-test breakdown reuses the same scoring and colour tones as the aggregated matrix.
 
-### Retroactive labels
+### Retroactive tags
 
-Click any row's LABEL cell to rename a run after the fact. Labels are stored in a `label.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. Clear the label to revert to the timestamp. Remote runs are read-only.
+Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to remove every tag (deletes the sidecar). Remote runs are read-only.
 
-Use labels to distinguish ad-hoc variants you didn't plan for up front — `baseline`, `v2-prompt`, `cold-start`, `after-retry-fix`, etc.
+Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
 
 
 ## Benchmarks Dashboard

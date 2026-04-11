@@ -5,7 +5,7 @@
  *   1. Aggregated (default)  — `(experiment, target)` matrix, one cell per pair.
  *   2. Per run               — individual runs are first-class; users select
  *                              2+ runs to render a side-by-side comparison,
- *                              and may attach a retroactive label to any run.
+ *                              and may attach retroactive tags to any run.
  *
  * Styling matches the rest of AgentV Studio: dark gray surfaces
  * (`bg-gray-900` / `border-gray-800`), cyan accents for interactive elements,
@@ -14,8 +14,8 @@
  *
  * Backend contract:
  *   - `GET /api/compare`                → { cells, runs? }
- *   - `PUT /api/runs/:runId/label`      → writes sidecar label.json
- *   - `DELETE /api/runs/:runId/label`   → removes sidecar
+ *   - `PUT /api/runs/:runId/tags`       → replaces sidecar tags.json
+ *   - `DELETE /api/runs/:runId/tags`    → removes sidecar
  *
  * To extend with a new mode: add a value to `ViewMode`, a button in the mode
  * toggle, and a new body component in the content switch. Hooks in any new
@@ -26,7 +26,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { deleteRunLabelApi, saveRunLabelApi } from '~/lib/api';
+import { deleteRunTagsApi, saveRunTagsApi } from '~/lib/api';
 import type { CompareCell, CompareResponse, CompareRunEntry, CompareTestResult } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -38,7 +38,7 @@ interface CompareTabProps {
   error?: Error | null;
   /** Benchmark scope. Undefined for the unscoped (root) compare view. */
   benchmarkId?: string;
-  /** Read-only mode disables label editing. */
+  /** Read-only mode disables tag editing. */
   readOnly?: boolean;
 }
 
@@ -361,7 +361,7 @@ function PerRunView({
             <tr>
               <th className="w-10 px-3 py-3" aria-label="Select" />
               <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Label</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Tags</th>
               <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
@@ -442,14 +442,16 @@ function PerRunRow({
 }) {
   const avgPct = Math.round(run.avg_score * 100);
   const canEdit = !readOnly && run.source !== 'remote';
-  const labelBtnRef = useRef<HTMLButtonElement>(null);
+  const tagsBtnRef = useRef<HTMLButtonElement>(null);
+  const tags = run.tags ?? [];
+  const runLabel = tags[0] ?? run.run_id;
 
-  // Restore focus to the label trigger button once the inline editor closes,
+  // Restore focus to the tags trigger button once the inline editor closes,
   // so keyboard users don't lose their place in the table.
   const wasEditing = useRef(editing);
   useEffect(() => {
     if (wasEditing.current && !editing) {
-      labelBtnRef.current?.focus();
+      tagsBtnRef.current?.focus();
     }
     wasEditing.current = editing;
   }, [editing]);
@@ -467,7 +469,7 @@ function PerRunRow({
             className="h-4 w-4 cursor-pointer rounded border-gray-700 bg-gray-900 text-cyan-500 accent-cyan-500 focus:ring-cyan-500"
             checked={checked}
             onChange={onToggle}
-            aria-label={`Select run ${run.label ?? run.run_id}`}
+            aria-label={`Select run ${runLabel}`}
           />
         </td>
         <td className="px-4 py-3 align-middle">
@@ -481,25 +483,43 @@ function PerRunRow({
         <td className="px-4 py-3 align-middle">
           {canEdit ? (
             <button
-              ref={labelBtnRef}
+              ref={tagsBtnRef}
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onStartEdit();
               }}
               className={
-                run.label
-                  ? 'rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-sm font-medium text-cyan-300 transition-colors hover:border-cyan-700 hover:text-cyan-200'
+                tags.length > 0
+                  ? 'inline-flex flex-wrap items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-gray-800/60'
                   : 'rounded-md border border-dashed border-gray-700 px-2 py-0.5 text-xs text-gray-500 transition-colors hover:border-cyan-800 hover:text-cyan-400'
               }
-              aria-label={run.label ? 'Edit label' : 'Add label'}
+              aria-label={tags.length > 0 ? 'Edit tags' : 'Add tags'}
             >
-              {run.label ?? '+ label'}
+              {tags.length > 0 ? (
+                tags.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
+                  >
+                    {t}
+                  </span>
+                ))
+              ) : (
+                <>+ tags</>
+              )}
             </button>
-          ) : run.label ? (
-            <span className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-sm font-medium text-cyan-300">
-              {run.label}
-            </span>
+          ) : tags.length > 0 ? (
+            <div className="inline-flex flex-wrap items-center gap-1">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
           ) : (
             <span className="text-gray-600">—</span>
           )}
@@ -517,9 +537,9 @@ function PerRunRow({
       {editing && (
         <tr className="bg-gray-950/80">
           <td colSpan={8} className="px-4 py-3">
-            <LabelEditor
+            <TagsEditor
               runId={run.run_id}
-              currentLabel={run.label}
+              currentTags={tags}
               benchmarkId={benchmarkId}
               onClose={onEndEdit}
             />
@@ -530,29 +550,41 @@ function PerRunRow({
   );
 }
 
-function LabelEditor({
+/**
+ * Inline chip-based tag editor.
+ *
+ * Local state: a `string[]` staged edit of the run's tags. Chips show the
+ * current staged tags; an input at the end accepts new tags (commit with
+ * Enter or comma, delete the last chip with Backspace on an empty input).
+ * Save persists the whole array; Cancel / Escape discards.
+ *
+ * The backend's `writeRunTags` handles deduplication, length limits, and
+ * control-character rejection, so we only lightly normalize in the UI
+ * (trim + skip duplicates already in the staged array).
+ */
+function TagsEditor({
   runId,
-  currentLabel,
+  currentTags,
   benchmarkId,
   onClose,
 }: {
   runId: string;
-  currentLabel?: string;
+  currentTags: string[];
   benchmarkId?: string;
   onClose: () => void;
 }) {
-  const [value, setValue] = useState(currentLabel ?? '');
+  const [tags, setTags] = useState<string[]>(currentTags);
+  const [input, setInput] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
-    inputRef.current?.select();
   }, []);
 
   const saveMut = useMutation({
-    mutationFn: () => saveRunLabelApi(runId, value, benchmarkId),
+    mutationFn: () => saveRunTagsApi(runId, tags, benchmarkId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
@@ -566,7 +598,7 @@ function LabelEditor({
   });
 
   const clearMut = useMutation({
-    mutationFn: () => deleteRunLabelApi(runId, benchmarkId),
+    mutationFn: () => deleteRunTagsApi(runId, benchmarkId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
@@ -580,35 +612,78 @@ function LabelEditor({
   });
 
   const busy = saveMut.isPending || clearMut.isPending;
+  const hasChanges =
+    tags.length !== currentTags.length || tags.some((t, i) => t !== currentTags[i]);
+
+  const commitInput = () => {
+    const trimmed = input.trim();
+    if (trimmed === '') return;
+    if (tags.includes(trimmed)) {
+      setInput('');
+      return;
+    }
+    setTags([...tags, trimmed]);
+    setInput('');
+    setErr(null);
+  };
+
+  const removeTag = (tag: string) => {
+    setTags(tags.filter((t) => t !== tag));
+  };
 
   return (
     <div className="space-y-2 rounded-md border border-gray-800 bg-gray-900/60 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
-          Rename run
-        </span>
+        <span className="text-xs font-medium uppercase tracking-wider text-gray-400">Tag run</span>
         <span className="text-xs text-gray-500">
-          Replaces the timestamp in compare column headers.
+          Multi-valued. Enter or comma adds; Backspace removes the last chip.
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500">
+        {tags.map((t) => (
+          <span
+            key={t}
+            className="inline-flex items-center gap-1 rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
+          >
+            {t}
+            <button
+              type="button"
+              onClick={() => removeTag(t)}
+              disabled={busy}
+              className="text-cyan-500 transition-colors hover:text-cyan-200 disabled:opacity-50"
+              aria-label={`Remove tag ${t}`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
         <input
           ref={inputRef}
           type="text"
-          className="flex-1 rounded-md border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-gray-100 placeholder:text-gray-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
-          placeholder="e.g. baseline, v2-prompt, cold-start"
-          value={value}
+          className="flex-1 min-w-[140px] bg-transparent text-sm text-gray-100 placeholder:text-gray-600 focus:outline-none disabled:opacity-50"
+          placeholder={tags.length === 0 ? 'e.g. baseline, v2-prompt, slow' : 'Add tag…'}
+          value={input}
           onChange={(e) => {
             setErr(null);
-            setValue(e.target.value);
+            setInput(e.target.value);
           }}
-          maxLength={120}
+          maxLength={60}
           disabled={busy}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && value.trim() && !busy) saveMut.mutate();
-            if (e.key === 'Escape') onClose();
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              commitInput();
+            } else if (e.key === 'Backspace' && input === '' && tags.length > 0) {
+              e.preventDefault();
+              setTags(tags.slice(0, -1));
+            } else if (e.key === 'Escape') {
+              onClose();
+            }
           }}
+          onBlur={commitInput}
         />
+      </div>
+      <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onClose}
@@ -617,7 +692,7 @@ function LabelEditor({
         >
           Cancel
         </button>
-        {currentLabel && (
+        {currentTags.length > 0 && (
           <button
             type="button"
             onClick={() => {
@@ -627,14 +702,14 @@ function LabelEditor({
             disabled={busy}
             className="rounded-md border border-red-900/60 px-3 py-1.5 text-sm text-red-400 transition-colors hover:border-red-800 hover:bg-red-950/30 hover:text-red-300 disabled:opacity-50"
           >
-            Clear label
+            Clear all
           </button>
         )}
         <button
           type="button"
-          disabled={!value.trim() || busy}
+          disabled={!hasChanges || busy}
           onClick={() => {
-            if (busy || !value.trim()) return;
+            if (busy || !hasChanges) return;
             saveMut.mutate();
           }}
           className="rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-medium text-gray-950 transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500"
@@ -765,18 +840,22 @@ function PerRunCompareView({
 }
 
 function RunColumnHeader({ run }: { run: CompareRunEntry }) {
+  const tags = run.tags ?? [];
   return (
-    <div className="min-w-[140px] space-y-0.5">
-      {run.label ? (
-        <div
-          className="inline-block rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-sm font-medium text-cyan-300"
-          title={run.run_id}
-        >
-          {run.label}
-        </div>
-      ) : (
-        <div className="text-sm font-medium text-gray-200 tabular-nums" title={run.run_id}>
-          {formatTimestamp(run.started_at)}
+    <div className="min-w-[140px] space-y-1">
+      <div className="text-sm font-medium text-gray-200 tabular-nums" title={run.run_id}>
+        {formatTimestamp(run.started_at)}
+      </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-1.5 py-0.5 text-[0.7rem] font-medium text-cyan-300"
+            >
+              {t}
+            </span>
+          ))}
         </div>
       )}
       <div className="text-xs text-gray-500">

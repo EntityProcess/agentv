@@ -19,8 +19,8 @@ export interface RunMeta {
   source: 'local' | 'remote';
   project_id?: string;
   project_name?: string;
-  /** Optional user-assigned label from the run's sidecar label.json. */
-  label?: string;
+  /** Optional user-assigned tags from the run's sidecar tags.json. */
+  tags?: string[];
 }
 
 export interface RunListResponse {
@@ -163,7 +163,7 @@ export interface CompareRunEntry {
   started_at: string;
   experiment: string;
   target: string;
-  label?: string;
+  tags?: string[];
   source: 'local' | 'remote';
   eval_count: number;
   passed_count: number;
@@ -180,8 +180,8 @@ export interface CompareResponse {
   runs?: CompareRunEntry[];
 }
 
-export interface RunLabelResponse {
-  label: string;
+export interface RunTagsResponse {
+  tags: string[];
   updated_at: string;
 }
 

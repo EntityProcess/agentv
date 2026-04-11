@@ -59,7 +59,7 @@ import {
   listMergedResultFiles,
   syncRemoteResults,
 } from './remote.js';
-import { deleteRunLabel, readRunLabel, writeRunLabel } from './run-label.js';
+import { deleteRunTags, readRunTags, writeRunTags } from './run-tags.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
       } catch {
         // ignore enrichment errors
       }
-      const labelEntry = readRunLabel(m.path);
+      const tagsEntry = readRunTags(m.path);
       return {
         filename: m.filename,
         display_name: m.displayName,
@@ -287,7 +287,7 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
         source: m.source,
         ...(target && { target }),
         ...(experiment && { experiment }),
-        ...(labelEntry && { label: labelEntry.label }),
+        ...(tagsEntry && { tags: tagsEntry.tags }),
       };
     }),
   });
@@ -579,7 +579,7 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     started_at: string;
     experiment: string;
     target: string;
-    label?: string;
+    tags?: string[];
     source: 'local' | 'remote';
     eval_count: number;
     passed_count: number;
@@ -656,13 +656,13 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
       if (runEvalCount === 0) continue;
 
       const runTests = [...runTestMap.values()].slice(-MAX_TESTS_PER_CELL);
-      const labelEntry = readRunLabel(m.path);
+      const tagsEntry = readRunTags(m.path);
       runEntries.push({
         run_id: m.filename,
         started_at: runStartedAt,
         experiment: runExperiment,
         target: runTarget,
-        ...(labelEntry && { label: labelEntry.label }),
+        ...(tagsEntry && { tags: tagsEntry.tags }),
         source: m.source,
         eval_count: runEvalCount,
         passed_count: runPassedCount,
@@ -773,12 +773,12 @@ function handleFeedbackRead(c: C, { searchDir }: DataContext) {
   return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : searchDir));
 }
 
-async function handleRunLabelPut(c: C, { searchDir }: DataContext) {
+async function handleRunTagsPut(c: C, { searchDir }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   if (meta.source === 'remote') {
-    return c.json({ error: 'Labels can only be set on local runs' }, 400);
+    return c.json({ error: 'Tags can only be set on local runs' }, 400);
   }
   let body: unknown;
   try {
@@ -789,27 +789,30 @@ async function handleRunLabelPut(c: C, { searchDir }: DataContext) {
   if (!body || typeof body !== 'object') {
     return c.json({ error: 'Invalid payload' }, 400);
   }
-  const label = (body as Record<string, unknown>).label;
-  if (typeof label !== 'string') {
-    return c.json({ error: 'Missing label string' }, 400);
+  const tags = (body as Record<string, unknown>).tags;
+  if (!Array.isArray(tags)) {
+    return c.json({ error: 'Missing tags array' }, 400);
   }
   try {
-    const entry = writeRunLabel(meta.path, label);
-    return c.json({ label: entry.label, updated_at: entry.updated_at });
+    const entry = writeRunTags(meta.path, tags as string[]);
+    return c.json({
+      tags: entry?.tags ?? [],
+      updated_at: entry?.updated_at ?? new Date().toISOString(),
+    });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 400);
   }
 }
 
-async function handleRunLabelDelete(c: C, { searchDir }: DataContext) {
+async function handleRunTagsDelete(c: C, { searchDir }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   if (meta.source === 'remote') {
-    return c.json({ error: 'Labels can only be removed on local runs' }, 400);
+    return c.json({ error: 'Tags can only be removed on local runs' }, 400);
   }
   try {
-    deleteRunLabel(meta.path);
+    deleteRunTags(meta.path);
     return c.json({ ok: true });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -1048,17 +1051,17 @@ export function createApp(
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
   app.post('/api/remote/sync', async (c) => c.json(await syncRemoteResults(searchDir)));
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
-  app.put('/api/runs/:filename/label', (c) => {
+  app.put('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    return handleRunLabelPut(c, defaultCtx);
+    return handleRunTagsPut(c, defaultCtx);
   });
-  app.delete('/api/runs/:filename/label', (c) => {
+  app.delete('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    return handleRunLabelDelete(c, defaultCtx);
+    return handleRunTagsDelete(c, defaultCtx);
   });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
@@ -1172,17 +1175,17 @@ export function createApp(
     withBenchmark(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
   );
   app.get('/api/benchmarks/:benchmarkId/runs', (c) => withBenchmark(c, handleRuns));
-  app.put('/api/benchmarks/:benchmarkId/runs/:filename/label', (c) => {
+  app.put('/api/benchmarks/:benchmarkId/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    return withBenchmark(c, handleRunLabelPut);
+    return withBenchmark(c, handleRunTagsPut);
   });
-  app.delete('/api/benchmarks/:benchmarkId/runs/:filename/label', (c) => {
+  app.delete('/api/benchmarks/:benchmarkId/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    return withBenchmark(c, handleRunLabelDelete);
+    return withBenchmark(c, handleRunTagsDelete);
   });
   app.get('/api/benchmarks/:benchmarkId/runs/:filename', (c) => withBenchmark(c, handleRunDetail));
   app.get('/api/benchmarks/:benchmarkId/runs/:filename/suites', (c) =>

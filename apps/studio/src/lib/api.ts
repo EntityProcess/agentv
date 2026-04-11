@@ -27,8 +27,8 @@ import type {
   RemoteStatusResponse,
   RunDetailResponse,
   RunEvalRequest,
-  RunLabelResponse,
   RunListResponse,
+  RunTagsResponse,
   StudioConfigResponse,
   SuitesResponse,
   TargetsResponse,
@@ -438,42 +438,42 @@ export async function syncRemoteResultsApi(benchmarkId?: string): Promise<Remote
   return res.json() as Promise<RemoteStatusResponse>;
 }
 
-// ── Run label mutations ──────────────────────────────────────────────────
+// ── Run tag mutations ────────────────────────────────────────────────────
 
 /**
- * Save (create or update) a label for a run. Labels are stored as a sidecar
- * `label.json` file next to the run's manifest and replace the formatted
- * timestamp in compare view column headers.
+ * Replace the tags on a run. Tags are stored as a sidecar `tags.json` file
+ * next to the run's manifest and surface as chips in the compare views.
+ * Pass an empty array to clear all tags (server deletes the sidecar).
  */
-export async function saveRunLabelApi(
+export async function saveRunTagsApi(
   runId: string,
-  label: string,
+  tags: string[],
   benchmarkId?: string,
-): Promise<RunLabelResponse> {
+): Promise<RunTagsResponse> {
   const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/label`
-    : `/api/runs/${encodeURIComponent(runId)}/label`;
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/tags`
+    : `/api/runs/${encodeURIComponent(runId)}/tags`;
   const res = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ label }),
+    body: JSON.stringify({ tags }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? `Failed to save label: ${res.status}`);
+    throw new Error((err as { error?: string }).error ?? `Failed to save tags: ${res.status}`);
   }
-  return res.json() as Promise<RunLabelResponse>;
+  return res.json() as Promise<RunTagsResponse>;
 }
 
-/** Remove the label sidecar for a run. */
-export async function deleteRunLabelApi(runId: string, benchmarkId?: string): Promise<void> {
+/** Remove the tags sidecar for a run. */
+export async function deleteRunTagsApi(runId: string, benchmarkId?: string): Promise<void> {
   const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/label`
-    : `/api/runs/${encodeURIComponent(runId)}/label`;
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/tags`
+    : `/api/runs/${encodeURIComponent(runId)}/tags`;
   const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? `Failed to delete label: ${res.status}`);
+    throw new Error((err as { error?: string }).error ?? `Failed to delete tags: ${res.status}`);
   }
 }
 
