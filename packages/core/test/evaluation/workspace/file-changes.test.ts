@@ -7,6 +7,10 @@ import path from 'node:path';
 
 import {
   captureFileChanges,
+  captureSessionArtifacts,
+  captureSnapshot,
+  diffFromSnapshots,
+  generateNewFileDiff,
   initializeBaseline,
 } from '../../../src/evaluation/workspace/file-changes.js';
 
@@ -115,5 +119,131 @@ describe('workspace file-changes', () => {
     expect(diff).toContain('top-level change');
     expect(diff).toContain('lib.txt');
     expect(diff).toContain('updated library');
+  });
+});
+
+describe('captureSnapshot / diffFromSnapshots', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'agentv-snap-test-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  it('captures an empty directory', async () => {
+    const snap = await captureSnapshot(dir);
+    expect(snap.size).toBe(0);
+  });
+
+  it('captures text files recursively', async () => {
+    await writeFile(path.join(dir, 'file.txt'), 'hello\n', 'utf8');
+    await mkdir(path.join(dir, 'sub'), { recursive: true });
+    await writeFile(path.join(dir, 'sub', 'nested.txt'), 'nested\n', 'utf8');
+
+    const snap = await captureSnapshot(dir);
+    expect(snap.size).toBe(2);
+    expect(snap.get('file.txt')).toBe('hello\n');
+    expect(snap.get('sub/nested.txt')).toBe('nested\n');
+  });
+
+  it('diffFromSnapshots returns empty string when nothing changed', async () => {
+    await writeFile(path.join(dir, 'file.txt'), 'hello\n', 'utf8');
+    const baseline = await captureSnapshot(dir);
+    const current = await captureSnapshot(dir);
+    expect(diffFromSnapshots(baseline, current)).toBe('');
+  });
+
+  it('diffFromSnapshots shows new file as addition', async () => {
+    const baseline = await captureSnapshot(dir);
+    await writeFile(path.join(dir, 'new.txt'), 'brand new\n', 'utf8');
+    const current = await captureSnapshot(dir);
+
+    const diff = diffFromSnapshots(baseline, current);
+    expect(diff).toContain('new.txt');
+    expect(diff).toContain('+brand new');
+    expect(diff).toContain('new file mode');
+  });
+
+  it('diffFromSnapshots shows deleted file', async () => {
+    await writeFile(path.join(dir, 'gone.txt'), 'will be deleted\n', 'utf8');
+    const baseline = await captureSnapshot(dir);
+    await rm(path.join(dir, 'gone.txt'));
+    const current = await captureSnapshot(dir);
+
+    const diff = diffFromSnapshots(baseline, current);
+    expect(diff).toContain('gone.txt');
+    expect(diff).toContain('deleted file mode');
+    expect(diff).toContain('-will be deleted');
+  });
+
+  it('diffFromSnapshots shows modified file', async () => {
+    await writeFile(path.join(dir, 'mod.txt'), 'original\n', 'utf8');
+    const baseline = await captureSnapshot(dir);
+    await writeFile(path.join(dir, 'mod.txt'), 'changed\n', 'utf8');
+    const current = await captureSnapshot(dir);
+
+    const diff = diffFromSnapshots(baseline, current);
+    expect(diff).toContain('mod.txt');
+    expect(diff).toContain('-original');
+    expect(diff).toContain('+changed');
+  });
+});
+
+describe('generateNewFileDiff', () => {
+  it('generates a valid unified diff for a new file', () => {
+    const diff = generateNewFileDiff('outputs/report.csv', 'metric,value\ncpu,0.5\n');
+    expect(diff).toContain('diff --git a/outputs/report.csv b/outputs/report.csv');
+    expect(diff).toContain('new file mode 100644');
+    expect(diff).toContain('--- /dev/null');
+    expect(diff).toContain('+++ b/outputs/report.csv');
+    expect(diff).toContain('+metric,value');
+    expect(diff).toContain('+cpu,0.5');
+  });
+
+  it('handles content without trailing newline', () => {
+    const diff = generateNewFileDiff('out.txt', 'no newline');
+    expect(diff).toContain('+no newline');
+    expect(diff).toContain('@@ -0,0 +1,1 @@');
+  });
+});
+
+describe('captureSessionArtifacts', () => {
+  let artifactsDir: string;
+
+  beforeEach(async () => {
+    artifactsDir = await mkdtemp(path.join(tmpdir(), 'agentv-artifacts-test-'));
+  });
+
+  afterEach(async () => {
+    await rm(artifactsDir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  it('returns undefined for empty directory', async () => {
+    const result = await captureSessionArtifacts(artifactsDir);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined for non-existent directory', async () => {
+    const result = await captureSessionArtifacts('/non/existent/path');
+    expect(result).toBeUndefined();
+  });
+
+  it('returns synthetic diff for files in directory', async () => {
+    await writeFile(path.join(artifactsDir, 'report.csv'), 'metric,value\ncpu,0.5\n', 'utf8');
+
+    const result = await captureSessionArtifacts(artifactsDir);
+    expect(result).toBeDefined();
+    expect(result).toContain('report.csv');
+    expect(result).toContain('+metric,value');
+  });
+
+  it('applies pathPrefix to file paths', async () => {
+    await writeFile(path.join(artifactsDir, 'data.csv'), 'a,b\n1,2\n', 'utf8');
+
+    const result = await captureSessionArtifacts(artifactsDir, 'session-state/files');
+    expect(result).toContain('session-state/files/data.csv');
   });
 });

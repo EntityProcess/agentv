@@ -1,0 +1,11 @@
+targets:
+  # Mock CLI agent that writes a CSV report to outputs/report.csv under workspace_path.
+  # Simulates what a real agent (e.g. Copilot) would do when asked to generate a report.
+  - name: mock_csv_agent
+    provider: cli
+    command: >-
+      bash -c '
+      mkdir -p outputs &&
+      printf "metric,value,status\ncoverage,87.3,pass\nlatency_p99_ms,142,pass\nerror_rate,0.02,pass\n" > outputs/report.csv &&
+      echo "Generated outputs/report.csv" > {OUTPUT_FILE}
+      '

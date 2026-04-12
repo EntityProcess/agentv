@@ -837,21 +837,24 @@ export async function runEvaluation(
       try {
         sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
         setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
-      } catch {
-        // Non-fatal: file change tracking is best-effort
-        setupLog('shared baseline initialization skipped (non-fatal)');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setupLog(`shared baseline initialization failed (file_changes unavailable): ${message}`);
       }
     }
 
-    // Multi-slot pool: initialize baselines per slot
+    // Multi-slot pool: initialize git baselines per slot
     if (availablePoolSlots.length > 0) {
       for (const slot of availablePoolSlots) {
         try {
           const baseline = await initializeBaseline(slot.path);
           poolSlotBaselines.set(slot.path, baseline);
           setupLog(`pool slot ${slot.index} baseline initialized: ${baseline}`);
-        } catch {
-          setupLog(`pool slot ${slot.index} baseline initialization skipped (non-fatal)`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          setupLog(
+            `pool slot ${slot.index} baseline initialization failed (file_changes unavailable): ${message}`,
+          );
         }
       }
     }
@@ -1631,13 +1634,18 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
-  // Initialize git baseline (use shared baseline or per-case)
+  // Initialize git baseline for file-change tracking.
+  // Runs git init + baseline commit before the agent, then diffs after.
+  // Supports nested repos via --submodule=diff.
   let baselineCommit: string | undefined = sharedBaselineCommit;
   if (!baselineCommit && workspacePath) {
     try {
       baselineCommit = await initializeBaseline(workspacePath);
-    } catch {
-      // Non-fatal: file change tracking is best-effort
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (verbose) {
+        console.warn(`[setup] test=${evalCase.id} baseline initialization failed: ${message}`);
+      }
     }
   }
 
@@ -1763,7 +1771,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
 
-  // Capture file changes from workspace if baseline was initialized
+  // Capture file changes: git diff against baseline, then merge any provider-reported artifacts.
   let fileChanges: string | undefined;
   if (baselineCommit && workspacePath) {
     try {
@@ -1774,6 +1782,13 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     } catch {
       // Non-fatal: file change tracking is best-effort
     }
+  }
+
+  // Provider-reported artifacts (files written outside workspace_path,
+  // e.g. copilot session-state). Merged on top of any workspace-based diff.
+  const providerFileChanges = providerResponse?.fileChanges;
+  if (providerFileChanges) {
+    fileChanges = fileChanges ? `${fileChanges}\n${providerFileChanges}` : providerFileChanges;
   }
 
   const providerError = extractProviderError(providerResponse);

@@ -1,0 +1,59 @@
+# File-changes with nested git repos
+#
+# Proves that file_changes captures BOTH:
+#   1. Files created at the workspace root (alongside repos)
+#   2. Changes made inside nested git repositories
+#
+# Setup:
+#   - workspace.template copies workspace-template/ into the temp workspace
+#   - before_all hook initialises my-lib/ as a git repo inside the workspace
+#   - initializeBaseline (runs after before_all) sees my-lib/.git as a gitlink
+#
+# Agent behaviour:
+#   - Writes report.txt to workspace root (not inside any repo)
+#   - Appends a function to my-lib/utils.ts (inside the nested repo)
+#
+# How file_changes captures both:
+#   - Workspace-root diff: report.txt shows as a new file in the outer git diff
+#   - Nested repo diff:    my-lib gitlink hash changes; AgentV diffs my-lib/
+#     individually and stitches the per-file diffs into file_changes
+
+name: file-changes-with-repos
+description: Verify file_changes captures workspace-root files AND changes inside nested repos
+
+workspace:
+  template: ../workspace-template
+  hooks:
+    before_all:
+      command:
+        - bash
+        - -c
+        - >-
+          cd "{{workspace_path}}/my-lib" &&
+          git -c init.defaultBranch=main init &&
+          git -c user.email=test@agentv.dev -c user.name="AgentV Test" add . &&
+          git -c user.email=test@agentv.dev -c user.name="AgentV Test" commit -m "init"
+
+execution:
+  target: mock_agent
+
+tests:
+  - id: root-file-and-repo-change
+    criteria: >-
+      The agent writes report.txt to the workspace root and appends an add()
+      function to my-lib/utils.ts.
+      file_changes must show both: the new workspace-root file and the
+      modification inside the nested repo.
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: >-
+              Write a one-line summary to report.txt at the workspace root.
+              Then add an add(a, b) function to my-lib/utils.ts.
+
+    assertions:
+      - name: check-root-and-repo-changes
+        type: code-grader
+        command: ["bun", "run", "../scripts/check-file-changes.ts"]

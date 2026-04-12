@@ -16,11 +16,20 @@
  * The invoke() method ignores request.question since no process is spawned.
  * It reads the transcript file and returns a ProviderResponse with the
  * parsed Message[] in the output field.
+ *
+ * File-change tracking:
+ *   After reading the transcript, the provider automatically scans the
+ *   session's `files/` subdirectory for artifacts generated during the
+ *   session (e.g. CSV / Markdown reports saved by Copilot).  Any files
+ *   found are returned as synthetic unified diffs in `fileChanges` so that
+ *   LLM and code graders can evaluate them via `{{file_changes}}` without
+ *   requiring the agent to echo file contents in its final answer.
  */
 
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { captureSessionArtifacts } from '../workspace/file-changes.js';
 import { parseCopilotEvents } from './copilot-log-parser.js';
 import { discoverCopilotSessions } from './copilot-session-discovery.js';
 import type { CopilotLogResolvedConfig } from './targets.js';
@@ -54,11 +63,18 @@ export class CopilotLogProvider implements Provider {
 
     const parsed = parseCopilotEvents(eventsContent);
 
+    // Scan session-state `files/` directory for artifacts generated during
+    // the session (e.g. CSV reports). Return as synthetic diffs so graders
+    // can evaluate them via {{file_changes}} without special eval wiring.
+    const filesDir = path.join(sessionDir, 'files');
+    const fileChanges = await captureSessionArtifacts(filesDir).catch(() => undefined);
+
     return {
       output: parsed.messages,
       tokenUsage: parsed.tokenUsage,
       durationMs: parsed.durationMs,
       startTime: parsed.meta.startedAt,
+      ...(fileChanges ? { fileChanges } : {}),
     };
   }
 

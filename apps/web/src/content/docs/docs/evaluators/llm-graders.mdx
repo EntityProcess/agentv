@@ -72,7 +72,7 @@ Score the response from 0.0 to 1.0 based on:
 | `input` | Full resolved input array, JSON-serialized |
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
-| `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+| `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 
 ## Per-Grader Target
 
@@ -227,7 +227,7 @@ Derived strings injected into grader prompts:
 | `input` | Full resolved input array, JSON-serialized |
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
-| `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+| `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 
 **Example flow:**
 

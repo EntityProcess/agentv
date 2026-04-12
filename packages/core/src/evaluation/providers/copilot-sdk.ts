@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import { captureSessionArtifacts } from '../workspace/file-changes.js';
 import { recordCopilotSdkLogEntry } from './copilot-sdk-log-tracker.js';
 import {
   CopilotStreamLogger,
@@ -262,6 +263,17 @@ export class CopilotSdkProvider implements Provider {
         });
       }
 
+      // Capture session artifacts from session-state `files/` directory.
+      // The SDK's session.workspacePath is the authoritative path to the
+      // session state directory (contains files/, checkpoints/, plan.md).
+      // Only populated when infinite sessions are enabled on the server.
+      const sessionWorkspacePath = session.workspacePath;
+      const fileChanges = sessionWorkspacePath
+        ? await captureSessionArtifacts(path.join(sessionWorkspacePath, 'files')).catch(
+            () => undefined,
+          )
+        : undefined;
+
       return {
         raw: {
           model: this.config.model,
@@ -274,6 +286,7 @@ export class CopilotSdkProvider implements Provider {
         durationMs,
         startTime,
         endTime,
+        ...(fileChanges ? { fileChanges } : {}),
       };
     } finally {
       unsubscribe();
