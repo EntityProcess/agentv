@@ -18,12 +18,12 @@
         "p-limit": "^6.1.0",
         "tsup": "8.3.5",
         "typescript": "5.8.3",
-        "yaml": "^2.6.1",
+        "yaml": "^2.8.3",
       },
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "4.5.1",
+      "version": "4.15.0",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -41,7 +41,7 @@
         "json5": "^2.2.3",
         "micromatch": "^4.0.8",
         "semver": "^7.7.4",
-        "yaml": "^2.6.1",
+        "yaml": "^2.8.3",
       },
       "devDependencies": {
         "@agentv/core": "workspace:*",
@@ -86,7 +86,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "4.5.1",
+      "version": "4.15.0",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@agentv/eval": "workspace:*",
@@ -101,7 +101,7 @@
         "fast-glob": "^3.3.3",
         "json5": "^2.2.3",
         "micromatch": "^4.0.8",
-        "yaml": "^2.6.0",
+        "yaml": "^2.8.3",
         "zod": "^3.23.8",
       },
       "devDependencies": {
@@ -127,7 +127,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "4.5.1",
+      "version": "4.15.0",
       "dependencies": {
         "zod": "^3.23.8",
       },
@@ -1624,7 +1624,7 @@
 
     "yallist": ["yallist@3.1.1", "", {}, "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="],
 
-    "yaml": ["yaml@2.8.2", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A=="],
+    "yaml": ["yaml@2.8.3", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg=="],
 
     "yargs-parser": ["yargs-parser@21.1.1", "", {}, "sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw=="],
 
