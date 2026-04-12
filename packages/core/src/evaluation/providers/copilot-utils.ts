@@ -323,13 +323,7 @@ export class CopilotStreamLogger {
   }
 
   handleEvent(eventType: string, data: unknown): void {
-    if (this.format === 'json') {
-      const elapsed = formatElapsed(this.startedAt);
-      this.stream.write(`${JSON.stringify({ time: elapsed, event: eventType, data })}\n`);
-      return;
-    }
-
-    // In summary mode, buffer chunk events and emit a single consolidated line.
+    // Buffer chunk events into a single consolidated entry (both formats).
     if (this.chunkExtractor) {
       const chunkText = this.chunkExtractor(eventType, data);
       if (chunkText === null) {
@@ -348,6 +342,12 @@ export class CopilotStreamLogger {
       this.flushPendingText();
     }
 
+    if (this.format === 'json') {
+      const elapsed = formatElapsed(this.startedAt);
+      this.stream.write(`${JSON.stringify({ time: elapsed, event: eventType, data })}\n`);
+      return;
+    }
+
     const elapsed = formatElapsed(this.startedAt);
     const summary = this.summarize(eventType, data);
     if (summary) {
@@ -358,14 +358,18 @@ export class CopilotStreamLogger {
   private flushPendingText(): void {
     if (!this.pendingText) return;
     const elapsed = formatElapsed(this.startedAt);
-    this.stream.write(`[+${elapsed}] [assistant_message] ${this.pendingText}\n`);
+    if (this.format === 'json') {
+      this.stream.write(
+        `${JSON.stringify({ time: elapsed, event: 'assistant_message', data: { content: this.pendingText } })}\n`,
+      );
+    } else {
+      this.stream.write(`[+${elapsed}] [assistant_message] ${this.pendingText}\n`);
+    }
     this.pendingText = '';
   }
 
   async close(): Promise<void> {
-    if (this.format !== 'json') {
-      this.flushPendingText();
-    }
+    this.flushPendingText();
     await new Promise<void>((resolve, reject) => {
       this.stream.once('error', reject);
       this.stream.end(() => resolve());
