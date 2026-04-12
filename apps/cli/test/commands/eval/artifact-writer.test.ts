@@ -586,6 +586,7 @@ describe('writeArtifactsFromResults', () => {
       'beta',
       'index.jsonl',
       'timing.json',
+      'transcript.jsonl',
     ]);
 
     const alphaEntries = await readdir(path.join(paths.testArtifactDir, 'alpha'));
@@ -624,7 +625,12 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults([], testDir);
 
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual(['benchmark.json', 'index.jsonl', 'timing.json']);
+    expect(artifactEntries.sort()).toEqual([
+      'benchmark.json',
+      'index.jsonl',
+      'timing.json',
+      'transcript.jsonl',
+    ]);
 
     const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
     expect(timing.total_tokens).toBe(0);

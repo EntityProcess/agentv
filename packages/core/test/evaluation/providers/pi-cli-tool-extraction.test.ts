@@ -35,9 +35,12 @@ describe('pi-cli tool call extraction from events', () => {
     const toolCalls = extractToolCallsFromEvents(events);
 
     expect(toolCalls).toHaveLength(1);
-    expect(toolCalls[0].tool).toBe('read');
+    expect(toolCalls[0].tool).toBe('Read');
     expect(toolCalls[0].id).toBe('tc-1');
-    expect(toolCalls[0].input).toEqual({ path: '.agents/skills/csv-analyzer/SKILL.md' });
+    expect(toolCalls[0].input).toEqual({
+      path: '.agents/skills/csv-analyzer/SKILL.md',
+      file_path: '.agents/skills/csv-analyzer/SKILL.md',
+    });
     expect(toolCalls[0].output).toBe('skill content here');
   });
 
@@ -66,9 +69,10 @@ describe('pi-cli tool call extraction from events', () => {
     expect(messages[0].role).toBe('assistant');
     expect(messages[0].toolCalls).toBeDefined();
     expect(messages[0].toolCalls).toHaveLength(1);
-    expect(messages[0].toolCalls?.[0].tool).toBe('read');
+    expect(messages[0].toolCalls?.[0].tool).toBe('Read');
     expect(messages[0].toolCalls?.[0].input).toEqual({
       path: '.agents/skills/csv-analyzer/SKILL.md',
+      file_path: '.agents/skills/csv-analyzer/SKILL.md',
     });
   });
 
@@ -143,8 +147,8 @@ describe('pi-cli tool call extraction from events', () => {
     const messages = extractMessages(events);
 
     expect(messages[0].toolCalls).toHaveLength(2);
-    expect(messages[0].toolCalls?.[0].tool).toBe('read');
-    expect(messages[0].toolCalls?.[1].tool).toBe('bash');
+    expect(messages[0].toolCalls?.[0].tool).toBe('Read');
+    expect(messages[0].toolCalls?.[1].tool).toBe('Bash');
   });
 
   it('should create synthetic assistant message when no assistant message exists', () => {
@@ -171,7 +175,7 @@ describe('pi-cli tool call extraction from events', () => {
     expect(messages).toHaveLength(2);
     expect(messages[1].role).toBe('assistant');
     expect(messages[1].toolCalls).toHaveLength(1);
-    expect(messages[1].toolCalls?.[0].tool).toBe('read');
+    expect(messages[1].toolCalls?.[0].tool).toBe('Read');
   });
 
   it('should fall back to turn_end events and still inject tool calls', () => {
@@ -197,7 +201,7 @@ describe('pi-cli tool call extraction from events', () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].toolCalls).toHaveLength(1);
-    expect(messages[0].toolCalls?.[0].tool).toBe('read');
+    expect(messages[0].toolCalls?.[0].tool).toBe('Read');
   });
 
   it('should handle tool_call type in message content', () => {
@@ -223,9 +227,10 @@ describe('pi-cli tool call extraction from events', () => {
     const messages = extractMessages(events);
 
     expect(messages[0].toolCalls).toHaveLength(1);
-    expect(messages[0].toolCalls?.[0].tool).toBe('read');
+    expect(messages[0].toolCalls?.[0].tool).toBe('Read');
     expect(messages[0].toolCalls?.[0].input).toEqual({
       path: '.agents/skills/csv-analyzer/SKILL.md',
+      file_path: '.agents/skills/csv-analyzer/SKILL.md',
     });
   });
 });

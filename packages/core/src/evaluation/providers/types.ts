@@ -350,6 +350,8 @@ export interface TargetDefinition {
   readonly log_directory?: string | unknown | undefined;
   readonly log_format?: string | unknown | undefined;
   readonly log_output_format?: string | unknown | undefined;
+  /** New stream_log field — replaces log_format. false=no stream log, 'raw'=per-event, 'summary'=consolidated. */
+  readonly stream_log?: string | boolean | unknown | undefined;
   // System prompt (codex, copilot, claude, pi-coding-agent)
   readonly system_prompt?: string | unknown | undefined;
   // Claude Agent SDK fields

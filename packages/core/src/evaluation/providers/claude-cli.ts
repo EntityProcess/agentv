@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import { extractTextContent, toContentArray } from './claude-content.js';
 import { recordClaudeLogEntry } from './claude-log-tracker.js';
+import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { ClaudeResolvedConfig } from './targets.js';
 import type {
@@ -493,11 +494,13 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
     }
     const p = part as Record<string, unknown>;
     if (p.type === 'tool_use' && typeof p.name === 'string') {
-      toolCalls.push({
-        tool: p.name,
-        input: p.input,
-        id: typeof p.id === 'string' ? p.id : undefined,
-      });
+      toolCalls.push(
+        normalizeToolCall('claude-cli', {
+          tool: p.name,
+          input: p.input,
+          id: typeof p.id === 'string' ? p.id : undefined,
+        }),
+      );
     }
   }
   return toolCalls;

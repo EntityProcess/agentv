@@ -5,6 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import { recordCodexLogEntry } from './codex-log-tracker.js';
+import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
 import type {
@@ -233,29 +234,35 @@ export class CodexProvider implements Provider {
     }
 
     if (itemType === 'command_execution') {
-      completedToolCalls.push({
-        tool: 'command_execution',
-        input: { command: item.command },
-        output: item.aggregated_output,
-        id: item.id,
-      });
+      completedToolCalls.push(
+        normalizeToolCall('codex', {
+          tool: 'command_execution',
+          input: { command: item.command },
+          output: item.aggregated_output,
+          id: item.id,
+        }),
+      );
     }
 
     if (itemType === 'file_change') {
-      completedToolCalls.push({
-        tool: 'file_change',
-        input: item.changes,
-        id: item.id,
-      });
+      completedToolCalls.push(
+        normalizeToolCall('codex', {
+          tool: 'file_change',
+          input: item.changes,
+          id: item.id,
+        }),
+      );
     }
 
     if (itemType === 'mcp_tool_call') {
-      completedToolCalls.push({
-        tool: `mcp:${item.server}/${item.tool}`,
-        input: item.arguments,
-        output: item.result ?? item.error,
-        id: item.id,
-      });
+      completedToolCalls.push(
+        normalizeToolCall('codex', {
+          tool: `mcp:${item.server}/${item.tool}`,
+          input: item.arguments,
+          output: item.result ?? item.error,
+          id: item.id,
+        }),
+      );
     }
   }
 

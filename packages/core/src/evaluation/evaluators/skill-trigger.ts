@@ -1,119 +1,26 @@
 /**
  * Built-in skill-trigger evaluator.
  *
- * Detects whether the agent invoked a named skill as its first tool call.
- * Supports multiple provider kinds via static tool-name mappings.
- * For providers not covered here, use a code-grader instead.
+ * Detects whether the agent invoked a named skill during a session.
+ * Works with canonical tool names produced by normalizeToolCall() — no
+ * provider-specific matching logic needed.
  *
  * Detection logic:
- *   - Only the FIRST tool call matters.
- *   - Skill tool: checks input.[skillInputField] contains the skill name (case-sensitive substring).
- *   - Read tool: checks input.[readInputField] contains the skill name (case-sensitive substring).
- *   - Any other tool as first call means the skill was not triggered.
+ *   - Scans ALL tool calls (not just the first) for skill invocation evidence.
+ *   - Skill tool: checks `tool === 'Skill'` and `input.skill` contains the skill name.
+ *   - Read tool: checks `tool === 'Read'` and `input.file_path` contains a skills/ path.
+ *   - Fallback: checks tool output for skill file path references.
  *   - Supports negative cases via should_trigger: false.
  *
- * To add a new provider:
- *   1. Create a ToolMatcher with the provider's tool names and input fields.
- *   2. Add entries to PROVIDER_TOOL_SEMANTICS mapping the provider kind(s) to the matcher.
- *   3. If the provider's tool-call format doesn't fit the ToolMatcher model, use a code-grader instead.
+ * Prerequisites:
+ *   All providers and import parsers must call normalizeToolCall() when
+ *   constructing ToolCall objects. This ensures canonical tool names
+ *   ("Skill", "Read", "Write", "Edit", "Bash") and canonical input field
+ *   names (input.skill, input.file_path) regardless of provider.
  */
 
-import type { ProviderKind } from '../providers/types.js';
 import type { SkillTriggerEvaluatorConfig } from '../types.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
-
-/** Tool-name semantics for different provider kinds. */
-interface ToolMatcher {
-  /** Tool names that indicate skill invocation. */
-  readonly skillTools: readonly string[];
-  /** Input field that contains the skill name for skill tools. */
-  readonly skillInputField: string;
-  /** Tool names that indicate file read. */
-  readonly readTools: readonly string[];
-  /** Input field that contains the skill name for read tools. */
-  readonly readInputField: string;
-  /** Tool-name prefixes that encode the skill directly in the tool name. */
-  readonly skillToolPrefixes?: readonly string[];
-  /** Tool-name prefixes that encode the file path directly in the tool name. */
-  readonly readToolPrefixes?: readonly string[];
-  /** Alternate input field names that may contain the file path. */
-  readonly readInputFields?: readonly string[];
-}
-
-const CLAUDE_MATCHER: ToolMatcher = {
-  skillTools: ['Skill'],
-  skillInputField: 'skill',
-  readTools: ['Read'],
-  readInputField: 'file_path',
-};
-
-/** Copilot uses ACP protocol — tool names vary by version and context. */
-const COPILOT_MATCHER: ToolMatcher = {
-  skillTools: ['Skill', 'skill'],
-  skillInputField: 'skill',
-  readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
-  readInputField: 'file_path',
-  skillToolPrefixes: ['Using skill: '],
-  readToolPrefixes: ['Viewing '],
-  readInputFields: ['file_path', 'path'],
-};
-
-/**
- * Pi CLI reads skill files using the lowercase `read` tool with a `path` argument.
- * Skills are auto-discovered from `.agents/skills/` relative to the working directory.
- *
- * Skill lookup order (workspace-scoped first):
- *   1. .agents/skills/<skill-name>/SKILL.md  (workspace-relative, auto-discovered)
- *   2. ~/.agents/skills/<skill-name>/SKILL.md (global fallback)
- */
-const PI_CODING_AGENT_MATCHER: ToolMatcher = {
-  skillTools: [],
-  skillInputField: 'skill',
-  readTools: ['read'],
-  readInputField: 'path',
-  readInputFields: ['path', 'file_path', 'filePath'],
-};
-
-/**
- * Codex reads skill files via command_execution using a bash sed command containing
- * the skill file path. The skill name appears in the command string, so we match
- * any command_execution whose command field includes the skill name.
- *
- * Skill lookup order (workspace-scoped first):
- *   1. .agents/skills/<skill-name>/SKILL.md  (workspace-relative)
- *   2. .codex/skills/<skill-name>/SKILL.md   (fallback)
- *   3. ~/.agents/skills/<skill-name>/SKILL.md (global fallback)
- *
- * MCP-based skill invocation (`mcp:<server>/<skill-name>`) is also supported for
- * Codex configurations that surface skills as MCP tools.
- */
-const CODEX_MATCHER: ToolMatcher = {
-  skillTools: [],
-  skillInputField: 'skill',
-  readTools: ['command_execution'],
-  readInputField: 'command',
-  skillToolPrefixes: ['mcp:'],
-  readToolPrefixes: ['mcp:'],
-  readInputFields: ['command', 'path', 'file_path', 'filePath'],
-};
-
-/**
- * Static mapping of provider kinds to their tool-name semantics.
- * Providers not listed here fall back to CLAUDE_MATCHER.
- */
-const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
-  claude: CLAUDE_MATCHER,
-  'claude-cli': CLAUDE_MATCHER,
-  'claude-sdk': CLAUDE_MATCHER,
-  codex: CODEX_MATCHER,
-  'pi-coding-agent': PI_CODING_AGENT_MATCHER,
-  'pi-cli': PI_CODING_AGENT_MATCHER,
-  'copilot-cli': COPILOT_MATCHER,
-  'copilot-log': COPILOT_MATCHER,
-  'copilot-sdk': COPILOT_MATCHER,
-  vscode: COPILOT_MATCHER,
-  'vscode-insiders': COPILOT_MATCHER,
-};
 
 export class SkillTriggerEvaluator implements Evaluator {
   readonly kind = 'skill-trigger';
@@ -124,19 +31,9 @@ export class SkillTriggerEvaluator implements Evaluator {
     this.config = config;
   }
 
-  private resolveMatcher(providerKind: ProviderKind | undefined): ToolMatcher {
-    if (providerKind) {
-      const match = PROVIDER_TOOL_SEMANTICS[providerKind];
-      if (match) return match;
-    }
-    return CLAUDE_MATCHER;
-  }
-
   evaluate(context: EvaluationContext): EvaluationScore {
     const skillName = this.config.skill;
     const shouldTrigger = this.config.should_trigger !== false;
-    const providerKind = context.provider?.kind as ProviderKind | undefined;
-    const matcher = this.resolveMatcher(providerKind);
 
     const allToolCalls = (context.output ?? []).flatMap((msg) => msg.toolCalls ?? []);
 
@@ -147,42 +44,23 @@ export class SkillTriggerEvaluator implements Evaluator {
       const toolName = toolCall.tool ?? '';
       const input = (toolCall.input ?? {}) as Record<string, unknown>;
 
-      if (matcher.skillTools.includes(toolName)) {
-        const skillArg = String(input[matcher.skillInputField] ?? '');
+      if (toolName === 'Skill') {
+        const skillArg = String(input.skill ?? '');
         if (skillArg.includes(skillName)) {
           triggered = true;
-          evidence = `Skill tool invoked with ${matcher.skillInputField}="${skillArg}"`;
+          evidence = `Skill tool invoked with skill="${skillArg}"`;
           break;
         }
-      } else if (
-        matcher.skillToolPrefixes?.some(
-          (prefix) => toolName.startsWith(prefix) && toolName.includes(skillName),
-        )
-      ) {
-        triggered = true;
-        evidence = `Skill tool invoked via tool name "${toolName}"`;
-        break;
-      } else if (matcher.readTools.includes(toolName)) {
-        const filePath = this.readPathFromInput(input, matcher);
-        if (filePath.includes(skillName)) {
+      } else if (toolName === 'Read') {
+        const filePath = String(input.file_path ?? '');
+        if (filePath.includes(`skills/${skillName}/`)) {
           triggered = true;
           evidence = `Read tool loaded skill file: ${filePath}`;
           break;
         }
-      } else if (
-        matcher.readToolPrefixes?.some(
-          (prefix) => toolName.startsWith(prefix) && toolName.includes(skillName),
-        )
-      ) {
-        triggered = true;
-        evidence = `Read tool loaded skill file via tool name "${toolName}"`;
-        break;
       }
 
       // Fallback: check if a tool's output contains a skill file path.
-      // Some providers (e.g., copilot-sdk) discover skill content via search
-      // tools (grep/glob) whose inputs don't reference the skill name, but
-      // whose outputs include skill file paths like ".agents/skills/<name>/SKILL.md".
       if (!triggered && toolCall.output != null) {
         const outputStr =
           typeof toolCall.output === 'string' ? toolCall.output : JSON.stringify(toolCall.output);
@@ -227,16 +105,5 @@ export class SkillTriggerEvaluator implements Evaluator {
       ],
       expectedAspectCount: 1,
     };
-  }
-
-  private readPathFromInput(input: Record<string, unknown>, matcher: ToolMatcher): string {
-    const fields = matcher.readInputFields ?? [matcher.readInputField];
-    for (const field of fields) {
-      const value = input[field];
-      if (value !== undefined && value !== null) {
-        return String(value);
-      }
-    }
-    return '';
   }
 }

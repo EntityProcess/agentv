@@ -23,6 +23,7 @@
  *   - cost_usd is null (Claude Code does not report per-session cost)
  */
 
+import { normalizeToolCall } from '../evaluation/providers/normalize-tool-call.js';
 import type { Message, ToolCall } from '../evaluation/providers/types.js';
 import type { TranscriptEntry, TranscriptSource } from './types.js';
 
@@ -286,11 +287,13 @@ function extractAssistantContent(content: string | readonly ClaudeContentBlock[]
 
       case 'tool_use':
         if (block.name) {
-          toolCalls.push({
-            tool: block.name,
-            input: block.input,
-            id: block.id,
-          });
+          toolCalls.push(
+            normalizeToolCall('claude', {
+              tool: block.name,
+              input: block.input,
+              id: block.id,
+            }),
+          );
         }
         break;
 

@@ -30,6 +30,7 @@
  * To add a new response_item type: add a case to the switch in parseCodexSession().
  */
 
+import { normalizeToolCall } from '../evaluation/providers/normalize-tool-call.js';
 import type { Message, ToolCall } from '../evaluation/providers/types.js';
 import type { TranscriptEntry, TranscriptSource } from './types.js';
 
@@ -124,7 +125,11 @@ export function parseCodexSession(jsonl: string): TranscriptEntry {
               input = payload.arguments;
             }
 
-            const toolCall: ToolCall = { tool: toolName, input, id: callId };
+            const toolCall: ToolCall = normalizeToolCall('codex', {
+              tool: toolName,
+              input,
+              id: callId,
+            });
             const msgIdx = messages.length;
             messages.push({
               role: 'assistant',
@@ -151,7 +156,11 @@ export function parseCodexSession(jsonl: string): TranscriptEntry {
               input = payload.arguments;
             }
 
-            const toolCall: ToolCall = { tool: toolName, input, id: callId };
+            const toolCall: ToolCall = normalizeToolCall('codex', {
+              tool: toolName,
+              input,
+              id: callId,
+            });
             const msgIdx = messages.length;
             messages.push({
               role: 'assistant',

@@ -288,7 +288,7 @@ describe('CodexProvider (SDK)', () => {
     const msg = response.output?.[0];
     expect(msg?.toolCalls).toBeDefined();
     expect(msg?.toolCalls?.length).toBe(1);
-    expect(msg?.toolCalls?.[0]?.tool).toBe('command_execution');
+    expect(msg?.toolCalls?.[0]?.tool).toBe('Bash');
     expect(msg?.toolCalls?.[0]?.input).toEqual({ command: 'ls -la' });
     expect(msg?.toolCalls?.[0]?.output).toBe('file1.ts\nfile2.ts');
     expect(msg?.toolCalls?.[0]?.id).toBe('cmd-1');
@@ -328,7 +328,7 @@ describe('CodexProvider (SDK)', () => {
 
     const msg = response.output?.[0];
     expect(msg?.toolCalls?.length).toBe(1);
-    expect(msg?.toolCalls?.[0]?.tool).toBe('file_change');
+    expect(msg?.toolCalls?.[0]?.tool).toBe('Edit');
     expect(msg?.toolCalls?.[0]?.input).toEqual([{ path: 'src/index.ts', kind: 'update' }]);
   });
 

@@ -11,6 +11,7 @@ import {
   isLogStreamingDisabled,
   resolvePlatformCliPath,
 } from './copilot-utils.js';
+import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CopilotSdkResolvedConfig } from './targets.js';
 import type {
@@ -182,15 +183,17 @@ export class CopilotSdkProvider implements Provider {
           if (inProgress) {
             toolCallsInProgress.delete(callId);
             const endMs = Date.now();
-            completedToolCalls.push({
-              tool: inProgress.tool,
-              input: inProgress.input,
-              output: data?.output ?? data?.result,
-              id: inProgress.id,
-              startTime: inProgress.startTime,
-              endTime: new Date().toISOString(),
-              durationMs: endMs - inProgress.startMs,
-            });
+            completedToolCalls.push(
+              normalizeToolCall('copilot-sdk', {
+                tool: inProgress.tool,
+                input: inProgress.input,
+                output: data?.output ?? data?.result,
+                id: inProgress.id,
+                startTime: inProgress.startTime,
+                endTime: new Date().toISOString(),
+                durationMs: endMs - inProgress.startMs,
+              }),
+            );
           }
         }
 

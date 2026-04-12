@@ -455,6 +455,8 @@ export interface CodexResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
+  readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
 }
 
@@ -467,6 +469,8 @@ export interface CopilotCliResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
+  readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
 }
 
@@ -480,6 +484,8 @@ export interface CopilotSdkResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
+  readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
   /** BYOK provider type: "azure", "openai", or "anthropic". */
   readonly byokType?: string;
@@ -520,6 +526,8 @@ export interface PiCodingAgentResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
+  readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
 }
 
@@ -537,6 +545,8 @@ export interface PiCliResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
+  readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
 }
 
@@ -550,6 +560,8 @@ export interface ClaudeResolvedConfig {
   readonly maxBudgetUsd?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
+  readonly streamLog?: false | 'raw' | 'summary';
 }
 
 export interface MockResolvedConfig {
@@ -1273,6 +1285,11 @@ function resolveCodexConfig(
     target.log_format ?? target.log_output_format ?? env.AGENTV_CODEX_LOG_FORMAT;
   const systemPromptSource = target.system_prompt;
 
+  const streamLogResult = resolveStreamLog(target, env.AGENTV_CODEX_LOG_FORMAT);
+  if (streamLogResult.deprecationWarning) {
+    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  }
+
   const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -1334,6 +1351,7 @@ function resolveCodexConfig(
     timeoutMs,
     logDir,
     logFormat,
+    streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
 }
@@ -1352,6 +1370,63 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
   throw new Error("codex log format must be 'summary' or 'json'");
 }
 
+/**
+ * Resolve the stream_log config field, falling back to log_format with a
+ * deprecation warning.
+ *
+ * Resolution order:
+ *   1. stream_log (new canonical field)
+ *   2. log_format / log_output_format (deprecated, mapped to stream_log equivalent)
+ *   3. environment variable fallback (optional)
+ *
+ * Mapping: log_format 'json' → 'raw', log_format 'summary' → 'summary'.
+ */
+function resolveStreamLog(
+  target: { stream_log?: unknown; log_format?: unknown; log_output_format?: unknown; name: string },
+  envFallback?: unknown,
+): {
+  streamLog: false | 'raw' | 'summary' | undefined;
+  logFormat: 'summary' | 'json' | undefined;
+  deprecationWarning?: string;
+} {
+  // 1. New stream_log field takes precedence
+  if (target.stream_log !== undefined && target.stream_log !== null) {
+    const val = target.stream_log;
+    if (val === false || val === 'false') {
+      return { streamLog: false, logFormat: undefined };
+    }
+    if (val === 'raw') {
+      return { streamLog: 'raw', logFormat: 'json' };
+    }
+    if (val === 'summary') {
+      return { streamLog: 'summary', logFormat: 'summary' };
+    }
+    throw new Error(`${target.name}: stream_log must be false, 'raw', or 'summary'`);
+  }
+
+  // 2. Fall back to log_format (deprecated)
+  const logFormatRaw = target.log_format ?? target.log_output_format ?? envFallback;
+  if (logFormatRaw === undefined || logFormatRaw === null) {
+    return { streamLog: undefined, logFormat: undefined };
+  }
+
+  if (typeof logFormatRaw !== 'string') {
+    throw new Error(`${target.name}: log_format must be 'summary' or 'json'`);
+  }
+
+  const normalized = logFormatRaw.trim().toLowerCase();
+  if (normalized !== 'json' && normalized !== 'summary') {
+    throw new Error(`${target.name}: log_format must be 'summary' or 'json'`);
+  }
+
+  const streamLogEquivalent = normalized === 'json' ? 'raw' : 'summary';
+  return {
+    streamLog: streamLogEquivalent,
+    logFormat: normalized as 'json' | 'summary',
+    deprecationWarning: `${target.name}: 'log_format' is deprecated and will be removed in v4.16. Use 'stream_log: ${streamLogEquivalent}' instead (log_format: '${normalized}' → stream_log: '${streamLogEquivalent}').`,
+  };
+}
+
 function resolveCopilotSdkConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
@@ -1367,6 +1442,11 @@ function resolveCopilotSdkConfig(
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
+
+  const streamLogResult = resolveStreamLog(target);
+  if (streamLogResult.deprecationWarning) {
+    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  }
 
   const cliUrl = resolveOptionalString(cliUrlSource, env, `${target.name} copilot-sdk cli URL`, {
     allowLiteral: true,
@@ -1507,6 +1587,7 @@ function resolveCopilotSdkConfig(
     timeoutMs,
     logDir,
     logFormat,
+    streamLog: streamLogResult.streamLog,
     systemPrompt,
     byokType,
     byokBaseUrl,
@@ -1531,6 +1612,11 @@ function resolveCopilotCliConfig(
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
+
+  const streamLogResult = resolveStreamLog(target);
+  if (streamLogResult.deprecationWarning) {
+    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} copilot-cli executable`, {
@@ -1600,6 +1686,7 @@ function resolveCopilotCliConfig(
     timeoutMs,
     logDir,
     logFormat,
+    streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
 }
@@ -1628,6 +1715,11 @@ function resolvePiCodingAgentConfig(
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
+
+  const streamLogResult = resolveStreamLog(target);
+  if (streamLogResult.deprecationWarning) {
+    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  }
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -1719,6 +1811,7 @@ function resolvePiCodingAgentConfig(
     timeoutMs,
     logDir,
     logFormat,
+    streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
 }
@@ -1740,6 +1833,11 @@ function resolvePiCliConfig(
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
+
+  const streamLogResult = resolveStreamLog(target);
+  if (streamLogResult.deprecationWarning) {
+    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
@@ -1832,6 +1930,7 @@ function resolvePiCliConfig(
     timeoutMs,
     logDir,
     logFormat,
+    streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
 }
@@ -1849,6 +1948,11 @@ function resolveClaudeConfig(
   const logFormatSource =
     target.log_format ?? target.log_output_format ?? env.AGENTV_CLAUDE_LOG_FORMAT;
   const systemPromptSource = target.system_prompt;
+
+  const streamLogResult = resolveStreamLog(target);
+  if (streamLogResult.deprecationWarning) {
+    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  }
 
   const model = resolveOptionalString(modelSource, env, `${target.name} claude model`, {
     allowLiteral: true,
@@ -1911,6 +2015,7 @@ function resolveClaudeConfig(
     maxBudgetUsd,
     logDir,
     logFormat,
+    streamLog: streamLogResult.streamLog,
   };
 }
 
