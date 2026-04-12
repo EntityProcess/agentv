@@ -303,6 +303,9 @@ export class CopilotCliProvider implements Provider {
       // Capture session artifacts from session-state `files/` directory.
       // Copilot may write generated files (e.g. CSV reports) there instead of
       // the session cwd, so they wouldn't be captured by workspace git diff.
+      // ACP session.sessionId is the UUID Copilot assigns at session creation
+      // and is expected to match the ~/.copilot/session-state/<uuid>/ directory
+      // name. If the directory doesn't exist the call silently returns undefined.
       const sessionId = session.sessionId as string | undefined;
       const fileChanges = sessionId
         ? await captureSessionArtifacts(

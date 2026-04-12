@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 
 import { captureSessionArtifacts } from '../workspace/file-changes.js';
@@ -265,16 +264,15 @@ export class CopilotSdkProvider implements Provider {
       }
 
       // Capture session artifacts from session-state `files/` directory.
-      // Copilot SDK may write generated files (e.g. CSV reports) to the
-      // session-state directory instead of the workspace cwd.
-      // biome-ignore lint/suspicious/noExplicitAny: SDK session shape is dynamic
-      const sessionId = (session as any).id ?? (session as any).sessionId;
-      const fileChanges =
-        typeof sessionId === 'string' && sessionId
-          ? await captureSessionArtifacts(
-              path.join(homedir(), '.copilot', 'session-state', sessionId, 'files'),
-            ).catch(() => undefined)
-          : undefined;
+      // The SDK's session.workspacePath is the authoritative path to the
+      // session state directory (contains files/, checkpoints/, plan.md).
+      // Only populated when infinite sessions are enabled on the server.
+      const sessionWorkspacePath = session.workspacePath;
+      const fileChanges = sessionWorkspacePath
+        ? await captureSessionArtifacts(
+            path.join(sessionWorkspacePath, 'files'),
+          ).catch(() => undefined)
+        : undefined;
 
       return {
         raw: {
