@@ -67,6 +67,13 @@ const KNOWN_TEST_FIELDS = new Set([
   'conversation_id',
   'suite',
   'note',
+  'depends_on',
+  'on_dependency_failure',
+  'mode',
+  'turns',
+  'aggregation',
+  'on_turn_failure',
+  'window_size',
 ]);
 
 /** Name field pattern: lowercase alphanumeric with hyphens. */
@@ -327,6 +334,9 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     if (assertField !== undefined) {
       validateAssertArray(assertField, location, absolutePath, errors);
     }
+
+    // Cross-field validation for conversation mode
+    validateConversationMode(evalCase, location, absolutePath, errors);
 
     await validateWorkspaceConfig(
       evalCase.workspace,
@@ -775,6 +785,109 @@ function validateContentForRoleMarkers(
         location,
         message: `Content contains potential role marker '${marker}'. This may confuse agentic providers or cause prompt injection.`,
       });
+    }
+  }
+}
+
+/**
+ * Cross-field validation for conversation mode fields.
+ * Ensures consistency between mode, turns, aggregation, on_turn_failure, window_size.
+ */
+function validateConversationMode(
+  evalCase: JsonObject,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  const mode = evalCase.mode;
+  const turns = evalCase.turns;
+  const aggregation = evalCase.aggregation;
+  const onTurnFailure = evalCase.on_turn_failure;
+  const windowSize = evalCase.window_size;
+
+  const isConversationMode = mode === 'conversation';
+
+  // turns present without mode: conversation
+  if (turns !== undefined && !isConversationMode) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.turns`,
+      message: "'turns' requires mode: conversation",
+    });
+  }
+
+  // mode: conversation without turns or empty turns
+  if (isConversationMode && (!Array.isArray(turns) || turns.length === 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.mode`,
+      message: "mode: conversation requires a non-empty 'turns' array",
+    });
+  }
+
+  // turns + top-level expected_output
+  if (isConversationMode && Array.isArray(turns) && evalCase.expected_output !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.expected_output`,
+      message: "Top-level 'expected_output' is not allowed with mode: conversation (use per-turn expected_output instead)",
+    });
+  }
+
+  // aggregation without mode: conversation
+  if (aggregation !== undefined && !isConversationMode) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.aggregation`,
+      message: "'aggregation' requires mode: conversation",
+    });
+  }
+
+  // on_turn_failure without mode: conversation
+  if (onTurnFailure !== undefined && !isConversationMode) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.on_turn_failure`,
+      message: "'on_turn_failure' requires mode: conversation",
+    });
+  }
+
+  // window_size without mode: conversation
+  if (windowSize !== undefined && !isConversationMode) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.window_size`,
+      message: "'window_size' requires mode: conversation",
+    });
+  }
+
+  // Validate each turn has non-empty input
+  if (isConversationMode && Array.isArray(turns)) {
+    for (let i = 0; i < turns.length; i++) {
+      const turn = turns[i];
+      if (!isObject(turn)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.turns[${i}]`,
+          message: 'Turn must be an object',
+        });
+        continue;
+      }
+      if (turn.input === undefined || turn.input === '') {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.turns[${i}].input`,
+          message: 'Each turn must have a non-empty input',
+        });
+      }
     }
   }
 }

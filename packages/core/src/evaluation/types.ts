@@ -859,6 +859,41 @@ export type EvaluatorConfig =
   | InlineAssertEvaluatorConfig;
 
 /**
+ * A single turn in a multi-turn conversation evaluation.
+ * Each turn is a user message. The runner generates the assistant response.
+ */
+export interface ConversationTurn {
+  /** User message for this turn */
+  readonly input: TestMessageContent;
+  /** Reference assistant response for grading (NOT carried forward — actual LLM response is used) */
+  readonly expected_output?: TestMessageContent;
+  /** Per-turn assertions. Strings become rubric criteria via shorthand. */
+  readonly assertions?: readonly (string | EvaluatorConfig)[];
+}
+
+/**
+ * Conversation evaluation mode.
+ * - undefined: standard single-response evaluation (default, backward-compatible)
+ * - 'conversation': multi-turn evaluation where the LLM generates each assistant turn
+ */
+export type ConversationMode = 'conversation';
+
+/**
+ * Score aggregation strategy for multi-turn conversation evaluation.
+ * - 'mean': average of all turn scores (default)
+ * - 'min': weakest-link scoring — final score = lowest turn score
+ * - 'max': best turn score
+ */
+export type ConversationAggregation = 'mean' | 'min' | 'max';
+
+/**
+ * Behavior when a turn's assertions fail.
+ * - 'continue': run all remaining turns regardless (default)
+ * - 'stop': skip remaining turns, score them as 0
+ */
+export type TurnFailurePolicy = 'continue' | 'stop';
+
+/**
  * Eval test definition sourced from AgentV specs.
  */
 export interface EvalTest {
@@ -884,6 +919,16 @@ export interface EvalTest {
   readonly targets?: readonly string[];
   /** Per-test score threshold override (0-1). Resolution: CLI > test > suite > DEFAULT_THRESHOLD. */
   readonly threshold?: number;
+  /** Conversation evaluation mode. When 'conversation', turns[] drives turn-by-turn LLM evaluation. */
+  readonly mode?: ConversationMode;
+  /** Ordered turns for conversation evaluation. Each turn generates a fresh LLM call. */
+  readonly turns?: readonly ConversationTurn[];
+  /** Score aggregation for conversation turns: mean (default), min (weakest-link), max */
+  readonly aggregation?: ConversationAggregation;
+  /** Behavior on turn assertion failure: continue (default) or stop */
+  readonly on_turn_failure?: TurnFailurePolicy;
+  /** Sliding window size for context passed to per-turn graders. Default: all turns. */
+  readonly window_size?: number;
   /** Test IDs this test depends on. Dependent tests wait for all dependencies to complete before running. */
   readonly depends_on?: readonly string[];
   /** What to do when a dependency fails: skip (default), fail, or run anyway. */

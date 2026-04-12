@@ -355,6 +355,16 @@ const ExecutionSchema = z.object({
   threshold: z.number().min(0).max(1).optional(),
 });
 
+/** Per-turn assertion: string shorthand (becomes rubric) or full evaluator config */
+const TurnAssertionSchema = z.union([z.string(), EvaluatorSchema]);
+
+/** A single turn in a multi-turn conversation */
+const ConversationTurnSchema = z.object({
+  input: z.union([z.string(), MessageContentSchema]),
+  expected_output: z.union([z.string(), MessageContentSchema]).optional(),
+  assertions: z.array(TurnAssertionSchema).optional(),
+});
+
 // ---------------------------------------------------------------------------
 // Test case
 // ---------------------------------------------------------------------------
@@ -375,6 +385,11 @@ const EvalTestSchema = z.object({
   note: z.string().optional(),
   depends_on: z.array(z.string()).optional(),
   on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
+  mode: z.enum(['conversation']).optional(),
+  turns: z.array(ConversationTurnSchema).min(1).optional(),
+  aggregation: z.enum(['mean', 'min', 'max']).optional(),
+  on_turn_failure: z.enum(['continue', 'stop']).optional(),
+  window_size: z.number().int().min(1).optional(),
 });
 
 // ---------------------------------------------------------------------------
