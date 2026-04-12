@@ -674,6 +674,60 @@ describe('writeArtifactsFromResults', () => {
     expect(timingOne.duration_ms).toBe(0);
   });
 
+  it('writes transcript.jsonl as one message object per line', async () => {
+    const results = [
+      makeResult({
+        testId: 'transcript-case',
+        target: 'codex',
+        input: [{ role: 'user' as const, content: 'Inspect artifact output' }],
+        output: [
+          {
+            role: 'assistant' as const,
+            content: 'Reading artifact-writer.ts',
+            toolCalls: [
+              {
+                tool: 'Read',
+                input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+                output: 'file contents',
+              },
+            ],
+          },
+        ],
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const transcriptLines = (await readFile(path.join(testDir, 'transcript.jsonl'), 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+
+    expect(transcriptLines).toEqual([
+      {
+        test_id: 'transcript-case',
+        target: 'codex',
+        message_index: 0,
+        role: 'user',
+        content: 'Inspect artifact output',
+      },
+      {
+        test_id: 'transcript-case',
+        target: 'codex',
+        message_index: 1,
+        role: 'assistant',
+        content: 'Reading artifact-writer.ts',
+        tool_calls: [
+          {
+            tool: 'Read',
+            input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+            output: 'file contents',
+          },
+        ],
+      },
+    ]);
+  });
+
   it('sanitizes test IDs for directory names', async () => {
     const results = [makeResult({ testId: 'path/to:test*1' })];
     await writeArtifactsFromResults(results, testDir);

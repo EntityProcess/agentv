@@ -5,7 +5,6 @@ import {
   DEFAULT_THRESHOLD,
   type EvaluationResult,
   type EvaluatorResult,
-  type TranscriptJsonLine,
 } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
@@ -711,6 +710,30 @@ export async function writeArtifacts(
   return writeArtifactsFromResults(results, outputDir, options);
 }
 
+function buildTranscriptMessageLines(results: readonly EvaluationResult[]): string {
+  const lines: string[] = [];
+
+  for (const result of results) {
+    const messages = [...(result.input ?? []), ...result.output];
+
+    for (let index = 0; index < messages.length; index += 1) {
+      const message = messages[index];
+      lines.push(
+        JSON.stringify(
+          toSnakeCaseDeep({
+            testId: result.testId,
+            target: result.target,
+            messageIndex: index,
+            ...message,
+          }),
+        ),
+      );
+    }
+  }
+
+  return lines.length > 0 ? `${lines.join('\n')}\n` : '';
+}
+
 export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
@@ -773,39 +796,7 @@ export async function writeArtifactsFromResults(
 
   // Write transcript JSONL (auto-generated on every eval run)
   const transcriptPath = path.join(outputDir, 'transcript.jsonl');
-  const transcriptLines: TranscriptJsonLine[] = results.map((result) => {
-    let inputText = '';
-    if (typeof result.input === 'string') {
-      inputText = result.input;
-    } else if (Array.isArray(result.input)) {
-      const firstUserMsg = result.input.find((m) => m.role === 'user');
-      inputText = typeof firstUserMsg?.content === 'string' ? firstUserMsg.content : '';
-    }
-    return {
-      input: inputText,
-      output: result.output,
-      token_usage: result.tokenUsage
-        ? {
-            input: result.tokenUsage.input,
-            output: result.tokenUsage.output,
-            cached: result.tokenUsage.cached,
-          }
-        : undefined,
-      duration_ms: result.durationMs,
-      cost_usd: result.costUsd,
-      source: {
-        provider: result.target,
-        session_id: result.conversationId ?? result.testId,
-        timestamp: result.timestamp,
-      },
-    };
-  });
-  await writeFile(
-    transcriptPath,
-    transcriptLines.map((line) => JSON.stringify(line)).join('\n') +
-      (transcriptLines.length ? '\n' : ''),
-    'utf8',
-  );
+  await writeFile(transcriptPath, buildTranscriptMessageLines(results), 'utf8');
 
   return { testArtifactDir, timingPath, benchmarkPath, indexPath };
 }
