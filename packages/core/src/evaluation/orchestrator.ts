@@ -3248,12 +3248,14 @@ function buildTurnAssertions(turn: ConversationTurn): EvaluatorConfig[] {
 
   const result: EvaluatorConfig[] = [];
 
-  // Group string assertions into a single rubrics evaluator
+  // Group string assertions into a single llm-grader evaluator with rubrics.
+  // Uses llm-grader (not rubrics) because 'rubrics' is a YAML shorthand resolved by
+  // the evaluator-parser — at runtime we always dispatch through 'llm-grader'.
   if (stringCriteria.length > 0) {
     result.push({
       name: 'turn-rubrics',
-      type: 'rubrics' as EvaluatorKind,
-      criteria: stringCriteria.map((text, idx) => ({
+      type: 'llm-grader' as EvaluatorKind,
+      rubrics: stringCriteria.map((text, idx) => ({
         id: `criterion-${idx + 1}`,
         outcome: text,
         weight: 1,
