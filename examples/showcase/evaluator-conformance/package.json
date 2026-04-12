@@ -4,6 +4,6 @@
   "type": "module",
   "dependencies": {
     "@agentv/eval": "file:../../../packages/eval",
-    "yaml": "^2.7.1"
+    "yaml": "^2.8.3"
   }
 }
