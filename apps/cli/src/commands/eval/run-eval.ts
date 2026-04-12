@@ -498,6 +498,7 @@ async function prepareFileMetadata(params: {
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly tags?: readonly string[];
+  readonly workspacePath?: string;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -612,6 +613,7 @@ async function prepareFileMetadata(params: {
     failOnError: suite.failOnError,
     threshold: suite.threshold,
     tags: suite.metadata?.tags,
+    workspacePath: suite.workspacePath,
   };
 }
 
@@ -1115,6 +1117,7 @@ export async function runEvalCommand(
       readonly failOnError?: FailOnError;
       readonly threshold?: number;
       readonly tags?: readonly string[];
+      readonly workspacePath?: string;
     }
   >();
   // Separate TypeScript/JS eval files from YAML files.
@@ -1283,6 +1286,35 @@ export async function runEvalCommand(
 
   // Use only files that survived tag filtering (fileMetadata keys)
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
+
+  // Warn when multiple eval files share a static workspace path and will run concurrently,
+  // since concurrent writes to the same directory can corrupt each other's runs.
+  if (fileConcurrency > 1 && activeTestFiles.length > 1) {
+    const cliPath = options.workspacePath;
+    if (cliPath) {
+      console.warn(
+        `Warning: ${activeTestFiles.length} eval files share --workspace-path "${cliPath}" and will run concurrently. ` +
+          `Concurrent writes to the same workspace directory may corrupt results. Use --workers 1 to serialize.`,
+      );
+    } else {
+      const pathToFiles = new Map<string, string[]>();
+      for (const [filePath, meta] of fileMetadata.entries()) {
+        if (meta.workspacePath) {
+          const group = pathToFiles.get(meta.workspacePath) ?? [];
+          group.push(path.relative(cwd, filePath));
+          pathToFiles.set(meta.workspacePath, group);
+        }
+      }
+      for (const [wsPath, files] of pathToFiles.entries()) {
+        if (files.length > 1) {
+          console.warn(
+            `Warning: ${files.length} eval files share workspace path "${wsPath}" and will run concurrently (${files.join(', ')}). ` +
+              `Concurrent writes to the same workspace directory may corrupt results. Use --workers 1 to serialize.`,
+          );
+        }
+      }
+    }
+  }
 
   // --transcript: create a shared TranscriptProvider and validate line count
   let transcriptProviderFactory:
