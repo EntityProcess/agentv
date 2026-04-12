@@ -5104,6 +5104,16 @@
                   },
                   "note": {
                     "type": "string"
+                  },
+                  "depends_on": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "on_dependency_failure": {
+                    "type": "string",
+                    "enum": ["skip", "fail", "run"]
                   }
                 },
                 "required": ["id"],
@@ -10124,6 +10134,16 @@
                   },
                   "note": {
                     "type": "string"
+                  },
+                  "depends_on": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "on_dependency_failure": {
+                    "type": "string",
+                    "enum": ["skip", "fail", "run"]
                   }
                 },
                 "required": ["id"],

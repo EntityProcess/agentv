@@ -884,6 +884,29 @@ export interface EvalTest {
   readonly targets?: readonly string[];
   /** Per-test score threshold override (0-1). Resolution: CLI > test > suite > DEFAULT_THRESHOLD. */
   readonly threshold?: number;
+  /** Test IDs this test depends on. Dependent tests wait for all dependencies to complete before running. */
+  readonly depends_on?: readonly string[];
+  /** What to do when a dependency fails: skip (default), fail, or run anyway. */
+  readonly on_dependency_failure?: DependencyFailurePolicy;
+}
+
+/**
+ * Policy for handling dependency failures.
+ * - skip: skip the dependent test (default)
+ * - fail: mark the dependent test as failed without running
+ * - run: run the dependent test regardless of dependency outcome
+ */
+export type DependencyFailurePolicy = 'skip' | 'fail' | 'run';
+
+/**
+ * Result summary for a completed dependency, injected into downstream evaluator context.
+ */
+export interface DependencyResult {
+  readonly score: number;
+  readonly output: string;
+  readonly workspace_path?: string;
+  readonly details?: JsonObject;
+  readonly status: 'passed' | 'failed' | 'error';
 }
 
 /** @deprecated Use `EvalTest` instead */

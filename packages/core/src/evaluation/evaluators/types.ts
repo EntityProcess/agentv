@@ -2,6 +2,7 @@ import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
 import type { TokenUsage, TraceSummary } from '../trace.js';
 import type {
+  DependencyResult,
   DockerWorkspaceConfig,
   EvalTest,
   EvaluationVerdict,
@@ -58,6 +59,8 @@ export interface EvaluationContext {
   readonly workspacePath?: string;
   /** Docker workspace config: when present, code-grader commands run inside a container */
   readonly dockerConfig?: DockerWorkspaceConfig;
+  /** Results from dependency tests (only present when the test has depends_on) */
+  readonly dependencyResults?: Readonly<Record<string, DependencyResult>>;
 }
 
 export interface EvaluationScore {
