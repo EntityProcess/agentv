@@ -269,9 +269,9 @@ export class CopilotSdkProvider implements Provider {
       // Only populated when infinite sessions are enabled on the server.
       const sessionWorkspacePath = session.workspacePath;
       const fileChanges = sessionWorkspacePath
-        ? await captureSessionArtifacts(
-            path.join(sessionWorkspacePath, 'files'),
-          ).catch(() => undefined)
+        ? await captureSessionArtifacts(path.join(sessionWorkspacePath, 'files')).catch(
+            () => undefined,
+          )
         : undefined;
 
       return {
