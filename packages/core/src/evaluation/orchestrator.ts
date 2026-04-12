@@ -65,8 +65,8 @@ import type {
   WorkspaceScriptConfig,
 } from './types.js';
 import {
-  captureFileChanges as captureWorkspaceFileChanges,
   captureSnapshot,
+  captureFileChanges as captureWorkspaceFileChanges,
   diffFromSnapshots,
   initializeBaseline,
 } from './workspace/file-changes.js';

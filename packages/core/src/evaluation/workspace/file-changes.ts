@@ -30,8 +30,8 @@
  */
 
 import { exec as execCallback } from 'node:child_process';
-import { readFile, readdir, stat } from 'node:fs/promises';
 import { readdirSync, statSync } from 'node:fs';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -190,10 +190,7 @@ async function walkDir(
  * Covers new files, modified files, and deleted files.
  * Returns empty string when the snapshots are identical.
  */
-export function diffFromSnapshots(
-  baseline: WorkspaceSnapshot,
-  current: WorkspaceSnapshot,
-): string {
+export function diffFromSnapshots(baseline: WorkspaceSnapshot, current: WorkspaceSnapshot): string {
   const parts: string[] = [];
 
   // New and modified files

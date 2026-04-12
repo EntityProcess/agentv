@@ -23,8 +23,7 @@ if (!fileChanges || fileChanges.trim().length === 0) {
   assertions.push({
     text: 'file_changes is non-empty',
     passed: false,
-    evidence:
-      'file_changes is empty — workspace snapshot or git baseline may not be configured',
+    evidence: 'file_changes is empty — workspace snapshot or git baseline may not be configured',
   });
   console.log(JSON.stringify({ score: 0, assertions }));
   process.exit(0);
