@@ -253,6 +253,27 @@ export interface StreamLoggerOptions {
   readonly attempt?: number;
   readonly format: 'summary' | 'json';
   readonly headerLabel: string;
+  /**
+   * Optional extractor for streaming text chunk events.
+   *
+   * When provided, the return value controls how each event is handled:
+   *   - `string`    — buffer this text; flush as `[assistant_message]` on the next
+   *                   non-chunk event or `close()`.
+   *   - `null`      — discard (reset) the accumulated buffer without emitting it.
+   *                   Use this for events that signal a new streaming pass is starting,
+   *                   e.g. `agent_thought_chunk` in Copilot ACP, which arrives between
+   *                   a streaming preview batch and the final response batch.
+   *   - `undefined` — not a chunk event; process normally (flush buffer first, then
+   *                   call `summarize` and write the line).
+   *
+   * Example (Copilot CLI ACP):
+   *   chunkExtractor: (type, data) => {
+   *     if (type === 'agent_thought_chunk') return null;   // reset pre-thinking buffer
+   *     if (type !== 'agent_message_chunk') return undefined;
+   *     return (data as any)?.content?.text ?? undefined;
+   *   }
+   */
+  readonly chunkExtractor?: (eventType: string, data: unknown) => string | null | undefined;
 }
 
 export class CopilotStreamLogger {
@@ -261,15 +282,19 @@ export class CopilotStreamLogger {
   private readonly startedAt = Date.now();
   private readonly format: 'summary' | 'json';
   private readonly summarize: (eventType: string, data: unknown) => string | undefined;
+  private readonly chunkExtractor?: (eventType: string, data: unknown) => string | null | undefined;
+  private pendingText = '';
 
   private constructor(
     filePath: string,
     format: 'summary' | 'json',
     summarize: (eventType: string, data: unknown) => string | undefined,
+    chunkExtractor?: (eventType: string, data: unknown) => string | null | undefined,
   ) {
     this.filePath = filePath;
     this.format = format;
     this.summarize = summarize;
+    this.chunkExtractor = chunkExtractor;
     this.stream = createWriteStream(filePath, { flags: 'a' });
   }
 
@@ -277,7 +302,12 @@ export class CopilotStreamLogger {
     options: StreamLoggerOptions,
     summarize: (eventType: string, data: unknown) => string | undefined,
   ): Promise<CopilotStreamLogger> {
-    const logger = new CopilotStreamLogger(options.filePath, options.format, summarize);
+    const logger = new CopilotStreamLogger(
+      options.filePath,
+      options.format,
+      summarize,
+      options.chunkExtractor,
+    );
     const header = [
       `# ${options.headerLabel} stream log`,
       `# target: ${options.targetName}`,
@@ -293,18 +323,49 @@ export class CopilotStreamLogger {
   }
 
   handleEvent(eventType: string, data: unknown): void {
-    const elapsed = formatElapsed(this.startedAt);
     if (this.format === 'json') {
+      const elapsed = formatElapsed(this.startedAt);
       this.stream.write(`${JSON.stringify({ time: elapsed, event: eventType, data })}\n`);
-    } else {
-      const summary = this.summarize(eventType, data);
-      if (summary) {
-        this.stream.write(`[+${elapsed}] [${eventType}] ${summary}\n`);
+      return;
+    }
+
+    // In summary mode, buffer chunk events and emit a single consolidated line.
+    if (this.chunkExtractor) {
+      const chunkText = this.chunkExtractor(eventType, data);
+      if (chunkText === null) {
+        // Reset signal: discard the accumulated buffer without emitting.
+        // Used for events like agent_thought_chunk that arrive between a
+        // streaming preview batch and the final response batch in Copilot ACP —
+        // the preview text is stale; the real message follows after thinking.
+        this.pendingText = '';
+        return;
       }
+      if (chunkText !== undefined) {
+        this.pendingText += chunkText;
+        return;
+      }
+      // Non-chunk event: flush any accumulated text first.
+      this.flushPendingText();
+    }
+
+    const elapsed = formatElapsed(this.startedAt);
+    const summary = this.summarize(eventType, data);
+    if (summary) {
+      this.stream.write(`[+${elapsed}] [${eventType}] ${summary}\n`);
     }
   }
 
+  private flushPendingText(): void {
+    if (!this.pendingText) return;
+    const elapsed = formatElapsed(this.startedAt);
+    this.stream.write(`[+${elapsed}] [assistant_message] ${this.pendingText}\n`);
+    this.pendingText = '';
+  }
+
   async close(): Promise<void> {
+    if (this.format !== 'json') {
+      this.flushPendingText();
+    }
     await new Promise<void>((resolve, reject) => {
       this.stream.once('error', reject);
       this.stream.end(() => resolve());
