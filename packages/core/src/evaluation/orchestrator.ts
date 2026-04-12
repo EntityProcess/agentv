@@ -752,9 +752,8 @@ export async function runEvaluation(
 
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
-    workspaceTemplate ||
-    suiteWorkspace?.hooks ||
-    (suiteWorkspace?.repos?.length && !isPerTestIsolation)
+    (!isPerTestIsolation &&
+      (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length))
   );
 
   // Pool support is mode-based: pooled enables, temp/static disable.
@@ -834,7 +833,7 @@ export async function runEvaluation(
       setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
     }
     sharedWorkspacePath = configuredStaticPath;
-  } else if (usePool && suiteWorkspace?.repos) {
+  } else if (!isPerTestIsolation && usePool && suiteWorkspace?.repos) {
     const slotsNeeded = workers;
     setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
@@ -862,7 +861,7 @@ export async function runEvaluation(
       // Multi-slot: tests will grab slots dynamically
       availablePoolSlots.push(...poolSlots);
     }
-  } else if (workspaceTemplate) {
+  } else if (!isPerTestIsolation && workspaceTemplate) {
     setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
     try {
       sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
@@ -871,7 +870,7 @@ export async function runEvaluation(
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
     }
-  } else if (suiteWorkspace?.hooks || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
+  } else if (!isPerTestIsolation && (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) {
     // No template but hooks or repos are configured: create empty workspace
     sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
     await mkdir(sharedWorkspacePath, { recursive: true });

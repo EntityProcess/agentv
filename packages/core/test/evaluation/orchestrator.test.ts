@@ -1754,7 +1754,7 @@ rl.on('close', () => {
       provider,
       target: baseTarget,
       evaluators: evaluatorRegistry,
-      evalRunId: 'test-run-reset-only-hook',
+      evalRunId: `test-run-reset-only-hook-${Date.now()}`,
       cleanupWorkspaces: true,
     });
 
@@ -2380,7 +2380,7 @@ describe('workspace.template .code-workspace resolution', () => {
       },
     };
 
-    const evalRunId = 'test-ws-resolve';
+    const evalRunId = `test-ws-resolve-${Date.now()}`;
     const result = await runEvalCase({
       evalCase,
       provider,
@@ -2900,6 +2900,84 @@ describe('--workspace flag', () => {
     expect(results).toHaveLength(1);
     expect(results[0].error).toBeUndefined();
     expect(results[0].beforeEachOutput).toBeDefined();
+  });
+
+  it('creates per-test workspaces for hook-only suites when isolation is per_test', async () => {
+    const { mkdtemp, mkdir, writeFile, access: fsAccess } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-per-test-hooks-'));
+
+    const beforeAllScript = path.join(testDir, 'before-all.js');
+    writeFileSync(
+      beforeAllScript,
+      `const fs = require('node:fs');
+const path = require('node:path');
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+fs.mkdirSync(payload.workspace_path, { recursive: true });
+fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id || 'unknown');
+`,
+      'utf8',
+    );
+
+    const workspacesSeen: string[] = [];
+
+    const provider: Provider = {
+      id: 'mock:per-test-hooks',
+      kind: 'mock',
+      targetName: 'mock',
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        if (!request.cwd) {
+          throw new Error('cwd was not provided');
+        }
+        workspacesSeen.push(request.cwd);
+        writeFileSync(path.join(request.cwd, 'agent.txt'), 'answer\n');
+        return {
+          output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+        };
+      },
+    };
+
+    const workspaceConfig = {
+      isolation: 'per_test' as const,
+      hooks: {
+        before_all: {
+          command: [process.execPath, beforeAllScript],
+        },
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      {
+        ...baseTestCase,
+        id: 'case-a',
+        workspace: workspaceConfig,
+      },
+      {
+        ...baseTestCase,
+        id: 'case-b',
+        workspace: workspaceConfig,
+      },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      keepWorkspaces: true,
+      cleanupWorkspaces: false,
+      retainOnSuccess: 'keep',
+    });
+
+    expect(results).toHaveLength(2);
+    expect(workspacesSeen).toHaveLength(2);
+    expect(workspacesSeen[0]).not.toContain(`${path.sep}shared`);
+    expect(workspacesSeen[1]).not.toContain(`${path.sep}shared`);
+    expect(workspacesSeen[0]).not.toBe(workspacesSeen[1]);
+
+    await fsAccess(path.join(workspacesSeen[0], 'hook.txt'));
+    await fsAccess(path.join(workspacesSeen[1], 'hook.txt'));
   });
 
   it('skips template copy and repo materialization when workspace provided', async () => {
