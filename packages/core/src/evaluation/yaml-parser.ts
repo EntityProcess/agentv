@@ -508,6 +508,20 @@ async function loadTestsFromYaml(
     // Extract per-test targets override (matrix evaluation)
     const caseTargets = extractTargetsFromTestCase(testCaseConfig as JsonObject);
 
+    // Extract dependency fields
+    const dependsOn = Array.isArray(testCaseConfig.depends_on)
+      ? (testCaseConfig.depends_on as readonly string[]).filter(
+          (v): v is string => typeof v === 'string',
+        )
+      : undefined;
+    const onDependencyFailureRaw = asString(testCaseConfig.on_dependency_failure);
+    const onDependencyFailure =
+      onDependencyFailureRaw === 'skip' ||
+      onDependencyFailureRaw === 'fail' ||
+      onDependencyFailureRaw === 'run'
+        ? (onDependencyFailureRaw as import('./types.js').DependencyFailurePolicy)
+        : undefined;
+
     const testCase: EvalTest = {
       id,
       suite: suiteName,
@@ -526,6 +540,8 @@ async function loadTestsFromYaml(
       metadata,
       targets: caseTargets,
       ...(caseThreshold !== undefined ? { threshold: caseThreshold } : {}),
+      ...(dependsOn && dependsOn.length > 0 ? { depends_on: dependsOn } : {}),
+      ...(onDependencyFailure ? { on_dependency_failure: onDependencyFailure } : {}),
     };
 
     results.push(testCase);

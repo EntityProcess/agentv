@@ -373,6 +373,8 @@ const EvalTestSchema = z.object({
   conversation_id: z.string().optional(),
   suite: z.string().optional(),
   note: z.string().optional(),
+  depends_on: z.array(z.string()).optional(),
+  on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
 });
 
 // ---------------------------------------------------------------------------

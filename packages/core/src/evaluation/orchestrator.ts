@@ -47,6 +47,7 @@ import {
 import { aggregateTrials } from './trials.js';
 import type {
   AssertionEntry,
+  DependencyResult,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
@@ -157,6 +158,128 @@ function getWorkspaceTemplate(target: ResolvedTarget): string | undefined {
   return undefined;
 }
 
+/**
+ * Validate the dependency DAG for a set of eval tests.
+ * Rejects circular dependencies and references to missing test IDs.
+ * Returns silently when the graph is valid.
+ */
+function validateDependencyGraph(tests: readonly EvalTest[]): void {
+  const ids = new Set<string>();
+  for (const test of tests) {
+    if (ids.has(test.id)) {
+      throw new Error(`Duplicate test ID '${test.id}' — each test must have a unique ID`);
+    }
+    ids.add(test.id);
+  }
+
+  // Check for missing dependency IDs
+  for (const test of tests) {
+    if (!test.depends_on) continue;
+    for (const dep of test.depends_on) {
+      if (!ids.has(dep)) {
+        throw new Error(
+          `Test '${test.id}' depends on '${dep}', but no test with that ID exists in this suite`,
+        );
+      }
+      if (dep === test.id) {
+        throw new Error(`Test '${test.id}' depends on itself`);
+      }
+    }
+  }
+
+  // Detect cycles via DFS
+  const depMap = new Map<string, readonly string[]>();
+  for (const test of tests) {
+    if (test.depends_on && test.depends_on.length > 0) {
+      depMap.set(test.id, test.depends_on);
+    }
+  }
+
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(id: string, path: string[]): void {
+    if (visiting.has(id)) {
+      const cycle = [...path.slice(path.indexOf(id)), id];
+      throw new Error(`Circular dependency detected: ${cycle.join(' → ')}`);
+    }
+    if (visited.has(id)) return;
+    visiting.add(id);
+    path.push(id);
+    for (const dep of depMap.get(id) ?? []) {
+      visit(dep, path);
+    }
+    path.pop();
+    visiting.delete(id);
+    visited.add(id);
+  }
+
+  for (const test of tests) {
+    visit(test.id, []);
+  }
+}
+
+/**
+ * Compute execution waves via topological sort.
+ * Each wave contains tests whose dependencies have all been satisfied by prior waves.
+ * Tests without dependencies land in wave 0.
+ */
+function computeWaves(tests: readonly EvalTest[]): EvalTest[][] {
+  const hasDeps = tests.some((t) => t.depends_on && t.depends_on.length > 0);
+  if (!hasDeps) {
+    // Fast path: no dependencies, single wave with all tests
+    return [tests.slice()];
+  }
+
+  const inDegree = new Map<string, number>();
+  const dependents = new Map<string, string[]>();
+  const testById = new Map<string, EvalTest>();
+
+  for (const test of tests) {
+    testById.set(test.id, test);
+    inDegree.set(test.id, 0);
+  }
+
+  for (const test of tests) {
+    if (!test.depends_on) continue;
+    inDegree.set(test.id, test.depends_on.length);
+    for (const dep of test.depends_on) {
+      const list = dependents.get(dep) ?? [];
+      list.push(test.id);
+      dependents.set(dep, list);
+    }
+  }
+
+  const waves: EvalTest[][] = [];
+  let ready = tests.filter((t) => (inDegree.get(t.id) ?? 0) === 0);
+
+  while (ready.length > 0) {
+    waves.push(ready);
+    const nextReady: EvalTest[] = [];
+    for (const test of ready) {
+      for (const depId of dependents.get(test.id) ?? []) {
+        const newDeg = (inDegree.get(depId) ?? 1) - 1;
+        inDegree.set(depId, newDeg);
+        if (newDeg === 0) {
+          const depTest = testById.get(depId);
+          if (depTest) nextReady.push(depTest);
+        }
+      }
+    }
+    ready = nextReady;
+  }
+
+  // Defensive: if validation missed a cycle, Kahn's algorithm leaves unscheduled nodes
+  const totalScheduled = waves.reduce((sum, w) => sum + w.length, 0);
+  if (totalScheduled !== tests.length) {
+    throw new Error(
+      `Internal error: ${tests.length - totalScheduled} tests were not scheduled (possible undetected cycle)`,
+    );
+  }
+
+  return waves;
+}
+
 export interface EvaluationCache {
   get(key: string): MaybePromise<ProviderResponse | undefined>;
   set(key: string, value: ProviderResponse): MaybePromise<void>;
@@ -206,6 +329,8 @@ export interface RunEvalCaseOptions {
   readonly verbose?: boolean;
   /** Per-test score threshold for pass/fail (default: 0.8) */
   readonly threshold?: number;
+  /** Results from dependency tests (only present when the test has depends_on) */
+  readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
 }
 
 export interface ProgressEvent {
@@ -871,235 +996,349 @@ export async function runEvaluation(
     // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
     let failOnErrorTriggered = false;
 
-    // Map test cases to limited promises for parallel execution
-    const promises = filteredEvalCases.map((evalCase) =>
-      limit(async () => {
-        // Assign worker ID when test starts executing
-        const workerId = nextWorkerId++;
-        workerIdByEvalId.set(evalCase.id, workerId);
+    // --- Validate dependency graph and compute execution waves ---
+    validateDependencyGraph(filteredEvalCases);
+    const waves = computeWaves(filteredEvalCases);
 
-        // Check suite-level budget before dispatching
-        if (totalBudgetUsd !== undefined && budgetExhausted) {
-          const budgetResult: EvaluationResult = {
-            timestamp: (now ?? (() => new Date()))().toISOString(),
+    // Track completed test results for dependency injection
+    const completedResults = new Map<string, EvaluationResult>();
+    const results: EvaluationResult[] = [];
+
+    // Helper: build a DependencyResult from a completed EvaluationResult
+    function toDependencyResult(r: EvaluationResult): DependencyResult {
+      const outputText = extractLastAssistantContent(r.output);
+      return {
+        score: r.score,
+        output: outputText,
+        workspace_path: r.workspacePath,
+        details: r.scores
+          ? (Object.fromEntries(
+              r.scores.map((s) => [s.name, { score: s.score, verdict: s.verdict }]),
+            ) as JsonObject)
+          : undefined,
+        status:
+          r.executionStatus === 'ok'
+            ? 'passed'
+            : r.executionStatus === 'execution_error'
+              ? 'error'
+              : 'failed',
+      };
+    }
+
+    // Helper: check whether all dependencies passed for a given test
+    function checkDependencies(evalCase: EvalTest): {
+      ok: boolean;
+      depResults: Record<string, DependencyResult>;
+    } {
+      const depResults: Record<string, DependencyResult> = {};
+      if (!evalCase.depends_on || evalCase.depends_on.length === 0) {
+        return { ok: true, depResults };
+      }
+      let allPassed = true;
+      for (const depId of evalCase.depends_on) {
+        const depResult = completedResults.get(depId);
+        if (depResult) {
+          depResults[depId] = toDependencyResult(depResult);
+          // Only execution errors count as dependency failures — quality failures
+          // (low scores) still mean the test ran successfully, just scored poorly.
+          if (depResult.executionStatus === 'execution_error') {
+            allPassed = false;
+          }
+        } else {
+          // Dependency didn't run (should not happen with valid DAG)
+          allPassed = false;
+        }
+      }
+      return { ok: allPassed, depResults };
+    }
+
+    // Worker function: dispatches a single eval case with dependency context
+    async function dispatchTest(
+      evalCase: EvalTest,
+      depResults?: Record<string, DependencyResult>,
+    ): Promise<EvaluationResult> {
+      const workerId = nextWorkerId++;
+      workerIdByEvalId.set(evalCase.id, workerId);
+
+      // Check suite-level budget before dispatching
+      if (totalBudgetUsd !== undefined && budgetExhausted) {
+        const budgetResult: EvaluationResult = {
+          timestamp: (now ?? (() => new Date()))().toISOString(),
+          testId: evalCase.id,
+          suite: evalCase.suite,
+          category: evalCase.category,
+          score: 0,
+          assertions: [],
+          output: [],
+          target: target.name,
+          error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+          budgetExceeded: true,
+          executionStatus: 'execution_error',
+          failureStage: 'setup',
+          failureReasonCode: 'budget_exceeded',
+          executionError: {
+            message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+            stage: 'setup',
+          },
+        };
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
             testId: evalCase.id,
-            suite: evalCase.suite,
-            category: evalCase.category,
-            score: 0,
-            assertions: [],
-            output: [],
-            target: target.name,
-            error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
-            budgetExceeded: true,
-            executionStatus: 'execution_error',
-            failureStage: 'setup',
-            failureReasonCode: 'budget_exceeded',
-            executionError: {
-              message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
-              stage: 'setup',
-            },
-          };
+            status: 'failed',
+            completedAt: Date.now(),
+            error: budgetResult.error,
+            score: budgetResult.score,
+            executionStatus: budgetResult.executionStatus,
+          });
+        }
+        if (onResult) {
+          await onResult(budgetResult);
+        }
+        return budgetResult;
+      }
 
-          if (onProgress) {
-            await onProgress({
-              workerId,
-              testId: evalCase.id,
-              status: 'failed',
-              completedAt: Date.now(),
-              error: budgetResult.error,
-              score: budgetResult.score,
-              executionStatus: budgetResult.executionStatus,
-            });
+      // Check fail_on_error before dispatching
+      if (failOnError === true && failOnErrorTriggered) {
+        const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
+        const haltResult: EvaluationResult = {
+          timestamp: (now ?? (() => new Date()))().toISOString(),
+          testId: evalCase.id,
+          suite: evalCase.suite,
+          category: evalCase.category,
+          score: 0,
+          assertions: [],
+          output: [],
+          target: target.name,
+          error: errorMsg,
+          executionStatus: 'execution_error',
+          failureStage: 'setup',
+          failureReasonCode: 'error_threshold_exceeded',
+          executionError: { message: errorMsg, stage: 'setup' },
+        };
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: evalCase.id,
+            status: 'failed',
+            completedAt: Date.now(),
+            error: haltResult.error,
+            score: haltResult.score,
+            executionStatus: haltResult.executionStatus,
+          });
+        }
+        if (onResult) {
+          await onResult(haltResult);
+        }
+        return haltResult;
+      }
+
+      if (onProgress) {
+        await onProgress({
+          workerId,
+          testId: evalCase.id,
+          status: 'running',
+          startedAt: Date.now(),
+        });
+      }
+
+      // Multi-slot pool: each test grabs its own pool slot
+      const testPoolSlot = availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
+      const testWorkspacePath = testPoolSlot?.path ?? sharedWorkspacePath;
+      const testBaselineCommit = testPoolSlot
+        ? poolSlotBaselines.get(testPoolSlot.path)
+        : sharedBaselineCommit;
+
+      try {
+        const graderProvider = await resolveGraderProvider(target);
+        const runCaseOptions: RunEvalCaseOptions = {
+          evalCase: evalCase,
+          provider: primaryProvider,
+          target,
+          evaluators: evaluatorRegistry,
+          maxRetries,
+          agentTimeoutMs,
+          cache,
+          useCache,
+          now,
+          graderProvider,
+          targetResolver,
+          availableTargets,
+          evalRunId,
+          keepWorkspaces,
+          cleanupWorkspaces,
+          retainOnSuccess: resolvedRetainOnSuccess,
+          retainOnFailure: resolvedRetainOnFailure,
+          sharedWorkspacePath: testWorkspacePath,
+          sharedBaselineCommit: testBaselineCommit,
+          suiteWorkspaceFile,
+          streamCallbacks,
+          typeRegistry,
+          repoManager,
+          evalDir,
+          verbose,
+          threshold: scoreThreshold,
+          ...(depResults && Object.keys(depResults).length > 0
+            ? { dependencyResults: depResults }
+            : {}),
+        };
+        let result =
+          trials && trials.count > 1
+            ? await runEvalCaseWithTrials(runCaseOptions, trials)
+            : await runEvalCase(runCaseOptions);
+
+        // Track suite-level budget
+        if (totalBudgetUsd !== undefined) {
+          // Sum all trial costs when trials are used, otherwise use trace cost
+          let caseCost: number | undefined;
+          if (result.trials && result.trials.length > 0) {
+            const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
+            if (trialCostSum > 0) {
+              caseCost = trialCostSum;
+            }
+          } else {
+            caseCost = result.costUsd;
           }
-          if (onResult) {
-            await onResult(budgetResult);
+          if (caseCost !== undefined) {
+            cumulativeBudgetCost += caseCost;
+            if (cumulativeBudgetCost >= totalBudgetUsd) {
+              budgetExhausted = true;
+            }
           }
-          return budgetResult;
         }
 
-        // Check fail_on_error before dispatching
-        if (failOnError === true && failOnErrorTriggered) {
-          const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
-          const haltResult: EvaluationResult = {
-            timestamp: (now ?? (() => new Date()))().toISOString(),
-            testId: evalCase.id,
-            suite: evalCase.suite,
-            category: evalCase.category,
-            score: 0,
-            assertions: [],
-            output: [],
-            target: target.name,
-            error: errorMsg,
-            executionStatus: 'execution_error',
-            failureStage: 'setup',
-            failureReasonCode: 'error_threshold_exceeded',
-            executionError: { message: errorMsg, stage: 'setup' },
-          };
+        // Track fail_on_error
+        if (failOnError === true && result.executionStatus === 'execution_error') {
+          failOnErrorTriggered = true;
+        }
 
-          if (onProgress) {
-            await onProgress({
-              workerId,
-              testId: evalCase.id,
-              status: 'failed',
-              completedAt: Date.now(),
-              error: haltResult.error,
-              score: haltResult.score,
-              executionStatus: haltResult.executionStatus,
-            });
-          }
-          if (onResult) {
-            await onResult(haltResult);
-          }
-          return haltResult;
+        // Attach beforeAllOutput to first result only
+        if (beforeAllOutput && !beforeAllOutputAttached) {
+          result = { ...result, beforeAllOutput };
+          beforeAllOutputAttached = true;
         }
 
         if (onProgress) {
           await onProgress({
             workerId,
             testId: evalCase.id,
-            status: 'running',
-            startedAt: Date.now(),
+            status: result.error ? 'failed' : 'completed',
+            startedAt: 0, // Not used for completed status
+            completedAt: Date.now(),
+            error: result.error,
+            score: result.score,
+            executionStatus: result.executionStatus,
           });
         }
 
-        // Multi-slot pool: each test grabs its own pool slot
-        const testPoolSlot = availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
-        const testWorkspacePath = testPoolSlot?.path ?? sharedWorkspacePath;
-        const testBaselineCommit = testPoolSlot
-          ? poolSlotBaselines.get(testPoolSlot.path)
-          : sharedBaselineCommit;
-
-        try {
-          const graderProvider = await resolveGraderProvider(target);
-          const runCaseOptions: RunEvalCaseOptions = {
-            evalCase: evalCase,
-            provider: primaryProvider,
-            target,
-            evaluators: evaluatorRegistry,
-            maxRetries,
-            agentTimeoutMs,
-            cache,
-            useCache,
-            now,
-            graderProvider,
-            targetResolver,
-            availableTargets,
-            evalRunId,
-            keepWorkspaces,
-            cleanupWorkspaces,
-            retainOnSuccess: resolvedRetainOnSuccess,
-            retainOnFailure: resolvedRetainOnFailure,
-            sharedWorkspacePath: testWorkspacePath,
-            sharedBaselineCommit: testBaselineCommit,
-            suiteWorkspaceFile,
-            streamCallbacks,
-            typeRegistry,
-            repoManager,
-            evalDir,
-            verbose,
-            threshold: scoreThreshold,
-          };
-          let result =
-            trials && trials.count > 1
-              ? await runEvalCaseWithTrials(runCaseOptions, trials)
-              : await runEvalCase(runCaseOptions);
-
-          // Track suite-level budget
-          if (totalBudgetUsd !== undefined) {
-            // Sum all trial costs when trials are used, otherwise use trace cost
-            let caseCost: number | undefined;
-            if (result.trials && result.trials.length > 0) {
-              const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
-              if (trialCostSum > 0) {
-                caseCost = trialCostSum;
-              }
-            } else {
-              caseCost = result.costUsd;
-            }
-            if (caseCost !== undefined) {
-              cumulativeBudgetCost += caseCost;
-              if (cumulativeBudgetCost >= totalBudgetUsd) {
-                budgetExhausted = true;
-              }
-            }
-          }
-
-          // Track fail_on_error
-          if (failOnError === true && result.executionStatus === 'execution_error') {
-            failOnErrorTriggered = true;
-          }
-
-          // Attach beforeAllOutput to first result only
-          if (beforeAllOutput && !beforeAllOutputAttached) {
-            result = { ...result, beforeAllOutput };
-            beforeAllOutputAttached = true;
-          }
-
-          if (onProgress) {
-            await onProgress({
-              workerId,
-              testId: evalCase.id,
-              status: result.error ? 'failed' : 'completed',
-              startedAt: 0, // Not used for completed status
-              completedAt: Date.now(),
-              error: result.error,
-              score: result.score,
-              executionStatus: result.executionStatus,
-            });
-          }
-
-          if (onResult) {
-            await onResult(result);
-          }
-          return result;
-        } catch (error) {
-          if (onProgress) {
-            await onProgress({
-              workerId,
-              testId: evalCase.id,
-              status: 'failed',
-              completedAt: Date.now(),
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-          throw error;
-        } finally {
-          // Return pool slot for reuse by next test
-          if (testPoolSlot) {
-            availablePoolSlots.push(testPoolSlot);
-          }
-        }
-      }),
-    );
-
-    // Wait for all workers to complete
-    const settled = await Promise.allSettled(promises);
-
-    // Extract results, handling both fulfilled and rejected promises
-    const results: EvaluationResult[] = [];
-    for (let i = 0; i < settled.length; i++) {
-      const outcome = settled[i];
-      if (outcome.status === 'fulfilled') {
-        results.push(outcome.value);
-      } else {
-        // Build error result for rejected promise
-        const evalCase = filteredEvalCases[i];
-        const formattingMode = usesFileReferencePrompt(primaryProvider) ? 'agent' : 'lm';
-        const promptInputs = await buildPromptInputs(evalCase, formattingMode);
-        const errorResult = buildErrorResult(
-          evalCase,
-          target.name,
-          (now ?? (() => new Date()))(),
-          outcome.reason,
-          promptInputs,
-          primaryProvider,
-          'agent',
-          'provider_error',
-          verbose,
-        );
-        results.push(errorResult);
         if (onResult) {
-          await onResult(errorResult);
+          await onResult(result);
+        }
+        return result;
+      } catch (error) {
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: evalCase.id,
+            status: 'failed',
+            completedAt: Date.now(),
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        throw error;
+      } finally {
+        // Return pool slot for reuse by next test
+        if (testPoolSlot) {
+          availablePoolSlots.push(testPoolSlot);
+        }
+      }
+    }
+
+    // --- DAG-aware wave dispatch ---
+    // Dispatch each wave sequentially; tests within a wave run in parallel via pLimit.
+    for (const wave of waves) {
+      const wavePromises = wave.map((evalCase) =>
+        limit(async () => {
+          // Check dependency status for tests with depends_on
+          if (evalCase.depends_on && evalCase.depends_on.length > 0) {
+            const { ok, depResults } = checkDependencies(evalCase);
+            if (!ok) {
+              const policy = evalCase.on_dependency_failure ?? 'skip';
+              if (policy === 'skip' || policy === 'fail') {
+                const failedDeps = evalCase.depends_on.filter(
+                  (d) => completedResults.get(d)?.executionStatus === 'execution_error',
+                );
+                const prefix = policy === 'skip' ? 'Skipped' : 'Failed';
+                const errorMsg = `${prefix}: dependency failed (${failedDeps.join(', ')})`;
+                const depFailResult: EvaluationResult = {
+                  timestamp: (now ?? (() => new Date()))().toISOString(),
+                  testId: evalCase.id,
+                  suite: evalCase.suite,
+                  category: evalCase.category,
+                  score: 0,
+                  assertions: [],
+                  output: [],
+                  target: target.name,
+                  error: errorMsg,
+                  executionStatus: 'execution_error',
+                  failureStage: 'setup',
+                  failureReasonCode: 'dependency_failed',
+                  executionError: { message: errorMsg, stage: 'setup' },
+                };
+                if (onProgress) {
+                  await onProgress({
+                    workerId: nextWorkerId++,
+                    testId: evalCase.id,
+                    status: 'failed',
+                    completedAt: Date.now(),
+                    error: depFailResult.error,
+                    score: 0,
+                    executionStatus: depFailResult.executionStatus,
+                  });
+                }
+                if (onResult) {
+                  await onResult(depFailResult);
+                }
+                return depFailResult;
+              }
+              // policy === 'run': fall through to dispatch with dependency results
+            }
+            return dispatchTest(evalCase, depResults);
+          }
+          return dispatchTest(evalCase);
+        }),
+      );
+
+      const settled = await Promise.allSettled(wavePromises);
+
+      // Collect wave results
+      for (let i = 0; i < settled.length; i++) {
+        const outcome = settled[i];
+        const evalCase = wave[i];
+        if (outcome.status === 'fulfilled') {
+          completedResults.set(evalCase.id, outcome.value);
+          results.push(outcome.value);
+        } else {
+          const formattingMode = usesFileReferencePrompt(primaryProvider) ? 'agent' : 'lm';
+          const promptInputs = await buildPromptInputs(evalCase, formattingMode);
+          const errorResult = buildErrorResult(
+            evalCase,
+            target.name,
+            (now ?? (() => new Date()))(),
+            outcome.reason,
+            promptInputs,
+            primaryProvider,
+            'agent',
+            'provider_error',
+            verbose,
+          );
+          completedResults.set(evalCase.id, errorResult);
+          results.push(errorResult);
+          if (onResult) {
+            await onResult(errorResult);
+          }
         }
       }
     }
@@ -1404,6 +1643,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     evalDir,
     verbose,
     threshold: caseThreshold,
+    dependencyResults,
   } = options;
   const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
@@ -1863,6 +2103,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       dockerConfig: evalCase.workspace?.docker,
       verbose,
       threshold: evalCase.threshold ?? caseThreshold,
+      dependencyResults,
     });
 
     const effectiveThreshold = evalCase.threshold ?? caseThreshold;
@@ -2122,6 +2363,7 @@ async function evaluateCandidate(options: {
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly verbose?: boolean;
   readonly threshold?: number;
+  readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -2148,6 +2390,7 @@ async function evaluateCandidate(options: {
     workspacePath,
     dockerConfig,
     threshold: evalThreshold,
+    dependencyResults,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -2176,6 +2419,7 @@ async function evaluateCandidate(options: {
     workspacePath,
     dockerConfig,
     threshold: evalThreshold,
+    dependencyResults,
   });
 
   const completedAt = nowFn();
@@ -2262,6 +2506,7 @@ async function runEvaluatorsForCase(options: {
   readonly workspacePath?: string;
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
+  readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
 }): Promise<{ score: EvaluationScore; scores?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -2288,6 +2533,7 @@ async function runEvaluatorsForCase(options: {
     workspacePath,
     dockerConfig,
     threshold,
+    dependencyResults,
   } = options;
 
   if (evalCase.assertions && evalCase.assertions.length > 0) {
@@ -2317,6 +2563,7 @@ async function runEvaluatorsForCase(options: {
       workspacePath,
       dockerConfig,
       threshold,
+      dependencyResults,
     });
   }
 
@@ -2351,6 +2598,7 @@ async function runEvaluatorsForCase(options: {
     fileChanges,
     workspacePath,
     dockerConfig,
+    dependencyResults,
     ...(implicitEvaluator ? { evaluator: implicitEvaluator } : {}),
   });
 
@@ -2397,6 +2645,7 @@ async function runEvaluatorList(options: {
   readonly workspacePath?: string;
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
+  readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
 }): Promise<{ score: EvaluationScore; scores: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -2423,6 +2672,7 @@ async function runEvaluatorList(options: {
     fileChanges,
     workspacePath,
     dockerConfig,
+    dependencyResults,
   } = options;
 
   const scored: Array<{
@@ -2457,6 +2707,7 @@ async function runEvaluatorList(options: {
     fileChanges,
     workspacePath,
     dockerConfig,
+    dependencyResults,
   };
 
   // Build the dispatch context for evaluator factories
