@@ -135,6 +135,10 @@ This creates up to 4 slots (`slot-0` through `slot-3`). PID-based lock files pre
 
 The maximum number of pool slots defaults to 10 (capped at 50). Slots are created on demand — a run with 2 workers only creates 2 slots, even if the pool allows 10.
 
+**Multiple eval files:** When you pass multiple eval files to `agentv eval`, they may run concurrently (see [Parallelism](/docs/evaluation/running-evals/#parallelism)). Pooled workspaces handle this safely — each active worker (across all eval files) acquires its own slot. Eval files that share the same workspace config (same fingerprint) draw from the same pool; eval files with different configs maintain separate pools. No cross-file workspace contention occurs in pooled mode.
+
+**Static workspaces and multiple eval files:** If you use `--workspace-mode static --workspace-path /path` across multiple eval files, all files will share that single directory concurrently. This can cause race conditions — for example, one file running `git checkout <sha>` while another file's tests read from the same repository. To prevent this, either use `--workers 1` to serialize execution or use pooled mode instead.
+
 ## Drift detection
 
 If you change the workspace config (e.g., update a repo URL or checkout ref), the computed fingerprint changes. AgentV detects this drift by comparing the stored `metadata.json` fingerprint against the newly computed one:
