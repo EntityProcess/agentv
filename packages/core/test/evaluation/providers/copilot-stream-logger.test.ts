@@ -100,7 +100,7 @@ describe('CopilotStreamLogger', () => {
     expect(content).toMatch(/\[assistant_message\] Final answer/);
   });
 
-  it('does not buffer in json format (keeps per-event for full fidelity)', async () => {
+  it('consolidates chunk events in json format as single assistant_message entry', async () => {
     const filePath = path.join(tempDir, 'test.log');
     const chunkExtractor = (type: string, data: unknown): string | null | undefined => {
       if (type !== 'agent_message_chunk') return undefined;
@@ -118,6 +118,7 @@ describe('CopilotStreamLogger', () => {
 
     logger.handleEvent('agent_message_chunk', { content: { type: 'text', text: 'chunk1' } });
     logger.handleEvent('agent_message_chunk', { content: { type: 'text', text: 'chunk2' } });
+    logger.handleEvent('tool_call', { title: 'read_file' });
     await logger.close();
 
     const content = await readFile(filePath, 'utf8');
@@ -125,8 +126,13 @@ describe('CopilotStreamLogger', () => {
       .split('\n')
       .filter((l) => l.trim().startsWith('{'))
       .map((l) => JSON.parse(l));
-    // Both chunks emitted individually as JSON
-    expect(jsonLines.filter((e) => e.event === 'agent_message_chunk')).toHaveLength(2);
+    // No raw chunk events — consolidated into one assistant_message
+    expect(jsonLines.filter((e) => e.event === 'agent_message_chunk')).toHaveLength(0);
+    const msg = jsonLines.find((e) => e.event === 'assistant_message');
+    expect(msg).toBeDefined();
+    expect(msg.data.content).toBe('chunk1chunk2');
+    // Non-chunk event still emitted
+    expect(jsonLines.find((e) => e.event === 'tool_call')).toBeDefined();
   });
 
   it('handles chunk events with no extractable text gracefully', async () => {
