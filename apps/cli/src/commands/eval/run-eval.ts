@@ -1308,8 +1308,8 @@ export async function runEvalCommand(
   }
 
   // Eval files run sequentially; within each file, --workers N test cases run in parallel.
-  // This matches industry practice (promptfoo, convex-evals) and avoids cross-file workspace
-  // races without any grouping complexity.
+  // This matches industry practice (promptfoo, deepeval, OpenAI Evals) and avoids cross-file
+  // workspace races without any grouping complexity.
   try {
     for (const testFilePath of activeTestFiles) {
       const targetPrep = fileMetadata.get(testFilePath);

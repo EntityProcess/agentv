@@ -202,7 +202,7 @@ agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
 # Files run one at a time; within each file, up to 3 test cases run in parallel
 ```
 
-This matches the standard model used by eval frameworks (promptfoo, convex-evals) and avoids cross-file workspace races without any special configuration.
+This matches the standard model used by eval frameworks (promptfoo, deepeval, OpenAI Evals) and avoids cross-file workspace races without any special configuration.
 
 ### Workspace Modes and Finish Policy
 
