@@ -1,0 +1,11 @@
+targets:
+  # Mock agent that writes to the workspace root AND edits a file inside a nested git repo.
+  # Simulates an agent that produces an artifact alongside making code changes.
+  - name: mock_agent
+    provider: cli
+    command: >-
+      bash -c '
+      echo "Analysis complete: 3 tests passed, 0 failed." > report.txt &&
+      printf "\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n" >> my-lib/utils.ts &&
+      echo "Done" > {OUTPUT_FILE}
+      '
