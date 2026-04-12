@@ -1293,8 +1293,7 @@ export async function runEvalCommand(
     const cliPath = options.workspacePath;
     if (cliPath) {
       console.warn(
-        `Warning: ${activeTestFiles.length} eval files share --workspace-path "${cliPath}" and will run concurrently. ` +
-          `Concurrent writes to the same workspace directory may corrupt results. Use --workers 1 to serialize.`,
+        `Warning: ${activeTestFiles.length} eval files share --workspace-path "${cliPath}" and will run concurrently. Concurrent writes to the same workspace directory may corrupt results. Use --workers 1 to serialize.`,
       );
     } else {
       const pathToFiles = new Map<string, string[]>();
@@ -1308,8 +1307,7 @@ export async function runEvalCommand(
       for (const [wsPath, files] of pathToFiles.entries()) {
         if (files.length > 1) {
           console.warn(
-            `Warning: ${files.length} eval files share workspace path "${wsPath}" and will run concurrently (${files.join(', ')}). ` +
-              `Concurrent writes to the same workspace directory may corrupt results. Use --workers 1 to serialize.`,
+            `Warning: ${files.length} eval files share workspace path "${wsPath}" and will run concurrently (${files.join(', ')}). Concurrent writes to the same workspace directory may corrupt results. Use --workers 1 to serialize.`,
           );
         }
       }

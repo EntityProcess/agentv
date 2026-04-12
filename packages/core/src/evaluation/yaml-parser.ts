@@ -214,7 +214,11 @@ export async function loadTestSuite(
   if (format === 'agent-skills-json') {
     return { tests: await loadTestsFromAgentSkills(evalFilePath) };
   }
-  const { tests, parsed, suiteWorkspacePath } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  const { tests, parsed, suiteWorkspacePath } = await loadTestsFromYaml(
+    evalFilePath,
+    repoRoot,
+    options,
+  );
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
