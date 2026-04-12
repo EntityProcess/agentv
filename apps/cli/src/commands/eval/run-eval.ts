@@ -1260,7 +1260,7 @@ export async function runEvalCommand(
   // Use only files that survived tag filtering (fileMetadata keys)
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
 
-  // --transcript: create a shared TranscriptProvider and validate line count
+  // --transcript: create a shared TranscriptProvider and validate entry count
   let transcriptProviderFactory:
     | ((target: import('@agentv/core').ResolvedTarget) => import('@agentv/core').Provider)
     | undefined;
@@ -1268,14 +1268,14 @@ export async function runEvalCommand(
     const { TranscriptProvider } = await import('@agentv/core');
     const transcriptProvider = await TranscriptProvider.fromFile(options.transcript);
 
-    // Validate: transcript lines must match total test cases across all files
+    // Validate: transcript entries must match total test cases across all files
     const totalTests = [...fileMetadata.values()].reduce(
       (sum, meta) => sum + meta.testCases.length,
       0,
     );
     if (transcriptProvider.lineCount !== totalTests) {
       throw new Error(
-        `Transcript has ${transcriptProvider.lineCount} entry(s) but eval defines ${totalTests} test(s). Each transcript line maps positionally to one test case.`,
+        `Transcript has ${transcriptProvider.lineCount} entr${transcriptProvider.lineCount === 1 ? 'y' : 'ies'} but eval defines ${totalTests} test(s). Each transcript entry maps positionally to one test case.`,
       );
     }
 

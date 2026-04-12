@@ -1,7 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { DEFAULT_THRESHOLD, type EvaluationResult, type EvaluatorResult } from '@agentv/core';
+import {
+  DEFAULT_THRESHOLD,
+  toTranscriptJsonLines,
+  type EvaluationResult,
+  type EvaluatorResult,
+} from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 
@@ -710,21 +715,25 @@ function buildTranscriptMessageLines(results: readonly EvaluationResult[]): stri
   const lines: string[] = [];
 
   for (const result of results) {
-    const messages = [...(result.input ?? []), ...result.output];
+    const transcriptLines = toTranscriptJsonLines(
+      {
+        messages: [...(result.input ?? []), ...result.output],
+        source: {
+          provider: result.target,
+          sessionId: result.conversationId ?? result.testId,
+          startedAt: result.timestamp,
+        },
+        tokenUsage: result.tokenUsage,
+        durationMs: result.durationMs,
+        costUsd: result.costUsd,
+      },
+      {
+        testId: result.testId,
+        target: result.target,
+      },
+    );
 
-    for (let index = 0; index < messages.length; index += 1) {
-      const message = messages[index];
-      lines.push(
-        JSON.stringify(
-          toSnakeCaseDeep({
-            testId: result.testId,
-            target: result.target,
-            messageIndex: index,
-            ...message,
-          }),
-        ),
-      );
-    }
+    lines.push(...transcriptLines.map((line) => JSON.stringify(line)));
   }
 
   return lines.length > 0 ? `${lines.join('\n')}\n` : '';

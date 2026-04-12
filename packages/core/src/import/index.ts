@@ -12,11 +12,13 @@ export {
 } from './session-discovery.js';
 export { TranscriptProvider } from './transcript-provider.js';
 export {
+  groupTranscriptJsonLines,
   readTranscriptFile,
   readTranscriptJsonl,
-  toTranscriptJsonLine,
+  toTranscriptJsonLines,
   type TranscriptEntry,
   type TranscriptJsonLine,
+  type TranscriptReplayEntry,
   type TranscriptSource,
 } from './types.js';
 

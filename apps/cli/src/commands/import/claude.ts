@@ -4,7 +4,7 @@ import {
   discoverClaudeSessions,
   parseClaudeSession,
   readTranscriptFile,
-  toTranscriptJsonLine,
+  toTranscriptJsonLines,
 } from '@agentv/core';
 import { command, flag, option, optional, string } from 'cmd-ts';
 
@@ -94,9 +94,9 @@ export const importClaudeCommand = command({
     // Ensure output directory exists
     await mkdir(path.dirname(outputPath), { recursive: true });
 
-    // Write transcript as JSONL (one line per test case, snake_case wire format)
-    const jsonLine = toTranscriptJsonLine(transcript);
-    await writeFile(outputPath, `${JSON.stringify(jsonLine)}\n`, 'utf8');
+    // Write transcript as JSONL (one message per line, grouped by test_id)
+    const jsonLines = toTranscriptJsonLines(transcript);
+    await writeFile(outputPath, `${jsonLines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8');
 
     const msgCount = transcript.messages.length;
     const toolCount = transcript.messages.reduce((sum, m) => sum + (m.toolCalls?.length ?? 0), 0);

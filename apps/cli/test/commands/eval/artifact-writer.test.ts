@@ -679,6 +679,10 @@ describe('writeArtifactsFromResults', () => {
       makeResult({
         testId: 'transcript-case',
         target: 'codex',
+        conversationId: 'session-123',
+        durationMs: 4200,
+        costUsd: 0.25,
+        tokenUsage: { input: 100, output: 40, cached: 10, reasoning: 5 },
         input: [{ role: 'user' as const, content: 'Inspect artifact output' }],
         output: [
           {
@@ -710,6 +714,14 @@ describe('writeArtifactsFromResults', () => {
         message_index: 0,
         role: 'user',
         content: 'Inspect artifact output',
+        transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        transcript_duration_ms: 4200,
+        transcript_cost_usd: 0.25,
+        source: {
+          provider: 'codex',
+          session_id: 'session-123',
+          timestamp: '2026-03-13T00:00:00.000Z',
+        },
       },
       {
         test_id: 'transcript-case',
@@ -724,6 +736,14 @@ describe('writeArtifactsFromResults', () => {
             output: 'file contents',
           },
         ],
+        transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        transcript_duration_ms: 4200,
+        transcript_cost_usd: 0.25,
+        source: {
+          provider: 'codex',
+          session_id: 'session-123',
+          timestamp: '2026-03-13T00:00:00.000Z',
+        },
       },
     ]);
   });
