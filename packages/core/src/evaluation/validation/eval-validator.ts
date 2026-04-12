@@ -466,18 +466,6 @@ function validateWorkspaceRepoConfig(
     }
   }
 
-  // Reset without repos warning
-  if (isObject(afterEachHook) && afterEachHook.reset && afterEachHook.reset !== 'none') {
-    if (!Array.isArray(repos) || repos.length === 0) {
-      errors.push({
-        severity: 'warning',
-        filePath,
-        location: 'workspace.hooks.after_each',
-        message: `hooks.after_each.reset '${afterEachHook.reset}' has no effect without repos.`,
-      });
-    }
-  }
-
   // after_each reset with per_test isolation warning
   if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_test') {
     errors.push({
