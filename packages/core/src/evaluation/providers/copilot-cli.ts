@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
 
@@ -8,6 +9,7 @@ import { spawn } from 'node:child_process';
 
 import * as acp from '@agentclientprotocol/sdk';
 
+import { captureSessionArtifacts } from '../workspace/file-changes.js';
 import { recordCopilotCliLogEntry } from './copilot-cli-log-tracker.js';
 import {
   CopilotStreamLogger,
@@ -298,6 +300,16 @@ export class CopilotCliProvider implements Provider {
         });
       }
 
+      // Capture session artifacts from session-state `files/` directory.
+      // Copilot may write generated files (e.g. CSV reports) there instead of
+      // the session cwd, so they wouldn't be captured by workspace git diff.
+      const sessionId = session.sessionId as string | undefined;
+      const fileChanges = sessionId
+        ? await captureSessionArtifacts(
+            path.join(homedir(), '.copilot', 'session-state', sessionId, 'files'),
+          ).catch(() => undefined)
+        : undefined;
+
       return {
         raw: {
           model: this.config.model,
@@ -310,6 +322,7 @@ export class CopilotCliProvider implements Provider {
         durationMs,
         startTime,
         endTime,
+        ...(fileChanges ? { fileChanges } : {}),
       };
     } finally {
       await logger?.close();

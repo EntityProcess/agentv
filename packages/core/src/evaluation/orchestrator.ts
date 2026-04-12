@@ -66,8 +66,11 @@ import type {
 } from './types.js';
 import {
   captureFileChanges as captureWorkspaceFileChanges,
+  captureSnapshot,
+  diffFromSnapshots,
   initializeBaseline,
 } from './workspace/file-changes.js';
+import type { WorkspaceSnapshot } from './workspace/file-changes.js';
 import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
@@ -192,6 +195,8 @@ export interface RunEvalCaseOptions {
   readonly sharedWorkspacePath?: string;
   /** Pre-initialized baseline commit for shared workspace */
   readonly sharedBaselineCommit?: string;
+  /** Snapshot baseline for shared workspace (fallback when git is unavailable) */
+  readonly sharedBaselineSnapshot?: WorkspaceSnapshot;
   /** Suite-level .code-workspace file (resolved from workspace.template) */
   readonly suiteWorkspaceFile?: string;
   /** Real-time observability callbacks passed to the provider */
@@ -616,6 +621,7 @@ export async function runEvaluation(
   const limit = pLimit(workers);
   let sharedWorkspacePath: string | undefined;
   let sharedBaselineCommit: string | undefined;
+  let sharedBaselineSnapshot: WorkspaceSnapshot | undefined;
   let beforeAllOutput: string | undefined;
 
   let poolManager: WorkspacePoolManager | undefined;
@@ -625,6 +631,7 @@ export async function runEvaluation(
   const poolSlots: PoolSlot[] = [];
   const availablePoolSlots: PoolSlot[] = [];
   const poolSlotBaselines = new Map<string, string>();
+  const poolSlotSnapshots = new Map<string, WorkspaceSnapshot>();
 
   // Pool capacity: how many slots can exist on disk (independent of worker count).
   // Workers acquire slots from the pool; the pool itself can be larger than any single run needs.
@@ -832,18 +839,23 @@ export async function runEvaluation(
       }
     }
 
-    // Initialize git baseline for shared workspace
+    // Initialize baseline for shared workspace (git first, snapshot fallback)
     if (sharedWorkspacePath) {
       try {
         sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
         setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
       } catch {
-        // Non-fatal: file change tracking is best-effort
-        setupLog('shared baseline initialization skipped (non-fatal)');
+        // Git failed — try snapshot fallback
+        try {
+          sharedBaselineSnapshot = await captureSnapshot(sharedWorkspacePath);
+          setupLog('shared baseline snapshot captured (git unavailable)');
+        } catch {
+          setupLog('shared baseline initialization skipped (non-fatal)');
+        }
       }
     }
 
-    // Multi-slot pool: initialize baselines per slot
+    // Multi-slot pool: initialize baselines per slot (git first, snapshot fallback)
     if (availablePoolSlots.length > 0) {
       for (const slot of availablePoolSlots) {
         try {
@@ -851,7 +863,13 @@ export async function runEvaluation(
           poolSlotBaselines.set(slot.path, baseline);
           setupLog(`pool slot ${slot.index} baseline initialized: ${baseline}`);
         } catch {
-          setupLog(`pool slot ${slot.index} baseline initialization skipped (non-fatal)`);
+          try {
+            const snapshot = await captureSnapshot(slot.path);
+            poolSlotSnapshots.set(slot.path, snapshot);
+            setupLog(`pool slot ${slot.index} baseline snapshot captured (git unavailable)`);
+          } catch {
+            setupLog(`pool slot ${slot.index} baseline initialization skipped (non-fatal)`);
+          }
         }
       }
     }
@@ -965,6 +983,9 @@ export async function runEvaluation(
         const testBaselineCommit = testPoolSlot
           ? poolSlotBaselines.get(testPoolSlot.path)
           : sharedBaselineCommit;
+        const testBaselineSnapshot = testPoolSlot
+          ? poolSlotSnapshots.get(testPoolSlot.path)
+          : sharedBaselineSnapshot;
 
         try {
           const graderProvider = await resolveGraderProvider(target);
@@ -988,6 +1009,7 @@ export async function runEvaluation(
             retainOnFailure: resolvedRetainOnFailure,
             sharedWorkspacePath: testWorkspacePath,
             sharedBaselineCommit: testBaselineCommit,
+            sharedBaselineSnapshot: testBaselineSnapshot,
             suiteWorkspaceFile,
             streamCallbacks,
             typeRegistry,
@@ -1395,6 +1417,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     retainOnFailure,
     sharedWorkspacePath,
     sharedBaselineCommit,
+    sharedBaselineSnapshot,
     suiteWorkspaceFile,
     typeRegistry: providedTypeRegistry,
     repoManager,
@@ -1631,13 +1654,25 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
-  // Initialize git baseline (use shared baseline or per-case)
+  // Initialize baseline for file-change tracking.
+  // Strategy 1 (preferred): git baseline — init a repo, commit, then diff after agent.
+  //   Works for any directory; nested-repo support via --submodule=diff.
+  // Strategy 2 (fallback): filesystem snapshot — records file contents before/after.
+  //   Used when git is unavailable or initializeBaseline fails (e.g. read-only paths).
+  //   sharedBaselineSnapshot is populated by the suite runner when the shared workspace
+  //   git init failed; it is used here directly to avoid re-snapshotting mid-suite.
   let baselineCommit: string | undefined = sharedBaselineCommit;
-  if (!baselineCommit && workspacePath) {
+  let baselineSnapshot: WorkspaceSnapshot | undefined = sharedBaselineSnapshot;
+  if (!baselineCommit && !baselineSnapshot && workspacePath) {
     try {
       baselineCommit = await initializeBaseline(workspacePath);
     } catch {
-      // Non-fatal: file change tracking is best-effort
+      // Git baseline failed — try snapshot approach as fallback
+      try {
+        baselineSnapshot = await captureSnapshot(workspacePath);
+      } catch {
+        // Both strategies failed — file change tracking not available for this test
+      }
     }
   }
 
@@ -1763,9 +1798,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
 
-  // Capture file changes from workspace if baseline was initialized
+  // Capture file changes from workspace (non-fatal in all branches).
   let fileChanges: string | undefined;
   if (baselineCommit && workspacePath) {
+    // Strategy 1: git diff against baseline commit
     try {
       const diff = await captureWorkspaceFileChanges(workspacePath, baselineCommit);
       if (diff.length > 0) {
@@ -1774,6 +1810,24 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     } catch {
       // Non-fatal: file change tracking is best-effort
     }
+  } else if (baselineSnapshot !== undefined && workspacePath) {
+    // Strategy 2: filesystem snapshot diff (fallback when git is unavailable)
+    try {
+      const currentSnapshot = await captureSnapshot(workspacePath);
+      const diff = diffFromSnapshots(baselineSnapshot, currentSnapshot);
+      if (diff.length > 0) {
+        fileChanges = diff;
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // Strategy 3: provider-reported artifacts (files written outside workspace_path,
+  // e.g. copilot session-state). Merged on top of any workspace-based diff.
+  const providerFileChanges = providerResponse?.fileChanges;
+  if (providerFileChanges) {
+    fileChanges = fileChanges ? `${fileChanges}\n${providerFileChanges}` : providerFileChanges;
   }
 
   const providerError = extractProviderError(providerResponse);
