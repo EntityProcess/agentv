@@ -20,7 +20,8 @@ describe('CopilotStreamLogger', () => {
 
   it('writes summary events as separate lines', async () => {
     const filePath = path.join(tempDir, 'test.log');
-    const summarize = (type: string, _data: unknown) => (type === 'tool_call' ? 'read_file' : undefined);
+    const summarize = (type: string, _data: unknown) =>
+      type === 'tool_call' ? 'read_file' : undefined;
 
     const logger = await CopilotStreamLogger.create(
       { filePath, targetName: 'test', format: 'summary', headerLabel: 'Test' },
@@ -38,12 +39,15 @@ describe('CopilotStreamLogger', () => {
 
   it('buffers chunk events and flushes as single [assistant_message] line on non-chunk event', async () => {
     const filePath = path.join(tempDir, 'test.log');
-    const summarize = (type: string, _data: unknown) => (type === 'tool_call' ? 'read_file' : undefined);
+    const summarize = (type: string, _data: unknown) =>
+      type === 'tool_call' ? 'read_file' : undefined;
     const chunkExtractor = (type: string, data: unknown): string | undefined => {
       if (type !== 'agent_message_chunk') return undefined;
       const d = data as Record<string, unknown>;
       const content = d?.content as Record<string, unknown> | undefined;
-      return content?.type === 'text' && typeof content.text === 'string' ? content.text : undefined;
+      return content?.type === 'text' && typeof content.text === 'string'
+        ? content.text
+        : undefined;
     };
 
     const logger = await CopilotStreamLogger.create(
@@ -78,7 +82,9 @@ describe('CopilotStreamLogger', () => {
       if (type !== 'agent_message_chunk') return undefined;
       const d = data as Record<string, unknown>;
       const content = d?.content as Record<string, unknown> | undefined;
-      return content?.type === 'text' && typeof content.text === 'string' ? content.text : undefined;
+      return content?.type === 'text' && typeof content.text === 'string'
+        ? content.text
+        : undefined;
     };
 
     const logger = await CopilotStreamLogger.create(
@@ -100,7 +106,9 @@ describe('CopilotStreamLogger', () => {
       if (type !== 'agent_message_chunk') return undefined;
       const d = data as Record<string, unknown>;
       const content = d?.content as Record<string, unknown> | undefined;
-      return content?.type === 'text' && typeof content.text === 'string' ? content.text : undefined;
+      return content?.type === 'text' && typeof content.text === 'string'
+        ? content.text
+        : undefined;
     };
 
     const logger = await CopilotStreamLogger.create(
