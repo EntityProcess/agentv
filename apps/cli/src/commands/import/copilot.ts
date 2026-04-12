@@ -101,7 +101,11 @@ export const importCopilotCommand = command({
 
     // Write transcript as JSONL (one message per line, grouped by test_id)
     const jsonLines = toTranscriptJsonLines(transcript);
-    await writeFile(outputPath, `${jsonLines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8');
+    await writeFile(
+      outputPath,
+      `${jsonLines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+      'utf8',
+    );
 
     const msgCount = transcript.messages.length;
     const toolCount = transcript.messages.reduce((sum, m) => sum + (m.toolCalls?.length ?? 0), 0);

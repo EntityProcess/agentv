@@ -3,7 +3,11 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { TranscriptProvider, toTranscriptJsonLines, type TranscriptEntry } from '../../src/index.js';
+import {
+  type TranscriptEntry,
+  TranscriptProvider,
+  toTranscriptJsonLines,
+} from '../../src/index.js';
 
 describe('TranscriptProvider', () => {
   const tempDirs: string[] = [];
@@ -42,7 +46,11 @@ describe('TranscriptProvider', () => {
       testId: 'case-1',
       target: 'offline-codex',
     });
-    await writeFile(transcriptPath, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8');
+    await writeFile(
+      transcriptPath,
+      `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+      'utf8',
+    );
 
     const provider = await TranscriptProvider.fromFile(transcriptPath);
     expect(provider.lineCount).toBe(1);
