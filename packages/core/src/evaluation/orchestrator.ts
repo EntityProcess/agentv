@@ -24,6 +24,8 @@ import {
   resolveTargetDefinition,
 } from './providers/targets.js';
 import type {
+  ChatMessage,
+  ChatMessageRole,
   EnvLookup,
   Message,
   Provider,
@@ -47,6 +49,8 @@ import {
 import { aggregateTrials } from './trials.js';
 import type {
   AssertionEntry,
+  ConversationAggregation,
+  ConversationTurn,
   DependencyResult,
   EvalTest,
   EvaluationResult,
@@ -60,6 +64,8 @@ import type {
   JsonObject,
   JsonValue,
   LlmGraderEvaluatorConfig,
+  TestMessage,
+  TestMessageRole,
   TrialResult,
   TrialsConfig,
   WorkspaceHookConfig,
@@ -1889,6 +1895,42 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  // Conversation mode: turn-by-turn evaluation
+  if (evalCase.mode === 'conversation' && evalCase.turns?.length) {
+    const conversationResult = await runConversationMode({
+      evalCase,
+      provider,
+      target,
+      evaluators,
+      typeRegistry,
+      graderProvider,
+      promptInputs,
+      nowFn,
+      signal,
+      workspacePath,
+      caseWorkspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+      agentTimeoutMs,
+      streamCallbacks: options.streamCallbacks,
+      verbose,
+      threshold: evalCase.threshold ?? caseThreshold,
+      targetResolver,
+      availableTargets,
+    });
+
+    // Cleanup workspace (same logic as standard path)
+    if (workspacePath && !isSharedWorkspace) {
+      const shouldRetain =
+        conversationResult.executionStatus === 'ok'
+          ? retainOnSuccess === 'keep' || keepWorkspaces
+          : retainOnFailure === 'keep' || (!forceCleanup && !keepWorkspaces);
+      if (!shouldRetain) {
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      }
+    }
+
+    return conversationResult;
+  }
+
   const caseStartMs = Date.now();
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
@@ -2885,6 +2927,382 @@ function buildEvaluatorRegistry(
     ...overrides,
     'llm-grader': llmGrader,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Conversation mode: turn-by-turn evaluation
+// ---------------------------------------------------------------------------
+
+/**
+ * Run a multi-turn conversation evaluation.
+ * For each turn: append user message → call provider → grade turn → append LLM response.
+ * After all turns, run conversation-level assertions on the full transcript.
+ * Final score is aggregated from turn scores + conversation scores.
+ */
+async function runConversationMode(options: {
+  readonly evalCase: EvalTest;
+  readonly provider: Provider;
+  readonly target: ResolvedTarget;
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
+  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  readonly graderProvider?: Provider;
+  readonly promptInputs: PromptInputs;
+  readonly nowFn: () => Date;
+  readonly signal?: AbortSignal;
+  readonly workspacePath?: string;
+  readonly caseWorkspaceFile?: string;
+  readonly agentTimeoutMs?: number;
+  readonly streamCallbacks?: ProviderStreamCallbacks;
+  readonly verbose?: boolean;
+  readonly threshold?: number;
+  readonly targetResolver?: (name: string) => Provider | undefined;
+  readonly availableTargets?: readonly string[];
+}): Promise<EvaluationResult> {
+  const {
+    evalCase,
+    provider,
+    target,
+    evaluators,
+    typeRegistry,
+    graderProvider,
+    promptInputs,
+    nowFn,
+    signal,
+    workspacePath,
+    caseWorkspaceFile,
+    agentTimeoutMs,
+    streamCallbacks,
+    verbose,
+    threshold,
+    targetResolver,
+    availableTargets,
+  } = options;
+
+  // biome-ignore lint/style/noNonNullAssertion: turns is guaranteed by the caller (conversation mode gate)
+  const turns = evalCase.turns!;
+  const aggregation = evalCase.aggregation ?? 'mean';
+  const onTurnFailure = evalCase.on_turn_failure ?? 'continue';
+  const windowSize = evalCase.window_size;
+
+  // Build initial message history from evalCase.input (system prompt + any context)
+  const history: ChatMessage[] = [];
+  for (const msg of evalCase.input) {
+    const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+    history.push({ role: msg.role as ChatMessageRole, content });
+  }
+
+  const turnScores: EvaluatorResult[] = [];
+  const allTurnScoreValues: number[] = [];
+  let stopped = false;
+  const caseStartMs = Date.now();
+
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    const turnIndex = i + 1;
+
+    if (stopped) {
+      // Turn skipped due to on_turn_failure: stop
+      turnScores.push({
+        name: `turn-${turnIndex}`,
+        type: 'rubrics' as EvaluatorKind,
+        score: 0,
+        verdict: 'skip' as EvaluationVerdict,
+        assertions: [{ text: 'Skipped due to previous turn failure', passed: false }],
+      });
+      allTurnScoreValues.push(0);
+      continue;
+    }
+
+    // Append user message to history
+    const userContent = typeof turn.input === 'string' ? turn.input : JSON.stringify(turn.input);
+    history.push({ role: 'user', content: userContent });
+
+    // Build chatPrompt for provider call (with optional window_size)
+    const chatPromptForProvider = windowSize
+      ? buildWindowedHistory(history, windowSize)
+      : [...history];
+
+    // Call provider with accumulated history
+    let response: ProviderResponse;
+    try {
+      response = await provider.invoke({
+        question: userContent,
+        chatPrompt: chatPromptForProvider,
+        evalCaseId: `${evalCase.id}/turn-${turnIndex}`,
+        signal,
+        cwd: workspacePath,
+        workspaceFile: caseWorkspaceFile,
+        streamCallbacks,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      turnScores.push({
+        name: `turn-${turnIndex}`,
+        type: 'rubrics' as EvaluatorKind,
+        score: 0,
+        verdict: 'fail' as EvaluationVerdict,
+        assertions: [{ text: `Provider error: ${message}`, passed: false }],
+      });
+      allTurnScoreValues.push(0);
+      if (onTurnFailure === 'stop') stopped = true;
+      continue;
+    }
+
+    // Extract assistant response
+    const assistantContent = extractLastAssistantContent(response.output);
+
+    // Append actual LLM response (NOT expected_output) to history
+    history.push({ role: 'assistant', content: assistantContent });
+
+    // Grade this turn
+    if (!turn.assertions?.length && !turn.expected_output) {
+      // No assertions or expected_output — turn scores 1.0
+      turnScores.push({
+        name: `turn-${turnIndex}`,
+        type: 'rubrics' as EvaluatorKind,
+        score: 1.0,
+        verdict: 'pass' as EvaluationVerdict,
+        assertions: [],
+      });
+      allTurnScoreValues.push(1.0);
+      continue;
+    }
+
+    // Build assertions for this turn
+    const turnAssertions = buildTurnAssertions(turn);
+
+    // Create a synthetic EvalTest for this turn's grading
+    const turnEvalCase: EvalTest = {
+      ...evalCase,
+      id: `${evalCase.id}/turn-${turnIndex}`,
+      assertions: turnAssertions,
+      input: buildTurnGraderInput(history, windowSize),
+      expected_output: turn.expected_output
+        ? [
+            typeof turn.expected_output === 'string'
+              ? ({ content: turn.expected_output } as JsonObject)
+              : (turn.expected_output as JsonObject),
+          ]
+        : [],
+      // Clear conversation fields to prevent recursion
+      mode: undefined,
+      turns: undefined,
+    };
+
+    const turnResult = await evaluateCandidate({
+      evalCase: turnEvalCase,
+      candidate: assistantContent,
+      target,
+      provider,
+      evaluators,
+      typeRegistry,
+      promptInputs: {
+        question: buildConversationContext(history, windowSize),
+        chatPrompt: windowSize ? buildWindowedHistory(history, windowSize) : [...history],
+      },
+      nowFn,
+      attempt: 0,
+      graderProvider,
+      agentTimeoutMs,
+      output: response.output,
+      verbose,
+      threshold,
+      targetResolver,
+      availableTargets,
+    });
+
+    const turnScore = turnResult.score;
+    allTurnScoreValues.push(turnScore);
+
+    turnScores.push({
+      name: `turn-${turnIndex}`,
+      type: 'rubrics' as EvaluatorKind,
+      score: turnScore,
+      verdict: scoreToVerdict(turnScore, threshold ?? DEFAULT_THRESHOLD) as EvaluationVerdict,
+      assertions: turnResult.assertions ? [...turnResult.assertions] : [],
+      scores: turnResult.scores,
+    });
+
+    // Check if we should stop on failure
+    if (onTurnFailure === 'stop' && turnScore < (threshold ?? DEFAULT_THRESHOLD)) {
+      stopped = true;
+    }
+  }
+
+  // Run conversation-level assertions (top-level assertions on full transcript)
+  let conversationScores: EvaluatorResult[] = [];
+  if (evalCase.assertions?.length) {
+    const conversationEvalCase: EvalTest = {
+      ...evalCase,
+      id: `${evalCase.id}/conversation`,
+      input: history.map((m) => ({
+        role: m.role as TestMessageRole,
+        content: m.content,
+      })),
+      expected_output: [],
+      mode: undefined,
+      turns: undefined,
+    };
+
+    const fullTranscript = history
+      .map((m) => {
+        const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        return `${m.role}: ${content}`;
+      })
+      .join('\n\n');
+
+    const conversationResult = await evaluateCandidate({
+      evalCase: conversationEvalCase,
+      candidate: fullTranscript,
+      target,
+      provider,
+      evaluators,
+      typeRegistry,
+      promptInputs: {
+        question: fullTranscript,
+        chatPrompt: [...history],
+      },
+      nowFn,
+      attempt: 0,
+      graderProvider,
+      agentTimeoutMs,
+      verbose,
+      threshold,
+      targetResolver,
+      availableTargets,
+    });
+
+    conversationScores = [
+      {
+        name: 'conversation',
+        type: 'rubrics' as EvaluatorKind,
+        score: conversationResult.score,
+        verdict: scoreToVerdict(
+          conversationResult.score,
+          threshold ?? DEFAULT_THRESHOLD,
+        ) as EvaluationVerdict,
+        assertions: conversationResult.assertions ? [...conversationResult.assertions] : [],
+        scores: conversationResult.scores,
+      },
+    ];
+  }
+
+  // Aggregate final score
+  const allScoreValues = [...allTurnScoreValues, ...conversationScores.map((s) => s.score)];
+
+  const finalScore = aggregateConversationScores(allScoreValues, aggregation);
+  const allResultScores = [...turnScores, ...conversationScores];
+
+  // Build output as full conversation transcript
+  const outputMessages: Message[] = history.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const flatAssertions: AssertionEntry[] = allResultScores.flatMap((s) => [...s.assertions]);
+  const totalDurationMs = Date.now() - caseStartMs;
+
+  return {
+    timestamp: nowFn().toISOString(),
+    testId: evalCase.id,
+    suite: evalCase.suite,
+    category: evalCase.category,
+    score: finalScore,
+    assertions: flatAssertions,
+    target: target.name,
+    output: outputMessages,
+    scores: allResultScores,
+    executionStatus: classifyQualityStatus(finalScore, threshold ?? DEFAULT_THRESHOLD),
+    input: evalCase.input.map((m) => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    })),
+    evalRun: { durationMs: totalDurationMs },
+  };
+}
+
+/** Include system messages + last windowSize*2 non-system messages */
+function buildWindowedHistory(history: readonly ChatMessage[], windowSize: number): ChatMessage[] {
+  const systemMessages = history.filter((m) => m.role === 'system');
+  const nonSystem = history.filter((m) => m.role !== 'system');
+  const windowed = nonSystem.slice(-windowSize * 2);
+  return [...systemMessages, ...windowed];
+}
+
+/** Build a text representation of the conversation for grader context */
+function buildConversationContext(history: readonly ChatMessage[], windowSize?: number): string {
+  const msgs = windowSize ? buildWindowedHistory(history, windowSize) : history;
+  return msgs
+    .map((m) => {
+      const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+      return `${m.role}: ${content}`;
+    })
+    .join('\n\n');
+}
+
+/** Build TestMessage[] from history for synthetic EvalTest input */
+function buildTurnGraderInput(history: readonly ChatMessage[], windowSize?: number): TestMessage[] {
+  const msgs = windowSize ? buildWindowedHistory(history, windowSize) : history;
+  return msgs.map((m) => ({
+    role: m.role as TestMessageRole,
+    content: m.content,
+  }));
+}
+
+/**
+ * Convert per-turn assertions to EvaluatorConfig[].
+ * String assertions are grouped into a single rubrics evaluator.
+ * Structured assertions pass through as-is.
+ */
+function buildTurnAssertions(turn: ConversationTurn): EvaluatorConfig[] {
+  if (!turn.assertions?.length) return [];
+
+  const stringCriteria: string[] = [];
+  const structured: EvaluatorConfig[] = [];
+
+  for (const a of turn.assertions) {
+    if (typeof a === 'string') {
+      stringCriteria.push(a);
+    } else {
+      structured.push(a);
+    }
+  }
+
+  const result: EvaluatorConfig[] = [];
+
+  // Group string assertions into a single llm-grader evaluator with rubrics.
+  // Uses llm-grader (not rubrics) because 'rubrics' is a YAML shorthand resolved by
+  // the evaluator-parser — at runtime we always dispatch through 'llm-grader'.
+  if (stringCriteria.length > 0) {
+    result.push({
+      name: 'turn-rubrics',
+      type: 'llm-grader' as EvaluatorKind,
+      rubrics: stringCriteria.map((text, idx) => ({
+        id: `criterion-${idx + 1}`,
+        outcome: text,
+        weight: 1,
+      })),
+    } as unknown as EvaluatorConfig);
+  }
+
+  result.push(...structured);
+  return result;
+}
+
+/** Aggregate turn scores using the configured strategy */
+function aggregateConversationScores(
+  scores: readonly number[],
+  aggregation: ConversationAggregation,
+): number {
+  if (scores.length === 0) return 1.0;
+  switch (aggregation) {
+    case 'min':
+      return Math.min(...scores);
+    case 'max':
+      return Math.max(...scores);
+    default:
+      return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  }
 }
 
 async function invokeProvider(

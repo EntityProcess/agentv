@@ -1,0 +1,105 @@
+# Multi-turn conversation evaluation (live turn-by-turn)
+# Each turn generates a fresh LLM call; per-turn assertions grade each response.
+# This is different from multi-turn-conversation/ which scripts intermediate turns.
+
+description: Live multi-turn conversation evaluation with per-turn grading
+
+execution:
+  target: llm
+
+tests:
+  # Test 1: Basic context retention across turns
+  - id: context-retention
+    mode: conversation
+    criteria: Agent maintains context and provides relevant responses across turns
+    aggregation: mean
+    input:
+      - role: system
+        content: |-
+          You are a helpful math tutor. Be concise and accurate.
+          Always show your work step by step.
+    turns:
+      - input: What is 15% of 200?
+        assertions:
+          - Correctly calculates 15% of 200 as 30
+          - Shows the calculation steps
+      - input: Now double that result.
+        assertions:
+          - References the previous answer of 30
+          - Correctly calculates double as 60
+      - input: What were the original numbers I asked about?
+        assertions:
+          - Recalls that the user asked about 15% and 200
+          - Demonstrates memory of the conversation context
+
+  # Test 2: With aggregation: min (weakest-link scoring)
+  - id: weakest-link-scoring
+    mode: conversation
+    criteria: Agent provides accurate, well-structured responses
+    aggregation: min
+    input:
+      - role: system
+        content: You are a concise geography expert. Answer in 1-2 sentences.
+    turns:
+      - input: What is the capital of France?
+        assertions:
+          - Correctly identifies Paris as the capital of France
+      - input: What country is it in?
+        assertions:
+          - Recognizes the question refers to Paris from the previous turn
+          - Confirms Paris is in France
+
+  # Test 3: With on_turn_failure: stop
+  - id: stop-on-failure
+    mode: conversation
+    on_turn_failure: stop
+    criteria: Agent follows instructions precisely
+    input:
+      - role: system
+        content: You are a helpful assistant. Be precise and accurate.
+    turns:
+      - input: What is 2 + 2?
+        assertions:
+          - Answers with 4
+      - input: Multiply that by 3.
+        assertions:
+          - References the previous answer
+          - Calculates 12 correctly
+
+  # Test 4: Mixed string and structured assertions
+  - id: mixed-assertions
+    mode: conversation
+    criteria: Agent writes correct, well-formed Python code
+    input:
+      - role: system
+        content: You are a helpful coding assistant.
+    turns:
+      - input: Write a Python function that adds two numbers.
+        assertions:
+          - Contains a Python function definition
+          - type: contains
+            value: def
+      - input: Now add type hints to the function.
+        assertions:
+          - Includes type hints (int, float, or similar)
+          - type: contains
+            value: "->"
+
+  # Test 5: Conversation-level assertions
+  - id: conversation-coherence
+    mode: conversation
+    criteria: Agent maintains a coherent, helpful conversation
+    input:
+      - role: system
+        content: You are a helpful travel advisor. Be concise.
+    turns:
+      - input: I want to visit somewhere warm in December.
+        assertions:
+          - Suggests at least one warm destination
+      - input: I prefer beaches over cities.
+        assertions:
+          - Adjusts recommendations toward beach destinations
+          - Does not suggest purely urban destinations
+    assertions:
+      - Agent maintains consistency — later suggestions align with earlier preferences
+      - Agent does not contradict its own prior recommendations

@@ -36,13 +36,19 @@ import {
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
 import type {
+  ConversationAggregation,
+  ConversationMode,
+  ConversationTurn,
   DockerWorkspaceConfig,
   EvalTest,
+  EvaluatorConfig,
   JsonObject,
   JsonValue,
   RepoConfig,
   TestMessage,
+  TestMessageContent,
   TrialsConfig,
+  TurnFailurePolicy,
   WorkspaceConfig,
   WorkspaceHookConfig,
   WorkspaceHooksConfig,
@@ -385,15 +391,16 @@ async function loadTestsFromYaml(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
-    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
+    // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
     const hasEvaluationSpec =
       !!outcome ||
       expectedMessages.length > 0 ||
       testCaseConfig.assertions !== undefined ||
-      testCaseConfig.assert !== undefined;
+      testCaseConfig.assert !== undefined ||
+      (Array.isArray(testCaseConfig.turns) && testCaseConfig.turns.length > 0);
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,
+        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions/turns`,
       );
       continue;
     }
@@ -522,6 +529,26 @@ async function loadTestsFromYaml(
         ? (onDependencyFailureRaw as import('./types.js').DependencyFailurePolicy)
         : undefined;
 
+    // Extract conversation mode fields
+    const modeRaw = asString(testCaseConfig.mode);
+    const mode: ConversationMode | undefined =
+      modeRaw === 'conversation' ? 'conversation' : undefined;
+    const turns = Array.isArray(testCaseConfig.turns)
+      ? parseTurns(testCaseConfig.turns as readonly unknown[])
+      : undefined;
+    const aggregationRaw = asString(testCaseConfig.aggregation);
+    const aggregation: ConversationAggregation | undefined =
+      aggregationRaw === 'mean' || aggregationRaw === 'min' || aggregationRaw === 'max'
+        ? aggregationRaw
+        : undefined;
+    const onTurnFailureRaw = asString(testCaseConfig.on_turn_failure);
+    const onTurnFailure: TurnFailurePolicy | undefined =
+      onTurnFailureRaw === 'continue' || onTurnFailureRaw === 'stop' ? onTurnFailureRaw : undefined;
+    const windowSize =
+      typeof testCaseConfig.window_size === 'number' && testCaseConfig.window_size >= 1
+        ? (testCaseConfig.window_size as number)
+        : undefined;
+
     const testCase: EvalTest = {
       id,
       suite: suiteName,
@@ -540,6 +567,11 @@ async function loadTestsFromYaml(
       metadata,
       targets: caseTargets,
       ...(caseThreshold !== undefined ? { threshold: caseThreshold } : {}),
+      ...(mode ? { mode } : {}),
+      ...(turns && turns.length > 0 ? { turns } : {}),
+      ...(aggregation ? { aggregation } : {}),
+      ...(onTurnFailure ? { on_turn_failure: onTurnFailure } : {}),
+      ...(windowSize !== undefined ? { window_size: windowSize } : {}),
       ...(dependsOn && dependsOn.length > 0 ? { depends_on: dependsOn } : {}),
       ...(onDependencyFailure ? { on_dependency_failure: onDependencyFailure } : {}),
     };
@@ -570,6 +602,35 @@ export async function loadTestById(
 
 /** @deprecated Use `loadTestById` instead */
 export const loadEvalCaseById = loadTestById;
+
+/**
+ * Parse raw turn data from YAML into typed ConversationTurn objects.
+ * String assertions are preserved as-is — they become rubric criteria at runtime.
+ * Structured assertion objects pass through unchanged.
+ */
+function parseTurns(rawTurns: readonly unknown[]): ConversationTurn[] {
+  return rawTurns.map((rawTurn) => {
+    const turn = rawTurn as Record<string, unknown>;
+    const input = turn.input as TestMessageContent;
+    const expectedOutput = turn.expected_output as TestMessageContent | undefined;
+
+    // Parse per-turn assertions (string shorthand or structured evaluator config)
+    let assertions: (string | EvaluatorConfig)[] | undefined;
+    if (Array.isArray(turn.assertions)) {
+      assertions = turn.assertions.map((a: unknown) => {
+        if (typeof a === 'string') return a;
+        // Structured evaluator config — pass through as-is (validated by Zod schema)
+        return a as EvaluatorConfig;
+      });
+    }
+
+    return {
+      input,
+      ...(expectedOutput !== undefined ? { expected_output: expectedOutput } : {}),
+      ...(assertions && assertions.length > 0 ? { assertions } : {}),
+    };
+  });
+}
 
 /**
  * Normalize a command value from YAML into a string array.
