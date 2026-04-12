@@ -256,19 +256,24 @@ export interface StreamLoggerOptions {
   /**
    * Optional extractor for streaming text chunk events.
    *
-   * When provided, events for which this function returns a string are buffered
-   * instead of written immediately. The accumulated text is flushed as a single
-   * `[assistant_message]` line when the first non-chunk event arrives or when
-   * `close()` is called. This keeps assistant responses as one readable line
-   * rather than dozens of fragmented chunk lines.
-   *
-   * Return `undefined` for non-chunk events to let them pass through normally.
+   * When provided, the return value controls how each event is handled:
+   *   - `string`    — buffer this text; flush as `[assistant_message]` on the next
+   *                   non-chunk event or `close()`.
+   *   - `null`      — discard (reset) the accumulated buffer without emitting it.
+   *                   Use this for events that signal a new streaming pass is starting,
+   *                   e.g. `agent_thought_chunk` in Copilot ACP, which arrives between
+   *                   a streaming preview batch and the final response batch.
+   *   - `undefined` — not a chunk event; process normally (flush buffer first, then
+   *                   call `summarize` and write the line).
    *
    * Example (Copilot CLI ACP):
-   *   chunkExtractor: (type, data) =>
-   *     type === 'agent_message_chunk' ? (data as any)?.content?.text : undefined
+   *   chunkExtractor: (type, data) => {
+   *     if (type === 'agent_thought_chunk') return null;   // reset pre-thinking buffer
+   *     if (type !== 'agent_message_chunk') return undefined;
+   *     return (data as any)?.content?.text ?? undefined;
+   *   }
    */
-  readonly chunkExtractor?: (eventType: string, data: unknown) => string | undefined;
+  readonly chunkExtractor?: (eventType: string, data: unknown) => string | null | undefined;
 }
 
 export class CopilotStreamLogger {
@@ -277,14 +282,14 @@ export class CopilotStreamLogger {
   private readonly startedAt = Date.now();
   private readonly format: 'summary' | 'json';
   private readonly summarize: (eventType: string, data: unknown) => string | undefined;
-  private readonly chunkExtractor?: (eventType: string, data: unknown) => string | undefined;
+  private readonly chunkExtractor?: (eventType: string, data: unknown) => string | null | undefined;
   private pendingText = '';
 
   private constructor(
     filePath: string,
     format: 'summary' | 'json',
     summarize: (eventType: string, data: unknown) => string | undefined,
-    chunkExtractor?: (eventType: string, data: unknown) => string | undefined,
+    chunkExtractor?: (eventType: string, data: unknown) => string | null | undefined,
   ) {
     this.filePath = filePath;
     this.format = format;
@@ -327,6 +332,14 @@ export class CopilotStreamLogger {
     // In summary mode, buffer chunk events and emit a single consolidated line.
     if (this.chunkExtractor) {
       const chunkText = this.chunkExtractor(eventType, data);
+      if (chunkText === null) {
+        // Reset signal: discard the accumulated buffer without emitting.
+        // Used for events like agent_thought_chunk that arrive between a
+        // streaming preview batch and the final response batch in Copilot ACP —
+        // the preview text is stale; the real message follows after thinking.
+        this.pendingText = '';
+        return;
+      }
       if (chunkText !== undefined) {
         this.pendingText += chunkText;
         return;

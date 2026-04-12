@@ -41,7 +41,7 @@ describe('CopilotStreamLogger', () => {
     const filePath = path.join(tempDir, 'test.log');
     const summarize = (type: string, _data: unknown) =>
       type === 'tool_call' ? 'read_file' : undefined;
-    const chunkExtractor = (type: string, data: unknown): string | undefined => {
+    const chunkExtractor = (type: string, data: unknown): string | null | undefined => {
       if (type !== 'agent_message_chunk') return undefined;
       const d = data as Record<string, unknown>;
       const content = d?.content as Record<string, unknown> | undefined;
@@ -78,7 +78,7 @@ describe('CopilotStreamLogger', () => {
 
   it('flushes remaining buffered text on close', async () => {
     const filePath = path.join(tempDir, 'test.log');
-    const chunkExtractor = (type: string, data: unknown): string | undefined => {
+    const chunkExtractor = (type: string, data: unknown): string | null | undefined => {
       if (type !== 'agent_message_chunk') return undefined;
       const d = data as Record<string, unknown>;
       const content = d?.content as Record<string, unknown> | undefined;
@@ -102,7 +102,7 @@ describe('CopilotStreamLogger', () => {
 
   it('does not buffer in json format (keeps per-event for full fidelity)', async () => {
     const filePath = path.join(tempDir, 'test.log');
-    const chunkExtractor = (type: string, data: unknown): string | undefined => {
+    const chunkExtractor = (type: string, data: unknown): string | null | undefined => {
       if (type !== 'agent_message_chunk') return undefined;
       const d = data as Record<string, unknown>;
       const content = d?.content as Record<string, unknown> | undefined;
@@ -131,7 +131,7 @@ describe('CopilotStreamLogger', () => {
 
   it('handles chunk events with no extractable text gracefully', async () => {
     const filePath = path.join(tempDir, 'test.log');
-    const chunkExtractor = (type: string, _data: unknown): string | undefined =>
+    const chunkExtractor = (type: string, _data: unknown): string | null | undefined =>
       type === 'agent_message_chunk' ? undefined : undefined;
 
     const logger = await CopilotStreamLogger.create(
@@ -146,5 +146,40 @@ describe('CopilotStreamLogger', () => {
 
     const content = await readFile(filePath, 'utf8');
     expect(content).not.toMatch(/\[assistant_message\]/);
+  });
+
+  it('null return from chunkExtractor resets buffer without emitting (handles pre-thinking streaming)', async () => {
+    const filePath = path.join(tempDir, 'test.log');
+    // Simulates Copilot ACP: chunks → thought_chunks (reset) → chunks (final)
+    const chunkExtractor = (type: string, data: unknown): string | null | undefined => {
+      if (type === 'agent_thought_chunk') return null;
+      if (type !== 'agent_message_chunk') return undefined;
+      const d = data as Record<string, unknown>;
+      const content = d?.content as Record<string, unknown> | undefined;
+      return content?.type === 'text' && typeof content.text === 'string'
+        ? content.text
+        : undefined;
+    };
+
+    const logger = await CopilotStreamLogger.create(
+      { filePath, targetName: 'test', format: 'summary', headerLabel: 'Test', chunkExtractor },
+      noopSummarize,
+    );
+
+    // First pass: streaming preview (should be discarded)
+    logger.handleEvent('agent_message_chunk', { content: { type: 'text', text: 'Hi' } });
+    logger.handleEvent('agent_message_chunk', { content: { type: 'text', text: ' there.' } });
+    // Extended thinking: resets the buffer
+    logger.handleEvent('agent_thought_chunk', {});
+    logger.handleEvent('agent_thought_chunk', {});
+    // Second pass: final response
+    logger.handleEvent('agent_message_chunk', { content: { type: 'text', text: 'Hi there.' } });
+    await logger.close();
+
+    const content = await readFile(filePath, 'utf8');
+    const msgLines = content.split('\n').filter((l) => l.includes('[assistant_message]'));
+    // Only one consolidated line — the final response, not the preview
+    expect(msgLines).toHaveLength(1);
+    expect(msgLines[0]).toMatch(/\[assistant_message\] Hi there\.$/);
   });
 });

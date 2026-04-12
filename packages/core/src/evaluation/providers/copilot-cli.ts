@@ -503,12 +503,23 @@ Fix options:
 }
 
 /**
- * Extracts bufferable text from ACP agent_message_chunk events.
- * Returning a string causes the logger to accumulate the text rather than
- * emit a line per chunk. A single [assistant_message] line is written once
- * all chunks for a turn have arrived (on the next non-chunk event or close).
+ * Extracts bufferable text from ACP streaming events.
+ *
+ * Return values control CopilotStreamLogger buffering:
+ *   string    — accumulate this text into the pending buffer
+ *   null      — reset (discard) the pending buffer without emitting it
+ *   undefined — not a chunk event; process normally
+ *
+ * Copilot ACP sends agent_message_chunk events in two passes:
+ *   1. A streaming preview batch (before extended thinking)
+ *   2. agent_thought_chunk events (extended reasoning)
+ *   3. A final response batch (after extended thinking)
+ *
+ * Returning null for agent_thought_chunk discards the preview batch so that
+ * only the final post-thinking response is emitted as [assistant_message].
  */
-function extractAcpChunk(eventType: string, data: unknown): string | undefined {
+function extractAcpChunk(eventType: string, data: unknown): string | null | undefined {
+  if (eventType === 'agent_thought_chunk') return null;
   if (eventType !== 'agent_message_chunk') return undefined;
   if (!data || typeof data !== 'object') return undefined;
   const d = data as Record<string, unknown>;
