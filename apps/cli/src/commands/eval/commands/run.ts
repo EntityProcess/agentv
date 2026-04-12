@@ -41,7 +41,7 @@ export const evalRunCommand = command({
       type: optional(number),
       long: 'workers',
       description:
-        'Maximum concurrent test cases across the run (default: 3, max: 50). With a single eval file, N test cases run in parallel. With multiple eval files, the budget is split: up to min(N, files) eval files run concurrently, each receiving floor(N / concurrent_files) workers. Use --workers 1 to serialize everything. Can also be set per-target in targets.yaml',
+        'Number of parallel test cases within each eval file (default: 3, max: 50). Eval files run sequentially unless they use distinct workspace paths, in which case they run in parallel. Can also be set per-target in targets.yaml',
     }),
     out: option({
       type: optional(string),
