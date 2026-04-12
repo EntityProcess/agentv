@@ -833,7 +833,8 @@ function validateConversationMode(
       severity: 'error',
       filePath,
       location: `${location}.expected_output`,
-      message: "Top-level 'expected_output' is not allowed with mode: conversation (use per-turn expected_output instead)",
+      message:
+        "Top-level 'expected_output' is not allowed with mode: conversation (use per-turn expected_output instead)",
     });
   }
 
@@ -880,7 +881,13 @@ function validateConversationMode(
         });
         continue;
       }
-      if (turn.input === undefined || turn.input === '') {
+      const turnInput = turn.input;
+      const isEmpty =
+        turnInput === undefined ||
+        turnInput === '' ||
+        (typeof turnInput === 'string' && turnInput.trim() === '') ||
+        (Array.isArray(turnInput) && turnInput.length === 0);
+      if (isEmpty) {
         errors.push({
           severity: 'error',
           filePath,

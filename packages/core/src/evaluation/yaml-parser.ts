@@ -391,15 +391,16 @@ async function loadTestsFromYaml(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
-    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
+    // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
     const hasEvaluationSpec =
       !!outcome ||
       expectedMessages.length > 0 ||
       testCaseConfig.assertions !== undefined ||
-      testCaseConfig.assert !== undefined;
+      testCaseConfig.assert !== undefined ||
+      (Array.isArray(testCaseConfig.turns) && testCaseConfig.turns.length > 0);
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,
+        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions/turns`,
       );
       continue;
     }
@@ -530,7 +531,8 @@ async function loadTestsFromYaml(
 
     // Extract conversation mode fields
     const modeRaw = asString(testCaseConfig.mode);
-    const mode: ConversationMode | undefined = modeRaw === 'conversation' ? 'conversation' : undefined;
+    const mode: ConversationMode | undefined =
+      modeRaw === 'conversation' ? 'conversation' : undefined;
     const turns = Array.isArray(testCaseConfig.turns)
       ? parseTurns(testCaseConfig.turns as readonly unknown[])
       : undefined;
@@ -541,9 +543,7 @@ async function loadTestsFromYaml(
         : undefined;
     const onTurnFailureRaw = asString(testCaseConfig.on_turn_failure);
     const onTurnFailure: TurnFailurePolicy | undefined =
-      onTurnFailureRaw === 'continue' || onTurnFailureRaw === 'stop'
-        ? onTurnFailureRaw
-        : undefined;
+      onTurnFailureRaw === 'continue' || onTurnFailureRaw === 'stop' ? onTurnFailureRaw : undefined;
     const windowSize =
       typeof testCaseConfig.window_size === 'number' && testCaseConfig.window_size >= 1
         ? (testCaseConfig.window_size as number)

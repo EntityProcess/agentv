@@ -16,7 +16,11 @@ import path from 'node:path';
 
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
-import type { Provider, ProviderRequest, ProviderResponse } from '../../src/evaluation/providers/types.js';
+import type {
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+} from '../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 import { validateEvalFile } from '../../src/evaluation/validation/eval-validator.js';
 
@@ -114,10 +118,7 @@ describe('runEvalCase — conversation mode', () => {
       file_paths: [],
       criteria: 'Be helpful',
       mode: 'conversation',
-      turns: [
-        { input: 'Turn 1 message' },
-        { input: 'Turn 2 message' },
-      ],
+      turns: [{ input: 'Turn 1 message' }, { input: 'Turn 2 message' }],
     };
 
     const result = await runEvalCase({
@@ -166,9 +167,7 @@ describe('runEvalCase — conversation mode', () => {
   });
 
   it('per-turn structured assertions are evaluated', async () => {
-    const provider = new SequenceProvider('mock', [
-      assistantResponse('42'),
-    ]);
+    const provider = new SequenceProvider('mock', [assistantResponse('42')]);
 
     const evalCase: EvalTest = {
       id: 'conv-struct-assertions',
@@ -212,10 +211,7 @@ describe('runEvalCase — conversation mode', () => {
       file_paths: [],
       criteria: 'Consistent throughout',
       mode: 'conversation',
-      turns: [
-        { input: 'Turn 1' },
-        { input: 'Turn 2' },
-      ],
+      turns: [{ input: 'Turn 1' }, { input: 'Turn 2' }],
       assertions: [{ type: 'llm-grader', criteria: 'Conversation was coherent' }],
     };
 
@@ -250,11 +246,7 @@ describe('runEvalCase — conversation mode', () => {
       criteria: 'Anything',
       mode: 'conversation',
       aggregation: 'mean',
-      turns: [
-        { input: 'T1' },
-        { input: 'T2' },
-        { input: 'T3' },
-      ],
+      turns: [{ input: 'T1' }, { input: 'T2' }, { input: 'T3' }],
     };
 
     const result = await runEvalCase({
@@ -500,11 +492,7 @@ describe('runEvalCase — conversation mode', () => {
       criteria: 'Anything',
       mode: 'conversation',
       window_size: 1, // keep system + last 1 user+assistant pair
-      turns: [
-        { input: 'T1' },
-        { input: 'T2' },
-        { input: 'T3' },
-      ],
+      turns: [{ input: 'T1' }, { input: 'T2' }, { input: 'T3' }],
     };
 
     await runEvalCase({
@@ -540,10 +528,7 @@ describe('runEvalCase — conversation mode', () => {
       file_paths: [],
       criteria: 'Anything',
       mode: 'conversation',
-      turns: [
-        { input: 'T1' },
-        { input: 'T2' },
-      ],
+      turns: [{ input: 'T1' }, { input: 'T2' }],
     };
 
     const result = await runEvalCase({
@@ -578,10 +563,7 @@ describe('runEvalCase — conversation mode', () => {
       file_paths: [],
       criteria: 'Full transcript',
       mode: 'conversation',
-      turns: [
-        { input: 'Question 1' },
-        { input: 'Question 2' },
-      ],
+      turns: [{ input: 'Question 1' }, { input: 'Question 2' }],
     };
 
     const result = await runEvalCase({
@@ -603,10 +585,112 @@ describe('runEvalCase — conversation mode', () => {
     expect(assistantMessages[1]?.content).toBe('Answer 2');
   });
 
-  it('no regression — non-conversation test behaves as before', async () => {
+  it('top-level assertions are NOT applied per-turn — only at conversation level', async () => {
+    let graderCallCount = 0;
+    const customRegistry = {
+      'llm-grader': {
+        kind: 'llm-grader' as const,
+        async evaluate() {
+          graderCallCount++;
+          return {
+            score: 0.8,
+            verdict: 'pass' as const,
+            assertions: [{ text: 'graded', passed: true }],
+            expectedAspectCount: 1,
+          };
+        },
+      },
+    };
+
+    const provider = new SequenceProvider('mock', [assistantResponse('A'), assistantResponse('B')]);
+
+    const evalCase: EvalTest = {
+      id: 'conv-no-double-count',
+      question: 'double count test',
+      input: [],
+      expected_output: [],
+      file_paths: [],
+      criteria: 'Anything',
+      mode: 'conversation',
+      turns: [
+        { input: 'T1' }, // no per-turn assertions → scores 1.0 without grader
+        { input: 'T2' }, // no per-turn assertions → scores 1.0 without grader
+      ],
+      assertions: [{ type: 'llm-grader', criteria: 'Conversation was coherent' }],
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: customRegistry,
+      now: nowFn,
+    });
+
+    // Grader should be called exactly once — for the conversation-level pass only
+    expect(graderCallCount).toBe(1);
+
+    // Should have 2 turn scores (1.0 each) + 1 conversation score
+    const turnScores = result.scores?.filter((s) => s.name.startsWith('turn-')) ?? [];
+    const convScore = result.scores?.find((s) => s.name === 'conversation');
+    expect(turnScores).toHaveLength(2);
+    expect(turnScores[0]?.score).toBe(1.0);
+    expect(turnScores[1]?.score).toBe(1.0);
+    expect(convScore).toBeDefined();
+    expect(convScore?.score).toBe(0.8);
+  });
+
+  it('conversation-level assertions grade the full transcript, not just last reply', async () => {
+    let graderCandidate = '';
+    const customRegistry = {
+      'llm-grader': {
+        kind: 'llm-grader' as const,
+        async evaluate(ctx: { candidate: string }) {
+          graderCandidate = ctx.candidate;
+          return {
+            score: 1.0,
+            verdict: 'pass' as const,
+            assertions: [{ text: 'graded', passed: true }],
+            expectedAspectCount: 1,
+          };
+        },
+      },
+    };
+
     const provider = new SequenceProvider('mock', [
-      assistantResponse('Standard response'),
+      assistantResponse('First answer'),
+      assistantResponse('Second answer'),
     ]);
+
+    const evalCase: EvalTest = {
+      id: 'conv-transcript-candidate',
+      question: 'transcript candidate test',
+      input: [{ role: 'system', content: 'Be helpful' }],
+      expected_output: [],
+      file_paths: [],
+      criteria: 'Anything',
+      mode: 'conversation',
+      turns: [{ input: 'Question 1' }, { input: 'Question 2' }],
+      assertions: [{ type: 'llm-grader', criteria: 'Full transcript is coherent' }],
+    };
+
+    await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: customRegistry,
+      now: nowFn,
+    });
+
+    // The candidate passed to the grader should contain the full transcript, not just "Second answer"
+    expect(graderCandidate).toContain('First answer');
+    expect(graderCandidate).toContain('Second answer');
+    expect(graderCandidate).toContain('Question 1');
+    expect(graderCandidate).toContain('Question 2');
+  });
+
+  it('no regression — non-conversation test behaves as before', async () => {
+    const provider = new SequenceProvider('mock', [assistantResponse('Standard response')]);
 
     const evalCase: EvalTest = {
       id: 'standard-test',
@@ -663,7 +747,9 @@ describe('validateEvalFile — conversation mode', () => {
     );
     const result = await validateEvalFile(filePath);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'turns' requires mode: conversation"))).toBe(true);
+    expect(
+      result.errors.some((e) => e.message.includes("'turns' requires mode: conversation")),
+    ).toBe(true);
   });
 
   it('rejects mode: conversation without turns', async () => {
@@ -715,7 +801,11 @@ describe('validateEvalFile — conversation mode', () => {
     );
     const result = await validateEvalFile(filePath);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'expected_output' is not allowed with mode: conversation"))).toBe(true);
+    expect(
+      result.errors.some((e) =>
+        e.message.includes("'expected_output' is not allowed with mode: conversation"),
+      ),
+    ).toBe(true);
   });
 
   it('rejects aggregation without mode: conversation', async () => {
@@ -731,7 +821,9 @@ describe('validateEvalFile — conversation mode', () => {
     );
     const result = await validateEvalFile(filePath);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'aggregation' requires mode: conversation"))).toBe(true);
+    expect(
+      result.errors.some((e) => e.message.includes("'aggregation' requires mode: conversation")),
+    ).toBe(true);
   });
 
   it('rejects on_turn_failure without mode: conversation', async () => {
@@ -747,7 +839,11 @@ describe('validateEvalFile — conversation mode', () => {
     );
     const result = await validateEvalFile(filePath);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'on_turn_failure' requires mode: conversation"))).toBe(true);
+    expect(
+      result.errors.some((e) =>
+        e.message.includes("'on_turn_failure' requires mode: conversation"),
+      ),
+    ).toBe(true);
   });
 
   it('rejects window_size without mode: conversation', async () => {
@@ -763,7 +859,9 @@ describe('validateEvalFile — conversation mode', () => {
     );
     const result = await validateEvalFile(filePath);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'window_size' requires mode: conversation"))).toBe(true);
+    expect(
+      result.errors.some((e) => e.message.includes("'window_size' requires mode: conversation")),
+    ).toBe(true);
   });
 
   it('rejects a turn missing input', async () => {
@@ -777,6 +875,24 @@ describe('validateEvalFile — conversation mode', () => {
     mode: conversation
     turns:
       - expected_output: "something"
+`,
+    );
+    const result = await validateEvalFile(filePath);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.message.includes('non-empty input'))).toBe(true);
+  });
+
+  it('rejects a turn with whitespace-only input', async () => {
+    const filePath = path.join(tempDir, 'turn-whitespace-input.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: t1
+    criteria: Goal
+    input: hello
+    mode: conversation
+    turns:
+      - input: "   "
 `,
     );
     const result = await validateEvalFile(filePath);

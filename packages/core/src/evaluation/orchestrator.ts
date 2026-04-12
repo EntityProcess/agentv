@@ -2959,12 +2959,26 @@ async function runConversationMode(options: {
   readonly availableTargets?: readonly string[];
 }): Promise<EvaluationResult> {
   const {
-    evalCase, provider, target, evaluators, typeRegistry,
-    graderProvider, promptInputs, nowFn, signal,
-    workspacePath, caseWorkspaceFile, agentTimeoutMs,
-    streamCallbacks, verbose, threshold, targetResolver, availableTargets,
+    evalCase,
+    provider,
+    target,
+    evaluators,
+    typeRegistry,
+    graderProvider,
+    promptInputs,
+    nowFn,
+    signal,
+    workspacePath,
+    caseWorkspaceFile,
+    agentTimeoutMs,
+    streamCallbacks,
+    verbose,
+    threshold,
+    targetResolver,
+    availableTargets,
   } = options;
 
+  // biome-ignore lint/style/noNonNullAssertion: turns is guaranteed by the caller (conversation mode gate)
   const turns = evalCase.turns!;
   const aggregation = evalCase.aggregation ?? 'mean';
   const onTurnFailure = evalCase.on_turn_failure ?? 'continue';
@@ -2973,9 +2987,7 @@ async function runConversationMode(options: {
   // Build initial message history from evalCase.input (system prompt + any context)
   const history: ChatMessage[] = [];
   for (const msg of evalCase.input) {
-    const content = typeof msg.content === 'string'
-      ? msg.content
-      : JSON.stringify(msg.content);
+    const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
     history.push({ role: msg.role as ChatMessageRole, content });
   }
 
@@ -3002,9 +3014,7 @@ async function runConversationMode(options: {
     }
 
     // Append user message to history
-    const userContent = typeof turn.input === 'string'
-      ? turn.input
-      : JSON.stringify(turn.input);
+    const userContent = typeof turn.input === 'string' ? turn.input : JSON.stringify(turn.input);
     history.push({ role: 'user', content: userContent });
 
     // Build chatPrompt for provider call (with optional window_size)
@@ -3065,12 +3075,14 @@ async function runConversationMode(options: {
     const turnEvalCase: EvalTest = {
       ...evalCase,
       id: `${evalCase.id}/turn-${turnIndex}`,
-      assertions: turnAssertions.length > 0 ? turnAssertions : evalCase.assertions,
+      assertions: turnAssertions,
       input: buildTurnGraderInput(history, windowSize),
       expected_output: turn.expected_output
-        ? [typeof turn.expected_output === 'string'
-            ? { content: turn.expected_output } as JsonObject
-            : turn.expected_output as JsonObject]
+        ? [
+            typeof turn.expected_output === 'string'
+              ? ({ content: turn.expected_output } as JsonObject)
+              : (turn.expected_output as JsonObject),
+          ]
         : [],
       // Clear conversation fields to prevent recursion
       mode: undefined,
@@ -3120,12 +3132,10 @@ async function runConversationMode(options: {
   // Run conversation-level assertions (top-level assertions on full transcript)
   let conversationScores: EvaluatorResult[] = [];
   if (evalCase.assertions?.length) {
-    const lastAssistantContent = history.filter(m => m.role === 'assistant').pop()?.content ?? '';
-
     const conversationEvalCase: EvalTest = {
       ...evalCase,
       id: `${evalCase.id}/conversation`,
-      input: history.map(m => ({
+      input: history.map((m) => ({
         role: m.role as TestMessageRole,
         content: m.content,
       })),
@@ -3134,11 +3144,16 @@ async function runConversationMode(options: {
       turns: undefined,
     };
 
-    const fullTranscript = history.map(m => `${m.role}: ${m.content}`).join('\n\n');
+    const fullTranscript = history
+      .map((m) => {
+        const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        return `${m.role}: ${content}`;
+      })
+      .join('\n\n');
 
     const conversationResult = await evaluateCandidate({
       evalCase: conversationEvalCase,
-      candidate: lastAssistantContent,
+      candidate: fullTranscript,
       target,
       provider,
       evaluators,
@@ -3157,32 +3172,34 @@ async function runConversationMode(options: {
       availableTargets,
     });
 
-    conversationScores = [{
-      name: 'conversation',
-      type: 'rubrics' as EvaluatorKind,
-      score: conversationResult.score,
-      verdict: scoreToVerdict(conversationResult.score, threshold ?? DEFAULT_THRESHOLD) as EvaluationVerdict,
-      assertions: conversationResult.assertions ? [...conversationResult.assertions] : [],
-      scores: conversationResult.scores,
-    }];
+    conversationScores = [
+      {
+        name: 'conversation',
+        type: 'rubrics' as EvaluatorKind,
+        score: conversationResult.score,
+        verdict: scoreToVerdict(
+          conversationResult.score,
+          threshold ?? DEFAULT_THRESHOLD,
+        ) as EvaluationVerdict,
+        assertions: conversationResult.assertions ? [...conversationResult.assertions] : [],
+        scores: conversationResult.scores,
+      },
+    ];
   }
 
   // Aggregate final score
-  const allScoreValues = [
-    ...allTurnScoreValues,
-    ...conversationScores.map(s => s.score),
-  ];
+  const allScoreValues = [...allTurnScoreValues, ...conversationScores.map((s) => s.score)];
 
   const finalScore = aggregateConversationScores(allScoreValues, aggregation);
   const allResultScores = [...turnScores, ...conversationScores];
 
   // Build output as full conversation transcript
-  const outputMessages: Message[] = history.map(m => ({
+  const outputMessages: Message[] = history.map((m) => ({
     role: m.role,
     content: m.content,
   }));
 
-  const flatAssertions: AssertionEntry[] = allResultScores.flatMap(s => [...s.assertions]);
+  const flatAssertions: AssertionEntry[] = allResultScores.flatMap((s) => [...s.assertions]);
   const totalDurationMs = Date.now() - caseStartMs;
 
   return {
@@ -3196,7 +3213,7 @@ async function runConversationMode(options: {
     output: outputMessages,
     scores: allResultScores,
     executionStatus: classifyQualityStatus(finalScore, threshold ?? DEFAULT_THRESHOLD),
-    input: evalCase.input.map(m => ({
+    input: evalCase.input.map((m) => ({
       role: m.role,
       content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
     })),
@@ -3206,8 +3223,8 @@ async function runConversationMode(options: {
 
 /** Include system messages + last windowSize*2 non-system messages */
 function buildWindowedHistory(history: readonly ChatMessage[], windowSize: number): ChatMessage[] {
-  const systemMessages = history.filter(m => m.role === 'system');
-  const nonSystem = history.filter(m => m.role !== 'system');
+  const systemMessages = history.filter((m) => m.role === 'system');
+  const nonSystem = history.filter((m) => m.role !== 'system');
   const windowed = nonSystem.slice(-windowSize * 2);
   return [...systemMessages, ...windowed];
 }
@@ -3215,13 +3232,18 @@ function buildWindowedHistory(history: readonly ChatMessage[], windowSize: numbe
 /** Build a text representation of the conversation for grader context */
 function buildConversationContext(history: readonly ChatMessage[], windowSize?: number): string {
   const msgs = windowSize ? buildWindowedHistory(history, windowSize) : history;
-  return msgs.map(m => `${m.role}: ${m.content}`).join('\n\n');
+  return msgs
+    .map((m) => {
+      const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+      return `${m.role}: ${content}`;
+    })
+    .join('\n\n');
 }
 
 /** Build TestMessage[] from history for synthetic EvalTest input */
 function buildTurnGraderInput(history: readonly ChatMessage[], windowSize?: number): TestMessage[] {
   const msgs = windowSize ? buildWindowedHistory(history, windowSize) : history;
-  return msgs.map(m => ({
+  return msgs.map((m) => ({
     role: m.role as TestMessageRole,
     content: m.content,
   }));
@@ -3268,14 +3290,16 @@ function buildTurnAssertions(turn: ConversationTurn): EvaluatorConfig[] {
 }
 
 /** Aggregate turn scores using the configured strategy */
-function aggregateConversationScores(scores: readonly number[], aggregation: ConversationAggregation): number {
+function aggregateConversationScores(
+  scores: readonly number[],
+  aggregation: ConversationAggregation,
+): number {
   if (scores.length === 0) return 1.0;
   switch (aggregation) {
     case 'min':
       return Math.min(...scores);
     case 'max':
       return Math.max(...scores);
-    case 'mean':
     default:
       return scores.reduce((sum, s) => sum + s, 0) / scores.length;
   }
