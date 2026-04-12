@@ -41,7 +41,7 @@ export const evalRunCommand = command({
       type: optional(number),
       long: 'workers',
       description:
-        'Number of parallel workers (default: 3, max: 50). Can also be set per-target in targets.yaml',
+        'Number of parallel test cases within each eval file (default: 3, max: 50). Eval files always run sequentially. Can also be set per-target in targets.yaml',
     }),
     out: option({
       type: optional(string),

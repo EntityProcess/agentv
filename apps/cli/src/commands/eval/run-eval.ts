@@ -615,25 +615,6 @@ async function prepareFileMetadata(params: {
   };
 }
 
-async function runWithLimit<T>(
-  items: readonly T[],
-  limit: number,
-  task: (item: T) => Promise<void>,
-): Promise<void> {
-  const safeLimit = Math.max(1, limit);
-  let index = 0;
-
-  const workers = Array.from({ length: safeLimit }, async () => {
-    while (index < items.length) {
-      const current = items[index];
-      index += 1;
-      await task(current);
-    }
-  });
-
-  await Promise.all(workers);
-}
-
 async function runSingleEvalFile(params: {
   readonly testFilePath: string;
   readonly cwd: string;
@@ -1088,15 +1069,8 @@ export async function runEvalCommand(
   const seenTestCases = new Set<string>();
   const displayIdTracker = createDisplayIdTracker();
 
-  // Derive file-level concurrency from worker count (global) when provided
-  const totalWorkers = options.workers ?? DEFAULT_WORKERS;
-  const fileConcurrency = Math.min(
-    Math.max(1, totalWorkers),
-    Math.max(1, resolvedTestFiles.length),
-  );
-  const perFileWorkers = options.workers
-    ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
-    : undefined;
+  // Each file gets the full worker budget — no splitting across files
+  const perFileWorkers = options.workers;
   const fileMetadata = new Map<
     string,
     {
@@ -1228,7 +1202,9 @@ export async function runEvalCommand(
     }
     throw new Error('No tests matched the provided filters.');
   }
-  const progressReporter = createProgressReporter(totalWorkers, { verbose: options.verbose });
+  const progressReporter = createProgressReporter(options.workers ?? DEFAULT_WORKERS, {
+    verbose: options.verbose,
+  });
   progressReporter.start();
   progressReporter.setTotal(totalEvalCount);
   const seenCodexLogPaths = new Set<string>();
@@ -1309,8 +1285,11 @@ export async function runEvalCommand(
     );
   }
 
+  // Eval files run sequentially; within each file, --workers N test cases run in parallel.
+  // This matches industry practice (promptfoo, deepeval, OpenAI Evals) and avoids cross-file
+  // workspace races without any grouping complexity.
   try {
-    await runWithLimit(activeTestFiles, fileConcurrency, async (testFilePath) => {
+    for (const testFilePath of activeTestFiles) {
       const targetPrep = fileMetadata.get(testFilePath);
       if (!targetPrep) {
         throw new Error(`Missing metadata for ${testFilePath}`);
@@ -1404,7 +1383,7 @@ export async function runEvalCommand(
       for (const results of targetResults) {
         allResults.push(...results);
       }
-    });
+    }
 
     progressReporter.finish();
 

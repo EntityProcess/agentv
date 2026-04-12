@@ -194,6 +194,8 @@ export type EvalSuiteResult = {
   readonly failOnError?: import('./types.js').FailOnError;
   /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
   readonly threshold?: number;
+  /** Resolved workspace.path from the eval YAML (after env-var expansion), if set */
+  readonly workspacePath?: string;
 };
 
 /**
@@ -212,7 +214,11 @@ export async function loadTestSuite(
   if (format === 'agent-skills-json') {
     return { tests: await loadTestsFromAgentSkills(evalFilePath) };
   }
-  const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  const { tests, parsed, suiteWorkspacePath } = await loadTestsFromYaml(
+    evalFilePath,
+    repoRoot,
+    options,
+  );
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
@@ -226,6 +232,7 @@ export async function loadTestSuite(
     ...(metadata !== undefined && { metadata }),
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
+    ...(suiteWorkspacePath !== undefined && { workspacePath: suiteWorkspacePath }),
   };
 }
 
@@ -256,7 +263,7 @@ async function loadTestsFromYaml(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject }> {
+): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject; suiteWorkspacePath?: string }> {
   // YAML parsing (existing implementation)
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
@@ -524,7 +531,7 @@ async function loadTestsFromYaml(
     results.push(testCase);
   }
 
-  return { tests: results, parsed: suite };
+  return { tests: results, parsed: suite, suiteWorkspacePath: suiteWorkspace?.path };
 }
 
 /**
