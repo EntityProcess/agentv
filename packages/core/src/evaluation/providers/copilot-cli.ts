@@ -423,6 +423,7 @@ export class CopilotCliProvider implements Provider {
           attempt: request.attempt,
           format: this.config.logFormat ?? 'summary',
           headerLabel: 'Copilot CLI (ACP)',
+          chunkExtractor: extractAcpChunk,
         },
         summarizeAcpEvent,
       );
@@ -499,6 +500,20 @@ Fix options:
 2) Set explicit executable for Copilot targets:
    - In .env: COPILOT_EXE=C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\@github\\copilot-win32-x64\\copilot.exe
   - In .agentv/targets.yaml: executable: \${{ COPILOT_EXE }}`;
+}
+
+/**
+ * Extracts bufferable text from ACP agent_message_chunk events.
+ * Returning a string causes the logger to accumulate the text rather than
+ * emit a line per chunk. A single [assistant_message] line is written once
+ * all chunks for a turn have arrived (on the next non-chunk event or close).
+ */
+function extractAcpChunk(eventType: string, data: unknown): string | undefined {
+  if (eventType !== 'agent_message_chunk') return undefined;
+  if (!data || typeof data !== 'object') return undefined;
+  const d = data as Record<string, unknown>;
+  const content = d.content as Record<string, unknown> | undefined;
+  return content?.type === 'text' && typeof content.text === 'string' ? content.text : undefined;
 }
 
 function summarizeAcpEvent(eventType: string, data: unknown): string | undefined {

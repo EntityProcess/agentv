@@ -378,6 +378,7 @@ export class CopilotSdkProvider implements Provider {
           attempt: request.attempt,
           format: this.config.logFormat ?? 'summary',
           headerLabel: 'Copilot SDK',
+          chunkExtractor: extractSdkChunk,
         },
         summarizeSdkEvent,
       );
@@ -424,6 +425,19 @@ function normalizeByokBaseUrl(baseUrl: string, type: string): string {
     return `https://${trimmed}.openai.azure.com`;
   }
   return trimmed;
+}
+
+/**
+ * Extracts bufferable text from SDK assistant.message_delta events.
+ * Returning a string causes the logger to accumulate the text rather than
+ * emit a line per delta. A single [assistant_message] line is written once
+ * all deltas for a turn have arrived (on the next non-chunk event or close).
+ */
+function extractSdkChunk(eventType: string, data: unknown): string | undefined {
+  if (eventType !== 'assistant.message_delta') return undefined;
+  if (!data || typeof data !== 'object') return undefined;
+  const d = data as Record<string, unknown>;
+  return typeof d.deltaContent === 'string' ? d.deltaContent : undefined;
 }
 
 function summarizeSdkEvent(eventType: string, data: unknown): string | undefined {
