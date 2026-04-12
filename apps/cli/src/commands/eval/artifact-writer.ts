@@ -1,11 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import {
-  DEFAULT_THRESHOLD,
-  type EvaluationResult,
-  type EvaluatorResult,
-} from '@agentv/core';
+import { DEFAULT_THRESHOLD, type EvaluationResult, type EvaluatorResult } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 
