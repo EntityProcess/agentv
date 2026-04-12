@@ -164,7 +164,13 @@ function getWorkspaceTemplate(target: ResolvedTarget): string | undefined {
  * Returns silently when the graph is valid.
  */
 function validateDependencyGraph(tests: readonly EvalTest[]): void {
-  const ids = new Set(tests.map((t) => t.id));
+  const ids = new Set<string>();
+  for (const test of tests) {
+    if (ids.has(test.id)) {
+      throw new Error(`Duplicate test ID '${test.id}' — each test must have a unique ID`);
+    }
+    ids.add(test.id);
+  }
 
   // Check for missing dependency IDs
   for (const test of tests) {
@@ -261,6 +267,14 @@ function computeWaves(tests: readonly EvalTest[]): EvalTest[][] {
       }
     }
     ready = nextReady;
+  }
+
+  // Defensive: if validation missed a cycle, Kahn's algorithm leaves unscheduled nodes
+  const totalScheduled = waves.reduce((sum, w) => sum + w.length, 0);
+  if (totalScheduled !== tests.length) {
+    throw new Error(
+      `Internal error: ${tests.length - totalScheduled} tests were not scheduled (possible undetected cycle)`,
+    );
   }
 
   return waves;
@@ -1022,7 +1036,9 @@ export async function runEvaluation(
         const depResult = completedResults.get(depId);
         if (depResult) {
           depResults[depId] = toDependencyResult(depResult);
-          if (depResult.executionStatus !== 'ok') {
+          // Only execution errors count as dependency failures — quality failures
+          // (low scores) still mean the test ran successfully, just scored poorly.
+          if (depResult.executionStatus === 'execution_error') {
             allPassed = false;
           }
         } else {
@@ -1247,12 +1263,13 @@ export async function runEvaluation(
             const { ok, depResults } = checkDependencies(evalCase);
             if (!ok) {
               const policy = evalCase.on_dependency_failure ?? 'skip';
-              if (policy === 'skip') {
-                const failedDeps = evalCase.depends_on.filter((d) => {
-                  const r = completedResults.get(d);
-                  return !r || r.executionStatus !== 'ok';
-                });
-                const skipResult: EvaluationResult = {
+              if (policy === 'skip' || policy === 'fail') {
+                const failedDeps = evalCase.depends_on.filter(
+                  (d) => completedResults.get(d)?.executionStatus === 'execution_error',
+                );
+                const prefix = policy === 'skip' ? 'Skipped' : 'Failed';
+                const errorMsg = `${prefix}: dependency failed (${failedDeps.join(', ')})`;
+                const depFailResult: EvaluationResult = {
                   timestamp: (now ?? (() => new Date()))().toISOString(),
                   testId: evalCase.id,
                   suite: evalCase.suite,
@@ -1261,14 +1278,11 @@ export async function runEvaluation(
                   assertions: [],
                   output: [],
                   target: target.name,
-                  error: `Skipped: dependency failed (${failedDeps.join(', ')})`,
+                  error: errorMsg,
                   executionStatus: 'execution_error',
                   failureStage: 'setup',
                   failureReasonCode: 'dependency_failed',
-                  executionError: {
-                    message: `Skipped: dependency failed (${failedDeps.join(', ')})`,
-                    stage: 'setup',
-                  },
+                  executionError: { message: errorMsg, stage: 'setup' },
                 };
                 if (onProgress) {
                   await onProgress({
@@ -1276,54 +1290,15 @@ export async function runEvaluation(
                     testId: evalCase.id,
                     status: 'failed',
                     completedAt: Date.now(),
-                    error: skipResult.error,
+                    error: depFailResult.error,
                     score: 0,
-                    executionStatus: skipResult.executionStatus,
+                    executionStatus: depFailResult.executionStatus,
                   });
                 }
                 if (onResult) {
-                  await onResult(skipResult);
+                  await onResult(depFailResult);
                 }
-                return skipResult;
-              }
-              if (policy === 'fail') {
-                const failedDeps = evalCase.depends_on.filter((d) => {
-                  const r = completedResults.get(d);
-                  return !r || r.executionStatus !== 'ok';
-                });
-                const failResult: EvaluationResult = {
-                  timestamp: (now ?? (() => new Date()))().toISOString(),
-                  testId: evalCase.id,
-                  suite: evalCase.suite,
-                  category: evalCase.category,
-                  score: 0,
-                  assertions: [],
-                  output: [],
-                  target: target.name,
-                  error: `Failed: dependency failed (${failedDeps.join(', ')})`,
-                  executionStatus: 'execution_error',
-                  failureStage: 'setup',
-                  failureReasonCode: 'dependency_failed',
-                  executionError: {
-                    message: `Failed: dependency failed (${failedDeps.join(', ')})`,
-                    stage: 'setup',
-                  },
-                };
-                if (onProgress) {
-                  await onProgress({
-                    workerId: nextWorkerId++,
-                    testId: evalCase.id,
-                    status: 'failed',
-                    completedAt: Date.now(),
-                    error: failResult.error,
-                    score: 0,
-                    executionStatus: failResult.executionStatus,
-                  });
-                }
-                if (onResult) {
-                  await onResult(failResult);
-                }
-                return failResult;
+                return depFailResult;
               }
               // policy === 'run': fall through to dispatch with dependency results
             }

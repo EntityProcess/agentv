@@ -236,17 +236,26 @@ describe('dependency-aware scheduling', () => {
   });
 
   describe('on_dependency_failure policies', () => {
-    it('skip (default): skips downstream when dependency fails', async () => {
-      const provider = new FixedProvider('mock', {
-        output: [{ role: 'assistant', content: 'answer' }],
-      });
+    // Use a provider that throws for 'dep' to produce an execution_error
+    const errorOnDepProvider: Provider = {
+      id: 'mock:error-on-dep',
+      kind: 'mock' as const,
+      targetName: 'error-on-dep',
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        if (request.evalCaseId === 'dep') {
+          throw new Error('Simulated provider crash');
+        }
+        return { output: [{ role: 'assistant', content: 'ok' }] };
+      },
+    };
 
+    it('skip (default): skips downstream when dependency has execution error', async () => {
       const results = await runEvaluation({
         testFilePath: 'in-memory.yaml',
         repoRoot: '/tmp',
         target: baseTarget,
-        providerFactory: () => provider,
-        evaluators: failingEvaluatorRegistry,
+        providerFactory: () => errorOnDepProvider,
+        evaluators: passingEvaluatorRegistry,
         evalCases: [makeTest('dep'), makeTest('downstream', { depends_on: ['dep'] })],
       });
 
@@ -258,17 +267,13 @@ describe('dependency-aware scheduling', () => {
       expect(downstream?.executionStatus).toBe('execution_error');
     });
 
-    it('fail: marks downstream as failed when dependency fails', async () => {
-      const provider = new FixedProvider('mock', {
-        output: [{ role: 'assistant', content: 'answer' }],
-      });
-
+    it('fail: marks downstream as failed when dependency has execution error', async () => {
       const results = await runEvaluation({
         testFilePath: 'in-memory.yaml',
         repoRoot: '/tmp',
         target: baseTarget,
-        providerFactory: () => provider,
-        evaluators: failingEvaluatorRegistry,
+        providerFactory: () => errorOnDepProvider,
+        evaluators: passingEvaluatorRegistry,
         evalCases: [
           makeTest('dep'),
           makeTest('downstream', { depends_on: ['dep'], on_dependency_failure: 'fail' }),
@@ -282,16 +287,94 @@ describe('dependency-aware scheduling', () => {
       expect(downstream?.score).toBe(0);
     });
 
-    it('run: executes downstream even when dependency fails', async () => {
+    it('run: executes downstream even when dependency has execution error', async () => {
       const executionOrder: string[] = [];
 
+      const trackingErrorProvider: Provider = {
+        id: 'mock:tracking-error',
+        kind: 'mock' as const,
+        targetName: 'tracking-error',
+        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+          const testId = request.evalCaseId ?? 'unknown';
+          executionOrder.push(testId);
+          if (testId === 'dep') {
+            throw new Error('Simulated provider crash');
+          }
+          return { output: [{ role: 'assistant', content: 'ok' }] };
+        },
+      };
+
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: '/tmp',
+        target: baseTarget,
+        providerFactory: () => trackingErrorProvider,
+        evaluators: passingEvaluatorRegistry,
+        evalCases: [
+          makeTest('dep'),
+          makeTest('downstream', { depends_on: ['dep'], on_dependency_failure: 'run' }),
+        ],
+      });
+
+      expect(results).toHaveLength(2);
+      // Both tests should have been executed (dep threw but downstream runs anyway)
+      expect(executionOrder).toContain('dep');
+      expect(executionOrder).toContain('downstream');
+    });
+  });
+
+  describe('transitive dependency cascade', () => {
+    it('cascades skip across A -> B -> C when A has execution error', async () => {
+      // Provider that throws for test 'a' (execution error)
+      const errorProvider: Provider = {
+        id: 'mock:error',
+        kind: 'mock' as const,
+        targetName: 'error',
+        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+          if (request.evalCaseId === 'a') {
+            throw new Error('Simulated provider crash');
+          }
+          return { output: [{ role: 'assistant', content: 'ok' }] };
+        },
+      };
+
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: '/tmp',
+        target: baseTarget,
+        providerFactory: () => errorProvider,
+        evaluators: passingEvaluatorRegistry,
+        evalCases: [
+          makeTest('a'),
+          makeTest('b', { depends_on: ['a'] }),
+          makeTest('c', { depends_on: ['b'] }),
+        ],
+      });
+
+      expect(results).toHaveLength(3);
+      const resultA = results.find((r) => r.testId === 'a');
+      const resultB = results.find((r) => r.testId === 'b');
+      const resultC = results.find((r) => r.testId === 'c');
+      // A has execution error (provider threw)
+      expect(resultA?.executionStatus).toBe('execution_error');
+      // B is skipped because A failed
+      expect(resultB?.error).toContain('dependency failed');
+      expect(resultB?.executionStatus).toBe('execution_error');
+      // C is skipped because B was skipped (cascade)
+      expect(resultC?.error).toContain('dependency failed');
+      expect(resultC?.executionStatus).toBe('execution_error');
+    });
+  });
+
+  describe('quality_failure does NOT trigger dependency failure', () => {
+    it('runs downstream even when dependency scores below threshold', async () => {
+      const executionOrder: string[] = [];
       const trackingProvider: Provider = {
         id: 'mock:tracking',
         kind: 'mock' as const,
         targetName: 'tracking',
         async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-          const testId = request.evalCaseId ?? 'unknown';
-          executionOrder.push(testId);
+          executionOrder.push(request.evalCaseId ?? 'unknown');
           return { output: [{ role: 'assistant', content: 'ok' }] };
         },
       };
@@ -301,17 +384,23 @@ describe('dependency-aware scheduling', () => {
         repoRoot: '/tmp',
         target: baseTarget,
         providerFactory: () => trackingProvider,
-        evaluators: failingEvaluatorRegistry,
+        evaluators: failingEvaluatorRegistry, // scores 0.2 — quality_failure, not execution_error
         evalCases: [
           makeTest('dep'),
-          makeTest('downstream', { depends_on: ['dep'], on_dependency_failure: 'run' }),
+          makeTest('downstream', { depends_on: ['dep'] }), // default: skip
         ],
       });
 
       expect(results).toHaveLength(2);
-      // Both tests should have been executed
+      // Both tests should execute — quality failure is NOT a dependency failure
       expect(executionOrder).toContain('dep');
       expect(executionOrder).toContain('downstream');
+      // dep scored poorly but ran fine
+      const depResult = results.find((r) => r.testId === 'dep');
+      expect(depResult?.executionStatus).toBe('quality_failure');
+      // downstream ran (not skipped)
+      const downstreamResult = results.find((r) => r.testId === 'downstream');
+      expect(downstreamResult?.error).toBeUndefined();
     });
   });
 
