@@ -498,7 +498,6 @@ async function prepareFileMetadata(params: {
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly tags?: readonly string[];
-  readonly workspacePath?: string;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -613,27 +612,7 @@ async function prepareFileMetadata(params: {
     failOnError: suite.failOnError,
     threshold: suite.threshold,
     tags: suite.metadata?.tags,
-    workspacePath: suite.workspacePath,
   };
-}
-
-async function runWithLimit<T>(
-  items: readonly T[],
-  limit: number,
-  task: (item: T) => Promise<void>,
-): Promise<void> {
-  const safeLimit = Math.max(1, limit);
-  let index = 0;
-
-  const workers = Array.from({ length: safeLimit }, async () => {
-    while (index < items.length) {
-      const current = items[index];
-      index += 1;
-      await task(current);
-    }
-  });
-
-  await Promise.all(workers);
 }
 
 async function runSingleEvalFile(params: {
@@ -1110,7 +1089,6 @@ export async function runEvalCommand(
       readonly failOnError?: FailOnError;
       readonly threshold?: number;
       readonly tags?: readonly string[];
-      readonly workspacePath?: string;
     }
   >();
   // Separate TypeScript/JS eval files from YAML files.
