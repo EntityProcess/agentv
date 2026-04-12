@@ -626,7 +626,6 @@ export async function runEvaluation(
   const availablePoolSlots: PoolSlot[] = [];
   const poolSlotBaselines = new Map<string, string>();
 
-
   // Pool capacity: how many slots can exist on disk (independent of worker count).
   // Workers acquire slots from the pool; the pool itself can be larger than any single run needs.
   const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
