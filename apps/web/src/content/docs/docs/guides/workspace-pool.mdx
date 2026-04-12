@@ -135,7 +135,7 @@ This creates up to 4 slots (`slot-0` through `slot-3`). PID-based lock files pre
 
 The maximum number of pool slots defaults to 10 (capped at 50). Slots are created on demand — a run with 2 workers only creates 2 slots, even if the pool allows 10.
 
-**Multiple eval files:** When you pass multiple eval files to `agentv eval`, files with distinct workspace paths run in parallel while files that share a static workspace path are automatically serialized (see [Parallelism](/docs/evaluation/running-evals/#parallelism)). Pooled workspaces are always safe to run in parallel — each active worker acquires its own slot regardless of which eval file it belongs to. No cross-file workspace contention occurs in pooled mode.
+**Multiple eval files:** When you pass multiple eval files to `agentv eval`, they run sequentially — one file completes before the next starts (see [Parallelism](/docs/evaluation/running-evals/#parallelism)). Within each file, pool slots support concurrent workers as described above.
 
 ## Drift detection
 

@@ -1307,119 +1307,105 @@ export async function runEvalCommand(
     );
   }
 
-  // Group files by static workspace path. Files sharing the same static workspace run
-  // sequentially to prevent concurrent writes from racing. Files using pooled mode or
-  // no workspace each get their own group. Groups run in parallel up to --workers limit,
-  // each file within a group gets the full --workers budget for within-file concurrency.
-  const workers = options.workers ?? DEFAULT_WORKERS;
-  const workspaceGroups = new Map<string, string[]>();
-  for (const filePath of activeTestFiles) {
-    const staticPath = options.workspacePath ?? fileMetadata.get(filePath)?.workspacePath;
-    // Files with no static workspace get a unique key so they run in parallel
-    const groupKey = staticPath ?? filePath;
-    const group = workspaceGroups.get(groupKey) ?? [];
-    group.push(filePath);
-    workspaceGroups.set(groupKey, group);
-  }
-
+  // Eval files run sequentially; within each file, --workers N test cases run in parallel.
+  // This matches industry practice (promptfoo, convex-evals) and avoids cross-file workspace
+  // races without any grouping complexity.
   try {
-    await runWithLimit([...workspaceGroups.values()], workers, async (group) => {
-      for (const testFilePath of group) {
-        const targetPrep = fileMetadata.get(testFilePath);
-        if (!targetPrep) {
-          throw new Error(`Missing metadata for ${testFilePath}`);
-        }
-
-        // Run all targets concurrently (each target has its own worker limit)
-        const targetResults = await Promise.all(
-          targetPrep.selections.map(async ({ selection, inlineTargetLabel }) => {
-            // Filter test cases to those applicable to this target.
-            const targetName = selection.targetName;
-            const applicableTestCases =
-              targetPrep.selections.length > 1
-                ? targetPrep.testCases.filter((test) => {
-                    if (test.targets && test.targets.length > 0) {
-                      return test.targets.includes(targetName);
-                    }
-                    return true;
-                  })
-                : targetPrep.testCases;
-
-            if (applicableTestCases.length === 0) {
-              return [];
-            }
-
-            try {
-              const result = await runSingleEvalFile({
-                testFilePath,
-                cwd,
-                repoRoot,
-                options,
-                outputWriter,
-                otelExporter,
-                cache,
-                evaluationRunner,
-                workersOverride: perFileWorkers,
-                yamlWorkers: targetPrep.yamlWorkers,
-                progressReporter,
-                seenTestCases,
-                displayIdTracker,
-                selection,
-                inlineTargetLabel,
-                testCases: applicableTestCases,
-                trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
-                matrixMode: targetPrep.selections.length > 1,
-                totalBudgetUsd: targetPrep.totalBudgetUsd,
-                failOnError: targetPrep.failOnError,
-                threshold: resolvedThreshold,
-                providerFactory: transcriptProviderFactory,
-              });
-              const evalFile = path.relative(cwd, testFilePath);
-              const existingSummary = remoteEvalSummaries.find(
-                (summary) => summary.evalFile === evalFile,
-              );
-              if (existingSummary) {
-                existingSummary.results.push(...result.results);
-              } else {
-                remoteEvalSummaries.push({
-                  evalFile,
-                  results: [...result.results],
-                });
-              }
-
-              return result.results;
-            } catch (fileError) {
-              // before_all or other setup failures should not abort the entire run.
-              // Mark all tests in this file as errors and continue with other files.
-              const message = fileError instanceof Error ? fileError.message : String(fileError);
-              console.error(`\n⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
-              const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
-                timestamp: new Date().toISOString(),
-                testId: testCase.id,
-                score: 0,
-                assertions: [],
-                output: [],
-                scores: [],
-                error: message,
-                executionStatus: 'execution_error' as const,
-                failureStage: 'setup' as const,
-                failureReasonCode: 'setup_error' as const,
-                durationMs: 0,
-                tokenUsage: { input: 0, output: 0, inputTokens: 0, outputTokens: 0 },
-                target: selection.targetName,
-              }));
-              for (const errResult of errorResults) {
-                await outputWriter.append(errResult);
-              }
-              return errorResults;
-            }
-          }),
-        );
-        for (const results of targetResults) {
-          allResults.push(...results);
-        }
+    for (const testFilePath of activeTestFiles) {
+      const targetPrep = fileMetadata.get(testFilePath);
+      if (!targetPrep) {
+        throw new Error(`Missing metadata for ${testFilePath}`);
       }
-    });
+
+      // Run all targets concurrently (each target has its own worker limit)
+      const targetResults = await Promise.all(
+        targetPrep.selections.map(async ({ selection, inlineTargetLabel }) => {
+          // Filter test cases to those applicable to this target.
+          const targetName = selection.targetName;
+          const applicableTestCases =
+            targetPrep.selections.length > 1
+              ? targetPrep.testCases.filter((test) => {
+                  if (test.targets && test.targets.length > 0) {
+                    return test.targets.includes(targetName);
+                  }
+                  return true;
+                })
+              : targetPrep.testCases;
+
+          if (applicableTestCases.length === 0) {
+            return [];
+          }
+
+          try {
+            const result = await runSingleEvalFile({
+              testFilePath,
+              cwd,
+              repoRoot,
+              options,
+              outputWriter,
+              otelExporter,
+              cache,
+              evaluationRunner,
+              workersOverride: perFileWorkers,
+              yamlWorkers: targetPrep.yamlWorkers,
+              progressReporter,
+              seenTestCases,
+              displayIdTracker,
+              selection,
+              inlineTargetLabel,
+              testCases: applicableTestCases,
+              trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
+              matrixMode: targetPrep.selections.length > 1,
+              totalBudgetUsd: targetPrep.totalBudgetUsd,
+              failOnError: targetPrep.failOnError,
+              threshold: resolvedThreshold,
+              providerFactory: transcriptProviderFactory,
+            });
+            const evalFile = path.relative(cwd, testFilePath);
+            const existingSummary = remoteEvalSummaries.find(
+              (summary) => summary.evalFile === evalFile,
+            );
+            if (existingSummary) {
+              existingSummary.results.push(...result.results);
+            } else {
+              remoteEvalSummaries.push({
+                evalFile,
+                results: [...result.results],
+              });
+            }
+
+            return result.results;
+          } catch (fileError) {
+            // before_all or other setup failures should not abort the entire run.
+            // Mark all tests in this file as errors and continue with other files.
+            const message = fileError instanceof Error ? fileError.message : String(fileError);
+            console.error(`\n⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
+            const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
+              timestamp: new Date().toISOString(),
+              testId: testCase.id,
+              score: 0,
+              assertions: [],
+              output: [],
+              scores: [],
+              error: message,
+              executionStatus: 'execution_error' as const,
+              failureStage: 'setup' as const,
+              failureReasonCode: 'setup_error' as const,
+              durationMs: 0,
+              tokenUsage: { input: 0, output: 0, inputTokens: 0, outputTokens: 0 },
+              target: selection.targetName,
+            }));
+            for (const errResult of errorResults) {
+              await outputWriter.append(errResult);
+            }
+            return errorResults;
+          }
+        }),
+      );
+      for (const results of targetResults) {
+        allResults.push(...results);
+      }
+    }
 
     progressReporter.finish();
 

@@ -192,25 +192,17 @@ agentv eval evals/my-eval.yaml --export-otel
 
 ### Parallelism
 
-The `--workers N` flag controls how many **test cases run in parallel within each eval file** (default: 3).
+The `--workers N` flag controls how many **test cases run in parallel within each eval file** (default: 3). Eval files always run sequentially — one file completes before the next starts.
 
 ```bash
 agentv eval evals/my-eval.yaml --workers 4
 # Up to 4 test cases from the file run concurrently
-```
 
-**Multiple eval files** are scheduled by workspace path:
-
-- Files that share the **same static workspace path** run **sequentially** — one file completes before the next starts, so they never write to the same directory concurrently.
-- Files with **distinct workspace paths** (or no workspace) run **in parallel**, each with the full `--workers N` budget.
-
-```bash
-# file1 and file2 share EVAL_WORKSPACE_PATH → run sequentially, 3 workers each
-# file3 has its own path → runs in parallel with the file1/file2 group
 agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
+# Files run one at a time; within each file, up to 3 test cases run in parallel
 ```
 
-Pooled workspaces (the default for evals with `repos`) are always safe to run in parallel — each worker gets its own pool slot. See [Workspace Pool](/docs/guides/workspace-pool/) for details.
+This matches the standard model used by eval frameworks (promptfoo, convex-evals) and avoids cross-file workspace races without any special configuration.
 
 ### Workspace Modes and Finish Policy
 
