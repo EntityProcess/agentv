@@ -1,7 +1,9 @@
+import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
@@ -94,6 +96,9 @@ import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.j
 
 type MaybePromise<T> = T | Promise<T>;
 
+const execFileAsync = promisify(execFile);
+const WORKSPACE_GIT_TIMEOUT_MS = 300_000;
+
 function classifyQualityStatus(score: number, threshold = DEFAULT_THRESHOLD): ExecutionStatus {
   return score >= threshold ? 'ok' : 'quality_failure';
 }
@@ -150,6 +155,43 @@ function hooksEnabled(
   workspace: { readonly hooks?: { readonly enabled?: boolean } } | undefined,
 ): boolean {
   return workspace?.hooks?.enabled !== false;
+}
+
+function workspaceGitEnv(): Record<string, string | undefined> {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND') {
+      delete env[key];
+    }
+  }
+  return {
+    ...env,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_ASKPASS: '',
+    GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
+  };
+}
+
+async function resetWorkspaceRoot(
+  workspacePath: string,
+  resetMode: 'fast' | 'strict',
+  baselineRef?: string,
+): Promise<boolean> {
+  if (!existsSync(path.join(workspacePath, '.git'))) {
+    return false;
+  }
+
+  const cleanFlag = resetMode === 'strict' ? '-fdx' : '-fd';
+  const opts = {
+    cwd: workspacePath,
+    timeout: WORKSPACE_GIT_TIMEOUT_MS,
+    env: workspaceGitEnv(),
+    maxBuffer: 50 * 1024 * 1024,
+  };
+
+  await execFileAsync('git', ['reset', '--hard', baselineRef ?? 'HEAD'], opts);
+  await execFileAsync('git', ['clean', cleanFlag], opts);
+  return true;
 }
 
 /**
@@ -1847,6 +1889,45 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  let beforeEachNeedsFreshBaseline = false;
+
+  // Apply before_each reset before any setup scripts run.
+  if (
+    caseHooksEnabled &&
+    workspacePath &&
+    evalCase.workspace?.hooks?.before_each?.reset &&
+    evalCase.workspace.hooks.before_each.reset !== 'none'
+  ) {
+    try {
+      if (repoManager && evalCase.workspace.repos?.length) {
+        await repoManager.reset(
+          evalCase.workspace.repos,
+          workspacePath,
+          evalCase.workspace.hooks.before_each.reset,
+        );
+      } else {
+        await resetWorkspaceRoot(
+          workspacePath,
+          evalCase.workspace.hooks.before_each.reset,
+          sharedBaselineCommit,
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        new Error(`before_each reset failed: ${message}`),
+        promptInputs,
+        provider,
+        'setup',
+        'script_error',
+        verbose,
+      );
+    }
+  }
+
   // Execute before_each hook (runs before each test for any workspace)
   const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each;
   if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeEachHook)) {
@@ -1864,6 +1945,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         toScriptConfig(beforeEachHook, 'before_each', `test '${evalCase.id}'`),
         scriptContext,
       );
+      beforeEachNeedsFreshBaseline = true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return buildErrorResult(
@@ -1883,7 +1965,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Initialize git baseline for file-change tracking.
   // Runs git init + baseline commit before the agent, then diffs after.
   // Supports nested repos via --submodule=diff.
-  let baselineCommit: string | undefined = sharedBaselineCommit;
+  let baselineCommit: string | undefined = beforeEachNeedsFreshBaseline
+    ? undefined
+    : sharedBaselineCommit;
   if (!baselineCommit && workspacePath) {
     try {
       baselineCommit = await initializeBaseline(workspacePath);
@@ -2075,21 +2159,27 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const providerError = extractProviderError(providerResponse);
 
-  // Reset repos before after_each hook (if configured)
+  // Reset workspace state before after_each hook (if configured)
   if (
     caseHooksEnabled &&
-    repoManager &&
     workspacePath &&
     evalCase.workspace?.hooks?.after_each?.reset &&
-    evalCase.workspace.hooks.after_each.reset !== 'none' &&
-    evalCase.workspace.repos
+    evalCase.workspace.hooks.after_each.reset !== 'none'
   ) {
     try {
-      await repoManager.reset(
-        evalCase.workspace.repos,
-        workspacePath,
-        evalCase.workspace.hooks.after_each.reset,
-      );
+      if (repoManager && evalCase.workspace.repos?.length) {
+        await repoManager.reset(
+          evalCase.workspace.repos,
+          workspacePath,
+          evalCase.workspace.hooks.after_each.reset,
+        );
+      } else {
+        await resetWorkspaceRoot(
+          workspacePath,
+          evalCase.workspace.hooks.after_each.reset,
+          baselineCommit,
+        );
+      }
     } catch {
       // Reset failures are non-fatal (like after_each)
     }

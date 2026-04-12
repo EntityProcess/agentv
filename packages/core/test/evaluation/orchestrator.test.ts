@@ -1761,6 +1761,119 @@ rl.on('close', () => {
     expect(result.error).toBeUndefined();
     expect(result.executionStatus).toBe('ok');
   });
+
+  it('applies reset-only before_each hooks to a shared workspace root', async () => {
+    const { mkdtemp, writeFile, mkdir, readFile, access } = await import('node:fs/promises');
+    const { initializeBaseline } = await import('../../src/evaluation/workspace/file-changes.js');
+
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-shared-reset-'));
+    await mkdir(testDir, { recursive: true });
+    await writeFile(path.join(testDir, 'seed.txt'), 'clean\n');
+    const sharedBaselineCommit = await initializeBaseline(testDir);
+
+    await writeFile(path.join(testDir, 'seed.txt'), 'dirty\n');
+    await writeFile(path.join(testDir, 'stale.txt'), 'stale\n');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+        },
+      ],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        path: testDir,
+        hooks: {
+          before_each: {
+            reset: 'fast',
+          },
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run-shared-reset',
+      cleanupWorkspaces: false,
+      sharedWorkspacePath: testDir,
+      sharedBaselineCommit,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.executionStatus).toBe('ok');
+    expect((await readFile(path.join(testDir, 'seed.txt'), 'utf8')).trim()).toBe('clean');
+    await expect(access(path.join(testDir, 'stale.txt'))).rejects.toThrow();
+  });
+
+  it('refreshes the baseline after shared before_each scripts run', async () => {
+    const { mkdtemp, writeFile, readFile } = await import('node:fs/promises');
+    const { initializeBaseline } = await import('../../src/evaluation/workspace/file-changes.js');
+
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-shared-baseline-'));
+    const sharedBaselineCommit = await initializeBaseline(testDir);
+    const beforeEachScript = path.join(testDir, 'before-each.js');
+    writeFileSync(
+      beforeEachScript,
+      `const fs = require('node:fs');
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+fs.writeFileSync(require('node:path').join(payload.workspace_path, 'setup.txt'), 'setup from hook\\n');
+`,
+      'utf8',
+    );
+
+    const provider: Provider = {
+      id: 'writer:mock',
+      kind: 'mock',
+      targetName: 'mock',
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        const cwd = request.cwd;
+        if (!cwd) {
+          throw new Error('cwd was not provided');
+        }
+        writeFileSync(path.join(cwd, 'agent.txt'), 'agent output\n');
+        return {
+          output: [{ role: 'assistant', content: 'done' }],
+        };
+      },
+    };
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        path: testDir,
+        hooks: {
+          before_each: {
+            command: [process.execPath, beforeEachScript],
+          },
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run-shared-before-each-script',
+      cleanupWorkspaces: false,
+      sharedWorkspacePath: testDir,
+      sharedBaselineCommit,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.executionStatus).toBe('ok');
+    expect((await readFile(path.join(testDir, 'setup.txt'), 'utf8')).trim()).toBe(
+      'setup from hook',
+    );
+    expect(result.fileChanges).toContain('agent.txt');
+    expect(result.fileChanges).not.toContain('setup.txt');
+  });
 });
 
 describe('deterministic assertion evaluators in orchestrator', () => {
