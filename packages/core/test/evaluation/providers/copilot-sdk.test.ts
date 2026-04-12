@@ -295,7 +295,7 @@ describe('CopilotSdkProvider', () => {
     expect(msg?.toolCalls).toBeDefined();
     expect(msg?.toolCalls?.length).toBe(1);
     expect(msg?.toolCalls?.[0]?.tool).toBe('Read');
-    expect(msg?.toolCalls?.[0]?.input).toEqual({ path: '/foo.ts' });
+    expect(msg?.toolCalls?.[0]?.input).toEqual({ path: '/foo.ts', file_path: '/foo.ts' });
     expect(msg?.toolCalls?.[0]?.output).toBe('file content');
     expect(msg?.toolCalls?.[0]?.id).toBe('tc-1');
     expect(msg?.toolCalls?.[0]?.durationMs).toBeDefined();

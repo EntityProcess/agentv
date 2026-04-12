@@ -16,6 +16,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { normalizeToolCall } from './normalize-tool-call.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
   extractAzureResourceName,
@@ -690,12 +691,14 @@ function extractToolCallsFromEvents(events: unknown[]): ToolCall[] {
 
   const toolCalls: ToolCall[] = [];
   for (const [id, { tool, input }] of starts) {
-    toolCalls.push({
-      tool,
-      input: input as Record<string, unknown> | undefined,
-      id: id.startsWith('anon-') ? undefined : id,
-      output: results.get(id),
-    });
+    toolCalls.push(
+      normalizeToolCall('pi-cli', {
+        tool,
+        input: input as Record<string, unknown> | undefined,
+        id: id.startsWith('anon-') ? undefined : id,
+        output: results.get(id),
+      }),
+    );
   }
   return toolCalls;
 }
@@ -853,17 +856,21 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
     if (!part || typeof part !== 'object') continue;
     const p = part as Record<string, unknown>;
     if (p.type === 'tool_use' && typeof p.name === 'string') {
-      toolCalls.push({
-        tool: p.name,
-        input: p.input,
-        id: typeof p.id === 'string' ? p.id : undefined,
-      });
+      toolCalls.push(
+        normalizeToolCall('pi-cli', {
+          tool: p.name,
+          input: p.input,
+          id: typeof p.id === 'string' ? p.id : undefined,
+        }),
+      );
     } else if ((p.type === 'toolCall' || p.type === 'tool_call') && typeof p.name === 'string') {
-      toolCalls.push({
-        tool: p.name,
-        input: p.arguments ?? p.input,
-        id: typeof p.id === 'string' ? p.id : undefined,
-      });
+      toolCalls.push(
+        normalizeToolCall('pi-cli', {
+          tool: p.name,
+          input: p.arguments ?? p.input,
+          id: typeof p.id === 'string' ? p.id : undefined,
+        }),
+      );
     } else if (p.type === 'tool_result' && typeof p.tool_use_id === 'string') {
       const existing = toolCalls.find((tc) => tc.id === p.tool_use_id);
       if (existing) {

@@ -22,6 +22,7 @@
  *   3. Add a test in copilot-log-parser.test.ts
  */
 
+import { normalizeToolCall } from './normalize-tool-call.js';
 import type { Message, ProviderTokenUsage, ToolCall } from './types.js';
 
 export interface CopilotSessionMeta {
@@ -106,11 +107,13 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
       case 'assistant.message': {
         const toolRequests = data.toolRequests as readonly Record<string, unknown>[] | undefined;
 
-        const toolCalls: ToolCall[] = (toolRequests ?? []).map((req) => ({
-          tool: String(req.name ?? req.toolName ?? ''),
-          input: req.arguments,
-          id: req.toolCallId ? String(req.toolCallId) : undefined,
-        }));
+        const toolCalls: ToolCall[] = (toolRequests ?? []).map((req) =>
+          normalizeToolCall('copilot-log', {
+            tool: String(req.name ?? req.toolName ?? ''),
+            input: req.arguments,
+            id: req.toolCallId ? String(req.toolCallId) : undefined,
+          }),
+        );
 
         messages.push({
           role: 'assistant',
@@ -157,12 +160,12 @@ export function parseCopilotEvents(eventsJsonl: string): ParsedCopilotSession {
           messages.push({
             role: 'assistant',
             toolCalls: [
-              {
+              normalizeToolCall('copilot-log', {
                 tool: started.toolName,
                 input: started.input,
                 output: data.result,
                 id: toolCallId,
-              },
+              }),
             ],
           });
         }

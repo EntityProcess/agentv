@@ -57,7 +57,7 @@ describe('parseCopilotEvents', () => {
     expect(result.messages[0].role).toBe('assistant');
     expect(result.messages[0].content).toBe('I will help you');
     expect(result.messages[0].toolCalls).toHaveLength(1);
-    expect(result.messages[0].toolCalls?.[0].tool).toBe('Read File');
+    expect(result.messages[0].toolCalls?.[0].tool).toBe('Read');
     expect(result.messages[0].toolCalls?.[0].input).toEqual({ file_path: '/src/index.ts' });
   });
 
@@ -96,7 +96,7 @@ describe('parseCopilotEvents', () => {
     const assistantMsg = result.messages.find((m) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
     expect(assistantMsg?.toolCalls).toHaveLength(1);
-    expect(assistantMsg?.toolCalls?.[0].tool).toBe('Read File');
+    expect(assistantMsg?.toolCalls?.[0].tool).toBe('Read');
     expect(assistantMsg?.toolCalls?.[0].output).toBe('file contents');
   });
 

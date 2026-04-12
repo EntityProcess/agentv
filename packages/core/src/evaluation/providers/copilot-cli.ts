@@ -18,6 +18,7 @@ import {
   killProcess,
   resolvePlatformCliPath,
 } from './copilot-utils.js';
+import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CopilotCliResolvedConfig } from './targets.js';
 import type {
@@ -128,15 +129,17 @@ export class CopilotCliProvider implements Provider {
           // Tool call arrived already completed
           if (update.status === 'completed' || update.status === 'failed') {
             const toolName = update.title ?? update.kind ?? 'unknown';
-            completedToolCalls.push({
-              tool: toolName,
-              input: update.rawInput,
-              output: update.rawOutput,
-              id: callId,
-              startTime: new Date().toISOString(),
-              endTime: new Date().toISOString(),
-              durationMs: 0,
-            });
+            completedToolCalls.push(
+              normalizeToolCall('copilot-cli', {
+                tool: toolName,
+                input: update.rawInput,
+                output: update.rawOutput,
+                id: callId,
+                startTime: new Date().toISOString(),
+                endTime: new Date().toISOString(),
+                durationMs: 0,
+              }),
+            );
             request.streamCallbacks?.onToolCallEnd?.(
               toolName,
               update.rawInput,
@@ -154,15 +157,17 @@ export class CopilotCliProvider implements Provider {
             if (inProgress) {
               toolCallsInProgress.delete(callId);
               const duration = Date.now() - inProgress.startMs;
-              completedToolCalls.push({
-                tool: inProgress.tool,
-                input: inProgress.input,
-                output: update.rawOutput,
-                id: inProgress.id,
-                startTime: inProgress.startTime,
-                endTime: new Date().toISOString(),
-                durationMs: duration,
-              });
+              completedToolCalls.push(
+                normalizeToolCall('copilot-cli', {
+                  tool: inProgress.tool,
+                  input: inProgress.input,
+                  output: update.rawOutput,
+                  id: inProgress.id,
+                  startTime: inProgress.startTime,
+                  endTime: new Date().toISOString(),
+                  durationMs: duration,
+                }),
+              );
               request.streamCallbacks?.onToolCallEnd?.(
                 inProgress.tool,
                 inProgress.input,
