@@ -1,6 +1,6 @@
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { rm, mkdir, writeFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Mock vscode dispatch to skip actual VS Code invocation
@@ -46,7 +46,7 @@ describe('VSCodeProvider dry-run response shape', () => {
     const response = await provider.invoke({ question: 'ping' });
 
     expect(response.output).toHaveLength(1);
-    expect(response.output![0]!.role).toBe('assistant');
+    expect(response.output?.at(0)?.role).toBe('assistant');
   });
 
   it('returns valid JSON content so is-json grader passes', async () => {
@@ -57,7 +57,7 @@ describe('VSCodeProvider dry-run response shape', () => {
     );
     const response = await provider.invoke({ question: 'ping' });
 
-    const content = response.output![0]!.content;
+    const content = response.output?.at(0)?.content;
     expect(() => JSON.parse(content as string)).not.toThrow();
   });
 
@@ -78,12 +78,13 @@ describe('VSCodeProvider dry-run response shape', () => {
       { executable: fakeExecutable, waitForResponse: true, dryRun: true },
       'vscode',
     );
-    const responses = await provider.invokeBatch!([{ question: 'ping' }]);
+    const responses = await provider.invokeBatch?.([{ question: 'ping' }]);
 
     expect(responses).toHaveLength(1);
-    expect(responses[0]!.output).toHaveLength(1);
-    expect(responses[0]!.output![0]!.role).toBe('assistant');
-    expect(() => JSON.parse(responses[0]!.output![0]!.content as string)).not.toThrow();
-    expect(responses[0]!.tokenUsage).toEqual({ input: 0, output: 0 });
+    const first = responses?.at(0);
+    expect(first?.output).toHaveLength(1);
+    expect(first?.output?.at(0)?.role).toBe('assistant');
+    expect(() => JSON.parse(first?.output?.at(0)?.content as string)).not.toThrow();
+    expect(first?.tokenUsage).toEqual({ input: 0, output: 0 });
   });
 });
