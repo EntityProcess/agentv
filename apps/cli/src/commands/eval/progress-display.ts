@@ -1,5 +1,8 @@
 export type Verdict = 'PASS' | 'FAIL' | 'ERROR';
 
+/** Prefix for all AgentV framework log lines, making them distinguishable from provider output. */
+export const LOG_PREFIX = '[INFO]';
+
 export interface WorkerProgress {
   workerId: number;
   testId: string;
@@ -27,7 +30,7 @@ function formatVerdict(score: number | undefined, verdict: Verdict | undefined):
   if (verdict === undefined) return '';
 
   const colors = useColors();
-  const scoreStr = score !== undefined ? score.toFixed(3) : '';
+  const scoreStr = score !== undefined ? `${Math.round(score * 100)}%` : '';
   const verdictLabel = verdict === 'ERROR' ? 'ERROR' : `${scoreStr} ${verdict}`;
 
   if (!colors) return ` | ${verdictLabel}`;
@@ -87,25 +90,30 @@ export class ProgressDisplay {
       case 'pending':
         // Only print pending in verbose mode (just shows the queue)
         if (this.verbose && !previous) {
-          console.log(`${countPrefix}   ⏳ ${progress.testId}${targetSuffix}`);
+          console.log(`${LOG_PREFIX} ${countPrefix}   ⏳ ${progress.testId}${targetSuffix}`);
         }
         break;
       case 'running':
         // Always print running - useful feedback for long-running agents
         if (!previous || previous.status === 'pending') {
-          console.log(`${countPrefix}   🔄 ${progress.testId}${targetSuffix}`);
+          console.log(`${LOG_PREFIX} ${countPrefix}   🔄 ${progress.testId}${targetSuffix}`);
         }
         break;
-      case 'completed':
+      case 'completed': {
+        // Pick icon based on verdict: ✅ PASS, ❌ FAIL, ⚠️ ERROR
+        const icon = progress.verdict === 'FAIL' ? '❌' : progress.verdict === 'ERROR' ? '⚠️' : '✅';
         console.log(
-          `${countPrefix}   ✅ ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
+          `${LOG_PREFIX} ${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
         );
         break;
-      case 'failed':
+      }
+      case 'failed': {
+        const failIcon = progress.verdict === 'ERROR' ? '⚠️' : '❌';
         console.log(
-          `${countPrefix}   ❌ ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
+          `${LOG_PREFIX} ${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
         );
         break;
+      }
     }
   }
 
@@ -133,13 +141,13 @@ export class ProgressDisplay {
           : provider === 'copilot'
             ? 'Copilot CLI'
             : 'Codex CLI';
-      console.log(`${label} logs:`);
+      console.log(`${LOG_PREFIX} ${label} logs:`);
       this.hasPrintedLogHeader = true;
     }
 
     const startIndex = this.logPaths.length - newPaths.length;
     newPaths.forEach((path, offset) => {
-      console.log(`${startIndex + offset + 1}. ${path}`);
+      console.log(`${LOG_PREFIX} ${startIndex + offset + 1}. ${path}`);
     });
   }
 

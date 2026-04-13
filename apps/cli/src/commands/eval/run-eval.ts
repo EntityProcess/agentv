@@ -34,7 +34,7 @@ import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
-import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
+import { LOG_PREFIX, ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { buildDefaultRunDir, normalizeExperimentName } from './result-layout.js';
 import {
   buildExclusionFilter,
@@ -684,7 +684,7 @@ async function runSingleEvalFile(params: {
     ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
     : `Using target: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
-    console.log(targetMessage);
+    console.log(`${LOG_PREFIX} ${targetMessage}`);
   }
 
   const agentTimeoutMs =
@@ -748,7 +748,7 @@ async function runSingleEvalFile(params: {
       const targetConfig = resolvedTargetSelection.resolvedTarget.config as Record<string, unknown>;
       if (shouldSkipCacheForTemperature(targetConfig)) {
         if (options.verbose) {
-          console.log('Cache skipped: target temperature > 0');
+          console.log(`${LOG_PREFIX} Cache skipped: target temperature > 0`);
         }
         return false;
       }
@@ -914,14 +914,14 @@ export async function runEvalCommand(
     retryNonErrorResults = await loadNonErrorResults(retryPath);
 
     if (errorIds.length > 0) {
-      console.log(`Found ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`);
+      console.log(`${LOG_PREFIX} Found ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`);
     }
     // Use a negation filter to exclude fully-completed (non-error across all targets) cases.
     // This re-runs error cases, cases missing from the output (crash recovery), and cases
     // that errored on some targets even if they succeeded on others (matrix safety).
     if (completedIds.length > 0) {
       options = { ...options, filter: buildExclusionFilter(completedIds) };
-      console.log(`Skipping ${completedIds.length} already-completed test(s).`);
+      console.log(`${LOG_PREFIX} Skipping ${completedIds.length} already-completed test(s).`);
     }
   }
 
@@ -944,7 +944,7 @@ export async function runEvalCommand(
   }
 
   if (options.verbose) {
-    console.log(`Repository root: ${repoRoot}`);
+    console.log(`${LOG_PREFIX} Repository root: ${repoRoot}`);
   }
 
   // Emit deprecation warnings for legacy flags
@@ -1054,18 +1054,18 @@ export async function runEvalCommand(
   // Resolve --export paths (additional output files)
   const resolvedExportPaths = options.exportPaths.map((p: string) => path.resolve(p));
 
-  console.log(`Artifact directory: ${runDir}`);
+  console.log(`${LOG_PREFIX} Artifact directory: ${runDir}`);
   if (resolvedExportPaths.length > 0) {
-    console.log('Export files:');
+    console.log(`${LOG_PREFIX} Export files:`);
     for (const p of resolvedExportPaths) {
-      console.log(`  ${p}`);
+      console.log(`${LOG_PREFIX}   ${p}`);
     }
   }
 
   // Log file export paths
   const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
   if (options.otelFile) {
-    console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
+    console.log(`${LOG_PREFIX} OTLP JSON file: ${path.resolve(options.otelFile)}`);
   }
 
   // Determine cache state after loading file metadata (need YAML config)
@@ -1144,11 +1144,11 @@ export async function runEvalCommand(
     }
     if (skippedFiles.length > 0 && options.verbose) {
       console.log(
-        `Skipped ${skippedFiles.length} eval file(s) by tag filter: ${skippedFiles.join(', ')}`,
+        `${LOG_PREFIX} Skipped ${skippedFiles.length} eval file(s) by tag filter: ${skippedFiles.join(', ')}`,
       );
     }
     if (fileMetadata.size === 0) {
-      console.log('No eval files matched the tag filters. Nothing to run.');
+      console.log(`${LOG_PREFIX} No eval files matched the tag filters. Nothing to run.`);
       return;
     }
   }
@@ -1168,7 +1168,7 @@ export async function runEvalCommand(
     : undefined;
 
   if (cacheEnabled) {
-    console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
+    console.log(`${LOG_PREFIX} Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
   }
 
   // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold.
@@ -1204,7 +1204,7 @@ export async function runEvalCommand(
   if (totalEvalCount === 0) {
     // When using --retry-errors, all tests being filtered means no errors or missing cases remain
     if (options.retryErrors && retryNonErrorResults && retryNonErrorResults.length > 0) {
-      console.log('No execution errors or missing cases in the previous run. Nothing to retry.');
+      console.log(`${LOG_PREFIX} No execution errors or missing cases in the previous run. Nothing to retry.`);
       return;
     }
     throw new Error('No tests matched the provided filters.');
@@ -1288,7 +1288,7 @@ export async function runEvalCommand(
 
     transcriptProviderFactory = () => transcriptProvider;
     console.log(
-      `Using transcript: ${options.transcript} (${transcriptProvider.lineCount} entry(s))`,
+      `${LOG_PREFIX} Using transcript: ${options.transcript} (${transcriptProvider.lineCount} entry(s))`,
     );
   }
 
@@ -1364,7 +1364,7 @@ export async function runEvalCommand(
             // before_all or other setup failures should not abort the entire run.
             // Mark all tests in this file as errors and continue with other files.
             const message = fileError instanceof Error ? fileError.message : String(fileError);
-            console.error(`\n⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
+            console.error(`\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
             const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
               timestamp: new Date().toISOString(),
               testId: testCase.id,
@@ -1401,7 +1401,7 @@ export async function runEvalCommand(
       }
       allResults.push(...retryNonErrorResults);
       console.log(
-        `Merged ${retryNonErrorResults.length} non-error result(s) from previous output.`,
+        `${LOG_PREFIX} Merged ${retryNonErrorResults.length} non-error result(s) from previous output.`,
       );
     }
 
@@ -1424,7 +1424,7 @@ export async function runEvalCommand(
     if (options.benchmarkJson && allResults.length > 0) {
       const benchmarkPath = path.resolve(options.benchmarkJson);
       await writeBenchmarkJson(benchmarkPath, allResults);
-      console.log(`Benchmark written to: ${benchmarkPath}`);
+      console.log(`${LOG_PREFIX} Benchmark written to: ${benchmarkPath}`);
     }
 
     // Write artifacts to the run directory (always, not conditional on flags)
@@ -1439,13 +1439,13 @@ export async function runEvalCommand(
         evalFile,
         experiment: normalizeExperimentName(options.experiment),
       });
-      console.log(`Artifact workspace written to: ${runDir}`);
-      console.log(`  Index: ${indexPath}`);
+      console.log(`${LOG_PREFIX} Artifact workspace written to: ${runDir}`);
+      console.log(`${LOG_PREFIX}   Index: ${indexPath}`);
       console.log(
-        `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
+        `${LOG_PREFIX}   Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
       );
-      console.log(`  Timing: ${timingPath}`);
-      console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+      console.log(`${LOG_PREFIX}   Timing: ${timingPath}`);
+      console.log(`${LOG_PREFIX}   Benchmark: ${workspaceBenchmarkPath}`);
     }
 
     // Write --export output files (additional formats)
@@ -1458,7 +1458,7 @@ export async function runEvalCommand(
         await writer.close();
       }
       console.log(
-        `Export file(s) written: ${resolvedExportPaths.map((p) => path.relative(cwd, p)).join(', ')}`,
+        `${LOG_PREFIX} Export file(s) written: ${resolvedExportPaths.map((p) => path.relative(cwd, p)).join(', ')}`,
       );
     }
 
@@ -1469,9 +1469,9 @@ export async function runEvalCommand(
       : resultsWithWorkspaces.filter((r) => r.error || r.score < 0.5);
 
     if (preservedWorkspaces.length > 0) {
-      console.log('\nPreserved workspaces:');
+      console.log(`\n${LOG_PREFIX} Preserved workspaces:`);
       for (const result of preservedWorkspaces) {
-        console.log(`  ${result.testId} -> ${result.workspacePath}`);
+        console.log(`${LOG_PREFIX}   ${result.testId} -> ${result.workspacePath}`);
       }
     }
 
@@ -1480,11 +1480,11 @@ export async function runEvalCommand(
       resultsWithWorkspaces.length > 0 ||
       (options.workspaceMode && options.workspaceMode !== 'static');
     if (!options.keepWorkspaces && usedWorkspaces) {
-      console.log('Use --keep-workspaces to preserve all workspaces for inspection.');
+      console.log(`${LOG_PREFIX} Use --keep-workspaces to preserve all workspaces for inspection.`);
     }
 
     if (allResults.length > 0) {
-      console.log(`\nResults written to: ${outputPath}`);
+      console.log(`\n${LOG_PREFIX} Results written to: ${outputPath}`);
 
       // Persist last run path for `agentv results` commands
       await saveRunCache(cwd, outputPath).catch(() => undefined);
@@ -1524,8 +1524,8 @@ export async function runEvalCommand(
       const targetFlag = options.target ? ` --target ${options.target}` : '';
       const relativeOutputPath = path.relative(cwd, outputPath);
       console.log(
-        `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
-          `  agentv eval run ${evalFileArgs}${targetFlag} --retry-errors ${relativeOutputPath}`,
+        `\n${LOG_PREFIX} Tip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
+          `${LOG_PREFIX}   agentv eval run ${evalFileArgs}${targetFlag} --retry-errors ${relativeOutputPath}`,
       );
     }
 

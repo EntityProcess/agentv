@@ -167,12 +167,12 @@ function extractOutputPath(stdout: string): string {
   const lines = stdout.split(/\r?\n/);
   // Try new format first, then legacy
   const outputLine =
-    lines.find((line) => line.startsWith('Results written to:')) ??
-    lines.find((line) => line.startsWith('Output path:'));
+    lines.find((line) => line.includes('Results written to:')) ??
+    lines.find((line) => line.includes('Output path:'));
   if (!outputLine) {
     throw new Error(`Unable to parse output path from CLI output:\n${stdout}`);
   }
-  return outputLine.replace(/^(Results written to:|Output path:)/, '').trim();
+  return outputLine.replace(/^.*?(Results written to:|Output path:)/, '').trim();
 }
 
 async function readJsonLines(filePath: string): Promise<readonly unknown[]> {
