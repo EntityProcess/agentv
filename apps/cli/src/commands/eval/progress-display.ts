@@ -100,15 +100,15 @@ export class ProgressDisplay {
         }
         break;
       case 'completed': {
-        // Pick icon based on verdict: ✅ PASS, ❌ FAIL, ⚠️ ERROR
-        const icon = progress.verdict === 'FAIL' ? '❌' : progress.verdict === 'ERROR' ? '⚠️' : '✅';
+        // Pick icon based on verdict: ✅ PASS, ⚠️ FAIL, ❌ ERROR
+        const icon = progress.verdict === 'FAIL' ? '⚠️' : progress.verdict === 'ERROR' ? '❌' : '✅';
         console.log(
           `${LOG_PREFIX} ${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
         );
         break;
       }
       case 'failed': {
-        const failIcon = progress.verdict === 'ERROR' ? '⚠️' : '❌';
+        const failIcon = progress.verdict === 'ERROR' ? '❌' : '⚠️';
         console.log(
           `${LOG_PREFIX} ${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
         );
