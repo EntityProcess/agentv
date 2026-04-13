@@ -18,12 +18,7 @@ import fg from 'fast-glob';
  */
 export async function validateFiles(paths: readonly string[]): Promise<ValidationSummary> {
   const filePaths = await expandPaths(paths);
-  const results: ValidationResult[] = [];
-
-  for (const filePath of filePaths) {
-    const result = await validateSingleFile(filePath);
-    results.push(result);
-  }
+  const results = await Promise.all(filePaths.map((filePath) => validateSingleFile(filePath)));
 
   const validFiles = results.filter((r) => r.valid).length;
   const invalidFiles = results.filter((r) => !r.valid).length;

@@ -104,34 +104,48 @@ const NAME_PATTERN = /^[a-z0-9-]+$/;
 /** Script file extensions recognised as custom assertion plugins. */
 const ASSERTION_SCRIPT_EXTENSIONS = new Set(['.ts', '.js', '.mts', '.mjs', '.cts', '.cjs']);
 
+/** Cache: directory path → promise of discovered type names. */
+const customAssertionCache = new Map<string, Promise<Set<string>>>();
+
 /**
  * Walk up the directory tree from `baseDir` collecting type names from
  * `.agentv/assertions/` directories — mirrors the runtime discovery in
  * `assertion-discovery.ts`.
+ *
+ * Results are cached by directory so concurrent validation of many files
+ * in the same directory only does the filesystem walk once.
  */
-async function discoverCustomAssertionTypes(baseDir: string): Promise<Set<string>> {
-  const types = new Set<string>();
-  let dir = path.resolve(baseDir);
-  const root = path.parse(dir).root;
+function discoverCustomAssertionTypes(baseDir: string): Promise<Set<string>> {
+  const resolved = path.resolve(baseDir);
+  const cached = customAssertionCache.get(resolved);
+  if (cached) return cached;
 
-  while (dir !== root) {
-    const assertionsDir = path.join(dir, '.agentv', 'assertions');
-    try {
-      const entries = await readdir(assertionsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile()) continue;
-        const ext = path.extname(entry.name).toLowerCase();
-        if (!ASSERTION_SCRIPT_EXTENSIONS.has(ext)) continue;
-        const typeName = entry.name.slice(0, -ext.length);
-        types.add(typeName);
+  const promise = (async () => {
+    const types = new Set<string>();
+    let dir = resolved;
+    const root = path.parse(dir).root;
+
+    while (dir !== root) {
+      const assertionsDir = path.join(dir, '.agentv', 'assertions');
+      try {
+        const entries = await readdir(assertionsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.isFile()) continue;
+          const ext = path.extname(entry.name).toLowerCase();
+          if (!ASSERTION_SCRIPT_EXTENSIONS.has(ext)) continue;
+          types.add(entry.name.slice(0, -ext.length));
+        }
+      } catch {
+        // Directory doesn't exist — skip
       }
-    } catch {
-      // Directory doesn't exist — skip
+      dir = path.dirname(dir);
     }
-    dir = path.dirname(dir);
-  }
 
-  return types;
+    return types;
+  })();
+
+  customAssertionCache.set(resolved, promise);
+  return promise;
 }
 
 function isObject(value: unknown): value is JsonObject {
