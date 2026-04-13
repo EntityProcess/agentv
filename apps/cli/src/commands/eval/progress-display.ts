@@ -133,7 +133,7 @@ export class ProgressDisplay {
     this.logPaths.push(...newPaths);
 
     for (const p of newPaths) {
-      console.log(`${LOG_PREFIX} Log created: ${p}`);
+      console.log(`${LOG_PREFIX} Provider log: ${p}`);
     }
   }
 
