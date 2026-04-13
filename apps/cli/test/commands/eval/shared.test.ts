@@ -42,10 +42,7 @@ describe('resolveEvalPaths', () => {
     writeFileSync(includedFile, 'tests:\n  - id: included\n    input: test\n');
     writeFileSync(excludedFile, 'tests:\n  - id: excluded\n    input: test\n');
 
-    const resolved = await resolveEvalPaths(
-      ['evals/**/eval.yaml', '!evals/excluded/**'],
-      tempDir,
-    );
+    const resolved = await resolveEvalPaths(['evals/**/eval.yaml', '!evals/excluded/**'], tempDir);
 
     expect(resolved).toEqual([path.normalize(includedFile)]);
   });
