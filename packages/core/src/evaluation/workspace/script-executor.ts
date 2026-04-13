@@ -10,8 +10,12 @@ export interface ScriptExecutionContext {
   readonly evalRunId: string;
   readonly caseInput?: string;
   readonly caseMetadata?: Record<string, unknown>;
-  /** Directory containing the eval YAML file. Used as default cwd. */
+  /** Directory containing the eval YAML file. Used as fallback cwd. */
   readonly evalDir?: string;
+  /** Directory containing the workspace file (when workspace is a file reference).
+   *  Takes priority over evalDir as default cwd so that file-referenced templates
+   *  resolve relative paths from their own directory. */
+  readonly workspaceFileDir?: string;
 }
 
 export type ScriptFailureMode = 'fatal' | 'warn';
@@ -57,7 +61,7 @@ export async function executeWorkspaceScript(
   });
 
   const timeoutMs = config.timeout_ms ?? (failureMode === 'fatal' ? 60000 : 30000);
-  const cwd = config.cwd ?? context.evalDir;
+  const cwd = config.cwd ?? context.workspaceFileDir ?? context.evalDir;
 
   // Support both command (canonical) and script (deprecated alias)
   if (config.script !== undefined && config.command === undefined) {

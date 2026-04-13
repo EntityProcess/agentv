@@ -962,6 +962,7 @@ export async function runEvaluation(
         testId: '__before_all__',
         evalRunId,
         evalDir,
+        workspaceFileDir: suiteWorkspace?.workspaceFileDir,
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
@@ -988,6 +989,7 @@ export async function runEvaluation(
           testId: '__before_all__',
           evalRunId,
           evalDir,
+          workspaceFileDir: suiteWorkspace?.workspaceFileDir,
         };
         try {
           const output = await executeWorkspaceScript(
@@ -1408,6 +1410,7 @@ export async function runEvaluation(
           testId: '__after_all__',
           evalRunId,
           evalDir,
+          workspaceFileDir: suiteWorkspace?.workspaceFileDir,
         };
         try {
           const afterAllOutput = await executeWorkspaceScript(
@@ -1859,6 +1862,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         caseInput: evalCase.question,
         caseMetadata: evalCase.metadata,
         evalDir,
+        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
@@ -1938,6 +1942,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
       evalDir,
+      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
     };
     try {
       beforeEachOutput = await executeWorkspaceScript(
@@ -2195,6 +2200,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
       evalDir,
+      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
     };
     try {
       afterEachOutput = await executeWorkspaceScript(

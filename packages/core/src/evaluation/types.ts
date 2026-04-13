@@ -321,6 +321,10 @@ export type WorkspaceConfig = {
   readonly path?: string;
   /** Docker-based workspace: run grader commands inside a container */
   readonly docker?: DockerWorkspaceConfig;
+  /** Directory containing the workspace file when workspace is a file reference.
+   *  Used as default cwd for hook commands so that file-referenced templates resolve
+   *  relative paths from their own directory, not the eval file's directory. */
+  readonly workspaceFileDir?: string;
 };
 
 export type CodeEvaluatorConfig = {
