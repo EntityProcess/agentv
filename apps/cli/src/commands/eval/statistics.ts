@@ -1,5 +1,4 @@
 import type { EvaluationResult } from '@agentv/core';
-import { LOG_PREFIX } from './progress-display.js';
 
 export interface HistogramBin {
   readonly range: readonly [number, number];
@@ -297,7 +296,7 @@ export function formatEvaluationSummary(
     }
   }
 
-  return lines.map((line) => (line === '' ? '' : `${LOG_PREFIX} ${line}`)).join('\n');
+  return lines.join('\n');
 }
 
 /**
@@ -360,5 +359,5 @@ export function formatMatrixSummary(results: readonly EvaluationResult[]): strin
   });
   lines.push(`${'Average'.padEnd(testIdColWidth)}  ${avgCells.join('  ')}`);
 
-  return lines.map((line) => (line === '' ? '' : `${LOG_PREFIX} ${line}`)).join('\n');
+  return lines.join('\n');
 }
