@@ -169,6 +169,8 @@ Instead of duplicating workspace configuration across eval files, you can refere
 workspace: ./path/to/workspace.yaml
 ```
 
+The external file should contain the workspace config object directly, not a nested `workspace:` key.
+
 The path is resolved relative to the eval file's directory. Relative paths **inside** the workspace file (template, repo source paths) resolve from the workspace file's own directory.
 
 This pattern is especially valuable with pooling: a single `workspace.yaml` guarantees all eval files that reference it produce the same fingerprint and share the same pool.
