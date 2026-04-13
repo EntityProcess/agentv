@@ -30,7 +30,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('returns no errors when workspace file reference exists', async () => {
+  it('returns no errors when workspace file reference exists (with no internal paths)', async () => {
     const wsFilePath = path.join(tempDir, 'workspace.yaml');
     await writeFile(wsFilePath, 'template: ~\n');
 
@@ -41,16 +41,13 @@ describe('validateWorkspacePaths', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('errors when workspace file reference does not exist', async () => {
+  it('returns no errors when workspace file is missing (eval-validator owns that check)', async () => {
     const evalFilePath = path.join(tempDir, 'eval-ws-ref-missing.yaml');
     await writeFile(evalFilePath, `${minimalEvalPrefix}workspace: missing-workspace.yaml\n`);
 
+    // eval-validator already catches the missing file error; this validator silently skips
     const errors = await validateWorkspacePaths(evalFilePath);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]?.severity).toBe('error');
-    expect(errors[0]?.location).toBe('workspace');
-    expect(errors[0]?.message).toContain('Workspace file not found');
-    expect(errors[0]?.message).toContain('missing-workspace.yaml');
+    expect(errors).toHaveLength(0);
   });
 
   it('errors when workspace.template does not exist (inline workspace)', async () => {
@@ -94,7 +91,7 @@ describe('validateWorkspacePaths', () => {
     const errors = await validateWorkspacePaths(evalFilePath);
     expect(errors).toHaveLength(1);
     expect(errors[0]?.severity).toBe('error');
-    expect(errors[0]?.location).toBe('workspace.hooks.before_all.command');
+    expect(errors[0]?.location).toBe('workspace.hooks.before_all.command[1]');
     expect(errors[0]?.message).toContain('setup.mjs');
   });
 
@@ -158,6 +155,19 @@ describe('validateWorkspacePaths', () => {
     expect(errors[0]?.message).toContain('missing-setup.mjs');
   });
 
+  it('checks template inside external workspace file', async () => {
+    const wsFilePath = path.join(tempDir, 'ws-with-template.yaml');
+    await writeFile(wsFilePath, 'template: ./missing-template\n');
+
+    const evalFilePath = path.join(tempDir, 'eval-ws-template.yaml');
+    await writeFile(evalFilePath, `${minimalEvalPrefix}workspace: ws-with-template.yaml\n`);
+
+    const errors = await validateWorkspacePaths(evalFilePath);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.location).toBe('workspace.template');
+    expect(errors[0]?.message).toContain('missing-template');
+  });
+
   it('respects hook cwd for script path resolution', async () => {
     const subDir = path.join(tempDir, 'sub');
     await mkdir(subDir, { recursive: true });
@@ -179,5 +189,46 @@ describe('validateWorkspacePaths', () => {
 
     const errors = await validateWorkspacePaths(evalFilePath);
     expect(errors).toHaveLength(0);
+  });
+
+  it('checks after_each and after_all hooks too', async () => {
+    const evalFilePath = path.join(tempDir, 'eval-other-hooks.yaml');
+    await writeFile(
+      evalFilePath,
+      `${minimalEvalPrefix}workspace:
+  hooks:
+    after_each:
+      command:
+        - node
+        - ./missing-after-each.mjs
+    after_all:
+      command:
+        - node
+        - ./missing-after-all.mjs
+`,
+    );
+
+    const errors = await validateWorkspacePaths(evalFilePath);
+    expect(errors).toHaveLength(2);
+    expect(errors.some((e) => e.message.includes('missing-after-each.mjs'))).toBe(true);
+    expect(errors.some((e) => e.message.includes('missing-after-all.mjs'))).toBe(true);
+  });
+
+  it('supports deprecated script alias', async () => {
+    const evalFilePath = path.join(tempDir, 'eval-script-alias.yaml');
+    await writeFile(
+      evalFilePath,
+      `${minimalEvalPrefix}workspace:
+  hooks:
+    before_all:
+      script:
+        - node
+        - ./missing-via-alias.mjs
+`,
+    );
+
+    const errors = await validateWorkspacePaths(evalFilePath);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain('missing-via-alias.mjs');
   });
 });

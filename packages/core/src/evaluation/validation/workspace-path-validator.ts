@@ -1,5 +1,4 @@
-import { access } from 'node:fs/promises';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
@@ -14,17 +13,20 @@ function isObject(value: unknown): value is JsonObject {
 }
 
 /**
- * Validate that workspace file references and hook script paths in eval files exist.
+ * Validate that workspace template and hook script paths in eval files exist.
  *
  * Catches two classes of errors that surface as `setup_error` at runtime but are
  * detectable statically:
  *
- * 1. `workspace: "path/to/file.yaml"` — the external workspace file must exist.
+ * 1. `workspace.template` — the template path must exist.
  * 2. `workspace.hooks.*.command` — script arguments that look like relative file
  *    paths (start with `./`/`../` or carry a script extension) must resolve to
  *    existing files using the same cwd precedence the runtime uses:
  *    `hook.cwd ?? workspaceFileDir ?? evalDir`
- * 3. `workspace.template` — the template path must exist.
+ *
+ * When `workspace` is a string path to an external file, that file is also read
+ * and its template/hook paths are checked relative to the workspace file's directory.
+ * (The workspace file's existence itself is already checked by eval-validator.)
  */
 export async function validateWorkspacePaths(
   evalFilePath: string,
@@ -48,19 +50,9 @@ export async function validateWorkspacePaths(
   if (workspaceRaw === undefined || workspaceRaw === null) return errors;
 
   if (typeof workspaceRaw === 'string') {
-    // External workspace file reference
+    // External workspace file — existence is already checked by eval-validator.
+    // Read and check template/hook paths inside the external file.
     const workspaceFilePath = path.resolve(evalDir, workspaceRaw);
-    if (!(await fileExists(workspaceFilePath))) {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: 'workspace',
-        message: `Workspace file not found: ${workspaceRaw} (resolved to ${workspaceFilePath})`,
-      });
-      return errors;
-    }
-
-    // File exists — also check paths inside the external workspace file
     try {
       const wsContent = await readFile(workspaceFilePath, 'utf8');
       const wsParsed = parse(wsContent);
@@ -69,7 +61,7 @@ export async function validateWorkspacePaths(
         await validateWorkspaceObject(wsParsed, wsDir, absolutePath, 'workspace', errors);
       }
     } catch {
-      // YAML parse errors in the referenced file are not this validator's concern
+      // File missing or invalid YAML — eval-validator already reports this
     }
   } else if (isObject(workspaceRaw)) {
     await validateWorkspaceObject(workspaceRaw, evalDir, absolutePath, 'workspace', errors);
@@ -107,8 +99,9 @@ async function validateWorkspaceObject(
     const hook = hooks[hookName];
     if (!isObject(hook)) continue;
 
-    // Resolve hook cwd the same way the runtime does:
+    // Resolve hook cwd the same way yaml-parser does at parse time:
     //   config.cwd (resolved against baseDir) ?? baseDir
+    // baseDir = workspaceFileDir for external workspace files, evalDir for inline.
     const hookCwdRaw = typeof hook.cwd === 'string' ? hook.cwd : undefined;
     const hookCwd = hookCwdRaw
       ? path.isAbsolute(hookCwdRaw)
@@ -120,7 +113,8 @@ async function validateWorkspaceObject(
     const command = hook.command ?? hook.script;
     if (!Array.isArray(command)) continue;
 
-    for (const arg of command) {
+    for (let i = 0; i < command.length; i++) {
+      const arg = command[i];
       if (typeof arg !== 'string') continue;
       if (!looksLikeFilePath(arg)) continue;
 
@@ -129,7 +123,7 @@ async function validateWorkspaceObject(
         errors.push({
           severity: 'error',
           filePath: evalFilePath,
-          location: `${location}.hooks.${hookName}.command`,
+          location: `${location}.hooks.${hookName}.command[${i}]`,
           message: `Hook script not found: ${arg} (resolved to ${resolved})`,
         });
       }
@@ -147,7 +141,7 @@ async function validateWorkspaceObject(
  */
 function looksLikeFilePath(arg: string): boolean {
   if (arg.startsWith('./') || arg.startsWith('../')) return true;
-  const scriptExtensions = ['.mjs', '.cjs', '.js', '.ts', '.sh', '.py', '.rb', '.pl'];
+  const scriptExtensions = ['.mjs', '.cjs', '.js', '.ts', '.sh', '.bash', '.zsh', '.py', '.rb', '.pl'];
   return scriptExtensions.some((ext) => arg.endsWith(ext));
 }
 
