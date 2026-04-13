@@ -9,6 +9,7 @@ import {
   validateEvalFile,
   validateFileReferences,
   validateTargetsFile,
+  validateWorkspacePaths,
 } from '@agentv/core/evaluation/validation';
 import fg from 'fast-glob';
 
@@ -47,14 +48,18 @@ async function validateSingleFile(filePath: string): Promise<ValidationResult> {
   if (fileType === 'eval') {
     result = await validateEvalFile(absolutePath);
 
-    // Also validate file references for eval files
+    // Also validate file references and workspace paths for eval files
     if (result.valid || result.errors.filter((e) => e.severity === 'error').length === 0) {
-      const fileRefErrors = await validateFileReferences(absolutePath);
-      if (fileRefErrors.length > 0) {
+      const [fileRefErrors, workspaceErrors] = await Promise.all([
+        validateFileReferences(absolutePath),
+        validateWorkspacePaths(absolutePath),
+      ]);
+      const extraErrors = [...fileRefErrors, ...workspaceErrors];
+      if (extraErrors.length > 0) {
         result = {
           ...result,
-          errors: [...result.errors, ...fileRefErrors],
-          valid: result.valid && fileRefErrors.filter((e) => e.severity === 'error').length === 0,
+          errors: [...result.errors, ...extraErrors],
+          valid: result.valid && extraErrors.filter((e) => e.severity === 'error').length === 0,
         };
       }
     }

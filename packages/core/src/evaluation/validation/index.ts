@@ -7,6 +7,7 @@ export { validateEvalFile } from './eval-validator.js';
 export { validateTargetsFile } from './targets-validator.js';
 export { validateConfigFile } from './config-validator.js';
 export { validateFileReferences } from './file-reference-validator.js';
+export { validateWorkspacePaths } from './workspace-path-validator.js';
 export type {
   FileType,
   ValidationSeverity,
