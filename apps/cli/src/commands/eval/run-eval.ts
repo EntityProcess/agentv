@@ -87,6 +87,7 @@ interface NormalizedOptions {
   readonly retryErrors?: string;
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
+  readonly keepWorkspaces: boolean;
   /** Deprecated: benchmark.json is always written to artifact dir */
   readonly benchmarkJson?: string;
   /** Deprecated: use --output instead */
@@ -357,6 +358,11 @@ function normalizeOptions(
     retryErrors: normalizeString(rawOptions.retryErrors),
     workspaceMode,
     workspacePath,
+    // Precedence: CLI > YAML config > TS config
+    keepWorkspaces:
+      normalizeBoolean(rawOptions.keepWorkspaces) ||
+      yamlExecution?.keep_workspaces === true ||
+      config?.execution?.keepWorkspaces === true,
     benchmarkJson: normalizeString(rawOptions.benchmarkJson),
     artifacts: normalizeString(rawOptions.artifacts),
     graderTarget: normalizeString(rawOptions.graderTarget),
@@ -754,6 +760,7 @@ async function runSingleEvalFile(params: {
     maxConcurrency: resolvedWorkers,
     workspaceMode: options.workspaceMode,
     workspacePath: options.workspacePath,
+    keepWorkspaces: options.keepWorkspaces,
     trials: trialsConfig,
     totalBudgetUsd,
     failOnError,
@@ -1455,15 +1462,25 @@ export async function runEvalCommand(
       );
     }
 
-    // Print workspace paths for failed cases (when preserved for debugging)
-    const failedWithWorkspaces = allResults.filter(
-      (r) => r.workspacePath && (r.error || r.score < 0.5),
-    );
-    if (failedWithWorkspaces.length > 0) {
-      console.log('\nWorkspaces preserved for debugging:');
-      for (const result of failedWithWorkspaces) {
-        console.log(`  ${result.testId}: ${result.workspacePath}`);
+    // Print workspace paths summary
+    const resultsWithWorkspaces = allResults.filter((r) => r.workspacePath);
+    const preservedWorkspaces = options.keepWorkspaces
+      ? resultsWithWorkspaces
+      : resultsWithWorkspaces.filter((r) => r.error || r.score < 0.5);
+
+    if (preservedWorkspaces.length > 0) {
+      console.log('\nPreserved workspaces:');
+      for (const result of preservedWorkspaces) {
+        console.log(`  ${result.testId} -> ${result.workspacePath}`);
       }
+    }
+
+    // Hint about --keep-workspaces when workspaces were used but some cleaned up
+    const usedWorkspaces =
+      resultsWithWorkspaces.length > 0 ||
+      (options.workspaceMode && options.workspaceMode !== 'static');
+    if (!options.keepWorkspaces && usedWorkspaces) {
+      console.log('Use --keep-workspaces to preserve all workspaces for inspection.');
     }
 
     if (allResults.length > 0) {

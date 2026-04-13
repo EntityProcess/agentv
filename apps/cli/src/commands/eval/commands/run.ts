@@ -126,6 +126,11 @@ export const evalRunCommand = command({
       long: 'workspace-path',
       description: 'Static workspace directory path (used when workspace mode is static)',
     }),
+    keepWorkspaces: flag({
+      long: 'keep-workspaces',
+      description:
+        'Preserve per-test workspaces after eval (default: keep on failure, cleanup on success)',
+    }),
     otelFile: option({
       type: optional(string),
       long: 'otel-file',
@@ -241,6 +246,7 @@ export const evalRunCommand = command({
       verbose: args.verbose,
       workspaceMode: args.workspaceMode,
       workspacePath: args.workspacePath,
+      keepWorkspaces: args.keepWorkspaces,
       trace: false,
       otelFile: args.otelFile,
       exportOtel: args.exportOtel,
