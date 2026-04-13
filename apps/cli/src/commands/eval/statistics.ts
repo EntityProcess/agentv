@@ -181,7 +181,7 @@ export function calculateEvaluationSummary(
 }
 
 function formatScore(value: number): string {
-  return value.toFixed(3);
+  return `${Math.round(value * 100)}%`;
 }
 
 export function formatEvaluationSummary(
@@ -226,7 +226,7 @@ export function formatEvaluationSummary(
   } else {
     overallVerdict = overallPassed ? 'PASS' : 'FAIL';
     verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} scored >= ${threshold}, mean: ${formatScore(summary.mean)})`;
+    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} scored >= ${Math.round(threshold * 100)}%, mean: ${formatScore(summary.mean)})`;
   }
 
   lines.push('\n==================================================');
@@ -267,7 +267,7 @@ export function formatEvaluationSummary(
   lines.push('\nScore distribution:');
   for (const bin of summary.histogram) {
     const [start, end] = bin.range;
-    lines.push(`  ${start.toFixed(1)}-${end.toFixed(1)}: ${bin.count}`);
+    lines.push(`  ${Math.round(start * 100)}%-${Math.round(end * 100)}%: ${bin.count}`);
   }
 
   lines.push('\nTop performing tests:');

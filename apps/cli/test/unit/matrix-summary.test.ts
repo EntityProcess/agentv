@@ -34,8 +34,8 @@ describe('formatMatrixSummary', () => {
     expect(output).toContain('test-1');
     expect(output).toContain('test-2');
     expect(output).toContain('Average');
-    expect(output).toContain('0.900');
-    expect(output).toContain('0.700');
+    expect(output).toContain('90%');
+    expect(output).toContain('70%');
   });
 
   it('handles missing test-target pairs with dash', () => {

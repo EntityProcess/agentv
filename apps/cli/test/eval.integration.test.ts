@@ -208,7 +208,7 @@ describe('agentv eval CLI', () => {
 
       // Don't check stderr - it may contain stack traces or other diagnostics
       expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');
-      expect(stdout).toContain('Mean score: 0.750');
+      expect(stdout).toContain('Mean score: 75%');
       // Std deviation is an implementation detail - don't check it
 
       const outputPath = extractOutputPath(stdout);
