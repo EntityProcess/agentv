@@ -284,7 +284,7 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 
 4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
 
-5. **Note:** `--dry-run` returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
+5. **Note:** `--dry-run` returns schema-valid mock responses (`{}` as output, zeroed `tokenUsage`). Built-in graders will not crash, but scores are meaningless. Use it for testing harness flow, not evaluator logic.
 
 ### Completing Work — E2E Checklist
 
