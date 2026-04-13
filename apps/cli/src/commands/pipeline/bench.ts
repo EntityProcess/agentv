@@ -62,7 +62,7 @@ export const evalBenchCommand = command({
           const result = JSON.parse(await readFile(join(codeResultsDir, file), 'utf8'));
           evaluators.push({
             name: result.name,
-            type: 'code-grader',
+            type: result.type ?? 'code-grader',
             score: result.score,
             weight: result.weight ?? 1.0,
             assertions: result.assertions ?? [],

@@ -102,4 +102,30 @@ describe('pipeline input', () => {
     const manifest = JSON.parse(await readFile(join(OUT_DIR, 'manifest.json'), 'utf8'));
     expect(manifest.experiment).toBeUndefined();
   });
+
+  it('writes builtin_graders/<name>.json for deterministic assertions', async () => {
+    const { execa } = await import('execa');
+    const builtinEvalPath = join(FIXTURE_DIR, 'builtin-test.eval.yaml');
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'input', builtinEvalPath, '--out', OUT_DIR]);
+
+    const containsGrader = JSON.parse(
+      await readFile(
+        join(OUT_DIR, 'builtin-test', 'test-01', 'builtin_graders', 'has_hello.json'),
+        'utf8',
+      ),
+    );
+    expect(containsGrader.name).toBe('has_hello');
+    expect(containsGrader.type).toBe('contains');
+    expect(containsGrader.value).toBe('hello');
+
+    const regexGrader = JSON.parse(
+      await readFile(
+        join(OUT_DIR, 'builtin-test', 'test-01', 'builtin_graders', 'matches_pattern.json'),
+        'utf8',
+      ),
+    );
+    expect(regexGrader.name).toBe('matches_pattern');
+    expect(regexGrader.type).toBe('regex');
+    expect(regexGrader.value).toBe('h[aeiou]llo');
+  });
 });
