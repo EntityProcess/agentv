@@ -396,7 +396,7 @@ type ProgressReporter = {
   setTotal(total: number): void;
   update(workerId: number, progress: WorkerProgress): void;
   finish(): void;
-  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot'): void;
+  addLogPaths(paths: readonly string[]): void;
 };
 
 function createProgressReporter(
@@ -411,13 +411,20 @@ function createProgressReporter(
     update: (workerId: number, progress: WorkerProgress) =>
       display.updateWorker({ ...progress, workerId }),
     finish: () => display.finish(),
-    addLogPaths: (paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot') =>
-      display.addLogPaths(paths, provider),
+    addLogPaths: (paths: readonly string[]) => display.addLogPaths(paths),
   };
 }
 
 function makeTestCaseKey(testFilePath: string, testId: string): string {
   return `${path.resolve(testFilePath)}::${testId}`;
+}
+
+/** Show the resolved target name when `default` is a `use_target` redirect. */
+function resolveTargetLabel(requestedName: string, resolvedName: string): string {
+  if (resolvedName !== requestedName) {
+    return `${requestedName} → ${resolvedName}`;
+  }
+  return requestedName;
 }
 
 function createDisplayIdTracker(): { getOrAssign(testCaseKey: string): number } {
@@ -579,7 +586,7 @@ async function prepareFileMetadata(params: {
 
       selections = multiSelections.map((sel) => ({
         selection: sel,
-        inlineTargetLabel: sel.targetName,
+        inlineTargetLabel: resolveTargetLabel(sel.targetName, sel.resolvedTarget.name),
       }));
     } else {
       // Single target mode (legacy path)
@@ -599,7 +606,10 @@ async function prepareFileMetadata(params: {
       selections = [
         {
           selection,
-          inlineTargetLabel: selection.targetName,
+          inlineTargetLabel: resolveTargetLabel(
+            selection.targetName,
+            selection.resolvedTarget.name,
+          ),
         },
       ];
     }
@@ -684,7 +694,7 @@ async function runSingleEvalFile(params: {
     ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
     : `Using target: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
-    console.log(targetMessage);
+    console.log(`${targetMessage}`);
   }
 
   const agentTimeoutMs =
@@ -1220,7 +1230,7 @@ export async function runEvalCommand(
       return;
     }
     seenCodexLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'codex');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   const seenPiLogPaths = new Set<string>();
   const unsubscribePiLogs = subscribeToPiLogEntries((entry) => {
@@ -1228,7 +1238,7 @@ export async function runEvalCommand(
       return;
     }
     seenPiLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'pi');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   const seenCopilotLogPaths = new Set<string>();
   const unsubscribeCopilotSdkLogs = subscribeToCopilotSdkLogEntries((entry) => {
@@ -1236,14 +1246,14 @@ export async function runEvalCommand(
       return;
     }
     seenCopilotLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'copilot');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   const unsubscribeCopilotCliLogs = subscribeToCopilotCliLogEntries((entry) => {
     if (!entry.filePath || seenCopilotLogPaths.has(entry.filePath)) {
       return;
     }
     seenCopilotLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'copilot');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
     for (const { selection, inlineTargetLabel } of meta.selections) {
@@ -1364,7 +1374,9 @@ export async function runEvalCommand(
             // before_all or other setup failures should not abort the entire run.
             // Mark all tests in this file as errors and continue with other files.
             const message = fileError instanceof Error ? fileError.message : String(fileError);
-            console.error(`\n⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
+            console.error(
+              `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
+            );
             const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
               timestamp: new Date().toISOString(),
               testId: testCase.id,

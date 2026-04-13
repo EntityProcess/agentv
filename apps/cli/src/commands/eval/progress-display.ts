@@ -27,7 +27,7 @@ function formatVerdict(score: number | undefined, verdict: Verdict | undefined):
   if (verdict === undefined) return '';
 
   const colors = useColors();
-  const scoreStr = score !== undefined ? score.toFixed(3) : '';
+  const scoreStr = score !== undefined ? `${Math.round(score * 100)}%` : '';
   const verdictLabel = verdict === 'ERROR' ? 'ERROR' : `${scoreStr} ${verdict}`;
 
   if (!colors) return ` | ${verdictLabel}`;
@@ -48,7 +48,6 @@ export class ProgressDisplay {
   private completedTests = 0;
   private readonly logPaths: string[] = [];
   private readonly logPathSet = new Set<string>();
-  private hasPrintedLogHeader = false;
   private started = false;
   private finished = false;
   private readonly verbose: boolean;
@@ -96,20 +95,25 @@ export class ProgressDisplay {
           console.log(`${countPrefix}   🔄 ${progress.testId}${targetSuffix}`);
         }
         break;
-      case 'completed':
+      case 'completed': {
+        // Pick icon based on verdict: ✅ PASS, ⚠️ FAIL, ❌ ERROR
+        const icon = progress.verdict === 'FAIL' ? '⚠️' : progress.verdict === 'ERROR' ? '❌' : '✅';
         console.log(
-          `${countPrefix}   ✅ ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
+          `${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
         );
         break;
-      case 'failed':
+      }
+      case 'failed': {
+        const failIcon = progress.verdict === 'ERROR' ? '❌' : '⚠️';
         console.log(
-          `${countPrefix}   ❌ ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
+          `${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
         );
         break;
+      }
     }
   }
 
-  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot'): void {
+  addLogPaths(paths: readonly string[]): void {
     const newPaths: string[] = [];
     for (const path of paths) {
       if (this.logPathSet.has(path)) {
@@ -125,22 +129,9 @@ export class ProgressDisplay {
 
     this.logPaths.push(...newPaths);
 
-    if (!this.hasPrintedLogHeader) {
-      console.log('');
-      const label =
-        provider === 'pi'
-          ? 'Pi Coding Agent'
-          : provider === 'copilot'
-            ? 'Copilot CLI'
-            : 'Codex CLI';
-      console.log(`${label} logs:`);
-      this.hasPrintedLogHeader = true;
+    for (const p of newPaths) {
+      console.log(`Provider log: ${p}`);
     }
-
-    const startIndex = this.logPaths.length - newPaths.length;
-    newPaths.forEach((path, offset) => {
-      console.log(`${startIndex + offset + 1}. ${path}`);
-    });
   }
 
   finish(): void {
