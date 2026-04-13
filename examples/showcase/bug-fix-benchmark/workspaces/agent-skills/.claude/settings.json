@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(git checkout:*)",
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(bun test:*)",
+      "Bash(bun run:*)",
+      "Bash(npm test:*)"
+    ]
+  },
+  "plugins": {
+    "agent-skills@addy-agent-skills": {
+      "enabled": true
+    }
+  }
+}

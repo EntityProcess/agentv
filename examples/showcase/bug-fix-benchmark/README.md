@@ -1,232 +1,213 @@
 # Bug Fix Benchmark
 
-**SWE-bench style evaluation**: Real-world bug fixing on public GitHub repositories.
+**SWE-bench style evaluation**: Real-world bug fixing on public GitHub repositories, comparing baseline agents against plugin-augmented workflows.
 
-This showcase demonstrates AgentV's ability to:
-1. Clone public repositories at specific commits
-2. Evaluate coding agents on real bug fixes
-3. Run tests in isolated Docker containers
-4. Grade against passing/failing test cases
+This showcase answers the question: **Do engineering plugins actually help agents fix bugs better?**
 
-## Use Case
+## What It Tests
 
-Benchmark coding agents on their ability to:
-- Diagnose bugs from issue descriptions
-- Navigate unfamiliar codebases
-- Write correct fixes
-- Ensure tests pass (without breaking existing tests)
+Compares four configurations on identical bug fix tasks:
+
+| Target | Plugin | Philosophy |
+|--------|--------|------------|
+| `claude-baseline` | None | Raw agent capability |
+| `claude-superpowers` | [obra/superpowers](https://github.com/obra/superpowers) | Subagent-driven TDD |
+| `claude-compound` | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | Compound learning cycles |
+| `claude-agent-skills` | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | Google-style engineering gates |
+
+**Metrics**: tokens consumed, time to complete, fix correctness.
 
 ## How It Works
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 1. Clone public repo (e.g., sympy/sympy)                         │
-│ 2. Checkout base_commit (broken state)                          │
-│ 3. Agent receives issue description + test failure             │
-│ 4. Agent diagnoses and writes fix                               │
-│ 5. Run test suite in Docker                                     │
-│ 6. Grade: FAIL_TO_PASS → pass? PASS_TO_PASS → still pass?      │
+│ 1. Clone public repo at base_commit (broken state)              │
+│ 2. Mount into workspace with plugin config                       │
+│ 3. Agent receives issue description                              │
+│ 4. Agent diagnoses and writes fix                                │
+│ 5. Grade: Does the fix work?                                     │
+│                                                                  │
+│ Repeat for each plugin variant, compare results.                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Quick Start
 
-### Option 1: Mock Agent (Fastest)
+### 1. Install plugins into workspace templates
 
 ```bash
-# Uses a mock agent - no API keys needed
-bun run agentv eval evals/bug-fixes.eval.yaml --target mock_agent
+./scripts/setup-plugins.sh          # Install all plugins
+./scripts/setup-plugins.sh --check  # Verify installation
 ```
 
-### Option 2: Claude Code (Subscription)
+### 2. Run the benchmark
 
 ```bash
-# Uses your Claude Code subscription (Claude Pro/Max)
-# No API key needed - runs with your auth
-bun run agentv eval evals/bug-fixes.eval.yaml --target claude_subscription
+# Single variant
+agentv eval evals/bug-fixes.eval.yaml --target claude-baseline
+
+# All variants (limit to 3 concurrent agent targets per AGENTS.md)
+agentv eval evals/bug-fixes.eval.yaml \
+  --target claude-baseline,claude-superpowers,claude-compound \
+  --workers 3
+
+agentv eval evals/bug-fixes.eval.yaml \
+  --target claude-agent-skills \
+  --workers 3
 ```
 
-### Option 3: Claude API (API Key)
+### 3. Compare results
 
 ```bash
-# Requires ANTHROPIC_API_KEY in .env
-bun run agentv eval evals/bug-fixes.eval.yaml --target claude_api
+agentv compare \
+  .agentv/results/runs/<baseline-timestamp>/index.jsonl \
+  .agentv/results/runs/<superpowers-timestamp>/index.jsonl
 ```
 
-## Configuration
+## Test Case: Issue #912
 
-### Target Setup
+The eval includes a real bug from the agentv repo:
 
-Create `.agentv/targets.yaml`:
-
-```yaml
-targets:
-  # Mock agent - no auth, fast for testing
-  - name: mock_agent
-    provider: cli
-    command: bash scripts/mock-agent.sh {PROMPT_FILE} {OUTPUT_FILE}
-    grader_target: mock_grader
-
-  # Claude Code - uses your Claude subscription
-  # IMPORTANT: Remove ANTHROPIC_API_KEY from .env to use subscription auth
-  - name: claude_subscription
-    provider: claude
-    grader_target: azure-base
-
-  # Claude API - requires ANTHROPIC_API_KEY
-  - name: claude_api
-    provider: anthropic
-    api_key: ${{ ANTHROPIC_API_KEY }}
-    model: claude-sonnet-4-20250514
-    grader_target: azure-base
-
-  # Grader target for LLM-based evaluation
-  - name: azure-base
-    provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-```
-
-### Environment Variables
-
-```bash
-# For subscription-based auth (Claude Code)
-# Nothing needed! Just ensure Claude Code is installed.
-
-# For API-based auth
-ANTHROPIC_API_KEY=sk-ant-...
-AZURE_OPENAI_ENDPOINT=https://...
-AZURE_OPENAI_API_KEY=...
-AZURE_DEPLOYMENT_NAME=gpt-4o
-```
-
-## Auth Options Summary
-
-| Target | Auth Method | API Key Required | Speed |
-|--------|-------------|------------------|-------|
-| `mock_agent` | None | ❌ No | Fastest |
-| `claude_subscription` | Claude subscription | ❌ No | Fast |
-| `claude_api` | Anthropic API | ✅ Yes | Medium |
-| `copilot` | GitHub Copilot | ❌ No* | Fast |
-| `vscode` | VS Code + Copilot | ❌ No* | Slow |
-
-*Requires GitHub Copilot subscription, not an API key.
-
-## Example Test Cases
-
-Each test case follows SWE-bench format:
-
-```yaml
-tests:
-  - case: sympy-18154-null-check
-    metadata:
-      repo: sympy/sympy
-      base_commit: "9aabb2376ea5ac18bb17310f88481a450398b74f"
-      problem_statement: |
-        Bug: Matrix.nullspace() crashes when matrix contains None values
-
-        When calling nullspace() on a matrix with None elements, it throws
-        TypeError instead of handling None gracefully.
-
-        Expected: Return empty nullspace or handle None
-        Actual: TypeError: Cannot read property 'toString' of null
-    input: |
-      Fix the bug in sympy/matrices/matrices.py
-      Run tests to verify the fix.
-    assertions:
-      - type: code-grader
-        command: |
-          docker exec -i testbed pytest sympy/matrices/tests/test_matrices.py -v
-```
+- **Issue**: [#912 — CLI provider retries don't preserve workspace cwd](https://github.com/EntityProcess/agentv/issues/912)
+- **Base commit**: `2a98a85c` (before the fix)
+- **Fix location**: `packages/core/src/evaluation/providers/cli.ts`
+- **Pattern**: Missing null-coalescing fallback (`request.cwd ?? this.config.cwd`)
+- **Hivespec baseline**: Session transcript available at `e517648a-b812-42a9-aca8-e10d7418c2e9.jsonl`
 
 ## Workspace Setup
 
-AgentV automatically:
-1. Clones the repo at `base_commit`
-2. Sets up Docker container (if using `workspace.docker`)
-3. Mounts workspace into container
-4. Runs tests in isolation
+Each plugin variant has its own workspace template under `workspaces/`:
+
+```
+workspaces/
+├── baseline/          # No plugins — raw agent
+│   ├── .claude/
+│   │   └── settings.json
+│   └── CLAUDE.md
+├── superpowers/       # obra/superpowers
+│   ├── .claude/
+│   │   └── settings.json
+│   └── CLAUDE.md
+├── compound/          # EveryInc/compound-engineering-plugin
+│   ├── .claude/
+│   │   └── settings.json
+│   └── CLAUDE.md
+└── agent-skills/      # addyosmani/agent-skills
+    ├── .claude/
+    │   └── settings.json
+    └── CLAUDE.md
+```
+
+The target config maps each workspace to a target name:
+
+```yaml
+targets:
+  - name: claude-baseline
+    provider: claude
+    workspace_template: ./workspaces/baseline
+    grader_target: azure-base
+
+  - name: claude-superpowers
+    provider: claude
+    workspace_template: ./workspaces/superpowers
+    grader_target: azure-base
+  # ...
+```
+
+## Plugin Details
+
+### Superpowers ([github.com/obra/superpowers](https://github.com/obra/superpowers))
+
+Subagent-driven development with TDD enforcement. The agent plans work into small tasks, then dispatches fresh subagents per task with two-stage review.
+
+```bash
+# Install
+cd workspaces/superpowers
+claude  # then: /plugin install superpowers@claude-plugins-official
+```
+
+### Compound Engineering ([github.com/EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin))
+
+Cyclical workflow: brainstorm → plan → work → review → compound → repeat. The "compound" step documents learnings to make future work easier. 37+ skills.
+
+```bash
+# Install
+cd workspaces/compound
+claude  # then: /plugin install compound-engineering
+```
+
+### Agent Skills ([github.com/addyosmani/agent-skills](https://github.com/addyosmani/agent-skills))
+
+20 production-grade engineering skills from Google culture: Hyrum's Law, Beyonce Rule, shift-left CI/CD. Includes specialist agent personas.
+
+```bash
+# Install
+cd workspaces/agent-skills
+claude  # then: /plugin marketplace add addyosmani/agent-skills && /plugin install agent-skills@addy-agent-skills
+```
 
 ## Adding New Test Cases
 
 1. Find a bug fix from GitHub issues/PRs
 2. Note the `base_commit` (before the fix)
-3. Copy the issue description as `problem_statement`
-4. Identify failing tests that should pass after fix
+3. Copy the issue description as the test `input`
+4. Add assertions to verify the fix
 5. Add to `evals/bug-fixes.eval.yaml`
 
 ```yaml
 tests:
   - case: my-bug-fix
-    metadata:
-      repo: owner/repo
-      base_commit: "abc123..."
-      problem_statement: |
-        Copy from GitHub issue...
-    input: "Fix the bug described in the metadata."
+    input: |
+      Fix the bug: <problem description>
+    assertions:
+      - type: contains
+        value: "<expected code pattern>"
+      - type: llm-grader
+        prompt: "Check that the fix correctly addresses..."
 ```
 
-## SWE-bench Compatibility
+## SWE-bench Import
 
-This example is compatible with SWE-bench dataset format:
-
-```json
-{
-  "repo": "sympy/sympy",
-  "instance_id": "sympy__sympy-18154",
-  "base_commit": "9aabb2376ea5ac18bb17310f88481a450398b74f",
-  "problem_statement": "<GitHub issue text>",
-  "FAIL_TO_PASS": ["test_module::test_case_1"],
-  "PASS_TO_PASS": ["test_module::test_case_2"]
-}
-```
-
-Use the provided script to import SWE-bench instances:
+Import instances from the SWE-bench dataset:
 
 ```bash
-./scripts/import-swebench.sh
+./scripts/import-swebench.sh --url <swe-bench-url> --count 10
 ```
 
-## Running Subsets
+## Auth Options
 
-```bash
-# Run single test case
-bun run agentv eval evals/bug-fixes.eval.yaml --filter "sympy-18154"
+| Target | Auth Method | API Key? |
+|--------|-------------|----------|
+| `mock_agent` | None | No |
+| `claude-*` variants | Claude subscription (Pro/Max) | No* |
+| `azure-base` (grader) | Azure OpenAI | Yes |
 
-# Run only Python repos
-bun run agentv eval evals/bug-fixes.eval.yaml --filter "sympy|django|flask"
+*Claude subscription auth requires `ANTHROPIC_API_KEY` to be absent from `.env`.
 
-# Run with timeout
-bun run agentv eval evals/bug-fixes.eval.yaml --timeout 900
+## Directory Structure
+
 ```
-
-## Results
-
-Results are saved to `.agentv/results/`:
-
-```bash
-# View results
-cat .agentv/results/runs/<timestamp>/index.jsonl
-
-# Generate HTML report
-bun run agentv eval evals/bug-fixes.eval.yaml -o report.html
-
-# Compare runs
-bun run agentv compare .agentv/results/runs/<timestamp1>/index.jsonl \
-                      .agentv/results/runs/<timestamp2>/index.jsonl
+bug-fix-benchmark/
+├── .agentv/
+│   └── targets.yaml          # All targets (baseline + plugins + graders)
+├── evals/
+│   └── bug-fixes.eval.yaml   # Test cases with real bugs
+├── workspaces/
+│   ├── baseline/             # No plugins
+│   ├── superpowers/          # obra/superpowers
+│   ├── compound/             # EveryInc/compound-engineering
+│   └── agent-skills/         # addyosmani/agent-skills
+├── scripts/
+│   ├── mock-agent.sh         # Testing without API keys
+│   ├── setup-plugins.sh      # Install plugins into workspaces
+│   └── import-swebench.sh    # Import SWE-bench instances
+└── README.md
 ```
-
-## Limitations
-
-- **Network required**: Public repos must be accessible via `git clone`
-- **Large repos**: Initial clone can be slow (use `clone.depth: 1` for shallow clones)
-- **Flaky tests**: Some tests may be non-deterministic
-- **External state**: Repo could change or be deleted
 
 ## See Also
 
-- [SWE-bench](https://www.swebench.com/) — Original benchmark
-- [workspace-multi-repo](../../features/workspace-multi-repo/) — Multi-repo workspace examples
-- [docker-workspace](../../features/docker-workspace/) — Docker workspace examples
+- [Issue #919](https://github.com/EntityProcess/agentv/issues/919) — Original benchmark proposal
+- [Issue #912](https://github.com/EntityProcess/agentv/issues/912) — Bug used as test case
+- [SWE-bench](https://www.swebench.com/) — Original benchmark format
+- [repo-lifecycle](../../features/repo-lifecycle/) — Git repo workspace feature example
 - [cross-repo-sync](../cross-repo-sync/) — Code agent showcase
