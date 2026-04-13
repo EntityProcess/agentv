@@ -141,7 +141,18 @@ async function validateWorkspaceObject(
  */
 function looksLikeFilePath(arg: string): boolean {
   if (arg.startsWith('./') || arg.startsWith('../')) return true;
-  const scriptExtensions = ['.mjs', '.cjs', '.js', '.ts', '.sh', '.bash', '.zsh', '.py', '.rb', '.pl'];
+  const scriptExtensions = [
+    '.mjs',
+    '.cjs',
+    '.js',
+    '.ts',
+    '.sh',
+    '.bash',
+    '.zsh',
+    '.py',
+    '.rb',
+    '.pl',
+  ];
   return scriptExtensions.some((ext) => arg.endsWith(ext));
 }
 
