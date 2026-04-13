@@ -1,8 +1,5 @@
 export type Verdict = 'PASS' | 'FAIL' | 'ERROR';
 
-/** Prefix for all AgentV framework log lines, making them distinguishable from provider output. */
-export const LOG_PREFIX = '[INFO]';
-
 export interface WorkerProgress {
   workerId: number;
   testId: string;
@@ -89,27 +86,27 @@ export class ProgressDisplay {
       case 'pending':
         // Only print pending in verbose mode (just shows the queue)
         if (this.verbose && !previous) {
-          console.log(`${LOG_PREFIX} ${countPrefix}   ⏳ ${progress.testId}${targetSuffix}`);
+          console.log(`${countPrefix}   ⏳ ${progress.testId}${targetSuffix}`);
         }
         break;
       case 'running':
         // Always print running - useful feedback for long-running agents
         if (!previous || previous.status === 'pending') {
-          console.log(`${LOG_PREFIX} ${countPrefix}   🔄 ${progress.testId}${targetSuffix}`);
+          console.log(`${countPrefix}   🔄 ${progress.testId}${targetSuffix}`);
         }
         break;
       case 'completed': {
         // Pick icon based on verdict: ✅ PASS, ⚠️ FAIL, ❌ ERROR
         const icon = progress.verdict === 'FAIL' ? '⚠️' : progress.verdict === 'ERROR' ? '❌' : '✅';
         console.log(
-          `${LOG_PREFIX} ${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
+          `${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
         );
         break;
       }
       case 'failed': {
         const failIcon = progress.verdict === 'ERROR' ? '❌' : '⚠️';
         console.log(
-          `${LOG_PREFIX} ${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
+          `${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
         );
         break;
       }
@@ -133,7 +130,7 @@ export class ProgressDisplay {
     this.logPaths.push(...newPaths);
 
     for (const p of newPaths) {
-      console.log(`${LOG_PREFIX} Provider log: ${p}`);
+      console.log(`Provider log: ${p}`);
     }
   }
 
