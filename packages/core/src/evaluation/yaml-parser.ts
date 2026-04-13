@@ -765,7 +765,7 @@ async function resolveWorkspaceConfig(
       );
     }
 
-    return resolvedWorkspace;
+    return undefined;
   }
   return parseWorkspaceConfig(raw, evalFileDir);
 }
