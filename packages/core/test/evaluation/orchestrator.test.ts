@@ -3126,10 +3126,36 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     expect(results[0].error).toBeUndefined();
   });
 
-  it('errors when workspaceMode is static without workspace path', async () => {
+  it('falls back to temp mode when workspaceMode is static with no path and no repos', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
     });
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [baseTestCase],
+      workspaceMode: 'static',
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+  });
+
+  it('errors when workspaceMode is static without workspace path but with repos', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase = {
+      ...baseTestCase,
+      workspace: {
+        repos: [{ source: { type: 'git' as const, url: 'https://example.com/repo.git' } }],
+      },
+    };
 
     await expect(
       runEvaluation({
@@ -3138,7 +3164,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
         target: baseTarget,
         providerFactory: () => provider,
         evaluators: evaluatorRegistry,
-        evalCases: [baseTestCase],
+        evalCases: [evalCase],
         workspaceMode: 'static',
       }),
     ).rejects.toThrow('workspace.mode=static requires workspace.path or --workspace-path');

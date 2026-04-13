@@ -731,10 +731,22 @@ export async function runEvaluation(
   if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode static when both are provided');
   }
-  const configuredMode = cliWorkspacePath
+  let configuredMode = cliWorkspacePath
     ? 'static'
     : (workspaceMode ?? suiteWorkspace?.mode ?? (yamlWorkspacePath ? 'static' : 'pooled'));
   const configuredStaticPath = cliWorkspacePath ?? yamlWorkspacePath;
+
+  // When mode=static with no path and no repos, the static mode is a no-op (nothing to
+  // skip cloning). Fall back to temp mode so agentv creates a temp directory automatically.
+  if (configuredMode === 'static' && !configuredStaticPath) {
+    if (!suiteWorkspace?.repos?.length) {
+      setupLog('workspace.mode=static with no path and no repos — falling back to temp mode');
+      configuredMode = 'temp';
+    } else {
+      throw new Error('workspace.mode=static requires workspace.path or --workspace-path');
+    }
+  }
+
   const useStaticWorkspace = configuredMode === 'static';
 
   // static workspace is incompatible with per_test isolation
@@ -742,9 +754,6 @@ export async function runEvaluation(
     throw new Error(
       'static workspace mode is incompatible with isolation: per_test. Use isolation: shared (default).',
     );
-  }
-  if (configuredMode === 'static' && !configuredStaticPath) {
-    throw new Error('workspace.mode=static requires workspace.path or --workspace-path');
   }
   if (configuredMode !== 'static' && configuredStaticPath) {
     throw new Error('workspace.path requires workspace.mode=static');
