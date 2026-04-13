@@ -108,6 +108,20 @@ export type {
 export { createBuiltinRegistry } from './evaluation/registry/builtin-evaluators.js';
 export { discoverAssertions } from './evaluation/registry/assertion-discovery.js';
 export {
+  runContainsAssertion,
+  runContainsAnyAssertion,
+  runContainsAllAssertion,
+  runIcontainsAssertion,
+  runIcontainsAnyAssertion,
+  runIcontainsAllAssertion,
+  runStartsWithAssertion,
+  runEndsWithAssertion,
+  runRegexAssertion,
+  runIsJsonAssertion,
+  runEqualsAssertion,
+  type AssertionResult,
+} from './evaluation/evaluators/assertions.js';
+export {
   discoverGraders,
   discoverGraders as discoverJudges,
 } from './evaluation/registry/grader-discovery.js';

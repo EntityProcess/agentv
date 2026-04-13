@@ -16,13 +16,29 @@
  *           ├── criteria.md
  *           ├── expected_output.json    (if present)
  *           ├── llm_graders/<name>.json
- *           └── code_graders/<name>.json
+ *           ├── code_graders/<name>.json
+ *           └── builtin_graders/<name>.json
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
+
+/** Assertion types that can be graded deterministically without external scripts or LLMs. */
+const BUILTIN_ASSERTION_TYPES = new Set([
+  'contains',
+  'contains-any',
+  'contains-all',
+  'icontains',
+  'icontains-any',
+  'icontains-all',
+  'starts-with',
+  'ends-with',
+  'regex',
+  'is-json',
+  'equals',
+]);
 import { deriveCategory, loadTestSuite } from '@agentv/core';
 import { command, option, optional, positional, string } from 'cmd-ts';
 
@@ -190,9 +206,11 @@ async function writeGraderConfigs(
 ): Promise<void> {
   const codeGradersDir = join(testDir, 'code_graders');
   const llmGradersDir = join(testDir, 'llm_graders');
+  const builtinGradersDir = join(testDir, 'builtin_graders');
 
   let hasCodeGraders = false;
   let hasLlmGraders = false;
+  let hasBuiltinGraders = false;
 
   for (const assertion of assertions) {
     if (assertion.type === 'code-grader') {
@@ -232,6 +250,20 @@ async function writeGraderConfigs(
         weight: config.weight ?? 1.0,
         threshold: 0.5,
         config: {},
+      });
+    } else if (BUILTIN_ASSERTION_TYPES.has(assertion.type)) {
+      if (!hasBuiltinGraders) {
+        await mkdir(builtinGradersDir, { recursive: true });
+        hasBuiltinGraders = true;
+      }
+      const config = assertion as EvaluatorConfig & { value?: unknown; flags?: string };
+      await writeJson(join(builtinGradersDir, `${config.name}.json`), {
+        name: config.name,
+        type: config.type,
+        value: config.value,
+        flags: (config as { flags?: string }).flags,
+        weight: config.weight ?? 1.0,
+        negate: config.negate ?? false,
       });
     }
   }
