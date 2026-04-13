@@ -34,7 +34,12 @@ import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
-import { LOG_PREFIX, ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
+import {
+  LOG_PREFIX,
+  ProgressDisplay,
+  type Verdict,
+  type WorkerProgress,
+} from './progress-display.js';
 import { buildDefaultRunDir, normalizeExperimentName } from './result-layout.js';
 import {
   buildExclusionFilter,
@@ -914,7 +919,9 @@ export async function runEvalCommand(
     retryNonErrorResults = await loadNonErrorResults(retryPath);
 
     if (errorIds.length > 0) {
-      console.log(`${LOG_PREFIX} Found ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`);
+      console.log(
+        `${LOG_PREFIX} Found ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`,
+      );
     }
     // Use a negation filter to exclude fully-completed (non-error across all targets) cases.
     // This re-runs error cases, cases missing from the output (crash recovery), and cases
@@ -1168,7 +1175,9 @@ export async function runEvalCommand(
     : undefined;
 
   if (cacheEnabled) {
-    console.log(`${LOG_PREFIX} Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
+    console.log(
+      `${LOG_PREFIX} Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`,
+    );
   }
 
   // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold.
@@ -1204,7 +1213,9 @@ export async function runEvalCommand(
   if (totalEvalCount === 0) {
     // When using --retry-errors, all tests being filtered means no errors or missing cases remain
     if (options.retryErrors && retryNonErrorResults && retryNonErrorResults.length > 0) {
-      console.log(`${LOG_PREFIX} No execution errors or missing cases in the previous run. Nothing to retry.`);
+      console.log(
+        `${LOG_PREFIX} No execution errors or missing cases in the previous run. Nothing to retry.`,
+      );
       return;
     }
     throw new Error('No tests matched the provided filters.');
@@ -1364,7 +1375,9 @@ export async function runEvalCommand(
             // before_all or other setup failures should not abort the entire run.
             // Mark all tests in this file as errors and continue with other files.
             const message = fileError instanceof Error ? fileError.message : String(fileError);
-            console.error(`\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`);
+            console.error(
+              `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
+            );
             const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
               timestamp: new Date().toISOString(),
               testId: testCase.id,
