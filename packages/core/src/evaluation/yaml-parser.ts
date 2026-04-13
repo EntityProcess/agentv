@@ -749,7 +749,23 @@ async function resolveWorkspaceConfig(
     }
     // Resolve paths relative to the workspace file's directory
     const workspaceFileDir = path.dirname(workspaceFilePath);
-    return parseWorkspaceConfig(parsed, workspaceFileDir);
+    const resolvedWorkspace = parseWorkspaceConfig(parsed, workspaceFileDir);
+    if (resolvedWorkspace) {
+      return resolvedWorkspace;
+    }
+
+    const parsedObject = parsed as Record<string, unknown>;
+    if ('workspace' in parsedObject && isJsonObject(parsedObject.workspace)) {
+      throw new Error(
+        [
+          `Invalid workspace file format: ${workspaceFilePath}`,
+          'External workspace files must contain the workspace config object directly.',
+          'Remove the top-level "workspace:" wrapper.',
+        ].join(' '),
+      );
+    }
+
+    return resolvedWorkspace;
   }
   return parseWorkspaceConfig(raw, evalFileDir);
 }

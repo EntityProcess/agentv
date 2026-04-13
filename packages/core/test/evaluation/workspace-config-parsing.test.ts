@@ -578,6 +578,39 @@ tests:
       );
     });
 
+    it('should throw a clear error when external workspace file wraps config under workspace', async () => {
+      const wsDir = path.join(testDir, 'wrapped-workspace');
+      await mkdir(wsDir, { recursive: true });
+
+      const workspaceFile = path.join(wsDir, 'workspace.yaml');
+      await writeFile(
+        workspaceFile,
+        `
+workspace:
+  hooks:
+    after_each:
+      reset: fast
+`,
+      );
+
+      const evalFile = path.join(testDir, 'wrapped-workspace-eval.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace: ./wrapped-workspace/workspace.yaml
+
+tests:
+  - id: wrapped-workspace
+    input: "Do something"
+    criteria: "Should work"
+`,
+      );
+
+      await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+        /External workspace files must contain the workspace config object directly.*Remove the top-level "workspace:" wrapper/,
+      );
+    });
+
     it('should allow per-case workspace override with external suite workspace', async () => {
       const wsDir = path.join(testDir, 'override-shared');
       await mkdir(wsDir, { recursive: true });
