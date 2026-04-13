@@ -344,4 +344,69 @@ process.stdout.write(JSON.stringify(args));
       await rm(explicitDir, { recursive: true, force: true });
     }
   });
+
+  it('defaults cwd to workspaceFileDir over evalDir when workspace is a file reference', async () => {
+    const evalDir = path.join(tmpdir(), `agentv-evaldir-${randomUUID()}`);
+    const workspaceFileDir = path.join(tmpdir(), `agentv-wsfiledir-${randomUUID()}`);
+    await mkdir(evalDir, { recursive: true });
+    await mkdir(workspaceFileDir, { recursive: true });
+
+    try {
+      const cwdScript = path.join(testDir, 'print-cwd3.js');
+      await writeFile(cwdScript, 'process.stdout.write(process.cwd());');
+
+      const config: WorkspaceScriptConfig = {
+        command: ['node', cwdScript],
+        // No cwd — should default to workspaceFileDir, not evalDir
+      };
+
+      const context: ScriptExecutionContext = {
+        workspacePath: '/tmp/workspace',
+        testId: 'wsfiledir-default-test',
+        evalRunId: 'run-cwd-3',
+        evalDir,
+        workspaceFileDir,
+      };
+
+      const output = await executeWorkspaceScript(config, context, 'fatal');
+      expect(output).toBe(workspaceFileDir);
+    } finally {
+      await rm(evalDir, { recursive: true, force: true });
+      await rm(workspaceFileDir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses explicit cwd over workspaceFileDir', async () => {
+    const evalDir = path.join(tmpdir(), `agentv-evaldir-${randomUUID()}`);
+    const workspaceFileDir = path.join(tmpdir(), `agentv-wsfiledir-${randomUUID()}`);
+    const explicitDir = path.join(tmpdir(), `agentv-explicit-${randomUUID()}`);
+    await mkdir(evalDir, { recursive: true });
+    await mkdir(workspaceFileDir, { recursive: true });
+    await mkdir(explicitDir, { recursive: true });
+
+    try {
+      const cwdScript = path.join(testDir, 'print-cwd4.js');
+      await writeFile(cwdScript, 'process.stdout.write(process.cwd());');
+
+      const config: WorkspaceScriptConfig = {
+        command: ['node', cwdScript],
+        cwd: explicitDir, // Explicit cwd should override both workspaceFileDir and evalDir
+      };
+
+      const context: ScriptExecutionContext = {
+        workspacePath: '/tmp/workspace',
+        testId: 'explicit-over-wsfiledir-test',
+        evalRunId: 'run-cwd-4',
+        evalDir,
+        workspaceFileDir,
+      };
+
+      const output = await executeWorkspaceScript(config, context, 'fatal');
+      expect(output).toBe(explicitDir);
+    } finally {
+      await rm(evalDir, { recursive: true, force: true });
+      await rm(workspaceFileDir, { recursive: true, force: true });
+      await rm(explicitDir, { recursive: true, force: true });
+    }
+  });
 });

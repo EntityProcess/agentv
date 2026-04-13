@@ -751,7 +751,7 @@ async function resolveWorkspaceConfig(
     const workspaceFileDir = path.dirname(workspaceFilePath);
     const resolvedWorkspace = parseWorkspaceConfig(parsed, workspaceFileDir);
     if (resolvedWorkspace) {
-      return resolvedWorkspace;
+      return { ...resolvedWorkspace, workspaceFileDir };
     }
 
     const parsedObject = parsed as Record<string, unknown>;
@@ -882,6 +882,7 @@ function mergeWorkspaceConfigs(
     mode: caseLevel.mode ?? suiteLevel.mode,
     path: caseLevel.path ?? suiteLevel.path,
     docker: caseLevel.docker ?? suiteLevel.docker,
+    workspaceFileDir: caseLevel.workspaceFileDir ?? suiteLevel.workspaceFileDir,
   };
 }
 

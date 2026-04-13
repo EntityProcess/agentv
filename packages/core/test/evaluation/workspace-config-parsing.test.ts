@@ -557,6 +557,62 @@ tests:
       expect(cases[0].workspace?.template).toBe(path.join(wsDir, 'my-template'));
       // cwd resolved relative to workspace file dir
       expect(cases[0].workspace?.hooks?.before_all?.cwd).toBe(path.join(wsDir, 'scripts'));
+      // workspaceFileDir is set to the workspace file's directory
+      expect(cases[0].workspace?.workspaceFileDir).toBe(wsDir);
+    });
+
+    it('should set workspaceFileDir when workspace is a file reference', async () => {
+      const wsDir = path.join(testDir, 'wsfiledir-test');
+      await mkdir(wsDir, { recursive: true });
+
+      const workspaceFile = path.join(wsDir, 'workspace.yaml');
+      await writeFile(
+        workspaceFile,
+        `
+hooks:
+  before_all:
+    command: ["echo", "hello"]
+`,
+      );
+
+      const evalFile = path.join(testDir, 'wsfiledir-eval.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace: ./wsfiledir-test/workspace.yaml
+
+tests:
+  - id: wsfiledir-test-1
+    input: "Do something"
+    criteria: "Should work"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(1);
+      expect(cases[0].workspace?.workspaceFileDir).toBe(wsDir);
+    });
+
+    it('should not set workspaceFileDir for inline workspace config', async () => {
+      const evalFile = path.join(testDir, 'inline-workspace.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace:
+  hooks:
+    before_all:
+      command: ["echo", "hello"]
+
+tests:
+  - id: inline-test-1
+    input: "Do something"
+    criteria: "Should work"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(1);
+      expect(cases[0].workspace?.workspaceFileDir).toBeUndefined();
     });
 
     it('should throw a clear error when workspace file is not found', async () => {
