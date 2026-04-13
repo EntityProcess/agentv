@@ -424,6 +424,14 @@ function makeTestCaseKey(testFilePath: string, testId: string): string {
   return `${path.resolve(testFilePath)}::${testId}`;
 }
 
+/** Show the resolved target name when `default` is a `use_target` redirect. */
+function resolveTargetLabel(requestedName: string, resolvedName: string): string {
+  if (resolvedName !== requestedName) {
+    return `${requestedName} → ${resolvedName}`;
+  }
+  return requestedName;
+}
+
 function createDisplayIdTracker(): { getOrAssign(testCaseKey: string): number } {
   const map = new Map<string, number>();
   let nextId = 1;
@@ -583,7 +591,7 @@ async function prepareFileMetadata(params: {
 
       selections = multiSelections.map((sel) => ({
         selection: sel,
-        inlineTargetLabel: sel.targetName,
+        inlineTargetLabel: resolveTargetLabel(sel.targetName, sel.resolvedTarget.name),
       }));
     } else {
       // Single target mode (legacy path)
@@ -603,7 +611,10 @@ async function prepareFileMetadata(params: {
       selections = [
         {
           selection,
-          inlineTargetLabel: selection.targetName,
+          inlineTargetLabel: resolveTargetLabel(
+            selection.targetName,
+            selection.resolvedTarget.name,
+          ),
         },
       ];
     }
