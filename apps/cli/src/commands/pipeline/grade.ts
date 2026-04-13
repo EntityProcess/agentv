@@ -1,16 +1,13 @@
 /**
- * `agentv pipeline grade` — Run code-grader and built-in deterministic assertions
- * against response.md files in an export directory produced by `pipeline input`.
+ * `agentv pipeline grade` — Run grader assertions against response.md files
+ * in an export directory produced by `pipeline input`.
  *
- * For each test:
- * - Reads code_graders/<name>.json configs, executes each grader script,
- *   and writes results to code_grader_results/<name>.json.
- * - Reads builtin_graders/<name>.json configs, evaluates deterministic assertions
- *   (contains, regex, equals, etc.) in-process, and writes results to
- *   code_grader_results/<name>.json (same directory, so pipeline bench merges them).
+ * All grader configs live in code_graders/<name>.json. Each config has a `type`
+ * field that determines how it's evaluated:
+ * - `code-grader` (or configs with a `command` field): executed as external scripts
+ * - Built-in types (contains, regex, equals, etc.): evaluated in-process
  *
- * Code graders run concurrently (default: 10 workers) for performance.
- * Built-in graders are synchronous and evaluate instantly after code graders finish.
+ * Results are written to code_grader_results/<name>.json for pipeline bench.
  *
  * Export directory additions:
  *   <out-dir>/<suite>/<test-id>/code_grader_results/<name>.json
@@ -63,7 +60,9 @@ export interface GraderTask {
 }
 
 /**
- * Run code-grader tasks with concurrency and progress feedback.
+ * Run grader tasks with concurrency and progress feedback.
+ * Dispatches each task based on its config: code-graders are executed as
+ * external scripts, built-in types (contains, regex, etc.) are evaluated in-process.
  * Shared by `pipeline grade` and `pipeline run`.
  */
 export async function runCodeGraders(
@@ -84,12 +83,29 @@ export async function runCodeGraders(
   writeProgress();
 
   const executeGrader = async (task: GraderTask) => {
-    const { testId, testDir, resultsDir, graderFile, responseText, inputData } = task;
+    const { testDir, resultsDir, graderFile, responseText } = task;
     const graderConfig = JSON.parse(
       await readFile(join(testDir, 'code_graders', graderFile), 'utf8'),
     );
-    const graderName = graderConfig.name;
 
+    // Dispatch: configs with a `command` field are external scripts;
+    // all others are built-in deterministic assertions evaluated in-process.
+    if (graderConfig.command) {
+      await executeCodeGrader(graderConfig, task);
+    } else {
+      await executeBuiltinGrader(graderConfig, responseText, resultsDir);
+    }
+
+    totalGraders++;
+    if (graderConfig._lastScore >= 0.5) totalPassed++;
+    completed++;
+    writeProgress();
+  };
+
+  /** Run an external code-grader script. */
+  const executeCodeGrader = async (graderConfig: Record<string, unknown>, task: GraderTask) => {
+    const { testId, resultsDir, responseText, inputData } = task;
+    const graderName = graderConfig.name as string;
     const inputText = extractInputText(inputData.input);
     const payload = JSON.stringify({
       output: [{ role: 'assistant', content: responseText }],
@@ -114,10 +130,10 @@ export async function runCodeGraders(
 
     try {
       const stdout = await executeScript(
-        graderConfig.command,
+        graderConfig.command as string | string[],
         payload,
         undefined,
-        graderConfig.cwd,
+        graderConfig.cwd as string | undefined,
       );
       const parsed = JSON.parse(stdout);
       const score = typeof parsed.score === 'number' ? parsed.score : 0;
@@ -131,46 +147,53 @@ export async function runCodeGraders(
               ...(parsed.misses ?? []).map((m: string) => ({ text: m, passed: false })),
             ];
 
-      const result = {
-        name: graderName,
-        type: 'code-grader',
-        score,
-        weight: graderConfig.weight ?? 1.0,
-        assertions,
-        details: parsed.details ?? {},
-      };
+      graderConfig._lastScore = score;
 
       await writeFile(
         join(resultsDir, `${graderName}.json`),
-        `${JSON.stringify(result, null, 2)}\n`,
+        `${JSON.stringify({ name: graderName, type: 'code-grader', score, weight: graderConfig.weight ?? 1.0, assertions, details: parsed.details ?? {} }, null, 2)}\n`,
         'utf8',
       );
-
-      totalGraders++;
-      if (score >= 0.5) totalPassed++;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`\n  ${testId}/${graderName}: ERROR — ${message}\n`);
-
-      const errorResult = {
-        name: graderName,
-        type: 'code-grader',
-        score: 0,
-        weight: graderConfig.weight ?? 1.0,
-        assertions: [{ text: `Error: ${message}`, passed: false }],
-        details: { error: message },
-      };
+      graderConfig._lastScore = 0;
 
       await writeFile(
         join(resultsDir, `${graderName}.json`),
-        `${JSON.stringify(errorResult, null, 2)}\n`,
+        `${JSON.stringify({ name: graderName, type: 'code-grader', score: 0, weight: graderConfig.weight ?? 1.0, assertions: [{ text: `Error: ${message}`, passed: false }], details: { error: message } }, null, 2)}\n`,
         'utf8',
       );
-      totalGraders++;
-    } finally {
-      completed++;
-      writeProgress();
     }
+  };
+
+  /** Evaluate a built-in deterministic assertion in-process. */
+  const executeBuiltinGrader = async (
+    graderConfig: Record<string, unknown>,
+    responseText: string,
+    resultsDir: string,
+  ) => {
+    const raw = evaluateBuiltinAssertion(
+      graderConfig as { type: string; value?: unknown; flags?: string },
+      responseText,
+    );
+
+    const negate = graderConfig.negate === true;
+    const score = negate ? 1 - raw.score : raw.score;
+    const assertions = negate
+      ? raw.assertions.map((a: { text: string; passed: boolean }) => ({
+          text: a.text,
+          passed: !a.passed,
+        }))
+      : raw.assertions;
+
+    graderConfig._lastScore = score;
+
+    await writeFile(
+      join(resultsDir, `${graderConfig.name}.json`),
+      `${JSON.stringify({ name: graderConfig.name, type: graderConfig.type, score, weight: (graderConfig.weight as number) ?? 1.0, assertions, details: {} }, null, 2)}\n`,
+      'utf8',
+    );
   };
 
   // Run with concurrency limit
@@ -239,83 +262,9 @@ function evaluateBuiltinAssertion(
   }
 }
 
-/**
- * Run built-in deterministic assertions for all tests in the export directory.
- * Reads configs from builtin_graders/<name>.json, evaluates in-process,
- * and writes results to code_grader_results/<name>.json.
- */
-async function runBuiltinGraders(
-  exportDir: string,
-  testIds: string[],
-  safeSuiteName: string,
-): Promise<{ total: number; passed: number }> {
-  let total = 0;
-  let passed = 0;
-
-  for (const testId of testIds) {
-    const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
-    const testDir = join(exportDir, ...subpath);
-    const builtinGradersDir = join(testDir, 'builtin_graders');
-
-    let graderFiles: string[];
-    try {
-      graderFiles = (await readdir(builtinGradersDir)).filter((f) => f.endsWith('.json'));
-    } catch {
-      continue; // No builtin graders for this test
-    }
-
-    if (graderFiles.length === 0) continue;
-
-    const resultsDir = join(testDir, 'code_grader_results');
-    await mkdir(resultsDir, { recursive: true });
-
-    let responseText: string;
-    try {
-      responseText = await readFile(join(testDir, 'response.md'), 'utf8');
-    } catch {
-      continue; // No response yet — skip
-    }
-
-    for (const file of graderFiles) {
-      const config = JSON.parse(await readFile(join(builtinGradersDir, file), 'utf8'));
-      const raw = evaluateBuiltinAssertion(config, responseText);
-
-      // Apply negate if configured
-      const negate = config.negate === true;
-      const score = negate ? 1 - raw.score : raw.score;
-      const assertions = negate
-        ? raw.assertions.map((a: { text: string; passed: boolean }) => ({
-            text: a.text,
-            passed: !a.passed,
-          }))
-        : raw.assertions;
-
-      const result = {
-        name: config.name,
-        type: config.type,
-        score,
-        weight: config.weight ?? 1.0,
-        assertions,
-        details: {},
-      };
-
-      await writeFile(
-        join(resultsDir, `${config.name}.json`),
-        `${JSON.stringify(result, null, 2)}\n`,
-        'utf8',
-      );
-
-      total++;
-      if (score >= 0.5) passed++;
-    }
-  }
-
-  return { total, passed };
-}
-
 export const evalGradeCommand = command({
   name: 'grade',
-  description: 'Run code-grader and built-in assertions on responses in an export directory',
+  description: 'Run grader assertions on responses in an export directory',
   args: {
     exportDir: positional({
       type: string,
@@ -337,7 +286,7 @@ export const evalGradeCommand = command({
     const suiteName: string = manifest.suite ?? '';
     const safeSuiteName = suiteName ? suiteName.replace(/[\/\\:*?"<>|]/g, '_') : '';
 
-    // Collect all code-grader tasks upfront so we know the total count
+    // Collect all grader tasks upfront so we know the total count
     const tasks: GraderTask[] = [];
 
     for (const testId of testIds) {
@@ -348,33 +297,23 @@ export const evalGradeCommand = command({
 
       let graderFiles: string[];
       try {
-        graderFiles = (await readdir(codeGradersDir)).filter((f) => f.endsWith('.json'));
+        graderFiles = (await readdir(codeGradersDir)).filter((f: string) => f.endsWith('.json'));
       } catch {
-        graderFiles = [];
+        continue; // No graders for this test
       }
 
-      if (graderFiles.length > 0) {
-        await mkdir(resultsDir, { recursive: true });
-        const responseText = await readFile(join(testDir, 'response.md'), 'utf8');
-        const inputData = JSON.parse(await readFile(join(testDir, 'input.json'), 'utf8'));
+      if (graderFiles.length === 0) continue;
+      await mkdir(resultsDir, { recursive: true });
 
-        for (const graderFile of graderFiles) {
-          tasks.push({ testId, testDir, resultsDir, graderFile, responseText, inputData });
-        }
+      const responseText = await readFile(join(testDir, 'response.md'), 'utf8');
+      const inputData = JSON.parse(await readFile(join(testDir, 'input.json'), 'utf8'));
+
+      for (const graderFile of graderFiles) {
+        tasks.push({ testId, testDir, resultsDir, graderFile, responseText, inputData });
       }
     }
 
     const { totalGraders, totalPassed } = await runCodeGraders(tasks, maxWorkers);
-
-    // Run built-in deterministic assertions (contains, regex, equals, etc.)
-    const builtin = await runBuiltinGraders(exportDir, testIds, safeSuiteName);
-
-    const totalAll = totalGraders + builtin.total;
-    const passedAll = totalPassed + builtin.passed;
-    const parts: string[] = [];
-    if (totalGraders > 0) parts.push(`${totalGraders} code-grader(s)`);
-    if (builtin.total > 0) parts.push(`${builtin.total} built-in assertion(s)`);
-    if (parts.length === 0) parts.push('0 grader(s)');
-    console.log(`Graded ${parts.join(' + ')}: ${passedAll}/${totalAll} passed`);
+    console.log(`Graded ${totalGraders} grader(s): ${totalPassed} passed`);
   },
 });

@@ -74,7 +74,7 @@ describe('pipeline grade — builtin assertions', () => {
 
   beforeEach(async () => {
     const testDir = join(BUILTIN_OUT, 'test-01');
-    const builtinGradersDir = join(testDir, 'builtin_graders');
+    const builtinGradersDir = join(testDir, 'code_graders');
     await mkdir(builtinGradersDir, { recursive: true });
 
     await writeFile(join(testDir, 'response.md'), 'hello world');
@@ -177,7 +177,7 @@ describe('pipeline grade — builtin assertions', () => {
   it('applies negate to invert score', async () => {
     // Overwrite has_goodbye with negate: true — "not contains goodbye" should pass
     await writeFile(
-      join(BUILTIN_OUT, 'test-01', 'builtin_graders', 'has_goodbye.json'),
+      join(BUILTIN_OUT, 'test-01', 'code_graders', 'has_goodbye.json'),
       JSON.stringify({
         name: 'has_goodbye',
         type: 'contains',
