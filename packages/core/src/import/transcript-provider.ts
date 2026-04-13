@@ -15,21 +15,21 @@
  */
 
 import type { Provider, ProviderRequest, ProviderResponse } from '../evaluation/providers/types.js';
-import type { TranscriptJsonLine } from './types.js';
-import { readTranscriptJsonl } from './types.js';
+import type { TranscriptReplayEntry } from './types.js';
+import { groupTranscriptJsonLines, readTranscriptJsonl } from './types.js';
 
 export class TranscriptProvider implements Provider {
   readonly id: string;
   readonly kind = 'transcript' as const;
   readonly targetName: string;
 
-  private lines: TranscriptJsonLine[];
+  private entries: TranscriptReplayEntry[];
   private cursor = 0;
 
-  constructor(targetName: string, lines: TranscriptJsonLine[]) {
+  constructor(targetName: string, entries: TranscriptReplayEntry[]) {
     this.targetName = targetName;
     this.id = `transcript:${targetName}`;
-    this.lines = lines;
+    this.entries = entries;
   }
 
   /**
@@ -40,36 +40,38 @@ export class TranscriptProvider implements Provider {
     if (lines.length === 0) {
       throw new Error(`Transcript file is empty: ${filePath}`);
     }
-    const providerName = lines[0].source.provider ?? 'transcript';
-    return new TranscriptProvider(providerName, lines);
+    const entries = groupTranscriptJsonLines(lines);
+    const providerName = entries[0]?.source.provider ?? 'transcript';
+    return new TranscriptProvider(providerName, entries);
   }
 
   get lineCount(): number {
-    return this.lines.length;
+    return this.entries.length;
   }
 
   async invoke(_request: ProviderRequest): Promise<ProviderResponse> {
-    if (this.cursor >= this.lines.length) {
+    if (this.cursor >= this.entries.length) {
       throw new Error(
-        `Transcript exhausted: ${this.lines.length} line(s) available but ` +
-          `${this.cursor + 1} invocations attempted. Each transcript line maps to one test case.`,
+        `Transcript exhausted: ${this.entries.length} entr${this.entries.length === 1 ? 'y' : 'ies'} available but ` +
+          `${this.cursor + 1} invocations attempted. Each transcript entry maps to one test case.`,
       );
     }
 
-    const line = this.lines[this.cursor++];
+    const entry = this.entries[this.cursor++];
 
     return {
-      output: line.output,
-      tokenUsage: line.token_usage
+      output: entry.messages,
+      tokenUsage: entry.tokenUsage
         ? {
-            input: line.token_usage.input,
-            output: line.token_usage.output,
-            cached: line.token_usage.cached,
+            input: entry.tokenUsage.input,
+            output: entry.tokenUsage.output,
+            cached: entry.tokenUsage.cached,
+            reasoning: entry.tokenUsage.reasoning,
           }
         : undefined,
-      durationMs: line.duration_ms,
-      costUsd: line.cost_usd ?? undefined,
-      startTime: line.source.timestamp,
+      durationMs: entry.durationMs,
+      costUsd: entry.costUsd ?? undefined,
+      startTime: entry.source.startedAt,
     };
   }
 }

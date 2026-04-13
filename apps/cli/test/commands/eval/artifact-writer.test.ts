@@ -674,6 +674,80 @@ describe('writeArtifactsFromResults', () => {
     expect(timingOne.duration_ms).toBe(0);
   });
 
+  it('writes transcript.jsonl as one message object per line', async () => {
+    const results = [
+      makeResult({
+        testId: 'transcript-case',
+        target: 'codex',
+        conversationId: 'session-123',
+        durationMs: 4200,
+        costUsd: 0.25,
+        tokenUsage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        input: [{ role: 'user' as const, content: 'Inspect artifact output' }],
+        output: [
+          {
+            role: 'assistant' as const,
+            content: 'Reading artifact-writer.ts',
+            toolCalls: [
+              {
+                tool: 'Read',
+                input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+                output: 'file contents',
+              },
+            ],
+          },
+        ],
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const transcriptLines = (await readFile(path.join(testDir, 'transcript.jsonl'), 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+
+    expect(transcriptLines).toEqual([
+      {
+        test_id: 'transcript-case',
+        target: 'codex',
+        message_index: 0,
+        role: 'user',
+        content: 'Inspect artifact output',
+        transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        transcript_duration_ms: 4200,
+        transcript_cost_usd: 0.25,
+        source: {
+          provider: 'codex',
+          session_id: 'session-123',
+          timestamp: '2026-03-13T00:00:00.000Z',
+        },
+      },
+      {
+        test_id: 'transcript-case',
+        target: 'codex',
+        message_index: 1,
+        role: 'assistant',
+        content: 'Reading artifact-writer.ts',
+        tool_calls: [
+          {
+            tool: 'Read',
+            input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+            output: 'file contents',
+          },
+        ],
+        transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        transcript_duration_ms: 4200,
+        transcript_cost_usd: 0.25,
+        source: {
+          provider: 'codex',
+          session_id: 'session-123',
+          timestamp: '2026-03-13T00:00:00.000Z',
+        },
+      },
+    ]);
+  });
+
   it('sanitizes test IDs for directory names', async () => {
     const results = [makeResult({ testId: 'path/to:test*1' })];
     await writeArtifactsFromResults(results, testDir);
