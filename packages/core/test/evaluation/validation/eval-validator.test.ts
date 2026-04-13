@@ -1095,8 +1095,7 @@ tests:
       const warnings = result.errors.filter((e) => e.severity === 'warning');
       expect(
         warnings.some(
-          (e) =>
-            e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
+          (e) => e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
         ),
       ).toBe(true);
     });
@@ -1119,8 +1118,7 @@ tests:
       const warnings = result.errors.filter((e) => e.severity === 'warning');
       expect(
         warnings.some(
-          (e) =>
-            e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
+          (e) => e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
         ),
       ).toBe(true);
     });
