@@ -72,10 +72,7 @@ describe('validateWorkspacePaths', () => {
     await mkdir(templateDir, { recursive: true });
 
     const evalFilePath = path.join(tempDir, 'eval-template-ok.yaml');
-    await writeFile(
-      evalFilePath,
-      `${minimalEvalPrefix}workspace:\n  template: my-template\n`,
-    );
+    await writeFile(evalFilePath, `${minimalEvalPrefix}workspace:\n  template: my-template\n`);
 
     const errors = await validateWorkspacePaths(evalFilePath);
     expect(errors).toHaveLength(0);
