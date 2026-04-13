@@ -63,7 +63,8 @@ describe('resolveEvalPaths', () => {
   });
 
   it('throws only when the combined include set is empty', async () => {
-    await expect(resolveEvalPaths(['evals/**/*.eval.yaml', 'evals/**/eval.yaml'], tempDir)).rejects
-      .toThrow('No eval files matched any provided paths or globs');
+    await expect(
+      resolveEvalPaths(['evals/**/*.eval.yaml', 'evals/**/eval.yaml'], tempDir),
+    ).rejects.toThrow('No eval files matched any provided paths or globs');
   });
 });
