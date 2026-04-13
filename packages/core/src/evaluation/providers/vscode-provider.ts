@@ -75,8 +75,9 @@ export class VSCodeProvider implements Provider {
 
     if (this.config.dryRun) {
       return {
-        output: [],
+        output: [{ role: 'assistant' as const, content: '{}' }],
         durationMs,
+        tokenUsage: { input: 0, output: 0 },
         raw: {
           session,
           inputFiles,
@@ -146,8 +147,9 @@ export class VSCodeProvider implements Provider {
 
     if (this.config.dryRun) {
       return normalizedRequests.map(({ inputFiles }) => ({
-        output: [],
+        output: [{ role: 'assistant' as const, content: '{}' }],
         durationMs: perRequestDurationMs,
+        tokenUsage: { input: 0, output: 0 },
         raw: {
           session,
           inputFiles,
