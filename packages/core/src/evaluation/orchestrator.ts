@@ -2324,6 +2324,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         }
       } else if ((retainOnSuccess ?? (keepWorkspaces ? 'keep' : 'cleanup')) !== 'keep') {
         await cleanupWorkspace(workspacePath).catch(() => {});
+      } else {
+        return { ...finalResult, workspacePath };
       }
     }
 
