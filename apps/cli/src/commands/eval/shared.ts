@@ -25,7 +25,6 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error('No eval paths provided (only negation patterns found).');
   }
 
-  const unmatched: string[] = [];
   const results = new Set<string>();
 
   for (const pattern of includePatterns) {
@@ -50,12 +49,8 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
           followSymbolicLinks: true,
           ignore: ignorePatterns,
         });
-        if (dirMatches.length === 0) {
-          unmatched.push(pattern);
-        } else {
-          for (const filePath of dirMatches) {
-            results.add(path.normalize(filePath));
-          }
+        for (const filePath of dirMatches) {
+          results.add(path.normalize(filePath));
         }
         continue;
       }
@@ -75,19 +70,29 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     });
 
     const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl|json)$/i.test(filePath));
-    if (yamlMatches.length === 0) {
-      unmatched.push(pattern);
-      continue;
-    }
-
     for (const filePath of yamlMatches) {
       results.add(path.normalize(filePath));
     }
   }
 
-  if (unmatched.length > 0) {
+  if (ignorePatterns.length > 0 && results.size > 0) {
+    const ignoredMatches = await fg(ignorePatterns, {
+      cwd,
+      absolute: true,
+      onlyFiles: true,
+      unique: true,
+      dot: true,
+      followSymbolicLinks: true,
+    });
+
+    for (const filePath of ignoredMatches) {
+      results.delete(path.normalize(filePath));
+    }
+  }
+
+  if (results.size === 0) {
     throw new Error(
-      `No eval files matched: ${unmatched.join(
+      `No eval files matched any provided paths or globs: ${includePatterns.join(
         ', ',
       )}. Provide YAML, JSONL, or JSON paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.jsonl", "evals.json").`,
     );
