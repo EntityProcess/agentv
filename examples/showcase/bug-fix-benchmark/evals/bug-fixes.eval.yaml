@@ -1,0 +1,157 @@
+# Bug Fix Benchmark
+# SWE-bench style evaluation: Real-world bug fixing on public GitHub repositories
+
+description: |
+  Evaluate coding agents on real bug fixes from public GitHub repositories.
+  Each test case clones a repo at a specific commit, presents an issue description,
+  and grades based on test results.
+
+workspace:
+  # Optional: Run tests in Docker for isolation
+  docker:
+    image: python:3.11-slim
+    timeout: 600
+  repos:
+    - path: /testbed
+      source:
+        type: git
+        url: https://github.com/sympy/sympy
+      checkout:
+        base_commit: "9aabb2376ea5ac18bb17310f88481a450398b74f"
+      clone:
+        depth: 1
+
+tags: [coding, bugfix, swe-bench]
+
+tests:
+  # Example 1: Simple null check bug (pattern similar to issue #912)
+  - case: sympy-null-check-bug
+    metadata:
+      repo: sympy/sympy
+      base_commit: "9aabb2376ea5ac18bb17310f88481a450398b74f"
+      problem_statement: |
+        Bug: Matrix operations crash when matrix contains None values
+
+        When performing matrix operations on a matrix that contains None elements,
+        the code throws TypeError instead of handling None gracefully.
+
+        Reproduction:
+        ```python
+        from sympy import Matrix
+        m = Matrix([[1, None], [3, 4]])
+        m.nullspace()  # Crashes with TypeError
+        ```
+
+        Expected: Handle None values gracefully (skip or treat as zero)
+        Actual: TypeError: Cannot read property 'toLowerCase' of null
+
+        The issue is in sympy/matrices/matrices.py around the nullspace() method.
+        Find where None values are not being checked before operations.
+    input: |
+      Fix the bug described in the metadata. The nullspace() method should
+      handle matrices with None values without crashing.
+
+      Steps:
+      1. Examine the failing test output
+      2. Find the bug in sympy/matrices/matrices.py
+      3. Fix it by adding proper None checks
+      4. Run the tests to verify
+    assertions:
+      - type: code-grader
+        command: |
+          cd /testbed && python -c "
+          from sympy import Matrix
+          m = Matrix([[1, None], [3, 4]])
+          try:
+              result = m.nullspace()
+              print('PASS: nullspace handled None without crash')
+          except TypeError as e:
+              print(f'FAIL: {e}')
+              exit(1)
+          "
+
+  # Example 2: Missing fallback logic (similar to issue #912 pattern)
+  - case: django-timeout-fallback
+    metadata:
+      repo: django/django
+      base_commit: "abc123def456789"
+      problem_statement: |
+        Bug: View timeout uses undefined value when not configured
+
+        When a view doesn't explicitly set a timeout attribute, accessing
+        view.timeout throws AttributeError instead of using the default timeout.
+
+        Expected: Use default timeout (30 seconds) when not configured
+        Actual: AttributeError: 'View' object has no attribute 'timeout'
+
+        The issue is in django/core/handlers/base.py where the code accesses
+        self.timeout directly instead of using self.timeout or DEFAULT_TIMEOUT.
+    input: |
+      Fix the timeout bug in django/core/handlers/base.py
+      Use the null-coalescing pattern: self.timeout ?? DEFAULT_TIMEOUT
+    assertions:
+      - type: code-grader
+        command: |
+          cd /testbed && python -c "
+          from django.core.handlers.base import View
+          v = View()
+          timeout = v.timeout or 30  # Should fall back to default
+          assert timeout == 30, f'Expected 30, got {timeout}'
+          print('PASS: timeout fallback works')
+          "
+
+  # Example 3: Wrong property access
+  - case: flask-property-access
+    metadata:
+      repo: pallets/flask
+      base_commit: "def789abc123456"
+      problem_statement: |
+        Bug: Response headers access wrong property name
+
+        When recording response metadata, the code accesses response.latency
+        but the property is named response.duration. This causes undefined
+        values in the output logs.
+
+        Expected: response.duration contains execution time in milliseconds
+        Actual: response.duration is undefined, logs show "duration: undefined"
+
+        The bug is in flask/wrappers.py where metadata is recorded.
+    input: |
+      Find and fix the property name bug in flask/wrappers.py
+    assertions:
+      - type: code-grader
+        command: |
+          cd /testbed && python -c "
+          from flask.wrappers import Response
+          r = Response()
+          r.duration = 123
+          assert hasattr(r, 'duration'), 'Response should have duration property'
+          assert r.duration == 123, f'Expected 123, got {r.duration}'
+          print('PASS: duration property accessible')
+          "
+
+  # Minimal example for testing (no external repo)
+  - case: minimal-null-check
+    metadata:
+      repo: local
+      base_commit: "local"
+      problem_statement: |
+        Bug: Process crashes when input is None
+
+        The process() function crashes with "Cannot read property 'toString' of null"
+        when input is None. Add a null check at the beginning of the function.
+    input: |
+      Write a fix for this bug:
+
+      ```python
+      def process(value):
+          # BUG: Crashes when value is None
+          return value.lower() if value else "empty"
+      ```
+
+      Fix it by adding a proper null check before accessing value methods.
+    assertions:
+      - type: contains
+        value: "def process"
+      - type: contains
+        value: "if value is None"  # Should have null check

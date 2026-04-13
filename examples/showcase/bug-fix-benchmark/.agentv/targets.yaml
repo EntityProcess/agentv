@@ -1,0 +1,74 @@
+# Bug Fix Benchmark Targets
+# Demonstrates multiple authentication options for coding agent evaluation
+
+targets:
+  # ============================================================
+  # MOCK AGENT - Fastest, no auth required
+  # ============================================================
+  - name: mock_agent
+    provider: cli
+    command: bash scripts/mock-agent.sh {PROMPT_FILE} {OUTPUT_FILE}
+    grader_target: mock_grader
+
+  - name: mock_grader
+    provider: mock
+
+  # ============================================================
+  # CLAUDE CODE - Uses your Claude subscription (Pro/Max)
+  # IMPORTANT: Remove ANTHROPIC_API_KEY from .env to use subscription auth
+  # ============================================================
+  - name: claude_subscription
+    provider: claude
+    grader_target: azure-base
+
+  # ============================================================
+  # CLAUDE API - Requires ANTHROPIC_API_KEY
+  # ============================================================
+  - name: claude_api
+    provider: anthropic
+    api_key: ${{ ANTHROPIC_API_KEY }}
+    model: claude-sonnet-4-20250514
+    grader_target: azure-base
+
+  # ============================================================
+  # GITHUB COPILOT - Uses your Copilot subscription
+  # No API key needed - authenticates via GitHub CLI
+  # ============================================================
+  - name: copilot
+    provider: copilot
+    model: claude-haiku-4-5
+    grader_target: azure-base
+
+  # ============================================================
+  # AZURE OPENAI - For LLM-based graders
+  # ============================================================
+  - name: azure-base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+  # ============================================================
+  # OPENAI - Alternative LLM grader
+  # ============================================================
+  - name: openai-grader
+    provider: openai
+    api_key: ${{ OPENAI_API_KEY }}
+    model: gpt-4o
+
+  # ============================================================
+  # VS CODE - For interactive evaluation
+  # Requires VS Code with Copilot extension
+  # ============================================================
+  - name: vscode
+    provider: vscode
+    grader_target: azure-base
+
+  # ============================================================
+  # CUSTOM CLI AGENT - Evaluate any CLI-based agent
+  # ============================================================
+  - name: custom_agent
+    provider: cli
+    command: "python {REPO}/scripts/agent.py --prompt {PROMPT_FILE} --output {OUTPUT_FILE}"
+    workspace_template: .
+    grader_target: azure-base
