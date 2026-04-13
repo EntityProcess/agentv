@@ -993,7 +993,6 @@ tests:
         value: "world"
     metadata:
       tag: test
-    note: A note
 `,
       );
 
@@ -1051,8 +1050,8 @@ tests:
   });
 
   describe('removed legacy fields', () => {
-    it('warns on expected_outcome as unknown field', async () => {
-      const filePath = path.join(tempDir, 'expected-outcome-unknown.yaml');
+    it('warns on expected_outcome as deprecated field', async () => {
+      const filePath = path.join(tempDir, 'expected-outcome-deprecated.yaml');
       await writeFile(
         filePath,
         `tests:
@@ -1068,13 +1067,17 @@ tests:
 
       expect(result.valid).toBe(true);
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'expected_outcome'"))).toBe(
-        true,
-      );
+      expect(
+        warnings.some(
+          (e) =>
+            e.message.includes("'expected_outcome' is deprecated") &&
+            e.message.includes("'criteria'"),
+        ),
+      ).toBe(true);
     });
 
-    it('warns on assert as unknown field at test level', async () => {
-      const filePath = path.join(tempDir, 'assert-unknown.yaml');
+    it('warns on assert as deprecated field at test level', async () => {
+      const filePath = path.join(tempDir, 'assert-deprecated.yaml');
       await writeFile(
         filePath,
         `tests:
@@ -1090,11 +1093,16 @@ tests:
 
       expect(result.valid).toBe(true);
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'assert'"))).toBe(true);
+      expect(
+        warnings.some(
+          (e) =>
+            e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
+        ),
+      ).toBe(true);
     });
 
-    it('warns on assert as unknown field at top level', async () => {
-      const filePath = path.join(tempDir, 'assert-top-unknown.yaml');
+    it('warns on assert as deprecated field at top level', async () => {
+      const filePath = path.join(tempDir, 'assert-top-deprecated.yaml');
       await writeFile(
         filePath,
         `assert:
@@ -1109,7 +1117,12 @@ tests:
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'assert'"))).toBe(true);
+      expect(
+        warnings.some(
+          (e) =>
+            e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
+        ),
+      ).toBe(true);
     });
   });
 });

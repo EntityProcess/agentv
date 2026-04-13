@@ -23,10 +23,8 @@ tests:
   # Expected score: 1.0 (webSearch before fetchPage is satisfied)
   # =============================================================================
   - id: in-order-validation
-    description: |-
-      Validates that the agent performs web search before fetching page details.
-      Mode 'in_order' allows other tool calls between expected tools.
-
+    # Validates that the agent performs web search before fetching page details.
+    # Mode 'in_order' allows other tool calls between expected tools.
     criteria: |-
       Agent searches for product information, then fetches detailed specs.
 
@@ -49,10 +47,8 @@ tests:
   # Expected score: 1.0 (matches full trace exactly)
   # =============================================================================
   - id: exact-sequence-validation
-    description: |-
-      Validates the exact sequence of all tool calls in the trace.
-      Mode 'exact' requires the trace to match precisely.
-
+    # Validates the exact sequence of all tool calls in the trace.
+    # Mode 'exact' requires the trace to match precisely.
     criteria: |-
       Agent follows the exact research workflow: search, fetch, search reviews, summarize.
 
@@ -76,10 +72,8 @@ tests:
   # Expected score: 1.0 (meets all minimums)
   # =============================================================================
   - id: any-order-with-minimums
-    description: |-
-      Validates that the agent performs adequate research by checking minimum
-      tool call counts. Mode 'any_order' with minimums is flexible on sequence.
-
+    # Validates that the agent performs adequate research by checking minimum
+    # tool call counts. Mode 'any_order' with minimums is flexible on sequence.
     criteria: |-
       Agent performs at least 2 web searches and 1 page fetch for thorough research.
 
@@ -101,10 +95,8 @@ tests:
   # Expected score: 1.0 (inputs match expected patterns)
   # =============================================================================
   - id: tool-input-validation
-    description: |-
-      Validates that tool calls include appropriate input parameters.
-      Useful for ensuring the agent provides correct context to tools.
-
+    # Validates that tool calls include appropriate input parameters.
+    # Useful for ensuring the agent provides correct context to tools.
     criteria: |-
       Agent searches with relevant product keywords and fetches from authoritative source.
 
@@ -130,10 +122,8 @@ tests:
   # Expected score: 1.0 (outputs contain expected fields)
   # =============================================================================
   - id: tool-output-validation
-    description: |-
-      Validates that tool outputs contain expected data.
-      Useful for regression testing when tool behavior changes.
-
+    # Validates that tool outputs contain expected data.
+    # Useful for regression testing when tool behavior changes.
     criteria: |-
       Web search returns results with links and snippets; fetch returns product specs.
 
@@ -161,10 +151,8 @@ tests:
   # This mirrors patterns used in complex agent pipelines
   # =============================================================================
   - id: combined-validation
-    description: |-
-      Production-style evaluation combining sequence validation with input/output
-      checks. Demonstrates a realistic multi-turn agent workflow.
-
+    # Production-style evaluation combining sequence validation with input/output
+    # checks. Demonstrates a realistic multi-turn agent workflow.
     criteria: |-
       Agent performs comprehensive product research:
       1. Initial web search for product specs

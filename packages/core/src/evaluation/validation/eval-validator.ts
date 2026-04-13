@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
@@ -36,6 +36,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   '$schema',
   'name',
   'description',
+  'category',
   'version',
   'author',
   'tags',
@@ -44,12 +45,23 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'input',
   'input_files',
   'tests',
-  'eval_cases',
   'target',
   'execution',
   'assertions',
   'evaluators',
+  'preprocessors',
   'workspace',
+]);
+
+/**
+ * Deprecated top-level fields with migration hints.
+ * These are still processed by yaml-parser but authors should migrate.
+ */
+const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
+  ['eval_cases', "'eval_cases' is deprecated. Use 'tests' instead."],
+  ['evalcases', "'evalcases' is deprecated. Use 'tests' instead."],
+  ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
+  ['assert', "'assert' is deprecated. Use 'assertions' instead."],
 ]);
 
 /** Known fields at the test level. */
@@ -61,12 +73,12 @@ const KNOWN_TEST_FIELDS = new Set([
   'expected_output',
   'assertions',
   'evaluators',
+  'rubrics',
   'execution',
   'workspace',
   'metadata',
   'conversation_id',
   'suite',
-  'note',
   'depends_on',
   'on_dependency_failure',
   'mode',
@@ -76,8 +88,51 @@ const KNOWN_TEST_FIELDS = new Set([
   'window_size',
 ]);
 
+/**
+ * Deprecated test-level fields with migration hints.
+ * These are still processed by yaml-parser but authors should migrate.
+ */
+const DEPRECATED_TEST_FIELDS = new Map<string, string>([
+  ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
+  ['assert', "'assert' is deprecated. Use 'assertions' instead."],
+  ['expected_outcome', "'expected_outcome' is deprecated. Use 'criteria' instead."],
+]);
+
 /** Name field pattern: lowercase alphanumeric with hyphens. */
 const NAME_PATTERN = /^[a-z0-9-]+$/;
+
+/** Script file extensions recognised as custom assertion plugins. */
+const ASSERTION_SCRIPT_EXTENSIONS = new Set(['.ts', '.js', '.mts', '.mjs', '.cts', '.cjs']);
+
+/**
+ * Walk up the directory tree from `baseDir` collecting type names from
+ * `.agentv/assertions/` directories — mirrors the runtime discovery in
+ * `assertion-discovery.ts`.
+ */
+async function discoverCustomAssertionTypes(baseDir: string): Promise<Set<string>> {
+  const types = new Set<string>();
+  let dir = path.resolve(baseDir);
+  const root = path.parse(dir).root;
+
+  while (dir !== root) {
+    const assertionsDir = path.join(dir, '.agentv', 'assertions');
+    try {
+      const entries = await readdir(assertionsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const ext = path.extname(entry.name).toLowerCase();
+        if (!ASSERTION_SCRIPT_EXTENSIONS.has(ext)) continue;
+        const typeName = entry.name.slice(0, -ext.length);
+        types.add(typeName);
+      }
+    } catch {
+      // Directory doesn't exist — skip
+    }
+    dir = path.dirname(dir);
+  }
+
+  return types;
+}
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -89,6 +144,7 @@ function isObject(value: unknown): value is JsonObject {
 export async function validateEvalFile(filePath: string): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
   const absolutePath = path.resolve(filePath);
+  const customAssertionTypes = await discoverCustomAssertionTypes(path.dirname(absolutePath));
 
   let parsed: unknown;
   try {
@@ -125,9 +181,17 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
 
-  // Warn on unknown top-level fields
+  // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
-    if (!KNOWN_TOP_LEVEL_FIELDS.has(key)) {
+    const deprecationMessage = DEPRECATED_TOP_LEVEL_FIELDS.get(key);
+    if (deprecationMessage) {
+      errors.push({
+        severity: 'warning',
+        filePath: absolutePath,
+        location: key,
+        message: deprecationMessage,
+      });
+    } else if (!KNOWN_TOP_LEVEL_FIELDS.has(key)) {
       errors.push({
         severity: 'warning',
         filePath: absolutePath,
@@ -239,9 +303,17 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       continue;
     }
 
-    // Warn on unknown test-level fields
+    // Warn on deprecated or unknown test-level fields
     for (const key of Object.keys(evalCase)) {
-      if (!KNOWN_TEST_FIELDS.has(key)) {
+      const deprecationMessage = DEPRECATED_TEST_FIELDS.get(key);
+      if (deprecationMessage) {
+        errors.push({
+          severity: 'warning',
+          filePath: absolutePath,
+          location: `${location}.${key}`,
+          message: deprecationMessage,
+        });
+      } else if (!KNOWN_TEST_FIELDS.has(key)) {
         errors.push({
           severity: 'warning',
           filePath: absolutePath,
@@ -332,7 +404,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     // assertions field (array of assertion objects)
     const assertField = evalCase.assertions;
     if (assertField !== undefined) {
-      validateAssertArray(assertField, location, absolutePath, errors);
+      validateAssertArray(assertField, location, absolutePath, errors, customAssertionTypes);
     }
 
     // Cross-field validation for conversation mode
@@ -612,6 +684,7 @@ function validateAssertArray(
   parentLocation: string,
   filePath: string,
   errors: ValidationError[],
+  customAssertionTypes: ReadonlySet<string> = new Set(),
 ): void {
   if (!Array.isArray(assertField)) {
     errors.push({
@@ -669,7 +742,7 @@ function validateAssertArray(
     // Normalize snake_case to kebab-case for backward compatibility
     const typeValue = rawTypeValue.replace(/_/g, '-');
 
-    if (!isEvaluatorKind(typeValue)) {
+    if (!isEvaluatorKind(typeValue) && !customAssertionTypes.has(typeValue)) {
       errors.push({
         severity: 'warning',
         filePath,

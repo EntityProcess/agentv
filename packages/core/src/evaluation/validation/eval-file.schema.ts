@@ -382,7 +382,6 @@ const EvalTestSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
   conversation_id: z.string().optional(),
   suite: z.string().optional(),
-  note: z.string().optional(),
   depends_on: z.array(z.string()).optional(),
   on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
   mode: z.enum(['conversation']).optional(),
