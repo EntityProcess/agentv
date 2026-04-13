@@ -7,6 +7,4 @@ name: basic-jsonl
 execution:
   target: llm
 
-evaluator: llm_grader
-
 tests: ./dataset.jsonl

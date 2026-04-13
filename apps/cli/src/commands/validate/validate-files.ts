@@ -5,6 +5,7 @@ import {
   type ValidationResult,
   type ValidationSummary,
   detectFileType,
+  validateCasesFile,
   validateConfigFile,
   validateEvalFile,
   validateFileReferences,
@@ -17,12 +18,7 @@ import fg from 'fast-glob';
  */
 export async function validateFiles(paths: readonly string[]): Promise<ValidationSummary> {
   const filePaths = await expandPaths(paths);
-  const results: ValidationResult[] = [];
-
-  for (const filePath of filePaths) {
-    const result = await validateSingleFile(filePath);
-    results.push(result);
-  }
+  const results = await Promise.all(filePaths.map((filePath) => validateSingleFile(filePath)));
 
   const validFiles = results.filter((r) => r.valid).length;
   const invalidFiles = results.filter((r) => !r.valid).length;
@@ -58,10 +54,27 @@ async function validateSingleFile(filePath: string): Promise<ValidationResult> {
         };
       }
     }
+  } else if (fileType === 'cases') {
+    result = await validateCasesFile(absolutePath);
   } else if (fileType === 'targets') {
     result = await validateTargetsFile(absolutePath);
-  } else {
+  } else if (fileType === 'config') {
     result = await validateConfigFile(absolutePath);
+  } else {
+    // Unknown file type — skip validation, report as skipped
+    result = {
+      valid: true,
+      filePath: absolutePath,
+      fileType: 'unknown',
+      errors: [
+        {
+          severity: 'warning',
+          filePath: absolutePath,
+          message:
+            'File type not recognized. Eval files must end in .eval.yaml. Skipping validation.',
+        },
+      ],
+    };
   }
 
   return result;
@@ -130,7 +143,7 @@ async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
         }
         const subFiles = await findYamlFiles(fullPath);
         results.push(...subFiles);
-      } else if (entry.isFile() && isYamlFile(entry.name)) {
+      } else if (entry.isFile() && isEvalYamlFile(entry.name)) {
         results.push(fullPath);
       }
     }
@@ -144,4 +157,10 @@ async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
 function isYamlFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
   return ext === '.yaml' || ext === '.yml';
+}
+
+/** Returns true only for *.eval.yaml / *.eval.yml files (used for directory scanning). */
+function isEvalYamlFile(filePath: string): boolean {
+  const lower = path.basename(filePath).toLowerCase();
+  return lower.endsWith('.eval.yaml') || lower.endsWith('.eval.yml');
 }

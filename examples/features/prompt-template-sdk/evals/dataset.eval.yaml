@@ -18,8 +18,9 @@ tests:
           - type: text
             value: What are the main benefits of TypeScript over JavaScript?
 
-    reference_answer: |-
-      TypeScript provides static type checking, better IDE support, and improved maintainability.
+    expected_output:
+      - role: assistant
+        content: TypeScript provides static type checking, better IDE support, and improved maintainability.
 
     assertions:
       - name: custom-prompt-eval
@@ -37,8 +38,9 @@ tests:
           - type: text
             value: Explain async/await in JavaScript.
 
-    reference_answer: |-
-      Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
+    expected_output:
+      - role: assistant
+        content: Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
 
     assertions:
       - name: strict-eval

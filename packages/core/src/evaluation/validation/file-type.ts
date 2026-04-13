@@ -20,6 +20,11 @@ export async function detectFileType(filePath: string): Promise<FileType> {
     const content = await readFile(filePath, 'utf8');
     const parsed = parse(content) as unknown;
 
+    // YAML array root → cases file (array of test case objects)
+    if (Array.isArray(parsed)) {
+      return 'cases';
+    }
+
     if (typeof parsed !== 'object' || parsed === null) {
       return inferFileTypeFromPath(filePath);
     }
@@ -65,8 +70,14 @@ function inferFileTypeFromPath(filePath: string): FileType {
     }
   }
 
-  // Default to eval file
-  return 'eval';
+  // Require .eval.yaml / .eval.yml suffix for eval files
+  const lower = basename.toLowerCase();
+  if (lower.endsWith('.eval.yaml') || lower.endsWith('.eval.yml')) {
+    return 'eval';
+  }
+
+  // Unrecognized — do not assume eval type
+  return 'unknown';
 }
 
 /**

@@ -5102,9 +5102,6 @@
                   "suite": {
                     "type": "string"
                   },
-                  "note": {
-                    "type": "string"
-                  },
                   "depends_on": {
                     "type": "array",
                     "items": {
@@ -11371,9 +11368,6 @@
                     "type": "string"
                   },
                   "suite": {
-                    "type": "string"
-                  },
-                  "note": {
                     "type": "string"
                   },
                   "depends_on": {
