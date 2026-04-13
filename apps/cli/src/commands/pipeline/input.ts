@@ -16,8 +16,7 @@
  *           ├── criteria.md
  *           ├── expected_output.json    (if present)
  *           ├── llm_graders/<name>.json
- *           ├── code_graders/<name>.json
- *           └── builtin_graders/<name>.json
+ *           └── code_graders/<name>.json
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -206,11 +205,9 @@ async function writeGraderConfigs(
 ): Promise<void> {
   const codeGradersDir = join(testDir, 'code_graders');
   const llmGradersDir = join(testDir, 'llm_graders');
-  const builtinGradersDir = join(testDir, 'builtin_graders');
 
   let hasCodeGraders = false;
   let hasLlmGraders = false;
-  let hasBuiltinGraders = false;
 
   for (const assertion of assertions) {
     if (assertion.type === 'code-grader') {
@@ -221,6 +218,7 @@ async function writeGraderConfigs(
       const config = assertion as CodeEvaluatorConfig;
       await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
+        type: 'code-grader',
         command: config.command,
         cwd: config.resolvedCwd ?? config.cwd ?? evalDir,
         weight: config.weight ?? 1.0,
@@ -252,12 +250,12 @@ async function writeGraderConfigs(
         config: {},
       });
     } else if (BUILTIN_ASSERTION_TYPES.has(assertion.type)) {
-      if (!hasBuiltinGraders) {
-        await mkdir(builtinGradersDir, { recursive: true });
-        hasBuiltinGraders = true;
+      if (!hasCodeGraders) {
+        await mkdir(codeGradersDir, { recursive: true });
+        hasCodeGraders = true;
       }
       const config = assertion as EvaluatorConfig & { value?: unknown; flags?: string };
-      await writeJson(join(builtinGradersDir, `${config.name}.json`), {
+      await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
         type: config.type,
         value: config.value,

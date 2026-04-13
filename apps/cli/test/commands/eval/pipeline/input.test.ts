@@ -103,14 +103,14 @@ describe('pipeline input', () => {
     expect(manifest.experiment).toBeUndefined();
   });
 
-  it('writes builtin_graders/<name>.json for deterministic assertions', async () => {
+  it('writes code_graders/<name>.json for deterministic assertions', async () => {
     const { execa } = await import('execa');
     const builtinEvalPath = join(FIXTURE_DIR, 'builtin-test.eval.yaml');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', builtinEvalPath, '--out', OUT_DIR]);
 
     const containsGrader = JSON.parse(
       await readFile(
-        join(OUT_DIR, 'builtin-test', 'test-01', 'builtin_graders', 'has_hello.json'),
+        join(OUT_DIR, 'builtin-test', 'test-01', 'code_graders', 'has_hello.json'),
         'utf8',
       ),
     );
@@ -120,7 +120,7 @@ describe('pipeline input', () => {
 
     const regexGrader = JSON.parse(
       await readFile(
-        join(OUT_DIR, 'builtin-test', 'test-01', 'builtin_graders', 'matches_pattern.json'),
+        join(OUT_DIR, 'builtin-test', 'test-01', 'code_graders', 'matches_pattern.json'),
         'utf8',
       ),
     );
