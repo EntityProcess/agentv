@@ -54,9 +54,13 @@ export function formatSegment(
       return undefined;
     }
 
-    // Agent mode: return file reference only
+    // Agent mode: return file reference with absolute path so agents can locate
+    // the file regardless of their working directory. resolvedPath is set by
+    // message-processor.ts during file resolution; fall back to the display
+    // path when it is absent (e.g. in unit tests with synthetic segments).
     if (mode === 'agent') {
-      return `<file: path="${filePath}">`;
+      const absolutePath = asString(segment.resolvedPath) ?? filePath;
+      return `<file: path="${absolutePath}">`;
     }
 
     // LM mode: return embedded content with XML tags

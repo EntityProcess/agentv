@@ -250,6 +250,15 @@ wait
 
 This does not apply to lightweight LLM-only targets (azure, openai, gemini, openrouter) which can run with higher concurrency.
 
+### Writing Tests
+
+Tests should be lean and focused on what matters. Follow these principles:
+
+- **Only test new or changed behavior.** Don't write tests for existing behavior that's already covered by the 1600+ core tests. If you fix a bug, test the fix and its edge cases — not the surrounding module.
+- **One test per distinct behavior.** Don't write separate tests for trivially different inputs that exercise the same code path.
+- **No tests for obvious code.** If a function returns `undefined` for missing input and that's a one-line null check, you don't need a test for it unless it's a regression risk.
+- **Regression tests > comprehensive tests.** A test that would have caught the bug is worth more than five tests that exercise happy paths.
+
 ### Verifying Evaluator Changes
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
