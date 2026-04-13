@@ -198,11 +198,11 @@ bunx prek run --all-files --hook-stage pre-push
 
 When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed version (bun or npm). Instead:
 
-- **From TypeScript source (preferred):** `bun apps/cli/src/cli.ts <args>` — always runs current code, no build step needed
+- **From TypeScript source (preferred):** `bun apps/cli/src/cli.ts <args>` — always runs current CLI code, no build step needed. **Exception:** changes inside `packages/core/` require `bun run build` first, because the CLI imports `@agentv/core` from its compiled `dist/`, not from TypeScript source.
 - **From built dist:** `bun apps/cli/dist/cli.js <args>` — requires `bun run build` first, can be stale
 - **From repository root:** `bun agentv <args>` — runs the locally built version (also requires build)
 
-**Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes.
+**Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes. After pulling changes that touch `packages/core/`, always run `bun run build` before CLI testing.
 
 **Studio frontend exception — rebuild `apps/studio/dist/` before UAT.** Running `agentv studio` from source (`bun apps/cli/src/cli.ts studio ...`) only reloads the CLI and backend routes from source. The Studio web UI (React/Tailwind bundle) is served as static assets from `apps/studio/dist/`, which is build output and does **not** recompile on change. If you are testing Studio UI changes — especially post-merge on `main` or after pulling — rebuild the frontend first:
 
