@@ -51,7 +51,6 @@ export class ProgressDisplay {
   private completedTests = 0;
   private readonly logPaths: string[] = [];
   private readonly logPathSet = new Set<string>();
-  private hasPrintedLogHeader = false;
   private started = false;
   private finished = false;
   private readonly verbose: boolean;
@@ -117,7 +116,7 @@ export class ProgressDisplay {
     }
   }
 
-  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot'): void {
+  addLogPaths(paths: readonly string[]): void {
     const newPaths: string[] = [];
     for (const path of paths) {
       if (this.logPathSet.has(path)) {
@@ -133,22 +132,9 @@ export class ProgressDisplay {
 
     this.logPaths.push(...newPaths);
 
-    if (!this.hasPrintedLogHeader) {
-      console.log('');
-      const label =
-        provider === 'pi'
-          ? 'Pi Coding Agent'
-          : provider === 'copilot'
-            ? 'Copilot CLI'
-            : 'Codex CLI';
-      console.log(`${LOG_PREFIX} ${label} logs:`);
-      this.hasPrintedLogHeader = true;
+    for (const p of newPaths) {
+      console.log(`${LOG_PREFIX} Log created: ${p}`);
     }
-
-    const startIndex = this.logPaths.length - newPaths.length;
-    newPaths.forEach((path, offset) => {
-      console.log(`${LOG_PREFIX} ${startIndex + offset + 1}. ${path}`);
-    });
   }
 
   finish(): void {

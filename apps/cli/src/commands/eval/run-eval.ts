@@ -401,7 +401,7 @@ type ProgressReporter = {
   setTotal(total: number): void;
   update(workerId: number, progress: WorkerProgress): void;
   finish(): void;
-  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot'): void;
+  addLogPaths(paths: readonly string[]): void;
 };
 
 function createProgressReporter(
@@ -416,8 +416,7 @@ function createProgressReporter(
     update: (workerId: number, progress: WorkerProgress) =>
       display.updateWorker({ ...progress, workerId }),
     finish: () => display.finish(),
-    addLogPaths: (paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot') =>
-      display.addLogPaths(paths, provider),
+    addLogPaths: (paths: readonly string[]) => display.addLogPaths(paths),
   };
 }
 
@@ -1231,7 +1230,7 @@ export async function runEvalCommand(
       return;
     }
     seenCodexLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'codex');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   const seenPiLogPaths = new Set<string>();
   const unsubscribePiLogs = subscribeToPiLogEntries((entry) => {
@@ -1239,7 +1238,7 @@ export async function runEvalCommand(
       return;
     }
     seenPiLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'pi');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   const seenCopilotLogPaths = new Set<string>();
   const unsubscribeCopilotSdkLogs = subscribeToCopilotSdkLogEntries((entry) => {
@@ -1247,14 +1246,14 @@ export async function runEvalCommand(
       return;
     }
     seenCopilotLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'copilot');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   const unsubscribeCopilotCliLogs = subscribeToCopilotCliLogEntries((entry) => {
     if (!entry.filePath || seenCopilotLogPaths.has(entry.filePath)) {
       return;
     }
     seenCopilotLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath], 'copilot');
+    progressReporter.addLogPaths([entry.filePath]);
   });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
     for (const { selection, inlineTargetLabel } of meta.selections) {
