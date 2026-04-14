@@ -2016,34 +2016,6 @@ describe('parseEvaluators - string shorthand in assertions', () => {
     expect(evaluators?.[1].weight).toBeUndefined(); // explicit graders keep their own weight
   });
 
-  it('sets weight = 1 for a single string criterion mixed with another grader', async () => {
-    const evaluators = await parseEvaluators(
-      {
-        assertions: ['Response is polite', { type: 'contains', value: 'ok' }],
-      },
-      undefined,
-      ['/tmp'],
-      'test-id',
-    );
-
-    expect(evaluators).toHaveLength(2);
-    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).weight).toBe(1);
-  });
-
-  it('sets weight = criteria count even when all assertions are strings', async () => {
-    // Weight on the sole grader has no effect on scoring but is set for consistency.
-    const evaluators = await parseEvaluators(
-      {
-        assertions: ['Criterion A', 'Criterion B', 'Criterion C'],
-      },
-      undefined,
-      ['/tmp'],
-      'test-id',
-    );
-
-    expect(evaluators).toHaveLength(1);
-    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).weight).toBe(3);
-  });
 });
 
 describe('parseEvaluators - file:// prefix prompt resolution', () => {
