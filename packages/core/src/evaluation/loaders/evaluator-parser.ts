@@ -292,7 +292,11 @@ async function parseEvaluatorList(
             // equal weight to the overall score alongside other explicit graders.
             // e.g. [contains, "crit1", "crit2", "crit3"] → contains(w=1) + rubrics(w=3)
             // → each of the 4 visible assertions counts equally.
-            result[placeholderIndex] = { type: 'rubrics', criteria: strings, weight: strings.length };
+            result[placeholderIndex] = {
+              type: 'rubrics',
+              criteria: strings,
+              weight: strings.length,
+            };
           } else if (placeholderIndex !== -1) {
             // All strings were empty — remove the placeholder
             result.splice(placeholderIndex, 1);
