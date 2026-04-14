@@ -75,6 +75,40 @@ targets:
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
 | `grader_target` | Yes | LLM target for evaluation |
 
+## cc-mirror
+
+[cc-mirror](https://github.com/numman-ali/cc-mirror) creates isolated Claude Code variants that route through alternative providers (Z.ai, Kimi, MiniMax, OpenRouter, etc.). The `cc-mirror` provider alias resolves to `claude-cli` and auto-discovers the binary path from `~/.cc-mirror/<variant>/variant.json`.
+
+```yaml
+targets:
+  # Explicit variant with known executable
+  - name: claude-zai
+    provider: cc-mirror
+    executable: claude-zai
+    grader_target: azure-base
+
+  # Auto-discover binary from variant.json
+  - name: my-kimi
+    provider: cc-mirror
+    grader_target: azure-base
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `executable` | No | CLI binary name or path. When set, used directly (skips variant.json lookup). |
+| `variant` | No | Variant name (directory under `~/.cc-mirror/`). Defaults to target `name`. Used to locate `variant.json` when `executable` is not set. |
+| `workspace_template` | No | Path to workspace template directory |
+| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `grader_target` | Yes | LLM target for evaluation |
+
+Setup a variant first, then reference it by name:
+
+```bash
+npx cc-mirror quick --provider zai --name claude-zai --api-key "$Z_AI_API_KEY"
+```
+
+Since `cc-mirror` resolves to `claude-cli`, all Claude target fields (model, system_prompt, timeout_seconds, etc.) are also supported.
+
 ## Codex CLI
 
 ```yaml
