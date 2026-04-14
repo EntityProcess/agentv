@@ -70,6 +70,7 @@ targets:
 
 | Field | Required | Description |
 |-------|----------|-------------|
+| `executable` | No | CLI binary name or path (default: `claude`). Accepts a bare name looked up on PATH (e.g. `claude-zai`) or an absolute/relative file path. |
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
 | `grader_target` | Yes | LLM target for evaluation |

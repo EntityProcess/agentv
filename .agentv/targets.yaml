@@ -53,12 +53,18 @@ targets:
   - name: claude
     provider: claude-cli
     grader_target: grader
-    log_format: json
+
+  # Claude via Z.ai provider (GLM models). Requires cc-mirror:
+  #   npx cc-mirror quick --provider zai --api-key "$Z_AI_API_KEY"
+  # See https://github.com/numman-ali/cc-mirror
+  - name: claude-zai
+    provider: claude-cli
+    executable: claude-zai
+    grader_target: grader
 
   - name: claude-sdk
     provider: claude-sdk
     grader_target: grader
-    log_format: json
 
   - name: pi
     provider: pi-cli

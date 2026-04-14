@@ -269,7 +269,7 @@ export class ClaudeCliProvider implements Provider {
         spawnOptions.cwd = options.cwd;
       }
 
-      const child = spawn('claude', options.args, spawnOptions);
+      const child = spawn(this.config.executable, options.args, spawnOptions);
 
       let stdout = '';
       let stderr = '';
@@ -339,7 +339,7 @@ export class ClaudeCliProvider implements Provider {
         if (err.code === 'ENOENT') {
           reject(
             new Error(
-              `Claude CLI executable 'claude' was not found on PATH. Install claude-code or ensure it is in PATH.`,
+              `Claude CLI executable '${this.config.executable}' was not found on PATH. Install claude-code or ensure it is in PATH.`,
             ),
           );
         } else {
