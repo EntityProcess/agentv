@@ -8,13 +8,7 @@ execution:
   target: llm
 
 assertions:
-  - name: tone_check
-    type: llm-grader
-    prompt: |
-      Evaluate whether the response has a professional and helpful tone.
-      Score 1.0 if the response is polite, clear, and professional.
-      Score 0.5 if the tone is acceptable but could be improved.
-      Score 0.0 if the tone is rude, unclear, or unprofessional.
+  - Response has a professional, helpful, and polite tone
 
 tests:
   - id: greeting

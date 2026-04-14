@@ -122,12 +122,7 @@ tests:
     input: Generate the spreadsheet report
     criteria: The extracted spreadsheet content includes the revenue rows
     assertions:
-      - name: file-check
-        type: llm-grader
-        prompt: |
-          Check whether the transformed spreadsheet text contains the revenue rows:
-
-          {{ output }}
+      - Output contains the transformed spreadsheet text including the revenue rows
 ```
 
 See [`examples/features/preprocessors/`](../../../../examples/features/preprocessors/) for a runnable end-to-end example with a file-producing target and custom grader target.

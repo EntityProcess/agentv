@@ -75,8 +75,7 @@ tests:
     assertions:
       - type: contains
         value: "null"
-      - type: llm-grader
-        prompt: "Did the review identify the bug and suggest a concrete fix?"
+      - Review identifies the null pointer bug and suggests a concrete fix
 
 workspace:
   template: ./workspace-template
