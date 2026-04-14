@@ -558,6 +558,7 @@ async function prepareFileMetadata(params: {
     // Determine target names: CLI --target flags override YAML
     const cliTargets = options.cliTargets;
     const suiteTargets = suite.targets;
+    const suiteTargetRefs = suite.targetRefs;
 
     // Resolve which target names to use (precedence: CLI > suite YAML targets > default)
     let targetNames: readonly string[];
@@ -582,6 +583,7 @@ async function prepareFileMetadata(params: {
         dryRunDelayMax: options.dryRunDelayMax,
         env: process.env,
         targetNames,
+        targetRefs: suiteTargetRefs,
       });
 
       selections = multiSelections.map((sel) => ({
@@ -603,12 +605,20 @@ async function prepareFileMetadata(params: {
         env: process.env,
       });
 
+      // Attach target hooks from eval file if available
+      const singleTargetHooks = suiteTargetRefs?.find(
+        (ref) => ref.name === selection.targetName,
+      )?.hooks;
+      const augmentedSelection: TargetSelection = singleTargetHooks
+        ? { ...selection, targetHooks: singleTargetHooks }
+        : selection;
+
       selections = [
         {
-          selection,
+          selection: augmentedSelection,
           inlineTargetLabel: resolveTargetLabel(
-            selection.targetName,
-            selection.resolvedTarget.name,
+            augmentedSelection.targetName,
+            augmentedSelection.resolvedTarget.name,
           ),
         },
       ];
@@ -777,6 +787,7 @@ async function runSingleEvalFile(params: {
     graderTarget: options.graderTarget,
     model: options.model,
     threshold: options.threshold,
+    targetHooks: resolvedTargetSelection.targetHooks,
     providerFactory,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {

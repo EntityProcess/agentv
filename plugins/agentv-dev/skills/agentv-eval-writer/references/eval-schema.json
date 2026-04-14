@@ -2496,7 +2496,211 @@
                       "targets": {
                         "type": "array",
                         "items": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "use_target": {
+                                  "type": "string"
+                                },
+                                "hooks": {
+                                  "type": "object",
+                                  "properties": {
+                                    "before_all": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    "before_each": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    "after_each": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    "after_all": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["name"],
+                              "additionalProperties": false
+                            }
+                          ]
                         }
                       },
                       "workers": {
@@ -4938,16 +5142,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -4969,16 +5187,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -5000,16 +5232,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -5031,16 +5277,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -8764,7 +9024,211 @@
                       "targets": {
                         "type": "array",
                         "items": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "use_target": {
+                                  "type": "string"
+                                },
+                                "hooks": {
+                                  "type": "object",
+                                  "properties": {
+                                    "before_all": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    "before_each": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    "after_each": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    },
+                                    "after_all": {
+                                      "type": "object",
+                                      "properties": {
+                                        "command": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "script": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "timeout_ms": {
+                                          "type": "number"
+                                        },
+                                        "timeoutMs": {
+                                          "type": "number"
+                                        },
+                                        "cwd": {
+                                          "type": "string"
+                                        },
+                                        "reset": {
+                                          "type": "string",
+                                          "enum": ["none", "fast", "strict"]
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["name"],
+                              "additionalProperties": false
+                            }
+                          ]
                         }
                       },
                       "workers": {
@@ -11206,16 +11670,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -11237,16 +11715,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -11268,16 +11760,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -11299,16 +11805,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -12643,7 +13163,211 @@
             "targets": {
               "type": "array",
               "items": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "use_target": {
+                        "type": "string"
+                      },
+                      "hooks": {
+                        "type": "object",
+                        "properties": {
+                          "before_all": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "script": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "before_each": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "script": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "after_each": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "script": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "after_all": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "script": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "workers": {
@@ -16253,16 +16977,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"
@@ -16284,16 +17022,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"
@@ -16315,16 +17067,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"
@@ -16346,16 +17112,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"

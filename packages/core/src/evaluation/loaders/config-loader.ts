@@ -3,7 +3,15 @@ import path from 'node:path';
 import { parse } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
-import type { FailOnError, JsonObject, TrialStrategy, TrialsConfig } from '../types.js';
+import type {
+  EvalTargetRef,
+  FailOnError,
+  JsonObject,
+  TargetHooksConfig,
+  TrialStrategy,
+  TrialsConfig,
+  WorkspaceHookConfig,
+} from '../types.js';
 import { isJsonObject } from '../types.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
@@ -133,23 +141,113 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
 }
 
 /**
- * Extract targets array from parsed eval suite.
- * Precedence: execution.targets (array) > execution.target (singular).
+ * Extract target refs from parsed eval suite.
+ * Supports both string shorthand and object form with hooks.
  * Returns undefined when no targets array is specified.
  */
-export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | undefined {
+export function extractTargetRefsFromSuite(
+  suite: JsonObject,
+): readonly EvalTargetRef[] | undefined {
   const execution = suite.execution;
   if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
     return undefined;
   }
 
   const targets = (execution as Record<string, unknown>).targets;
-  if (Array.isArray(targets)) {
-    const valid = targets.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
-    return valid.length > 0 ? valid.map((t) => t.trim()) : undefined;
+  if (!Array.isArray(targets)) {
+    return undefined;
   }
 
-  return undefined;
+  const refs: EvalTargetRef[] = [];
+  for (const t of targets) {
+    if (typeof t === 'string' && t.trim().length > 0) {
+      refs.push({ name: t.trim() });
+    } else if (t && typeof t === 'object' && !Array.isArray(t) && 'name' in t) {
+      const obj = t as Record<string, unknown>;
+      const name = typeof obj.name === 'string' ? obj.name.trim() : '';
+      if (name.length === 0) continue;
+      const useTarget = typeof obj.use_target === 'string' ? obj.use_target.trim() : undefined;
+      const hooks = parseTargetHooks(obj.hooks);
+      refs.push({
+        name,
+        ...(useTarget && { use_target: useTarget }),
+        ...(hooks && { hooks }),
+      });
+    }
+  }
+  return refs.length > 0 ? refs : undefined;
+}
+
+/**
+ * Extract target names from parsed eval suite (backward-compat wrapper).
+ * Precedence: execution.targets (array) > execution.target (singular).
+ * Returns undefined when no targets array is specified.
+ */
+export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | undefined {
+  const refs = extractTargetRefsFromSuite(suite);
+  if (!refs) return undefined;
+  const names = refs.map((r) => r.name);
+  return names.length > 0 ? names : undefined;
+}
+
+/**
+ * Parse a single workspace hook config from a raw object.
+ * Accepts both string shorthand (shell command) and object form.
+ */
+function parseHookConfig(raw: unknown): WorkspaceHookConfig | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  // Accept command as string (shell command) or array
+  let command: readonly string[] | undefined;
+  if (typeof obj.command === 'string') {
+    command = ['sh', '-c', obj.command];
+  } else if (Array.isArray(obj.command)) {
+    command = obj.command.filter((s): s is string => typeof s === 'string');
+  } else if (typeof obj.script === 'string') {
+    command = ['sh', '-c', obj.script];
+  } else if (Array.isArray(obj.script)) {
+    command = obj.script.filter((s): s is string => typeof s === 'string');
+  }
+
+  if (!command || command.length === 0) return undefined;
+
+  const timeoutMs =
+    typeof obj.timeout_ms === 'number'
+      ? obj.timeout_ms
+      : typeof obj.timeoutMs === 'number'
+        ? obj.timeoutMs
+        : undefined;
+  const cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
+
+  return {
+    command,
+    ...(timeoutMs !== undefined && { timeout_ms: timeoutMs }),
+    ...(cwd && { cwd }),
+  };
+}
+
+/**
+ * Parse target hooks from a raw hooks object.
+ * Returns undefined if no valid hooks are found.
+ */
+function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  const beforeAll = parseHookConfig(obj.before_all);
+  const beforeEach = parseHookConfig(obj.before_each);
+  const afterEach = parseHookConfig(obj.after_each);
+  const afterAll = parseHookConfig(obj.after_all);
+
+  if (!beforeAll && !beforeEach && !afterEach && !afterAll) return undefined;
+
+  return {
+    ...(beforeAll && { before_all: beforeAll }),
+    ...(beforeEach && { before_each: beforeEach }),
+    ...(afterEach && { after_each: afterEach }),
+    ...(afterAll && { after_all: afterAll }),
+  };
 }
 
 /**

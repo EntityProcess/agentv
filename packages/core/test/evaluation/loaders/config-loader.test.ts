@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   extractFailOnError,
   extractTargetFromSuite,
+  extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
@@ -243,6 +244,116 @@ describe('extractTargetsFromSuite', () => {
       execution: { targets: 'copilot' },
     };
     expect(extractTargetsFromSuite(suite)).toBeUndefined();
+  });
+});
+
+describe('extractTargetRefsFromSuite', () => {
+  it('returns undefined when no execution block', () => {
+    const suite: JsonObject = { tests: [] };
+    expect(extractTargetRefsFromSuite(suite)).toBeUndefined();
+  });
+
+  it('returns refs for string targets', () => {
+    const suite: JsonObject = {
+      execution: { targets: ['copilot', 'claude'] },
+    };
+    expect(extractTargetRefsFromSuite(suite)).toEqual([{ name: 'copilot' }, { name: 'claude' }]);
+  });
+
+  it('returns refs for object targets with hooks', () => {
+    const suite: JsonObject = {
+      execution: {
+        targets: [
+          { name: 'baseline' },
+          {
+            name: 'with-skills',
+            use_target: 'default',
+            hooks: {
+              before_each: { command: ['setup.sh', 'skills'] },
+            },
+          },
+        ],
+      },
+    };
+    const refs = extractTargetRefsFromSuite(suite);
+    expect(refs).toHaveLength(2);
+    expect(refs?.[0]).toEqual({ name: 'baseline' });
+    expect(refs?.[1]).toEqual({
+      name: 'with-skills',
+      use_target: 'default',
+      hooks: {
+        before_each: { command: ['setup.sh', 'skills'] },
+      },
+    });
+  });
+
+  it('handles mixed string and object targets', () => {
+    const suite: JsonObject = {
+      execution: {
+        targets: [
+          'baseline',
+          {
+            name: 'with-hooks',
+            hooks: {
+              before_each: { command: ['echo', 'hello'] },
+              after_each: { command: ['echo', 'bye'] },
+            },
+          },
+        ],
+      },
+    };
+    const refs = extractTargetRefsFromSuite(suite);
+    expect(refs).toHaveLength(2);
+    expect(refs?.[0]).toEqual({ name: 'baseline' });
+    expect(refs?.[1].hooks?.before_each?.command).toEqual(['echo', 'hello']);
+    expect(refs?.[1].hooks?.after_each?.command).toEqual(['echo', 'bye']);
+  });
+
+  it('parses string command as shell command', () => {
+    const suite: JsonObject = {
+      execution: {
+        targets: [
+          {
+            name: 'test',
+            hooks: {
+              before_each: { command: 'setup-plugins.sh superpowers' },
+            },
+          },
+        ],
+      },
+    };
+    const refs = extractTargetRefsFromSuite(suite);
+    expect(refs?.[0].hooks?.before_each?.command).toEqual([
+      'sh',
+      '-c',
+      'setup-plugins.sh superpowers',
+    ]);
+  });
+
+  it('skips invalid entries', () => {
+    const suite: JsonObject = {
+      execution: {
+        targets: ['valid', 123, null, { name: '' }, { name: 'also-valid' }],
+      },
+    };
+    const refs = extractTargetRefsFromSuite(suite);
+    expect(refs).toEqual([{ name: 'valid' }, { name: 'also-valid' }]);
+  });
+
+  it('extractTargetsFromSuite derives names from refs', () => {
+    const suite: JsonObject = {
+      execution: {
+        targets: [
+          'baseline',
+          {
+            name: 'with-hooks',
+            use_target: 'default',
+            hooks: { before_each: { command: ['ls'] } },
+          },
+        ],
+      },
+    };
+    expect(extractTargetsFromSuite(suite)).toEqual(['baseline', 'with-hooks']);
   });
 });
 

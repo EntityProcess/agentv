@@ -290,8 +290,8 @@ const RepoSchema = z.object({
 });
 
 const WorkspaceHookSchema = z.object({
-  command: z.array(z.string()).optional(),
-  script: z.array(z.string()).optional(),
+  command: z.union([z.string(), z.array(z.string())]).optional(),
+  script: z.union([z.string(), z.array(z.string())]).optional(),
   timeout_ms: z.number().optional(),
   timeoutMs: z.number().optional(),
   cwd: z.string().optional(),
@@ -326,6 +326,24 @@ const WorkspaceSchema = z
   .strict();
 
 // ---------------------------------------------------------------------------
+// Target hooks (eval-level per-target customization)
+// ---------------------------------------------------------------------------
+
+const TargetHooksSchema = z.object({
+  before_all: WorkspaceHookSchema.optional(),
+  before_each: WorkspaceHookSchema.optional(),
+  after_each: WorkspaceHookSchema.optional(),
+  after_all: WorkspaceHookSchema.optional(),
+});
+
+/** Eval target reference: string shorthand or object with hooks */
+const EvalTargetRefSchema = z.object({
+  name: z.string().min(1),
+  use_target: z.string().optional(),
+  hooks: TargetHooksSchema.optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Execution block
 // ---------------------------------------------------------------------------
 
@@ -341,7 +359,7 @@ const FailOnErrorSchema = z.boolean();
 
 const ExecutionSchema = z.object({
   target: z.string().optional(),
-  targets: z.array(z.string()).optional(),
+  targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
   workers: z.number().int().min(1).max(50).optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),

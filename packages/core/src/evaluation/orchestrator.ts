@@ -195,18 +195,6 @@ async function resetWorkspaceRoot(
 }
 
 /**
- * Extract workspaceTemplate from a resolved target's config.
- * Returns undefined if the target doesn't support workspace templates.
- */
-function getWorkspaceTemplate(target: ResolvedTarget): string | undefined {
-  const config = target.config as Record<string, unknown>;
-  if ('workspaceTemplate' in config && typeof config.workspaceTemplate === 'string') {
-    return config.workspaceTemplate;
-  }
-  return undefined;
-}
-
-/**
  * Validate the dependency DAG for a set of eval tests.
  * Rejects circular dependencies and references to missing test IDs.
  * Returns silently when the graph is valid.
@@ -379,6 +367,8 @@ export interface RunEvalCaseOptions {
   readonly threshold?: number;
   /** Results from dependency tests (only present when the test has depends_on) */
   readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
+  /** Per-target hooks from eval file (before_all, before_each, after_each, after_all) */
+  readonly targetHooks?: import('./types.js').TargetHooksConfig;
 }
 
 export interface ProgressEvent {
@@ -448,6 +438,8 @@ export interface RunEvaluationOptions {
   readonly model?: string;
   /** Per-test score threshold for pass/fail (default: 0.8) */
   readonly threshold?: number;
+  /** Per-target hooks from eval file (before_all, before_each, after_each, after_all) */
+  readonly targetHooks?: import('./types.js').TargetHooksConfig;
 }
 
 export async function runEvaluation(
@@ -684,7 +676,7 @@ export async function runEvaluation(
   // If any test has workspace config, create shared workspace once.
   // Determine workspace config from first test (suite-level config propagates to all).
   const suiteWorkspace = filteredEvalCases[0]?.workspace;
-  const rawTemplate = suiteWorkspace?.template ?? getWorkspaceTemplate(target);
+  const rawTemplate = suiteWorkspace?.template;
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
   let suiteWorkspaceFile = resolvedTemplate?.workspaceFile;
@@ -1015,6 +1007,57 @@ export async function runEvaluation(
       }
     }
 
+    // Execute target before_all (runs once per workspace — shared or per pool slot)
+    const targetHooks = options.targetHooks;
+    const targetBeforeAllHook = targetHooks?.before_all;
+    if (sharedWorkspacePath && hasHookCommand(targetBeforeAllHook)) {
+      const beforeAllCommand = (targetBeforeAllHook.command ?? []).join(' ');
+      setupLog(`running target before_all command=${beforeAllCommand}`);
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath: sharedWorkspacePath,
+        testId: '__target_before_all__',
+        evalRunId,
+        evalDir,
+        workspaceFileDir: suiteWorkspace?.workspaceFileDir,
+      };
+      try {
+        await executeWorkspaceScript(
+          toScriptConfig(targetBeforeAllHook, 'before_all', 'target hooks'),
+          scriptContext,
+        );
+        setupLog('target before_all completed');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (sharedWorkspacePath && !useStaticWorkspace) {
+          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+        }
+        throw new Error(`target before_all hook failed: ${message}`);
+      }
+    }
+
+    // Run target before_all on pool slots
+    if (availablePoolSlots.length > 0 && hasHookCommand(targetBeforeAllHook)) {
+      for (const slot of availablePoolSlots) {
+        setupLog(`running target before_all on pool slot ${slot.index}`);
+        const scriptContext: ScriptExecutionContext = {
+          workspacePath: slot.path,
+          testId: '__target_before_all__',
+          evalRunId,
+          evalDir,
+          workspaceFileDir: suiteWorkspace?.workspaceFileDir,
+        };
+        try {
+          await executeWorkspaceScript(
+            toScriptConfig(targetBeforeAllHook, 'before_all', 'target hooks'),
+            scriptContext,
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`target before_all hook failed on pool slot ${slot.index}: ${message}`);
+        }
+      }
+    }
+
     // Initialize git baseline for shared workspace
     if (sharedWorkspacePath) {
       try {
@@ -1238,6 +1281,7 @@ export async function runEvaluation(
           evalDir,
           verbose,
           threshold: scoreThreshold,
+          targetHooks: options.targetHooks,
           ...(depResults && Object.keys(depResults).length > 0
             ? { dependencyResults: depResults }
             : {}),
@@ -1409,6 +1453,29 @@ export async function runEvaluation(
         : sharedWorkspacePath
           ? [sharedWorkspacePath]
           : [];
+
+    // Execute target after_all (runs ONCE before workspace after_all)
+    const targetAfterAllHook = targetHooks?.after_all;
+    if (afterAllWorkspaces.length > 0 && hasHookCommand(targetAfterAllHook)) {
+      for (const wsPath of afterAllWorkspaces) {
+        const scriptContext: ScriptExecutionContext = {
+          workspacePath: wsPath,
+          testId: '__target_after_all__',
+          evalRunId,
+          evalDir,
+          workspaceFileDir: suiteWorkspace?.workspaceFileDir,
+        };
+        try {
+          await executeWorkspaceScript(
+            toScriptConfig(targetAfterAllHook, 'after_all', 'target hooks'),
+            scriptContext,
+            'warn',
+          );
+        } catch {
+          // target after_all failures are non-fatal
+        }
+      }
+    }
 
     const suiteAfterAllHook = suiteWorkspace?.hooks?.after_all;
     if (afterAllWorkspaces.length > 0 && suiteHooksEnabled && hasHookCommand(suiteAfterAllHook)) {
@@ -1730,7 +1797,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   if (!workspacePath) {
     // Per-case workspace creation (backwards compat for tests without shared workspace)
-    const rawCaseTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
+    const rawCaseTemplate = evalCase.workspace?.template;
     const resolvedCaseTemplate = await resolveWorkspaceTemplate(rawCaseTemplate);
     const caseWorkspaceTemplate = resolvedCaseTemplate?.dir;
     caseWorkspaceFile = resolvedCaseTemplate?.workspaceFile;
@@ -1975,6 +2042,40 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  // Execute target before_each hook (runs after workspace before_each)
+  const targetBeforeEachHook = options.targetHooks?.before_each;
+  if (workspacePath && hasHookCommand(targetBeforeEachHook)) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath,
+      testId: evalCase.id,
+      evalRunId: evalRunId ?? '',
+      caseInput: evalCase.question,
+      caseMetadata: evalCase.metadata,
+      evalDir,
+      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+    };
+    try {
+      await executeWorkspaceScript(
+        toScriptConfig(targetBeforeEachHook, 'before_each', `target hook for '${evalCase.id}'`),
+        scriptContext,
+      );
+      beforeEachNeedsFreshBaseline = true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        new Error(`target before_each hook failed: ${message}`),
+        promptInputs,
+        provider,
+        'setup',
+        'script_error',
+        verbose,
+      );
+    }
+  }
+
   // Initialize git baseline for file-change tracking.
   // Runs git init + baseline commit before the agent, then diffs after.
   // Supports nested repos via --submodule=diff.
@@ -2171,6 +2272,29 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   const providerError = extractProviderError(providerResponse);
+
+  // Execute target after_each hook (runs before workspace after_each)
+  const targetAfterEachHook = options.targetHooks?.after_each;
+  if (workspacePath && hasHookCommand(targetAfterEachHook)) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath,
+      testId: evalCase.id,
+      evalRunId: evalRunId ?? '',
+      caseInput: evalCase.question,
+      caseMetadata: evalCase.metadata,
+      evalDir,
+      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+    };
+    try {
+      await executeWorkspaceScript(
+        toScriptConfig(targetAfterEachHook, 'after_each', `target hook for '${evalCase.id}'`),
+        scriptContext,
+        'warn',
+      );
+    } catch {
+      // target after_each failures are non-fatal
+    }
+  }
 
   // Reset workspace state before after_each hook (if configured)
   if (
@@ -3420,7 +3544,7 @@ async function invokeProvider(
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
-    /** Working directory override (e.g., from workspace_template) */
+    /** Working directory override (e.g., from eval-level workspace.template) */
     readonly cwd?: string;
     /** VS Code .code-workspace file (resolved from workspace.template) */
     readonly workspaceFile?: string;

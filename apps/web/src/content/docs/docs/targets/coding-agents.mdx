@@ -64,15 +64,13 @@ The preread block instructs the agent to read input files before processing the 
 targets:
   - name: claude_agent
     provider: claude
-    workspace_template: ./workspace-templates/my-project
     grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `executable` | No | CLI binary name or path (default: `claude`). Accepts a bare name looked up on PATH (e.g. `claude-zai`) or an absolute/relative file path. |
-| `workspace_template` | No | Path to workspace template directory |
-| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
 ## cc-mirror
@@ -97,8 +95,7 @@ targets:
 |-------|----------|-------------|
 | `executable` | No | CLI binary name or path. When set, used directly (skips variant.json lookup). |
 | `variant` | No | Variant name (directory under `~/.cc-mirror/`). Defaults to target `name`. Used to locate `variant.json` when `executable` is not set. |
-| `workspace_template` | No | Path to workspace template directory |
-| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
 Setup a variant first, then reference it by name:
@@ -115,14 +112,12 @@ Since `cc-mirror` resolves to `claude-cli`, all Claude target fields (model, sys
 targets:
   - name: codex_target
     provider: codex
-    workspace_template: ./workspace-templates/my-project
     grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `workspace_template` | No | Path to workspace template directory |
-| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
 ## Copilot CLI
@@ -138,8 +133,7 @@ targets:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `model` | No | Model to use (defaults to copilot's default) |
-| `workspace_template` | No | Path to workspace template directory |
-| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
 ## Pi Coding Agent
@@ -148,14 +142,12 @@ targets:
 targets:
   - name: pi_target
     provider: pi-coding-agent
-    workspace_template: ./workspace-templates/my-project
     grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `workspace_template` | No | Path to workspace template directory |
-| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
 ## VS Code
@@ -164,14 +156,12 @@ targets:
 targets:
   - name: vscode_dev
     provider: vscode
-    workspace_template: ${{ WORKSPACE_PATH }}
     grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `executable` | No | Path to VS Code binary. Supports `${{ ENV_VAR }}` syntax or literal paths. Defaults to `code` (or `code-insiders` for the insiders provider). |
-| `workspace_template` | No | Path to workspace template directory or `.code-workspace` file |
 | `grader_target` | Yes | LLM target for evaluation |
 
 Using a custom executable path:
@@ -181,7 +171,6 @@ targets:
   - name: vscode_dev
     provider: vscode
     executable: ${{ VSCODE_CMD }}
-    workspace_template: ${{ WORKSPACE_PATH }}
     grader_target: azure-base
 ```
 
@@ -191,7 +180,6 @@ targets:
 targets:
   - name: vscode_insiders
     provider: vscode-insiders
-    workspace_template: ${{ WORKSPACE_PATH }}
     grader_target: azure-base
 ```
 
@@ -206,15 +194,13 @@ targets:
   - name: local_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
-    workspace_template: ./workspace-templates/my-project
     grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `command` | Yes | Command to run. `{PROMPT}` is inline prompt text and `{PROMPT_FILE}` is a temp file path containing the prompt. |
-| `workspace_template` | No | Path to workspace template directory |
-| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
 ## Mock Provider

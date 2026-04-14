@@ -53,9 +53,9 @@ export interface EvaluationContext {
   readonly targetResolver?: TargetResolver;
   /** List of available target names for code graders */
   readonly availableTargets?: readonly string[];
-  /** Unified diff of file changes from workspace (when workspace_template is configured) */
+  /** Unified diff of file changes from workspace */
   readonly fileChanges?: string;
-  /** Absolute path to the workspace directory (when workspace_template is configured) */
+  /** Absolute path to the workspace directory */
   readonly workspacePath?: string;
   /** Docker workspace config: when present, code-grader commands run inside a container */
   readonly dockerConfig?: DockerWorkspaceConfig;

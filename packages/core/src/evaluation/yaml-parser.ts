@@ -11,6 +11,7 @@ import {
   extractCacheConfig,
   extractFailOnError,
   extractTargetFromSuite,
+  extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
@@ -64,6 +65,7 @@ export {
   extractCacheConfig,
   extractFailOnError,
   extractTargetFromSuite,
+  extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
@@ -157,9 +159,12 @@ function resolveTests(suite: RawTestSuite): JsonValue | undefined {
  * Read metadata from a test suite file (like target name).
  * This is a convenience function for CLI tools that need metadata without loading all tests.
  */
-export async function readTestSuiteMetadata(
-  testFilePath: string,
-): Promise<{ target?: string; targets?: readonly string[]; trials?: TrialsConfig }> {
+export async function readTestSuiteMetadata(testFilePath: string): Promise<{
+  target?: string;
+  targets?: readonly string[];
+  targetRefs?: readonly import('./types.js').EvalTargetRef[];
+  trials?: TrialsConfig;
+}> {
   try {
     const absolutePath = path.resolve(testFilePath);
     const content = await readFile(absolutePath, 'utf8');
@@ -172,6 +177,7 @@ export async function readTestSuiteMetadata(
     return {
       target: extractTargetFromSuite(parsed),
       targets: extractTargetsFromSuite(parsed),
+      targetRefs: extractTargetRefsFromSuite(parsed),
       trials: extractTrialsConfig(parsed),
     };
   } catch {
@@ -188,6 +194,8 @@ export type EvalSuiteResult = {
   readonly trials?: TrialsConfig;
   /** Suite-level targets from execution.targets (matrix evaluation) */
   readonly targets?: readonly string[];
+  /** Suite-level target refs with hooks from execution.targets (object form) */
+  readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
   /** Suite-level workers from execution.workers */
   readonly workers?: number;
   /** Suite-level cache config from execution.cache */
@@ -232,6 +240,7 @@ export async function loadTestSuite(
     tests,
     trials: extractTrialsConfig(parsed),
     targets: extractTargetsFromSuite(parsed),
+    targetRefs: extractTargetRefsFromSuite(parsed),
     workers: extractWorkersFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
     totalBudgetUsd: extractTotalBudgetUsd(parsed),

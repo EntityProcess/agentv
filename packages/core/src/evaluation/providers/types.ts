@@ -150,7 +150,7 @@ export interface ProviderRequest {
   readonly temperature?: number;
   readonly metadata?: JsonObject;
   readonly signal?: AbortSignal;
-  /** Working directory override (e.g., from workspace_template) */
+  /** Working directory override (e.g., from eval-level workspace.template) */
   readonly cwd?: string;
   /** VS Code .code-workspace file (resolved from workspace.template) */
   readonly workspaceFile?: string;
@@ -364,7 +364,6 @@ export interface TargetDefinition {
   readonly wait?: boolean | unknown | undefined;
   readonly dry_run?: boolean | unknown | undefined;
   readonly subagent_root?: string | unknown | undefined;
-  readonly workspace_template?: string | unknown | undefined;
   // CLI fields
   readonly files_format?: string | unknown | undefined;
   readonly attachments_format?: string | unknown | undefined;

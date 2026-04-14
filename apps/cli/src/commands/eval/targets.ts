@@ -86,6 +86,8 @@ export interface TargetSelection {
   readonly targetName: string;
   readonly targetSource: 'cli' | 'test-file' | 'default';
   readonly targetsFilePath: string;
+  /** Per-target hooks from eval file (eval-level customization) */
+  readonly targetHooks?: import('@agentv/core').TargetHooksConfig;
 }
 
 export interface TargetSelectionOptions {
@@ -219,7 +221,10 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
  * Returns an array of TargetSelection, one per target name.
  */
 export async function selectMultipleTargets(
-  options: TargetSelectionOptions & { readonly targetNames: readonly string[] },
+  options: TargetSelectionOptions & {
+    readonly targetNames: readonly string[];
+    readonly targetRefs?: readonly import('@agentv/core').EvalTargetRef[];
+  },
 ): Promise<readonly TargetSelection[]> {
   const {
     testFilePath,
@@ -232,7 +237,18 @@ export async function selectMultipleTargets(
     dryRunDelayMax,
     env,
     targetNames,
+    targetRefs,
   } = options;
+
+  // Build a lookup for target hooks from eval target refs
+  const hooksMap = new Map<string, import('@agentv/core').TargetHooksConfig>();
+  if (targetRefs) {
+    for (const ref of targetRefs) {
+      if (ref.hooks) {
+        hooksMap.set(ref.name, ref.hooks);
+      }
+    }
+  }
 
   const targetsFilePath = await discoverTargetsFile({
     explicitPath: explicitTargetsPath,
@@ -267,11 +283,23 @@ export async function selectMultipleTargets(
     throw new Error(`Targets file validation failed with ${errors.length} error(s)`);
   }
 
-  const definitions = await readTargetDefinitions(targetsFilePath);
+  const fileDefinitions = await readTargetDefinitions(targetsFilePath);
+
+  // Inject synthetic definitions from eval target refs (for use_target delegation)
+  const definitions = [...fileDefinitions];
+  if (targetRefs) {
+    for (const ref of targetRefs) {
+      if (ref.use_target && !fileDefinitions.some((d) => d.name === ref.name)) {
+        definitions.push({ name: ref.name, use_target: ref.use_target } as TargetDefinition);
+      }
+    }
+  }
+
   const results: TargetSelection[] = [];
 
   for (const name of targetNames) {
     const targetDefinition = resolveUseTarget(name, definitions, env, targetsFilePath);
+    const hooks = hooksMap.get(name);
 
     if (dryRun) {
       const mockTarget: ResolvedTarget = {
@@ -291,6 +319,7 @@ export async function selectMultipleTargets(
         targetName: name,
         targetSource: 'cli',
         targetsFilePath,
+        ...(hooks && { targetHooks: hooks }),
       });
     } else {
       try {
@@ -303,6 +332,7 @@ export async function selectMultipleTargets(
           targetName: name,
           targetSource: 'cli',
           targetsFilePath,
+          ...(hooks && { targetHooks: hooks }),
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

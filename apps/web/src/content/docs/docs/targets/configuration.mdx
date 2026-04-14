@@ -19,7 +19,6 @@ targets:
 
   - name: vscode_dev
     provider: vscode
-    workspace_template: ${{ WORKSPACE_PATH }}
     grader_target: azure-base
 
   - name: local_agent
@@ -89,23 +88,6 @@ targets:
     grader_target: azure-base  # LLM used for grading
 ```
 
-## Workspace Template
-
-For agent targets, `workspace_template` specifies a directory that gets copied to a temporary location before each test runs. This provides isolated, reproducible workspaces.
-
-```yaml
-targets:
-  - name: claude_agent
-    provider: claude
-    workspace_template: ./workspace-templates/my-project
-    grader_target: azure-base
-```
-
-When `workspace_template` is set:
-- The template directory is copied to `~/.agentv/workspaces/<eval-run-id>/shared/`
-- The `.git` directory is skipped during copy
-- Tests share the workspace; use `hooks.after_each` to reset state between tests
-
 ### Workspace Lifecycle Hooks
 
 Run commands and reset/cleanup policies at different lifecycle points using `workspace.hooks`. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
@@ -129,7 +111,7 @@ workspace:
 
 | Field | Description |
 |-------|-------------|
-| `template` | Directory to copy as workspace (alternative to target-level `workspace_template`) |
+| `template` | Directory to copy as workspace |
 | `hooks.before_all` | Runs once after workspace creation, before the first test |
 | `hooks.after_all` | Runs once after the last test, before cleanup |
 | `hooks.before_each` | Runs before each test |
@@ -271,11 +253,61 @@ CLI overrides:
 - `--retain-on-success keep|cleanup`
 - `--retain-on-failure keep|cleanup`
 
-### cwd vs workspace_template
+### cwd
 
-| Option | Use Case |
-|--------|----------|
-| `cwd` | Run in an existing directory (shared across tests) |
-| `workspace_template` | Copy template to temp location (isolated per case) |
+Use `cwd` on a target to run in an existing directory (shared across tests). If not set, the eval file's directory is used as the working directory.
 
-These options are mutually exclusive. If neither is set, the eval file's directory is used as the working directory.
+## Target Hooks
+
+Eval files can define per-target hooks that run setup/teardown scripts to customize the workspace for each target variant. This enables comparing different harness configurations (e.g., baseline vs with-plugins) in a single eval file.
+
+Target hooks are defined in the eval file's `execution.targets` array using object form:
+
+```yaml
+execution:
+  targets:
+    - baseline                          # string shorthand (no hooks)
+    - name: with-skills                 # object form with hooks
+      use_target: default
+      hooks:
+        before_each:
+          command: ["setup-plugins.sh", "skills"]
+    - name: with-guidelines
+      use_target: default
+      hooks:
+        before_each:
+          command: ["sh", "-c", "cp guidelines.md $WORKSPACE_PATH/.claude/"]
+```
+
+### Hook execution order
+
+Target hooks run after workspace hooks on setup, before workspace hooks on teardown:
+
+1. Workspace `before_all`
+2. **Target `before_all`**
+3. For each test:
+   - Workspace `before_each`
+   - **Target `before_each`**
+   - Test executes
+   - **Target `after_each`**
+   - Workspace `after_each`
+4. **Target `after_all`**
+5. Workspace `after_all`
+
+### Hook schema
+
+Target hooks follow the same schema as workspace hooks:
+
+```yaml
+hooks:
+  before_all:
+    command: ["setup.sh"]       # Command array or shell string
+    timeout_ms: 60000           # Optional timeout
+    cwd: "./scripts"            # Optional working directory
+  before_each:
+    command: "echo setup"       # String shorthand (runs via sh -c)
+  after_each:
+    command: ["cleanup.sh"]
+  after_all:
+    command: ["teardown.sh"]
+```

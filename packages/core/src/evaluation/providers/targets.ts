@@ -96,9 +96,6 @@ export const CliTargetInputSchema = z
     // Working directory - optional
     cwd: z.string().optional(),
 
-    // Workspace template directory - optional (mutually exclusive with cwd)
-    workspace_template: z.string().optional(),
-
     // Timeout in seconds - optional
     timeout_seconds: z.number().positive().optional(),
 
@@ -183,7 +180,6 @@ export const CliTargetConfigSchema = z
     command: z.string().min(1),
     filesFormat: z.string().optional(),
     cwd: z.string().optional(),
-    workspaceTemplate: z.string().optional(),
     timeoutMs: z.number().positive().optional(),
     healthcheck: CliHealthcheckSchema.optional(),
     verbose: z.boolean().optional(),
@@ -286,23 +282,6 @@ export function normalizeCliTargetInput(
   const filesFormatSource = input.files_format ?? input.attachments_format;
   const filesFormat = resolveOptionalLiteralString(filesFormatSource);
 
-  // Resolve workspace template (mutually exclusive with cwd)
-  const workspaceTemplateSource = input.workspace_template;
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${targetName} workspace template`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
   // Resolve working directory
   let cwd = resolveOptionalString(input.cwd, env, `${targetName} working directory`, {
     allowLiteral: true,
@@ -314,15 +293,8 @@ export function normalizeCliTargetInput(
     cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
   }
 
-  // Validate mutual exclusivity of cwd and workspace_template
-  if (cwd && workspaceTemplate) {
-    throw new Error(
-      `${targetName}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
-    );
-  }
-
-  // Fallback: if cwd is not set, workspace_template is not set, and we have an eval file path, use the eval directory
-  if (!cwd && !workspaceTemplate && evalFilePath) {
+  // Fallback: if cwd is not set and we have an eval file path, use the eval directory
+  if (!cwd && evalFilePath) {
     cwd = path.dirname(path.resolve(evalFilePath));
   }
 
@@ -345,7 +317,6 @@ export function normalizeCliTargetInput(
     command,
     filesFormat,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     healthcheck,
     verbose,
@@ -453,7 +424,6 @@ export interface CodexResolvedConfig {
   readonly executable: string;
   readonly args?: readonly string[];
   readonly cwd?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
@@ -467,7 +437,6 @@ export interface CopilotCliResolvedConfig {
   readonly model?: string;
   readonly args?: readonly string[];
   readonly cwd?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
@@ -482,7 +451,6 @@ export interface CopilotSdkResolvedConfig {
   readonly githubToken?: string;
   readonly model?: string;
   readonly cwd?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
@@ -524,7 +492,6 @@ export interface PiCodingAgentResolvedConfig {
   readonly tools?: string;
   readonly thinking?: string;
   readonly cwd?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
@@ -543,7 +510,6 @@ export interface PiCliResolvedConfig {
   readonly thinking?: string;
   readonly args?: readonly string[];
   readonly cwd?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
@@ -557,7 +523,6 @@ export interface ClaudeResolvedConfig {
   readonly model?: string;
   readonly systemPrompt?: string;
   readonly cwd?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
   readonly maxTurns?: number;
   readonly maxBudgetUsd?: number;
@@ -579,7 +544,6 @@ export interface VSCodeResolvedConfig {
   readonly waitForResponse: boolean;
   readonly dryRun: boolean;
   readonly subagentRoot?: string;
-  readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
 }
 
@@ -656,12 +620,6 @@ function collectDeprecatedCamelCaseWarnings(
 }
 
 function assertNoDeprecatedCamelCaseTargetFields(definition: TargetDefinition): void {
-  if (Object.prototype.hasOwnProperty.call(definition, 'workspaceTemplate')) {
-    throw new Error(
-      `${definition.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
-    );
-  }
-
   const warning = findDeprecatedCamelCaseTargetWarnings(
     definition,
     `target "${definition.name}"`,
@@ -794,7 +752,6 @@ const BASE_TARGET_SCHEMA = z
     grader_target: z.string().optional(),
     judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
-    workspace_template: z.string().optional(),
     subagent_mode_allowed: z.boolean().optional(),
     fallback_targets: z.array(z.string().min(1)).optional(),
   })
@@ -935,11 +892,6 @@ export function resolveTargetDefinition(
   assertNoDeprecatedCamelCaseTargetFields(definition);
 
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
-  if (parsed.workspace_template !== undefined) {
-    throw new Error(
-      `${parsed.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
-    );
-  }
   if (!parsed.provider) {
     throw new Error(
       `${parsed.name}: 'provider' is required (targets with use_target must be resolved before calling resolveTargetDefinition)`,
@@ -1291,13 +1243,12 @@ function resolveGeminiConfig(
 function resolveCodexConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): CodexResolvedConfig {
   const modelSource = target.model;
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource =
@@ -1327,28 +1278,6 @@ function resolveCodexConfig(
     optionalEnv: true,
   });
 
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${target.name} codex workspace template`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
-  // Validate mutual exclusivity of cwd and workspace_template
-  if (cwd && workspaceTemplate) {
-    throw new Error(
-      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
-    );
-  }
-
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} codex timeout`);
   const logDir = resolveOptionalString(logDirSource, env, `${target.name} codex log directory`, {
     allowLiteral: true,
@@ -1366,7 +1295,6 @@ function resolveCodexConfig(
     executable,
     args,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     logDir,
     logFormat,
@@ -1449,14 +1377,13 @@ function resolveStreamLog(
 function resolveCopilotSdkConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): CopilotSdkResolvedConfig {
   const cliUrlSource = target.cli_url;
   const cliPathSource = target.cli_path;
   const githubTokenSource = target.github_token;
   const modelSource = target.model;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
@@ -1496,28 +1423,6 @@ function resolveCopilotSdkConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
-
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${target.name} copilot-sdk workspace template`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
-  // Validate mutual exclusivity of cwd and workspace_template
-  if (cwd && workspaceTemplate) {
-    throw new Error(
-      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
-    );
-  }
 
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot-sdk timeout`);
 
@@ -1602,7 +1507,6 @@ function resolveCopilotSdkConfig(
     githubToken,
     model,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     logDir,
     logFormat,
@@ -1620,13 +1524,12 @@ function resolveCopilotSdkConfig(
 function resolveCopilotCliConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): CopilotCliResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const modelSource = target.model;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
@@ -1655,28 +1558,6 @@ function resolveCopilotCliConfig(
     optionalEnv: true,
   });
 
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${target.name} copilot-cli workspace template`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
-  // Validate mutual exclusivity of cwd and workspace_template
-  if (cwd && workspaceTemplate) {
-    throw new Error(
-      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
-    );
-  }
-
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot-cli timeout`);
 
   const logDir = resolveOptionalString(
@@ -1701,7 +1582,6 @@ function resolveCopilotCliConfig(
     model,
     args,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     logDir,
     logFormat,
@@ -1721,7 +1601,7 @@ function normalizeCopilotLogFormat(value: unknown): 'summary' | 'json' | undefin
 function resolvePiCodingAgentConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): PiCodingAgentResolvedConfig {
   const subproviderSource = target.subprovider;
   const modelSource = target.model ?? target.pi_model;
@@ -1729,7 +1609,6 @@ function resolvePiCodingAgentConfig(
   const toolsSource = target.tools ?? target.pi_tools;
   const thinkingSource = target.thinking ?? target.pi_thinking;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
@@ -1781,28 +1660,6 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${target.name} pi workspace template`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
-  // Validate mutual exclusivity of cwd and workspace_template
-  if (cwd && workspaceTemplate) {
-    throw new Error(
-      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
-    );
-  }
-
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi timeout`);
 
   const logDir = resolveOptionalString(logDirSource, env, `${target.name} pi log directory`, {
@@ -1826,7 +1683,6 @@ function resolvePiCodingAgentConfig(
     tools,
     thinking,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     logDir,
     logFormat,
@@ -1838,7 +1694,7 @@ function resolvePiCodingAgentConfig(
 function resolvePiCliConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): PiCliResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const subproviderSource = target.subprovider;
@@ -1847,7 +1703,6 @@ function resolvePiCliConfig(
   const toolsSource = target.tools ?? target.pi_tools;
   const thinkingSource = target.thinking ?? target.pi_thinking;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource = target.log_format;
@@ -1905,21 +1760,6 @@ function resolvePiCliConfig(
     optionalEnv: true,
   });
 
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${target.name} pi-cli workspace template`,
-    { allowLiteral: true, optionalEnv: true },
-  );
-
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
-  if (cwd && workspaceTemplate) {
-    throw new Error(`${target.name}: 'cwd' and 'workspace_template' are mutually exclusive.`);
-  }
-
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi-cli timeout`);
 
   const logDir = resolveOptionalString(logDirSource, env, `${target.name} pi-cli log directory`, {
@@ -1945,7 +1785,6 @@ function resolvePiCliConfig(
     thinking,
     args,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     logDir,
     logFormat,
@@ -1957,12 +1796,11 @@ function resolvePiCliConfig(
 function resolveClaudeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): ClaudeResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const modelSource = target.model;
   const cwdSource = target.cwd;
-  const workspaceTemplateSource = target.workspace_template;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const logFormatSource =
@@ -1990,28 +1828,6 @@ function resolveClaudeConfig(
     optionalEnv: true,
   });
 
-  let workspaceTemplate = resolveOptionalString(
-    workspaceTemplateSource,
-    env,
-    `${target.name} claude workspace template`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
-  // Validate mutual exclusivity of cwd and workspace_template
-  if (cwd && workspaceTemplate) {
-    throw new Error(
-      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
-    );
-  }
-
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} claude timeout`);
 
   const logDir = resolveOptionalString(logDirSource, env, `${target.name} claude log directory`, {
@@ -2036,7 +1852,6 @@ function resolveClaudeConfig(
     model,
     systemPrompt,
     cwd,
-    workspaceTemplate,
     timeoutMs,
     maxTurns,
     maxBudgetUsd,
@@ -2096,26 +1911,8 @@ function resolveVSCodeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
   insiders: boolean,
-  evalFilePath?: string,
+  _evalFilePath?: string,
 ): VSCodeResolvedConfig {
-  const workspaceTemplateEnvVar = resolveOptionalLiteralString(target.workspace_template);
-  let workspaceTemplate = workspaceTemplateEnvVar
-    ? resolveOptionalString(
-        workspaceTemplateEnvVar,
-        env,
-        `${target.name} workspace template path`,
-        {
-          allowLiteral: true,
-          optionalEnv: true,
-        },
-      )
-    : undefined;
-
-  // Resolve relative workspace template paths against eval file directory
-  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
-    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
-  }
-
   const executableSource = target.executable;
   const waitSource = target.wait;
   const dryRunSource = target.dry_run;
@@ -2139,7 +1936,6 @@ function resolveVSCodeConfig(
       allowLiteral: true,
       optionalEnv: true,
     }),
-    workspaceTemplate,
     timeoutMs,
   };
 }
