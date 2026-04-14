@@ -155,6 +155,16 @@ Import instances from the SWE-bench dataset:
 ./scripts/import-swebench.sh --url <swe-bench-url> --count 10
 ```
 
+## Custom Executable
+
+The base target uses the `claude-cli` provider with a configurable executable.
+Set `CLAUDE_EXECUTABLE` to use a different binary (defaults to `claude`):
+
+```bash
+# Use a custom Claude CLI binary
+CLAUDE_EXECUTABLE=claude-zai agentv eval evals/bug-fixes.eval.yaml --workers 3
+```
+
 ## Auth Options
 
 | Target | Auth Method | API Key? |

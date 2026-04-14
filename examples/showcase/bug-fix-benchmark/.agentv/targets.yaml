@@ -18,9 +18,13 @@ targets:
   # BASE CLAUDE TARGET
   # Used by execution.targets in eval files via use_target.
   # Each variant adds its own before_each hook to install plugins.
+  #
+  # Set CLAUDE_EXECUTABLE to use a custom binary (e.g. claude-zai).
+  # Defaults to "claude" if unset.
   # ============================================================
   - name: claude
-    provider: claude
+    provider: claude-cli
+    executable: ${{ CLAUDE_EXECUTABLE }}
     grader_target: azure-base
 
   # ============================================================
