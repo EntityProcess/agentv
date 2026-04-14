@@ -1040,8 +1040,7 @@ export function resolveTargetDefinition(
         config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
     case 'cc-mirror': {
-      const variantName =
-        typeof parsed.variant === 'string' ? parsed.variant : parsed.name;
+      const variantName = typeof parsed.variant === 'string' ? parsed.variant : parsed.name;
       // If executable is explicitly set, use it; otherwise auto-discover from variant.json
       if (!parsed.executable) {
         parsed.executable = resolveCcMirrorBinaryPath(variantName);
@@ -2051,8 +2050,7 @@ function resolveCcMirrorBinaryPath(variant: string): string {
   const variantJsonPath = path.join(homedir(), '.cc-mirror', variant, 'variant.json');
   if (!existsSync(variantJsonPath)) {
     throw new Error(
-      `cc-mirror variant "${variant}": ${variantJsonPath} not found. ` +
-        `Install the variant or set "executable" explicitly.`,
+      `cc-mirror variant "${variant}": ${variantJsonPath} not found. Install the variant or set "executable" explicitly.`,
     );
   }
   let parsed: { binaryPath?: string };
