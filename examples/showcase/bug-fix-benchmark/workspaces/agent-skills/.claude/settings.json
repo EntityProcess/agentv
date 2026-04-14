@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "plugins": {
+    "agent-skills@addy-agent-skills": {
+      "enabled": true
+    }
+  }
+}

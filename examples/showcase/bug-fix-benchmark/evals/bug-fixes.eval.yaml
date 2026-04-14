@@ -1,0 +1,82 @@
+# Bug Fix Benchmark
+# SWE-bench style evaluation: Real-world bug fixing on public GitHub repositories
+#
+# Run all variants (defined in execution.targets below):
+#   agentv eval evals/bug-fixes.eval.yaml --workers 3
+#
+# Run specific variants:
+#   agentv eval evals/bug-fixes.eval.yaml \
+#     --target claude-baseline,claude-superpowers --workers 2
+
+description: |
+  Evaluate coding agents on real bug fixes from public GitHub repositories.
+  Compare baseline performance against plugin-augmented workflows:
+  superpowers (obra), compound-engineering (Every Inc), agent-skills (Addy Osmani).
+
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/EntityProcess/agentv
+      checkout:
+        base_commit: "6e446b722627e9df017b22e391fa63320362d8c7"
+        resolve: local
+  hooks:
+    before_each:
+      reset: fast
+
+# Target-level hooks: each variant shares the base "claude" target but
+# runs a different before_each hook to install its plugin configuration.
+execution:
+  targets:
+    - name: claude-baseline
+      use_target: ${{ AGENT_TARGET }}
+      hooks:
+        before_each:
+          command: ["bash", "../scripts/setup-variant.sh", "baseline"]
+
+    - name: claude-superpowers
+      use_target: ${{ AGENT_TARGET }}
+      hooks:
+        before_each:
+          command: ["bash", "../scripts/setup-variant.sh", "superpowers"]
+
+    - name: claude-compound
+      use_target: ${{ AGENT_TARGET }}
+      hooks:
+        before_each:
+          command: ["bash", "../scripts/setup-variant.sh", "compound"]
+
+    - name: claude-agent-skills
+      use_target: ${{ AGENT_TARGET }}
+      hooks:
+        before_each:
+          command: ["bash", "../scripts/setup-variant.sh", "agent-skills"]
+
+tags: [coding, bugfix, benchmark, swe-bench]
+
+tests:
+  # Issue #912: CLI provider retries don't preserve workspace cwd
+  # A real bug from the agentv repo. The fix is in packages/core/src/evaluation/providers/cli.ts
+  # where invokeBatch() uses this.config.cwd instead of request.cwd.
+  #
+  # This is the same task that was used in the hivespec session:
+  #   /home/christso/.claude/projects/-home-christso-projects-agentv-allagents/e517648a-b812-42a9-aca8-e10d7418c2e9.jsonl
+  - id: fix-912-cli-retry-cwd
+    input: |
+      Fix the bug in this repository.
+
+      Bug: CLI provider retries don't preserve workspace cwd
+
+      When a CLI provider command fails and is retried, the retry attempts run
+      in the eval file directory instead of the workspace directory.
+
+      The issue is in packages/core/src/evaluation/providers/cli.ts in the
+      invokeBatch() method. The method uses this.config.cwd directly instead
+      of checking for a per-request cwd override.
+
+      Find the bug, fix it, and add tests to verify the fix.
+    assertions:
+      - The fix introduces an effectiveCwd variable that prefers request.cwd over this.config.cwd
+      - effectiveCwd is used in the runCommand call and response metadata

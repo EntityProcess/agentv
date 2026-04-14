@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "plugins": {
+    "compound-engineering@EveryInc/compound-engineering-plugin": {
+      "enabled": true
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "plugins": {
+    "superpowers@claude-plugins-official": {
+      "enabled": true
+    }
+  }
+}
