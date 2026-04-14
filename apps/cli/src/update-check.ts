@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { getAgentvConfigDir } from '@agentv/core';
 
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const AGENTV_DIR = getAgentvConfigDir();
+const CONFIG_DIR = getAgentvConfigDir();
 const CACHE_FILE = 'version-check.json';
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/agentv/latest';
 
@@ -17,7 +17,7 @@ export interface UpdateCache {
  * Read the cached update info from disk. Returns null if missing or malformed.
  */
 export async function getCachedUpdateInfo(path?: string): Promise<UpdateCache | null> {
-  const filePath = path ?? join(AGENTV_DIR, CACHE_FILE);
+  const filePath = path ?? join(CONFIG_DIR, CACHE_FILE);
   try {
     const raw = await readFile(filePath, 'utf-8');
     const data = JSON.parse(raw);
@@ -67,7 +67,7 @@ export function buildNotice(currentVersion: string, latestVersion: string | null
  * survives even if the parent calls process.exit().
  */
 export function backgroundUpdateCheck(): void {
-  const dir = AGENTV_DIR;
+  const dir = CONFIG_DIR;
   const filePath = join(dir, CACHE_FILE);
 
   const script = `
