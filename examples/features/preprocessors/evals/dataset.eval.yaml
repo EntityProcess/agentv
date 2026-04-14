@@ -10,8 +10,6 @@ tests:
     criteria: The extracted spreadsheet content includes the revenue rows
     assertions:
       - name: file-check
-        type: llm-grader
-        prompt: |
-          Check whether the answer contains the transformed spreadsheet text:
-
-          {{ output }}
+        type: rubrics
+        criteria:
+          - Output contains the transformed spreadsheet text including the revenue rows
