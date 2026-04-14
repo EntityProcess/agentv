@@ -147,14 +147,6 @@ tests:
         prompt: "Check that the fix correctly addresses..."
 ```
 
-## SWE-bench Import
-
-Import instances from the SWE-bench dataset:
-
-```bash
-./scripts/import-swebench.sh --url <swe-bench-url> --count 10
-```
-
 ## Custom Executable
 
 The base target uses the `claude-cli` provider with a configurable executable.
@@ -191,8 +183,7 @@ bug-fix-benchmark/
 ├── scripts/
 │   ├── mock-agent.sh         # Testing without API keys
 │   ├── setup-variant.sh      # Target hook: copy variant config into workspace
-│   ├── setup-plugins.sh      # Install plugins into workspace configs
-│   └── import-swebench.sh    # Import SWE-bench instances
+│   └── setup-plugins.sh      # Install plugins into workspace configs
 └── README.md
 ```
 
