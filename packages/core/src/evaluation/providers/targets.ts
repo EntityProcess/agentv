@@ -1040,7 +1040,11 @@ export function resolveTargetDefinition(
         config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
     case 'cc-mirror': {
-      const variantName = typeof parsed.variant === 'string' ? parsed.variant : parsed.name;
+      const variantName =
+        resolveOptionalString(parsed.variant, env, `${parsed.name} cc-mirror variant`, {
+          allowLiteral: true,
+          optionalEnv: true,
+        }) ?? parsed.name;
       // If executable is explicitly set, use it; otherwise auto-discover from variant.json
       if (!parsed.executable) {
         parsed.executable = resolveCcMirrorBinaryPath(variantName);
