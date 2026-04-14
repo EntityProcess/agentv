@@ -712,6 +712,41 @@ describe('resolveTargetDefinition', () => {
     expect(target.kind).toBe('copilot-cli');
   });
 
+  it('claude-cli defaults executable to claude', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'claude-default',
+        provider: 'claude-cli',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('claude-cli');
+    if (target.kind !== 'claude-cli') {
+      throw new Error('expected claude-cli target');
+    }
+
+    expect(target.config.executable).toBe('claude');
+  });
+
+  it('claude-cli accepts custom executable', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'claude-zai',
+        provider: 'claude-cli',
+        executable: 'claude-zai',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('claude-cli');
+    if (target.kind !== 'claude-cli') {
+      throw new Error('expected claude-cli target');
+    }
+
+    expect(target.config.executable).toBe('claude-zai');
+  });
+
   it('resolves copilot-cli as its own provider kind', () => {
     const target = resolveTargetDefinition(
       {

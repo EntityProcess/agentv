@@ -551,6 +551,7 @@ export interface PiCliResolvedConfig {
 }
 
 export interface ClaudeResolvedConfig {
+  readonly executable: string;
   readonly model?: string;
   readonly systemPrompt?: string;
   readonly cwd?: string;
@@ -1940,6 +1941,7 @@ function resolveClaudeConfig(
   env: EnvLookup,
   evalFilePath?: string,
 ): ClaudeResolvedConfig {
+  const executableSource = target.executable ?? target.command ?? target.binary;
   const modelSource = target.model;
   const cwdSource = target.cwd;
   const workspaceTemplateSource = target.workspace_template;
@@ -1953,6 +1955,12 @@ function resolveClaudeConfig(
   if (streamLogResult.deprecationWarning) {
     process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
   }
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} claude-cli executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? 'claude';
 
   const model = resolveOptionalString(modelSource, env, `${target.name} claude model`, {
     allowLiteral: true,
@@ -2006,6 +2014,7 @@ function resolveClaudeConfig(
     typeof target.max_budget_usd === 'number' ? target.max_budget_usd : undefined;
 
   return {
+    executable,
     model,
     systemPrompt,
     cwd,

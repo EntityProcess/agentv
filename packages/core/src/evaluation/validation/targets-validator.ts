@@ -163,6 +163,9 @@ const MOCK_SETTINGS = new Set([
 
 const CLAUDE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  'executable',
+  'command',
+  'binary',
   'model',
   'cwd',
   'timeout_seconds',
