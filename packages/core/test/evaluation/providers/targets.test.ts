@@ -747,6 +747,43 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.executable).toBe('claude-zai');
   });
 
+  it('cc-mirror with explicit executable resolves to claude-cli kind', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'claude-zai',
+        provider: 'cc-mirror',
+        executable: '/usr/local/bin/claude-zai',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('claude-cli');
+    if (target.kind !== 'claude-cli') {
+      throw new Error('expected claude-cli target');
+    }
+
+    expect(target.config.executable).toBe('/usr/local/bin/claude-zai');
+  });
+
+  it('cc-mirror with explicit variant and executable', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'my-mirror',
+        provider: 'cc-mirror',
+        variant: 'claude-zai',
+        executable: '/opt/bin/zai',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('claude-cli');
+    if (target.kind !== 'claude-cli') {
+      throw new Error('expected claude-cli target');
+    }
+
+    expect(target.config.executable).toBe('/opt/bin/zai');
+  });
+
   it('resolves copilot-cli as its own provider kind', () => {
     const target = resolveTargetDefinition(
       {
