@@ -368,7 +368,7 @@ export function formatTable(comparison: ComparisonOutput, file1: string, file2: 
   if (meanNormalizedGain != null) {
     const gColor = meanNormalizedGain > 0 ? c.green : meanNormalizedGain < 0 ? c.red : c.gray;
     const gSign = meanNormalizedGain >= 0 ? '+' : '';
-    summaryLine += ` | Norm. gain: ${gColor}${gSign}${meanNormalizedGain.toFixed(3)}${c.reset}`;
+    summaryLine += ` | g: ${gColor}${gSign}${meanNormalizedGain.toFixed(3)}${c.reset}`;
   }
   summaryLine += ` | Status: ${status}`;
 
