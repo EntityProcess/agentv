@@ -15,10 +15,7 @@ tests:
       - name: mentions_undefined
         type: contains
         value: "undefined"
-      - name: suggests_fix
-        type: rubrics
-        criteria:
-          - Review identifies that users.get(id) can return undefined and suggests a fix
+      - Review identifies that users.get(id) can return undefined and suggests a fix
 
   - id: review-clean-function
     input: |
@@ -29,7 +26,4 @@ tests:
       }
     criteria: Recognizes the function is correct and does not flag false issues
     assertions:
-      - name: no_false_positives
-        type: rubrics
-        criteria:
-          - Review correctly identifies the function as simple and correct without flagging false issues
+      - Review correctly identifies the function as simple and correct without flagging false issues

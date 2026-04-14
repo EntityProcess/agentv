@@ -9,7 +9,4 @@ tests:
     input: Generate the spreadsheet report
     criteria: The extracted spreadsheet content includes the revenue rows
     assertions:
-      - name: file-check
-        type: rubrics
-        criteria:
-          - Output contains the transformed spreadsheet text including the revenue rows
+      - Output contains the transformed spreadsheet text including the revenue rows

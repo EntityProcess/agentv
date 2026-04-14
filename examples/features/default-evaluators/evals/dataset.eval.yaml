@@ -8,10 +8,7 @@ execution:
   target: llm
 
 assertions:
-  - name: tone_check
-    type: rubrics
-    criteria:
-      - Response has a professional, helpful, and polite tone
+  - Response has a professional, helpful, and polite tone
 
 tests:
   - id: greeting

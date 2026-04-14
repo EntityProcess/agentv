@@ -75,9 +75,7 @@ tests:
     assertions:
       - type: contains
         value: "null"
-      - type: rubrics
-        criteria:
-          - Review identifies the null pointer bug and suggests a concrete fix
+      - Review identifies the null pointer bug and suggests a concrete fix
 
 workspace:
   template: ./workspace-template
