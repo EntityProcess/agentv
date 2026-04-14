@@ -409,7 +409,7 @@ The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `202
 
 ### AGENTV_HOME
 
-Override the default `~/.agentv` directory for all global runtime data (workspaces, git cache, subagents, trace state, version check cache):
+Override the data directory for heavy runtime artifacts — workspaces, workspace pool, subagents, trace state, git cache, and downloaded dependencies. Lightweight config and cache files (`version-check.json`, `last-config.json`, `projects.yaml`) always stay in `~/.agentv` regardless of this setting.
 
 ```bash
 # Linux/macOS

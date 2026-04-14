@@ -16,12 +16,20 @@
  * discoverBenchmarks() to scan a directory tree for `.agentv/` directories.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-import { getAgentvHome } from './paths.js';
+import { getAgentvConfigDir, getAgentvHome } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -40,13 +48,31 @@ export interface BenchmarkRegistry {
 // ── Registry path ───────────────────────────────────────────────────────
 
 export function getBenchmarksRegistryPath(): string {
-  return path.join(getAgentvHome(), 'projects.yaml');
+  return path.join(getAgentvConfigDir(), 'projects.yaml');
+}
+
+/**
+ * One-time migration: if projects.yaml exists at the old AGENTV_HOME location
+ * but not in ~/.agentv, copy it over. This handles the case where users had
+ * AGENTV_HOME set and projects.yaml was created there before the config/data split.
+ */
+function migrateProjectsYaml(targetPath: string): void {
+  const dataHome = getAgentvHome();
+  const configDir = getAgentvConfigDir();
+  if (dataHome === configDir) return;
+  const legacyPath = path.join(dataHome, 'projects.yaml');
+  if (!existsSync(legacyPath)) return;
+  mkdirSync(path.dirname(targetPath), { recursive: true });
+  copyFileSync(legacyPath, targetPath);
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
 
 export function loadBenchmarkRegistry(): BenchmarkRegistry {
   const registryPath = getBenchmarksRegistryPath();
+  if (!existsSync(registryPath)) {
+    migrateProjectsYaml(registryPath);
+  }
   if (!existsSync(registryPath)) {
     return { benchmarks: [] };
   }
