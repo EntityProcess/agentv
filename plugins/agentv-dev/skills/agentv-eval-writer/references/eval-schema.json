@@ -2517,16 +2517,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -2548,16 +2562,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -2579,16 +2607,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -2610,16 +2652,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -5086,16 +5142,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -5117,16 +5187,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -5148,16 +5232,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -5179,16 +5277,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -8933,16 +9045,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -8964,16 +9090,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -8995,16 +9135,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -9026,16 +9180,30 @@
                                       "type": "object",
                                       "properties": {
                                         "command": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "script": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
                                         },
                                         "timeout_ms": {
                                           "type": "number"
@@ -11502,16 +11670,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -11533,16 +11715,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -11564,16 +11760,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -11595,16 +11805,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -12960,16 +13184,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -12991,16 +13229,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -13022,16 +13274,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -13053,16 +13319,30 @@
                             "type": "object",
                             "properties": {
                               "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "timeout_ms": {
                                 "type": "number"
@@ -16697,16 +16977,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"
@@ -16728,16 +17022,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"
@@ -16759,16 +17067,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"
@@ -16790,16 +17112,30 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
                         },
                         "timeout_ms": {
                           "type": "number"

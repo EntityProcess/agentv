@@ -1007,7 +1007,7 @@ export async function runEvaluation(
       }
     }
 
-    // Execute target before_all (runs ONCE after workspace before_all)
+    // Execute target before_all (runs once per workspace — shared or per pool slot)
     const targetHooks = options.targetHooks;
     const targetBeforeAllHook = targetHooks?.before_all;
     if (sharedWorkspacePath && hasHookCommand(targetBeforeAllHook)) {

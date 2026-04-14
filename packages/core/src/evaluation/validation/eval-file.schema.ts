@@ -290,8 +290,8 @@ const RepoSchema = z.object({
 });
 
 const WorkspaceHookSchema = z.object({
-  command: z.array(z.string()).optional(),
-  script: z.array(z.string()).optional(),
+  command: z.union([z.string(), z.array(z.string())]).optional(),
+  script: z.union([z.string(), z.array(z.string())]).optional(),
   timeout_ms: z.number().optional(),
   timeoutMs: z.number().optional(),
   cwd: z.string().optional(),

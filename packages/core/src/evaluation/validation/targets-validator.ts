@@ -246,7 +246,19 @@ function validateUnknownSettings(
     'targets',
   ]);
 
+  const removedFields = new Set(['workspace_template', 'workspaceTemplate']);
+
   for (const key of Object.keys(target)) {
+    if (removedFields.has(key)) {
+      errors.push({
+        severity: 'warning',
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message:
+          'workspace_template has been removed from targets. Use eval-level workspace.template instead.',
+      });
+      continue;
+    }
     if (!baseFields.has(key) && !knownSettings.has(key)) {
       errors.push({
         severity: 'warning',
