@@ -56,9 +56,10 @@ targets:
 
   # Claude via Z.ai provider (GLM models). Requires cc-mirror:
   #   npx cc-mirror quick --provider zai --api-key "$Z_AI_API_KEY"
+  # Alternative: set Z_AI_API_KEY in ~/.cc-mirror/claude-zai/config/settings.json
   # See https://github.com/numman-ali/cc-mirror
   - name: claude-zai
-    provider: claude-cli
+    provider: cc-mirror
     executable: claude-zai
     grader_target: grader
 

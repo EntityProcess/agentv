@@ -179,6 +179,8 @@ const CLAUDE_SETTINGS = new Set([
   'max_budget_usd',
 ]);
 
+const CC_MIRROR_SETTINGS = new Set([...CLAUDE_SETTINGS, 'variant']);
+
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
   switch (normalizedProvider) {
@@ -204,6 +206,8 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'copilot':
     case 'copilot-cli':
       return COPILOT_CLI_SETTINGS;
+    case 'cc-mirror':
+      return CC_MIRROR_SETTINGS;
     case 'claude':
     case 'claude-code':
     case 'claude-cli':

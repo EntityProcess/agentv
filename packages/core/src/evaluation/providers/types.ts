@@ -114,6 +114,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
 
   'pi', // alias for "pi-coding-agent"
   'claude-code', // alias for "claude" (legacy)
+  'cc-mirror', // alias for "claude-cli" (auto-discovers binary from ~/.cc-mirror/<variant>/)
   'bedrock', // legacy/future support
   'vertex', // legacy/future support
 ] as const;
