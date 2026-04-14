@@ -131,7 +131,7 @@ export class CodexCliProvider implements Provider {
   }
 
   private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
-    // Request cwd override takes precedence (e.g., from workspace_template)
+    // Request cwd override takes precedence (e.g., from eval-level workspace.template)
     if (cwdOverride) {
       return path.resolve(cwdOverride);
     }

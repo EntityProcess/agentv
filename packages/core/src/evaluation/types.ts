@@ -290,6 +290,40 @@ export type WorkspaceHooksConfig = {
 };
 
 /**
+ * Per-target hook configuration defined in eval files.
+ * Target hooks run setup/teardown scripts to customize the workspace for each target variant.
+ *
+ * Execution order relative to workspace hooks:
+ * - Setup: workspace before_all → target before_all → (per test: workspace before_each → target before_each)
+ * - Teardown: (per test: target after_each → workspace after_each) → target after_all → workspace after_all
+ */
+export type TargetHooksConfig = {
+  /** Runs once before first test for this target */
+  readonly before_all?: WorkspaceHookConfig;
+  /** Runs before each test case for this target */
+  readonly before_each?: WorkspaceHookConfig;
+  /** Runs after each test case for this target */
+  readonly after_each?: WorkspaceHookConfig;
+  /** Runs once after final test for this target */
+  readonly after_all?: WorkspaceHookConfig;
+};
+
+/**
+ * Extended target reference from eval file.
+ * Allows eval files to define per-target hooks and delegation alongside target names.
+ *
+ * String targets are shorthand for `{ name: "target-name" }` (no hooks).
+ */
+export type EvalTargetRef = {
+  /** Target name (must match a target in targets.yaml or be defined inline with use_target) */
+  readonly name: string;
+  /** Delegate to another named target (same as use_target in targets.yaml) */
+  readonly use_target?: string;
+  /** Per-target hooks for workspace customization */
+  readonly hooks?: TargetHooksConfig;
+};
+
+/**
  * Docker-based workspace configuration.
  * When present, code-grader commands run inside a Docker container
  * instead of on the host.
@@ -1106,7 +1140,7 @@ export interface EvaluationResult {
   readonly afterAllOutput?: string;
   /** Captured output from workspace after_each script */
   readonly afterEachOutput?: string;
-  /** Unified diff of workspace file changes (when workspace_template is configured) */
+  /** Unified diff of workspace file changes */
   readonly fileChanges?: string;
   /** Individual trial results (only present when trials.count > 1) */
   readonly trials?: readonly TrialResult[];

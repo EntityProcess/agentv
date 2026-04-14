@@ -108,7 +108,6 @@ const CODEX_SETTINGS = new Set([
   'log_format',
   'log_output_format',
   'system_prompt',
-  'workspace_template',
 ]);
 
 const COPILOT_SDK_SETTINGS = new Set([
@@ -122,7 +121,6 @@ const COPILOT_SDK_SETTINGS = new Set([
   'log_dir',
   'log_format',
   'system_prompt',
-  'workspace_template',
   'byok',
 ]);
 
@@ -139,13 +137,11 @@ const COPILOT_CLI_SETTINGS = new Set([
   'log_dir',
   'log_format',
   'system_prompt',
-  'workspace_template',
 ]);
 
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'executable',
-  'workspace_template',
   'wait',
   'dry_run',
   'subagent_root',
@@ -174,7 +170,6 @@ const CLAUDE_SETTINGS = new Set([
   'log_format',
   'log_output_format',
   'system_prompt',
-  'workspace_template',
   'max_turns',
   'max_budget_usd',
 ]);
@@ -234,7 +229,6 @@ function validateUnknownSettings(
   location: string,
   errors: ValidationError[],
 ): void {
-  const removedTargetFields = new Set(['workspace_template', 'workspaceTemplate']);
   const knownSettings = getKnownSettings(provider);
   if (!knownSettings) {
     // Unknown provider, skip settings validation
@@ -253,17 +247,6 @@ function validateUnknownSettings(
   ]);
 
   for (const key of Object.keys(target)) {
-    if (removedTargetFields.has(key)) {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.${key}`,
-        message:
-          'target-level workspace_template has been removed. Use eval-level workspace.template.',
-      });
-      continue;
-    }
-
     if (!baseFields.has(key) && !knownSettings.has(key)) {
       errors.push({
         severity: 'warning',

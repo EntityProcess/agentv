@@ -1,5 +1,5 @@
 import { exec } from 'node:child_process';
-import { constants, access, stat } from 'node:fs/promises';
+import { constants, access } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import {
@@ -46,10 +46,8 @@ export class VSCodeProvider implements Provider {
     const inputFiles = normalizeAttachments(request.inputFiles);
     const promptContent = buildPromptDocument(request, inputFiles);
 
-    // Prefer workspace file resolved from eval-level workspace.template.
-    // Fall back to target-level config.workspaceTemplate (must be a file, not directory).
-    const workspaceTemplate =
-      request.workspaceFile ?? (await resolveWorkspaceTemplateFile(this.config.workspaceTemplate));
+    // Use workspace file resolved from eval-level workspace.template.
+    const workspaceTemplate = request.workspaceFile;
 
     // Measure wall-clock time for duration
     const startTime = Date.now();
@@ -116,11 +114,6 @@ export class VSCodeProvider implements Provider {
       buildPromptDocument(request, inputFiles),
     );
 
-    // For batch, we don't support per-request cwd override (would need separate workspaces)
-    const batchWorkspaceTemplate = await resolveWorkspaceTemplateFile(
-      this.config.workspaceTemplate,
-    );
-
     // Measure wall-clock time for batch duration
     const startTime = Date.now();
     const session = await dispatchBatchAgent({
@@ -131,7 +124,7 @@ export class VSCodeProvider implements Provider {
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.executable,
       subagentRoot: this.config.subagentRoot,
-      workspaceTemplate: batchWorkspaceTemplate,
+      workspaceTemplate: undefined,
       silent: true,
       timeoutMs: this.config.timeoutMs,
     });
@@ -226,27 +219,6 @@ async function locateVSCodeExecutable(candidate: string): Promise<string> {
   throw new Error(
     `VS Code executable '${candidate}' was not found on PATH. Check the 'executable' setting in your target configuration.`,
   );
-}
-
-/**
- * Returns the workspace template path only if it points to a file (e.g. a .code-workspace).
- * When workspace_template is a directory, the orchestrator already copies it to a temp
- * location and passes that as request.cwd — so we drop the directory here and let the
- * cwd path handle folder injection into the .code-workspace file.
- */
-async function resolveWorkspaceTemplateFile(
-  template: string | undefined,
-): Promise<string | undefined> {
-  if (!template) {
-    return undefined;
-  }
-  try {
-    const stats = await stat(path.resolve(template));
-    return stats.isFile() ? template : undefined;
-  } catch {
-    // Path doesn't exist — let copyAgentConfig handle the error
-    return template;
-  }
 }
 
 // VS Code provider uses request.question (not chatPrompt) because VS Code handles

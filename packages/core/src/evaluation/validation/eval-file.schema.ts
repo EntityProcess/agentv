@@ -326,6 +326,24 @@ const WorkspaceSchema = z
   .strict();
 
 // ---------------------------------------------------------------------------
+// Target hooks (eval-level per-target customization)
+// ---------------------------------------------------------------------------
+
+const TargetHooksSchema = z.object({
+  before_all: WorkspaceHookSchema.optional(),
+  before_each: WorkspaceHookSchema.optional(),
+  after_each: WorkspaceHookSchema.optional(),
+  after_all: WorkspaceHookSchema.optional(),
+});
+
+/** Eval target reference: string shorthand or object with hooks */
+const EvalTargetRefSchema = z.object({
+  name: z.string().min(1),
+  use_target: z.string().optional(),
+  hooks: TargetHooksSchema.optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Execution block
 // ---------------------------------------------------------------------------
 
@@ -341,7 +359,7 @@ const FailOnErrorSchema = z.boolean();
 
 const ExecutionSchema = z.object({
   target: z.string().optional(),
-  targets: z.array(z.string()).optional(),
+  targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
   workers: z.number().int().min(1).max(50).optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),

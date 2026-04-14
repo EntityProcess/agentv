@@ -686,20 +686,6 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
   });
 
-  it('rejects removed target-level workspace_template field', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'cli-with-template',
-          provider: 'cli',
-          command: 'echo {PROMPT}',
-          workspace_template: '/templates/my-workspace',
-        },
-        {},
-      ),
-    ).toThrow(/workspace_template has been removed/i);
-  });
-
   it('resolves copilot alias to copilot-cli', () => {
     const target = resolveTargetDefinition(
       {
@@ -1032,20 +1018,6 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.byokType).toBeUndefined();
     expect(target.config.byokBaseUrl).toBeUndefined();
     expect(target.config.byokApiKey).toBeUndefined();
-  });
-
-  it('rejects removed target-level workspaceTemplate camelCase field', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'cli-camel-case',
-          provider: 'cli',
-          command: 'echo {PROMPT}',
-          workspaceTemplate: '/templates/camel-case-workspace',
-        },
-        {},
-      ),
-    ).toThrow(/workspace_template has been removed/i);
   });
 
   it('rejects camelCase target fields', () => {

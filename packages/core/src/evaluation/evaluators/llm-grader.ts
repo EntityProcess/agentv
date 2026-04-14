@@ -488,7 +488,7 @@ export class LlmGraderEvaluator implements Evaluator {
     const workspacePath = context.workspacePath;
     if (!workspacePath) {
       throw new Error(
-        'llm-grader built-in agent mode requires a workspace_template target (workspacePath is not set)',
+        'llm-grader built-in agent mode requires a workspace (workspacePath is not set)',
       );
     }
 
