@@ -7,6 +7,7 @@ import {
   classifyOutcome,
   compareMatrix,
   compareResults,
+  computeNormalizedGain,
   determineExitCode,
   determineMatrixExitCode,
   formatMatrix,
@@ -459,7 +460,15 @@ describe('compare command', () => {
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.1 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 1,
+              losses: 0,
+              ties: 0,
+              meanDelta: 0.1,
+              meanNormalizedGain: null,
+            },
             baseline: 'base',
             candidate: 'cand',
           },
@@ -476,14 +485,30 @@ describe('compare command', () => {
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 2, matched: 1, wins: 0, losses: 1, ties: 0, meanDelta: -0.1 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 0,
+              losses: 1,
+              ties: 0,
+              meanDelta: -0.1,
+              meanNormalizedGain: null,
+            },
             baseline: 'base',
             candidate: 'cand1',
           },
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.1 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 1,
+              losses: 0,
+              ties: 0,
+              meanDelta: 0.1,
+              meanNormalizedGain: null,
+            },
             baseline: 'base',
             candidate: 'cand2',
           },
@@ -500,14 +525,30 @@ describe('compare command', () => {
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.05 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 1,
+              losses: 0,
+              ties: 0,
+              meanDelta: 0.05,
+              meanNormalizedGain: null,
+            },
             baseline: 'base',
             candidate: 'cand1',
           },
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 2, matched: 1, wins: 0, losses: 1, ties: 0, meanDelta: -0.2 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 0,
+              losses: 1,
+              ties: 0,
+              meanDelta: -0.2,
+              meanNormalizedGain: null,
+            },
             baseline: 'cand1',
             candidate: 'cand2',
           },
@@ -530,7 +571,15 @@ describe('compare command', () => {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
             // delta > 0 means candidate (zeta/baseline) scored higher → alpha regressed
-            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.2 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 1,
+              losses: 0,
+              ties: 0,
+              meanDelta: 0.2,
+              meanNormalizedGain: null,
+            },
             baseline: 'alpha',
             candidate: 'zeta',
           },
@@ -550,7 +599,15 @@ describe('compare command', () => {
             unmatched: { file1: 0, file2: 0 },
             // delta < 0 means candidate (zeta/baseline) scored lower → alpha is better
             // That means alpha did NOT regress vs baseline zeta
-            summary: { total: 2, matched: 1, wins: 0, losses: 1, ties: 0, meanDelta: -0.1 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 0,
+              losses: 1,
+              ties: 0,
+              meanDelta: -0.1,
+              meanNormalizedGain: null,
+            },
             baseline: 'alpha',
             candidate: 'zeta',
           },
@@ -584,7 +641,15 @@ describe('compare command', () => {
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 4, matched: 2, wins: 1, losses: 1, ties: 0, meanDelta: 0.025 },
+            summary: {
+              total: 4,
+              matched: 2,
+              wins: 1,
+              losses: 1,
+              ties: 0,
+              meanDelta: 0.025,
+              meanNormalizedGain: null,
+            },
             baseline: 'model-a',
             candidate: 'model-b',
           },
@@ -622,7 +687,15 @@ describe('compare command', () => {
           {
             matched: [],
             unmatched: { file1: 0, file2: 0 },
-            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.1 },
+            summary: {
+              total: 2,
+              matched: 1,
+              wins: 1,
+              losses: 0,
+              ties: 0,
+              meanDelta: 0.1,
+              meanNormalizedGain: null,
+            },
             baseline: 'a',
             candidate: 'b',
           },
@@ -646,6 +719,88 @@ describe('compare command', () => {
 
       const output = formatMatrix(matrixOutput);
       expect(output).toContain('--');
+    });
+  });
+
+  describe('computeNormalizedGain', () => {
+    it('should compute gain relative to remaining headroom', () => {
+      // baseline 0.5, candidate 0.75 → gained 0.25 out of 0.5 headroom = 0.5
+      expect(computeNormalizedGain(0.5, 0.75)).toBeCloseTo(0.5, 10);
+    });
+
+    it('should return 1.0 when candidate reaches perfect score', () => {
+      expect(computeNormalizedGain(0.5, 1.0)).toBeCloseTo(1.0, 10);
+    });
+
+    it('should return negative values when candidate regresses', () => {
+      // baseline 0.5, candidate 0.25 → lost 0.25 out of 0.5 headroom = -0.5
+      expect(computeNormalizedGain(0.5, 0.25)).toBeCloseTo(-0.5, 10);
+    });
+
+    it('should return null when baseline is perfect (no headroom)', () => {
+      expect(computeNormalizedGain(1.0, 1.0)).toBeNull();
+      expect(computeNormalizedGain(1.0, 0.5)).toBeNull();
+    });
+
+    it('should return 0 when scores are equal', () => {
+      expect(computeNormalizedGain(0.5, 0.5)).toBeCloseTo(0, 10);
+    });
+
+    it('should handle low baseline correctly', () => {
+      // baseline 0.1, candidate 0.55 → gained 0.45 out of 0.9 headroom = 0.5
+      expect(computeNormalizedGain(0.1, 0.55)).toBeCloseTo(0.5, 10);
+    });
+  });
+
+  describe('compareResults normalized gain', () => {
+    it('should include normalizedGain in matched results', () => {
+      const results1 = [{ testId: 'case-1', score: 0.5 }];
+      const results2 = [{ testId: 'case-1', score: 0.75 }];
+
+      const comparison = compareResults(results1, results2, 0.1);
+
+      expect(comparison.matched[0].normalizedGain).toBeCloseTo(0.5, 10);
+    });
+
+    it('should compute meanNormalizedGain in summary', () => {
+      const results1 = [
+        { testId: 'case-1', score: 0.5 },
+        { testId: 'case-2', score: 0.8 },
+      ];
+      const results2 = [
+        { testId: 'case-1', score: 0.75 }, // g = 0.25/0.5 = 0.5
+        { testId: 'case-2', score: 0.9 }, // g = 0.1/0.2 = 0.5
+      ];
+
+      const comparison = compareResults(results1, results2, 0.1);
+
+      expect(comparison.summary.meanNormalizedGain).toBeCloseTo(0.5, 10);
+    });
+
+    it('should set normalizedGain to null when baseline is 1.0', () => {
+      const results1 = [{ testId: 'case-1', score: 1.0 }];
+      const results2 = [{ testId: 'case-1', score: 1.0 }];
+
+      const comparison = compareResults(results1, results2, 0.1);
+
+      expect(comparison.matched[0].normalizedGain).toBeNull();
+      expect(comparison.summary.meanNormalizedGain).toBeNull();
+    });
+
+    it('should exclude null gains from mean computation', () => {
+      const results1 = [
+        { testId: 'case-1', score: 0.5 },
+        { testId: 'case-2', score: 1.0 }, // perfect baseline, gain is null
+      ];
+      const results2 = [
+        { testId: 'case-1', score: 0.75 }, // g = 0.5
+        { testId: 'case-2', score: 1.0 },
+      ];
+
+      const comparison = compareResults(results1, results2, 0.1);
+
+      // Only case-1 contributes to mean (g=0.5); case-2 is excluded
+      expect(comparison.summary.meanNormalizedGain).toBeCloseTo(0.5, 10);
     });
   });
 });
