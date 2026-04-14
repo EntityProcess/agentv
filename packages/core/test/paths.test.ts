@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   _resetLoggedForTesting,
+  getAgentvConfigDir,
   getAgentvHome,
   getSubagentsRoot,
   getTraceStateRoot,
@@ -74,5 +75,14 @@ describe('paths', () => {
     getAgentvHome();
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('getAgentvConfigDir always returns ~/.agentv regardless of AGENTV_HOME', () => {
+    process.env.AGENTV_HOME = '/data/agentv';
+    expect(getAgentvConfigDir()).toBe(path.join(os.homedir(), '.agentv'));
+  });
+
+  it('getAgentvConfigDir returns ~/.agentv when AGENTV_HOME is not set', () => {
+    expect(getAgentvConfigDir()).toBe(path.join(os.homedir(), '.agentv'));
   });
 });

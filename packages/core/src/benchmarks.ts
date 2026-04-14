@@ -21,7 +21,7 @@ import path from 'node:path';
 
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-import { getAgentvHome } from './paths.js';
+import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ export interface BenchmarkRegistry {
 // ── Registry path ───────────────────────────────────────────────────────
 
 export function getBenchmarksRegistryPath(): string {
-  return path.join(getAgentvHome(), 'projects.yaml');
+  return path.join(getAgentvConfigDir(), 'projects.yaml');
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────

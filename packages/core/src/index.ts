@@ -73,6 +73,7 @@ export {
   type ResultsRepoStatus,
 } from './evaluation/results-repo.js';
 export {
+  getAgentvConfigDir,
   getAgentvHome,
   getWorkspacesRoot,
   getSubagentsRoot,
