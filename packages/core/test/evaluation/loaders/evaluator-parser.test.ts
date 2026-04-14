@@ -2015,7 +2015,6 @@ describe('parseEvaluators - string shorthand in assertions', () => {
     expect(evaluators?.[1].type).toBe('contains');
     expect(evaluators?.[1].weight).toBeUndefined(); // explicit graders keep their own weight
   });
-
 });
 
 describe('parseEvaluators - file:// prefix prompt resolution', () => {
