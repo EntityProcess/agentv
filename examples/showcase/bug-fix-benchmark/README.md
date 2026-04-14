@@ -33,14 +33,7 @@ Compares four configurations on identical bug fix tasks:
 
 ## Quick Start
 
-### 1. Install plugins into workspace templates
-
-```bash
-./scripts/setup-plugins.sh          # Install all plugins
-./scripts/setup-plugins.sh --check  # Verify installation
-```
-
-### 2. Run the benchmark
+### 1. Run the benchmark
 
 ```bash
 # All variants (defined in execution.targets in the eval file)
@@ -51,7 +44,7 @@ agentv eval evals/bug-fixes.eval.yaml \
   --target claude-baseline,claude-superpowers --workers 2
 ```
 
-### 3. Compare results
+### 2. Compare results
 
 ```bash
 agentv compare \
@@ -67,12 +60,11 @@ The eval includes a real bug from the agentv repo:
 - **Base commit**: `6e446b72` (before the fix)
 - **Fix location**: `packages/core/src/evaluation/providers/cli.ts`
 - **Pattern**: Missing null-coalescing fallback (`request.cwd ?? this.config.cwd`)
-- **Hivespec baseline**: Session transcript available at `e517648a-b812-42a9-aca8-e10d7418c2e9.jsonl`
 
 ## How Variants Work
 
-A single `claude` target is defined in `.agentv/targets.yaml`. The eval file
-uses **target-level hooks** to create per-variant configurations:
+The `claude` target from the repo root `.agentv/targets.yaml` is used as the
+base. The eval file uses **target-level hooks** to create per-variant configurations:
 
 ```yaml
 # In evals/bug-fixes.eval.yaml
@@ -82,50 +74,18 @@ execution:
       use_target: claude
       hooks:
         before_each:
-          command: ["bash", "scripts/setup-variant.sh", "baseline"]
+          command: ["bash", "../scripts/setup-variant.sh", "baseline"]
 
     - name: claude-superpowers
       use_target: claude
       hooks:
         before_each:
-          command: ["bash", "scripts/setup-variant.sh", "superpowers"]
+          command: ["bash", "../scripts/setup-variant.sh", "superpowers"]
     # ...
 ```
 
 Each variant's plugin config lives in `workspaces/<variant>/.claude/settings.json`.
 The `setup-variant.sh` hook copies these files into the workspace before each test run.
-
-## Plugin Details
-
-### Superpowers ([github.com/obra/superpowers](https://github.com/obra/superpowers))
-
-Subagent-driven development with TDD enforcement. The agent plans work into small tasks, then dispatches fresh subagents per task with two-stage review.
-
-```bash
-# Install
-cd workspaces/superpowers
-claude  # then: /plugin install superpowers@claude-plugins-official
-```
-
-### Compound Engineering ([github.com/EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin))
-
-Cyclical workflow: brainstorm → plan → work → review → compound → repeat. The "compound" step documents learnings to make future work easier. 37+ skills.
-
-```bash
-# Install
-cd workspaces/compound
-claude  # then: /plugin install compound-engineering
-```
-
-### Agent Skills ([github.com/addyosmani/agent-skills](https://github.com/addyosmani/agent-skills))
-
-20 production-grade engineering skills from Google culture: Hyrum's Law, Beyonce Rule, shift-left CI/CD. Includes specialist agent personas.
-
-```bash
-# Install
-cd workspaces/agent-skills
-claude  # then: /plugin marketplace add addyosmani/agent-skills && /plugin install agent-skills@addy-agent-skills
-```
 
 ## Adding New Test Cases
 
@@ -137,42 +97,19 @@ claude  # then: /plugin marketplace add addyosmani/agent-skills && /plugin insta
 
 ```yaml
 tests:
-  - case: my-bug-fix
+  - id: my-bug-fix
     input: |
       Fix the bug: <problem description>
     assertions:
       - type: contains
         value: "<expected code pattern>"
-      - type: llm-grader
-        prompt: "Check that the fix correctly addresses..."
+      - "The fix correctly addresses the root cause"
 ```
-
-## Custom Executable
-
-The base target uses the `claude-cli` provider with a configurable executable.
-Set `CLAUDE_EXECUTABLE` to use a different binary (defaults to `claude`):
-
-```bash
-# Use a custom Claude CLI binary
-CLAUDE_EXECUTABLE=claude-zai agentv eval evals/bug-fixes.eval.yaml --workers 3
-```
-
-## Auth Options
-
-| Target | Auth Method | API Key? |
-|--------|-------------|----------|
-| `mock_agent` | None | No |
-| `claude-*` variants | Claude subscription (Pro/Max) | No* |
-| `azure-base` (grader) | Azure OpenAI | Yes |
-
-*Claude subscription auth requires `ANTHROPIC_API_KEY` to be absent from `.env`.
 
 ## Directory Structure
 
 ```
 bug-fix-benchmark/
-├── .agentv/
-│   └── targets.yaml          # Base claude target + grader targets
 ├── evals/
 │   └── bug-fixes.eval.yaml   # Test cases + target hooks per variant
 ├── workspaces/               # Plugin config templates (copied by hooks)
@@ -181,9 +118,7 @@ bug-fix-benchmark/
 │   ├── compound/             # EveryInc/compound-engineering
 │   └── agent-skills/         # addyosmani/agent-skills
 ├── scripts/
-│   ├── mock-agent.sh         # Testing without API keys
-│   ├── setup-variant.sh      # Target hook: copy variant config into workspace
-│   └── setup-plugins.sh      # Install plugins into workspace configs
+│   └── setup-variant.sh      # Target hook: copy variant config into workspace
 └── README.md
 ```
 
@@ -191,6 +126,5 @@ bug-fix-benchmark/
 
 - [Issue #919](https://github.com/EntityProcess/agentv/issues/919) — Original benchmark proposal
 - [Issue #912](https://github.com/EntityProcess/agentv/issues/912) — Bug used as test case
-- [SWE-bench](https://www.swebench.com/) — Original benchmark format
 - [repo-lifecycle](../../features/repo-lifecycle/) — Git repo workspace feature example
 - [cross-repo-sync](../cross-repo-sync/) — Code agent showcase

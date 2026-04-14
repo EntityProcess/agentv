@@ -77,9 +77,5 @@ tests:
     assertions:
       - type: contains
         value: "effectiveCwd"
-      - type: llm-grader
-        prompt: |
-          The fix should introduce an `effectiveCwd` variable that prefers
-          request.cwd over this.config.cwd. Check that the code adds
-          something like `const effectiveCwd = requests[0]?.cwd ?? this.config.cwd`
-          and uses it in the runCommand call and response metadata.
+      - The fix introduces an effectiveCwd variable that prefers request.cwd over this.config.cwd
+      - effectiveCwd is used in the runCommand call and response metadata
