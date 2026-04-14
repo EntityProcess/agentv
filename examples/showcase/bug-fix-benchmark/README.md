@@ -22,7 +22,7 @@ Compares four configurations on identical bug fix tasks:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. Clone public repo at base_commit (broken state)              │
-│ 2. Mount into workspace with plugin config                       │
+│ 2. Run target before_each hook (install plugin config)           │
 │ 3. Agent receives issue description                              │
 │ 4. Agent diagnoses and writes fix                                │
 │ 5. Grade: Does the fix work?                                     │
@@ -43,17 +43,12 @@ Compares four configurations on identical bug fix tasks:
 ### 2. Run the benchmark
 
 ```bash
-# Single variant
-agentv eval evals/bug-fixes.eval.yaml --target claude-baseline
+# All variants (defined in execution.targets in the eval file)
+agentv eval evals/bug-fixes.eval.yaml --workers 3
 
-# All variants (limit to 3 concurrent agent targets per AGENTS.md)
+# Specific variants only
 agentv eval evals/bug-fixes.eval.yaml \
-  --target claude-baseline,claude-superpowers,claude-compound \
-  --workers 3
-
-agentv eval evals/bug-fixes.eval.yaml \
-  --target claude-agent-skills \
-  --workers 3
+  --target claude-baseline,claude-superpowers --workers 2
 ```
 
 ### 3. Compare results
@@ -69,50 +64,36 @@ agentv compare \
 The eval includes a real bug from the agentv repo:
 
 - **Issue**: [#912 — CLI provider retries don't preserve workspace cwd](https://github.com/EntityProcess/agentv/issues/912)
-- **Base commit**: `2a98a85c` (before the fix)
+- **Base commit**: `6e446b72` (before the fix)
 - **Fix location**: `packages/core/src/evaluation/providers/cli.ts`
 - **Pattern**: Missing null-coalescing fallback (`request.cwd ?? this.config.cwd`)
 - **Hivespec baseline**: Session transcript available at `e517648a-b812-42a9-aca8-e10d7418c2e9.jsonl`
 
-## Workspace Setup
+## How Variants Work
 
-Each plugin variant has its own workspace template under `workspaces/`:
-
-```
-workspaces/
-├── baseline/          # No plugins — raw agent
-│   ├── .claude/
-│   │   └── settings.json
-│   └── CLAUDE.md
-├── superpowers/       # obra/superpowers
-│   ├── .claude/
-│   │   └── settings.json
-│   └── CLAUDE.md
-├── compound/          # EveryInc/compound-engineering-plugin
-│   ├── .claude/
-│   │   └── settings.json
-│   └── CLAUDE.md
-└── agent-skills/      # addyosmani/agent-skills
-    ├── .claude/
-    │   └── settings.json
-    └── CLAUDE.md
-```
-
-The target config maps each workspace to a target name:
+A single `claude` target is defined in `.agentv/targets.yaml`. The eval file
+uses **target-level hooks** to create per-variant configurations:
 
 ```yaml
-targets:
-  - name: claude-baseline
-    provider: claude
-    workspace_template: ./workspaces/baseline
-    grader_target: azure-base
+# In evals/bug-fixes.eval.yaml
+execution:
+  targets:
+    - name: claude-baseline
+      use_target: claude
+      hooks:
+        before_each:
+          command: ["bash", "scripts/setup-variant.sh", "baseline"]
 
-  - name: claude-superpowers
-    provider: claude
-    workspace_template: ./workspaces/superpowers
-    grader_target: azure-base
-  # ...
+    - name: claude-superpowers
+      use_target: claude
+      hooks:
+        before_each:
+          command: ["bash", "scripts/setup-variant.sh", "superpowers"]
+    # ...
 ```
+
+Each variant's plugin config lives in `workspaces/<variant>/.claude/settings.json`.
+The `setup-variant.sh` hook copies these files into the workspace before each test run.
 
 ## Plugin Details
 
@@ -189,17 +170,18 @@ Import instances from the SWE-bench dataset:
 ```
 bug-fix-benchmark/
 ├── .agentv/
-│   └── targets.yaml          # All targets (baseline + plugins + graders)
+│   └── targets.yaml          # Base claude target + grader targets
 ├── evals/
-│   └── bug-fixes.eval.yaml   # Test cases with real bugs
-├── workspaces/
+│   └── bug-fixes.eval.yaml   # Test cases + target hooks per variant
+├── workspaces/               # Plugin config templates (copied by hooks)
 │   ├── baseline/             # No plugins
 │   ├── superpowers/          # obra/superpowers
 │   ├── compound/             # EveryInc/compound-engineering
 │   └── agent-skills/         # addyosmani/agent-skills
 ├── scripts/
 │   ├── mock-agent.sh         # Testing without API keys
-│   ├── setup-plugins.sh      # Install plugins into workspaces
+│   ├── setup-variant.sh      # Target hook: copy variant config into workspace
+│   ├── setup-plugins.sh      # Install plugins into workspace configs
 │   └── import-swebench.sh    # Import SWE-bench instances
 └── README.md
 ```

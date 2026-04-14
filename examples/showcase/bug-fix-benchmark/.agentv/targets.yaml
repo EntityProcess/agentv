@@ -1,6 +1,6 @@
 # Bug Fix Benchmark Targets
-# Each target uses a different workspace template with different plugins installed.
-# This lets you compare baseline vs plugin-augmented agent performance.
+# A single base Claude target is defined here. Per-variant plugin setup
+# is handled by target-level hooks in the eval file's execution.targets.
 
 targets:
   # ============================================================
@@ -15,42 +15,12 @@ targets:
     provider: mock
 
   # ============================================================
-  # BASELINE - Claude Code with no plugins
-  # Measures raw agent capability without any workflow enhancement.
+  # BASE CLAUDE TARGET
+  # Used by execution.targets in eval files via use_target.
+  # Each variant adds its own before_each hook to install plugins.
   # ============================================================
-  - name: claude-baseline
+  - name: claude
     provider: claude
-    workspace_template: ./workspaces/baseline
-    grader_target: azure-base
-
-  # ============================================================
-  # WITH SUPERPOWERS - obra/superpowers
-  # Subagent-driven development, TDD, git worktree isolation.
-  # https://github.com/obra/superpowers
-  # ============================================================
-  - name: claude-superpowers
-    provider: claude
-    workspace_template: ./workspaces/superpowers
-    grader_target: azure-base
-
-  # ============================================================
-  # WITH COMPOUND ENGINEERING - EveryInc/compound-engineering-plugin
-  # Cyclical workflow: brainstorm → plan → work → review → compound → repeat.
-  # https://github.com/EveryInc/compound-engineering-plugin
-  # ============================================================
-  - name: claude-compound
-    provider: claude
-    workspace_template: ./workspaces/compound
-    grader_target: azure-base
-
-  # ============================================================
-  # WITH AGENT SKILLS - addyosmani/agent-skills
-  # 20 production-grade engineering skills from Google culture.
-  # https://github.com/addyosmani/agent-skills
-  # ============================================================
-  - name: claude-agent-skills
-    provider: claude
-    workspace_template: ./workspaces/agent-skills
     grader_target: azure-base
 
   # ============================================================
