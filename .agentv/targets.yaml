@@ -63,6 +63,15 @@ targets:
     executable: claude-zai
     grader_target: grader
 
+  # Generic cc-mirror target. Set CC_MIRROR_VARIANT to the variant name
+  # (e.g., kimi, zai, minimax). Requires cc-mirror setup first:
+  #   npx cc-mirror quick --provider <provider> --api-key "$API_KEY"
+  # See https://github.com/numman-ali/cc-mirror
+  - name: cc-mirror
+    provider: cc-mirror
+    variant: ${{ CC_MIRROR_VARIANT }}
+    grader_target: grader
+
   - name: claude-sdk
     provider: claude-sdk
     grader_target: grader
