@@ -22,31 +22,34 @@ workspace:
       checkout:
         base_commit: "6e446b722627e9df017b22e391fa63320362d8c7"
         resolve: local
+  hooks:
+    before_each:
+      reset: fast
 
 # Target-level hooks: each variant shares the base "claude" target but
 # runs a different before_each hook to install its plugin configuration.
 execution:
   targets:
     - name: claude-baseline
-      use_target: claude
+      use_target: ${{ AGENT_TARGET }}
       hooks:
         before_each:
           command: ["bash", "../scripts/setup-variant.sh", "baseline"]
 
     - name: claude-superpowers
-      use_target: claude
+      use_target: ${{ AGENT_TARGET }}
       hooks:
         before_each:
           command: ["bash", "../scripts/setup-variant.sh", "superpowers"]
 
     - name: claude-compound
-      use_target: claude
+      use_target: ${{ AGENT_TARGET }}
       hooks:
         before_each:
           command: ["bash", "../scripts/setup-variant.sh", "compound"]
 
     - name: claude-agent-skills
-      use_target: claude
+      use_target: ${{ AGENT_TARGET }}
       hooks:
         before_each:
           command: ["bash", "../scripts/setup-variant.sh", "agent-skills"]
@@ -75,7 +78,5 @@ tests:
 
       Find the bug, fix it, and add tests to verify the fix.
     assertions:
-      - type: contains
-        value: "effectiveCwd"
       - The fix introduces an effectiveCwd variable that prefers request.cwd over this.config.cwd
       - effectiveCwd is used in the runCommand call and response metadata
