@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "agentv-example-evaluator-conformance",
+      "name": "agentv-example-grader-conformance",
       "dependencies": {
         "@agentv/eval": "file:../../../packages/eval",
         "yaml": "^2.7.1",

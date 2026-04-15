@@ -57,7 +57,7 @@ For complete documentation including:
 - Execution metrics usage
 - Best practices
 
-See the [Custom Graders Guide](../../plugins/agentv-dev/skills/agentv-eval-writer/references/custom-graders.md) or run AgentV's `/agentv-eval-builder` skill.
+See the [Custom Graders Guide](../../apps/web/src/content/docs/docs/graders/custom-graders.mdx) or run AgentV's `/agentv-eval-builder` skill.
 
 ## Repository
 

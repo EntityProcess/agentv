@@ -1,5 +1,5 @@
 {
-  "name": "agentv-example-deterministic-evaluators",
+  "name": "agentv-example-deterministic-graders",
   "private": true,
   "type": "module",
   "dependencies": {

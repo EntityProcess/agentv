@@ -1,5 +1,5 @@
 {
-  "name": "agentv-example-evaluator-conformance",
+  "name": "agentv-example-grader-conformance",
   "private": true,
   "type": "module",
   "dependencies": {

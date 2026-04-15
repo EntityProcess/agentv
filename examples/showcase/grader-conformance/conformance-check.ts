@@ -45,7 +45,7 @@ interface AssertionEntry {
   evidence?: string;
 }
 
-interface EvaluatorResult {
+interface GraderResult {
   score: number;
   assertions?: AssertionEntry[];
   /** @deprecated use assertions */
@@ -112,7 +112,7 @@ function buildCodeGraderInput(fixture: Fixture): string {
   });
 }
 
-function runEvaluator(script: string[], input: string): Promise<EvaluatorResult> {
+function runGrader(script: string[], input: string): Promise<GraderResult> {
   return new Promise((resolve, reject) => {
     const proc = spawn(script[0], script.slice(1), {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -137,7 +137,7 @@ function runEvaluator(script: string[], input: string): Promise<EvaluatorResult>
       }
       try {
         const result = JSON.parse(stdout);
-        resolve(result as EvaluatorResult);
+        resolve(result as GraderResult);
       } catch {
         reject(new Error(`Invalid JSON output: ${stdout}`));
       }
@@ -243,7 +243,7 @@ async function main(): Promise<void> {
 
     for (let i = 0; i < runs; i++) {
       try {
-        const result = await runEvaluator(grader.script, input);
+        const result = await runGrader(grader.script, input);
         const schemaErrors = validateResult(result);
         if (schemaErrors.length > 0) {
           compatible = false;
