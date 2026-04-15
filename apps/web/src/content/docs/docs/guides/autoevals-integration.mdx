@@ -1,6 +1,6 @@
 ---
 title: Autoevals Integration
-description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code_grader evaluators in AgentV.
+description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code_grader graders in AgentV.
 sidebar:
   order: 2
 ---
@@ -13,7 +13,7 @@ sidebar:
 
 - Works standalone — no Braintrust platform account required
 - Uses any OpenAI-compatible endpoint for LLM-based scorers
-- Integrates with AgentV via `code_grader` evaluator type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
+- Integrates with AgentV via `code_grader` grader type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
 
 ## Installation
 
@@ -125,8 +125,8 @@ from autoevals import Faithfulness
 
 data = json.load(sys.stdin)
 
-evaluator = Faithfulness()
-result = evaluator(
+grader = Faithfulness()
+result = grader(
     input=data.get("input_text", ""),
     output=data.get("output_text", ""),
     expected=data.get("reference_answer", ""),

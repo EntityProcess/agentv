@@ -38,7 +38,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Getting Started', autogenerate: { directory: 'docs/getting-started' } },
         { label: 'Evaluation', autogenerate: { directory: 'docs/evaluation' } },
-        { label: 'Evaluators', autogenerate: { directory: 'docs/evaluators' } },
+        { label: 'Graders', autogenerate: { directory: 'docs/graders' } },
         { label: 'Targets', autogenerate: { directory: 'docs/targets' } },
         { label: 'Tools', autogenerate: { directory: 'docs/tools' } },
         { label: 'Guides', autogenerate: { directory: 'docs/guides' } },

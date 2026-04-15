@@ -1,11 +1,11 @@
 ---
-title: Structured Data & Metrics Evaluators
-description: Built-in evaluators for JSON field comparison and performance gates (latency, cost, token usage).
+title: Structured Data & Metrics Graders
+description: Built-in graders for JSON field comparison and performance gates (latency, cost, token usage).
 sidebar:
   order: 6
 ---
 
-Built-in evaluators for grading structured outputs and gating on execution metrics:
+Built-in graders for grading structured outputs and gating on execution metrics:
 
 - `field_accuracy` -- compare JSON fields against ground truth
 - `latency` -- gate on response time
@@ -14,7 +14,7 @@ Built-in evaluators for grading structured outputs and gating on execution metri
 
 ## Ground Truth
 
-Put the expected structured output in the test case `expected_output` (as an object or message array). Evaluators read expected values from there.
+Put the expected structured output in the test case `expected_output` (as an object or message array). Graders read expected values from there.
 
 ```yaml
 tests:
@@ -54,7 +54,7 @@ assertions:
 | `date` | Compares dates after parsing | `formats` -- list of accepted date formats |
 | `numeric_tolerance` | Numeric compare within tolerance | `tolerance` -- absolute threshold; `relative: true` for relative tolerance |
 
-For fuzzy string matching, use a `code_grader` evaluator (e.g. Levenshtein distance) instead of adding a fuzzy mode to `field_accuracy`.
+For fuzzy string matching, use a `code_grader` grader (e.g. Levenshtein distance) instead of adding a fuzzy mode to `field_accuracy`.
 
 ### Aggregation
 
@@ -99,9 +99,9 @@ assertions:
     # max_output: 2000
 ```
 
-## Combining with Composite Evaluators
+## Combining with Composite Graders
 
-Use a `composite` evaluator to produce a single "release gate" score from multiple checks:
+Use a `composite` grader to produce a single "release gate" score from multiple checks:
 
 ```yaml
 assertions:

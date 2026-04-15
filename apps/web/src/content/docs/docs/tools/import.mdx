@@ -133,7 +133,7 @@ Token usage is aggregated from the final cumulative value per LLM request. Durat
 
 ## Workflow
 
-Import a session, then run evaluators against it:
+Import a session, then run graders against it:
 
 ```bash
 # 1. List sessions and pick one
@@ -142,7 +142,7 @@ agentv import claude --list
 # 2. Import a session by ID
 agentv import claude --session-id 4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22
 
-# 3. Run evaluators against the imported transcript
+# 3. Run graders against the imported transcript
 agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.jsonl
 ```
 

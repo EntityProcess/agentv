@@ -1,11 +1,11 @@
 ---
-title: Tool Trajectory Evaluators
+title: Tool Trajectory Graders
 description: Validate that agents use the right tools in the right order with argument matching and latency assertions.
 sidebar:
   order: 5
 ---
 
-Tool trajectory evaluators validate that an agent used the expected tools during execution. They work with trace data returned by agent providers (codex, vscode, cli with trace support).
+Tool trajectory graders validate that an agent used the expected tools during execution. They work with trace data returned by agent providers (codex, vscode, cli with trace support).
 
 ## Modes
 
@@ -127,7 +127,7 @@ Example: 3 expected tools with 2 latency assertions = 5 total assertion entries 
 
 ## Trace Data Format
 
-Tool trajectory evaluators require trace data from the agent provider. Providers return `output` containing `tool_calls`:
+Tool trajectory graders require trace data from the agent provider. Providers return `output` containing `tool_calls`:
 
 ```json
 {
@@ -151,7 +151,7 @@ Tool trajectory evaluators require trace data from the agent provider. Providers
 }
 ```
 
-The evaluator extracts tool calls from `output[].tool_calls[]`. The `tool` and `input` fields are required. Optional fields:
+The grader extracts tool calls from `output[].tool_calls[]`. The `tool` and `input` fields are required. Optional fields:
 
 - `id` and `timestamp` — for debugging
 - `duration_ms` — required if using `max_duration_ms` latency assertions
@@ -172,7 +172,7 @@ agentv eval evals/test.yaml --dump-traces
 agentv eval evals/test.yaml --include-trace
 ```
 
-Use `--dump-traces` to inspect actual traces and understand agent behavior before writing evaluators.
+Use `--dump-traces` to inspect actual traces and understand agent behavior before writing graders.
 
 ## Complete Examples
 
@@ -255,7 +255,7 @@ tests:
 ## Best Practices
 
 1. **Start with `any_order`**, then tighten to `in_order` or `exact` as needed.
-2. **Combine with other evaluators** — use tool trajectory for execution validation and LLM graders for output quality.
-3. **Inspect traces first** with `--dump-traces` to understand agent behavior before writing evaluators.
+2. **Combine with other graders** — use tool trajectory for execution validation and LLM graders for output quality.
+3. **Inspect traces first** with `--dump-traces` to understand agent behavior before writing graders.
 4. **Use generous latency thresholds** to avoid flaky tests from timing variance.
 5. **Use code graders for custom validation** — write custom tool validation scripts when built-in modes are insufficient.

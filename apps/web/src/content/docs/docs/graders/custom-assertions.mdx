@@ -18,7 +18,7 @@ AgentV provides two SDK functions for custom evaluation logic:
 
 **Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 
-**Use `defineCodeGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the evaluator is a one-off grader tied to a specific eval. See [Code Graders](/docs/evaluators/code-graders/) for details.
+**Use `defineCodeGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the grader is a one-off grader tied to a specific eval. See [Code Graders](/docs/graders/code-graders/) for details.
 
 Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
 
@@ -243,4 +243,4 @@ npm install @agentv/eval
 agentv eval evals/dataset.eval.yaml
 ```
 
-Each test produces scores from both the built-in `contains` assertion and your custom `word-count` assertion. Results appear in the output JSONL with each evaluator's score in the `scores[]` array.
+Each test produces scores from both the built-in `contains` assertion and your custom `word-count` assertion. Results appear in the output JSONL with each grader's score in the `scores[]` array.

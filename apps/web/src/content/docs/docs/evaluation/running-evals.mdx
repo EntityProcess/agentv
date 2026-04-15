@@ -75,7 +75,7 @@ agentv eval --dry-run evals/my-eval.yaml
 ```
 
 :::note
-Dry-run returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
+Dry-run returns mock responses that don't match grader output schemas. Use it only for testing harness flow, not grader logic.
 :::
 
 ### Custom Output Directory
@@ -163,7 +163,7 @@ Each eval test case produces a trace with:
 - **LLM call spans** (`chat <model>`) — model name, token usage (input/output/cached)
 - **Tool call spans** (`execute_tool <name>`) — tool name, arguments, results (with `--otel-capture-content`)
 - **Turn spans** (`agentv.turn.N`) — groups messages by conversation turn (with `--otel-group-turns`)
-- **Evaluator events** — per-grader scores attached to the root span
+- **Grader events** — per-grader scores attached to the root span
 
 :::tip[Claude provider + trace-claude-code plugin]
 When using the Claude provider, AgentV injects `CC_PARENT_SPAN_ID` and `CC_ROOT_SPAN_ID` into the Claude subprocess. If the [trace-claude-code](https://github.com/braintrustdata/braintrust-claude-plugin) plugin is installed, it attaches Claude Code CLI-level tool spans (Read, Write, Bash, etc.) as children of the AgentV eval trace, giving you full visibility into both the eval framework and the agent's internal actions.
@@ -331,14 +331,14 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 
 ## Offline Grading
 
-Grade existing agent sessions without re-running them. Import a transcript, then run deterministic evaluators:
+Grade existing agent sessions without re-running them. Import a transcript, then run deterministic graders:
 
 ```bash
 # List sessions and import one
 agentv import claude --list
 agentv import claude --session-id <uuid>
 
-# Run evaluators against the imported transcript
+# Run graders against the imported transcript
 agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl
 ```
 

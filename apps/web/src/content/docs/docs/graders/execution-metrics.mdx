@@ -5,11 +5,11 @@ sidebar:
   order: 5
 ---
 
-AgentV provides built-in evaluators for checking execution metrics against thresholds. These are useful for enforcing efficiency constraints without writing custom code.
+AgentV provides built-in graders for checking execution metrics against thresholds. These are useful for enforcing efficiency constraints without writing custom code.
 
 ## execution_metrics
 
-The `execution_metrics` evaluator provides declarative threshold-based checks on multiple metrics in a single evaluator.
+The `execution_metrics` grader provides declarative threshold-based checks on multiple metrics in a single grader.
 
 ```yaml
 assertions:
@@ -72,9 +72,9 @@ assertions:
     exploration_tolerance: 0.2     # Allow ±20% variance
 ```
 
-## Single-Metric Evaluators
+## Single-Metric Graders
 
-For simple single-threshold checks, AgentV also provides dedicated evaluators:
+For simple single-threshold checks, AgentV also provides dedicated graders:
 
 ### latency
 
@@ -108,15 +108,15 @@ Fails if total token usage exceeds the threshold.
 
 ## When to Use Each
 
-| Scenario | Recommended Evaluator |
+| Scenario | Recommended Grader |
 |----------|----------------------|
 | Check multiple metrics at once | `execution_metrics` |
 | Simple single-threshold check | `latency`, `cost`, or `token_usage` |
 | Complex custom formulas | `code_grader` with custom command |
 
-## Combining with Other Evaluators
+## Combining with Other Graders
 
-Execution metrics work well alongside semantic evaluators:
+Execution metrics work well alongside semantic graders:
 
 ```yaml
 tests:

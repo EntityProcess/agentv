@@ -15,7 +15,7 @@ AgentV is a CLI-first AI agent evaluation framework. It evaluates your agents lo
 - **No server** — just install and run
 - **Version-controlled** — YAML evaluation files live in Git alongside your code
 - **CI/CD ready** — run evaluations in your pipeline without external API calls
-- **Multiple evaluator types** — code validators, LLM graders, custom Python/TypeScript
+- **Multiple grader types** — code validators, LLM graders, custom Python/TypeScript
 
 ## How AgentV Compares
 
@@ -27,7 +27,7 @@ AgentV is a CLI-first AI agent evaluation framework. It evaluates your agents lo
 | **CLI-first** | Yes | No | Limited | Limited |
 | **CI/CD ready** | Yes | Requires API calls | Requires API calls | Requires API calls |
 | **Version control** | Yes (YAML in Git) | No | No | No |
-| **Evaluators** | Code + LLM + Custom | LLM only | LLM + Code | LLM only |
+| **Graders** | Code + LLM + Custom | LLM only | LLM + Code | LLM only |
 
 ## Core Concepts
 
@@ -38,14 +38,14 @@ AgentV is a CLI-first AI agent evaluation framework. It evaluates your agents lo
 - **Eval files** — YAML or JSONL definitions of test cases
 - **Tests** — Individual test entries with input messages and expected outcomes
 - **Targets** — The agent or LLM provider being evaluated
-- **Evaluators** — Code graders (Python/TypeScript) or LLM graders that score responses
+- **Graders** — Code graders (Python/TypeScript) or LLM graders that score responses
 - **Rubrics** — Structured criteria with weights for grading
 - **Results** — JSONL output with scores, reasoning, and execution traces
 
 ## Features
 
 - **Multi-objective scoring**: Correctness, latency, cost, safety in one run
-- **Multiple evaluator types**: Code validators, LLM graders, custom Python/TypeScript
+- **Multiple grader types**: Code validators, LLM graders, custom Python/TypeScript
 - **Built-in targets**: VS Code Copilot, Codex CLI, Pi Coding Agent, Azure OpenAI, local CLI agents
 - **Structured evaluation**: Rubric-based grading with weights and requirements
 - **Batch evaluation**: Run hundreds of test cases in parallel

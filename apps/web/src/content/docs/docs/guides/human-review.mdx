@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-Human review sits between automated scoring and the next iteration. Automated evaluators catch regressions and enforce thresholds, but a human reviewer spots score-behavior mismatches, qualitative regressions, and cases where a grader is too strict or too lenient.
+Human review sits between automated scoring and the next iteration. Automated graders catch regressions and enforce thresholds, but a human reviewer spots score-behavior mismatches, qualitative regressions, and cases where a grader is too strict or too lenient.
 
 ## When to review
 
@@ -14,7 +14,7 @@ Review after every eval run where you plan to iterate on the skill or agent. The
 1. **Run evals** — `agentv eval EVAL.yaml` or `agentv eval evals.json`
 2. **Inspect results** — open the HTML report or scan the results JSONL
 3. **Write feedback** — create `feedback.json` alongside the results
-4. **Iterate** — use the feedback to guide prompt changes, evaluator tuning, or test case additions
+4. **Iterate** — use the feedback to guide prompt changes, grader tuning, or test case additions
 5. **Re-run** — verify improvements in the next eval run
 
 Skip the review step for routine CI gate runs where you only need pass/fail.
@@ -27,7 +27,7 @@ Skip the review step for routine CI gate runs where you only need pass/fail.
 | **False positive** | A `contains` check passes on a coincidental substring match |
 | **False negative** | An LLM grader penalizes a correct answer that uses different phrasing |
 | **Qualitative regression** | Scores stay the same but tone, formatting, or helpfulness degrades |
-| **Evaluator miscalibration** | A code grader is too strict on whitespace; a rubric is too lenient on accuracy |
+| **Grader miscalibration** | A code grader is too strict on whitespace; a rubric is too lenient on accuracy |
 | **Flaky results** | The same test produces wildly different scores across runs |
 
 ## How to review
@@ -118,7 +118,7 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
 | `test_id` | `string` | yes | Matches the test `id` from the eval file |
 | `verdict` | `enum` | yes | One of: `acceptable`, `needs_improvement`, `incorrect`, `flaky` |
 | `notes` | `string` | no | Free-form reviewer notes |
-| `evaluator_overrides` | `object` | no | Keyed by evaluator name — reviewer annotations on specific evaluator results |
+| `evaluator_overrides` | `object` | no | Keyed by grader name — reviewer annotations on specific grader results |
 | `workspace_notes` | `string` | no | Notes about workspace state (relevant for workspace evaluations) |
 
 ### Verdict values
@@ -130,9 +130,9 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
 | `incorrect` | The output is wrong, regardless of what the automated score says |
 | `flaky` | Results are inconsistent across runs — investigate non-determinism |
 
-### Evaluator overrides (workspace evaluations)
+### Grader overrides (workspace evaluations)
 
-For workspace evaluations with multiple evaluators (code graders, LLM graders, tool trajectory checks), the `evaluator_overrides` field lets the reviewer annotate specific evaluator results:
+For workspace evaluations with multiple graders (code graders, LLM graders, tool trajectory checks), the `evaluator_overrides` field lets the reviewer annotate specific grader results:
 
 ```json
 {
@@ -147,7 +147,7 @@ For workspace evaluations with multiple evaluators (code graders, LLM graders, t
 }
 ```
 
-Keys use the format `evaluator-type:evaluator-name` to match the evaluators defined in `assertions` blocks.
+Keys use the format `grader-type:grader-name` to match the graders defined in `assertions` blocks.
 
 ## Storing feedback across iterations
 
@@ -181,7 +181,7 @@ Define tests (EVAL.yaml / evals.json)
         ↓
   Write feedback.json
         ↓
-  Tune prompts / evaluators / test cases
+  Tune prompts / graders / test cases
         ↓
   Re-run evals
         ↓

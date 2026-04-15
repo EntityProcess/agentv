@@ -1,15 +1,15 @@
 ---
-title: Composite Evaluators
-description: Combine multiple evaluators with aggregation strategies for multi-criteria evaluation.
+title: Composite Graders
+description: Combine multiple graders with aggregation strategies for multi-criteria evaluation.
 sidebar:
   order: 4
 ---
 
-Composite evaluators combine multiple evaluators and aggregate their results into a single score. This enables sophisticated evaluation patterns like safety gates, weighted scoring, and conflict resolution.
+Composite graders combine multiple graders and aggregate their results into a single score. This enables sophisticated evaluation patterns like safety gates, weighted scoring, and conflict resolution.
 
 ## Basic Structure
 
-A composite evaluator wraps two or more sub-evaluators and an aggregator that determines the final score:
+A composite grader wraps two or more sub-graders and an aggregator that determines the final score:
 
 ```yaml
 assertions:
@@ -29,10 +29,10 @@ assertions:
         evaluator_2: 0.4
 ```
 
-Each sub-evaluator runs independently, then the aggregator combines their results.
-Use `assertions` for composite members. `evaluators` is still accepted for backward compatibility.
+Each sub-grader runs independently, then the aggregator combines their results.
+Use `assertions` for composite members. `graders` is still accepted for backward compatibility.
 
-If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across evaluators. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested evaluator groups.
+If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested grader groups.
 
 ## Aggregator Types
 
@@ -48,7 +48,7 @@ aggregator:
     quality: 0.7     # 70% weight
 ```
 
-If weights are omitted, all evaluators receive equal weight (1.0).
+If weights are omitted, all graders receive equal weight (1.0).
 This is equivalent to averaging all member scores.
 
 The score is calculated as:
@@ -59,16 +59,16 @@ final_score = sum(score_i * weight_i) / sum(weight_i)
 
 ### Code Grader Aggregator
 
-Run a custom command to decide the final score based on all evaluator results:
+Run a custom command to decide the final score based on all grader results:
 
 ```yaml
 aggregator:
   type: code-grader
   path: node ./scripts/safety-gate.js
-  cwd: ./evaluators  # optional working directory
+  cwd: ./graders  # optional working directory
 ```
 
-The command receives the evaluator results on stdin and must print a result to stdout.
+The command receives the grader results on stdin and must print a result to stdout.
 
 **Input (stdin):**
 ```json
@@ -92,7 +92,7 @@ The command receives the evaluator results on stdin and must print a result to s
 
 ### LLM Grader Aggregator
 
-Use an LLM to resolve conflicts or make nuanced decisions across evaluator results:
+Use an LLM to resolve conflicts or make nuanced decisions across grader results:
 
 ```yaml
 aggregator:
@@ -100,7 +100,7 @@ aggregator:
   prompt: ./prompts/conflict-resolution.md
 ```
 
-Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject the JSON results from all child evaluators.
+Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject the JSON results from all child graders.
 
 ## Patterns
 
@@ -130,7 +130,7 @@ tests:
           path: ./scripts/safety-gate.js
 ```
 
-The `safety-gate.js` command can return a score of 0.0 whenever the safety evaluator fails, regardless of the quality score.
+The `safety-gate.js` command can return a score of 0.0 whenever the safety grader fails, regardless of the quality score.
 
 ### Multi-Criteria Weighted
 
@@ -191,7 +191,7 @@ Composites can contain other composites for hierarchical evaluation:
 
 ## Result Structure
 
-Composite evaluators return nested `scores`, giving full visibility into each sub-evaluator:
+Composite graders return nested `scores`, giving full visibility into each sub-grader:
 
 ```json
 {
@@ -227,12 +227,12 @@ Composite evaluators return nested `scores`, giving full visibility into each su
 }
 ```
 
-Assertions from sub-evaluators are prefixed with the evaluator name (e.g., `[safety]`) in the top-level `assertions` array.
+Assertions from sub-graders are prefixed with the grader name (e.g., `[safety]`) in the top-level `assertions` array.
 
 ## Best Practices
 
-1. **Name evaluators clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
+1. **Name graders clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
 2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code grader aggregator can enforce hard gates.
 3. **Balance weights thoughtfully** -- consider which aspects matter most for your use case and assign weights accordingly.
 4. **Keep nesting shallow** -- deep nesting makes debugging harder. Two levels of composites is usually sufficient.
-5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite evaluator.
+5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite grader.
