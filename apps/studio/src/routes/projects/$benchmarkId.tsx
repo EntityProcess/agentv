@@ -23,12 +23,12 @@ import {
 } from '~/lib/api';
 import type { ExperimentsResponse, TargetsResponse } from '~/lib/types';
 
-type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
+type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: 'Recent Runs' },
   { id: 'experiments', label: 'Experiments' },
-  { id: 'compare', label: 'Compare' },
+  { id: 'analytics', label: 'Analytics' },
   { id: 'targets', label: 'Targets' },
 ];
 
@@ -91,7 +91,7 @@ function ProjectHomePage() {
 
       {activeTab === 'runs' && <ProjectRunsTab benchmarkId={benchmarkId} />}
       {activeTab === 'experiments' && <ProjectExperimentsTab benchmarkId={benchmarkId} />}
-      {activeTab === 'compare' && (
+      {activeTab === 'analytics' && (
         <ProjectCompareTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
       )}
       {activeTab === 'targets' && <ProjectTargetsTab benchmarkId={benchmarkId} />}

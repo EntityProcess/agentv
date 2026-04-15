@@ -717,6 +717,38 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     };
   });
 
+  // ── Baseline delta / normalized-gain computation ─────────────────────
+  const baselineTarget = c.req.query('baseline') ?? '';
+  if (baselineTarget) {
+    if (!targetsSet.has(baselineTarget)) {
+      return c.json(
+        { error: `Baseline target "${baselineTarget}" does not exist in the data` },
+        400,
+      );
+    }
+
+    // Build lookup: experiment → baseline cell avg_score
+    const baselineScores = new Map<string, number>();
+    for (const cell of cells) {
+      if (cell.target === baselineTarget) {
+        baselineScores.set(cell.experiment, cell.avg_score);
+      }
+    }
+
+    for (const cell of cells) {
+      if (cell.target === baselineTarget) continue;
+      const baseAvg = baselineScores.get(cell.experiment);
+      if (baseAvg === undefined) continue;
+      const delta = Math.round((cell.avg_score - baseAvg) * 1000) / 1000;
+      const g =
+        baseAvg >= 1.0
+          ? null
+          : Math.round(((cell.avg_score - baseAvg) / (1 - baseAvg)) * 1000) / 1000;
+      (cell as Record<string, unknown>).delta = delta;
+      (cell as Record<string, unknown>).normalized_gain = g;
+    }
+  }
+
   // Per-run entries sorted by timestamp descending (newest first).
   runEntries.sort((a, b) => b.started_at.localeCompare(a.started_at));
 

@@ -29,6 +29,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { deleteRunTagsApi, saveRunTagsApi } from '~/lib/api';
 import type { CompareCell, CompareResponse, CompareRunEntry, CompareTestResult } from '~/lib/types';
 
+import { AnalyticsCharts } from './AnalyticsCharts';
 import { PassRatePill } from './PassRatePill';
 
 interface CompareTabProps {
@@ -178,7 +179,9 @@ export function CompareTab({
           ) : (
             filteredData && (
               <>
-                {mode === 'aggregated' && <AggregatedView data={filteredData} />}
+                {mode === 'aggregated' && (
+                  <AggregatedView data={filteredData} benchmarkId={benchmarkId} />
+                )}
                 {mode === 'per-run' && (
                   <PerRunView
                     data={filteredData}
@@ -355,7 +358,7 @@ function ModeButton({
 
 // ── Aggregated (matrix) view ────────────────────────────────────────────
 
-function AggregatedView({ data }: { data: CompareResponse }) {
+function AggregatedView({ data, benchmarkId }: { data: CompareResponse; benchmarkId?: string }) {
   const { experiments, targets, cells } = data;
 
   // Hooks must run on every render regardless of the early-return below,
@@ -407,6 +410,7 @@ function AggregatedView({ data }: { data: CompareResponse }) {
           </tbody>
         </table>
       </div>
+      <AnalyticsCharts data={data} benchmarkId={benchmarkId} />
     </div>
   );
 }

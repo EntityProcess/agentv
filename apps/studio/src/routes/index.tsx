@@ -29,12 +29,12 @@ import {
   useStudioConfig,
 } from '~/lib/api';
 
-type TabId = 'runs' | 'experiments' | 'compare' | 'targets';
+type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: '🏃 Recent Runs' },
   { id: 'experiments', label: '🧪 Experiments' },
-  { id: 'compare', label: '📊 Compare' },
+  { id: 'analytics', label: '📊 Analytics' },
   { id: 'targets', label: '🤖 Targets' },
 ];
 
@@ -274,7 +274,7 @@ function SingleProjectHome() {
         />
       )}
       {activeTab === 'experiments' && <ExperimentsTab />}
-      {activeTab === 'compare' && <CompareTabContent readOnly={isReadOnly} />}
+      {activeTab === 'analytics' && <CompareTabContent readOnly={isReadOnly} />}
       {activeTab === 'targets' && <TargetsTab />}
 
       {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}

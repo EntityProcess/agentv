@@ -92,8 +92,16 @@ export const experimentsOptions = queryOptions({
   queryFn: () => fetchJson<ExperimentsResponse>('/api/experiments'),
 });
 
+export function compareOptionsWithBaseline(baseline?: string) {
+  const url = baseline ? `/api/compare?baseline=${encodeURIComponent(baseline)}` : '/api/compare';
+  return queryOptions({
+    queryKey: ['compare', baseline ?? ''],
+    queryFn: () => fetchJson<CompareResponse>(url),
+  });
+}
+
 export const compareOptions = queryOptions({
-  queryKey: ['compare'],
+  queryKey: ['compare', ''],
   queryFn: () => fetchJson<CompareResponse>('/api/compare'),
 });
 
@@ -402,10 +410,12 @@ export function benchmarkExperimentsOptions(benchmarkId: string) {
   });
 }
 
-export function benchmarkCompareOptions(benchmarkId: string) {
+export function benchmarkCompareOptions(benchmarkId: string, baseline?: string) {
+  const base = `${benchmarkApiBase(benchmarkId)}/compare`;
+  const url = baseline ? `${base}?baseline=${encodeURIComponent(baseline)}` : base;
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'compare'],
-    queryFn: () => fetchJson<CompareResponse>(`${benchmarkApiBase(benchmarkId)}/compare`),
+    queryKey: ['benchmarks', benchmarkId, 'compare', baseline ?? ''],
+    queryFn: () => fetchJson<CompareResponse>(url),
     enabled: !!benchmarkId,
   });
 }
