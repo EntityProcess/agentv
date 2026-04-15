@@ -65,8 +65,18 @@ export const evalInputCommand = command({
       long: 'experiment',
       description: 'Experiment label (e.g. with_skills, without_skills)',
     }),
+    target: option({
+      type: optional(string),
+      long: 'target',
+      description: 'Override target name from targets.yaml (mirrors eval run --target)',
+    }),
+    targets: option({
+      type: optional(string),
+      long: 'targets',
+      description: 'Path to targets.yaml (overrides discovery)',
+    }),
   },
-  handler: async ({ evalPath, out, experiment }) => {
+  handler: async ({ evalPath, out, experiment, target, targets }) => {
     const resolvedEvalPath = resolve(evalPath);
     const outDir = resolve(out ?? buildDefaultRunDir(process.cwd(), experiment));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
@@ -94,6 +104,8 @@ export const evalInputCommand = command({
         testFilePath: resolvedEvalPath,
         repoRoot,
         cwd: evalDir,
+        cliTargetName: target,
+        explicitTargetsPath: targets,
         dryRun: false,
         dryRunDelay: 0,
         dryRunDelayMin: 0,
