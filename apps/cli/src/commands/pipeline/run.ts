@@ -27,7 +27,6 @@ import { selectTarget } from '../eval/targets.js';
 import type { GraderTask } from './grade.js';
 import { runCodeGraders } from './grade.js';
 
-
 /**
  * Convert a Message[] array to plain text.
  * Single message: returns content directly (no role prefix).
