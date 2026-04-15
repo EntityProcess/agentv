@@ -5,13 +5,7 @@ sidebar:
   order: 6
 ---
 
-import { Image } from 'astro:assets';
-import resultsReportOverview from '../../../../assets/screenshots/results-report-overview.png';
-import resultsReportDetails from '../../../../assets/screenshots/results-report-details.png';
-
 Human review sits between automated scoring and the next iteration. Automated evaluators catch regressions and enforce thresholds, but a human reviewer spots score-behavior mismatches, qualitative regressions, and cases where a grader is too strict or too lenient.
-
-<Image src={resultsReportOverview} alt="AgentV evaluation report overview showing 12 tests across 4 eval files and 3 targets with pass, fail, and error summary cards" />
 
 ## When to review
 
@@ -53,7 +47,7 @@ agentv results report results/2026-03-14T10-32-00_claude
 open results/2026-03-14T10-32-00_claude/report.html
 ```
 
-<Image src={resultsReportDetails} alt="Test Cases tab in the AgentV results report showing grouped eval files, a selected invoice-reconciliation case, and assertion badges for contains, regex, and llm-grader" />
+The report itself is documented under [Results Report](/docs/tools/results-report/). Use that page for the command surface and visual walkthrough; use this page for the review loop that happens after you open it.
 
 For simple skill evaluations (evals.json), scan the results JSONL:
 

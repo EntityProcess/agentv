@@ -1,0 +1,62 @@
+---
+title: Results Report
+description: Generate a static HTML report from an existing AgentV run workspace.
+sidebar:
+  order: 6
+---
+
+import { Image } from 'astro:assets';
+import resultsReportOverview from '../../../../assets/screenshots/results-report-overview.png';
+import resultsReportDetails from '../../../../assets/screenshots/results-report-details.png';
+
+The `results report` command turns an existing run workspace or `index.jsonl` manifest into a self-contained HTML report. It is meant for sharing, inspection, and human review after the eval run has already finished.
+
+<Image src={resultsReportOverview} alt="AgentV results report overview showing 12 tests across 4 eval files and 3 targets with pass, fail, and error summary cards" />
+
+## Usage
+
+```bash
+agentv results report <run-workspace-or-index.jsonl>
+```
+
+Examples:
+
+```bash
+# Generate report.html next to the run manifest
+agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude
+
+# Use an explicit output path
+agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude/index.jsonl \
+  --out ./reports/human-review.html
+```
+
+## What it shows
+
+- **Overview stats** — total tests, eval files, targets, pass/fail/error counts
+- **Eval file breakdown** — pass rate, totals, duration, tokens, and cost by eval file
+- **Target breakdown** — pass rate and aggregate scores by model or agent target
+- **Test Cases tab** — grouped cases with expandable details, grader results, assertions, prompts, and outputs
+
+<Image src={resultsReportDetails} alt="AgentV results report Test Cases tab showing grouped eval files, a selected invoice-reconciliation case, grader badges for contains, regex, and llm-grader, and grader result details" />
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--out`, `-o` | Output HTML file (defaults to `<run-dir>/report.html`) |
+| `--dir`, `-d` | Working directory used to resolve the source path |
+
+## Typical workflow
+
+```bash
+# Run the eval
+agentv eval evals/support-routing.eval.yaml
+
+# Generate the report from the existing run workspace
+agentv results report .agentv/results/runs/<timestamp>
+
+# Open the static report
+open .agentv/results/runs/<timestamp>/report.html
+```
+
+For a review-centric workflow, see [Human Review Checkpoint](/docs/guides/human-review/).
