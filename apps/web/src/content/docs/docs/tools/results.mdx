@@ -1,0 +1,81 @@
+---
+title: Results
+description: Inspect, export, and share AgentV result workspaces from the CLI.
+sidebar:
+  order: 6
+---
+
+import { Image } from 'astro:assets';
+import resultsReportOverview from '../../../../assets/screenshots/results-report-overview.png';
+import resultsReportDetails from '../../../../assets/screenshots/results-report-details.png';
+
+The `results` command family works on existing AgentV run workspaces and `index.jsonl` manifests. Use it after an eval run to inspect failures, validate manifests, export artifact layouts, or generate a shareable HTML report.
+
+## Subcommands
+
+| Subcommand | Purpose |
+|-----------|---------|
+| `results report` | Generate a self-contained static HTML report from an existing run workspace |
+| `results export` | Materialize or normalize the artifact workspace structure for a manifest |
+| `results summary` | Print aggregate metrics for a run |
+| `results failures` | Show only failing cases |
+| `results show` | Display case-level rows from a run workspace |
+| `results validate` | Validate that a workspace or manifest resolves correctly |
+
+## `results report`
+
+The `results report` command turns an existing run workspace or `index.jsonl` manifest into a self-contained HTML report for sharing, inspection, and human review.
+
+<Image src={resultsReportOverview} alt="AgentV results report overview showing 12 tests across 4 eval files and 3 targets with pass, fail, and error summary cards" />
+
+```bash
+agentv results report <run-workspace-or-index.jsonl>
+```
+
+Examples:
+
+```bash
+# Generate report.html next to the run manifest
+agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude
+
+# Use an explicit output path
+agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude/index.jsonl \
+  --out ./reports/human-review.html
+```
+
+What it shows:
+
+- **Overview stats** — total tests, eval files, targets, pass/fail/error counts
+- **Eval file breakdown** — pass rate, totals, duration, tokens, and cost by eval file
+- **Target breakdown** — pass rate and aggregate scores by target
+- **Test Cases tab** — grouped cases with expandable details, grader results, assertions, prompts, and outputs
+
+<Image src={resultsReportDetails} alt="AgentV results report Test Cases tab showing grouped eval files, a selected invoice-reconciliation case, grader badges for contains, regex, and llm-grader, and grader result details" />
+
+| Option | Description |
+|--------|-------------|
+| `--out`, `-o` | Output HTML file (defaults to `<run-dir>/report.html`) |
+| `--dir`, `-d` | Working directory used to resolve the source path |
+
+## `results export`
+
+Use `results export` when you need the artifact workspace layout itself rather than a rendered report.
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> [--out <dir>]
+```
+
+This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving.
+
+## Inspection helpers
+
+For lightweight terminal workflows:
+
+```bash
+agentv results summary .agentv/results/runs/<timestamp>
+agentv results failures .agentv/results/runs/<timestamp>
+agentv results show .agentv/results/runs/<timestamp> --test-id my-case
+agentv results validate .agentv/results/runs/<timestamp>
+```
+
+For a review-centric workflow built around these artifacts, see [Human Review Checkpoint](/docs/guides/human-review/).
