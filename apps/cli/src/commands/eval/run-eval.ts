@@ -13,6 +13,7 @@ import {
   type OtelTraceExporter as OtelTraceExporterType,
   type ResolvedTarget,
   ResponseCache,
+  RunBudgetTracker,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
   deriveCategory,
@@ -118,6 +119,7 @@ interface NormalizedOptions {
   readonly excludeTags: readonly string[];
   readonly transcript?: string;
   readonly experiment?: string;
+  readonly budgetUsd?: number;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -393,6 +395,7 @@ function normalizeOptions(
     excludeTags: normalizeStringArray(rawOptions.excludeTag),
     transcript: normalizeString(rawOptions.transcript),
     experiment: normalizeString(rawOptions.experiment),
+    budgetUsd: normalizeOptionalNumber(rawOptions.budgetUsd),
   } satisfies NormalizedOptions;
 }
 
@@ -887,6 +890,8 @@ export interface RunEvalResult {
   readonly thresholdFailed?: boolean;
   /** True when all tests had execution errors and no evaluation was performed */
   readonly allExecutionErrors?: boolean;
+  /** True when --budget-usd was set and the run-level budget was exceeded */
+  readonly budgetExceeded?: boolean;
 }
 
 interface RemoteEvalSummaryInput {
@@ -1150,6 +1155,12 @@ export async function runEvalCommand(
   const seenTestCases = new Set<string>();
   const displayIdTracker = createDisplayIdTracker();
 
+  // Run-level budget tracker: caps total cost across all eval files in this run.
+  const runBudgetTracker = options.budgetUsd ? new RunBudgetTracker(options.budgetUsd) : undefined;
+  if (runBudgetTracker) {
+    console.log(`Run budget cap: $${runBudgetTracker.budgetCapUsd.toFixed(2)}`);
+  }
+
   // Each file gets the full worker budget — no splitting across files
   const perFileWorkers = options.workers;
   const fileMetadata = new Map<
@@ -1388,6 +1399,35 @@ export async function runEvalCommand(
   // workspace races without any grouping complexity.
   try {
     for (const testFilePath of activeTestFiles) {
+      // Run-level budget check: skip remaining files if budget exceeded
+      if (runBudgetTracker?.isExceeded()) {
+        const targetPrep = fileMetadata.get(testFilePath);
+        if (!targetPrep) continue;
+        const budgetMsg = `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`;
+        console.log(`\n⚠ ${budgetMsg} — skipping ${path.basename(testFilePath)}`);
+        for (const { selection } of targetPrep.selections) {
+          const skippedResults: EvaluationResult[] = targetPrep.testCases.map((testCase) => ({
+            timestamp: new Date().toISOString(),
+            testId: testCase.id,
+            score: 0,
+            assertions: [],
+            output: [],
+            error: budgetMsg,
+            budgetExceeded: true,
+            executionStatus: 'execution_error' as const,
+            failureStage: 'setup' as const,
+            failureReasonCode: 'budget_exceeded' as const,
+            executionError: { message: budgetMsg, stage: 'setup' as const },
+            target: selection.targetName,
+          }));
+          for (const r of skippedResults) {
+            await outputWriter.append(r);
+          }
+          allResults.push(...skippedResults);
+        }
+        continue;
+      }
+
       const targetPrep = fileMetadata.get(testFilePath);
       if (!targetPrep) {
         throw new Error(`Missing metadata for ${testFilePath}`);
@@ -1489,6 +1529,15 @@ export async function runEvalCommand(
       );
       for (const results of targetResults) {
         allResults.push(...results);
+        // Accumulate file costs into run-level budget tracker
+        if (runBudgetTracker) {
+          for (const r of results) {
+            const cost = r.costUsd ?? 0;
+            if (cost > 0) {
+              runBudgetTracker.add(cost);
+            }
+          }
+        }
       }
     }
 
@@ -1658,6 +1707,14 @@ export async function runEvalCommand(
       );
     }
 
+    // Print run-level budget summary when exceeded
+    const runBudgetExceeded = runBudgetTracker?.isExceeded() ?? false;
+    if (runBudgetExceeded) {
+      console.log(
+        `\n⚠ Run budget exceeded: $${runBudgetTracker?.currentCostUsd.toFixed(4)} spent of $${runBudgetTracker?.budgetCapUsd.toFixed(4)} cap`,
+      );
+    }
+
     return {
       executionErrorCount: summary.executionErrorCount,
       outputPath,
@@ -1665,6 +1722,7 @@ export async function runEvalCommand(
       target: options.target,
       thresholdFailed,
       allExecutionErrors,
+      budgetExceeded: runBudgetExceeded || undefined,
     };
   } finally {
     unsubscribeCodexLogs();

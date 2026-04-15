@@ -209,6 +209,12 @@ export const evalRunCommand = command({
       description:
         'Per-test score threshold (0-1, default 0.8). Exit 1 if any test scores below this value',
     }),
+    budgetUsd: option({
+      type: optional(number),
+      long: 'budget-usd',
+      description:
+        'Maximum total cost in USD across all eval files in this run. Stops dispatching new cases when exceeded.',
+    }),
     tag: multioption({
       type: array(string),
       long: 'tag',
@@ -235,6 +241,10 @@ export const evalRunCommand = command({
     }
 
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
+    if (args.budgetUsd !== undefined && args.budgetUsd <= 0) {
+      console.error('Error: --budget-usd must be a positive number.');
+      process.exit(2);
+    }
     const rawOptions: Record<string, unknown> = {
       target: args.target,
       targets: args.targets,
@@ -273,6 +283,7 @@ export const evalRunCommand = command({
       model: args.model,
       outputMessages: args.outputMessages,
       threshold: args.threshold,
+      budgetUsd: args.budgetUsd,
       tag: args.tag,
       excludeTag: args.excludeTag,
       transcript: args.transcript,
@@ -280,6 +291,9 @@ export const evalRunCommand = command({
     const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
     if (result?.allExecutionErrors) {
       process.exit(2);
+    }
+    if (result?.budgetExceeded) {
+      process.exit(1);
     }
     if (result?.thresholdFailed) {
       process.exit(1);

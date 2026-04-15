@@ -123,6 +123,7 @@ export {
   type AssertionResult,
 } from './evaluation/graders/assertions.js';
 export { discoverGraders } from './evaluation/registry/grader-discovery.js';
+export { RunBudgetTracker } from './evaluation/run-budget-tracker.js';
 
 // Import pipeline
 export * from './import/index.js';
