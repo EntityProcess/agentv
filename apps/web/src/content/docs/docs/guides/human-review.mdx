@@ -34,15 +34,20 @@ Skip the review step for routine CI gate runs where you only need pass/fail.
 
 ### Inspect results
 
-For workspace evaluations (EVAL.yaml), use the trace viewer:
+For workspace evaluations (EVAL.yaml), inspect the run manifest and generate the HTML report from the existing workspace:
 
 ```bash
 # View traces from a specific run
 agentv inspect show results/2026-03-14T10-32-00_claude/index.jsonl
 
-# View the HTML report (if generated via #562)
+# Generate the HTML report from the run workspace
+agentv results report results/2026-03-14T10-32-00_claude
+
+# Open the generated HTML report
 open results/2026-03-14T10-32-00_claude/report.html
 ```
+
+The report itself is documented under [Results](/docs/tools/results/). Use that page for the command surface and visual walkthrough; use this page for the review loop that happens after you open it.
 
 For simple skill evaluations (evals.json), scan the results JSONL:
 
@@ -51,7 +56,7 @@ For simple skill evaluations (evals.json), scan the results JSONL:
 cat results/output.jsonl | jq 'select(.score < 0.8)'
 
 # Show all scores
-cat results/output.jsonl | jq '{id: .testId, score: .score, verdict: .verdict}'
+cat results/output.jsonl | jq '{id: .test_id, score: .score, verdict: .verdict}'
 ```
 
 ### Write feedback
