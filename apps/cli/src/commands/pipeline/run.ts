@@ -92,8 +92,18 @@ export const evalRunCommand = command({
       description:
         'Which grading phase to run: "code" runs code-graders inline, omit to skip grading (use pipeline grade separately)',
     }),
+    target: option({
+      type: optional(string),
+      long: 'target',
+      description: 'Override target name from targets.yaml (mirrors eval run --target)',
+    }),
+    targets: option({
+      type: optional(string),
+      long: 'targets',
+      description: 'Path to targets.yaml (overrides discovery)',
+    }),
   },
-  handler: async ({ evalPath, out, workers, experiment, graderType }) => {
+  handler: async ({ evalPath, out, workers, experiment, graderType, target, targets }) => {
     const resolvedEvalPath = resolve(evalPath);
     const outDir = resolve(out ?? buildDefaultRunDir(process.cwd(), experiment));
     const repoRoot = await findRepoRoot(dirname(resolvedEvalPath));
@@ -124,6 +134,8 @@ export const evalRunCommand = command({
         testFilePath: resolvedEvalPath,
         repoRoot,
         cwd: evalDir,
+        cliTargetName: target,
+        explicitTargetsPath: targets,
         dryRun: false,
         dryRunDelay: 0,
         dryRunDelayMin: 0,

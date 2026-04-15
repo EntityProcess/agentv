@@ -494,6 +494,10 @@ cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env 
 ```
 Both steps are required before running builds, tests, or evals in the worktree.
 
+### After Checking Out an Existing Branch or PR
+
+Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` / `bun.lock`, run `bun install` before building, testing, or pushing. The pre-push hook builds all workspaces — if dependencies are stale, the push fails with errors like `Cannot find module 'recharts'` even though the source change is unrelated. `bun install` is cheap when already up-to-date, so run it by default after any ref switch.
+
 ## Version Management
 
 This project uses a simple release script for version bumping. The git commit history serves as the changelog.
