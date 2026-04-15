@@ -278,7 +278,7 @@ function Header({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="text-xl font-semibold text-white">Compare runs</h2>
+        <h2 className="text-xl font-semibold text-white">Analyze runs</h2>
         <p className="mt-1 text-sm text-gray-400">
           Study one experiment against another, or pit individual runs head-to-head.
         </p>

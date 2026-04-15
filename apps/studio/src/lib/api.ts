@@ -93,15 +93,16 @@ export const experimentsOptions = queryOptions({
 });
 
 export function compareOptionsWithBaseline(baseline?: string) {
-  const url = baseline ? `/api/compare?baseline=${encodeURIComponent(baseline)}` : '/api/compare';
   return queryOptions({
-    queryKey: ['compare', baseline ?? ''],
-    queryFn: () => fetchJson<CompareResponse>(url),
+    queryKey: ['compare', 'baseline', baseline ?? ''],
+    queryFn: () =>
+      fetchJson<CompareResponse>(`/api/compare?baseline=${encodeURIComponent(baseline ?? '')}`),
+    enabled: !!baseline,
   });
 }
 
 export const compareOptions = queryOptions({
-  queryKey: ['compare', ''],
+  queryKey: ['compare'],
   queryFn: () => fetchJson<CompareResponse>('/api/compare'),
 });
 
@@ -412,10 +413,16 @@ export function benchmarkExperimentsOptions(benchmarkId: string) {
 
 export function benchmarkCompareOptions(benchmarkId: string, baseline?: string) {
   const base = `${benchmarkApiBase(benchmarkId)}/compare`;
-  const url = baseline ? `${base}?baseline=${encodeURIComponent(baseline)}` : base;
+  if (baseline) {
+    return queryOptions({
+      queryKey: ['benchmarks', benchmarkId, 'compare', 'baseline', baseline],
+      queryFn: () => fetchJson<CompareResponse>(`${base}?baseline=${encodeURIComponent(baseline)}`),
+      enabled: !!benchmarkId,
+    });
+  }
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'compare', baseline ?? ''],
-    queryFn: () => fetchJson<CompareResponse>(url),
+    queryKey: ['benchmarks', benchmarkId, 'compare'],
+    queryFn: () => fetchJson<CompareResponse>(base),
     enabled: !!benchmarkId,
   });
 }

@@ -10,8 +10,7 @@
  *   2. Domain/tag heatmap (pass rate by tag × target)
  *   3. Negative delta table (tasks where non-baseline scored worse)
  *   4. Score distribution histogram (score variance for a single run)
- *   5. Cost vs. improvement scatter (token cost delta vs. score delta)
- *   6. Trend-over-time line chart (mean score per target over time)
+ *   5. Trend-over-time line chart (mean score per target over time)
  *
  * All charts use recharts styled with Tailwind-matching colors to
  * respect the Studio dark theme (gray-950 canvas, cyan accents,
@@ -29,8 +28,6 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -153,19 +150,14 @@ export function AnalyticsCharts({ data, benchmarkId }: AnalyticsChartsProps) {
           {/* 4. Score distribution histogram */}
           <ScoreDistribution data={data} />
 
-          {/* 5. Cost vs improvement scatter */}
-          {baseline && baselineData && (
-            <CostVsImprovement baselineData={baselineData} baseline={baseline} data={data} />
-          )}
-
-          {/* 6. Trend over time */}
+          {/* 5. Trend over time */}
           {trendData.length > 1 && targets.length > 0 && (
             <TrendOverTime data={trendData} targets={targets} />
           )}
 
           {!baseline && (
             <p className="text-xs text-gray-500">
-              Select a baseline target above to see gain, delta, and scatter charts.
+              Select a baseline target above to see gain and delta charts.
             </p>
           )}
         </div>
@@ -216,7 +208,7 @@ function ChartSection({ title, children }: { title: string; children: React.Reac
 // ── 1. Normalized gain bar chart ───────────────────────────────────────
 
 interface GainRow {
-  testId: string;
+  experiment: string;
   target: string;
   g: number | null;
   delta: number;
@@ -228,9 +220,8 @@ function NormalizedGainChart({ data, baseline }: { data: CompareResponse; baseli
     for (const cell of data.cells) {
       if (cell.target === baseline) continue;
       if (cell.delta === undefined) continue;
-      // Per-test gain: use cell-level delta and g as representative
       result.push({
-        testId: `${cell.experiment}`,
+        experiment: cell.experiment,
         target: cell.target,
         g: cell.normalized_gain ?? null,
         delta: cell.delta,
@@ -252,7 +243,7 @@ function NormalizedGainChart({ data, baseline }: { data: CompareResponse; baseli
   }
 
   const chartData = rows.map((r) => ({
-    name: `${r.target} · ${r.testId}`,
+    name: `${r.target} · ${r.experiment}`,
     g: r.g ?? 0,
     isNull: r.g === null,
   }));
@@ -497,84 +488,7 @@ function ScoreDistribution({ data }: { data: CompareResponse }) {
   );
 }
 
-// ── 5. Cost vs improvement scatter ─────────────────────────────────────
-
-function CostVsImprovement({
-  baselineData,
-  baseline,
-  data,
-}: {
-  baselineData: CompareResponse;
-  baseline: string;
-  data: CompareResponse;
-}) {
-  const scatterData = useMemo(() => {
-    // We need per-test cost data from the runs. Check if runs have cost info.
-    const runs = data.runs ?? [];
-    if (runs.length === 0) return [];
-
-    // Build baseline run cost/score maps
-    const baselineRuns = runs.filter((r) => r.target === baseline);
-    const baselineTestScores = new Map<string, number>();
-    for (const r of baselineRuns) {
-      for (const t of r.tests) {
-        baselineTestScores.set(t.test_id, t.score);
-      }
-    }
-
-    // Compare each non-baseline cell's tests
-    const points: Array<{ name: string; costDelta: number; scoreDelta: number; target: string }> =
-      [];
-    for (const cell of baselineData.cells) {
-      if (cell.target === baseline) continue;
-      if (cell.delta === undefined) continue;
-      // Use cell-level data since per-test cost isn't available in CompareTestResult
-      // This chart only renders if we can derive meaningful cost data
-    }
-
-    return points;
-  }, [baselineData, baseline, data.runs]);
-
-  // Only render if we have data points
-  if (scatterData.length === 0) return null;
-
-  const nonBaselineTargets = data.targets.filter((t) => t !== baseline);
-
-  return (
-    <ChartSection title="Cost vs. Improvement">
-      <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-3">
-        <ResponsiveContainer width="100%" height={300}>
-          <ScatterChart margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.gridLine} />
-            <XAxis
-              type="number"
-              name="Cost Delta"
-              tick={{ fill: COLORS.labelText, fontSize: 11 }}
-              axisLine={{ stroke: COLORS.gridLine }}
-            />
-            <YAxis
-              type="number"
-              name="Score Delta"
-              tick={{ fill: COLORS.labelText, fontSize: 11 }}
-              axisLine={{ stroke: COLORS.gridLine }}
-            />
-            <Tooltip content={<ChartTooltip />} />
-            {nonBaselineTargets.map((target, idx) => (
-              <Scatter
-                key={target}
-                name={target}
-                data={scatterData.filter((d) => d.target === target)}
-                fill={targetColor(idx)}
-              />
-            ))}
-          </ScatterChart>
-        </ResponsiveContainer>
-      </div>
-    </ChartSection>
-  );
-}
-
-// ── 6. Trend over time ─────────────────────────────────────────────────
+// ── 5. Trend over time ─────────────────────────────────────────────────
 
 interface TrendPoint {
   date: string;
