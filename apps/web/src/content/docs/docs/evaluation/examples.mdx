@@ -69,7 +69,7 @@ tests:
           ```
 ````
 
-## Multi-Evaluator
+## Multi-Grader
 
 Combine a code grader and an LLM grader on the same test:
 
@@ -86,7 +86,7 @@ tests:
       - name: json_format_validator
         type: code-grader
         command: [uv, run, validate_json.py]
-        cwd: ./evaluators
+        cwd: ./graders
       - name: content_evaluator
         type: llm-grader
         prompt: ./graders/semantic_correctness.md
@@ -363,11 +363,11 @@ tests:
 - The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
 - Put structured data in `user.content` as objects for the runner to extract
 - Use `expected_output` with object fields for structured expected output
-- Each test has its own evaluator to validate its portion of the output
+- Each test has its own grader to validate its portion of the output
 
 ## Suite-level Input
 
-Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input — like suite-level `assertions` for evaluators:
+Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input — like suite-level `assertions` for graders:
 
 ```yaml
 description: Travel assistant evaluation
@@ -418,11 +418,11 @@ See the [suite-level-input example](https://github.com/EntityProcess/agentv/tree
 - Show the pattern, not rigid templates
 - Allow for natural language variation
 - Focus on semantic correctness over exact matching
-- Evaluators handle the actual validation logic
+- Graders handle the actual validation logic
 
 ## Showcases
 
 For complete end-to-end workflows that combine multiple features, see the showcases in [`examples/showcase/`](https://github.com/EntityProcess/agentv/tree/main/examples/showcase):
 
-- **[Multi-Model Benchmark](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/multi-model-benchmark)** — targets matrix × weighted metrics × trials × compare workflow. Runs the same tests against multiple models, scores with weighted evaluators, measures variability, and compares results side-by-side.
+- **[Multi-Model Benchmark](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/multi-model-benchmark)** — targets matrix × weighted metrics × trials × compare workflow. Runs the same tests against multiple models, scores with weighted graders, measures variability, and compares results side-by-side.
 - **[Export Screening](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/export-screening)** — classification eval with confusion matrix metrics and CI gating.

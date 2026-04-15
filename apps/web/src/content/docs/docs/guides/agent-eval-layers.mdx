@@ -1,11 +1,11 @@
 ---
 title: Agent Evaluation Layers
-description: A four-layer taxonomy for evaluating AI agents — Reasoning, Action, End-to-End, and Safety — mapped to AgentV evaluators.
+description: A four-layer taxonomy for evaluating AI agents — Reasoning, Action, End-to-End, and Safety — mapped to AgentV graders.
 sidebar:
   order: 1
 ---
 
-A practical taxonomy for structuring agent evaluations. Each layer targets a different dimension of agent behavior, and maps directly to AgentV evaluators you can drop into an `EVAL.yaml`.
+A practical taxonomy for structuring agent evaluations. Each layer targets a different dimension of agent behavior, and maps directly to AgentV graders you can drop into an `EVAL.yaml`.
 
 ## Layer 1: Reasoning
 
@@ -13,7 +13,7 @@ A practical taxonomy for structuring agent evaluations. Each layer targets a dif
 
 Covers plan quality, plan adherence, and tool selection rationale. Use LLM-based graders that inspect the agent's reasoning trace.
 
-| Concern | AgentV evaluator |
+| Concern | AgentV grader |
 |---------|-----------------|
 | Plan quality & coherence | `rubrics` |
 | Workspace-aware auditing | `rubrics` with `required: true` criteria |
@@ -38,7 +38,7 @@ assertions:
 
 Covers tool call correctness, argument validity, execution path, and redundancy. Use trajectory validators and execution metrics for deterministic checks.
 
-| Concern | AgentV evaluator |
+| Concern | AgentV grader |
 |---------|-----------------|
 | Tool sequence | `tool_trajectory` (`in_order`, `exact`) |
 | Minimum tool usage | `tool_trajectory` (`any_order`) |
@@ -70,7 +70,7 @@ assertions:
 
 Covers task completion, output correctness, step efficiency, latency, and cost. Combine outcome-focused graders with deterministic assertions and execution budgets.
 
-| Concern | AgentV evaluator |
+| Concern | AgentV grader |
 |---------|-----------------|
 | Output correctness | `rubrics`, `equals`, `contains`, `regex` |
 | Structured data accuracy | `field_accuracy` |
@@ -100,11 +100,11 @@ assertions:
 
 Covers prompt injection resilience, policy adherence, bias, and content safety. Use the `negate` flag to assert that unsafe behaviors do **not** occur.
 
-| Concern | AgentV evaluator |
+| Concern | AgentV grader |
 |---------|-----------------|
 | Content safety | `rubrics` |
 | Policy enforcement | `code_grader` with policy command |
-| "Must NOT" assertions | Any evaluator with `negate: true` |
+| "Must NOT" assertions | Any grader with `negate: true` |
 
 ```yaml
 # Layer 4: Safety — verify the agent doesn't do harmful things

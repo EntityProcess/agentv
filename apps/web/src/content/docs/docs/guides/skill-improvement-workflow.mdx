@@ -126,11 +126,11 @@ Or grade existing sessions offline (no API keys required):
 agentv import claude --list
 agentv import claude --session-id <uuid>
 
-# Run deterministic evaluators against the imported transcript
+# Run deterministic graders against the imported transcript
 agentv eval evals.json --target copilot-log
 ```
 
-Offline grading is useful when you want to evaluate skills with agents that don't have a direct API integration — import the session transcript and run deterministic evaluators.
+Offline grading is useful when you want to evaluate skills with agents that don't have a direct API integration — import the session transcript and run deterministic graders.
 
 ## Step 4: Compare Results
 
@@ -239,7 +239,7 @@ tests:
 ```
 
 After converting, you can:
-- Replace `llm-grader` assertions with faster deterministic evaluators (`contains`, `regex`, `equals`)
+- Replace `llm-grader` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
 - Add `workspace` configuration for file-system isolation
 - Use `code-grader` for custom scoring logic
 - Define `tool-trajectory` assertions to check tool usage patterns
@@ -329,7 +329,7 @@ The optimizer uses the same core loop described in this guide but automates the 
 Its bundled scripts map directly onto the workflow stages:
 
 - `run-eval.ts` and `compare-runs.ts` run and compare evaluations while still delegating to `agentv`
-- `run-loop.ts` repeats the evaluation loop without moving evaluator logic into the script layer
+- `run-loop.ts` repeats the evaluation loop without moving grader logic into the script layer
 - `aggregate-benchmark.ts` and `generate-report.ts` summarize AgentV artifacts into review-friendly output
 - `improve-description.ts` proposes follow-up description experiments once execution quality is stable
 

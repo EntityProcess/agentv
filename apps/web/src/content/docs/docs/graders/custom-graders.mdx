@@ -1,23 +1,23 @@
 ---
-title: Custom Evaluators
+title: Custom Graders
 description: Patterns for building custom evaluation logic
 sidebar:
   order: 3
 ---
 
-AgentV supports multiple evaluator types that can be combined for comprehensive evaluation.
+AgentV supports multiple grader types that can be combined for comprehensive evaluation.
 
-## Evaluator Types
+## Grader Types
 
 | Type | Description | Use Case |
 |------|-------------|----------|
 | `code_grader` | Deterministic command (Python/TS/any) | Exact matching, format validation, programmatic checks |
 | `llm_grader` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
-| `rubrics` | Structured rubric evaluator via `assertions` | Multi-criterion grading with weights |
+| `rubrics` | Structured rubric grader via `assertions` | Multi-criterion grading with weights |
 
-## Referencing Evaluators
+## Referencing Graders
 
-Evaluators are configured using `assertions` — either top-level (applies to all tests) or per-test:
+Graders are configured using `assertions` — either top-level (applies to all tests) or per-test:
 
 ### Top-Level (Default for All Tests)
 
@@ -30,7 +30,7 @@ assertions:
 
 tests:
   - id: test-1
-    # Uses the top-level evaluator
+    # Uses the top-level grader
     ...
 ```
 
@@ -47,9 +47,9 @@ tests:
         command: [./validators/check_json.py]
 ```
 
-## Combining Evaluators
+## Combining Graders
 
-Use multiple evaluators on the same case for comprehensive scoring:
+Use multiple graders on the same case for comprehensive scoring:
 
 ```yaml
 tests:
@@ -70,21 +70,21 @@ tests:
         prompt: ./graders/code_quality.md
 ```
 
-Each evaluator produces its own score. Results appear in `scores[]` in the output JSONL.
+Each grader produces its own score. Results appear in `scores[]` in the output JSONL.
 
-For multiple evaluators in `assertions`, the test score is the weighted mean:
+For multiple graders in `assertions`, the test score is the weighted mean:
 
 ```
 final_score = sum(score_i * weight_i) / sum(weight_i)
 ```
 
 If `weight` is omitted, it defaults to `1.0` (equal weighting).
-If any evaluator has `required: true` (or `required: <threshold>`) and scores below its required threshold, the overall test score is forced to `0`.
+If any grader has `required: true` (or `required: <threshold>`) and scores below its required threshold, the overall test score is forced to `0`.
 
 ## Best Practices
 
 - **Use code graders for deterministic checks** — exact value matching, format validation, schema compliance
 - **Use LLM graders for semantic evaluation** — meaning, quality, helpfulness
 - **Use rubrics for structured multi-criteria grading** — when you need weighted, itemized scoring
-- **Combine evaluator types** for comprehensive coverage
+- **Combine grader types** for comprehensive coverage
 - **Test code graders locally** before running full evaluations

@@ -15,7 +15,7 @@ AgentV natively supports `evals.json`. You can run Agent Skills evals directly:
 agentv eval evals.json --target claude
 ```
 
-When you need AgentV's power features (deterministic evaluators, composite scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
+When you need AgentV's power features (deterministic graders, composite scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
 
 ## Quick start
 
@@ -81,14 +81,14 @@ AgentV resolves these paths and copies the files into the workspace before the a
 
 ## Offline grading (no API keys)
 
-Grade existing agent sessions offline using `agentv import` to convert transcripts, then run deterministic evaluators:
+Grade existing agent sessions offline using `agentv import` to convert transcripts, then run deterministic graders:
 
 ```bash
 # Import a Claude Code session transcript
 agentv import claude --list
 agentv import claude --session-id <uuid>
 
-# Run deterministic evaluators against the imported transcript
+# Run deterministic graders against the imported transcript
 agentv eval evals.json --target copilot-log
 ```
 
@@ -145,10 +145,10 @@ The generated YAML includes comments about available AgentV features you can use
 ```yaml
 # Converted from Agent Skills evals.json
 # AgentV features you can add:
-#   - type: is_json, contains, regex for deterministic evaluators
+#   - type: is_json, contains, regex for deterministic graders
 #   - type: code-grader for custom scoring scripts
 #   - Multi-turn conversations via input message arrays
-#   - Composite evaluators with weighted scoring
+#   - Composite graders with weighted scoring
 #   - Workspace isolation with repos and hooks
 
 tests:
@@ -185,8 +185,8 @@ Use `evals.json` when:
 
 Switch to EVAL.yaml when you need:
 
-- **Deterministic evaluators**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM graders
-- **Composite scoring**: Weighted evaluators with custom aggregation
+- **Deterministic graders**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM graders
+- **Composite scoring**: Weighted graders with custom aggregation
 - **Multi-turn conversations**: Multi-message input sequences
 - **Workspace isolation**: Sandboxed file systems per test case
 - **Tool trajectory evaluation**: Assert on the sequence of tool calls

@@ -23,7 +23,7 @@ agentv eval evals/my-agent.yaml
 
 ### Agent Control — Govern
 
-Runtime guardrails. Intercepts agent actions (tool calls, API requests) and evaluates them against configurable policies. Deny, steer, warn, or log — without changing agent code. Pluggable evaluators with confidence scoring.
+Runtime guardrails. Intercepts agent actions (tool calls, API requests) and evaluates them against configurable policies. Deny, steer, warn, or log — without changing agent code. Pluggable graders with confidence scoring.
 
 ### Langfuse — Observe
 
@@ -73,11 +73,11 @@ This maps to how traditional software works:
 **Agent Control** handles:
 - Runtime policy enforcement (deny/steer/warn/log)
 - Pre/post execution evaluation of agent actions
-- Pluggable evaluators (regex, JSON, SQL, LLM-based)
+- Pluggable graders (regex, JSON, SQL, LLM-based)
 - Centralized control plane with dashboard
 
 **Langfuse** handles:
 - Production tracing with agent-native observation types
 - Live evaluation automation on trace ingestion
-- Score ingestion from external evaluators
+- Score ingestion from external graders
 - Team dashboards and debugging

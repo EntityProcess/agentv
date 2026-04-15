@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, targets, and evaluators for an evaluation run. AgentV supports two formats: YAML and JSONL.
+Evaluation files define the test cases, targets, and graders for an evaluation run. AgentV supports two formats: YAML and JSONL.
 
 ## Suites
 
@@ -41,7 +41,7 @@ tests:
 | `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
 | `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config) |
 | `tests` | Array of individual tests, or a string path to an external file |
-| `assertions` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
+| `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
 ### Metadata Fields
@@ -76,7 +76,7 @@ tests:
 
 ### Suite-level Assertions
 
-The `assertions` field is the canonical way to define suite-level evaluators. Suite-level assertions are appended to every test's evaluators unless a test sets `execution.skip_defaults: true`.
+The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `execution.skip_defaults: true`.
 
 ```yaml
 description: API response validation
@@ -92,7 +92,7 @@ tests:
     input: Check API health
 ```
 
-`assertions` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
+`assertions` supports all grader types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
 
 ### Assertion Includes
 

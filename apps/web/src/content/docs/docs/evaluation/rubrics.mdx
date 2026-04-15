@@ -22,7 +22,7 @@ tests:
       - States time complexity
 ```
 
-All strings are collected into a single rubrics evaluator automatically.
+All strings are collected into a single rubrics grader automatically.
 
 ### Full form for advanced options
 
@@ -120,9 +120,9 @@ score = sum(criterion_score / 10 * weight) / sum(total_weights)
 
 ## Authoring Rubrics
 
-Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic evaluators, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the evaluator choice driven by the criteria rather than one fixed recipe.
+Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic graders, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
 
-## Combining with Other Evaluators
+## Combining with Other Graders
 
 Rubrics work alongside code and LLM graders:
 
