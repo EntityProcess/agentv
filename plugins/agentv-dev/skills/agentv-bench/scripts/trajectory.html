@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- __AUTO_REFRESH__ -->
+  <meta http-equiv="refresh" content="2"> <!-- __AUTO_REFRESH__ -->
   <title>AgentV Autoresearch Trajectory</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -252,9 +252,9 @@ function render(data) {
   const scores = sorted.map(it => it.score);
   const decisions = sorted.map(it => (it.decision || '').toLowerCase());
 
-  // Cumulative cost
+  // Cumulative cost (parseFloat guards against string or null values)
   let cumCost = 0;
-  const cumCosts = sorted.map(it => { cumCost += (it.cost_usd || 0); return cumCost; });
+  const cumCosts = sorted.map(it => { cumCost += parseFloat(it.cost_usd) || 0; return cumCost; });
 
   // Assertion keys (union of all)
   const assertionKeys = [...new Set(sorted.flatMap(it => Object.keys(it.assertions || {})))].sort();
@@ -356,9 +356,10 @@ function render(data) {
 
   // ── Table ────────────────────────────────────────────────────────────
   const rows = sorted.map(it => {
-    const badge = (it.decision || '').toLowerCase() === 'keep'
+    const dec = (it.decision || '').toLowerCase();
+    const badge = dec === 'keep'
       ? '<span class="badge keep">keep</span>'
-      : '<span class="badge discard">discard</span>';
+      : '<span class="badge discard">drop</span>';
     const ts = it.timestamp
       ? new Date(it.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' })
       : '—';

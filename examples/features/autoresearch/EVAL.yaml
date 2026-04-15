@@ -1,0 +1,142 @@
+name: incident-severity-classifier
+description: |
+  Evaluates the incident severity classifier prompt for accuracy, output format,
+  and reasoning quality. Used as an autoresearch demo — the prompt artifact starts
+  weak and the optimization loop iteratively improves it.
+
+execution:
+  target: llm
+
+defaults:
+  system_message: &system_prompt |
+    Classify the incident into P0, P1, P2, or P3.
+    Give your answer as JSON with severity and reasoning fields.
+
+tests:
+  - id: total-outage
+    criteria: Should classify a complete production outage as P0
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          All production servers are unreachable. The main database cluster has failed over
+          but the failover node is also unresponsive. Customer-facing APIs return 503 for
+          all requests. Estimated 100% of users affected. Data replication lag detected.
+    assertions:
+      - type: contains
+        value: '"P0"'
+        id: CLASSIFIES_P0_OUTAGE
+      - type: is-json
+        id: RETURNS_VALID_JSON
+      - "Reasoning mentions complete service outage or total unavailability"
+
+  - id: degraded-search
+    criteria: Should classify degraded search with no workaround as P1
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          Search functionality is returning incomplete results for approximately 60% of queries.
+          Users report that recent items (last 2 hours) are not appearing in search results.
+          The indexing pipeline appears to be stuck. No workaround available for affected users.
+    assertions:
+      - type: contains
+        value: '"P1"'
+        id: CLASSIFIES_P1_DEGRADED
+      - type: is-json
+        id: RETURNS_VALID_JSON_P1
+      - "Reasoning explains the user impact and lack of workaround"
+
+  - id: slow-dashboard
+    criteria: Should classify slow dashboard with workaround as P2
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          The analytics dashboard is loading slowly (15-20 seconds instead of usual 2-3 seconds).
+          Users can still access all data but the experience is degraded. The issue appears to be
+          related to a recent deployment. Users can use the API directly as a workaround.
+    assertions:
+      - type: contains
+        value: '"P2"'
+        id: CLASSIFIES_P2_SLOW
+      - type: is-json
+        id: RETURNS_VALID_JSON_P2
+      - "Reasoning mentions the workaround availability"
+
+  - id: typo-in-footer
+    criteria: Should classify a cosmetic typo as P3
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          A user reported that the footer on the settings page shows "Copyrigth 2024"
+          instead of "Copyright 2024". This is visible on all pages with the settings layout.
+          No functional impact.
+    assertions:
+      - type: contains
+        value: '"P3"'
+        id: CLASSIFIES_P3_COSMETIC
+      - type: is-json
+        id: RETURNS_VALID_JSON_P3
+      - "Reasoning identifies this as a cosmetic or non-functional issue"
+
+  - id: payment-failures
+    criteria: Should classify intermittent payment failures as P1 due to revenue impact
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          Approximately 15% of payment transactions are failing with a timeout error from the
+          payment gateway. The issue is intermittent — retrying usually works on the second attempt.
+          Revenue impact estimated at $50K/hour during peak hours. No permanent data loss detected.
+    assertions:
+      - type: contains
+        value: '"P1"'
+        id: CLASSIFIES_P1_PAYMENTS
+      - type: is-json
+        id: RETURNS_VALID_JSON_PAYMENTS
+      - "Reasoning weighs the revenue impact despite the issue being intermittent"
+
+  - id: memory-leak-gradual
+    criteria: Should classify a gradual memory leak with days until impact as P2
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          Monitoring detected a gradual memory leak in the auth service. Memory usage is growing
+          at ~50MB/hour. Current usage is 2.1GB of 8GB available. At current rate, the service
+          will need a restart in approximately 3 days. Automated restarts are configured as a
+          safety net. No current user impact.
+    assertions:
+      - type: contains
+        value: '"P2"'
+        id: CLASSIFIES_P2_MEMORY
+      - type: is-json
+        id: RETURNS_VALID_JSON_MEMORY
+      - "Reasoning considers the time buffer and automated mitigations"
+
+  - id: ssl-cert-expiry
+    criteria: Should classify imminent SSL cert expiry as P1
+    input:
+      - role: system
+        content: *system_prompt
+      - role: user
+        content: |
+          SSL certificate for api.example.com expires in 4 hours. Auto-renewal failed due to
+          DNS validation timeout. If the cert expires, all HTTPS traffic to the production API
+          will show security warnings and many clients will refuse to connect. The team has
+          manual renewal steps documented but needs to act urgently.
+    assertions:
+      - type: contains
+        value: '"P1"'
+        id: CLASSIFIES_P1_SSL
+      - type: is-json
+        id: RETURNS_VALID_JSON_SSL
+      - "Reasoning mentions the time urgency and potential service disruption"

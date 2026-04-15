@@ -622,7 +622,7 @@ Increment `cycle` and return to step (a).
 
 #### 3. Completion
 
-1. Finalize `trajectory.html`: remove the auto-refresh `<meta>` tag so the chart becomes static.
+1. Finalize `trajectory.html`: remove the line containing `<!-- __AUTO_REFRESH__ -->` (which includes the `<meta http-equiv="refresh">` tag) so the chart becomes static.
 2. Log a final summary:
    - Total cycles run
    - Final best score vs original score (cycle 1)
