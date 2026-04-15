@@ -321,8 +321,8 @@ After improving:
 
 1. Apply your changes to the agent's prompts/skills/config
 2. Re-run all test cases (agentv creates a new `.agentv/results/runs/<timestamp>/` directory automatically)
-3. Compare against the previous iteration (Step 4)
-4. Present results to the user
+3. Compare against the previous iteration (Step 4). If running in automated mode, use the **automated keep/discard** logic below instead of manual judgment — it will decide whether to keep or revert the change for you.
+4. Present results to the user (or log the decision if running automated keep/discard)
 5. Stop when ANY of:
    - The user says they're happy
    - Feedback is all empty (everything looks good)
@@ -331,6 +331,87 @@ After improving:
    - Maximum iterations exhausted
 
 **Human checkpoints**: At iterations 3, 6, and 9, always present progress to the user regardless of automation settings. Push back if optimization is accumulating contradictory rules or overfitting to specific test cases.
+
+### Automated keep/discard
+
+After each iteration, you can automatically decide whether to keep or discard the change using structured comparison output. This replaces manual judgment at steps 3–4 of the iteration loop above, except at human checkpoint iterations (3, 6, 9) where you must still present results to the user.
+
+#### 1. Run the comparison
+
+After re-running test cases, compare the new results against the previous iteration's baseline:
+
+```bash
+agentv compare <baseline>.jsonl <candidate>.jsonl --json
+```
+
+Where `<baseline>.jsonl` is the `index.jsonl` from the previous best iteration and `<candidate>.jsonl` is the `index.jsonl` from the run you just completed.
+
+#### 2. Parse the output
+
+The `--json` flag produces structured output:
+
+```json
+{
+  "summary": {
+    "wins": 3,
+    "losses": 1,
+    "ties": 6,
+    "meanDelta": 0.05
+  }
+}
+```
+
+- **wins**: number of test cases where the candidate scored higher than the baseline
+- **losses**: number of test cases where the candidate scored lower
+- **ties**: number of test cases with no score change
+- **meanDelta**: average score difference across all test cases (positive = candidate is better)
+
+#### 3. Apply decision rules
+
+Use these rules in order:
+
+| Condition | Decision | Action |
+|-----------|----------|--------|
+| `wins > losses` | **KEEP** | Promote the candidate to the new baseline. Copy or note its `index.jsonl` path as the baseline for the next iteration. |
+| `wins <= losses` | **DISCARD** | Revert the prompt/skill/config change. The previous baseline remains. Try a different mutation on the next iteration. |
+| `meanDelta == 0` AND candidate prompt is shorter (fewer lines) | **KEEP** | Simpler prompts are preferred when performance is equal. Promote the candidate as the new baseline. |
+
+When `meanDelta == 0` and the candidate prompt is *not* shorter, treat it as a **DISCARD** — there's no reason to keep a change that adds complexity without improving results.
+
+#### 4. Log the decision
+
+Before proceeding to the next iteration, log the decision and rationale so the user can review later:
+
+```
+Iteration 2: KEEP
+  wins=3, losses=1, ties=6, meanDelta=+0.05
+  Rationale: candidate wins outweigh losses (3 > 1)
+  Baseline promoted: .agentv/results/runs/20250101-120000/index.jsonl
+```
+
+```
+Iteration 3: DISCARD
+  wins=1, losses=2, ties=7, meanDelta=-0.03
+  Rationale: candidate losses outweigh wins (2 > 1)
+  Reverted to baseline: .agentv/results/runs/20250101-110000/index.jsonl
+  Next: try a different mutation
+```
+
+Include this log in your progress summary. At human checkpoints (iterations 3, 6, 9), present the full log of automated decisions since the last checkpoint alongside the current results.
+
+#### 5. Integration with the iteration loop
+
+The automated keep/discard replaces the manual compare-and-present cycle (steps 3–4) during non-checkpoint iterations. The full flow becomes:
+
+1. Apply change to prompts/skills/config
+2. Re-run all test cases
+3. Run `agentv compare baseline.jsonl candidate.jsonl --json`
+4. Apply keep/discard rules → promote or revert
+5. Log the decision
+6. If this is iteration 3, 6, or 9 → present progress to the user (human checkpoint)
+7. Check stop conditions → continue or stop
+
+Both modes coexist: if the user is actively reviewing results, present to them as before. If the user has asked you to iterate autonomously, use automated keep/discard and only pause at human checkpoints.
 
 ---
 
