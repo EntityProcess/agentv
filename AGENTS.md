@@ -61,6 +61,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Prefer data-driven patterns (static mappings, config tables) over conditional chains — AI can extend a mapping by adding an entry, but has to trace logic to extend an if/else tree
 - No dead code or speculative infrastructure; if it's unused, delete it
 - When a module has an extension point, include a short recipe in the header (e.g., "To add a new provider: 1. Create a matcher, 2. Add it to the mapping")
+- When changing a module's behavior, update its file header to match. Stale headers are worse than no headers.
 
 **Scope:** Applies to skills, repo structure, documentation, SDK design, and source code — anything AI might need to reason about or extend.
 
@@ -258,6 +259,7 @@ Tests should be lean and focused on what matters. Follow these principles:
 - **One test per distinct behavior.** Don't write separate tests for trivially different inputs that exercise the same code path.
 - **No tests for obvious code.** If a function returns `undefined` for missing input and that's a one-line null check, you don't need a test for it unless it's a regression risk.
 - **Regression tests > comprehensive tests.** A test that would have caught the bug is worth more than five tests that exercise happy paths.
+- **Tests are executable contracts.** When a module's behavioral contract changes, the tests must reflect the new contract — not just the happy path. If you change what a function promises, update its tests to assert the new promise.
 
 ### Verifying Evaluator Changes
 
