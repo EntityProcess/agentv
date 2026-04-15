@@ -1500,6 +1500,9 @@ export async function runEvalCommand(
       );
     }
 
+    // Flush the output writer so all results are on disk before we read back.
+    await outputWriter.close().catch(() => undefined);
+
     // When resuming, compute summary from ALL results (old + new, deduplicated)
     let summaryResults = allResults;
     if (isResumeAppend && usesDefaultArtifactWorkspace) {
@@ -1518,8 +1521,8 @@ export async function runEvalCommand(
     const thresholdFailed = resolvedThreshold !== undefined && summary.qualityFailureCount > 0;
 
     // Print matrix summary when multiple targets were evaluated
-    if (isMatrixMode && allResults.length > 0) {
-      console.log(formatMatrixSummary(allResults));
+    if (isMatrixMode && summaryResults.length > 0) {
+      console.log(formatMatrixSummary(summaryResults));
     }
 
     // Write Agent Skills benchmark.json if requested (deprecated flag — backward compat)
