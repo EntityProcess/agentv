@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { LlmGraderEvaluator } from '../../src/evaluation/evaluators.js';
+import { LlmGrader } from '../../src/evaluation/graders.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
@@ -41,7 +41,7 @@ const baseTarget: ResolvedTarget = {
   config: { response: '{}' },
 };
 
-describe('LlmGraderEvaluator Variable Substitution', () => {
+describe('LlmGrader Variable Substitution', () => {
   it('substitutes template variables in custom prompt', async () => {
     const formattedQuestion = '@[User]: What is the status?\n\n@[Assistant]: Requesting more info.';
     const customPrompt = `
@@ -59,9 +59,9 @@ File Changes: {{file_changes}}
       }),
     });
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => graderProvider,
-      evaluatorTemplate: customPrompt,
+      graderTemplate: customPrompt,
     });
 
     const answer = 'Candidate Answer Text';
@@ -111,9 +111,9 @@ Candidate: {{output_text}}
       }),
     });
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => graderProvider,
-      evaluatorTemplate: customPrompt,
+      graderTemplate: customPrompt,
     });
 
     await evaluator.evaluate({
@@ -143,9 +143,9 @@ Candidate: {{output_text}}
       text: JSON.stringify({ score: 0.5, assertions: [] }),
     });
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => graderProvider,
-      evaluatorTemplate: customPrompt,
+      graderTemplate: customPrompt,
     });
 
     await evaluator.evaluate({
@@ -160,7 +160,7 @@ Candidate: {{output_text}}
 
     const request = graderProvider.lastRequest;
 
-    // When custom evaluatorTemplate is provided, it goes in user prompt (question)
+    // When custom graderTemplate is provided, it goes in user prompt (question)
     expect(request?.question).toContain('Fixed prompt without variables');
 
     // System prompt only contains output schema, not custom template
@@ -184,9 +184,9 @@ Candidate: {{ output }}
       }),
     });
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => graderProvider,
-      evaluatorTemplate: customPrompt,
+      graderTemplate: customPrompt,
     });
 
     const answer = 'Candidate Answer Text';
@@ -215,7 +215,7 @@ Candidate: {{ output }}
   });
 
   it('preserves freeform details returned by the grader', async () => {
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => undefined,
     });
 
@@ -224,7 +224,7 @@ Candidate: {{ output }}
         parseAgentResult: (
           text: string,
           rubrics: undefined,
-          evaluatorRawRequest: Record<string, unknown>,
+          graderRawRequest: Record<string, unknown>,
           details: Record<string, unknown>,
           graderTarget?: string,
         ) => { details?: Record<string, unknown> };

@@ -10,7 +10,7 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 
 3. **Batch processing**: `batch-cli-runner.ts` reads the CSV and applies synthetic AML screening rules, writing **actual responses** as JSONL to a temporary file. Each JSONL record includes `output` with `tool_calls` for trace extraction.
 
-4. **Evaluation**: AgentV compares the actual JSONL output against the ground truth in `evals/dataset.eval.yaml` using evaluators like `code_grader` and `tool_trajectory`.
+4. **Evaluation**: AgentV compares the actual JSONL output against the ground truth in `evals/dataset.eval.yaml` using graders like `code_grader` and `tool_trajectory`.
 
 ## Batch error handling (missing JSONL id)
 
@@ -45,7 +45,7 @@ The batch runner outputs JSONL records with `output` containing `tool_calls`:
 }
 ```
 
-The `tool_trajectory` evaluator extracts tool calls directly from `output[].tool_calls[]`. This is the primary format - no separate `trace` field is required.
+The `tool_trajectory` grader extracts tool calls directly from `output[].tool_calls[]`. This is the primary format - no separate `trace` field is required.
 
 ## Files
 

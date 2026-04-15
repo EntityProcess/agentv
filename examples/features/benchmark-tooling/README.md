@@ -244,7 +244,7 @@ bun examples/features/benchmark-tooling/scripts/significance-test.ts baseline.js
 
 ## benchmark-report
 
-Generates a consolidated benchmark summary across models and metrics from result JSONL files. Produces per-target aggregates (mean, std dev, median, pass rate, 95% CI) and per-metric breakdowns when evaluator-level scores are present.
+Generates a consolidated benchmark summary across models and metrics from result JSONL files. Produces per-target aggregates (mean, std dev, median, pass rate, 95% CI) and per-metric breakdowns when grader-level scores are present.
 
 ### Usage
 
@@ -274,7 +274,7 @@ bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
 
 **Per-Target Summary** includes for each model: record count, mean score, standard deviation, median, min, max, pass rate, and 95% confidence interval.
 
-**Per-Target Metric Breakdown** appears when records contain evaluator-level `scores[]` arrays, showing mean and spread for each evaluator (e.g., accuracy, latency) per target.
+**Per-Target Metric Breakdown** appears when records contain grader-level `scores[]` arrays, showing mean and spread for each grader (e.g., accuracy, latency) per target.
 
 **Machine-readable JSON** output (`--json`) returns a structured `BenchmarkReport` object with `summary`, `per_target`, `per_target_metrics`, and `overall` fields.
 

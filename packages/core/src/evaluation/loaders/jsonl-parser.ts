@@ -7,13 +7,13 @@ import { collectResolvedInputFilePaths } from '../input-message-utils.js';
 import { interpolateEnv } from '../interpolation.js';
 import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
+import { buildSearchRoots, fileExists, resolveToAbsolutePath } from './file-resolver.js';
 import {
   coerceEvaluator,
-  parseEvaluators,
+  parseGraders,
   parseInlineRubrics,
   warnUnconsumedCriteria,
-} from './evaluator-parser.js';
-import { buildSearchRoots, fileExists, resolveToAbsolutePath } from './file-resolver.js';
+} from './grader-parser.js';
 import { processExpectedMessages, processMessages } from './message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './shorthand-expansion.js';
 
@@ -271,9 +271,9 @@ export async function loadTestsFromJsonl(
     const mergedExecution = caseExecution ?? globalExecution;
 
     const testCaseEvaluatorKind = coerceEvaluator(testCaseConfig.evaluator, id) ?? globalEvaluator;
-    let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
+    let evaluators: Awaited<ReturnType<typeof parseGraders>>;
     try {
-      evaluators = await parseEvaluators(
+      evaluators = await parseGraders(
         testCaseConfig,
         mergedExecution,
         searchRoots,

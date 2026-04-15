@@ -23,7 +23,7 @@ export type {
 } from './evaluation/loaders/eval-yaml-transpiler.js';
 export * from './evaluation/file-utils.js';
 export * from './evaluation/providers/index.js';
-export * from './evaluation/evaluators.js';
+export * from './evaluation/graders.js';
 export * from './evaluation/orchestrator.js';
 export {
   evaluate,
@@ -99,14 +99,14 @@ export * from './observability/index.js';
 
 // Registry exports
 export {
-  EvaluatorRegistry,
-  DeterministicAssertionEvaluator,
-} from './evaluation/registry/evaluator-registry.js';
+  GraderRegistry,
+  DeterministicAssertionGrader,
+} from './evaluation/registry/grader-registry.js';
 export type {
-  EvaluatorDispatchContext,
-  EvaluatorFactoryFn,
-} from './evaluation/registry/evaluator-registry.js';
-export { createBuiltinRegistry } from './evaluation/registry/builtin-evaluators.js';
+  GraderDispatchContext,
+  GraderFactoryFn,
+} from './evaluation/registry/grader-registry.js';
+export { createBuiltinRegistry } from './evaluation/registry/builtin-graders.js';
 export { discoverAssertions } from './evaluation/registry/assertion-discovery.js';
 export {
   runContainsAssertion,
@@ -121,11 +121,8 @@ export {
   runIsJsonAssertion,
   runEqualsAssertion,
   type AssertionResult,
-} from './evaluation/evaluators/assertions.js';
-export {
-  discoverGraders,
-  discoverGraders as discoverJudges,
-} from './evaluation/registry/grader-discovery.js';
+} from './evaluation/graders/assertions.js';
+export { discoverGraders } from './evaluation/registry/grader-discovery.js';
 
 // Import pipeline
 export * from './import/index.js';

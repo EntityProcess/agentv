@@ -7,7 +7,7 @@ Demonstrates a complete **multi-model × multi-metric × variability** evaluatio
 | Feature | How it's used |
 |---------|---------------|
 | **Targets matrix** | Every test runs against `copilot`, `claude`, and `gemini-llm` |
-| **Weighted evaluators** | Accuracy (3×), completeness (2×), clarity (1×) |
+| **Weighted graders** | Accuracy (3×), completeness (2×), clarity (1×) |
 | **Trials (pass@k)** | 2 trials per test to surface non-determinism |
 | **Compare workflow** | Side-by-side model comparison from result files |
 
@@ -102,7 +102,7 @@ execution:
     - gemini-llm   # e.g., gemini-flash
 ```
 
-### 2. Weighted Evaluators
+### 2. Weighted Graders
 
 Three LLM graders score each response. Weights control their contribution to the aggregate score:
 
@@ -179,7 +179,7 @@ execution:
     - my_new_model    # Add here
 ```
 
-### Adding an evaluator
+### Adding an grader
 
 Add a new grader prompt in `prompts/` and reference it in the eval's `assertions` block:
 
@@ -205,6 +205,6 @@ execution:
 ## See Also
 
 - [`examples/features/matrix-evaluation/`](../../features/matrix-evaluation/) — minimal targets matrix example
-- [`examples/features/weighted-evaluators/`](../../features/weighted-evaluators/) — per-evaluator weight patterns
+- [`examples/features/weighted-graders/`](../../features/weighted-graders/) — per-grader weight patterns
 - [`examples/features/trials/`](../../features/trials/) — trial strategy configuration
 - [`examples/features/compare/`](../../features/compare/) — baseline vs candidate comparison

@@ -27,7 +27,7 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 
 | Example | Description |
 |---------|-------------|
-| [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool selection correctness, efficiency scoring, and pairwise comparison as code-grader plugins — includes a decision table for when to use plugins vs the built-in `tool_trajectory` evaluator |
+| [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool selection correctness, efficiency scoring, and pairwise comparison as code-grader plugins — includes a decision table for when to use plugins vs the built-in `tool_trajectory` grader |
 
 ---
 
@@ -39,11 +39,11 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 
 ---
 
-### Verify your evaluators are reliable
+### Verify your graders are reliable
 
 | Example | Description |
 |---------|-------------|
-| [evaluator-conformance](evaluator-conformance/) | Meta-harness that checks an evaluator for output compatibility and verdict stability, reporting flip rate, mean/variance, and bound violations across repeated runs |
+| [grader-conformance](grader-conformance/) | Meta-harness that checks an grader for output compatibility and verdict stability, reporting flip rate, mean/variance, and bound violations across repeated runs |
 
 ---
 
@@ -53,7 +53,7 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 |---------|----------|
 | [cross-repo-sync](cross-repo-sync/) | Code agents & multi-repo workflows |
 | [cw-incident-triage](cw-incident-triage/) | Classification tasks |
-| [evaluator-conformance](evaluator-conformance/) | Evaluator reliability |
+| [grader-conformance](grader-conformance/) | Grader reliability |
 | [export-screening](export-screening/) | Classification tasks |
 | [multi-model-benchmark](multi-model-benchmark/) | Weighted LLM panel |
 | [offline-grader-benchmark](offline-grader-benchmark/) | Weighted LLM panel |

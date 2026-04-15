@@ -7,7 +7,7 @@
  *
  * Usage in dataset.eval.yaml:
  * ```yaml
- * evaluators:
+ * graders:
  *   - name: party_names_fuzzy
  *     type: code_grader
  *     script: ["bun", "run", "../graders/multi_field_fuzzy.ts"]

@@ -500,10 +500,10 @@ const SCRIPT = `
     h+='<div class="detail-block"><h4>Output</h4><pre class="detail-pre">'+esc(r.output?JSON.stringify(r.output,null,2):"")+"</pre></div>";
     h+="</div>";
 
-    /* evaluator results */
+    /* grader results */
     if(r.scores&&r.scores.length>0){
-      h+="<h4>Evaluator Results</h4>";
-      h+='<table class="eval-table"><thead><tr><th>Evaluator</th><th>Score</th><th>Status</th><th>Assertions</th></tr></thead><tbody>';
+      h+="<h4>Grader Results</h4>";
+      h+='<table class="eval-table"><thead><tr><th>Grader</th><th>Score</th><th>Status</th><th>Assertions</th></tr></thead><tbody>';
       for(var i=0;i<r.scores.length;i++){
         var ev=r.scores[i],evS=ev.score>=0.5?"pass":"fail";
         var evAssertions=ev.assertions||[];

@@ -2,7 +2,7 @@
 """
 JSON Format Validator for AgentV
 Validates that the candidate answer is strictly valid JSON with required keys.
-Returns score 0.0 if not valid JSON, otherwise passes to next evaluator.
+Returns score 0.0 if not valid JSON, otherwise passes to next grader.
 """
 
 import json
@@ -68,7 +68,7 @@ def validate_json_format(candidate_answer: str, required_keys: list[str]) -> dic
 
 
 def main():
-    """Main entry point for AgentV code evaluator."""
+    """Main entry point for AgentV code grader."""
     # AgentV passes eval data via stdin as JSON
     try:
         eval_data = json.load(sys.stdin)

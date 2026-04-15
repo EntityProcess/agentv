@@ -33,7 +33,7 @@ After the agent is working well, you can also run description optimization to im
 This skill is used by people across a wide range of familiarity with evaluation tooling. Pay attention to context cues:
 
 - "evaluation" and "benchmark" are borderline but OK in most cases
-- For "YAML", "evaluator", "assertion", "deterministic judge" — see serious cues from the user that they know what those mean before using them without explanation
+- For "YAML", "grader", "assertion", "deterministic judge" — see serious cues from the user that they know what those mean before using them without explanation
 - Briefly explain terms if in doubt
 
 When presenting results, default to summary tables. Offer detail on request. In CI/headless mode, skip interactive prompts and exit with status codes.
@@ -48,7 +48,7 @@ Before running or optimizing, understand what you're working with.
 
 2. **Identify success criteria** — what does "good" look like for this agent? What are the edge cases? What would a failure look like? Talk to the user if this isn't clear from the artifacts alone.
 
-3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what evaluator types are available and how to run tests. Targets are configured in `.agentv/targets.yaml` (canonical location, searched from the eval file directory upward). Sensitive values like `api_key` must use `${{ ENV_VAR }}` syntax — literal secrets are rejected as a security guardrail.
+3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what grader types are available and how to run tests. Targets are configured in `.agentv/targets.yaml` (canonical location, searched from the eval file directory upward). Sensitive values like `api_key` must use `${{ ENV_VAR }}` syntax — literal secrets are rejected as a security guardrail.
 
 4. **Challenge assumptions** — if evals already exist, review their quality before running:
    - Are the test cases testing the right things?
@@ -56,7 +56,7 @@ Before running or optimizing, understand what you're working with.
    - Are there ambiguous or contradictory test cases?
    - Flag eval issues before proceeding — running bad evals wastes time.
 
-5. **Check integrity** — ensure task prompts (what the agent receives) are not also used as evaluator prompts (how outputs are scored). If a prompt file appears in both locations, note the overlap and optimize only for the task purpose.
+5. **Check integrity** — ensure task prompts (what the agent receives) are not also used as grader prompts (how outputs are scored). If a prompt file appears in both locations, note the overlap and optimize only for the task purpose.
 
 ---
 
@@ -89,7 +89,7 @@ Multi-skill evaluation is handled naturally via input messages — describe the 
 **evals.json** (skill-creator compatible) — auto-promoted to EVAL-equivalent format:
 - `prompt` → input messages
 - `expected_output` → reference answer
-- `assertions` → evaluators
+- `assertions` → graders
 - `files[]` paths resolved relative to the evals.json location
 
 ```json
@@ -112,9 +112,9 @@ Start with 2-3 realistic test cases — the kind of thing a real user would actu
 
 Good assertions are objectively verifiable and have descriptive names. Subjective quality ("the output is good") is better evaluated qualitatively — don't force assertions onto things that need human judgment.
 
-**Evaluator types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `code-grader`, `tool-trajectory`, `llm-grader`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
+**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `code-grader`, `tool-trajectory`, `llm-grader`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
 
-Prefer deterministic evaluators over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-grader`.
+Prefer deterministic graders over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-grader`.
 
 ---
 
@@ -162,7 +162,7 @@ agentv eval <eval-path> --target claude --target gpt --target copilot
 - **Improving existing**: snapshot the current version before editing (`cp -r <prompt-dir> <workspace>/prompt-snapshot/`), use as baseline throughout
 - **Multi-target**: each target is its own baseline — no need for a separate "without" run
 
-### While runs are in progress, draft evaluators
+### While runs are in progress, draft graders
 
 Don't just wait for runs to finish — use this time productively. If assertions don't exist yet, draft them now. If they exist, review them and explain what they check to the user.
 
@@ -311,9 +311,9 @@ This is the heart of the loop. You've run the test cases, analyzed the results, 
 
 ### Evaluation integrity
 
-**Critical**: Only optimize **task prompts** (what the agent receives), never **judge prompts** (how evaluators score outputs). Modifying judge prompts games the evaluation without improving the agent.
+**Critical**: Only optimize **task prompts** (what the agent receives), never **judge prompts** (how graders score outputs). Modifying judge prompts games the evaluation without improving the agent.
 
-If a prompt file is referenced in both task input and evaluator configs, optimize for the task purpose only. Document which prompts were modified in the optimization log.
+If a prompt file is referenced in both task input and grader configs, optimize for the task purpose only. Document which prompts were modified in the optimization log.
 
 ### The iteration loop
 

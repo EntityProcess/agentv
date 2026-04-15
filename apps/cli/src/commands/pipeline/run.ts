@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import { deriveCategory, loadTestSuite } from '@agentv/core';
-import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
+import type { CodeGraderConfig, GraderConfig, LlmGraderConfig } from '@agentv/core';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
@@ -391,7 +391,7 @@ async function writeJson(filePath: string, data: unknown): Promise<void> {
 
 async function writeGraderConfigs(
   testDir: string,
-  assertions: readonly EvaluatorConfig[],
+  assertions: readonly GraderConfig[],
   evalDir: string,
 ): Promise<void> {
   const codeGradersDir = join(testDir, 'code_graders');
@@ -406,7 +406,7 @@ async function writeGraderConfigs(
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;
       }
-      const config = assertion as CodeEvaluatorConfig;
+      const config = assertion as CodeGraderConfig;
       await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
         command: config.command,
@@ -419,7 +419,7 @@ async function writeGraderConfigs(
         await mkdir(llmGradersDir, { recursive: true });
         hasLlmGraders = true;
       }
-      const config = assertion as LlmGraderEvaluatorConfig;
+      const config = assertion as LlmGraderConfig;
       let promptContent = '';
       if (config.resolvedPromptPath) {
         try {

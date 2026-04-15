@@ -52,6 +52,6 @@ prompt-template-sdk/
   evals/
     dataset.eval.yaml  # Tests using TypeScript prompt
   prompts/
-    custom-evaluator.ts  # TypeScript prompt template
+    custom-grader.ts  # TypeScript prompt template
   README.md
 ```

@@ -1,4 +1,4 @@
-# Rubric Evaluator
+# Rubric Grader
 
 Rubrics are defined as `assertions` entries with `type: rubrics`. They support binary checklist grading and score-range analytic grading.
 
@@ -35,7 +35,7 @@ assertions:
 
 Equivalent to the full form with `type: rubrics`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
 
-Mixed strings and objects are supported in `assertions` — strings are grouped into a single rubrics evaluator at the position of the first string:
+Mixed strings and objects are supported in `assertions` — strings are grouped into a single rubrics grader at the position of the first string:
 
 ```yaml
 assertions:

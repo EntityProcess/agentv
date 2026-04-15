@@ -6,7 +6,7 @@ This example demonstrates **live turn-by-turn conversation evaluation** where th
 
 - `mode: conversation` — enables live turn-by-turn evaluation
 - `turns[]` — each entry is a user message that generates an LLM call
-- Per-turn `assertions` — string shorthand (rubric) and structured evaluators
+- Per-turn `assertions` — string shorthand (rubric) and structured graders
 - `aggregation: mean | min | max` — how turn scores combine
 - `on_turn_failure: stop | continue` — behavior on assertion failure
 - Top-level `assertions` — conversation-level grading after all turns

@@ -1,17 +1,17 @@
 # Per-Step Latency Assertions
 
-This example demonstrates how to use the `max_duration_ms` field in `tool_trajectory` evaluators to validate per-tool-call timing budgets.
+This example demonstrates how to use the `max_duration_ms` field in `tool_trajectory` graders to validate per-tool-call timing budgets.
 
 ## Overview
 
-The `tool_trajectory` evaluator now supports optional latency assertions on individual tool calls. This allows you to catch performance regressions at a granular level rather than only checking total execution time.
+The `tool_trajectory` grader now supports optional latency assertions on individual tool calls. This allows you to catch performance regressions at a granular level rather than only checking total execution time.
 
 ## Usage
 
 Add `max_duration_ms` to any expected tool item:
 
 ```yaml
-evaluators:
+graders:
   - name: perf-check
     type: tool-trajectory
     mode: in_order

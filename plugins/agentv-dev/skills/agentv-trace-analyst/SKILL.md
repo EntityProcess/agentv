@@ -61,7 +61,7 @@ For each failing test, examine:
 - **assertions (failed)**: What criteria were not met? (filter for `passed: false`)
 - **trace.tool_calls**: Did the agent use expected tools?
 - **duration_ms**: Did it time out or run too long?
-- **reasoning**: Why did the evaluator score it low?
+- **reasoning**: Why did the grader score it low?
 
 ### 4. Inspect specific tests
 

@@ -1,6 +1,6 @@
 # NLP Metrics Examples
 
-Demonstrates how to implement common NLP evaluation metrics as AgentV `code_grader` evaluators — no external dependencies required.
+Demonstrates how to implement common NLP evaluation metrics as AgentV `code_grader` graders — no external dependencies required.
 
 ## Graders
 
@@ -46,4 +46,4 @@ Each grader receives the candidate answer and reference text via the `defineCode
 
 ## Combining Metrics
 
-The `multi-metric-evaluation` test in `dataset.eval.yaml` shows how to attach multiple evaluators to a single test case. AgentV runs each grader independently and reports all scores.
+The `multi-metric-evaluation` test in `dataset.eval.yaml` shows how to attach multiple graders to a single test case. AgentV runs each grader independently and reports all scores.

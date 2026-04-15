@@ -1,11 +1,11 @@
-# Composite Evaluators
+# Composite Graders
 
-Demonstrates composite evaluator patterns for combining multiple evaluation criteria.
+Demonstrates composite grader patterns for combining multiple evaluation criteria.
 
 ## What This Shows
 
-- Combining multiple evaluators in a single test case
-- Weighted scoring across evaluators
+- Combining multiple graders in a single test case
+- Weighted scoring across graders
 - AND/OR logic patterns
 - Hierarchical evaluation strategies
 
@@ -18,4 +18,4 @@ bun agentv eval examples/features/composite/evals/dataset.eval.yaml
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` - Test cases with composite evaluator patterns
+- `evals/dataset.eval.yaml` - Test cases with composite grader patterns

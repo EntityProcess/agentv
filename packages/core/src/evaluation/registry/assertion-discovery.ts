@@ -11,9 +11,9 @@
 import path from 'node:path';
 import fg from 'fast-glob';
 
-import { CodeEvaluator } from '../evaluators/code-evaluator.js';
-import type { EvaluatorFactoryFn } from './evaluator-registry.js';
-import type { EvaluatorRegistry } from './evaluator-registry.js';
+import { CodeGrader } from '../graders/code-grader.js';
+import type { GraderFactoryFn } from './grader-registry.js';
+import type { GraderRegistry } from './grader-registry.js';
 
 /**
  * Discover custom assertion scripts from `.agentv/assertions/` and register
@@ -24,7 +24,7 @@ import type { EvaluatorRegistry } from './evaluator-registry.js';
  * @returns Names of discovered assertion types
  */
 export async function discoverAssertions(
-  registry: EvaluatorRegistry,
+  registry: GraderRegistry,
   baseDir: string,
 ): Promise<string[]> {
   const patterns = ['*.ts', '*.js', '*.mts', '*.mjs'];
@@ -63,8 +63,8 @@ export async function discoverAssertions(
       continue;
     }
 
-    const factory: EvaluatorFactoryFn = (_config, context) => {
-      return new CodeEvaluator({
+    const factory: GraderFactoryFn = (_config, context) => {
+      return new CodeGrader({
         command: ['bun', 'run', filePath],
         agentTimeoutMs: context.agentTimeoutMs,
       });

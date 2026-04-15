@@ -1,7 +1,7 @@
 # AgentV Per-Step Latency Assertions Demo
-# Demonstrates latency assertions in the tool_trajectory evaluator
+# Demonstrates latency assertions in the tool_trajectory grader
 #
-# The tool_trajectory evaluator now supports optional `max_duration_ms` assertions
+# The tool_trajectory grader now supports optional `max_duration_ms` assertions
 # on individual tool calls. This allows you to validate that tools complete within
 # timing budgets to catch performance regressions.
 #

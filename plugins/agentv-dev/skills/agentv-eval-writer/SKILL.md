@@ -367,7 +367,7 @@ Configure via `assertions` array. Multiple graders produce a weighted average sc
 Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
 Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 When a workspace is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
-See docs at https://agentv.dev/evaluators/code-graders/
+See docs at https://agentv.dev/graders/code-graders/
 
 ### llm_grader
 ```yaml
@@ -507,7 +507,7 @@ LLM-judged structured evaluation with weighted criteria. Criteria items support 
 
 ### rubrics (inline, deprecated)
 Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assertions` instead.
-See `references/rubric-evaluator.md` for score-range mode and scoring formula.
+See `references/rubric-grader.md` for score-range mode and scoring formula.
 
 ## Execution Error Tolerance
 

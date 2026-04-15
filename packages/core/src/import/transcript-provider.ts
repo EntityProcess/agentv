@@ -8,7 +8,7 @@
  *   1. Reads a transcript JSONL file (produced by `agentv import`)
  *   2. Each invocation pops the next line from the transcript
  *   3. Returns a ProviderResponse with pre-populated output, token usage, etc.
- *   4. Evaluators run identically to live eval — they see the same ProviderResponse
+ *   4. Graders run identically to live eval — they see the same ProviderResponse
  *
  * The provider name in results is set to the source provider from the transcript
  * (e.g., "claude", "codex", "copilot").

@@ -1,7 +1,7 @@
 # Tool Evaluation Plugins Demo
 # Demonstrates plugin-based (code grader) tool evaluation patterns
 #
-# These patterns complement the built-in tool_trajectory evaluator with
+# These patterns complement the built-in tool_trajectory grader with
 # semantic evaluation capabilities that require domain-specific logic.
 #
 # Run: cd examples/showcase/tool-evaluation-plugins

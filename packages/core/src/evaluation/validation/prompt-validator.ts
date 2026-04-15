@@ -72,7 +72,7 @@ export function validateTemplateVariables(content: string, source: string): void
 
   // WARNING: Invalid variables - show warning but continue
   if (invalidVariables.length > 0) {
-    const warningMessage = `${ANSI_YELLOW}Warning: Custom evaluator template at ${source}
+    const warningMessage = `${ANSI_YELLOW}Warning: Custom grader template at ${source}
   Contains invalid variables: ${invalidVariables.map((v) => `{{ ${v} }}`).join(', ')}
   Valid variables: ${Array.from(VALID_TEMPLATE_VARIABLES)
     .map((v) => `{{ ${v} }}`)

@@ -6,7 +6,7 @@ core workflow step.
 
 **Provider compatibility**: Description optimization applies to any agent platform with
 skill-discovery mechanisms — Claude Code, Codex (`.agents/` or `.codex/` folders), Copilot,
-and others. The `skill-trigger` evaluator checks whether the agent invoked the right skill,
+and others. The `skill-trigger` grader checks whether the agent invoked the right skill,
 regardless of how discovery works on that platform.
 
 ## Step 1: Generate Trigger EVAL.yaml

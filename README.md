@@ -107,7 +107,7 @@ console.log(`${summary.passed}/${summary.total} passed`);
 Full docs at [agentv.dev/docs](https://agentv.dev/docs/getting-started/introduction/).
 
 - [Eval files](https://agentv.dev/docs/evaluation/eval-files/) — format and structure
-- [Custom evaluators](https://agentv.dev/docs/evaluators/custom-evaluators/) — code graders in any language
+- [Custom graders](https://agentv.dev/docs/graders/custom-graders/) — code graders in any language
 - [Rubrics](https://agentv.dev/docs/evaluation/rubrics/) — structured criteria scoring
 - [Targets](https://agentv.dev/docs/targets/configuration/) — configure agents and providers
 - [Compare results](https://agentv.dev/docs/tools/compare/) — A/B testing and regression detection

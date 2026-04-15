@@ -1,6 +1,6 @@
 # File changes feature demonstration
 # Tests that AgentV captures workspace file changes (edits, creates, deletes)
-# and passes them to evaluators via the file_changes field.
+# and passes them to graders via the file_changes field.
 #
 # The workspace-template/ contains: hello.txt, config.json, obsolete.log, src/main.ts
 # The mock agent: edits hello.txt + config.json, creates src/utils.ts + tests/main.test.ts,

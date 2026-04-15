@@ -2,7 +2,7 @@
 #
 # Demonstrates multi-model × multi-metric × variability workflow:
 #   - Targets matrix: runs every test against multiple models
-#   - Weighted evaluators: accuracy (3×), completeness (2×), clarity (1×)
+#   - Weighted graders: accuracy (3×), completeness (2×), clarity (1×)
 #   - Trials: pass@k with 2 trials to measure variability
 #
 # Default targets use low-cost models for safe experimentation.

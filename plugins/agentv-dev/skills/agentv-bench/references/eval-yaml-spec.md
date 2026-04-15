@@ -19,7 +19,7 @@ The grader agent uses this to evaluate assertions without the CLI.
 - `input` (string | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`
 - `expected_output` (string | Message[], optional) — reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`
 - `criteria` (string, optional) — human-readable success criteria
-- `assertions` (array, optional) — evaluator assertions
+- `assertions` (array, optional) — grader assertions
 - `conversation_id` (string, optional) — groups related tests
 - `execution` (object, optional) — per-test execution override
 
@@ -224,7 +224,7 @@ Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, f
 
 ### Optional fields
 
-- `scores` (array of EvaluatorResult) — per-evaluator breakdown
+- `scores` (array of EvaluatorResult) — per-grader breakdown
 - `input` (Message[]) — input messages
 - `token_usage` (object: `{prompt_tokens, completion_tokens, total_tokens}`)
 - `cost_usd` (number)
@@ -237,8 +237,8 @@ Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, f
 
 ### `scores[]` entries (EvaluatorResult)
 
-- `name` (string) — evaluator name
-- `type` (string) — evaluator kind (kebab-case)
+- `name` (string) — grader name
+- `type` (string) — grader kind (kebab-case)
 - `score` (number, 0.0-1.0)
 - `assertions` (array of `{text, passed, evidence?}`)
 - `weight` (number, optional)
@@ -324,7 +324,7 @@ LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.js
 
 **Output:**
 - `<test-id>/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
-- `index.jsonl` — one JSON line per test: `{test_id, score, pass, evaluators: [...]}`
+- `index.jsonl` — one JSON line per test: `{test_id, score, pass, graders: [...]}`
 - `benchmark.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
 
 ### Agent-Mode Workflow

@@ -6,7 +6,7 @@
  * This is a simple sanity check that metrics collection is working.
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   graders:
  *     - name: metrics-present
  *       type: code_grader
  *       script: ["bun", "run", "../scripts/check-metrics-present.ts"]

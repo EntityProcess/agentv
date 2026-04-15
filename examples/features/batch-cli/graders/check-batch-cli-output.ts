@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Batch CLI Output Evaluator - Code Grader
+ * Batch CLI Output Grader - Code Grader
  *
  * Validates that the batch CLI runner produces the expected decision
  * by comparing candidate output against expected_output or input.

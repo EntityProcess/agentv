@@ -116,7 +116,7 @@ export class TargetInvocationError extends Error {
  *
  *   const response = await target.invoke({
  *     question: `Is this answer correct? Question: ${question}, Expected: ${criteria}`,
- *     systemPrompt: 'You are an expert evaluator. Respond with JSON: { "correct": true/false }'
+ *     systemPrompt: 'You are an expert grader. Respond with JSON: { "correct": true/false }'
  *   });
  *
  *   const result = JSON.parse(response.rawText ?? '{}');

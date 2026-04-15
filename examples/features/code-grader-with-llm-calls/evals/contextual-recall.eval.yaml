@@ -1,4 +1,4 @@
-# Contextual Recall Evaluator
+# Contextual Recall Grader
 #
 # Evaluates whether retrieval context covers all statements in the expected answer.
 # This metric identifies gaps where retrieval failed to surface needed information.

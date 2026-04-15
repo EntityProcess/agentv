@@ -1,10 +1,10 @@
 # Code Grader SDK Helper
 
-Demonstrates how a TypeScript code_grader evaluator can use `defineCodeGrader` from `@agentv/eval` for a declarative, zero-boilerplate approach.
+Demonstrates how a TypeScript code_grader grader can use `defineCodeGrader` from `@agentv/eval` for a declarative, zero-boilerplate approach.
 
 ## Files
 
-- `evals/dataset.eval.yaml`: Example test that uses a code_grader evaluator.
+- `evals/dataset.eval.yaml`: Example test that uses a code_grader grader.
 - `scripts/verify-attachments.ts`: Code grader script using `defineCodeGrader`.
 - `evals/example.txt`, `evals/python.instructions.md`: Attachment fixtures.
 

@@ -1,4 +1,4 @@
-import type { EvaluationResult, EvaluatorResult } from './types.js';
+import type { EvaluationResult, GraderResult } from './types.js';
 
 /**
  * Top-level fields to strip from baseline results.
@@ -23,26 +23,26 @@ const STRIPPED_TOP_LEVEL_FIELDS = new Set([
 ]);
 
 /**
- * Fields to strip from evaluator results.
+ * Fields to strip from grader results.
  */
 const STRIPPED_EVALUATOR_FIELDS = new Set(['rawRequest', 'input']);
 
 /**
  * Trims an evaluator result for baseline storage.
  * Strips debug/audit fields while preserving scoring data.
- * Recursively trims nested evaluator results (for composites).
+ * Recursively trims nested grader results (for composites).
  */
-function trimEvaluatorResult(result: EvaluatorResult): EvaluatorResult {
+function trimEvaluatorResult(result: GraderResult): GraderResult {
   const trimmed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(result)) {
     if (STRIPPED_EVALUATOR_FIELDS.has(key)) continue;
     if (key === 'scores' && Array.isArray(value)) {
-      trimmed[key] = (value as EvaluatorResult[]).map(trimEvaluatorResult);
+      trimmed[key] = (value as GraderResult[]).map(trimEvaluatorResult);
     } else {
       trimmed[key] = value;
     }
   }
-  return trimmed as unknown as EvaluatorResult;
+  return trimmed as unknown as GraderResult;
 }
 
 /**
@@ -57,7 +57,7 @@ export function trimBaselineResult(result: EvaluationResult): EvaluationResult {
   for (const [key, value] of Object.entries(result)) {
     if (STRIPPED_TOP_LEVEL_FIELDS.has(key)) continue;
     if (key === 'scores' && Array.isArray(value)) {
-      trimmed[key] = (value as EvaluatorResult[]).map(trimEvaluatorResult);
+      trimmed[key] = (value as GraderResult[]).map(trimEvaluatorResult);
     } else {
       trimmed[key] = value;
     }

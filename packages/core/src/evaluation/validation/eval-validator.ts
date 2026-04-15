@@ -4,14 +4,14 @@ import { parse } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
 import { loadCasesFromFile } from '../loaders/case-file-loader.js';
-import { isEvaluatorKind } from '../types.js';
+import { isGraderKind } from '../types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
 
-/** Assertion evaluator types that require a string `value` field. */
+/** Assertion grader types that require a string `value` field. */
 const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
   'contains',
   'icontains',
@@ -20,7 +20,7 @@ const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
   'equals',
   'regex',
 ]);
-/** Assertion evaluator types that require a string[] `value` field. */
+/** Assertion grader types that require a string[] `value` field. */
 const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
   'contains-any',
   'contains-all',
@@ -756,7 +756,7 @@ function validateAssertArray(
     // Normalize snake_case to kebab-case for backward compatibility
     const typeValue = rawTypeValue.replace(/_/g, '-');
 
-    if (!isEvaluatorKind(typeValue) && !customAssertionTypes.has(typeValue)) {
+    if (!isGraderKind(typeValue) && !customAssertionTypes.has(typeValue)) {
       errors.push({
         severity: 'warning',
         filePath,

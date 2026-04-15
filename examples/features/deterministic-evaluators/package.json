@@ -1,8 +1,0 @@
-{
-  "name": "agentv-example-deterministic-evaluators",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@agentv/eval": "file:../../../packages/eval"
-  }
-}

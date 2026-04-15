@@ -20,14 +20,14 @@ import {
   extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
+import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
 import {
   coerceEvaluator,
-  parseEvaluators,
+  parseGraders,
   parseInlineRubrics,
   parsePreprocessors,
   warnUnconsumedCriteria,
-} from './loaders/evaluator-parser.js';
-import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
+} from './loaders/grader-parser.js';
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import {
@@ -42,7 +42,7 @@ import type {
   ConversationTurn,
   DockerWorkspaceConfig,
   EvalTest,
-  EvaluatorConfig,
+  GraderConfig,
   JsonObject,
   JsonValue,
   RepoConfig,
@@ -482,9 +482,9 @@ async function loadTestsFromYaml(
       .join(' ');
 
     const testCaseEvaluatorKind = coerceEvaluator(testCaseConfig.evaluator, id) ?? globalEvaluator;
-    let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
+    let evaluators: Awaited<ReturnType<typeof parseGraders>>;
     try {
-      evaluators = await parseEvaluators(
+      evaluators = await parseGraders(
         testCaseConfig,
         globalExecution,
         searchRoots,
@@ -624,12 +624,12 @@ function parseTurns(rawTurns: readonly unknown[]): ConversationTurn[] {
     const expectedOutput = turn.expected_output as TestMessageContent | undefined;
 
     // Parse per-turn assertions (string shorthand or structured evaluator config)
-    let assertions: (string | EvaluatorConfig)[] | undefined;
+    let assertions: (string | GraderConfig)[] | undefined;
     if (Array.isArray(turn.assertions)) {
       assertions = turn.assertions.map((a: unknown) => {
         if (typeof a === 'string') return a;
         // Structured evaluator config — pass through as-is (validated by Zod schema)
-        return a as EvaluatorConfig;
+        return a as GraderConfig;
       });
     }
 

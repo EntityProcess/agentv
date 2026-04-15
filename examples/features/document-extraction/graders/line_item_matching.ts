@@ -13,7 +13,7 @@
  *
  * Usage in dataset.eval.yaml:
  * ```yaml
- * evaluators:
+ * graders:
  *   - name: line_items_matched
  *     type: code_grader
  *     script: ["bun", "run", "../graders/line_item_matching.ts"]

@@ -1,7 +1,7 @@
 # Tool-Call F1 Scoring Example
 #
 # Demonstrates using code_grader plugins to compute F1 scores over tool calls.
-# The graders compare expected tools (from evaluator config) against actual
+# The graders compare expected tools (from grader config) against actual
 # tool calls in the agent's output messages.
 #
 # Run:

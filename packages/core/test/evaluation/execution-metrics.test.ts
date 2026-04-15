@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
+import { CodeGrader } from '../../src/evaluation/graders.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import {
   type TraceComputeResult,
@@ -264,7 +264,7 @@ describe('Code Grader Metrics Integration', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-trace-summary.cjs')];
 
-    const evaluator = new CodeEvaluator({ command: script });
+    const evaluator = new CodeGrader({ command: script });
 
     const trace: TraceSummary = {
       eventCount: 3,
@@ -303,7 +303,7 @@ describe('Code Grader Metrics Integration', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-no-trace-summary.cjs')];
 
-    const evaluator = new CodeEvaluator({ command: script });
+    const evaluator = new CodeGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,

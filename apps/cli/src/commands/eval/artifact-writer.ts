@@ -4,7 +4,7 @@ import path from 'node:path';
 import {
   DEFAULT_THRESHOLD,
   type EvaluationResult,
-  type EvaluatorResult,
+  type GraderResult,
   toTranscriptJsonLines,
 } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
@@ -227,9 +227,7 @@ function buildAssertions(result: EvaluationResult): GradingArtifact['assertions'
 // Build graders list
 // ---------------------------------------------------------------------------
 
-function buildEvaluators(
-  scores: readonly EvaluatorResult[] | undefined,
-): GradingArtifact['graders'] {
+function buildEvaluators(scores: readonly GraderResult[] | undefined): GradingArtifact['graders'] {
   if (!scores || scores.length === 0) {
     return undefined;
   }
@@ -370,7 +368,7 @@ export function buildBenchmarkArtifact(
     runSummary[target] = entry as (typeof runSummary)[string];
   }
 
-  // Per-evaluator summary across all results
+  // Per-grader summary across all results
   const evaluatorScores = new Map<string, number[]>();
   for (const result of results) {
     if (result.scores) {

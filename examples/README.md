@@ -24,7 +24,7 @@ Examples are organized into two categories:
 
 ```
 examples/
-├── features/       # Feature demonstrations (evaluators, metrics, SDK)
+├── features/       # Feature demonstrations (graders, metrics, SDK)
 └── showcase/       # Real-world use cases and end-to-end demos
 ```
 
@@ -38,15 +38,15 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [rubric](features/rubric/) - Rubric-based evaluation
 - [tool-trajectory-simple](features/tool-trajectory-simple/) - Tool trajectory validation
 - [tool-trajectory-advanced](features/tool-trajectory-advanced/) - Advanced tool trajectory with expected_output
-- [composite](features/composite/) - Composite evaluator patterns
-- [weighted-evaluators](features/weighted-evaluators/) - Weighted evaluators
+- [composite](features/composite/) - Composite grader patterns
+- [weighted-graders](features/weighted-graders/) - Weighted graders
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
 - [code-grader-with-llm-calls](features/code-grader-with-llm-calls/) - Code graders with target proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
 - [document-extraction](features/document-extraction/) - Document data extraction
 - [local-cli](features/local-cli/) - Local CLI targets
 - [compare](features/compare/) - Baseline comparison
-- [deterministic-evaluators](features/deterministic-evaluators/) - Deterministic assertions (contains, regex, JSON validation)
+- [deterministic-graders](features/deterministic-graders/) - Deterministic assertions (contains, regex, JSON validation)
 - [workspace-setup-script](features/workspace-setup-script/) - Multi-step workspace setup with `before_all` lifecycle hook
 
 ### SDK
@@ -78,7 +78,7 @@ Each example follows this structure:
 example-name/
 ├── evals/
 │   ├── dataset.eval.yaml     # Primary eval file
-│   ├── *.ts or *.py          # Code evaluators (optional)
+│   ├── *.ts or *.py          # Code graders (optional)
 │   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/

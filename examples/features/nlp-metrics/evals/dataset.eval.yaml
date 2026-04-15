@@ -1,9 +1,9 @@
-# NLP Metrics Evaluator Examples
+# NLP Metrics Grader Examples
 # Demonstrates ROUGE, BLEU, cosine similarity, and Levenshtein distance
-# as code_grader evaluators — no external dependencies required.
+# as code_grader graders — no external dependencies required.
 
 name: nlp-metrics
-description: NLP text-quality metrics using code_grader evaluators
+description: NLP text-quality metrics using code_grader graders
 
 execution:
   target: llm

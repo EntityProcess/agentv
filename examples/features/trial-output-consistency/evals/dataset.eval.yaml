@@ -1,4 +1,4 @@
-# Trial Output Consistency Evaluator
+# Trial Output Consistency Grader
 # Measures how consistent an agent's outputs are across repeated trials
 # using pairwise cosine similarity (embedding-based or token-overlap fallback).
 #

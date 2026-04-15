@@ -12,7 +12,7 @@
  * - Not all evaluations need comparative assessment
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   graders:
  *     - name: pairwise-compare
  *       type: code_grader
  *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]

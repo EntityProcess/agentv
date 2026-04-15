@@ -7,7 +7,7 @@ Open standard spec + Starlight docs site at agentevals.io.
 Must reflect agentv's (EntityProcess/agentv) capabilities.
 
 Key docs paths:
-- `docs/src/content/docs/specification/evaluators.mdx`
+- `docs/src/content/docs/specification/graders.mdx`
 - `docs/src/content/docs/specification/eval-format.mdx`
 - `docs/src/content/docs/specification/evalcase-schema.mdx`
 - `docs/src/content/docs/patterns/`
@@ -22,7 +22,7 @@ Key source paths:
 - `packages/core/src/evaluation/yaml-parser.ts`
 
 ## Sync Rules
-- agentv evaluator changes → update `agentevals/docs/src/content/docs/specification/evaluators.mdx`
+- agentv grader changes → update `agentevals/docs/src/content/docs/specification/graders.mdx`
 - agentv schema changes → update `agentevals/docs/src/content/docs/specification/eval-format.mdx` and `evalcase-schema.mdx`
 - New patterns → update `agentevals/docs/src/content/docs/patterns/`
 - Preserve existing Starlight/MDX formatting conventions

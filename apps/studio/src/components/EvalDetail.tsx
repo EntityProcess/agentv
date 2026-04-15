@@ -4,7 +4,7 @@
  *
  * Layout: compact header → tabs → full-height content area.
  * Scores and assertions are only visible in the Checks tab.
- * Assertions are grouped by evaluator name.
+ * Assertions are grouped by grader name.
  */
 
 import { useState } from 'react';
@@ -144,7 +144,7 @@ function AssertionCard({ assertion }: { assertion: AssertionEntry }) {
 }
 
 /**
- * Checks tab: overall score → per-evaluator scores → assertions → failure reasons.
+ * Checks tab: overall score → per-grader scores → assertions → failure reasons.
  * Assertions are grouped by evaluator when per-score assertion data is available.
  */
 function ChecksTab({ result }: { result: EvalResult }) {
@@ -201,10 +201,10 @@ function ChecksTab({ result }: { result: EvalResult }) {
         </div>
       </div>
 
-      {/* Per-evaluator scores */}
+      {/* Per-grader scores */}
       {result.scores && result.scores.length > 0 && (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
-          <h4 className="mb-3 text-sm font-medium text-gray-400">Evaluator Scores</h4>
+          <h4 className="mb-3 text-sm font-medium text-gray-400">Grader Scores</h4>
           <div className="space-y-3">
             {result.scores.map((s, i) => (
               <div key={`${s.name ?? s.type ?? i}`} className="flex items-center gap-4">
@@ -224,7 +224,7 @@ function ChecksTab({ result }: { result: EvalResult }) {
       {useGrouped ? (
         <div className="space-y-6">
           {scoresWithAssertions.map((s, si) => {
-            const graderLabel = s.name ?? s.type ?? `Evaluator ${si + 1}`;
+            const graderLabel = s.name ?? s.type ?? `Grader ${si + 1}`;
             return (
               <div key={`${s.name ?? s.type ?? si}`} className="space-y-2">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">

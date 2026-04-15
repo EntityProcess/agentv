@@ -28,7 +28,7 @@ interface EvaluatorScore {
 
 export const evalBenchCommand = command({
   name: 'bench',
-  description: 'Merge evaluator scores and produce benchmark artifacts',
+  description: 'Merge grader scores and produce benchmark artifacts',
   args: {
     exportDir: positional({
       type: string,

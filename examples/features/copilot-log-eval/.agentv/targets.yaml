@@ -1,6 +1,6 @@
 targets:
   # Passive transcript reader — reads Copilot CLI session transcripts from disk.
-  # Zero API cost. No grader_target needed for deterministic evaluators.
+  # Zero API cost. No grader_target needed for deterministic graders.
   #
   # Usage:
   #   agentv eval evals/skill-trigger.EVAL.yaml --target copilot-log

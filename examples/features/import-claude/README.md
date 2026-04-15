@@ -1,9 +1,9 @@
 # Import Claude — Offline Transcript Grading
 
 Demonstrates importing a Claude Code session transcript and grading it
-offline with deterministic evaluators. **No LLM API key needed.**
+offline with deterministic graders. **No LLM API key needed.**
 
-Evaluators used:
+Graders used:
 - `code-grader` — custom TypeScript grader inspecting the full `Message[]` with tool calls
 
 ## Setup
@@ -49,7 +49,7 @@ The import pipeline:
 4. Aggregates token usage (last cumulative value per LLM request)
 5. Writes a clean `Message[]` JSONL for evaluation
 
-## Evaluators
+## Graders
 
 ### transcript-quality (code-grader)
 

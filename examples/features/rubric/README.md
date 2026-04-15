@@ -1,4 +1,4 @@
-# Rubric Evaluator Example
+# Rubric Grader Example
 
 Demonstrates rubric-based evaluation with weights, required flags, and auto-generation.
 

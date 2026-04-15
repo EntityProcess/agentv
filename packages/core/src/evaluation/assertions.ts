@@ -2,7 +2,7 @@
  * Types for inline assertion functions used in the evaluate() API.
  *
  * Inline functions are the escape hatch for custom evaluation logic
- * that doesn't fit a built-in evaluator type. For built-in assertions
+ * that doesn't fit a built-in grader type. For built-in assertions
  * (contains, regex, is-json, etc.), use config objects instead:
  *
  *   assert: [{ type: 'contains', value: 'hello' }]

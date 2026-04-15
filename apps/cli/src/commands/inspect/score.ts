@@ -2,9 +2,9 @@ import {
   type EvalTest,
   type EvaluationContext,
   type EvaluationScore,
-  type Evaluator,
-  type EvaluatorConfig,
-  type EvaluatorDispatchContext,
+  type Grader,
+  type GraderConfig,
+  type GraderDispatchContext,
   type Message,
   type Provider,
   type ProviderRequest,
@@ -24,7 +24,7 @@ import {
 } from './utils.js';
 
 /**
- * Evaluator types that work without an LLM provider.
+ * Grader types that work without an LLM provider.
  */
 const SUPPORTED_TYPES = [
   'contains',
@@ -52,7 +52,7 @@ function parseKeyValues(s: string): Record<string, string> {
 }
 
 /**
- * Parse an inline evaluator spec string into an EvaluatorConfig.
+ * Parse an inline evaluator spec string into an GraderConfig.
  *
  * Supported formats:
  *   contains:value
@@ -64,7 +64,7 @@ function parseKeyValues(s: string): Record<string, string> {
  *   token-usage:max_total=N,max_input=N,max_output=N
  *   execution-metrics:max_tool_calls=N,max_tokens=N,max_llm_calls=N,...
  */
-export function parseAssertSpec(spec: string): EvaluatorConfig {
+export function parseAssertSpec(spec: string): GraderConfig {
   const colonIdx = spec.indexOf(':');
   // Normalize snake_case to kebab-case for backward compat
   const type = (colonIdx === -1 ? spec : spec.slice(0, colonIdx)).replace(/_/g, '-');
@@ -73,31 +73,31 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
   switch (type) {
     case 'contains':
       if (!params) throw new Error('contains requires a value: contains:<value>');
-      return { name: 'contains', type: 'contains', value: params } as EvaluatorConfig;
+      return { name: 'contains', type: 'contains', value: params } as GraderConfig;
 
     case 'regex':
       if (!params) throw new Error('regex requires a pattern: regex:<pattern>');
-      return { name: 'regex', type: 'regex', value: params } as EvaluatorConfig;
+      return { name: 'regex', type: 'regex', value: params } as GraderConfig;
 
     case 'is-json':
-      return { name: 'is-json', type: 'is-json' } as EvaluatorConfig;
+      return { name: 'is-json', type: 'is-json' } as GraderConfig;
 
     case 'equals':
       if (!params) throw new Error('equals requires a value: equals:<value>');
-      return { name: 'equals', type: 'equals', value: params } as EvaluatorConfig;
+      return { name: 'equals', type: 'equals', value: params } as GraderConfig;
 
     case 'latency': {
       const threshold = Number(params);
       if (!params || Number.isNaN(threshold))
         throw new Error('latency requires a threshold in ms: latency:<ms>');
-      return { name: 'latency', type: 'latency', threshold } as EvaluatorConfig;
+      return { name: 'latency', type: 'latency', threshold } as GraderConfig;
     }
 
     case 'cost': {
       const budget = Number(params);
       if (!params || Number.isNaN(budget))
         throw new Error('cost requires a budget in USD: cost:<usd>');
-      return { name: 'cost', type: 'cost', budget } as EvaluatorConfig;
+      return { name: 'cost', type: 'cost', budget } as GraderConfig;
     }
 
     case 'token-usage': {
@@ -106,7 +106,7 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
       if (kv.max_total) config.max_total = Number(kv.max_total);
       if (kv.max_input) config.max_input = Number(kv.max_input);
       if (kv.max_output) config.max_output = Number(kv.max_output);
-      return config as EvaluatorConfig;
+      return config as GraderConfig;
     }
 
     case 'execution-metrics': {
@@ -120,12 +120,12 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
       if (kv.max_tokens) config.max_tokens = Number(kv.max_tokens);
       if (kv.max_cost_usd) config.max_cost_usd = Number(kv.max_cost_usd);
       if (kv.max_duration_ms) config.max_duration_ms = Number(kv.max_duration_ms);
-      return config as EvaluatorConfig;
+      return config as GraderConfig;
     }
 
     default:
       throw new Error(
-        `Unsupported evaluator type: "${type}". Supported: ${SUPPORTED_TYPES.join(', ')}`,
+        `Unsupported grader type: "${type}". Supported: ${SUPPORTED_TYPES.join(', ')}`,
       );
   }
 }
@@ -171,7 +171,7 @@ const stubProvider: Provider = {
 /**
  * A no-op evaluator stub used as the required llmGrader in the dispatch context.
  */
-const stubLlmGrader: Evaluator = {
+const stubLlmGrader: Grader = {
   kind: 'llm-grader',
   evaluate(): EvaluationScore {
     throw new Error('trace score does not support LLM-based evaluators');
@@ -189,12 +189,12 @@ interface ScoreResult {
 
 async function runScore(
   results: RawResult[],
-  evaluatorConfig: EvaluatorConfig,
+  evaluatorConfig: GraderConfig,
   testIdFilter?: string,
 ): Promise<ScoreResult[]> {
   const registry = createBuiltinRegistry();
 
-  const dispatchContext: EvaluatorDispatchContext = {
+  const dispatchContext: GraderDispatchContext = {
     llmGrader: stubLlmGrader,
     registry,
   };
@@ -308,7 +308,7 @@ export const traceScoreCommand = command({
       long: 'assert',
       short: 'a',
       description:
-        'Evaluator spec: contains:<val>, regex:<pat>, is-json, equals:<val>, latency:<ms>, cost:<usd>, token-usage:<params>, execution-metrics:<params>',
+        'Grader spec: contains:<val>, regex:<pat>, is-json, equals:<val>, latency:<ms>, cost:<usd>, token-usage:<params>, execution-metrics:<params>',
     }),
     testId: option({
       type: optional(string),
@@ -324,7 +324,7 @@ export const traceScoreCommand = command({
   },
   handler: async ({ file, assert: assertSpec, testId, format }) => {
     // Parse the evaluator spec
-    let evaluatorConfig: EvaluatorConfig;
+    let evaluatorConfig: GraderConfig;
     try {
       evaluatorConfig = parseAssertSpec(assertSpec);
     } catch (err) {
