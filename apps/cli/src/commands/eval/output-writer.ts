@@ -22,10 +22,11 @@ export interface WriterOptions {
 export async function createOutputWriter(
   filePath: string,
   format: OutputFormat,
+  options?: { append?: boolean },
 ): Promise<OutputWriter> {
   switch (format) {
     case 'jsonl':
-      return JsonlWriter.open(filePath);
+      return JsonlWriter.open(filePath, { append: options?.append });
     case 'yaml':
       return YamlWriter.open(filePath);
     case 'html':

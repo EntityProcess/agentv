@@ -15,9 +15,10 @@ export class JsonlWriter {
     this.stream = stream;
   }
 
-  static async open(filePath: string): Promise<JsonlWriter> {
+  static async open(filePath: string, options?: { append?: boolean }): Promise<JsonlWriter> {
     await mkdir(path.dirname(filePath), { recursive: true });
-    const stream = createWriteStream(filePath, { flags: 'w', encoding: 'utf8' });
+    const flags = options?.append ? 'a' : 'w';
+    const stream = createWriteStream(filePath, { flags, encoding: 'utf8' });
     return new JsonlWriter(stream);
   }
 

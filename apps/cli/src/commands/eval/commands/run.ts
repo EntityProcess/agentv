@@ -160,6 +160,16 @@ export const evalRunCommand = command({
       description:
         'Path to a previous run workspace or index.jsonl manifest — re-run only execution_error test cases',
     }),
+    resume: flag({
+      long: 'resume',
+      description:
+        'Resume an interrupted run: skip already-completed tests and append new results to --output dir',
+    }),
+    rerunFailed: flag({
+      long: 'rerun-failed',
+      description:
+        'Rerun failed/errored tests while keeping passing results. Implies --resume semantics',
+    }),
     strict: flag({
       long: 'strict',
       description: 'Exit with error on version mismatch (instead of warning)',
@@ -254,6 +264,8 @@ export const evalRunCommand = command({
       otelCaptureContent: args.otelCaptureContent,
       otelGroupTurns: args.otelGroupTurns,
       retryErrors: args.retryErrors,
+      resume: args.resume,
+      rerunFailed: args.rerunFailed,
       strict: args.strict,
       benchmarkJson: args.benchmarkJson,
       artifacts: args.artifacts,

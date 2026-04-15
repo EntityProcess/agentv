@@ -11,6 +11,53 @@ import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 
 // ---------------------------------------------------------------------------
+// Deduplication helper — keeps last entry per (test_id, target) pair
+// ---------------------------------------------------------------------------
+
+export function deduplicateByTestIdTarget(
+  results: readonly EvaluationResult[],
+): EvaluationResult[] {
+  const seen = new Map<string, number>();
+  for (let i = 0; i < results.length; i++) {
+    const key = `${results[i].testId ?? 'unknown'}::${results[i].target ?? 'unknown'}`;
+    seen.set(key, i);
+  }
+  const deduped: EvaluationResult[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const key = `${results[i].testId ?? 'unknown'}::${results[i].target ?? 'unknown'}`;
+    if (seen.get(key) === i) {
+      deduped.push(results[i]);
+    }
+  }
+  return deduped;
+}
+
+// ---------------------------------------------------------------------------
+// Aggregate a run directory: read index.jsonl, deduplicate, rewrite artifacts
+// ---------------------------------------------------------------------------
+
+export async function aggregateRunDir(
+  runDir: string,
+  options?: { evalFile?: string; experiment?: string },
+): Promise<{ benchmarkPath: string; timingPath: string; testCount: number; targetCount: number }> {
+  const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
+  const content = await readFile(indexPath, 'utf8');
+  const allResults = parseJsonlResults(content);
+  const results = deduplicateByTestIdTarget(allResults);
+
+  const timing = buildTimingArtifact(results);
+  const timingPath = path.join(runDir, 'timing.json');
+  await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
+
+  const benchmark = buildBenchmarkArtifact(results, options?.evalFile, options?.experiment);
+  const benchmarkPath = path.join(runDir, 'benchmark.json');
+  await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
+
+  const targetSet = new Set(results.map((r) => r.target ?? 'unknown'));
+  return { benchmarkPath, timingPath, testCount: results.length, targetCount: targetSet.size };
+}
+
+// ---------------------------------------------------------------------------
 // Artifact interfaces (snake_case to match skill-creator conventions)
 // ---------------------------------------------------------------------------
 
@@ -737,6 +784,45 @@ function buildTranscriptMessageLines(results: readonly EvaluationResult[]): stri
   }
 
   return lines.length > 0 ? `${lines.join('\n')}\n` : '';
+}
+
+export async function writePerTestArtifacts(
+  results: readonly EvaluationResult[],
+  outputDir: string,
+  options?: { experiment?: string },
+): Promise<void> {
+  await mkdir(outputDir, { recursive: true });
+  for (const result of results) {
+    const grading = buildGradingArtifact(result);
+    const timing = buildTimingArtifact([result]);
+    const artifactSubdir = buildArtifactSubdir(result);
+    const testDir = path.join(outputDir, artifactSubdir);
+    await mkdir(testDir, { recursive: true });
+    await writeFile(
+      path.join(testDir, 'grading.json'),
+      `${JSON.stringify(grading, null, 2)}\n`,
+      'utf8',
+    );
+    await writeFile(
+      path.join(testDir, 'timing.json'),
+      `${JSON.stringify(timing, null, 2)}\n`,
+      'utf8',
+    );
+
+    const input = extractInput(result);
+    if (input) {
+      await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
+    }
+    if (result.output && result.output.length > 0) {
+      const outputsDir = path.join(testDir, 'outputs');
+      await mkdir(outputsDir, { recursive: true });
+      await writeFile(
+        path.join(outputsDir, 'response.md'),
+        formatOutputMarkdown(result.output),
+        'utf8',
+      );
+    }
+  }
 }
 
 export async function writeArtifactsFromResults(
