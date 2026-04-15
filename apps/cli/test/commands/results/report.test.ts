@@ -120,6 +120,10 @@ describe('results report', () => {
     expect(html).toContain('contains');
     expect(html).toContain('regex');
     expect(html).toContain('AgentV Evaluation Report');
+    expect(html).not.toContain('<th>Progress</th>');
+    expect(html).not.toContain('metric-stack');
+    expect(html).toContain('<span class="pass-rate-track">');
+    expect(html).toContain('<span class="pass-rate-label">${formatPercent(rate)}</span>');
   });
 
   it('emits an inline report script that parses successfully', async () => {
