@@ -125,10 +125,10 @@ describe('results report', () => {
     expect(html).toContain('<span class="pass-rate-track">');
     expect(html).toContain('<span class="pass-rate-label">${formatPercent(rate)}</span>');
     expect(html).toContain('<span class="metric-value">${escapeHtml(formatPercent(group.stats.pass_rate))}</span>');
-    expect(html).toContain('Grader Results');
-    expect(html).toContain('<th>Grader</th>');
+    expect(html).toContain('Assertions');
+    expect(html).toContain('assertion-badge');
+    expect(html).not.toContain('Grader Results');
     expect(html).not.toContain('Evaluator Results');
-    expect(html).not.toContain('<th>Evaluator</th>');
   });
 
   it('emits an inline report script that parses successfully', async () => {
@@ -143,6 +143,7 @@ describe('results report', () => {
 
     const app = { innerHTML: '' };
     const headerMeta = { innerHTML: '' };
+    const tabNav = { classList: { add: () => undefined, remove: () => undefined } };
     const tabButton = {
       getAttribute: () => 'overview',
       classList: { toggle: () => undefined },
@@ -153,9 +154,12 @@ describe('results report', () => {
       vm.runInNewContext(script!, {
         console,
         document: {
+          documentElement: { classList: { contains: () => false, toggle: () => undefined } },
           getElementById(id: string) {
             if (id === 'app') return app;
             if (id === 'header-meta') return headerMeta;
+            if (id === 'tab-nav') return tabNav;
+            if (id === 'theme-btn') return { addEventListener: () => undefined };
             return null;
           },
           querySelectorAll(selector: string) {
