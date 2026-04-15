@@ -1,5 +1,5 @@
-import { constants, mkdirSync } from 'node:fs';
-import { access } from 'node:fs/promises';
+import { constants, existsSync, mkdirSync } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -30,7 +30,13 @@ import {
 
 import { enforceRequiredVersion } from '../../version-check.js';
 import { maybeAutoExportRunArtifacts } from '../results/remote.js';
-import { writeArtifactsFromResults } from './artifact-writer.js';
+import {
+  aggregateRunDir,
+  buildTestTargetKey,
+  deduplicateByTestIdTarget,
+  parseJsonlResults,
+  writeArtifactsFromResults,
+} from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
@@ -52,6 +58,16 @@ import {
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 
 const DEFAULT_WORKERS = 3;
+
+function shouldSkipExistingResultForResume(
+  result: Pick<EvaluationResult, 'executionStatus'>,
+  rerunFailed: boolean,
+): boolean {
+  if (rerunFailed) {
+    return result.executionStatus === 'ok';
+  }
+  return result.executionStatus !== 'execution_error';
+}
 
 interface RunEvalCommandInput {
   readonly testFiles: readonly string[];
@@ -85,6 +101,8 @@ interface NormalizedOptions {
   readonly otelCaptureContent: boolean;
   readonly otelGroupTurns: boolean;
   readonly retryErrors?: string;
+  readonly resume: boolean;
+  readonly rerunFailed: boolean;
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
   readonly keepWorkspaces: boolean;
@@ -356,6 +374,8 @@ function normalizeOptions(
     otelGroupTurns:
       normalizeBoolean(rawOptions.otelGroupTurns) || yamlExecution?.otel_group_turns === true,
     retryErrors: normalizeString(rawOptions.retryErrors),
+    resume: normalizeBoolean(rawOptions.resume) || normalizeBoolean(rawOptions.rerunFailed),
+    rerunFailed: normalizeBoolean(rawOptions.rerunFailed),
     workspaceMode,
     workspacePath,
     // Precedence: CLI > YAML config > TS config
@@ -946,6 +966,39 @@ export async function runEvalCommand(
     }
   }
 
+  // --resume / --rerun-failed: skip already-completed tests and append to existing output.
+  // IMPORTANT: JSONL must be loaded before the output writer is created (same file).
+  let resumeSkipKeys: Set<string> | undefined;
+  let isResumeAppend = false;
+  if (options.resume && !options.retryErrors) {
+    const explicitResumeDir = options.outputDir ?? options.artifacts;
+    if (explicitResumeDir) {
+      const resumeIndexPath = path.join(path.resolve(explicitResumeDir), 'index.jsonl');
+      if (existsSync(resumeIndexPath)) {
+        const content = await readFile(resumeIndexPath, 'utf8');
+        const existingResults = parseJsonlResults(content);
+        resumeSkipKeys = new Set<string>();
+        for (const r of existingResults) {
+          if (shouldSkipExistingResultForResume(r, options.rerunFailed)) {
+            resumeSkipKeys.add(buildTestTargetKey(r.testId, r.target));
+          }
+        }
+        isResumeAppend = true;
+        const modeLabel = options.rerunFailed ? 'Rerun-failed' : 'Resume';
+        console.log(
+          `${modeLabel}: found ${existingResults.length} existing result(s), skipping ${resumeSkipKeys.size} completed.`,
+        );
+      } else {
+        // No existing index.jsonl — behave like a normal run
+        console.log('Resume: no existing index.jsonl found, starting fresh run.');
+      }
+    } else {
+      console.warn(
+        'Warning: --resume requires --output <dir> to identify the run directory. Ignoring --resume.',
+      );
+    }
+  }
+
   // Validate static workspace path exists and is a directory
   if (options.workspacePath) {
     const resolvedWorkspace = path.resolve(options.workspacePath);
@@ -1203,13 +1256,17 @@ export async function runEvalCommand(
   // Additional --export paths get their own writers that receive all results after the run.
   const writerOptions =
     resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
-  const outputWriter: OutputWriter = await createOutputWriter(primaryWritePath, 'jsonl');
+  const outputWriter: OutputWriter = await createOutputWriter(primaryWritePath, 'jsonl', {
+    append: isResumeAppend,
+  });
 
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
 
   // In matrix mode, total eval count is tests × targets (accounting for per-test target overrides)
+  // When resuming, subtract tests that will be skipped
   let totalEvalCount = 0;
+  let resumeSkippedCount = 0;
   for (const meta of fileMetadata.values()) {
     const suiteTargetNames = meta.selections.map((s) => s.selection.targetName);
     for (const test of meta.testCases) {
@@ -1218,7 +1275,15 @@ export async function runEvalCommand(
         test.targets && test.targets.length > 0
           ? test.targets.filter((t) => suiteTargetNames.includes(t))
           : suiteTargetNames;
-      totalEvalCount += testTargetNames.length > 0 ? testTargetNames.length : 1;
+      const effectiveTargets = testTargetNames.length > 0 ? testTargetNames : ['unknown'];
+      for (const tn of effectiveTargets) {
+        const key = `${test.id}::${tn}`;
+        if (resumeSkipKeys?.has(key)) {
+          resumeSkippedCount++;
+        } else {
+          totalEvalCount++;
+        }
+      }
     }
   }
 
@@ -1226,6 +1291,11 @@ export async function runEvalCommand(
     // When using --retry-errors, all tests being filtered means no errors or missing cases remain
     if (options.retryErrors && retryNonErrorResults && retryNonErrorResults.length > 0) {
       console.log('No execution errors or missing cases in the previous run. Nothing to retry.');
+      return;
+    }
+    // When using --resume, all tests being completed means nothing to resume
+    if (resumeSkipKeys && resumeSkippedCount > 0) {
+      console.log(`Nothing to resume — all ${resumeSkippedCount} test(s) already completed.`);
       return;
     }
     throw new Error('No tests matched the provided filters.');
@@ -1338,7 +1408,14 @@ export async function runEvalCommand(
                 })
               : targetPrep.testCases;
 
-          if (applicableTestCases.length === 0) {
+          // --resume / --rerun-failed: skip tests that are already completed
+          const filteredTestCases = resumeSkipKeys
+            ? applicableTestCases.filter(
+                (test) => !resumeSkipKeys.has(buildTestTargetKey(test.id, targetName)),
+              )
+            : applicableTestCases;
+
+          if (filteredTestCases.length === 0) {
             return [];
           }
 
@@ -1359,7 +1436,7 @@ export async function runEvalCommand(
               displayIdTracker,
               selection,
               inlineTargetLabel,
-              testCases: applicableTestCases,
+              testCases: filteredTestCases,
               trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
               matrixMode: targetPrep.selections.length > 1,
               totalBudgetUsd: targetPrep.totalBudgetUsd,
@@ -1388,7 +1465,7 @@ export async function runEvalCommand(
             console.error(
               `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
             );
-            const errorResults: EvaluationResult[] = applicableTestCases.map((testCase) => ({
+            const errorResults: EvaluationResult[] = filteredTestCases.map((testCase) => ({
               timestamp: new Date().toISOString(),
               testId: testCase.id,
               score: 0,
@@ -1428,9 +1505,19 @@ export async function runEvalCommand(
       );
     }
 
+    // Flush the output writer so all results are on disk before we read back.
+    await outputWriter.close().catch(() => undefined);
+
+    // When resuming, compute summary from ALL results (old + new, deduplicated)
+    let summaryResults = allResults;
+    if (isResumeAppend && usesDefaultArtifactWorkspace) {
+      const content = await readFile(outputPath, 'utf8');
+      summaryResults = deduplicateByTestIdTarget(parseJsonlResults(content));
+    }
+
     const thresholdOpts =
       resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
-    const summary = calculateEvaluationSummary(allResults, thresholdOpts);
+    const summary = calculateEvaluationSummary(summaryResults, thresholdOpts);
     console.log(formatEvaluationSummary(summary, thresholdOpts));
 
     // Exit code: 2 when all tests are execution errors (no evaluation performed),
@@ -1439,8 +1526,8 @@ export async function runEvalCommand(
     const thresholdFailed = resolvedThreshold !== undefined && summary.qualityFailureCount > 0;
 
     // Print matrix summary when multiple targets were evaluated
-    if (isMatrixMode && allResults.length > 0) {
-      console.log(formatMatrixSummary(allResults));
+    if (isMatrixMode && summaryResults.length > 0) {
+      console.log(formatMatrixSummary(summaryResults));
     }
 
     // Write Agent Skills benchmark.json if requested (deprecated flag — backward compat)
@@ -1453,22 +1540,41 @@ export async function runEvalCommand(
     // Write artifacts to the run directory (always, not conditional on flags)
     if (usesDefaultArtifactWorkspace && allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-      const {
-        testArtifactDir,
-        timingPath,
-        benchmarkPath: workspaceBenchmarkPath,
-        indexPath,
-      } = await writeArtifactsFromResults(allResults, runDir, {
-        evalFile,
-        experiment: normalizeExperimentName(options.experiment),
-      });
-      console.log(`Artifact workspace written to: ${runDir}`);
-      console.log(`  Index: ${indexPath}`);
-      console.log(
-        `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
-      );
-      console.log(`  Timing: ${timingPath}`);
-      console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+      if (isResumeAppend) {
+        // Resume mode: write per-test artifacts for newly-run tests, then aggregate
+        // from the full index.jsonl (old + new results with deduplication)
+        const { writePerTestArtifacts } = await import('./artifact-writer.js');
+        await writePerTestArtifacts(allResults, runDir, {
+          experiment: normalizeExperimentName(options.experiment),
+        });
+        const { benchmarkPath: workspaceBenchmarkPath, timingPath } = await aggregateRunDir(
+          runDir,
+          { evalFile, experiment: normalizeExperimentName(options.experiment) },
+        );
+        const indexPath = path.join(runDir, 'index.jsonl');
+        console.log(`Artifact workspace updated: ${runDir}`);
+        console.log(`  Index: ${indexPath}`);
+        console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
+        console.log(`  Timing: ${timingPath}`);
+        console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+      } else {
+        const {
+          testArtifactDir,
+          timingPath,
+          benchmarkPath: workspaceBenchmarkPath,
+          indexPath,
+        } = await writeArtifactsFromResults(allResults, runDir, {
+          evalFile,
+          experiment: normalizeExperimentName(options.experiment),
+        });
+        console.log(`Artifact workspace written to: ${runDir}`);
+        console.log(`  Index: ${indexPath}`);
+        console.log(
+          `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
+        );
+        console.log(`  Timing: ${timingPath}`);
+        console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+      }
     }
 
     // Write --export output files (additional formats)
@@ -1541,14 +1647,14 @@ export async function runEvalCommand(
       });
     }
 
-    // Suggest retry-errors command when execution errors are detected
-    if (summary.executionErrorCount > 0 && !options.retryErrors) {
+    // Suggest resume commands when execution errors are detected
+    if (summary.executionErrorCount > 0 && !options.retryErrors && !options.resume) {
       const evalFileArgs = activeTestFiles.map((f) => path.relative(cwd, f)).join(' ');
       const targetFlag = options.target ? ` --target ${options.target}` : '';
-      const relativeOutputPath = path.relative(cwd, outputPath);
+      const relativeRunDir = path.relative(cwd, runDir);
       console.log(
         `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
-          `  agentv eval run ${evalFileArgs}${targetFlag} --retry-errors ${relativeOutputPath}`,
+          `  agentv eval run ${evalFileArgs}${targetFlag} --output ${relativeRunDir} --rerun-failed`,
       );
     }
 
