@@ -15,6 +15,9 @@ import studioCompareAggregated from '../../../../assets/screenshots/studio-compa
 import studioComparePerRun from '../../../../assets/screenshots/studio-compare-per-run.png';
 import studioCompareSideBySide from '../../../../assets/screenshots/studio-compare-side-by-side.png';
 import studioRunsBench from '../../../../assets/screenshots/studio-runs-bench.png';
+import studioAnalyticsAggregated from '../../../../assets/screenshots/studio-analytics-aggregated.png';
+import studioAnalyticsCharts from '../../../../assets/screenshots/studio-analytics-charts.png';
+import studioAnalyticsTrend from '../../../../assets/screenshots/studio-analytics-trend.png';
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
@@ -55,7 +58,7 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 - **Targets** — group runs by target (model/agent)
 - **Run Detail** — drill into a run to see per-test results, scores, and evaluator output
 - **Human Review** — add feedback annotations to individual test results
-- **Compare** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags
+- **Analytics** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags. Includes a collapsible charts section with baseline comparison analytics
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
 ## Run Detail
@@ -70,9 +73,9 @@ The Experiments tab groups runs by experiment name so you can compare the impact
 
 <Image src={studioExperiments} alt="AgentV Studio experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
 
-## Compare
+## Analytics
 
-The **Compare** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
+The **Analytics** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
 
 <Image src={studioCompareSideBySide} alt="AgentV Studio side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
 
@@ -80,16 +83,16 @@ The **Compare** tab has two modes: **Aggregated** for the classic experiment × 
 
 The default view shows a cross-experiment, cross-target performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
 
-<Image src={studioCompareAggregated} alt="AgentV Studio aggregated compare matrix showing experiment × target pass rates" />
+<Image src={studioAnalyticsAggregated} alt="AgentV Studio Analytics tab showing aggregated experiment × target matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
 
-Run the same eval against multiple providers or experiment variants, then open the Compare tab:
+Run the same eval against multiple providers or experiment variants, then open the Analytics tab:
 
 ```bash
 agentv eval my.EVAL.yaml --target azure --experiment baseline
 agentv eval my.EVAL.yaml --target azure --experiment with-caching
 agentv eval my.EVAL.yaml --target gemini --experiment baseline
 agentv eval my.EVAL.yaml --target gemini --experiment with-caching
-agentv studio  # Compare tab shows 2x2 matrix
+agentv studio  # Analytics tab shows 2x2 matrix
 ```
 
 ### Per-run comparison
@@ -118,6 +121,23 @@ Once runs are tagged, a chip row appears above the compare view listing every di
 
 The same filter is available to API consumers via `GET /api/compare?tags=baseline,v2-prompt`, which returns only the cells and runs whose tags intersect the query.
 
+### Analytics charts
+
+Below the aggregated matrix, a collapsible **Analytics** section provides visual charts for deeper comparison. Select a **baseline target** from the dropdown to compute deltas and normalized gain metrics against that target.
+
+<Image src={studioAnalyticsCharts} alt="AgentV Studio analytics charts showing normalized gain bar chart with baseline selector and score distribution histogram" />
+
+The section includes the following visualizations:
+
+- **Normalized Gain (g)** — horizontal bar chart showing how much of the remaining headroom each experiment × target captured relative to the baseline. Bars are colour-coded green (positive gain), red (regression), or grey (null / no headroom). See [Normalized Gain](/docs/tools/compare#normalized-gain-g) for the formula.
+- **Tag × Target Heatmap** — pass-rate grid across tags and targets, colour-coded by performance (emerald for high, amber for medium, red for low).
+- **Negative Delta Table** — filtered list of experiment × target pairs that scored worse than the baseline, sorted by largest regression.
+- **Score Distribution** — histogram showing the variance of scores across all test cases, binned by 10% intervals.
+- **Score Trend Over Time** — line chart plotting mean score per target across runs over time, with a colour-coded legend for each target.
+
+<Image src={studioAnalyticsTrend} alt="AgentV Studio analytics showing score distribution histogram and score trend over time line chart with multi-target legend" />
+
+The baseline comparison is also available via the API: `GET /api/compare?baseline=<target>` adds `delta` and `normalized_gain` fields to each non-baseline cell in the response.
 
 ## Benchmarks Dashboard
 

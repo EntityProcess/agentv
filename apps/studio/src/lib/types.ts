@@ -148,6 +148,10 @@ export interface CompareCell {
   pass_rate: number;
   avg_score: number;
   tests: CompareTestResult[];
+  /** Score delta vs baseline (avg_score − baseline avg_score). Present when ?baseline= is set. */
+  delta?: number;
+  /** Normalized gain `g` vs baseline. Null when baseline score is 1.0 (no headroom). */
+  normalized_gain?: number | null;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Cross-model comparison view.
+ * Analytics tab — cross-model comparison view.
  *
  * Two modes:
  *   1. Aggregated (default)  — `(experiment, target)` matrix, one cell per pair.
@@ -29,9 +29,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { deleteRunTagsApi, saveRunTagsApi } from '~/lib/api';
 import type { CompareCell, CompareResponse, CompareRunEntry, CompareTestResult } from '~/lib/types';
 
+import { AnalyticsCharts } from './AnalyticsCharts';
 import { PassRatePill } from './PassRatePill';
 
-interface CompareTabProps {
+interface AnalyticsTabProps {
   data: CompareResponse | undefined;
   isLoading: boolean;
   isError?: boolean;
@@ -46,14 +47,14 @@ type ViewMode = 'aggregated' | 'per-run';
 
 // ── Top-level container ─────────────────────────────────────────────────
 
-export function CompareTab({
+export function AnalyticsTab({
   data,
   isLoading,
   isError,
   error,
   benchmarkId,
   readOnly,
-}: CompareTabProps) {
+}: AnalyticsTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
   const [filterTags, setFilterTags] = useState<string[]>([]);
 
@@ -178,7 +179,9 @@ export function CompareTab({
           ) : (
             filteredData && (
               <>
-                {mode === 'aggregated' && <AggregatedView data={filteredData} />}
+                {mode === 'aggregated' && (
+                  <AggregatedView data={filteredData} benchmarkId={benchmarkId} />
+                )}
                 {mode === 'per-run' && (
                   <PerRunView
                     data={filteredData}
@@ -275,7 +278,7 @@ function Header({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="text-xl font-semibold text-white">Compare runs</h2>
+        <h2 className="text-xl font-semibold text-white">Analyze runs</h2>
         <p className="mt-1 text-sm text-gray-400">
           Study one experiment against another, or pit individual runs head-to-head.
         </p>
@@ -355,7 +358,7 @@ function ModeButton({
 
 // ── Aggregated (matrix) view ────────────────────────────────────────────
 
-function AggregatedView({ data }: { data: CompareResponse }) {
+function AggregatedView({ data, benchmarkId }: { data: CompareResponse; benchmarkId?: string }) {
   const { experiments, targets, cells } = data;
 
   // Hooks must run on every render regardless of the early-return below,
@@ -407,6 +410,7 @@ function AggregatedView({ data }: { data: CompareResponse }) {
           </tbody>
         </table>
       </div>
+      <AnalyticsCharts data={data} benchmarkId={benchmarkId} />
     </div>
   );
 }

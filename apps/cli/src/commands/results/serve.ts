@@ -695,6 +695,23 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     }
   }
 
+  // ── Baseline delta / normalized-gain computation ─────────────────────
+  const baselineTarget = c.req.query('baseline') ?? '';
+  if (baselineTarget && !targetsSet.has(baselineTarget)) {
+    return c.json({ error: `Baseline target "${baselineTarget}" does not exist in the data` }, 400);
+  }
+
+  // Build baseline lookup before constructing cells so we can include
+  // delta/normalized_gain in the initial cell objects (no mutation needed).
+  const baselineScores = new Map<string, number>();
+  if (baselineTarget) {
+    for (const entry of cellMap.values()) {
+      if (entry.target === baselineTarget && entry.evalCount > 0) {
+        baselineScores.set(entry.experiment, entry.scoreSum / entry.evalCount);
+      }
+    }
+  }
+
   const cells = [...cellMap.values()].map((entry) => {
     // Deduplicate tests: keep only the latest entry per test_id (last wins by insertion order)
     const dedupMap = new Map<string, (typeof entry.tests)[number]>();
@@ -706,15 +723,28 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
     // Cap to most recent entries to prevent unbounded payloads
     const cappedTests = dedupedTests.slice(-MAX_TESTS_PER_CELL);
 
-    return {
+    const avgScore = entry.evalCount > 0 ? entry.scoreSum / entry.evalCount : 0;
+    const cell: Record<string, unknown> = {
       experiment: entry.experiment,
       target: entry.target,
       eval_count: entry.evalCount,
       passed_count: entry.passedCount,
       pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
-      avg_score: entry.evalCount > 0 ? entry.scoreSum / entry.evalCount : 0,
+      avg_score: avgScore,
       tests: cappedTests,
     };
+
+    // Append baseline comparison fields when a baseline is selected
+    if (baselineTarget && entry.target !== baselineTarget) {
+      const baseAvg = baselineScores.get(entry.experiment);
+      if (baseAvg !== undefined) {
+        cell.delta = Math.round((avgScore - baseAvg) * 1000) / 1000;
+        cell.normalized_gain =
+          baseAvg >= 1.0 ? null : Math.round(((avgScore - baseAvg) / (1 - baseAvg)) * 1000) / 1000;
+      }
+    }
+
+    return cell;
   });
 
   // Per-run entries sorted by timestamp descending (newest first).
