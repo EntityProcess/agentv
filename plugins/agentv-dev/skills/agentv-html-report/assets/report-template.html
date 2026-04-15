@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentV Evaluation Report</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    :root {
+      color-scheme: dark;
+      --canvas: #030712;
+      --surface: #111827;
+      --surface-muted: rgba(17, 24, 39, 0.5);
+      --surface-hover: rgba(17, 24, 39, 0.3);
+      --border: #1f2937;
+      --text: #d1d5db;
+      --text-muted: #9ca3af;
+      --text-subtle: #6b7280;
+      --heading: #ffffff;
+      --accent: #22d3ee;
+      --accent-weak: rgba(8, 145, 178, 0.2);
+      --pass: #34d399;
+      --warn: #facc15;
+      --fail: #f87171;
+      --track: #1f2937;
+      --pill-gradient: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
+      --font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    body {
+      background: var(--canvas);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    .tabular,
+    .num,
+    .pass-rate-label,
+    .metric-value,
+    .count-label,
+    .table-num {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .shell {
+      min-height: 100vh;
+    }
+
+    .header {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .eyebrow {
+      color: var(--text-muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .header-title {
+      color: var(--heading);
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .header-subtitle {
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .header-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid rgba(8, 145, 178, 0.45);
+      background: rgba(8, 145, 178, 0.16);
+      color: #67e8f9;
+      border-radius: var(--radius-md);
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--canvas);
+    }
+
+    .tab {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 12px 8px 10px;
+      transition: color 120ms ease, border-color 120ms ease;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .app {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .empty-state {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      padding: 32px;
+      text-align: center;
+    }
+
+    .empty-state h2 {
+      margin: 0 0 8px;
+      color: var(--heading);
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .empty-state p {
+      margin: 0;
+      color: var(--text-muted);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 96px;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      color: var(--heading);
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .tone-pass .stat-value,
+    .text-pass { color: var(--pass); }
+    .tone-warn .stat-value,
+    .text-warn { color: var(--warn); }
+    .tone-fail .stat-value,
+    .text-fail { color: var(--fail); }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      color: var(--heading);
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .section-heading p {
+      margin: 0;
+      color: var(--text-muted);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-muted);
+    }
+
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(31, 41, 55, 0.5);
+      vertical-align: top;
+    }
+
+    tbody tr {
+      transition: background-color 120ms ease;
+    }
+
+    tbody tr:hover {
+      background: var(--surface-hover);
+    }
+
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sortable:hover {
+      color: var(--text);
+    }
+
+    .table-num {
+      text-align: right;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .table-muted {
+      color: var(--text-muted);
+    }
+
+    .id-cell {
+      font-weight: 500;
+      color: var(--heading);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(17, 24, 39, 0.6);
+      color: var(--text);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--text-subtle);
+    }
+
+    .status-pass .status-dot { background: var(--pass); }
+    .status-fail .status-dot { background: var(--fail); }
+    .status-error .status-dot { background: var(--warn); }
+
+    .pass-rate-track {
+      width: 80px;
+      height: 20px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--track);
+      position: relative;
+      border: 1px solid rgba(31, 41, 55, 0.8);
+    }
+
+    .pass-rate-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: var(--pill-gradient);
+      border-radius: 999px;
+    }
+
+    .pass-rate-label {
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .metric-stack {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .histogram {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hist-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 40px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .hist-label,
+    .hist-count {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .hist-bar-track {
+      height: 16px;
+      border-radius: 999px;
+      background: var(--track);
+      overflow: hidden;
+    }
+
+    .hist-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--pill-gradient);
+    }
+
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filter-input,
+    .filter-select {
+      border: 1px solid #374151;
+      border-radius: var(--radius-md);
+      background: var(--canvas);
+      color: var(--text);
+      padding: 8px 10px;
+    }
+
+    .filter-input::placeholder {
+      color: var(--text-subtle);
+    }
+
+    .filter-input:focus,
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .filter-input {
+      min-width: 260px;
+      flex: 1 1 260px;
+    }
+
+    .filter-count {
+      margin-left: auto;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .group-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .group-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .group-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: rgba(17, 24, 39, 0.65);
+    }
+
+    .group-title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .group-title {
+      margin: 0;
+      color: var(--heading);
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .group-subtitle {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .group-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+    }
+
+    .metric {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .metric-label {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .metric-value {
+      color: var(--heading);
+      font-weight: 500;
+    }
+
+    .test-row {
+      cursor: pointer;
+    }
+
+    .expand-cell {
+      width: 40px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .detail-row td {
+      padding: 0;
+      background: rgba(3, 7, 18, 0.5);
+    }
+
+    .detail-panel {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .detail-card,
+    .assertion-card,
+    .error-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      padding: 16px;
+    }
+
+    .detail-card h4,
+    .assertion-card h4,
+    .error-card h4 {
+      margin: 0 0 10px;
+      color: var(--heading);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--text);
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .evaluator-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow-x: auto;
+      background: var(--surface);
+    }
+
+    .assertion-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .assertion-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .assertion-item {
+      border: 1px solid rgba(31, 41, 55, 0.8);
+      border-radius: var(--radius-md);
+      background: rgba(3, 7, 18, 0.45);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .assertion-topline {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .assertion-badge {
+      border: 1px solid rgba(8, 145, 178, 0.45);
+      background: rgba(8, 145, 178, 0.16);
+      color: #67e8f9;
+      border-radius: var(--radius-md);
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      align-self: flex-start;
+    }
+
+    .assertion-status {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .assertion-text {
+      color: var(--text);
+    }
+
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+
+    .error-card {
+      border-color: rgba(248, 113, 113, 0.45);
+      background: rgba(127, 29, 29, 0.18);
+    }
+
+    .error-card h4,
+    .error-card pre {
+      color: #fecaca;
+    }
+
+    .muted {
+      color: var(--text-muted);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .header,
+      .group-header,
+      .section-heading {
+        align-items: flex-start;
+      }
+
+      .filter-count {
+        width: 100%;
+        margin-left: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-wrap">
+        <div class="eyebrow">AgentV static export</div>
+        <h1 class="header-title">Evaluation Report</h1>
+        <p class="header-subtitle">Studio-themed HTML generated from existing results JSONL files.</p>
+      </div>
+      <div class="header-meta" id="header-meta"></div>
+    </header>
+
+    <nav class="tabs" aria-label="Report sections">
+      <button class="tab active" type="button" data-tab="overview">Overview</button>
+      <button class="tab" type="button" data-tab="tests">Test Cases</button>
+    </nav>
+
+    <main class="app" id="app"></main>
+  </div>
+
+  <script>
+    const RAW_DATA = __DATA_PLACEHOLDER__;
+
+    (function () {
+      function pick(obj, keys, fallback) {
+        for (let i = 0; i < keys.length; i += 1) {
+          const key = keys[i];
+          if (obj && Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined && obj[key] !== null) {
+            return obj[key];
+          }
+        }
+        return fallback;
+      }
+
+      function asString(value, fallback) {
+        return typeof value === 'string' ? value : fallback;
+      }
+
+      function asNumber(value, fallback) {
+        return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+      }
+
+      function asArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+
+      function normalizeAssertion(value, assertionType) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+        return {
+          text: asString(value.text, 'Untitled assertion'),
+          passed: Boolean(value.passed),
+          evidence: asString(value.evidence, ''),
+          assertion_type: assertionType || asString(value.assertion_type, ''),
+        };
+      }
+
+      function normalizeScores(value) {
+        return asArray(value)
+          .map((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+            const scoreName = asString(pick(entry, ['name', 'type'], 'assertion'), 'assertion');
+            const scoreType = asString(pick(entry, ['type', 'name'], 'assertion'), 'assertion');
+            const assertions = asArray(entry.assertions)
+              .map((assertion) => normalizeAssertion(assertion, scoreName))
+              .filter(Boolean);
+            return {
+              name: scoreName,
+              type: scoreType,
+              score: asNumber(entry.score, 0),
+              assertions,
+            };
+          })
+          .filter(Boolean);
+      }
+
+      function normalizeTokenUsage(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+          return { input: 0, output: 0, reasoning: 0 };
+        }
+        return {
+          input: asNumber(pick(value, ['input', 'input_tokens', 'inputTokens'], 0), 0),
+          output: asNumber(pick(value, ['output', 'output_tokens', 'outputTokens'], 0), 0),
+          reasoning: asNumber(pick(value, ['reasoning', 'reasoning_tokens', 'reasoningTokens'], 0), 0),
+        };
+      }
+
+      function normalizeResult(raw, index) {
+        const scores = normalizeScores(pick(raw, ['scores'], []));
+        const fallbackAssertions = asArray(pick(raw, ['assertions'], []))
+          .map((assertion) => normalizeAssertion(assertion, 'assertion'))
+          .filter(Boolean);
+        const flattenedAssertions = scores.flatMap((score) => score.assertions);
+        const displayAssertions = flattenedAssertions.length > 0 ? flattenedAssertions : fallbackAssertions;
+        const testId = asString(pick(raw, ['test_id', 'testId'], 'unknown'), 'unknown');
+        const target = asString(pick(raw, ['target'], 'unknown'), 'unknown');
+        const evalFile = asString(pick(raw, ['eval_file', 'evalFile'], 'ungrouped'), 'ungrouped');
+        const executionStatus = asString(pick(raw, ['execution_status', 'executionStatus'], ''), '');
+        return {
+          _key: `${evalFile}:${target}:${testId}:${index}`,
+          raw,
+          eval_file: evalFile,
+          test_id: testId,
+          target,
+          score: asNumber(pick(raw, ['score'], 0), 0),
+          duration_ms: asNumber(pick(raw, ['duration_ms', 'durationMs'], 0), 0),
+          cost_usd: asNumber(pick(raw, ['cost_usd', 'costUsd'], 0), 0),
+          timestamp: asString(pick(raw, ['timestamp'], ''), ''),
+          execution_status: executionStatus,
+          error: asString(pick(raw, ['error'], ''), ''),
+          input: pick(raw, ['input'], null),
+          output: pick(raw, ['output'], null),
+          token_usage: normalizeTokenUsage(pick(raw, ['token_usage', 'tokenUsage'], {})),
+          total_tokens: 0,
+          scores,
+          assertions: displayAssertions,
+        };
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function statusOf(result) {
+        if (result.execution_status === 'execution_error') return 'error';
+        if (result.execution_status === 'quality_failure') return 'fail';
+        if (result.execution_status === 'ok') return 'pass';
+        if (result.error) return 'error';
+        return result.score >= 0.5 ? 'pass' : 'fail';
+      }
+
+      function statusLabel(status) {
+        if (status === 'pass') return 'Passed';
+        if (status === 'fail') return 'Failed';
+        return 'Error';
+      }
+
+      function toneForScore(value) {
+        if (value >= 0.8) return 'text-pass';
+        if (value >= 0.5) return 'text-warn';
+        return 'text-fail';
+      }
+
+      function toneClassForRate(value) {
+        if (value >= 0.8) return 'tone-pass';
+        if (value >= 0.5) return 'tone-warn';
+        return 'tone-fail';
+      }
+
+      function formatPercent(value) {
+        return `${(value * 100).toFixed(1)}%`;
+      }
+
+      function formatDuration(ms) {
+        if (!ms) return '-';
+        if (ms < 1000) return `${Math.round(ms)}ms`;
+        if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+        const minutes = Math.floor(ms / 60000);
+        const seconds = Math.round((ms % 60000) / 1000);
+        return `${minutes}m ${seconds}s`;
+      }
+
+      function formatTokens(value) {
+        if (!value) return '-';
+        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+        return String(value);
+      }
+
+      function formatCost(value) {
+        if (!value) return '-';
+        if (value < 0.01) return '<$0.01';
+        return `$${value.toFixed(2)}`;
+      }
+
+      function totalTokens(result) {
+        return (result.token_usage.input || 0) + (result.token_usage.output || 0) + (result.token_usage.reasoning || 0);
+      }
+
+      function computeStats(rows) {
+        const stats = {
+          total: rows.length,
+          passed: 0,
+          failed: 0,
+          errors: 0,
+          total_duration_ms: 0,
+          total_tokens: 0,
+          total_cost_usd: 0,
+          scores: [],
+        };
+        rows.forEach((row) => {
+          const status = statusOf(row);
+          if (status === 'pass') stats.passed += 1;
+          else if (status === 'fail') stats.failed += 1;
+          else stats.errors += 1;
+          stats.total_duration_ms += row.duration_ms || 0;
+          stats.total_tokens += totalTokens(row);
+          stats.total_cost_usd += row.cost_usd || 0;
+          if (status !== 'error') stats.scores.push(row.score);
+        });
+        const graded = stats.passed + stats.failed;
+        stats.pass_rate = graded > 0 ? stats.passed / graded : 0;
+        return stats;
+      }
+
+      function groupBy(rows, key) {
+        const map = new Map();
+        rows.forEach((row) => {
+          const value = row[key];
+          if (!map.has(value)) map.set(value, []);
+          map.get(value).push(row);
+        });
+        return Array.from(map.entries()).map(([name, entries]) => ({
+          name,
+          rows: entries,
+          stats: computeStats(entries),
+        }));
+      }
+
+      function uniqueScoreNames(rows) {
+        const seen = new Set();
+        rows.forEach((row) => {
+          row.scores.forEach((score) => seen.add(score.name));
+        });
+        return Array.from(seen.values()).sort();
+      }
+
+      function scoreForName(row, scoreName) {
+        const match = row.scores.find((score) => score.name === scoreName);
+        return match ? match.score : null;
+      }
+
+      function sortRows(rows, sort) {
+        const direction = sort.dir === 'asc' ? 1 : -1;
+        const statusRank = { pass: 0, fail: 1, error: 2 };
+        return rows.slice().sort((left, right) => {
+          let a;
+          let b;
+          if (sort.col === 'status') {
+            a = statusRank[statusOf(left)];
+            b = statusRank[statusOf(right)];
+          } else if (sort.col.startsWith('score:')) {
+            const scoreName = sort.col.slice('score:'.length);
+            a = scoreForName(left, scoreName);
+            b = scoreForName(right, scoreName);
+          } else {
+            a = left[sort.col];
+            b = right[sort.col];
+          }
+          if (a == null && b == null) return 0;
+          if (a == null) return 1;
+          if (b == null) return -1;
+          if (typeof a === 'string' || typeof b === 'string') {
+            return String(a).localeCompare(String(b)) * direction;
+          }
+          return (a - b) * direction;
+        });
+      }
+
+      function matchesSearch(row, search) {
+        if (!search) return true;
+        const haystack = [
+          row.test_id,
+          row.target,
+          row.eval_file,
+          row.error,
+          row.assertions.map((assertion) => `${assertion.assertion_type} ${assertion.text} ${assertion.evidence}`).join(' '),
+        ].join(' ').toLowerCase();
+        return haystack.includes(search.toLowerCase());
+      }
+
+      function filterRows(rows, filter) {
+        return rows.filter((row) => {
+          const status = statusOf(row);
+          if (filter.status !== 'all' && status !== filter.status) return false;
+          if (filter.target !== 'all' && row.target !== filter.target) return false;
+          if (!matchesSearch(row, filter.search)) return false;
+          return true;
+        });
+      }
+
+      function renderPassRate(rate) {
+        return `
+          <span class="metric-stack">
+            <span class="pass-rate-track" aria-hidden="true">
+              <span class="pass-rate-fill" style="width:${Math.max(0, Math.min(100, rate * 100))}%"></span>
+            </span>
+            <span class="pass-rate-label">${formatPercent(rate)}</span>
+          </span>
+        `;
+      }
+
+      function formatJson(value) {
+        if (value == null) return '';
+        if (typeof value === 'string') return value;
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch (error) {
+          return String(value);
+        }
+      }
+
+      function renderStatusPill(status) {
+        return `
+          <span class="status-pill status-${status}">
+            <span class="status-dot"></span>
+            <span>${statusLabel(status)}</span>
+          </span>
+        `;
+      }
+
+      function renderAssertions(assertions, desiredStatus) {
+        const filtered = assertions.filter((assertion) => (desiredStatus === 'pass' ? assertion.passed : !assertion.passed));
+        if (filtered.length === 0) {
+          return '<p class="muted">None.</p>';
+        }
+        return `
+          <ul class="assertion-list">
+            ${filtered.map((assertion) => `
+              <li class="assertion-item">
+                <div class="assertion-topline">
+                  ${assertion.assertion_type ? `<span class="assertion-badge">${escapeHtml(assertion.assertion_type)}</span>` : ''}
+                  <span class="assertion-status ${assertion.passed ? 'text-pass' : 'text-fail'}">${assertion.passed ? 'Passed' : 'Failed'}</span>
+                </div>
+                <div class="assertion-text">${escapeHtml(assertion.text)}</div>
+                ${assertion.evidence ? `<div class="assertion-evidence">${escapeHtml(assertion.evidence)}</div>` : ''}
+              </li>
+            `).join('')}
+          </ul>
+        `;
+      }
+
+      function renderDetail(row, evaluatorNames, hasAnyCost) {
+        const meta = [];
+        if (row.timestamp) meta.push(escapeHtml(row.timestamp));
+        if (row.target) meta.push(escapeHtml(row.target));
+        if (row.duration_ms) meta.push(escapeHtml(formatDuration(row.duration_ms)));
+        if (totalTokens(row)) meta.push(escapeHtml(`${formatTokens(totalTokens(row))} tokens`));
+        if (hasAnyCost && row.cost_usd) meta.push(escapeHtml(formatCost(row.cost_usd)));
+        const evaluatorTable = row.scores.length === 0
+          ? '<p class="muted">No evaluator rows.</p>'
+          : `
+            <div class="evaluator-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evaluator</th>
+                    <th>Type</th>
+                    <th class="table-num">Score</th>
+                    <th class="table-num">Assertions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${row.scores.map((score) => `
+                    <tr>
+                      <td class="id-cell">${escapeHtml(score.name)}</td>
+                      <td class="table-muted">${escapeHtml(score.type)}</td>
+                      <td class="table-num ${toneForScore(score.score)}">${escapeHtml(formatPercent(score.score))}</td>
+                      <td class="table-num">${escapeHtml(String(score.assertions.length))}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+
+        return `
+          <div class="detail-panel">
+            <div class="detail-grid">
+              <div class="detail-card">
+                <h4>Input</h4>
+                <pre>${escapeHtml(formatJson(row.input))}</pre>
+              </div>
+              <div class="detail-card">
+                <h4>Output</h4>
+                <pre>${escapeHtml(formatJson(row.output))}</pre>
+              </div>
+            </div>
+
+            <div class="detail-card">
+              <h4>Evaluator Results</h4>
+              ${evaluatorTable}
+            </div>
+
+            <div class="assertion-grid">
+              <div class="assertion-card">
+                <h4>Passed Assertions</h4>
+                ${renderAssertions(row.assertions, 'pass')}
+              </div>
+              <div class="assertion-card">
+                <h4>Failed Assertions</h4>
+                ${renderAssertions(row.assertions, 'fail')}
+              </div>
+            </div>
+
+            ${row.error ? `
+              <div class="error-card">
+                <h4>Error</h4>
+                <pre>${escapeHtml(row.error)}</pre>
+              </div>
+            ` : ''}
+
+            <div class="meta-row">${meta.join('<span>&middot;</span>')}</div>
+          </div>
+        `;
+      }
+
+      const DATA = asArray(RAW_DATA).map(normalizeResult);
+      DATA.forEach((row) => {
+        row.total_tokens = totalTokens(row);
+      });
+      const STATE = {
+        tab: 'overview',
+        filter: { status: 'all', target: 'all', search: '' },
+        sort: { col: 'test_id', dir: 'asc' },
+        expanded: {},
+      };
+
+      const APP = document.getElementById('app');
+      const HEADER_META = document.getElementById('header-meta');
+      const TAB_BUTTONS = Array.from(document.querySelectorAll('.tab'));
+      const TARGETS = Array.from(new Set(DATA.map((row) => row.target))).sort();
+      const EVALUATOR_NAMES = uniqueScoreNames(DATA);
+      const HAS_ANY_COST = DATA.some((row) => row.cost_usd > 0);
+      const OVERALL_STATS = computeStats(DATA);
+      const EVAL_GROUPS = groupBy(DATA, 'eval_file').sort((a, b) => a.name.localeCompare(b.name));
+      const TARGET_GROUPS = groupBy(DATA, 'target').sort((a, b) => a.name.localeCompare(b.name));
+
+      function syncHeaderMeta() {
+        HEADER_META.innerHTML = `
+          <span class="chip">${escapeHtml(String(DATA.length))} tests</span>
+          <span class="chip">${escapeHtml(String(EVAL_GROUPS.length))} eval files</span>
+          <span class="chip">${escapeHtml(String(TARGETS.length))} targets</span>
+        `;
+      }
+
+      function setTab(tab) {
+        STATE.tab = tab;
+        TAB_BUTTONS.forEach((button) => {
+          button.classList.toggle('active', button.getAttribute('data-tab') === tab);
+        });
+        render();
+      }
+
+      TAB_BUTTONS.forEach((button) => {
+        button.addEventListener('click', () => setTab(button.getAttribute('data-tab')));
+      });
+
+      function renderStatCard(label, value, tone) {
+        return `
+          <div class="stat-card ${tone || ''}">
+            <div class="stat-label">${escapeHtml(label)}</div>
+            <div class="stat-value">${escapeHtml(value)}</div>
+          </div>
+        `;
+      }
+
+      function renderOverview() {
+        if (DATA.length === 0) {
+          APP.innerHTML = `
+            <div class="empty-state">
+              <h2>No results loaded</h2>
+              <p>Add one or more parsed JSONL result rows to the template placeholder.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const overviewSections = [];
+        overviewSections.push(`
+          <section class="section">
+            <div class="stats-grid">
+              ${renderStatCard('Total tests', String(OVERALL_STATS.total))}
+              ${renderStatCard('Eval files', String(EVAL_GROUPS.length))}
+              ${renderStatCard('Targets', String(TARGETS.length))}
+              ${renderStatCard('Passed', String(OVERALL_STATS.passed), 'tone-pass')}
+              ${renderStatCard('Failed', String(OVERALL_STATS.failed), 'tone-fail')}
+              ${renderStatCard('Errors', String(OVERALL_STATS.errors), OVERALL_STATS.errors > 0 ? 'tone-warn' : '')}
+              ${renderStatCard('Pass rate', formatPercent(OVERALL_STATS.pass_rate), toneClassForRate(OVERALL_STATS.pass_rate))}
+              ${renderStatCard('Duration', formatDuration(OVERALL_STATS.total_duration_ms))}
+              ${renderStatCard('Tokens', formatTokens(OVERALL_STATS.total_tokens))}
+              ${HAS_ANY_COST ? renderStatCard('Cost', formatCost(OVERALL_STATS.total_cost_usd)) : ''}
+            </div>
+          </section>
+        `);
+
+        overviewSections.push(`
+          <section class="section">
+            <div class="section-heading">
+              <div>
+                <h2>Eval Files</h2>
+                <p>Grouped exactly as the exported template will render them in the Test Cases tab.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Eval file</th>
+                    <th>Pass rate</th>
+                    <th>Progress</th>
+                    <th class="table-num">Passed</th>
+                    <th class="table-num">Failed</th>
+                    <th class="table-num">Errors</th>
+                    <th class="table-num">Tests</th>
+                    <th class="table-num">Duration</th>
+                    <th class="table-num">Tokens</th>
+                    ${HAS_ANY_COST ? '<th class="table-num">Cost</th>' : ''}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${EVAL_GROUPS.map((group) => `
+                    <tr>
+                      <td class="id-cell">${escapeHtml(group.name)}</td>
+                      <td class="table-num">${escapeHtml(formatPercent(group.stats.pass_rate))}</td>
+                      <td>${renderPassRate(group.stats.pass_rate)}</td>
+                      <td class="table-num text-pass">${escapeHtml(String(group.stats.passed))}</td>
+                      <td class="table-num text-fail">${escapeHtml(String(group.stats.failed))}</td>
+                      <td class="table-num text-warn">${escapeHtml(String(group.stats.errors))}</td>
+                      <td class="table-num">${escapeHtml(String(group.stats.total))}</td>
+                      <td class="table-num">${escapeHtml(formatDuration(group.stats.total_duration_ms))}</td>
+                      <td class="table-num">${escapeHtml(formatTokens(group.stats.total_tokens))}</td>
+                      ${HAS_ANY_COST ? `<td class="table-num">${escapeHtml(formatCost(group.stats.total_cost_usd))}</td>` : ''}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        `);
+
+        if (TARGET_GROUPS.length > 1) {
+          overviewSections.push(`
+            <section class="section">
+              <div class="section-heading">
+                <div>
+                  <h2>Targets</h2>
+                  <p>Cross-target summary for the loaded result set.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Target</th>
+                      <th>Pass rate</th>
+                      <th>Progress</th>
+                      <th class="table-num">Passed</th>
+                      <th class="table-num">Failed</th>
+                      <th class="table-num">Errors</th>
+                      <th class="table-num">Avg score</th>
+                      <th class="table-num">Duration</th>
+                      <th class="table-num">Tokens</th>
+                      ${HAS_ANY_COST ? '<th class="table-num">Cost</th>' : ''}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${TARGET_GROUPS.map((group) => {
+                      const gradedRows = group.rows.filter((row) => statusOf(row) !== 'error');
+                      const avgScore = gradedRows.length > 0
+                        ? gradedRows.reduce((sum, row) => sum + row.score, 0) / gradedRows.length
+                        : 0;
+                      return `
+                        <tr>
+                          <td class="id-cell">${escapeHtml(group.name)}</td>
+                          <td class="table-num">${escapeHtml(formatPercent(group.stats.pass_rate))}</td>
+                          <td>${renderPassRate(group.stats.pass_rate)}</td>
+                          <td class="table-num text-pass">${escapeHtml(String(group.stats.passed))}</td>
+                          <td class="table-num text-fail">${escapeHtml(String(group.stats.failed))}</td>
+                          <td class="table-num text-warn">${escapeHtml(String(group.stats.errors))}</td>
+                          <td class="table-num ${toneForScore(avgScore)}">${escapeHtml(formatPercent(avgScore))}</td>
+                          <td class="table-num">${escapeHtml(formatDuration(group.stats.total_duration_ms))}</td>
+                          <td class="table-num">${escapeHtml(formatTokens(group.stats.total_tokens))}</td>
+                          ${HAS_ANY_COST ? `<td class="table-num">${escapeHtml(formatCost(group.stats.total_cost_usd))}</td>` : ''}
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          `);
+        }
+
+        if (OVERALL_STATS.scores.length > 0) {
+          const buckets = [0, 0, 0, 0, 0];
+          OVERALL_STATS.scores.forEach((score) => {
+            const index = Math.min(Math.floor(score * 5), 4);
+            buckets[index] += 1;
+          });
+          const maxBucket = Math.max.apply(null, buckets);
+          const labels = ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'];
+          overviewSections.push(`
+            <section class="section">
+              <div class="section-heading">
+                <div>
+                  <h2>Score Distribution</h2>
+                  <p>Histogram across all non-error result rows.</p>
+                </div>
+              </div>
+              <div class="histogram">
+                ${buckets.map((count, index) => `
+                  <div class="hist-row">
+                    <div class="hist-label">${labels[index]}</div>
+                    <div class="hist-bar-track">
+                      <div class="hist-bar-fill" style="width:${maxBucket > 0 ? (count / maxBucket) * 100 : 0}%"></div>
+                    </div>
+                    <div class="hist-count tabular">${count}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </section>
+          `);
+        }
+
+        APP.innerHTML = overviewSections.join('');
+      }
+
+      function renderSortableHeader(label, col) {
+        const arrow = STATE.sort.col === col ? (STATE.sort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+        return `<th class="sortable" data-sort="${escapeHtml(col)}">${escapeHtml(label)}${arrow}</th>`;
+      }
+
+      function renderTestGroups() {
+        const filteredRows = filterRows(DATA, STATE.filter);
+        const filteredGroups = groupBy(filteredRows, 'eval_file').sort((a, b) => a.name.localeCompare(b.name));
+        const hasMultipleTargets = TARGETS.length > 1;
+        if (filteredRows.length === 0) {
+          return '<div class="empty-state"><h2>No matching tests</h2><p>Adjust the filters or search text.</p></div>';
+        }
+
+        return `
+          <div class="group-list">
+            ${filteredGroups.map((group) => {
+              const sortedRows = sortRows(group.rows, STATE.sort);
+              const groupSummary = [];
+              groupSummary.push(`${group.stats.passed}/${group.stats.total} passed`);
+              if (group.stats.failed > 0) groupSummary.push(`${group.stats.failed} failed`);
+              if (group.stats.errors > 0) groupSummary.push(`${group.stats.errors} errors`);
+              return `
+                <section class="group-card">
+                  <div class="group-header">
+                    <div class="group-title-wrap">
+                      <h2 class="group-title">${escapeHtml(group.name)}</h2>
+                      <p class="group-subtitle">${escapeHtml(groupSummary.join(' | '))}</p>
+                    </div>
+                    <div class="group-metrics">
+                      <div class="metric">
+                        <span class="metric-label">Pass rate</span>
+                        <span class="metric-value">${renderPassRate(group.stats.pass_rate)}</span>
+                      </div>
+                      <div class="metric">
+                        <span class="metric-label">Tests</span>
+                        <span class="metric-value">${escapeHtml(String(group.stats.total))}</span>
+                      </div>
+                      <div class="metric">
+                        <span class="metric-label">Duration</span>
+                        <span class="metric-value">${escapeHtml(formatDuration(group.stats.total_duration_ms))}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th class="expand-cell"></th>
+                          ${renderSortableHeader('Status', 'status')}
+                          ${renderSortableHeader('Test ID', 'test_id')}
+                          ${hasMultipleTargets ? renderSortableHeader('Target', 'target') : ''}
+                          ${renderSortableHeader('Score', 'score')}
+                          ${EVALUATOR_NAMES.map((name) => renderSortableHeader(name, `score:${name}`)).join('')}
+                          ${renderSortableHeader('Duration', 'duration_ms')}
+                          ${renderSortableHeader('Tokens', 'total_tokens')}
+                          ${HAS_ANY_COST ? renderSortableHeader('Cost', 'cost_usd') : ''}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${sortedRows.map((row) => {
+                          const expanded = Boolean(STATE.expanded[row._key]);
+                          const totalTokensValue = totalTokens(row);
+                          return `
+                            <tr class="test-row" data-expand="${escapeHtml(row._key)}">
+                              <td class="expand-cell">${expanded ? '▾' : '▸'}</td>
+                              <td>${renderStatusPill(statusOf(row))}</td>
+                              <td class="id-cell">${escapeHtml(row.test_id)}</td>
+                              ${hasMultipleTargets ? `<td class="table-muted">${escapeHtml(row.target)}</td>` : ''}
+                              <td class="table-num ${toneForScore(row.score)}">${escapeHtml(formatPercent(row.score))}</td>
+                              ${EVALUATOR_NAMES.map((name) => {
+                                const value = scoreForName(row, name);
+                                return `<td class="table-num ${value == null ? 'table-muted' : toneForScore(value)}">${value == null ? '-' : escapeHtml(formatPercent(value))}</td>`;
+                              }).join('')}
+                              <td class="table-num">${escapeHtml(formatDuration(row.duration_ms))}</td>
+                              <td class="table-num">${escapeHtml(formatTokens(totalTokensValue))}</td>
+                              ${HAS_ANY_COST ? `<td class="table-num">${escapeHtml(formatCost(row.cost_usd))}</td>` : ''}
+                            </tr>
+                            ${expanded ? `<tr class="detail-row"><td colspan="${6 + EVALUATOR_NAMES.length + (hasMultipleTargets ? 1 : 0) + (HAS_ANY_COST ? 1 : 0)}">${renderDetail(row, EVALUATOR_NAMES, HAS_ANY_COST)}</td></tr>` : ''}
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      function bindTestEvents() {
+        const statusInput = document.getElementById('filter-status');
+        const targetInput = document.getElementById('filter-target');
+        const searchInput = document.getElementById('filter-search');
+        const sortableHeaders = Array.from(document.querySelectorAll('[data-sort]'));
+        const expandableRows = Array.from(document.querySelectorAll('[data-expand]'));
+
+        if (statusInput) {
+          statusInput.value = STATE.filter.status;
+          statusInput.addEventListener('change', (event) => {
+            STATE.filter.status = event.target.value;
+            render();
+          });
+        }
+
+        if (targetInput) {
+          targetInput.value = STATE.filter.target;
+          targetInput.addEventListener('change', (event) => {
+            STATE.filter.target = event.target.value;
+            render();
+          });
+        }
+
+        if (searchInput) {
+          searchInput.value = STATE.filter.search;
+          searchInput.addEventListener('input', (event) => {
+            STATE.filter.search = event.target.value;
+            render();
+          });
+        }
+
+        sortableHeaders.forEach((header) => {
+          header.addEventListener('click', () => {
+            const col = header.getAttribute('data-sort');
+            if (STATE.sort.col === col) {
+              STATE.sort.dir = STATE.sort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+              STATE.sort.col = col;
+              STATE.sort.dir = 'asc';
+            }
+            render();
+          });
+        });
+
+        expandableRows.forEach((row) => {
+          row.addEventListener('click', () => {
+            const key = row.getAttribute('data-expand');
+            STATE.expanded[key] = !STATE.expanded[key];
+            render();
+          });
+        });
+      }
+
+      function renderTests() {
+        const filteredRows = filterRows(DATA, STATE.filter);
+        APP.innerHTML = `
+          <section class="section">
+            <div class="section-heading">
+              <div>
+                <h2>Test Cases</h2>
+                <p>Grouped by source eval file with assertion type badges carried down from parent score entries.</p>
+              </div>
+            </div>
+            <div class="filter-bar">
+              <select class="filter-select" id="filter-status" aria-label="Filter by status">
+                <option value="all">All status</option>
+                <option value="pass">Passed</option>
+                <option value="fail">Failed</option>
+                <option value="error">Errors</option>
+              </select>
+              ${TARGETS.length > 1 ? `
+                <select class="filter-select" id="filter-target" aria-label="Filter by target">
+                  <option value="all">All targets</option>
+                  ${TARGETS.map((target) => `<option value="${escapeHtml(target)}">${escapeHtml(target)}</option>`).join('')}
+                </select>
+              ` : ''}
+              <input class="filter-input" id="filter-search" type="search" placeholder="Search test IDs, targets, eval files, or assertion text">
+              <span class="filter-count">${escapeHtml(String(filteredRows.length))} of ${escapeHtml(String(DATA.length))} tests</span>
+            </div>
+            ${renderTestGroups()}
+          </section>
+        `;
+        bindTestEvents();
+      }
+
+      function render() {
+        if (STATE.tab === 'overview') renderOverview();
+        else renderTests();
+      }
+
+      syncHeaderMeta();
+      render();
+    })();
+  </script>
+</body>
+</html>
