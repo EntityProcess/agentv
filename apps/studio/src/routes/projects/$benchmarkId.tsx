@@ -1,5 +1,5 @@
 /**
- * Project home route: tabbed view (Runs, Experiments, Targets) scoped to a project.
+ * Project home route: tabbed view (Runs, Experiments, Analytics, Targets) scoped to a project.
  *
  * Mirrors the single-project home page but fetches from project-scoped API endpoints.
  */
@@ -8,7 +8,7 @@ import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-ro
 import { useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CompareTab } from '~/components/CompareTab';
+import { AnalyticsTab } from '~/components/AnalyticsTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
@@ -92,7 +92,7 @@ function ProjectHomePage() {
       {activeTab === 'runs' && <ProjectRunsTab benchmarkId={benchmarkId} />}
       {activeTab === 'experiments' && <ProjectExperimentsTab benchmarkId={benchmarkId} />}
       {activeTab === 'analytics' && (
-        <ProjectCompareTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
+        <ProjectAnalyticsTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
       )}
       {activeTab === 'targets' && <ProjectTargetsTab benchmarkId={benchmarkId} />}
 
@@ -211,7 +211,7 @@ function ProjectExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
   );
 }
 
-function ProjectCompareTab({
+function ProjectAnalyticsTab({
   benchmarkId,
   readOnly,
 }: {
@@ -220,7 +220,7 @@ function ProjectCompareTab({
 }) {
   const { data, isLoading, isError, error } = useQuery(benchmarkCompareOptions(benchmarkId));
   return (
-    <CompareTab
+    <AnalyticsTab
       data={data}
       isLoading={isLoading}
       isError={isError}

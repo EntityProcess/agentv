@@ -1,5 +1,5 @@
 /**
- * Cross-model comparison view.
+ * Analytics tab — cross-model comparison view.
  *
  * Two modes:
  *   1. Aggregated (default)  — `(experiment, target)` matrix, one cell per pair.
@@ -32,7 +32,7 @@ import type { CompareCell, CompareResponse, CompareRunEntry, CompareTestResult }
 import { AnalyticsCharts } from './AnalyticsCharts';
 import { PassRatePill } from './PassRatePill';
 
-interface CompareTabProps {
+interface AnalyticsTabProps {
   data: CompareResponse | undefined;
   isLoading: boolean;
   isError?: boolean;
@@ -47,14 +47,14 @@ type ViewMode = 'aggregated' | 'per-run';
 
 // ── Top-level container ─────────────────────────────────────────────────
 
-export function CompareTab({
+export function AnalyticsTab({
   data,
   isLoading,
   isError,
   error,
   benchmarkId,
   readOnly,
-}: CompareTabProps) {
+}: AnalyticsTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
   const [filterTags, setFilterTags] = useState<string[]>([]);
 

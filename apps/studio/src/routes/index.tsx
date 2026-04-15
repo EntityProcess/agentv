@@ -1,6 +1,6 @@
 /**
  * Home route: shows the multi-project dashboard when the server enables it,
- * or the existing tabbed landing page (Runs, Experiments, Compare, Targets)
+ * or the existing tabbed landing page (Runs, Experiments, Analytics, Targets)
  * in single-project mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
@@ -10,7 +10,7 @@ import { Link, createFileRoute, useNavigate, useRouterState } from '@tanstack/re
 import { useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { CompareTab } from '~/components/CompareTab';
+import { AnalyticsTab } from '~/components/AnalyticsTab';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
@@ -274,7 +274,7 @@ function SingleProjectHome() {
         />
       )}
       {activeTab === 'experiments' && <ExperimentsTab />}
-      {activeTab === 'analytics' && <CompareTabContent readOnly={isReadOnly} />}
+      {activeTab === 'analytics' && <AnalyticsTabContent readOnly={isReadOnly} />}
       {activeTab === 'targets' && <TargetsTab />}
 
       {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
@@ -282,10 +282,10 @@ function SingleProjectHome() {
   );
 }
 
-function CompareTabContent({ readOnly }: { readOnly: boolean }) {
+function AnalyticsTabContent({ readOnly }: { readOnly: boolean }) {
   const { data, isLoading, isError, error } = useCompare();
   return (
-    <CompareTab
+    <AnalyticsTab
       data={data}
       isLoading={isLoading}
       isError={isError}
