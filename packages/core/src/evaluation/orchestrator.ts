@@ -413,7 +413,7 @@ export interface RunEvaluationOptions {
   /** Real-time observability callbacks passed to the provider */
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
-  readonly totalBudgetUsd?: number;
+  readonly budgetUsd?: number;
   /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
   /** Workspace pooling: true (default) enables pool, false disables, undefined defaults to true */
@@ -466,7 +466,7 @@ export async function runEvaluation(
     cleanupWorkspaces,
     trials,
     streamCallbacks,
-    totalBudgetUsd,
+    budgetUsd,
     failOnError,
     poolWorkspaces,
     poolMaxSlots: configPoolMaxSlots,
@@ -1162,7 +1162,7 @@ export async function runEvaluation(
       workerIdByEvalId.set(evalCase.id, workerId);
 
       // Check suite-level budget before dispatching
-      if (totalBudgetUsd !== undefined && budgetExhausted) {
+      if (budgetUsd !== undefined && budgetExhausted) {
         const budgetResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
           testId: evalCase.id,
@@ -1172,13 +1172,13 @@ export async function runEvaluation(
           assertions: [],
           output: [],
           target: target.name,
-          error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+          error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${budgetUsd.toFixed(4)})`,
           budgetExceeded: true,
           executionStatus: 'execution_error',
           failureStage: 'setup',
           failureReasonCode: 'budget_exceeded',
           executionError: {
-            message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+            message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${budgetUsd.toFixed(4)})`,
             stage: 'setup',
           },
         };
@@ -1292,7 +1292,7 @@ export async function runEvaluation(
             : await runEvalCase(runCaseOptions);
 
         // Track suite-level budget
-        if (totalBudgetUsd !== undefined) {
+        if (budgetUsd !== undefined) {
           // Sum all trial costs when trials are used, otherwise use trace cost
           let caseCost: number | undefined;
           if (result.trials && result.trials.length > 0) {
@@ -1305,7 +1305,7 @@ export async function runEvaluation(
           }
           if (caseCost !== undefined) {
             cumulativeBudgetCost += caseCost;
-            if (cumulativeBudgetCost >= totalBudgetUsd) {
+            if (cumulativeBudgetCost >= budgetUsd) {
               budgetExhausted = true;
             }
           }

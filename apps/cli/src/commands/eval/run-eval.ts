@@ -527,7 +527,7 @@ async function prepareFileMetadata(params: {
   readonly yamlWorkers?: number;
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
-  readonly totalBudgetUsd?: number;
+  readonly budgetUsd?: number;
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly tags?: readonly string[];
@@ -654,7 +654,7 @@ async function prepareFileMetadata(params: {
     yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
-    totalBudgetUsd: suite.totalBudgetUsd,
+    budgetUsd: suite.budgetUsd,
     failOnError: suite.failOnError,
     threshold: suite.threshold,
     tags: suite.metadata?.tags,
@@ -680,7 +680,7 @@ async function runSingleEvalFile(params: {
   readonly testCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
   readonly matrixMode?: boolean;
-  readonly totalBudgetUsd?: number;
+  readonly budgetUsd?: number;
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly providerFactory?: (
@@ -706,7 +706,7 @@ async function runSingleEvalFile(params: {
     testCases,
     trialsConfig,
     matrixMode,
-    totalBudgetUsd,
+    budgetUsd,
     failOnError,
     providerFactory,
   } = params;
@@ -802,7 +802,7 @@ async function runSingleEvalFile(params: {
     workspacePath: options.workspacePath,
     keepWorkspaces: options.keepWorkspaces,
     trials: trialsConfig,
-    totalBudgetUsd,
+    budgetUsd,
     failOnError,
     graderTarget: options.graderTarget,
     model: options.model,
@@ -1166,7 +1166,7 @@ export async function runEvalCommand(
       readonly yamlWorkers?: number;
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
-      readonly totalBudgetUsd?: number;
+      readonly budgetUsd?: number;
       readonly failOnError?: FailOnError;
       readonly threshold?: number;
       readonly tags?: readonly string[];
@@ -1439,7 +1439,7 @@ export async function runEvalCommand(
               testCases: filteredTestCases,
               trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
               matrixMode: targetPrep.selections.length > 1,
-              totalBudgetUsd: targetPrep.totalBudgetUsd,
+              budgetUsd: targetPrep.budgetUsd,
               failOnError: targetPrep.failOnError,
               threshold: resolvedThreshold,
               providerFactory: transcriptProviderFactory,

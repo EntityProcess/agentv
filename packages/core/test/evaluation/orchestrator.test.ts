@@ -2507,7 +2507,7 @@ describe('workspace.template .code-workspace resolution', () => {
 });
 
 describe('suite-level total budget guardrail', () => {
-  it('completes normally when totalBudgetUsd is not set', async () => {
+  it('completes normally when budgetUsd is not set', async () => {
     const provider: Provider = {
       id: 'budget:mock',
       kind: 'mock' as const,
@@ -2564,7 +2564,7 @@ describe('suite-level total budget guardrail', () => {
       providerFactory: () => provider,
       evaluators: evaluatorRegistry,
       evalCases,
-      totalBudgetUsd: 10.0,
+      budgetUsd: 10.0,
     });
 
     expect(results).toHaveLength(2);
@@ -2598,7 +2598,7 @@ describe('suite-level total budget guardrail', () => {
       providerFactory: () => provider,
       evaluators: evaluatorRegistry,
       evalCases,
-      totalBudgetUsd: 5.0,
+      budgetUsd: 5.0,
       maxConcurrency: 1,
     });
 
@@ -2647,7 +2647,7 @@ describe('suite-level total budget guardrail', () => {
       providerFactory: () => provider,
       evaluators: evaluatorRegistry,
       evalCases,
-      totalBudgetUsd: 5.0,
+      budgetUsd: 5.0,
       maxConcurrency: 1,
       trials: { count: 2, strategy: 'pass_at_k' },
     });
