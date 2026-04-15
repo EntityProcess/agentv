@@ -10,31 +10,25 @@ import {
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 
-// ---------------------------------------------------------------------------
-// Deduplication helper — keeps last entry per (test_id, target) pair
-// ---------------------------------------------------------------------------
+export function buildTestTargetKey(testId?: string, target?: string): string {
+  return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
+}
 
-export function deduplicateByTestIdTarget(
-  results: readonly EvaluationResult[],
-): EvaluationResult[] {
+// Deduplication helper — keeps the last entry per (test_id, target) pair.
+export function deduplicateByTestIdTarget(results: readonly EvaluationResult[]): EvaluationResult[] {
   const seen = new Map<string, number>();
   for (let i = 0; i < results.length; i++) {
-    const key = `${results[i].testId ?? 'unknown'}::${results[i].target ?? 'unknown'}`;
-    seen.set(key, i);
+    seen.set(buildTestTargetKey(results[i].testId, results[i].target), i);
   }
   const deduped: EvaluationResult[] = [];
   for (let i = 0; i < results.length; i++) {
-    const key = `${results[i].testId ?? 'unknown'}::${results[i].target ?? 'unknown'}`;
+    const key = buildTestTargetKey(results[i].testId, results[i].target);
     if (seen.get(key) === i) {
       deduped.push(results[i]);
     }
   }
   return deduped;
 }
-
-// ---------------------------------------------------------------------------
-// Aggregate a run directory: read index.jsonl, deduplicate, rewrite artifacts
-// ---------------------------------------------------------------------------
 
 export async function aggregateRunDir(
   runDir: string,

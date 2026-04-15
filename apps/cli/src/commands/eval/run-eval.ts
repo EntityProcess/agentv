@@ -32,6 +32,7 @@ import { enforceRequiredVersion } from '../../version-check.js';
 import { maybeAutoExportRunArtifacts } from '../results/remote.js';
 import {
   aggregateRunDir,
+  buildTestTargetKey,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifactsFromResults,
@@ -57,6 +58,16 @@ import {
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 
 const DEFAULT_WORKERS = 3;
+
+function shouldSkipExistingResultForResume(
+  result: Pick<EvaluationResult, 'executionStatus'>,
+  rerunFailed: boolean,
+): boolean {
+  if (rerunFailed) {
+    return result.executionStatus === 'ok';
+  }
+  return result.executionStatus !== 'execution_error';
+}
 
 interface RunEvalCommandInput {
   readonly testFiles: readonly string[];
@@ -968,16 +979,8 @@ export async function runEvalCommand(
         const existingResults = parseJsonlResults(content);
         resumeSkipKeys = new Set<string>();
         for (const r of existingResults) {
-          if (options.rerunFailed) {
-            // --rerun-failed: only skip tests with execution_status 'ok'
-            if (r.executionStatus === 'ok') {
-              resumeSkipKeys.add(`${r.testId ?? 'unknown'}::${r.target ?? 'unknown'}`);
-            }
-          } else {
-            // --resume: skip tests that are not execution_error
-            if (r.executionStatus !== 'execution_error') {
-              resumeSkipKeys.add(`${r.testId ?? 'unknown'}::${r.target ?? 'unknown'}`);
-            }
+          if (shouldSkipExistingResultForResume(r, options.rerunFailed)) {
+            resumeSkipKeys.add(buildTestTargetKey(r.testId, r.target));
           }
         }
         isResumeAppend = true;
@@ -1407,7 +1410,9 @@ export async function runEvalCommand(
 
           // --resume / --rerun-failed: skip tests that are already completed
           const filteredTestCases = resumeSkipKeys
-            ? applicableTestCases.filter((test) => !resumeSkipKeys.has(`${test.id}::${targetName}`))
+            ? applicableTestCases.filter(
+                (test) => !resumeSkipKeys.has(buildTestTargetKey(test.id, targetName)),
+              )
             : applicableTestCases;
 
           if (filteredTestCases.length === 0) {
