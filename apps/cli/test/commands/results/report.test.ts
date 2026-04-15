@@ -124,6 +124,7 @@ describe('results report', () => {
     expect(html).not.toContain('metric-stack');
     expect(html).toContain('<span class="pass-rate-track">');
     expect(html).toContain('<span class="pass-rate-label">${formatPercent(rate)}</span>');
+    expect(html).toContain('<span class="metric-value">${escapeHtml(formatPercent(group.stats.pass_rate))}</span>');
     expect(html).toContain('Grader Results');
     expect(html).toContain('<th>Grader</th>');
     expect(html).not.toContain('Evaluator Results');
