@@ -1,9 +1,9 @@
 # Experimental Metric
 
-An experimental evaluator for collecting additional metrics without affecting scores.
+An experimental grader for collecting additional metrics without affecting scores.
 
 ## Task
-This is an experimental evaluator used to test new evaluation criteria. Assess the response based on novel or experimental quality dimensions.
+This is an experimental grader used to test new evaluation criteria. Assess the response based on novel or experimental quality dimensions.
 
 ## Input
 - Question: {{ input }}
@@ -16,7 +16,7 @@ Return a JSON object with:
 - `reasoning`: Experimental observations
 
 ## Note
-This evaluator has weight 0 and does not affect the final score, but its results are collected for analysis.
+This grader has weight 0 and does not affect the final score, but its results are collected for analysis.
 
 ## Example
 ```json

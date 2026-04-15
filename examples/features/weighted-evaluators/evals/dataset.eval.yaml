@@ -1,13 +1,13 @@
-name: weighted-evaluators-examples
+name: weighted-graders-examples
 
-# This example demonstrates per-evaluator weights for top-level aggregation
+# This example demonstrates per-grader weights for top-level aggregation
 
 execution:
   target: llm
 
 tests:
-  # Example 1: Different weights for multiple evaluators
-  - id: weighted-multi-evaluator
+  # Example 1: Different weights for multiple graders
+  - id: weighted-multi-grader
     input:
       - role: user
         content: "Explain the concept of neural networks."
@@ -34,8 +34,8 @@ tests:
         prompt: ../prompts/style-evaluation.md
         weight: 1.0
 
-  # Example 2: Using weight 0 to exclude an evaluator
-  - id: experimental-evaluator-disabled
+  # Example 2: Using weight 0 to exclude an grader
+  - id: experimental-grader-disabled
     input:
       - role: user
         content: "What is reinforcement learning?"
@@ -50,14 +50,14 @@ tests:
         type: llm-grader
         prompt: ../prompts/accuracy-check.md
         weight: 1.0
-      # Experimental evaluator - excluded from aggregation with weight 0
+      # Experimental grader - excluded from aggregation with weight 0
       # Useful for collecting data without affecting the score
       - name: experimental-metric
         type: llm-grader
         prompt: ../prompts/experimental-check.md
         weight: 0
 
-  # Example 3: Default weights (all evaluators weighted equally)
+  # Example 3: Default weights (all graders weighted equally)
   - id: equal-weights-default
     input:
       - role: user

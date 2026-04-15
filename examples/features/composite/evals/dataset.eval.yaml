@@ -1,4 +1,4 @@
-name: composite-evaluator-examples
+name: composite-grader-examples
 
 # This example demonstrates the new CompositeEvaluator feature
 
@@ -84,7 +84,7 @@ tests:
           type: llm-grader
           prompt: ../prompts/conflict-resolution.md
 
-  # Example 4: Nested Composite Evaluators
+  # Example 4: Nested Composite Graders
   - id: nested-composite
     input:
       - role: user

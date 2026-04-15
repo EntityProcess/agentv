@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Contextual Recall Evaluator
+ * Contextual Recall Grader
  *
  * Implements the Contextual Recall metric for RAG systems.
  * This metric evaluates whether the retrieval context contains enough relevant
@@ -16,7 +16,7 @@
  * Retrieval context is extracted from expected_output.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
- * Requires `target: { max_calls: N }` in the evaluator YAML config,
+ * Requires `target: { max_calls: N }` in the grader YAML config,
  * where N >= 2 (one for statement extraction + one for attribution check).
  */
 import { createTargetClient, defineCodeGrader } from '@agentv/eval';
@@ -92,7 +92,7 @@ export default defineCodeGrader(async (input) => {
       score: 0,
       assertions: [
         {
-          text: 'Target not available - ensure `target` block is configured in evaluator YAML',
+          text: 'Target not available - ensure `target` block is configured in grader YAML',
           passed: false,
         },
       ],

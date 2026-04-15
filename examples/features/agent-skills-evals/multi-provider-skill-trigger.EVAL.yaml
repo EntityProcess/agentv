@@ -16,7 +16,7 @@
 #   agentv eval this-file.EVAL.yaml --target copilot --targets ../.agentv/targets.yaml
 #   agentv eval this-file.EVAL.yaml --target codex --targets ../.agentv/targets.yaml
 #
-# The evaluator automatically resolves the correct tool names for each
+# The grader automatically resolves the correct tool names for each
 # provider. No provider-specific config needed in test cases.
 
 workspace:

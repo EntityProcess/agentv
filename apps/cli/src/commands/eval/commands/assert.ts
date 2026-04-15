@@ -62,7 +62,7 @@ export const evalAssertCommand = command({
       process.exit(1);
     }
 
-    // Build payload matching CodeEvaluator's expected format (snake_case).
+    // Build payload matching CodeGrader's expected format (snake_case).
     // Include all fields that defineCodeGrader validates as required.
     const payload = JSON.stringify(
       {

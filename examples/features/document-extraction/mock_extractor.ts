@@ -5,7 +5,7 @@
  * Simulates a document extraction system that reads structured data from JSON fixtures.
  * In a real implementation, this would parse PDFs/images using OCR or vision models.
  *
- * This mock simply reads pre-extracted JSON data to demonstrate the field_accuracy evaluator.
+ * This mock simply reads pre-extracted JSON data to demonstrate the field_accuracy grader.
  *
  * Usage: bun run mock_extractor.ts <input-file> [output-file]
  */

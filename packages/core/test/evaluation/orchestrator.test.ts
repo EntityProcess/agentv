@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { LlmGraderEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
+import { LlmGrader, ToolTrajectoryGrader } from '../../src/evaluation/graders.js';
 import {
   type EvaluationCache,
   runEvalCase,
@@ -551,7 +551,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     });
 
     const evaluatorRegistry = {
-      'llm-grader': new LlmGraderEvaluator({
+      'llm-grader': new LlmGrader({
         resolveGraderProvider: async () => graderProvider,
       }),
     };
@@ -871,7 +871,7 @@ describe('runEvalCase trace integration', () => {
       output,
     );
 
-    const trajectoryEvaluator = new ToolTrajectoryEvaluator({
+    const trajectoryEvaluator = new ToolTrajectoryGrader({
       config: {
         name: 'tool-check',
         type: 'tool-trajectory',
@@ -911,7 +911,7 @@ describe('runEvalCase trace integration', () => {
       output: [{ role: 'assistant', content: 'Result' }],
     });
 
-    const trajectoryEvaluator = new ToolTrajectoryEvaluator({
+    const trajectoryEvaluator = new ToolTrajectoryGrader({
       config: {
         name: 'tool-check',
         type: 'tool-trajectory',
@@ -1163,9 +1163,9 @@ Reference: \${ref}\`);
       let receivedQuestion = '';
       const captureGrader = {
         kind: 'llm-grader' as const,
-        async evaluate(context: { evalCase: EvalTest; evaluatorTemplateOverride?: string }) {
-          // The evaluatorTemplateOverride should contain our custom prompt
-          receivedQuestion = context.evaluatorTemplateOverride ?? '';
+        async evaluate(context: { evalCase: EvalTest; graderTemplateOverride?: string }) {
+          // The graderTemplateOverride should contain our custom prompt
+          receivedQuestion = context.graderTemplateOverride ?? '';
           return {
             score: 1.0,
             verdict: 'pass' as const,
@@ -1229,8 +1229,8 @@ console.log('Question: ' + question + '\\nAnswer: ' + answer);
       let receivedPrompt = '';
       const captureGrader = {
         kind: 'llm-grader' as const,
-        async evaluate(context: { evaluatorTemplateOverride?: string }) {
-          receivedPrompt = context.evaluatorTemplateOverride ?? '';
+        async evaluate(context: { graderTemplateOverride?: string }) {
+          receivedPrompt = context.graderTemplateOverride ?? '';
           return {
             score: 1.0,
             verdict: 'pass' as const,
@@ -1282,8 +1282,8 @@ console.log('Question: ' + question + '\\nAnswer: ' + answer);
       let receivedPrompt = '';
       const captureGrader = {
         kind: 'llm-grader' as const,
-        async evaluate(context: { evaluatorTemplateOverride?: string }) {
-          receivedPrompt = context.evaluatorTemplateOverride ?? '';
+        async evaluate(context: { graderTemplateOverride?: string }) {
+          receivedPrompt = context.graderTemplateOverride ?? '';
           return {
             score: 1.0,
             verdict: 'pass' as const,
@@ -1325,7 +1325,7 @@ console.log('Question: ' + question + '\\nAnswer: ' + answer);
 });
 
 describe('runEvaluation with trials', () => {
-  // Provider that returns configurable scores via alternating evaluator results
+  // Provider that returns configurable scores via alternating grader results
   class MultiCallProvider implements Provider {
     readonly id = 'multi:mock';
     readonly kind = 'mock' as const;
@@ -1340,7 +1340,7 @@ describe('runEvaluation with trials', () => {
     }
   }
 
-  // Evaluator that returns different scores on successive calls
+  // Grader that returns different scores on successive calls
   function createScoringEvaluator(scores: number[]) {
     let callIndex = 0;
     return {
@@ -1957,7 +1957,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
       expectedVerdict: 'fail',
     },
   ])(
-    '$label: $type evaluator scores $expectedScore',
+    '$label: $type grader scores $expectedScore',
     async ({
       evaluator,
       output,
@@ -2283,7 +2283,7 @@ describe('required gates', () => {
   });
 
   it('required: true uses 0.8 threshold (llm-grader score below 0.8 triggers gate)', async () => {
-    // Create an evaluator registry where llm-grader returns 0.7 (below 0.8 threshold)
+    // Create an grader registry where llm-grader returns 0.7 (below 0.8 threshold)
     const lowScoreEvaluatorRegistry = {
       'llm-grader': {
         kind: 'llm-grader' as const,

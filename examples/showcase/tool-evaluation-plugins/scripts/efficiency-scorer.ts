@@ -14,7 +14,7 @@
  * - Different projects have different cost/performance tradeoffs
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   graders:
  *     - name: efficiency
  *       type: code_grader
  *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]

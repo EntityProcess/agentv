@@ -1,13 +1,13 @@
-# Evaluator Conformance Demo
-# Demonstrates using the keyword-grader evaluator in a standard AgentV eval.
+# Grader Conformance Demo
+# Demonstrates using the keyword-grader grader in a standard AgentV eval.
 #
-# Run: cd examples/showcase/evaluator-conformance
+# Run: cd examples/showcase/grader-conformance
 #      npx agentv eval EVAL.yaml --dry-run
 #
-# The conformance harness validates this evaluator separately:
+# The conformance harness validates this grader separately:
 #      bun run conformance-check.ts
 
-description: Keyword-matching evaluator used for conformance testing demo
+description: Keyword-matching grader used for conformance testing demo
 
 execution:
   target: llm
@@ -20,7 +20,7 @@ tests:
     assertions:
       - name: keyword-grader
         type: code-grader
-        command: ["bun", "run", "evaluators/keyword-grader.ts"]
+        command: ["bun", "run", "graders/keyword-grader.ts"]
 
   - id: partial-match
     criteria: "Answer must mention red, blue, and yellow."
@@ -29,4 +29,4 @@ tests:
     assertions:
       - name: keyword-grader
         type: code-grader
-        command: ["bun", "run", "evaluators/keyword-grader.ts"]
+        command: ["bun", "run", "graders/keyword-grader.ts"]

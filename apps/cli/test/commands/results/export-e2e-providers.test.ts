@@ -471,7 +471,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.execution_metrics.tool_calls.Read).toBe(2);
       expect(grading.execution_metrics.tool_calls.Write).toBe(1);
 
-      // Evaluators
+      // Graders
       expect(grading.graders).toHaveLength(1);
       expect(grading.graders?.[0].name).toBe('accuracy');
     });

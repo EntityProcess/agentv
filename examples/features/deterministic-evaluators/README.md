@@ -1,13 +1,13 @@
-# Deterministic Evaluators
+# Deterministic Graders
 
-Demonstrates how a single, parameterised `code_grader` script can replace a family of built-in assertion evaluators (contains, regex, JSON validation, etc.).
+Demonstrates how a single, parameterised `code_grader` script can replace a family of built-in assertion graders (contains, regex, JSON validation, etc.).
 
 ## Why a Code Grader?
 
-AgentV's design philosophy keeps the core minimal. Instead of adding `contains`, `regex`, `is-json` as built-in evaluator types, you write a small code grader and drive it with YAML `config`:
+AgentV's design philosophy keeps the core minimal. Instead of adding `contains`, `regex`, `is-json` as built-in grader types, you write a small code grader and drive it with YAML `config`:
 
 ```yaml
-evaluators:
+graders:
   - name: has-keyword
     type: code-grader
     command: ["bun", "run", "../graders/assertions.ts"]
@@ -47,7 +47,7 @@ bun run build
 
 ```bash
 # From examples/features
-bun agentv eval deterministic-evaluators/evals/dataset.eval.yaml --target <your-target>
+bun agentv eval deterministic-graders/evals/dataset.eval.yaml --target <your-target>
 ```
 
 ## Standalone Test
@@ -55,7 +55,7 @@ bun agentv eval deterministic-evaluators/evals/dataset.eval.yaml --target <your-
 Pipe a JSON payload directly to the grader:
 
 ```bash
-cd examples/features/deterministic-evaluators
+cd examples/features/deterministic-graders
 cat <<'EOF' | bun run graders/assertions.ts
 {
   "question": "Say hello",

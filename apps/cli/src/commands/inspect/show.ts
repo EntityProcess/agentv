@@ -46,7 +46,7 @@ function renderFlatTrace(result: RawResult): string {
 }
 
 /**
- * Render per-evaluator scores inline.
+ * Render per-grader scores inline.
  */
 function renderScores(scores: { name: string; score: number; type: string }[]): string {
   return scores

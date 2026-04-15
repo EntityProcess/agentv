@@ -30,7 +30,7 @@ type GroundTruth = {
 };
 
 function usage(): never {
-  console.error(`Usage: bun score-grader-benchmark.ts --results <results.jsonl> --eval-set <labeled.jsonl> [--label <name>] [--evaluator <name>]
+  console.error(`Usage: bun score-grader-benchmark.ts --results <results.jsonl> --eval-set <labeled.jsonl> [--label <name>] [--grader <name>]
 
 Reads raw AgentV eval JSONL for a grader panel, resolves a majority verdict from child grader scores,
 and emits scored JSONL where score=1 means the panel matched human ground truth.
@@ -39,7 +39,7 @@ Options:
   --results <file>     Raw AgentV eval output JSONL
   --eval-set <file>    Offline labeled export JSONL used for the eval
   --label <name>       Optional output target label (defaults to input target or results filename)
-  --evaluator <name>   Composite evaluator name to inspect (defaults to first composite / first score group)
+  --grader <name>   Composite grader name to inspect (defaults to first composite / first score group)
   --help               Show this help message
 `);
   process.exit(1);
@@ -130,7 +130,7 @@ function selectPanel(scores: ScoreRecord[] | undefined, evaluatorName?: string):
   if (evaluatorName) {
     const named = scores.find((score) => score.name === evaluatorName);
     if (!named) {
-      throw new Error(`Evaluator '${evaluatorName}' not found in scores[]`);
+      throw new Error(`Grader '${evaluatorName}' not found in scores[]`);
     }
     return named;
   }
@@ -158,7 +158,7 @@ if (args.includes('--help')) usage();
 const resultsPath = getArg('--results');
 const evalSetPath = getArg('--eval-set');
 const labelOverride = getArg('--label');
-const evaluatorName = getArg('--evaluator');
+const evaluatorName = getArg('--grader');
 
 if (!resultsPath || !evalSetPath) usage();
 
@@ -185,7 +185,7 @@ for (const line of rawResults) {
   const graders = panel.scores ?? [];
   if (graders.length === 0) {
     throw new Error(
-      `Evaluator '${panel.name ?? 'unknown'}' for '${result.test_id}' has no child grader scores`,
+      `Grader '${panel.name ?? 'unknown'}' for '${result.test_id}' has no child grader scores`,
     );
   }
 

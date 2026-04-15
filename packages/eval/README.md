@@ -1,6 +1,6 @@
 # @agentv/eval
 
-Evaluation SDK for AgentV - build custom evaluators with zero boilerplate.
+Evaluation SDK for AgentV - build custom graders with zero boilerplate.
 
 ## Installation
 
@@ -41,12 +41,12 @@ Both functions handle stdin/stdout parsing, snake_case conversion, Zod validatio
 ## Exports
 
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
-- `defineCodeGrader(handler)` - Define a code grader evaluator (full score control)
+- `defineCodeGrader(handler)` - Define a code grader grader (full score control)
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `CodeGraderInput`, `CodeGraderResult` - Code grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types
-- `createTargetClient()` - LLM target proxy for evaluators
+- `createTargetClient()` - LLM target proxy for graders
 - `z` - Re-exported Zod for custom config schemas
 
 ## Documentation
@@ -57,7 +57,7 @@ For complete documentation including:
 - Execution metrics usage
 - Best practices
 
-See the [Custom Evaluators Guide](../../plugins/agentv-dev/skills/agentv-eval-writer/references/custom-evaluators.md) or run AgentV's `/agentv-eval-builder` skill.
+See the [Custom Graders Guide](../../plugins/agentv-dev/skills/agentv-eval-writer/references/custom-graders.md) or run AgentV's `/agentv-eval-builder` skill.
 
 ## Repository
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Tool Selection Evaluator - Code Grader Plugin
+ * Tool Selection Grader - Code Grader Plugin
  *
  * Evaluates whether the agent selected the RIGHT tools for the task.
  * This is a semantic evaluation that requires understanding task requirements
@@ -12,7 +12,7 @@
  * - Different projects have different tool selection criteria
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   graders:
  *     - name: tool-selection
  *       type: code_grader
  *       script: ["bun", "run", "scripts/tool-selection-grader.ts"]

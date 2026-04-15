@@ -541,12 +541,12 @@ describe('parseAssertSpec', () => {
   });
 
   describe('unsupported types', () => {
-    it('should throw on unknown evaluator type', () => {
-      expect(() => parseAssertSpec('llm-grader')).toThrow('Unsupported evaluator type');
+    it('should throw on unknown grader type', () => {
+      expect(() => parseAssertSpec('llm-grader')).toThrow('Unsupported grader type');
     });
 
     it('should throw on empty spec', () => {
-      expect(() => parseAssertSpec('')).toThrow('Unsupported evaluator type');
+      expect(() => parseAssertSpec('')).toThrow('Unsupported grader type');
     });
   });
 });

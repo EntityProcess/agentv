@@ -6,14 +6,14 @@
  * A tool call is a "hit" only if both the tool name matches AND the
  * required arguments are present with expected values.
  *
- * Configuration (via evaluator config in YAML):
+ * Configuration (via grader config in YAML):
  *   expected_tools:
  *     - tool: "search"
  *       args: { query: "weather tokyo" }    # required args (subset match)
  *     - tool: "fetch"                       # no args check — name-only match
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   graders:
  *     - name: tool-args-f1
  *       type: code_grader
  *       script: ["bun", "run", "../graders/tool-args-f1.ts"]

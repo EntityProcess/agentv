@@ -14,7 +14,7 @@
  *
  * Usage in dataset.eval.yaml:
  * ```yaml
- * evaluators:
+ * graders:
  *   - name: header_confusion
  *     type: code_grader
  *     script: ["bun", "run", "../graders/header_confusion_metrics.ts"]

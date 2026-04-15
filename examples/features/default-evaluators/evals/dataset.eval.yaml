@@ -1,8 +1,8 @@
-# Default Evaluators Example
+# Default Graders Example
 # Demonstrates root-level assert that apply to all tests
 
-name: default-evaluators-example
-description: Root-level evaluators that automatically apply to every test
+name: default-graders-example
+description: Root-level graders that automatically apply to every test
 
 execution:
   target: llm

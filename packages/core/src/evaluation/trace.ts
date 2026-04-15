@@ -59,7 +59,7 @@ export type ArgsMatchMode = 'exact' | 'ignore' | 'subset' | 'superset';
 /**
  * Configuration for tool-trajectory evaluator.
  */
-export interface ToolTrajectoryEvaluatorConfig {
+export interface ToolTrajectoryGraderConfig {
   readonly name: string;
   readonly type: 'tool-trajectory';
   /** Matching mode */
@@ -73,7 +73,7 @@ export interface ToolTrajectoryEvaluatorConfig {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Default argument matching mode for all expected items (defaults to 'exact') */
   readonly argsMatch?: ArgsMatchMode | readonly string[];

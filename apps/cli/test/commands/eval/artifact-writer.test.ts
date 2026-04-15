@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { readFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
+import type { EvaluationResult, GraderResult } from '@agentv/core';
 
 import {
   type AggregateGradingArtifact,
@@ -33,7 +33,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
   } as EvaluationResult;
 }
 
-function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): EvaluatorResult {
+function makeEvaluatorResult(overrides: Partial<GraderResult> = {}): GraderResult {
   return {
     name: 'grader-1',
     type: 'llm-grader',
@@ -43,7 +43,7 @@ function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): Evaluato
       { text: 'criterion-b', passed: false },
     ],
     ...overrides,
-  } as EvaluatorResult;
+  } as GraderResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ describe('buildGradingArtifact', () => {
     });
   });
 
-  it('uses top-level assertions when no evaluator scores', () => {
+  it('uses top-level assertions when no grader scores', () => {
     const result = makeResult({
       assertions: [
         { text: 'ok-1', passed: true },
@@ -267,7 +267,7 @@ describe('buildBenchmarkArtifact', () => {
     expect(benchmark.run_summary['gpt-4'].time_seconds.stddev).toBe(15);
   });
 
-  it('includes per-evaluator summary', () => {
+  it('includes per-grader summary', () => {
     const results = [
       makeResult({
         scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0.9 })],

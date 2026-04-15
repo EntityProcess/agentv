@@ -22,7 +22,7 @@ try {
   let verdict = 'fail';
   const assertions = [];
 
-  // Helper: extract assertions from sub-evaluator results (supports both old and new format)
+  // Helper: extract assertions from sub-grader results (supports both old and new format)
   function extractAssertions(result) {
     if (Array.isArray(result.assertions)) return result.assertions;
     const out = [];

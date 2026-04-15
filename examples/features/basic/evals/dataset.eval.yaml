@@ -2,7 +2,7 @@
 # Demonstrates schema features with real file references and minimal redundancy
 
 name: basic
-description: Example showing basic features, conversation threading, multiple evaluators
+description: Example showing basic features, conversation threading, multiple graders
 
 # File-level default target
 execution:
@@ -56,8 +56,8 @@ tests:
           - Add input validation for edge cases
 
   # ==========================================
-  # Example 2: Advanced features - conversation_id, multiple evaluators
-  # Demonstrates: conversation threading, execution config, target override, evaluators
+  # Example 2: Advanced features - conversation_id, multiple graders
+  # Demonstrates: conversation threading, execution config, target override, graders
   # Note: Optimization (ACE, etc.) is configured separately in opts/*.yaml files
   # ==========================================
   - id: code-gen-python-comprehensive
@@ -72,10 +72,10 @@ tests:
     execution:
       target: llm
 
-    # Multiple evaluators - supports both code-based and LLM graders
+    # Multiple graders - supports both code-based and LLM graders
     assertions:
       - name: keyword_check
-        type: code-grader  # Code evaluators handle regex, keywords, linting, etc.
+        type: code-grader  # Code graders handle regex, keywords, linting, etc.
         command: ["uv", "run", "check_python_keywords.py"]
         cwd: .  # Working directory for script execution
       - name: code_correctness

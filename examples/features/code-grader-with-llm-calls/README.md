@@ -1,6 +1,6 @@
 # Code Grader with LLM Calls
 
-This example demonstrates how code grader evaluators can make LLM calls through a secure local proxy without needing direct API credentials.
+This example demonstrates how code grader graders can make LLM calls through a secure local proxy without needing direct API credentials.
 
 This example implements two RAG metrics:
 - **Contextual Precision**: Evaluates whether relevant documents are ranked higher
@@ -12,7 +12,7 @@ This metric evaluates whether your retriever ranks relevant documents higher tha
 
 ### How It Works
 
-1. **Multiple Grader Calls**: For each retrieval node, the evaluator makes an LLM call to determine binary relevance (relevant=1, irrelevant=0)
+1. **Multiple Grader Calls**: For each retrieval node, the grader makes an LLM call to determine binary relevance (relevant=1, irrelevant=0)
 2. **Weighted Precision**: Calculates precision at each rank position, rewarding relevant nodes that appear earlier
 3. **Final Score**: Average of precision values at relevant positions
 
@@ -145,14 +145,14 @@ The target proxy is designed with security in mind:
 - Binds to **loopback only** (127.0.0.1) - not accessible from network
 - Uses **bearer token authentication** - unique per execution
 - Enforces **max_calls limit** - prevents runaway costs
-- **Auto-shutdown** - proxy terminates when evaluator completes
+- **Auto-shutdown** - proxy terminates when grader completes
 
 ## Configuration
 
-Enable target access by adding a `target` block to your `code_grader` evaluator:
+Enable target access by adding a `target` block to your `code_grader` grader:
 
 ```yaml
-evaluators:
+graders:
   - name: contextual_precision
     type: code-grader
     command: [bun, run, scripts/contextual-precision.ts]
@@ -199,7 +199,7 @@ console.log(`Available targets: ${info.availableTargets.join(', ')}`);
 
 ## Target Override
 
-Use different targets for different purposes within the same evaluator:
+Use different targets for different purposes within the same grader:
 
 ```typescript
 // Use a coding agent for complex tasks

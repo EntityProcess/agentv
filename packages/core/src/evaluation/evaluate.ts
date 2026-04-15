@@ -61,17 +61,17 @@ import path from 'node:path';
 import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
 import type { AssertFn } from './assertions.js';
-import { DEFAULT_THRESHOLD } from './evaluators/scoring.js';
+import { DEFAULT_THRESHOLD } from './graders/scoring.js';
 import { runEvaluation } from './orchestrator.js';
 import { createFunctionProvider } from './providers/function-provider.js';
 import { readTargetDefinitions } from './providers/targets-file.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
-import { INLINE_ASSERT_FN } from './registry/builtin-evaluators.js';
+import { INLINE_ASSERT_FN } from './registry/builtin-graders.js';
 import type {
   EvalTest,
   EvaluationResult,
-  EvaluatorConfig,
+  GraderConfig,
   InlineAssertEvaluatorConfig,
 } from './types.js';
 import { loadTests } from './yaml-parser.js';
@@ -309,7 +309,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
           };
           return Object.assign(base, {
             [INLINE_ASSERT_FN]: entry as AssertFn,
-          }) as unknown as EvaluatorConfig;
+          }) as unknown as GraderConfig;
         }
         const a = entry as EvalAssertionInput;
         const { type: rawType, ...rest } = a;
@@ -317,7 +317,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
           ...rest,
           name: a.name ?? `${rawType}_${i}`,
           type: mapAssertionType(rawType),
-        } as unknown as EvaluatorConfig;
+        } as unknown as GraderConfig;
       });
 
       return {
@@ -364,7 +364,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 }
 
 /**
- * Map user-facing assertion type names to internal evaluator type names.
+ * Map user-facing assertion type names to internal grader type names.
  * Handles snake_case to kebab-case normalization (e.g., 'llm_grader' -> 'llm-grader').
  */
 function mapAssertionType(type: string): string {

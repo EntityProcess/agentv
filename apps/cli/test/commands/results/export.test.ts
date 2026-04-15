@@ -323,7 +323,7 @@ describe('results export', () => {
     );
   });
 
-  it('should include per-evaluator summary in benchmark when scores present', async () => {
+  it('should include per-grader summary in benchmark when scores present', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 

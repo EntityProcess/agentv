@@ -3,12 +3,12 @@
  * Fuzzy String Matching code_grader Example
  *
  * This script demonstrates how to implement fuzzy string matching as a code_grader
- * evaluator. Use this approach for comparing extracted text that may have OCR errors,
+ * grader. Use this approach for comparing extracted text that may have OCR errors,
  * formatting variations, or minor typos.
  *
  * Usage in dataset.eval.yaml:
  * ```yaml
- * evaluators:
+ * graders:
  *   - name: vendor_name_fuzzy
  *     type: code_grader
  *     script: ["bun", "run", "../graders/fuzzy_match.ts"]

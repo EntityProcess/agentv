@@ -28,7 +28,7 @@ to any platform with skill-discovery mechanisms. All listed providers support sk
 
 ## Unsupported Providers: Use a Code-Grader
 
-The built-in `skill-trigger` evaluator covers Claude, Copilot, Pi, Codex and VS Code out
+The built-in `skill-trigger` grader covers Claude, Copilot, Pi, Codex and VS Code out
 of the box. For providers with different tool-call formats, write a code-grader that inspects
 the agent's tool call trace.
 

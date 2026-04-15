@@ -25,7 +25,7 @@ tests:
       ground_truth: ../evals/ground-truth/eval-spec-v2.diff
     criteria: >-
       Update agentevals spec to reflect eval spec v2: add contains/regex/is_json/equals
-      assert types, required gates for all evaluators, tests-as-string-path.
+      assert types, required gates for all graders, tests-as-string-path.
     input:
       - role: user
         content: |
@@ -37,7 +37,7 @@ tests:
         type: code-grader
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
-          - agentevals/docs/src/content/docs/specification/evaluators.mdx
+          - agentevals/docs/src/content/docs/specification/graders.mdx
           - agentevals/docs/src/content/docs/specification/eval-format.mdx
         expected_keywords: [contains, regex, is_json, equals, required, assert]
 

@@ -1,7 +1,7 @@
-# AgentV Tool Trajectory Evaluator Demo
-# Demonstrates trace events and tool_trajectory evaluator for agent execution tracking
+# AgentV Tool Trajectory Grader Demo
+# Demonstrates trace events and tool_trajectory grader for agent execution tracking
 #
-# The tool_trajectory evaluator validates that an agent used the expected tools
+# The tool_trajectory grader validates that an agent used the expected tools
 # during execution. It works with trace data returned by agent providers.
 #
 # Five trajectory matching modes are available:
@@ -11,7 +11,7 @@
 # - superset: Every expected tool must be found in actual (extras OK, greedy matching)
 # - subset: Every actual call must be in the allowed set (expected items reusable)
 #
-# Argument matching modes (per-item `args_match` or evaluator-level `args_match`):
+# Argument matching modes (per-item `args_match` or grader-level `args_match`):
 # - exact: Bidirectional deep equality, no extra keys (default)
 # - superset: Actual args must contain all expected keys (extras OK)
 # - subset: Actual args must be a subset of expected (no unexpected keys)
@@ -20,7 +20,7 @@
 #
 # Legacy shorthand:
 # - args: any - validate tool name only, ignore arguments
-# Note: For pattern/regex matching, use a code_grader evaluator instead.
+# Note: For pattern/regex matching, use a code_grader grader instead.
 #
 # This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
 # The mock agent generates different traces based on the prompt content.
@@ -31,7 +31,7 @@
 #   2. Run: cd examples/features && npx agentv eval tool-trajectory-simple/evals/dataset.eval.yaml --target mock_agent
 
 name: tool-trajectory-simple
-description: Tool trajectory evaluator examples for agent execution validation
+description: Tool trajectory grader examples for agent execution validation
 
 # Use mock_agent CLI target that returns trace data
 execution:

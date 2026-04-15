@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Mock Agent CLI for tool_trajectory evaluator demos.
+ * Mock Agent CLI for tool_trajectory grader demos.
  *
  * This CLI simulates an agent that uses tools and returns trace data.
  * It demonstrates how real agent providers (codex, vscode) would return
@@ -42,7 +42,7 @@ function createToolCall(name: string, input: unknown, id?: string): ToolCall {
 
 /**
  * Generate response based on the prompt content.
- * Different prompts trigger different tool sequences to demonstrate various evaluator modes.
+ * Different prompts trigger different tool sequences to demonstrate various grader modes.
  */
 function generateResponse(prompt: string): AgentResponse {
   const lowerPrompt = prompt.toLowerCase();

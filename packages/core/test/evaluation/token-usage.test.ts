@@ -9,7 +9,7 @@ import type {
   ProviderRequest,
   ProviderResponse,
 } from '../../src/evaluation/providers/types.js';
-import type { EvaluatorResult } from '../../src/evaluation/types.js';
+import type { GraderResult } from '../../src/evaluation/types.js';
 
 // ─── AI SDK mapResponse ────────────────────────────────────────────────
 // The mapResponse function is private, but we can test the public invoke()
@@ -17,8 +17,8 @@ import type { EvaluatorResult } from '../../src/evaluation/types.js';
 // Instead, we verify the type contracts that mapResponse must satisfy.
 
 describe('token usage type contracts', () => {
-  it('EvaluatorResult accepts tokenUsage', () => {
-    const result: EvaluatorResult = {
+  it('GraderResult accepts tokenUsage', () => {
+    const result: GraderResult = {
       name: 'test',
       type: 'llm-grader',
       score: 0.9,
@@ -28,8 +28,8 @@ describe('token usage type contracts', () => {
     expect(result.tokenUsage).toEqual({ input: 100, output: 50 });
   });
 
-  it('EvaluatorResult tokenUsage is optional', () => {
-    const result: EvaluatorResult = {
+  it('GraderResult tokenUsage is optional', () => {
+    const result: GraderResult = {
       name: 'test',
       type: 'llm-grader',
       score: 0.9,
@@ -39,7 +39,7 @@ describe('token usage type contracts', () => {
   });
 
   it('nested scores carry tokenUsage', () => {
-    const result: EvaluatorResult = {
+    const result: GraderResult = {
       name: 'composite',
       type: 'composite',
       score: 0.8,

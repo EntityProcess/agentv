@@ -5,7 +5,7 @@
  * Computes precision, recall, and F1 score by comparing expected tool calls
  * against actual tool calls from the agent's output messages.
  *
- * Configuration (via evaluator config in YAML):
+ * Configuration (via grader config in YAML):
  *   expected_tools: string[]  — list of tool names the agent should call
  *
  * Why this is a plugin (not built-in):
@@ -14,7 +14,7 @@
  * - Easy to extend with argument matching (see tool-args-f1.ts)
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   graders:
  *     - name: tool-f1
  *       type: code_grader
  *       script: ["bun", "run", "../graders/tool-call-f1.ts"]
@@ -43,7 +43,7 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
       score: 0,
       assertions: [
         {
-          text: 'No expected_tools configured — set expected_tools in evaluator config',
+          text: 'No expected_tools configured — set expected_tools in grader config',
           passed: false,
         },
       ],

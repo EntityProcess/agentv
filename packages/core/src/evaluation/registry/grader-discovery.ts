@@ -2,8 +2,8 @@
  * Convention-based discovery of custom grader scripts.
  *
  * Scans `.agentv/graders/` (and legacy `.agentv/judges/`) for TypeScript/JavaScript
- * files and registers them as code-grader evaluators in the registry. The file name
- * (without extension) becomes the evaluator type name.
+ * files and registers them as code graders in the registry. The file name
+ * (without extension) becomes the grader type name.
  *
  * Example: `.agentv/graders/custom-grader.ts` → type "custom-grader" in EVAL.yaml
  */
@@ -11,20 +11,20 @@
 import path from 'node:path';
 import fg from 'fast-glob';
 
-import { CodeEvaluator } from '../evaluators/code-evaluator.js';
-import type { EvaluatorFactoryFn } from './evaluator-registry.js';
-import type { EvaluatorRegistry } from './evaluator-registry.js';
+import { CodeGrader } from '../graders/code-grader.js';
+import type { GraderFactoryFn } from './grader-registry.js';
+import type { GraderRegistry } from './grader-registry.js';
 
 /**
  * Discover custom grader scripts from `.agentv/graders/` (and legacy `.agentv/judges/`)
- * and register them as evaluator types in the registry.
+ * and register them as grader types in the registry.
  *
- * @param registry - The evaluator registry to register discovered graders into
+ * @param registry - The grader registry to register discovered graders into
  * @param baseDir - The base directory to search from (typically project root or eval file dir)
  * @returns Names of discovered grader types
  */
 export async function discoverGraders(
-  registry: EvaluatorRegistry,
+  registry: GraderRegistry,
   baseDir: string,
 ): Promise<string[]> {
   const patterns = ['*.ts', '*.js', '*.mts', '*.mjs'];
@@ -64,8 +64,8 @@ export async function discoverGraders(
       continue;
     }
 
-    const factory: EvaluatorFactoryFn = (_config, context) => {
-      return new CodeEvaluator({
+    const factory: GraderFactoryFn = (_config, context) => {
+      return new CodeGrader({
         command: ['bun', 'run', filePath],
         agentTimeoutMs: context.agentTimeoutMs,
       });
@@ -77,6 +77,3 @@ export async function discoverGraders(
 
   return discoveredTypes;
 }
-
-/** @deprecated Use `discoverGraders` instead */
-export const discoverJudges = discoverGraders;

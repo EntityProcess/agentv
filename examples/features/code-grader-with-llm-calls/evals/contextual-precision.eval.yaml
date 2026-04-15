@@ -1,4 +1,4 @@
-# Contextual Precision Evaluator
+# Contextual Precision Grader
 #
 # Evaluates whether relevant retrieval nodes are ranked higher than irrelevant ones.
 # This metric rewards retrievers that surface relevant content first.

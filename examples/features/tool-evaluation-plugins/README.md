@@ -13,7 +13,7 @@ Computes precision, recall, and F1 by comparing expected tool names against actu
 - **False positive**: unexpected tool was called
 
 ```yaml
-evaluators:
+graders:
   - name: tool-f1
     type: code-grader
     command: ["bun", "run", "../graders/tool-call-f1.ts"]
@@ -25,7 +25,7 @@ evaluators:
 Extends the name-only grader by also validating tool arguments. A call is a hit only if both the name matches AND the required arguments are present (subset match).
 
 ```yaml
-evaluators:
+graders:
   - name: tool-args-f1
     type: code-grader
     command: ["bun", "run", "../graders/tool-args-f1.ts"]

@@ -67,7 +67,7 @@ def main():
         # System error
         result = {
             "score": 0.0,
-            "assertions": [{"text": f"Evaluator error: {str(e)}", "passed": False}],
+            "assertions": [{"text": f"Grader error: {str(e)}", "passed": False}],
         }
         print(json.dumps(result))
 

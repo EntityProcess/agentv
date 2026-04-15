@@ -144,7 +144,7 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
       if (!entry.scores || !Array.isArray(entry.scores) || entry.scores.length === 0) {
         diagnostics.push({
           severity: 'warning',
-          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'scores[]' array — dashboard may not show per-evaluator breakdown`,
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'scores[]' array — dashboard may not show per-grader breakdown`,
         });
       } else {
         for (let j = 0; j < entry.scores.length; j++) {

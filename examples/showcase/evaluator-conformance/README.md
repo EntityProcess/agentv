@@ -1,17 +1,17 @@
-# Evaluator Conformance Harness
+# Grader Conformance Harness
 
-A showcase demonstrating how to verify that an evaluator is **compatible** (produces valid output) and **consistent** (produces stable scores across repeated runs).
+A showcase demonstrating how to verify that an grader is **compatible** (produces valid output) and **consistent** (produces stable scores across repeated runs).
 
 ## Problem
 
-LLM-based and heuristic evaluators can be non-deterministic. Before trusting an evaluator in CI, you need to know:
+LLM-based and heuristic graders can be non-deterministic. Before trusting an grader in CI, you need to know:
 
-1. **Compatibility** — Does the evaluator always return valid `{ score, hits, misses }` output?
+1. **Compatibility** — Does the grader always return valid `{ score, hits, misses }` output?
 2. **Consistency** — Does it produce stable verdicts on unambiguous inputs?
 
 ## How It Works
 
-The harness runs an evaluator N times against a labeled fixture dataset:
+The harness runs an grader N times against a labeled fixture dataset:
 
 | Label | Expectation |
 |-----------|---------------------------------------------|
@@ -28,7 +28,7 @@ It then computes per-fixture metrics:
 ## Quick Start
 
 ```bash
-cd examples/showcase/evaluator-conformance
+cd examples/showcase/grader-conformance
 bun install
 bun run conformance-check.ts
 ```
@@ -45,8 +45,8 @@ bun run conformance-check.ts
 ## Example Output
 
 ```
-  Evaluator Conformance Harness
-  evaluator:  bun run evaluators/keyword-grader.ts
+  Grader Conformance Harness
+  grader:  bun run graders/keyword-grader.ts
   fixtures:   9
   runs/each:  5
   max-flip:   0
@@ -82,7 +82,7 @@ The `--output` flag writes a structured JSON report for programmatic consumption
 
 ```json
 {
-  "evaluator": ["bun", "run", "evaluators/keyword-grader.ts"],
+  "grader": ["bun", "run", "graders/keyword-grader.ts"],
   "total_fixtures": 9,
   "total_runs": 45,
   "compatible": true,
@@ -104,19 +104,19 @@ The `--output` flag writes a structured JSON report for programmatic consumption
 }
 ```
 
-## Adapting for Your Evaluator
+## Adapting for Your Grader
 
-1. Replace `evaluators/keyword-grader.ts` with your evaluator script
+1. Replace `graders/keyword-grader.ts` with your grader script
 2. Update `fixtures.yaml` with domain-specific test cases
 3. Set `score_bounds` on ambiguous fixtures based on acceptable variance
-4. Adjust `--max-flip-rate` for LLM-based evaluators (e.g., `0.1` allows 10% flip rate)
+4. Adjust `--max-flip-rate` for LLM-based graders (e.g., `0.1` allows 10% flip rate)
 
 ## Files
 
 | File | Purpose |
 |--------------------------------|-----------------------------------------------|
-| `conformance-check.ts` | Harness script — runs evaluator, validates |
+| `conformance-check.ts` | Harness script — runs grader, validates |
 | `fixtures.yaml` | Labeled fixture dataset |
-| `evaluators/keyword-grader.ts` | Sample deterministic evaluator under test |
-| `EVAL.yaml` | Standard AgentV eval using the same evaluator |
+| `graders/keyword-grader.ts` | Sample deterministic grader under test |
+| `EVAL.yaml` | Standard AgentV eval using the same grader |
 | `package.json` | Dependencies |

@@ -95,7 +95,7 @@ bun apps/cli/src/cli.ts eval multi-provider-skill-trigger.EVAL.yaml \
   --target copilot --targets ../.agentv/targets.yaml
 ```
 
-The `skill-trigger` evaluator automatically handles each provider's tool-call format:
+The `skill-trigger` grader automatically handles each provider's tool-call format:
 
 | Provider | Detection method |
 |----------|-----------------|
@@ -112,4 +112,4 @@ Using skill: <skill-name>
 Viewing ...<skill-path>
 ```
 
-The evaluator scans the entire conversation transcript (not just the first tool call), so a preamble meta-skill like `using-superpowers` firing before `csv-analyzer` still results in a pass.
+The grader scans the entire conversation transcript (not just the first tool call), so a preamble meta-skill like `using-superpowers` firing before `csv-analyzer` still results in a pass.

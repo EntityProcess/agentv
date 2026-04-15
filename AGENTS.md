@@ -19,13 +19,13 @@ AgentV's core should remain minimal. Complex or domain-specific logic belongs in
 
 **Extension points (prefer these over adding built-ins):**
 - `code-grader` scripts for custom evaluation logic
-- `llm-grader` evaluators with custom prompt files for domain-specific LLM grading
+- `llm-grader` graders with custom prompt files for domain-specific LLM grading
 - CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
 
-**Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in. This includes adding config overrides to existing evaluators — if a niche provider needs custom tool-name matching, that's a code-grader, not a new config field.
+**Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in. This includes adding config overrides to existing graders — if a niche provider needs custom tool-name matching, that's a code-grader, not a new config field.
 
 ### 2. Built-ins for Primitives Only
-Built-in evaluators provide **universal primitives** that users compose. A primitive is:
+Built-in graders provide **universal primitives** that users compose. A primitive is:
 - Stateless and deterministic
 - Has a single, clear responsibility
 - Cannot be trivially composed from other primitives
@@ -77,11 +77,11 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Project Structure
 - `packages/core/` - Evaluation engine, providers, grading
-  - `src/evaluation/registry/` - Extensible evaluator registry (EvaluatorRegistry, assertion discovery)
+  - `src/evaluation/registry/` - Extensible grader registry (EvaluatorRegistry, assertion discovery)
   - `src/evaluation/providers/provider-registry.ts` - Provider plugin registry
   - `src/evaluation/evaluate.ts` - `evaluate()` programmatic API
   - `src/evaluation/config.ts` - `defineConfig()` for typed agentv.config.ts
-- `packages/eval/` - Lightweight assertion SDK (`defineAssertion`, `defineCodeJudge`)
+- `packages/eval/` - Lightweight assertion SDK (`defineAssertion`, `defineCodeGrader`)
 - `apps/cli/` - Command-line interface (published as `agentv`)
   - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
 - `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
@@ -261,9 +261,9 @@ Tests should be lean and focused on what matters. Follow these principles:
 - **Regression tests > comprehensive tests.** A test that would have caught the bug is worth more than five tests that exercise happy paths.
 - **Tests are executable contracts.** When a module's behavioral contract changes, the tests must reflect the new contract — not just the happy path. If you change what a function promises, update its tests to assert the new promise.
 
-### Verifying Evaluator Changes
+### Verifying Grader Changes
 
-Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
+Unit tests alone are insufficient for grader changes. After implementing or modifying graders:
 
 1. **Copy `.env` to the worktree** if running in a git worktree (e2e tests need environment variables):
    ```bash
@@ -272,7 +272,7 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
    ```powershell
    Copy-Item D:/path/to/main/.env .env
    ```
-   Do not claim e2e or evaluator verification results unless this preflight has passed.
+   Do not claim e2e or grader verification results unless this preflight has passed.
 
 2. **Run an actual eval** with a real example file:
    ```bash
@@ -280,13 +280,13 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
    ```
 
 3. **Inspect the results JSONL** to verify:
-   - The correct evaluator type is invoked (check `scores[].type`)
+   - The correct grader type is invoked (check `scores[].type`)
    - Scores are calculated as expected
    - Assertions array reflects the evaluation logic (each entry has `text`, `passed`, optional `evidence`)
 
 4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
 
-5. **Note:** `--dry-run` returns schema-valid mock responses (`{}` as output, zeroed `tokenUsage`). Built-in graders will not crash, but scores are meaningless. Use it for testing harness flow, not evaluator logic.
+5. **Note:** `--dry-run` returns schema-valid mock responses (`{}` as output, zeroed `tokenUsage`). Built-in graders will not crash, but scores are meaningless. Use it for testing harness flow, not grader logic.
 
 ### Completing Work — E2E Checklist
 
@@ -307,11 +307,11 @@ Before marking any branch as ready for review, complete this checklist:
    - **Green (with your changes):** Run the identical scenario with your branch. Confirm the fix or feature works correctly from the end user's perspective. Capture the output.
    - **Document both** red and green results in the PR description or comments so reviewers can see the before/after evidence.
 
-   For evaluator changes, this means running a real eval (not `--dry-run`) and inspecting the output JSONL. For CLI/UX changes, this means running the CLI command and verifying the console output.
+   For grader changes, this means running a real eval (not `--dry-run`) and inspecting the output JSONL. For CLI/UX changes, this means running the CLI command and verifying the console output.
 
-4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed evaluator parsing, run an eval that exercises different evaluator types).
+4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed grader parsing, run an eval that exercises different grader types).
 
-5. **Live eval verification**: For changes affecting scoring, thresholds, or evaluator behavior, run at least one real eval with a live provider (not `--dry-run`) and verify the output JSONL has correct scores, verdicts, and execution status.
+5. **Live eval verification**: For changes affecting scoring, thresholds, or grader behavior, run at least one real eval with a live provider (not `--dry-run`) and verify the output JSONL has correct scores, verdicts, and execution status.
 
 6. **Studio UX verification**: For changes affecting config, scoring display, or studio API, use `agent-browser` to verify the studio UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
 
@@ -323,15 +323,15 @@ When making changes to functionality:
 
 1. **Docs site** (`apps/web/src/content/docs/`): Update human-readable documentation on agentv.dev. This is the comprehensive reference.
 
-2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, evaluator types, or CLI commands. Keep concise — link to docs site for details.
+2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, grader types, or CLI commands. Keep concise — link to docs site for details.
 
 3. **Examples** (`examples/`): Update any example code, scripts, or eval YAML files that exercise the changed functionality. Examples are both documentation and integration tests.
 
 4. **README.md**: Keep minimal. Links point to agentv.dev.
 
-## Evaluator Type System
+## Grader Type System
 
-Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
+Grader types use **kebab-case** everywhere (matching promptfoo convention):
 
 - **YAML config:** `type: llm-grader`, `type: is-json`, `type: execution-metrics`
 - **Internal TypeScript:** `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
@@ -340,7 +340,7 @@ Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
 
 **Source of truth:** `EVALUATOR_KIND_VALUES` array in `packages/core/src/evaluation/types.ts`
 
-**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-grader`) via `normalizeEvaluatorType()` in `evaluator-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
+**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-grader`) via `normalizeGraderType()` in `grader-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
 
 **Two type definitions exist:**
 - `EvaluatorKind` in `packages/core/src/evaluation/types.ts` — internal, canonical

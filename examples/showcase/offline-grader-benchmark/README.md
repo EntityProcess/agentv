@@ -4,7 +4,7 @@ A public, offline workflow for benchmarking **grader quality itself** against a 
 
 It uses existing AgentV primitives:
 - a `cli` replay target to return the frozen agent output from each sample,
-- three `llm-grader` evaluators (each can use a different low-cost target),
+- three `llm-grader` graders (each can use a different low-cost target),
 - a `composite` threshold aggregator for majority vote,
 - `agentv compare` for A/B grader-setup comparison,
 - and a small post-processing script that scores the grader panel against human ground truth.

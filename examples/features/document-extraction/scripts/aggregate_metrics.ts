@@ -7,7 +7,7 @@
  *
  * Usage:
  *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl
- *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --evaluator header_confusion
+ *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --grader header_confusion
  *   bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --format csv
  */
 
@@ -103,7 +103,7 @@ function extractMetricsFromResults(
       }
     }
 
-    // Process nested evaluator results
+    // Process nested grader results
     if (result.scores) {
       for (const child of result.scores) {
         processResult(child);
@@ -235,13 +235,13 @@ async function main(): Promise<void> {
     console.log(`Usage: bun run scripts/aggregate_metrics.ts <index.jsonl> [options]
 
 Options:
-  --evaluator <name>  Only aggregate metrics from evaluators with this name
+  --grader <name>  Only aggregate metrics from graders with this name
   --format <format>   Output format: table (default) or csv
   --help              Show this help message
 
 Example:
   bun run scripts/aggregate_metrics.ts .agentv/results/eval-001.jsonl
-  bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --evaluator header_confusion --format csv
+  bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl --grader header_confusion --format csv
 `);
     process.exit(0);
   }
@@ -251,7 +251,7 @@ Example:
   let format: 'table' | 'csv' = 'table';
 
   for (let i = 1; i < args.length; i++) {
-    if (args[i] === '--evaluator' && args[i + 1]) {
+    if (args[i] === '--grader' && args[i + 1]) {
       evaluatorFilter = args[++i];
     } else if (args[i] === '--format' && args[i + 1]) {
       format = args[++i] as 'table' | 'csv';

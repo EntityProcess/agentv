@@ -1,8 +1,8 @@
-# Deterministic Evaluator Examples
+# Deterministic Grader Examples
 # Shows built-in assertion types for common deterministic checks.
 # These replace the need for external code_grader scripts for simple assertions.
 
-name: deterministic-evaluators
+name: deterministic-graders
 description: Built-in deterministic assertions — contains, regex, JSON validation, equals
 
 execution:

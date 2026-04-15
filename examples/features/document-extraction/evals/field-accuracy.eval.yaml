@@ -1,6 +1,6 @@
 # Field Accuracy Evaluation Dataset
 #
-# This dataset demonstrates the built-in `field_accuracy` evaluator for per-test-case scoring.
+# This dataset demonstrates the built-in `field_accuracy` grader for per-test-case scoring.
 # Use this pattern when you need simple pass/fail scoring per field.
 #
 # For aggregatable TP/TN/FP/FN metrics across documents, see confusion-metrics.yaml instead.
@@ -22,13 +22,13 @@
 #   invoice-005: ~1.000 (line items extracted correctly)
 #   invoice-006: ~1.000 (greedy matching handles reordered line items)
 #
-description: Field accuracy evaluator patterns (per-test-case scoring)
+description: Field accuracy grader patterns (per-test-case scoring)
 
 execution:
   target: mock_extractor
 
 assertions:
-  # Primary evaluator: Correctness via field-level accuracy
+  # Primary grader: Correctness via field-level accuracy
   - name: invoice_field_accuracy
     type: field-accuracy
     fields:
@@ -104,7 +104,7 @@ assertions:
   #       weight: 1.5
   #       required: false
 
-  # Execution metrics evaluators (optional, require provider to report metrics)
+  # Execution metrics graders (optional, require provider to report metrics)
   # - name: performance_check
   #   type: latency
   #   threshold: 2000  # max allowed duration in milliseconds

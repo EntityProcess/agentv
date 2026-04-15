@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { trimBaselineResult } from '../../src/evaluation/baseline.js';
-import type { EvaluationResult, EvaluatorResult } from '../../src/evaluation/types.js';
+import type { EvaluationResult, GraderResult } from '../../src/evaluation/types.js';
 
 function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
   return {
@@ -34,7 +34,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
   };
 }
 
-function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): EvaluatorResult {
+function makeEvaluatorResult(overrides: Partial<GraderResult> = {}): GraderResult {
   return {
     name: 'test-evaluator',
     type: 'llm-grader',
@@ -78,7 +78,7 @@ describe('trimBaselineResult', () => {
     expect(trimmed.error).toBe('something went wrong');
   });
 
-  it('trims evaluator results', () => {
+  it('trims grader results', () => {
     const evaluatorResult = makeEvaluatorResult();
     const full = makeFullResult({ scores: [evaluatorResult] });
     const trimmed = trimBaselineResult(full);
@@ -97,7 +97,7 @@ describe('trimBaselineResult', () => {
     expect(er.input).toBeUndefined();
   });
 
-  it('recursively trims composite evaluator results', () => {
+  it('recursively trims composite grader results', () => {
     const inner = makeEvaluatorResult({ name: 'inner' });
     const composite = makeEvaluatorResult({
       name: 'composite',
@@ -129,7 +129,7 @@ describe('trimBaselineResult', () => {
     expect(JSON.stringify(full)).toBe(originalJson);
   });
 
-  it('handles result with no evaluator results', () => {
+  it('handles result with no grader results', () => {
     const full = makeFullResult();
     const trimmed = trimBaselineResult(full);
     expect(trimmed.scores).toBeUndefined();

@@ -39,10 +39,10 @@ bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry
 ## Patterns
 
 ### Threshold validation
-Pass configurable limits via `config` in the YAML evaluator block:
+Pass configurable limits via `config` in the YAML grader block:
 
 ```yaml
-evaluators:
+graders:
   - name: span-count
     type: code-grader
     command: ["bun", "run", "../graders/span-count.ts"]
@@ -55,7 +55,7 @@ evaluators:
 Check for zero errors and block forbidden tools:
 
 ```yaml
-evaluators:
+graders:
   - name: error-check
     type: code-grader
     command: ["bun", "run", "../graders/error-spans.ts"]
@@ -69,7 +69,7 @@ evaluators:
 Ensure no individual step or total execution exceeds time budgets:
 
 ```yaml
-evaluators:
+graders:
   - name: duration-check
     type: code-grader
     command: ["bun", "run", "../graders/span-duration.ts"]

@@ -49,8 +49,8 @@ mock.module('ai', () => {
 });
 
 // Import AFTER mock is set up
-const { extractImageBlocks } = await import('../../src/evaluation/evaluators/llm-grader.js');
-const { LlmGraderEvaluator } = await import('../../src/evaluation/evaluators.js');
+const { extractImageBlocks } = await import('../../src/evaluation/graders/llm-grader.js');
+const { LlmGrader } = await import('../../src/evaluation/graders.js');
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -196,7 +196,7 @@ describe('extractImageBlocks', () => {
 // LLM grader multimodal integration tests
 // ---------------------------------------------------------------------------
 
-describe('LlmGraderEvaluator multimodal', () => {
+describe('LlmGrader multimodal', () => {
   let tempDir: string | undefined;
 
   beforeEach(() => {
@@ -213,7 +213,7 @@ describe('LlmGraderEvaluator multimodal', () => {
   it('sends plain text prompt when output has no images', async () => {
     const provider = createLmProvider();
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => provider,
     });
 
@@ -239,7 +239,7 @@ describe('LlmGraderEvaluator multimodal', () => {
   it('sends multi-part messages when output contains images', async () => {
     const provider = createLmProvider();
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => provider,
     });
 
@@ -292,7 +292,7 @@ describe('LlmGraderEvaluator multimodal', () => {
   it('appends multiple images from output', async () => {
     const provider = createLmProvider();
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => provider,
     });
 
@@ -331,7 +331,7 @@ describe('LlmGraderEvaluator multimodal', () => {
   it('ignores images in user/tool messages (only assistant)', async () => {
     const provider = createLmProvider();
 
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => provider,
     });
 
@@ -381,7 +381,7 @@ console.log('spreadsheet:' + path.basename(payload.original_path));`,
     );
 
     const provider = createLmProvider();
-    const evaluator = new LlmGraderEvaluator({
+    const evaluator = new LlmGrader({
       resolveGraderProvider: async () => provider,
     });
 

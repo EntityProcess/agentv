@@ -8,16 +8,16 @@ import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
 import { getWorkspacePoolRoot } from '../paths.js';
+import { readJsonFile } from './file-utils.js';
 import {
-  type ChildEvaluatorResult,
+  type ChildGraderResult,
   DEFAULT_THRESHOLD,
   type EvaluationScore,
-  type Evaluator,
-  LlmGraderEvaluator,
+  type Grader,
+  LlmGrader,
   negateScore,
   scoreToVerdict,
-} from './evaluators.js';
-import { readJsonFile } from './file-utils.js';
+} from './graders.js';
 import { createBuiltinProviderRegistry, createProvider } from './providers/index.js';
 import { discoverProviders } from './providers/provider-discovery.js';
 import {
@@ -57,15 +57,15 @@ import type {
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
-  EvaluatorConfig,
-  EvaluatorKind,
-  EvaluatorResult,
   ExecutionStatus,
   FailOnError,
   FailureStage,
+  GraderConfig,
+  GraderKind,
+  GraderResult,
   JsonObject,
   JsonValue,
-  LlmGraderEvaluatorConfig,
+  LlmGraderConfig,
   TestMessage,
   TestMessageRole,
   TrialResult,
@@ -104,7 +104,7 @@ function classifyQualityStatus(score: number, threshold = DEFAULT_THRESHOLD): Ex
 }
 
 function buildSkippedEvaluatorError(
-  scores: readonly EvaluatorResult[] | undefined,
+  scores: readonly GraderResult[] | undefined,
 ): string | undefined {
   const skippedScores = scores?.filter((score) => score.verdict === 'skip') ?? [];
   if (skippedScores.length === 0) {
@@ -114,11 +114,11 @@ function buildSkippedEvaluatorError(
   const messages = skippedScores.map((score) => {
     const label = score.name || score.type;
     const assertionMessage =
-      score.assertions.find((assertion) => !assertion.passed)?.text ?? 'Evaluator skipped';
+      score.assertions.find((assertion) => !assertion.passed)?.text ?? 'Grader skipped';
     return `${label}: ${assertionMessage}`;
   });
 
-  return messages.length === 1 ? messages[0] : `Evaluators skipped: ${messages.join(' | ')}`;
+  return messages.length === 1 ? messages[0] : `Graders skipped: ${messages.join(' | ')}`;
 }
 
 function usesFileReferencePrompt(provider: Provider): boolean {
@@ -325,7 +325,7 @@ export interface RunEvalCaseOptions {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
+  readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
   readonly now?: () => Date;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
@@ -355,8 +355,8 @@ export interface RunEvalCaseOptions {
   readonly suiteWorkspaceFile?: string;
   /** Real-time observability callbacks passed to the provider */
   readonly streamCallbacks?: ProviderStreamCallbacks;
-  /** Evaluator type registry (with custom assertions discovered) */
-  readonly typeRegistry?: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  /** Grader type registry (with custom assertions discovered) */
+  readonly typeRegistry?: import('./registry/grader-registry.js').GraderRegistry;
   /** RepoManager instance for repo lifecycle (shared workspace mode) */
   readonly repoManager?: RepoManager;
   /** Directory containing the eval YAML file. Used as default cwd for workspace scripts. */
@@ -391,7 +391,7 @@ export interface RunEvaluationOptions {
   readonly targets?: readonly TargetDefinition[];
   readonly env?: EnvLookup;
   readonly providerFactory?: (target: ResolvedTarget) => Provider;
-  readonly evaluators?: Partial<Record<string, Evaluator>>;
+  readonly evaluators?: Partial<Record<string, Grader>>;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
   readonly cache?: EvaluationCache;
@@ -1541,10 +1541,10 @@ async function runBatchEvaluation(options: {
   readonly evalCases: readonly EvalTest[];
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly 'llm-grader': Evaluator;
+  readonly evaluatorRegistry: Partial<Record<string, Grader>> & {
+    readonly 'llm-grader': Grader;
   };
-  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
@@ -2379,7 +2379,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const effectiveThreshold = evalCase.threshold ?? caseThreshold;
     const totalDurationMs = Date.now() - caseStartMs;
 
-    // Aggregate grader token usage from individual evaluator results
+    // Aggregate grader token usage from individual grader results
     const graderTokens = aggregateEvaluatorTokenUsage(result.scores);
     const evalRunTokenUsage =
       tokenUsage || graderTokens
@@ -2614,8 +2614,8 @@ async function evaluateCandidate(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
-  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
+  readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
   readonly attempt: number;
@@ -2715,7 +2715,7 @@ async function evaluateCandidate(options: {
     }
   }
 
-  const evaluatorRequest = scores ? undefined : score.evaluatorRawRequest;
+  const evaluatorRequest = scores ? undefined : score.graderRawRequest;
   // Only include agent request if it has content (verbose mode adds the input field)
   const effectiveAgentRequest =
     agentRequest && Object.keys(agentRequest).length > 0 ? agentRequest : undefined;
@@ -2758,8 +2758,8 @@ async function runEvaluatorsForCase(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
-  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
+  readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
@@ -2779,7 +2779,7 @@ async function runEvaluatorsForCase(options: {
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
   readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
-}): Promise<{ score: EvaluationScore; scores?: EvaluatorResult[] }> {
+}): Promise<{ score: EvaluationScore; scores?: GraderResult[] }> {
   const {
     evalCase,
     candidate,
@@ -2877,7 +2877,7 @@ async function runEvaluatorsForCase(options: {
   return { score };
 }
 
-function buildImplicitLlmGraderConfig(evalCase: EvalTest): LlmGraderEvaluatorConfig | undefined {
+function buildImplicitLlmGraderConfig(evalCase: EvalTest): LlmGraderConfig | undefined {
   if (!evalCase.preprocessors || evalCase.preprocessors.length === 0) {
     return undefined;
   }
@@ -2891,14 +2891,14 @@ function buildImplicitLlmGraderConfig(evalCase: EvalTest): LlmGraderEvaluatorCon
 
 async function runEvaluatorList(options: {
   readonly evalCase: EvalTest;
-  readonly evaluators: readonly EvaluatorConfig[];
+  readonly evaluators: readonly GraderConfig[];
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly 'llm-grader': Evaluator;
+  readonly evaluatorRegistry: Partial<Record<string, Grader>> & {
+    readonly 'llm-grader': Grader;
   };
-  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
@@ -2918,7 +2918,7 @@ async function runEvaluatorList(options: {
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
   readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
-}): Promise<{ score: EvaluationScore; scores: EvaluatorResult[] }> {
+}): Promise<{ score: EvaluationScore; scores: GraderResult[] }> {
   const {
     evalCase,
     evaluators,
@@ -2955,10 +2955,10 @@ async function runEvaluatorList(options: {
     readonly required?: boolean | number;
     readonly min_score?: number;
   }> = [];
-  const scores: EvaluatorResult[] = [];
+  const scores: GraderResult[] = [];
 
   // Build the evaluation context (shared across all evaluators for this case)
-  const evalContext: import('./evaluators/types.js').EvaluationContext = {
+  const evalContext: import('./graders/types.js').EvaluationContext = {
     evalCase,
     candidate,
     target,
@@ -2984,7 +2984,7 @@ async function runEvaluatorList(options: {
 
   // Build the dispatch context for evaluator factories
   const evalFileDir = evalCase.file_paths[0] ? path.dirname(evalCase.file_paths[0]) : process.cwd();
-  const dispatchContext: import('./registry/evaluator-registry.js').EvaluatorDispatchContext = {
+  const dispatchContext: import('./registry/grader-registry.js').GraderDispatchContext = {
     graderProvider,
     targetResolver,
     availableTargets,
@@ -3021,7 +3021,7 @@ async function runEvaluatorList(options: {
         weight,
         verdict: score.verdict,
         assertions: score.assertions,
-        input: score.evaluatorRawRequest,
+        input: score.graderRawRequest,
         target: score.graderTarget,
         details: score.details,
         scores: mapChildResults(score.scores),
@@ -3037,7 +3037,7 @@ async function runEvaluatorList(options: {
         score: 0,
         verdict: 'fail',
         assertions: [
-          { text: `Evaluator '${evaluatorConfig.name}' failed: ${message}`, passed: false },
+          { text: `Grader '${evaluatorConfig.name}' failed: ${message}`, passed: false },
         ],
         expectedAspectCount: 1,
       };
@@ -3060,7 +3060,7 @@ async function runEvaluatorList(options: {
         verdict: 'fail',
         assertions: [
           {
-            text: `Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`,
+            text: `Grader '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`,
             passed: false,
           },
         ],
@@ -3139,12 +3139,12 @@ function filterEvalCases(
 }
 
 function buildEvaluatorRegistry(
-  overrides: Partial<Record<string, Evaluator>> | undefined,
+  overrides: Partial<Record<string, Grader>> | undefined,
   resolveGraderProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
-): Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator } {
+): Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader } {
   const llmGrader =
     overrides?.['llm-grader'] ??
-    new LlmGraderEvaluator({
+    new LlmGrader({
       resolveGraderProvider: async (context) => {
         if (context.graderProvider) {
           return context.graderProvider;
@@ -3173,8 +3173,8 @@ async function runConversationMode(options: {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
-  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  readonly evaluators: Partial<Record<string, Grader>> & { readonly 'llm-grader': Grader };
+  readonly typeRegistry: import('./registry/grader-registry.js').GraderRegistry;
   readonly graderProvider?: Provider;
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
@@ -3221,7 +3221,7 @@ async function runConversationMode(options: {
     history.push({ role: msg.role as ChatMessageRole, content });
   }
 
-  const turnScores: EvaluatorResult[] = [];
+  const turnScores: GraderResult[] = [];
   const allTurnScoreValues: number[] = [];
   let stopped = false;
   const caseStartMs = Date.now();
@@ -3234,7 +3234,7 @@ async function runConversationMode(options: {
       // Turn skipped due to on_turn_failure: stop
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as EvaluatorKind,
+        type: 'rubrics' as GraderKind,
         score: 0,
         verdict: 'skip' as EvaluationVerdict,
         assertions: [{ text: 'Skipped due to previous turn failure', passed: false }],
@@ -3268,7 +3268,7 @@ async function runConversationMode(options: {
       const message = error instanceof Error ? error.message : String(error);
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as EvaluatorKind,
+        type: 'rubrics' as GraderKind,
         score: 0,
         verdict: 'fail' as EvaluationVerdict,
         assertions: [{ text: `Provider error: ${message}`, passed: false }],
@@ -3289,7 +3289,7 @@ async function runConversationMode(options: {
       // No assertions or expected_output — turn scores 1.0
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as EvaluatorKind,
+        type: 'rubrics' as GraderKind,
         score: 1.0,
         verdict: 'pass' as EvaluationVerdict,
         assertions: [],
@@ -3346,7 +3346,7 @@ async function runConversationMode(options: {
 
     turnScores.push({
       name: `turn-${turnIndex}`,
-      type: 'rubrics' as EvaluatorKind,
+      type: 'rubrics' as GraderKind,
       score: turnScore,
       verdict: scoreToVerdict(turnScore, threshold ?? DEFAULT_THRESHOLD) as EvaluationVerdict,
       assertions: turnResult.assertions ? [...turnResult.assertions] : [],
@@ -3360,7 +3360,7 @@ async function runConversationMode(options: {
   }
 
   // Run conversation-level assertions (top-level assertions on full transcript)
-  let conversationScores: EvaluatorResult[] = [];
+  let conversationScores: GraderResult[] = [];
   if (evalCase.assertions?.length) {
     const conversationEvalCase: EvalTest = {
       ...evalCase,
@@ -3405,7 +3405,7 @@ async function runConversationMode(options: {
     conversationScores = [
       {
         name: 'conversation',
-        type: 'rubrics' as EvaluatorKind,
+        type: 'rubrics' as GraderKind,
         score: conversationResult.score,
         verdict: scoreToVerdict(
           conversationResult.score,
@@ -3480,15 +3480,15 @@ function buildTurnGraderInput(history: readonly ChatMessage[], windowSize?: numb
 }
 
 /**
- * Convert per-turn assertions to EvaluatorConfig[].
+ * Convert per-turn assertions to GraderConfig[].
  * String assertions are grouped into a single rubrics evaluator.
  * Structured assertions pass through as-is.
  */
-function buildTurnAssertions(turn: ConversationTurn): EvaluatorConfig[] {
+function buildTurnAssertions(turn: ConversationTurn): GraderConfig[] {
   if (!turn.assertions?.length) return [];
 
   const stringCriteria: string[] = [];
-  const structured: EvaluatorConfig[] = [];
+  const structured: GraderConfig[] = [];
 
   for (const a of turn.assertions) {
     if (typeof a === 'string') {
@@ -3498,21 +3498,21 @@ function buildTurnAssertions(turn: ConversationTurn): EvaluatorConfig[] {
     }
   }
 
-  const result: EvaluatorConfig[] = [];
+  const result: GraderConfig[] = [];
 
   // Group string assertions into a single llm-grader evaluator with rubrics.
   // Uses llm-grader (not rubrics) because 'rubrics' is a YAML shorthand resolved by
-  // the evaluator-parser — at runtime we always dispatch through 'llm-grader'.
+  // the grader-parser — at runtime we always dispatch through 'llm-grader'.
   if (stringCriteria.length > 0) {
     result.push({
       name: 'turn-rubrics',
-      type: 'llm-grader' as EvaluatorKind,
+      type: 'llm-grader' as GraderKind,
       rubrics: stringCriteria.map((text, idx) => ({
         id: `criterion-${idx + 1}`,
         outcome: text,
         weight: 1,
       })),
-    } as unknown as EvaluatorConfig);
+    } as unknown as GraderConfig);
   }
 
   result.push(...structured);
@@ -3707,10 +3707,10 @@ function buildResultInput(promptInputs: PromptInputs): EvaluationResult['input']
 }
 
 /**
- * Sum token usage across all evaluator results (including nested children).
+ * Sum token usage across all grader results (including nested children).
  * Returns undefined when no evaluator reported token usage.
  */
-function aggregateEvaluatorTokenUsage(scores?: readonly EvaluatorResult[]): TokenUsage | undefined {
+function aggregateEvaluatorTokenUsage(scores?: readonly GraderResult[]): TokenUsage | undefined {
   if (!scores || scores.length === 0) return undefined;
 
   let hasAny = false;
@@ -3721,7 +3721,7 @@ function aggregateEvaluatorTokenUsage(scores?: readonly EvaluatorResult[]): Toke
   let hasReasoning = false;
   let hasCached = false;
 
-  const visit = (items: readonly EvaluatorResult[]): void => {
+  const visit = (items: readonly GraderResult[]): void => {
     for (const item of items) {
       if (item.tokenUsage) {
         hasAny = true;
@@ -3809,20 +3809,20 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 function mapChildResults(
-  children?: readonly ChildEvaluatorResult[],
-): readonly EvaluatorResult[] | undefined {
+  children?: readonly ChildGraderResult[],
+): readonly GraderResult[] | undefined {
   if (!children || children.length === 0) {
     return undefined;
   }
 
   return children.map((child) => ({
     name: child.name,
-    type: child.type as EvaluatorKind,
+    type: child.type as GraderKind,
     score: child.score,
     weight: child.weight,
     verdict: child.verdict,
     assertions: child.assertions,
-    input: child.evaluatorRawRequest,
+    input: child.graderRawRequest,
     scores: mapChildResults(child.scores),
     details: child.details,
     tokenUsage: child.tokenUsage,

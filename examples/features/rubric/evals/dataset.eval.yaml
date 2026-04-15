@@ -1,8 +1,8 @@
-# AgentV Rubric Evaluator Example
+# AgentV Rubric Grader Example
 # Demonstrates the rubric-based evaluation feature using type: rubrics under assert
 
 name: rubric
-description: "Example showing rubric evaluator - string shorthand and type: rubrics"
+description: "Example showing rubric grader - string shorthand and type: rubrics"
 
 execution:
   target: llm
@@ -10,7 +10,7 @@ execution:
 tests:
   # ==========================================
   # Example 1: Simple string rubrics
-  # Demonstrates: string shorthand in assert (strings default to rubrics evaluator)
+  # Demonstrates: string shorthand in assert (strings default to rubrics grader)
   # ==========================================
   - id: code-explanation-simple
 
@@ -98,8 +98,8 @@ tests:
             required: false
 
   # ==========================================
-  # Example 3: Multiple evaluators with rubric
-  # Demonstrates: combining rubric evaluator with other evaluators
+  # Example 3: Multiple graders with rubric
+  # Demonstrates: combining rubric grader with other graders
   # ==========================================
   - id: code-quality-multi-eval
     # Baseline note: candidates without type hints/edge handling often score lower (~0.75).
@@ -134,7 +134,7 @@ tests:
               return bool(re.match(pattern, email))
 
     assertions:
-      # Rubric evaluator for semantic checks
+      # Rubric grader for semantic checks
       - type: rubrics
         criteria:
           - Uses regular expressions for email validation
@@ -142,7 +142,7 @@ tests:
           - Has docstring documentation
           - Handles edge cases (None, empty string)
 
-      # Additional code evaluator for syntax checking
+      # Additional code grader for syntax checking
       - name: python_syntax
         type: code-grader
         command: ["uv", "run", "python", "check_syntax.py"]
@@ -175,7 +175,7 @@ tests:
           Extreme weather increases. Scientists call for urgent carbon emission
           cuts and renewable energy adoption.
 
-    # No rubrics defined - will use default llm_grader evaluator
+    # No rubrics defined - will use default llm_grader grader
     # Add assertions directly if you want deterministic checks or explicit rubrics
 
   # ==========================================

@@ -25,7 +25,7 @@ You will receive:
 - `outputs`: Array of evaluation outputs to compare. Each contains:
   - `target_id`: The provider/configuration identifier (DO NOT read this during scoring)
   - `answer`: The candidate response text
-  - `evaluator_results`: Array of evaluator scores and details (code-grader, tool-trajectory, llm-grader, deterministic)
+  - `evaluator_results`: Array of grader scores and details (code-grader, tool-trajectory, llm-grader, deterministic)
   - `workspace_changes`: File changes made during workspace evaluation (if applicable)
   - `tool_calls`: Tool invocations and results from multi-turn conversations (if applicable)
   - `conversation`: Full multi-turn conversation history (if applicable)
@@ -61,7 +61,7 @@ Assign random labels to outputs. Use the following procedure:
 
 ### Phase 2: Dynamic Rubric Generation
 
-Generate task-specific rubrics based on `task_context` and the evaluator types present. The rubric has two dimensions:
+Generate task-specific rubrics based on `task_context` and the grader types present. The rubric has two dimensions:
 
 **Content Rubric** — adapts criteria to the task type:
 
@@ -89,7 +89,7 @@ For each content criterion, define:
 | Format compliance | 0.2 | Adherence to requested output format (JSON, markdown, code blocks) |
 | Completeness | 0.2 | All requested sections present, no truncation |
 
-**Evaluator-Specific Scoring** — when evaluator results are present:
+**Grader-Specific Scoring** — when grader results are present:
 
 - **code-grader**: Factor in pass/fail results, test coverage, assertion hit rates
 - **tool-trajectory**: Factor in tool call accuracy, sequence correctness, unnecessary tool calls
@@ -102,10 +102,10 @@ For each labeled output (A, B, C, ...):
 
 1. **Content score** (1–10): Apply the content rubric criteria with weights
 2. **Structure score** (1–10): Apply the structure rubric criteria with weights
-3. **Evaluator score** (1–10): Normalize evaluator results to a 1–10 scale. If no evaluator results, omit this dimension.
+3. **Grader score** (1–10): Normalize grader results to a 1–10 scale. If no grader results, omit this dimension.
 4. **Overall score**: Weighted combination:
-   - If evaluator results present: `0.5 × content + 0.2 × structure + 0.3 × evaluator`
-   - If no evaluator results: `0.7 × content + 0.3 × structure`
+   - If grader results present: `0.5 × content + 0.2 × structure + 0.3 × grader`
+   - If no grader results: `0.7 × content + 0.3 × structure`
 
 For N > 2 outputs, use **round-robin pairwise comparison** to establish ranking:
 - Compare every pair (A vs B, A vs C, B vs C, ...)
@@ -162,7 +162,7 @@ Write the comparison results to `results_file` as JSON:
     "overall_weights": {
       "content": <weight>,
       "structure": <weight>,
-      "evaluator": <weight or null>
+      "grader": <weight or null>
     }
   },
   "results": [
@@ -172,7 +172,7 @@ Write the comparison results to `results_file` as JSON:
       "scores": {
         "content": <1-10>,
         "structure": <1-10>,
-        "evaluator": <1-10 or null>,
+        "grader": <1-10 or null>,
         "overall": <1-10>
       },
       "content_breakdown": [
@@ -215,7 +215,7 @@ Also produce a human-readable markdown summary:
 <generated rubric summary>
 
 ### Rankings
-| Rank | Label | Target | Overall | Content | Structure | Evaluator |
+| Rank | Label | Target | Overall | Content | Structure | Grader |
 |------|-------|--------|---------|---------|-----------|-----------|
 | 1    | A     | <id>   | 8.5     | 9.0     | 7.5       | 8.5       |
 
@@ -236,12 +236,12 @@ Also produce a human-readable markdown summary:
 - **Be evidence-based**: Every score must cite specific evidence from the output.
 - **Evaluate substance over style**: Correct, complete answers with rough formatting score higher than polished but incorrect answers.
 - **Handle missing data gracefully**: If an output lacks workspace changes or tool calls but others have them, score what is present — do not penalize for data the target wasn't expected to produce.
-- **Respect evaluator signals**: When code-grader or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
+- **Respect grader signals**: When code-grader or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
 
 ## Edge Cases
 
 - **Identical outputs**: If two outputs are effectively identical, score them equally and note the duplication.
 - **Single output**: If only one output is provided, still generate the rubric and score it — this serves as a baseline for future comparisons.
-- **Missing evaluator results**: If some outputs have evaluator results and others don't, score evaluator dimension only for those that have it. Adjust overall weights accordingly.
+- **Missing grader results**: If some outputs have grader results and others don't, score grader dimension only for those that have it. Adjust overall weights accordingly.
 - **Very long outputs**: Focus scoring on substance and correctness. Length alone is neither a positive nor negative signal.
 - **Tie in overall scores**: Use pairwise comparison wins as tiebreaker. If still tied, declare a tie and explain the tradeoffs.

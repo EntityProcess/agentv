@@ -22,7 +22,7 @@ import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 
-import type { CodeEvaluatorConfig, EvaluatorConfig, LlmGraderEvaluatorConfig } from '@agentv/core';
+import type { CodeGraderConfig, GraderConfig, LlmGraderConfig } from '@agentv/core';
 
 /** Assertion types that can be graded deterministically without external scripts or LLMs. */
 const BUILTIN_ASSERTION_TYPES = new Set([
@@ -212,7 +212,7 @@ export const evalInputCommand = command({
 
 async function writeGraderConfigs(
   testDir: string,
-  assertions: readonly EvaluatorConfig[],
+  assertions: readonly GraderConfig[],
   evalDir: string,
 ): Promise<void> {
   const codeGradersDir = join(testDir, 'code_graders');
@@ -227,7 +227,7 @@ async function writeGraderConfigs(
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;
       }
-      const config = assertion as CodeEvaluatorConfig;
+      const config = assertion as CodeGraderConfig;
       await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
         type: 'code-grader',
@@ -241,7 +241,7 @@ async function writeGraderConfigs(
         await mkdir(llmGradersDir, { recursive: true });
         hasLlmGraders = true;
       }
-      const config = assertion as LlmGraderEvaluatorConfig;
+      const config = assertion as LlmGraderConfig;
       let promptContent = '';
 
       if (config.resolvedPromptPath) {
@@ -266,7 +266,7 @@ async function writeGraderConfigs(
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;
       }
-      const config = assertion as EvaluatorConfig & { value?: unknown; flags?: string };
+      const config = assertion as GraderConfig & { value?: unknown; flags?: string };
       await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
         type: config.type,

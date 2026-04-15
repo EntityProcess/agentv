@@ -8,7 +8,7 @@ Demonstrates core AgentV schema features with minimal setup.
 - File references for content
 - Conversation threading with multiple messages
 - Array content format (text + file references)
-- Multiple evaluators per test case
+- Multiple graders per test case
 
 ## Running
 

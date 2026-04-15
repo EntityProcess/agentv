@@ -9,7 +9,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [basic](basic/) | Core schema: input, expected output, file references, multi-turn |
 | [basic-jsonl](basic-jsonl/) | Load test cases from an external JSONL file |
-| [default-evaluators](default-evaluators/) | Apply the same assertions to every test without repeating them |
+| [default-graders](default-graders/) | Apply the same assertions to every test without repeating them |
 
 ---
 
@@ -17,9 +17,9 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [rubric](rubric/) | Boolean rubric criteria — pass/fail each with a code grader or LLM check |
-| [weighted-evaluators](weighted-evaluators/) | Multiple named `llm-grader` assertions with per-evaluator weights |
+| [weighted-graders](weighted-graders/) | Multiple named `llm-grader` assertions with per-grader weights |
 | [composite](composite/) | Safety gate and weighted aggregation patterns |
-| [threshold-evaluator](threshold-evaluator/) | Pass a test if a configurable percentage of sub-evaluators pass |
+| [threshold-grader](threshold-grader/) | Pass a test if a configurable percentage of sub-graders pass |
 | [multi-turn-conversation](multi-turn-conversation/) | Grade a multi-turn conversation with per-turn score breakdowns |
 | [preprocessors](preprocessors/) | Convert `ContentFile` outputs into grader-readable text before `llm-grader` runs |
 
@@ -30,7 +30,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [assert](assert/) | Core built-ins: `contains`, `regex`, `is-json`, `equals`, `starts_with`, `ends_with` |
 | [assert-extended](assert-extended/) | Extended variants: `contains_any`, `icontains`, `icontains_all`, regex flags |
-| [deterministic-evaluators](deterministic-evaluators/) | Full showcase of all deterministic assertion types |
+| [deterministic-graders](deterministic-graders/) | Full showcase of all deterministic assertion types |
 | [nlp-metrics](nlp-metrics/) | ROUGE, BLEU, cosine/Jaccard similarity, Levenshtein as code graders |
 
 ---
@@ -143,8 +143,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [compare](compare/) | Benchmarking |
 | [composite](composite/) | LLM grading |
 | [copilot-log-eval](copilot-log-eval/) | Offline evaluation |
-| [default-evaluators](default-evaluators/) | Getting started |
-| [deterministic-evaluators](deterministic-evaluators/) | Deterministic assertions |
+| [default-graders](default-graders/) | Getting started |
+| [deterministic-graders](deterministic-graders/) | Deterministic assertions |
 | [document-extraction](document-extraction/) | Observability & export |
 | [env-interpolation](env-interpolation/) | Dataset & input |
 | [eval-assert-demo](eval-assert-demo/) | Custom graders |
@@ -169,7 +169,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [sdk-programmatic-api](sdk-programmatic-api/) | TypeScript SDK |
 | [suite-level-input](suite-level-input/) | Dataset & input |
 | [suite-level-input-files](suite-level-input-files/) | Dataset & input |
-| [threshold-evaluator](threshold-evaluator/) | LLM grading |
+| [threshold-grader](threshold-grader/) | LLM grading |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool & agent evaluation |
 | [tool-trajectory-advanced](tool-trajectory-advanced/) | Tool & agent evaluation |
 | [tool-trajectory-simple](tool-trajectory-simple/) | Tool & agent evaluation |
@@ -177,7 +177,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [trace-evaluation](trace-evaluation/) | Tool & agent evaluation |
 | [trial-output-consistency](trial-output-consistency/) | Benchmarking |
 | [trials](trials/) | Benchmarking |
-| [weighted-evaluators](weighted-evaluators/) | LLM grading |
+| [weighted-graders](weighted-graders/) | LLM grading |
 | [workspace-multi-repo](workspace-multi-repo/) | Workspace & targets |
 | [workspace-setup-script](workspace-setup-script/) | Workspace & targets |
 | [workspace-shared-config](workspace-shared-config/) | Workspace & targets |

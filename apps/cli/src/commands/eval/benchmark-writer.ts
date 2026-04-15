@@ -32,10 +32,10 @@ function computeStats(values: readonly number[]): BenchmarkStats {
 }
 
 /**
- * Compute per-test pass_rate from evaluator scores.
+ * Compute per-test pass_rate from grader scores.
  *
  * For each test, pass_rate = count(evaluator.score >= 0.8) / total_evaluators.
- * If no per-evaluator scores exist, falls back to the top-level result score
+ * If no per-grader scores exist, falls back to the top-level result score
  * with the same threshold (>= 0.8 → 1.0, else 0.0).
  */
 function computePassRate(result: EvaluationResult): number {

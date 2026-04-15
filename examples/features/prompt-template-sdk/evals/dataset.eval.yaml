@@ -1,5 +1,5 @@
 # Prompt Template SDK Demo
-# Demonstrates using TypeScript/JavaScript files for custom evaluator prompts.
+# Demonstrates using TypeScript/JavaScript files for custom grader prompts.
 # Uses the same explicit script pattern as code_grader for consistency.
 
 description: Demonstrates TypeScript prompt templates for custom LLM grader prompts
@@ -27,7 +27,7 @@ tests:
         type: llm-grader
         # Executable prompt template using explicit script array (matches code_grader pattern)
         prompt:
-          command: [bun, run, ../prompts/custom-evaluator.ts]
+          command: [bun, run, ../prompts/custom-grader.ts]
 
   - id: prompt-template-with-config
     criteria: The CLI explains async/await correctly.
@@ -47,7 +47,7 @@ tests:
         type: llm-grader
         # Executable prompt template with config
         prompt:
-          command: [bun, run, ../prompts/custom-evaluator.ts]
+          command: [bun, run, ../prompts/custom-grader.ts]
           config:
             rubric: |-
               - Must mention Promises

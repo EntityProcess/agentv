@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import type { EvaluationResult, EvaluatorResult } from '@agentv/core';
+import type { EvaluationResult, GraderResult } from '@agentv/core';
 
 import { writeArtifactsFromResults } from '../../../src/commands/eval/artifact-writer.js';
 import {
@@ -17,8 +17,8 @@ function makeScore(
   name: string,
   type: string,
   score: number,
-  assertions: EvaluatorResult['assertions'],
-): EvaluatorResult {
+  assertions: GraderResult['assertions'],
+): GraderResult {
   return {
     name,
     type,
@@ -130,7 +130,7 @@ describe('results report', () => {
     expect(html).toContain('Assertions');
     expect(html).toContain('assertion-badge');
     expect(html).not.toContain('Grader Results');
-    expect(html).not.toContain('Evaluator Results');
+    expect(html).not.toContain('Grader Results');
   });
 
   it('emits an inline report script that parses successfully', async () => {

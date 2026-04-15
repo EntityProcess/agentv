@@ -1,4 +1,4 @@
-import type { TokenUsage, ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
+import type { TokenUsage, ToolTrajectoryGraderConfig, TraceSummary } from './trace.js';
 
 /** A single assertion verdict with optional evidence. */
 export interface AssertionEntry {
@@ -163,7 +163,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return false;
 }
 
-const EVALUATOR_KIND_VALUES = [
+const GRADER_KIND_VALUES = [
   'code-grader',
   'llm-grader',
   'rubric',
@@ -190,12 +190,12 @@ const EVALUATOR_KIND_VALUES = [
   'inline-assert',
 ] as const;
 
-export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
+export type GraderKind = (typeof GRADER_KIND_VALUES)[number];
 
-const EVALUATOR_KIND_SET: ReadonlySet<string> = new Set(EVALUATOR_KIND_VALUES);
+const GRADER_KIND_SET: ReadonlySet<string> = new Set(GRADER_KIND_VALUES);
 
-export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
-  return typeof value === 'string' && EVALUATOR_KIND_SET.has(value);
+export function isGraderKind(value: unknown): value is GraderKind {
+  return typeof value === 'string' && GRADER_KIND_SET.has(value);
 }
 
 /**
@@ -361,7 +361,7 @@ export type WorkspaceConfig = {
   readonly workspaceFileDir?: string;
 };
 
-export type CodeEvaluatorConfig = {
+export type CodeGraderConfig = {
   readonly name: string;
   readonly type: 'code-grader';
   readonly command: readonly string[];
@@ -374,7 +374,7 @@ export type CodeEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Pass-through configuration for the code-grader (any unrecognized YAML properties) */
   readonly config?: JsonObject;
@@ -406,7 +406,7 @@ export type ContentPreprocessorConfig = {
   readonly resolvedCommand?: readonly string[];
 };
 
-export type LlmGraderEvaluatorConfig = {
+export type LlmGraderConfig = {
   readonly name: string;
   readonly type: 'llm-grader';
   /** Text prompt (inline or file path) or executable script config */
@@ -421,7 +421,7 @@ export type LlmGraderEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Optional target override for this grader (uses a named LLM target from targets.yaml). */
   readonly target?: string;
@@ -434,9 +434,6 @@ export type LlmGraderEvaluatorConfig = {
   /** Optional content preprocessors for ContentFile blocks in assistant output */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
-
-/** @deprecated Use `LlmGraderEvaluatorConfig` instead */
-export type LlmJudgeEvaluatorConfig = LlmGraderEvaluatorConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -496,16 +493,16 @@ export type CompositeAggregatorConfig =
     }
   | { readonly type: 'threshold'; readonly threshold: number };
 
-export type CompositeEvaluatorConfig = {
+export type CompositeGraderConfig = {
   readonly name: string;
   readonly type: 'composite';
-  readonly assertions: readonly EvaluatorConfig[];
+  readonly assertions: readonly GraderConfig[];
   readonly aggregator: CompositeAggregatorConfig;
   readonly weight?: number;
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -544,7 +541,7 @@ export type FieldConfig = {
 /**
  * Configuration for the field-accuracy evaluator.
  */
-export type FieldAccuracyEvaluatorConfig = {
+export type FieldAccuracyGraderConfig = {
   readonly name: string;
   readonly type: 'field-accuracy';
   /** Fields to compare between candidate and expected */
@@ -555,7 +552,7 @@ export type FieldAccuracyEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -563,7 +560,7 @@ export type FieldAccuracyEvaluatorConfig = {
  * Configuration for the latency evaluator.
  * Checks execution duration against a threshold.
  */
-export type LatencyEvaluatorConfig = {
+export type LatencyGraderConfig = {
   readonly name: string;
   readonly type: 'latency';
   /** Maximum allowed duration in milliseconds */
@@ -572,7 +569,7 @@ export type LatencyEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -580,7 +577,7 @@ export type LatencyEvaluatorConfig = {
  * Configuration for the cost evaluator.
  * Checks execution cost against a budget.
  */
-export type CostEvaluatorConfig = {
+export type CostGraderConfig = {
   readonly name: string;
   readonly type: 'cost';
   /** Maximum allowed cost in USD */
@@ -589,7 +586,7 @@ export type CostEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -597,7 +594,7 @@ export type CostEvaluatorConfig = {
  * Configuration for the token-usage evaluator.
  * Checks provider-reported token usage against configured limits.
  */
-export type TokenUsageEvaluatorConfig = {
+export type TokenUsageGraderConfig = {
   readonly name: string;
   readonly type: 'token-usage';
   /** Maximum allowed total tokens (input + output + cached, when present) */
@@ -610,7 +607,7 @@ export type TokenUsageEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -619,7 +616,7 @@ export type TokenUsageEvaluatorConfig = {
  * Provides declarative threshold-based checks on execution metrics.
  * Only specified thresholds are checked; omitted ones are ignored.
  */
-export type ExecutionMetricsEvaluatorConfig = {
+export type ExecutionMetricsGraderConfig = {
   readonly name: string;
   readonly type: 'execution-metrics';
   /** Maximum allowed number of tool calls */
@@ -640,7 +637,7 @@ export type ExecutionMetricsEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -648,7 +645,7 @@ export type ExecutionMetricsEvaluatorConfig = {
  * Configuration for the contains assertion evaluator.
  * Checks whether the candidate output contains a specified substring.
  */
-export type ContainsEvaluatorConfig = {
+export type ContainsGraderConfig = {
   readonly name: string;
   readonly type: 'contains';
   readonly value: string;
@@ -656,7 +653,7 @@ export type ContainsEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -664,7 +661,7 @@ export type ContainsEvaluatorConfig = {
  * Configuration for the contains_any assertion evaluator.
  * Checks whether the candidate output contains ANY of the specified substrings.
  */
-export type ContainsAnyEvaluatorConfig = {
+export type ContainsAnyGraderConfig = {
   readonly name: string;
   readonly type: 'contains-any';
   readonly value: readonly string[];
@@ -672,7 +669,7 @@ export type ContainsAnyEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -680,7 +677,7 @@ export type ContainsAnyEvaluatorConfig = {
  * Configuration for the contains_all assertion evaluator.
  * Checks whether the candidate output contains ALL of the specified substrings.
  */
-export type ContainsAllEvaluatorConfig = {
+export type ContainsAllGraderConfig = {
   readonly name: string;
   readonly type: 'contains-all';
   readonly value: readonly string[];
@@ -688,7 +685,7 @@ export type ContainsAllEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -696,7 +693,7 @@ export type ContainsAllEvaluatorConfig = {
  * Configuration for the icontains assertion evaluator.
  * Case-insensitive check whether the candidate output contains a specified substring.
  */
-export type IcontainsEvaluatorConfig = {
+export type IcontainsGraderConfig = {
   readonly name: string;
   readonly type: 'icontains';
   readonly value: string;
@@ -704,7 +701,7 @@ export type IcontainsEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -712,7 +709,7 @@ export type IcontainsEvaluatorConfig = {
  * Configuration for the icontains_any assertion evaluator.
  * Case-insensitive check whether the candidate output contains ANY of the specified substrings.
  */
-export type IcontainsAnyEvaluatorConfig = {
+export type IcontainsAnyGraderConfig = {
   readonly name: string;
   readonly type: 'icontains-any';
   readonly value: readonly string[];
@@ -720,7 +717,7 @@ export type IcontainsAnyEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -728,7 +725,7 @@ export type IcontainsAnyEvaluatorConfig = {
  * Configuration for the icontains_all assertion evaluator.
  * Case-insensitive check whether the candidate output contains ALL of the specified substrings.
  */
-export type IcontainsAllEvaluatorConfig = {
+export type IcontainsAllGraderConfig = {
   readonly name: string;
   readonly type: 'icontains-all';
   readonly value: readonly string[];
@@ -736,7 +733,7 @@ export type IcontainsAllEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -744,7 +741,7 @@ export type IcontainsAllEvaluatorConfig = {
  * Configuration for the starts_with assertion evaluator.
  * Checks whether the candidate output starts with a specified string (both trimmed).
  */
-export type StartsWithEvaluatorConfig = {
+export type StartsWithGraderConfig = {
   readonly name: string;
   readonly type: 'starts-with';
   readonly value: string;
@@ -752,7 +749,7 @@ export type StartsWithEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -760,7 +757,7 @@ export type StartsWithEvaluatorConfig = {
  * Configuration for the ends_with assertion evaluator.
  * Checks whether the candidate output ends with a specified string (both trimmed).
  */
-export type EndsWithEvaluatorConfig = {
+export type EndsWithGraderConfig = {
   readonly name: string;
   readonly type: 'ends-with';
   readonly value: string;
@@ -768,7 +765,7 @@ export type EndsWithEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -776,7 +773,7 @@ export type EndsWithEvaluatorConfig = {
  * Configuration for the regex assertion evaluator.
  * Checks whether the candidate output matches a regular expression pattern.
  */
-export type RegexEvaluatorConfig = {
+export type RegexGraderConfig = {
   readonly name: string;
   readonly type: 'regex';
   readonly value: string;
@@ -786,7 +783,7 @@ export type RegexEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -794,14 +791,14 @@ export type RegexEvaluatorConfig = {
  * Configuration for the is_json assertion evaluator.
  * Checks whether the candidate output is valid JSON.
  */
-export type IsJsonEvaluatorConfig = {
+export type IsJsonGraderConfig = {
   readonly name: string;
   readonly type: 'is-json';
   readonly weight?: number;
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -809,7 +806,7 @@ export type IsJsonEvaluatorConfig = {
  * Configuration for the equals assertion evaluator.
  * Checks whether the candidate output exactly equals a specified string.
  */
-export type EqualsEvaluatorConfig = {
+export type EqualsGraderConfig = {
   readonly name: string;
   readonly type: 'equals';
   readonly value: string;
@@ -817,7 +814,7 @@ export type EqualsEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -833,7 +830,7 @@ export type RubricsEvaluatorConfig = {
   readonly required?: boolean | number;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
 };
 
@@ -843,7 +840,7 @@ export type RubricsEvaluatorConfig = {
  * Tool-name resolution is automatic based on the provider kind.
  * For providers not covered by the built-in mapping, use a code-grader.
  */
-export type SkillTriggerEvaluatorConfig = {
+export type SkillTriggerGraderConfig = {
   readonly name: string;
   readonly type: 'skill-trigger';
   /** The skill name to check for (case-sensitive substring match) */
@@ -871,28 +868,28 @@ export type InlineAssertEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
-export type EvaluatorConfig =
-  | CodeEvaluatorConfig
-  | LlmGraderEvaluatorConfig
-  | CompositeEvaluatorConfig
-  | ToolTrajectoryEvaluatorConfig
-  | FieldAccuracyEvaluatorConfig
-  | LatencyEvaluatorConfig
-  | CostEvaluatorConfig
-  | TokenUsageEvaluatorConfig
-  | ExecutionMetricsEvaluatorConfig
-  | SkillTriggerEvaluatorConfig
-  | ContainsEvaluatorConfig
-  | ContainsAnyEvaluatorConfig
-  | ContainsAllEvaluatorConfig
-  | IcontainsEvaluatorConfig
-  | IcontainsAnyEvaluatorConfig
-  | IcontainsAllEvaluatorConfig
-  | StartsWithEvaluatorConfig
-  | EndsWithEvaluatorConfig
-  | RegexEvaluatorConfig
-  | IsJsonEvaluatorConfig
-  | EqualsEvaluatorConfig
+export type GraderConfig =
+  | CodeGraderConfig
+  | LlmGraderConfig
+  | CompositeGraderConfig
+  | ToolTrajectoryGraderConfig
+  | FieldAccuracyGraderConfig
+  | LatencyGraderConfig
+  | CostGraderConfig
+  | TokenUsageGraderConfig
+  | ExecutionMetricsGraderConfig
+  | SkillTriggerGraderConfig
+  | ContainsGraderConfig
+  | ContainsAnyGraderConfig
+  | ContainsAllGraderConfig
+  | IcontainsGraderConfig
+  | IcontainsAnyGraderConfig
+  | IcontainsAllGraderConfig
+  | StartsWithGraderConfig
+  | EndsWithGraderConfig
+  | RegexGraderConfig
+  | IsJsonGraderConfig
+  | EqualsGraderConfig
   | RubricsEvaluatorConfig
   | InlineAssertEvaluatorConfig;
 
@@ -906,7 +903,7 @@ export interface ConversationTurn {
   /** Reference assistant response for grading (NOT carried forward — actual LLM response is used) */
   readonly expected_output?: TestMessageContent;
   /** Per-turn assertions. Strings become rubric criteria via shorthand. */
-  readonly assertions?: readonly (string | EvaluatorConfig)[];
+  readonly assertions?: readonly (string | GraderConfig)[];
 }
 
 /**
@@ -945,8 +942,8 @@ export interface EvalTest {
   readonly reference_answer?: string;
   readonly file_paths: readonly string[];
   readonly criteria: string;
-  readonly evaluator?: EvaluatorKind;
-  readonly assertions?: readonly EvaluatorConfig[];
+  readonly evaluator?: GraderKind;
+  readonly assertions?: readonly GraderConfig[];
   /** Suite-level preprocessors used by the implicit default llm-grader. */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
   /** Workspace configuration (merged from suite-level and case-level) */
@@ -1016,7 +1013,7 @@ export interface TrialResult {
   readonly attempt: number;
   readonly score: number;
   readonly verdict: EvaluationVerdict;
-  readonly scores?: readonly EvaluatorResult[];
+  readonly scores?: readonly GraderResult[];
   readonly error?: string;
   readonly costUsd?: number;
   /** Primary classification for this trial attempt */
@@ -1091,7 +1088,7 @@ export interface ExecutionError {
 export type FailOnError = boolean;
 
 /**
- * Evaluator scorecard for a single eval case run.
+ * Grader scorecard for a single eval case run.
  */
 export interface EvaluationResult {
   readonly timestamp: string;
@@ -1122,7 +1119,7 @@ export interface EvaluationResult {
     readonly lm?: JsonObject;
     readonly evaluator?: JsonObject;
   };
-  readonly scores?: readonly EvaluatorResult[];
+  readonly scores?: readonly GraderResult[];
   readonly error?: string;
   /** Lightweight summary of the execution trace (always included when available) */
   readonly trace?: TraceSummary;
@@ -1167,9 +1164,9 @@ export interface EvaluationResult {
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'skip';
 
-export interface EvaluatorResult {
+export interface GraderResult {
   readonly name: string;
-  readonly type: EvaluatorKind;
+  readonly type: GraderKind;
   readonly score: number;
   readonly weight?: number;
   readonly verdict?: EvaluationVerdict;
@@ -1178,7 +1175,7 @@ export interface EvaluatorResult {
   readonly input?: JsonObject;
   /** Target name used for grading (e.g., the LLM provider name). */
   readonly target?: string;
-  readonly scores?: readonly EvaluatorResult[];
+  readonly scores?: readonly GraderResult[];
   /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */

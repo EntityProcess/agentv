@@ -1,14 +1,14 @@
-# Evaluator Conformance Fixture Dataset
+# Grader Conformance Fixture Dataset
 #
-# Each fixture has a label indicating the expected evaluator behavior:
-#   - pass:      Unambiguous pass — evaluator must always score 1.0
-#   - fail:      Unambiguous fail — evaluator must always score 0.0
+# Each fixture has a label indicating the expected grader behavior:
+#   - pass:      Unambiguous pass — grader must always score 1.0
+#   - fail:      Unambiguous fail — grader must always score 0.0
 #   - ambiguous: Allowed to vary within score_bounds
 #
-# The evaluator under test receives: question, criteria, answer, expected_output
+# The grader under test receives: question, criteria, answer, expected_output
 
-evaluator:
-  command: ["bun", "run", "evaluators/keyword-grader.ts"]
+grader:
+  command: ["bun", "run", "graders/keyword-grader.ts"]
 
 fixtures:
   # ── Unambiguous Pass Cases ─────────────────────────────────────────────

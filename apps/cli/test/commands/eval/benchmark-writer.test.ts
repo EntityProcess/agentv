@@ -18,7 +18,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
 }
 
 describe('buildBenchmarkJson', () => {
-  it('computes pass_rate from per-evaluator scores', () => {
+  it('computes pass_rate from per-grader scores', () => {
     const results = [
       makeResult({
         scores: [
@@ -34,7 +34,7 @@ describe('buildBenchmarkJson', () => {
     expect(benchmark.run_summary.with_skill.pass_rate.stddev).toBe(0);
   });
 
-  it('falls back to top-level score when no evaluator scores', () => {
+  it('falls back to top-level score when no grader scores', () => {
     const results = [makeResult({ score: 0.9 }), makeResult({ score: 0.5 })];
     const benchmark = buildBenchmarkJson(results);
     // First passes (>= 0.8 → 1.0), second fails (< 0.8 → 0.0), mean = 0.5

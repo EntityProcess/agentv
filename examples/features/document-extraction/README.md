@@ -30,10 +30,10 @@ bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
 
 ## Pattern 1: Field Accuracy (`field-accuracy.eval.yaml`)
 
-Uses the built-in `field_accuracy` evaluator for per-test-case scoring:
+Uses the built-in `field_accuracy` grader for per-test-case scoring:
 
 ```yaml
-evaluators:
+graders:
   - name: invoice_field_accuracy
     type: field-accuracy
     fields:
@@ -56,7 +56,7 @@ evaluators:
 Uses a custom `code_grader` that emits `details.metrics` with TP/TN/FP/FN per field:
 
 ```yaml
-evaluators:
+graders:
   - name: header_confusion
     type: code-grader
     command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
@@ -66,7 +66,7 @@ evaluators:
       - path: supplier.name
 ```
 
-**Key requirement**: All cases must use the **same evaluator** with the **same fields** to enable cross-document aggregation.
+**Key requirement**: All cases must use the **same grader** with the **same fields** to enable cross-document aggregation.
 
 **Output**: Aggregate metrics table with fractional precision/recall:
 
@@ -93,13 +93,13 @@ Macro-F1: 0.759
 
 ## Aggregate Metrics Script
 
-The `aggregate_metrics.ts` script only works with evaluators that emit `details.metrics`:
+The `aggregate_metrics.ts` script only works with graders that emit `details.metrics`:
 
 ```bash
 bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl [options]
 
 Options:
-  --evaluator <name>  Filter to a specific evaluator
+  --grader <name>  Filter to a specific grader
   --format csv        Output as CSV instead of table
 ```
 

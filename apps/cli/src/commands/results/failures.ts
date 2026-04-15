@@ -30,7 +30,7 @@ export function formatFailures(results: EvaluationResult[]): FailureEntry[] {
         evidence: a.evidence,
       }));
 
-      // Fall back to per-evaluator assertions
+      // Fall back to per-grader assertions
       if (assertions.length === 0 && r.scores) {
         assertions = r.scores.flatMap((s) =>
           (s.assertions ?? []).map((a) => ({

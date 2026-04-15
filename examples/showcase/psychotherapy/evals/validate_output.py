@@ -3,7 +3,7 @@
 JSON Format Validator for AgentV
 Validates that the candidate answer is strictly valid JSON with required keys.
 Auto-detects framework type from expected answer structure.
-Returns score 0.0 if not valid JSON, otherwise passes to next evaluator.
+Returns score 0.0 if not valid JSON, otherwise passes to next grader.
 """
 
 import json
@@ -216,7 +216,7 @@ def validate_routing_schema(parsed: dict[str, Any]) -> list[str]:
 
 
 def main():
-    """Main entry point for AgentV code evaluator."""
+    """Main entry point for AgentV code grader."""
     # AgentV passes eval data via stdin as JSON
     try:
         eval_data = json.load(sys.stdin)

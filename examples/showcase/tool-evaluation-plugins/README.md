@@ -1,6 +1,6 @@
 # Tool Evaluation Plugin Patterns
 
-This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` evaluator. These patterns are intentionally implemented as plugins (code graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
+This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` grader. These patterns are intentionally implemented as plugins (code graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
 
 ## When to Use Plugins vs Built-ins
 
@@ -16,12 +16,12 @@ This showcase demonstrates **plugin-based tool evaluation patterns** that comple
 
 ## Plugin Examples
 
-### 1. Tool Selection Evaluator (`tool-selection-grader.ts`)
+### 1. Tool Selection Grader (`tool-selection-grader.ts`)
 
 Evaluates whether the agent selected the **right tools** for the task. Uses heuristic matching to assess tool choices against task keywords.
 
 ```yaml
-evaluators:
+graders:
   - name: tool-selection
     type: code-grader
     command: ["bun", "run", "scripts/tool-selection-grader.ts"]
@@ -32,7 +32,7 @@ evaluators:
 Computes efficiency metrics and scores based on configurable thresholds. Demonstrates how to use execution metrics in evaluation.
 
 ```yaml
-evaluators:
+graders:
   - name: efficiency
     type: code-grader
     command: ["bun", "run", "scripts/efficiency-scorer.ts"]
@@ -43,7 +43,7 @@ evaluators:
 Compares two agent responses for tool usage quality with position bias mitigation (runs comparison twice with swapped order).
 
 ```yaml
-evaluators:
+graders:
   - name: pairwise-compare
     type: code-grader
     command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]

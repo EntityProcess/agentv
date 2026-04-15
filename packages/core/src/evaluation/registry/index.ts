@@ -1,10 +1,10 @@
 /**
- * Evaluator registry — extensible evaluator type dispatch.
+ * Grader registry — extensible grader type dispatch.
  *
  * @module
  */
-export { EvaluatorRegistry, DeterministicAssertionEvaluator } from './evaluator-registry.js';
-export type { EvaluatorDispatchContext, EvaluatorFactoryFn } from './evaluator-registry.js';
-export { createBuiltinRegistry } from './builtin-evaluators.js';
+export { GraderRegistry, DeterministicAssertionGrader } from './grader-registry.js';
+export type { GraderDispatchContext, GraderFactoryFn } from './grader-registry.js';
+export { createBuiltinRegistry } from './builtin-graders.js';
 export { discoverAssertions } from './assertion-discovery.js';
-export { discoverGraders, discoverGraders as discoverJudges } from './grader-discovery.js';
+export { discoverGraders } from './grader-discovery.js';

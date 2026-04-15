@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Contextual Precision Evaluator
+ * Contextual Precision Grader
  *
  * Implements the Contextual Precision metric for RAG systems.
  * This metric evaluates whether relevant retrieval nodes are ranked higher
@@ -12,7 +12,7 @@
  * Retrieval context is extracted from expected_output.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
- * Requires `target: { max_calls: N }` in the evaluator YAML config,
+ * Requires `target: { max_calls: N }` in the grader YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
 import { createTargetClient, defineCodeGrader } from '@agentv/eval';
@@ -70,7 +70,7 @@ export default defineCodeGrader(async (input) => {
       score: 0,
       assertions: [
         {
-          text: 'Target not available - ensure `target` block is configured in evaluator YAML',
+          text: 'Target not available - ensure `target` block is configured in grader YAML',
           passed: false,
         },
       ],
@@ -94,7 +94,7 @@ Is this node relevant to answering the question? Respond with JSON only:
   "reasoning": "brief explanation"
 }`,
     systemPrompt:
-      'You are a precise relevance evaluator for RAG systems. Determine if a retrieved node contains information useful for answering the given question. Output valid JSON only.',
+      'You are a precise relevance grader for RAG systems. Determine if a retrieved node contains information useful for answering the given question. Output valid JSON only.',
     target: 'gemini-llm', // Override: use gemini-llm for relevance checks
   }));
 

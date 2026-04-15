@@ -24,8 +24,8 @@ Synchronize agentevals spec docs when agentv implementation changes.
 - Replace with the new name in prose, code examples, and schema definitions
 - Update any YAML/JSON examples that show the field
 
-### New evaluator types
-- Add to the evaluators list in `evaluators.mdx`
+### New grader types
+- Add to the graders list in `graders.mdx`
 - Add configuration schema to `eval-format.mdx`
 - Include usage example
 

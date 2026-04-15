@@ -17,7 +17,7 @@ agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 AgentV automatically:
 - Promotes `prompt` → input messages
 - Promotes `expected_output` → reference answer
-- Converts `assertions` → LLM-grader evaluators
+- Converts `assertions` → LLM-grader graders
 - Resolves `files[]` paths relative to the evals.json directory
 
 If you're using the `agentv-bench` skill, it orchestrates these same AgentV commands. Code graders, grading, and artifact generation remain in AgentV core; the skill just orchestrates and summarizes the existing outputs.
@@ -29,7 +29,7 @@ Moving from skill-creator's eval loop to AgentV's lifecycle skill gives you:
 | Capability | skill-creator | AgentV lifecycle skill |
 |-----------|---------------|----------------------|
 | Workspace isolation | ❌ | ✅ Clone repos, run setup/teardown scripts |
-| Code graders | ❌ | ✅ Python/TypeScript evaluator scripts via `defineCodeGrader()` |
+| Code graders | ❌ | ✅ Python/TypeScript grader scripts via `defineCodeGrader()` |
 | Tool trajectory scoring | ❌ | ✅ Evaluate tool call sequences |
 | Multi-provider comparison | with-skill vs without-skill | N-way: Claude, GPT, Copilot, Gemini, custom CLI |
 | Multi-turn evaluation | ❌ | ✅ Conversation tracking with `conversation_id` |
@@ -71,7 +71,7 @@ agentv eval eval.yaml
 
 EVAL.yaml unlocks:
 - **Workspace setup/teardown** — clone repos, install dependencies, clean up after tests
-- **Code graders** — write evaluators in Python or TypeScript, not just LLM prompts
+- **Code graders** — write graders in Python or TypeScript, not just LLM prompts
 - **Rubric-based grading** — multi-dimensional scoring with weighted criteria
 - **Retry policies** — automatic retries for flaky tests with configurable backoff
 - **Test groups** — organize tests by category with shared config

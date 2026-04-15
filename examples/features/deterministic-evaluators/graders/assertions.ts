@@ -5,7 +5,7 @@
  * A single code grader that handles common deterministic checks
  * (contains, regex, JSON validation, etc.) driven by YAML config.
  *
- * Config fields (passed via evaluator `config` in YAML):
+ * Config fields (passed via grader `config` in YAML):
  *   type    – assertion kind: contains | icontains | equals | regex | starts-with | is-json
  *   value   – expected substring, pattern, or prefix (not used for is-json)
  *   negated – when true, inverts the assertion (default: false)

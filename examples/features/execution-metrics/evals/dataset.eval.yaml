@@ -1,7 +1,7 @@
-# Execution Metrics Evaluator Demo
-# Demonstrates the built-in execution_metrics evaluator for declarative threshold-based checks.
+# Execution Metrics Grader Demo
+# Demonstrates the built-in execution_metrics grader for declarative threshold-based checks.
 #
-# The execution_metrics evaluator allows you to set limits on:
+# The execution_metrics grader allows you to set limits on:
 # - max_tool_calls: Maximum number of tool invocations
 # - max_llm_calls: Maximum number of LLM calls (assistant messages)
 # - max_tokens: Maximum total tokens (input + output)
@@ -16,7 +16,7 @@
 #   bun agentv eval examples/features/execution-metrics/evals/dataset.eval.yaml --dry-run
 
 name: execution-metrics
-description: Demonstrates the built-in execution_metrics evaluator
+description: Demonstrates the built-in execution_metrics grader
 
 # Mock agent that returns realistic execution metrics
 execution:
@@ -67,7 +67,7 @@ tests:
 
   # ==========================================
   # Example 3: Research task with tool trajectory + metrics
-  # Combines multiple evaluator types
+  # Combines multiple grader types
   # ==========================================
   - id: research-with-metrics
 

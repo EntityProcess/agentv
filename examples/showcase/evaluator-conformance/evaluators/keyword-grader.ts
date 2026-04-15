@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Sample evaluator for conformance testing.
+ * Sample grader for conformance testing.
  *
  * Deterministic keyword-matching grader: checks whether expected keywords
  * appear in the candidate output. Produces stable scores for unambiguous

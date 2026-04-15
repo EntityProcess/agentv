@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Code evaluator script: Check for required Python keywords in generated code.
+Code grader script: Check for required Python keywords in generated code.
 
 This script demonstrates how to write custom validation logic for eval cases.
 See ../../README.md for the complete I/O contract specification.
@@ -95,7 +95,7 @@ def main():
         # Return error result
         error_result = {
             "score": 0.0,
-            "assertions": [{"text": f"Evaluator error: {str(e)}", "passed": False}],
+            "assertions": [{"text": f"Grader error: {str(e)}", "passed": False}],
         }
         print(json.dumps(error_result, indent=2))
         sys.exit(1)

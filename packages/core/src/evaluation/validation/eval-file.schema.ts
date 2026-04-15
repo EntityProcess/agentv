@@ -32,7 +32,7 @@ const InputSchema = z.union([z.string(), z.array(MessageSchema)]);
 const ExpectedOutputSchema = z.union([z.string(), z.record(z.unknown()), z.array(MessageSchema)]);
 
 // ---------------------------------------------------------------------------
-// Evaluator schemas (YAML input format)
+// Grader schemas (YAML input format)
 // ---------------------------------------------------------------------------
 
 /** Common fields shared by all evaluators */
@@ -230,7 +230,7 @@ const RubricsSchema = EvaluatorCommonSchema.extend({
   criteria: z.array(RubricItemSchema).min(1),
 });
 
-/** Union of all evaluator types */
+/** Union of all grader types */
 const EvaluatorSchema = z.union([
   CodeGraderSchema,
   LlmGraderSchema,

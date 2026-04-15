@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Evaluator Conformance Harness
+ * Grader Conformance Harness
  *
- * Runs an evaluator N times per fixture and validates:
+ * Runs an grader N times per fixture and validates:
  *   - Compatibility: output matches CodeGraderResult schema (score, assertions)
  *   - Consistency: flip-rate, agreement, and variance meet thresholds
  *
@@ -35,7 +35,7 @@ interface Fixture {
 }
 
 interface FixtureFile {
-  evaluator: { script: string[] };
+  grader: { script: string[] };
   fixtures: Fixture[];
 }
 
@@ -72,7 +72,7 @@ interface FixtureReport {
 }
 
 interface ConformanceReport {
-  evaluator: string[];
+  grader: string[];
   total_fixtures: number;
   total_runs: number;
   compatible: boolean;
@@ -96,7 +96,7 @@ const fixturePath = resolve(values.fixture ?? 'fixtures.yaml');
 const runs = Number.parseInt(values.runs ?? '5', 10);
 const maxFlipRate = Number.parseFloat(values['max-flip-rate'] ?? '0');
 
-// ── Evaluator invocation ────────────────────────────────────────────────
+// ── Grader invocation ────────────────────────────────────────────────
 
 function buildCodeGraderInput(fixture: Fixture): string {
   // Build a minimal CodeGraderInput in the snake_case wire format
@@ -132,7 +132,7 @@ function runEvaluator(script: string[], input: string): Promise<EvaluatorResult>
     proc.on('error', reject);
     proc.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`Evaluator exited with code ${code}: ${stderr}`));
+        reject(new Error(`Grader exited with code ${code}: ${stderr}`));
         return;
       }
       try {
@@ -224,9 +224,9 @@ async function main(): Promise<void> {
   const raw = readFileSync(fixturePath, 'utf-8');
   const data = parse(raw) as FixtureFile;
 
-  const { evaluator, fixtures } = data;
-  console.log('\n  Evaluator Conformance Harness');
-  console.log(`  evaluator:  ${evaluator.script.join(' ')}`);
+  const { grader, fixtures } = data;
+  console.log('\n  Grader Conformance Harness');
+  console.log(`  grader:  ${grader.script.join(' ')}`);
   console.log(`  fixtures:   ${fixtures.length}`);
   console.log(`  runs/each:  ${runs}`);
   console.log(`  max-flip:   ${maxFlipRate}\n`);
@@ -243,7 +243,7 @@ async function main(): Promise<void> {
 
     for (let i = 0; i < runs; i++) {
       try {
-        const result = await runEvaluator(evaluator.script, input);
+        const result = await runEvaluator(grader.script, input);
         const schemaErrors = validateResult(result);
         if (schemaErrors.length > 0) {
           compatible = false;
@@ -355,7 +355,7 @@ async function main(): Promise<void> {
   // Write output
   if (values.output) {
     const output: ConformanceReport = {
-      evaluator: evaluator.script,
+      grader: grader.script,
       total_fixtures: fixtures.length,
       total_runs: runs * fixtures.length,
       compatible: allCompatible,

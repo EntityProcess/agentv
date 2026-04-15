@@ -2,7 +2,7 @@
 # Demonstrates how to evaluate a pre-existing static trace file.
 #
 # This is useful when you have captured traces from production or other systems
-# and want to run AgentV evaluators against them offline.
+# and want to run AgentV graders against them offline.
 #
 # Setup:
 #   1. Create examples/features/.env with:

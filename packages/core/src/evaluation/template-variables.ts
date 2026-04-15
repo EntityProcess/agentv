@@ -1,6 +1,6 @@
 /**
  * Template variable constants for evaluator prompts.
- * These variables can be used in custom evaluator templates with {{ variable_name }} syntax.
+ * These variables can be used in custom grader templates with {{ variable_name }} syntax.
  *
  * Primary variables:
  *   - {{ input }}           — input as plain text (single-turn) or role-prefixed conversation (multi-turn)
@@ -40,7 +40,7 @@ export const VALID_TEMPLATE_VARIABLES = new Set<string>(Object.values(TEMPLATE_V
 
 /**
  * Template variables that are required for meaningful evaluation.
- * At least one of these should be present in a custom evaluator template.
+ * At least one of these should be present in a custom grader template.
  */
 export const REQUIRED_TEMPLATE_VARIABLES = new Set<string>([
   TEMPLATE_VARIABLES.OUTPUT,

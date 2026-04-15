@@ -3,7 +3,7 @@
  * Mock Agent CLI for latency assertion demos.
  *
  * Returns tool calls with duration_ms to demonstrate
- * per-step latency validation in tool_trajectory evaluator.
+ * per-step latency validation in tool_trajectory grader.
  *
  * Usage:
  *   bun run mock-latency-agent.ts --prompt "..." --output output.json

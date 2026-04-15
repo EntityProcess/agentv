@@ -106,9 +106,3 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
     process.exit(1);
   }
 }
-
-// ── Backward-compat aliases (deprecated) ────────────────────────────────────────
-/** @deprecated Use CodeGraderHandler */
-export type CodeJudgeHandler = CodeGraderHandler;
-/** @deprecated Use runCodeGrader */
-export const runCodeJudge = runCodeGrader;
