@@ -3,7 +3,8 @@ name: agentv-bench
 description: >-
   Run AgentV evaluations and optimize agents through eval-driven iteration.
   Triggers: run evals, benchmark agents, optimize prompts/skills against evals, compare
-  agent outputs across providers, analyze eval results, offline evaluation of recorded sessions.
+  agent outputs across providers, analyze eval results, offline evaluation of recorded sessions,
+  run autoresearch, optimize unattended, run overnight optimization loop.
   Not for: writing/editing eval YAML without running (use agentv-eval-writer),
   analyzing existing traces/JSONL without re-running (use agentv-trace-analyst).
 ---
@@ -356,7 +357,7 @@ The `--json` flag produces structured output:
     "wins": 3,
     "losses": 1,
     "ties": 6,
-    "meanDelta": 0.05
+    "mean_delta": 0.05
   }
 }
 ```
@@ -364,7 +365,7 @@ The `--json` flag produces structured output:
 - **wins**: number of test cases where the candidate scored higher than the baseline
 - **losses**: number of test cases where the candidate scored lower
 - **ties**: number of test cases with no score change
-- **meanDelta**: average score difference across all test cases (positive = candidate is better)
+- **mean_delta**: average score difference across all test cases (positive = candidate is better)
 
 #### 3. Apply decision rules
 
@@ -374,9 +375,9 @@ Use these rules in order:
 |-----------|----------|--------|
 | `wins > losses` | **KEEP** | Promote the candidate to the new baseline. Copy or note its `index.jsonl` path as the baseline for the next iteration. |
 | `wins <= losses` | **DISCARD** | Revert the prompt/skill/config change. The previous baseline remains. Try a different mutation on the next iteration. |
-| `meanDelta == 0` AND candidate prompt is shorter (fewer lines) | **KEEP** | Simpler prompts are preferred when performance is equal. Promote the candidate as the new baseline. |
+| `mean_delta == 0` AND candidate prompt is shorter (fewer lines) | **KEEP** | Simpler prompts are preferred when performance is equal. Promote the candidate as the new baseline. |
 
-When `meanDelta == 0` and the candidate prompt is *not* shorter, treat it as a **DISCARD** — there's no reason to keep a change that adds complexity without improving results.
+When `mean_delta == 0` and the candidate prompt is *not* shorter, treat it as a **DISCARD** — there's no reason to keep a change that adds complexity without improving results.
 
 #### 4. Log the decision
 
@@ -445,6 +446,202 @@ After the agent is working well, offer to optimize the skill's `description` fie
 
 ---
 
+## Autoresearch Mode
+
+Autoresearch is an unattended eval-improve loop that runs multiple optimize cycles without human intervention. The user triggers it with natural language (e.g., "run autoresearch on this skill", "optimize this skill unattended"). No YAML schema changes or CLI flags are needed.
+
+### Prerequisites
+
+- An eval file (`EVAL.yaml` or `evals.json`) must exist for the artifact being optimized.
+- The artifact must be a single file (SKILL.md, prompt template, or agent config).
+- The user should have run at least one interactive eval cycle to build confidence in eval quality before going unattended.
+
+### The loop
+
+```
+1. RUN EVAL   — agentv eval with current artifact
+2. ANALYZE    — dispatch analyzer subagent on results
+3. DECIDE     — if score > best_score: KEEP, else DROP (automated keep/discard from Step 5)
+4. MUTATE     — dispatch mutator subagent with failure analysis (agents/mutator.md)
+5. GOTO 1     — until convergence or max_cycles
+```
+
+### Experiment naming
+
+Derive the experiment name from the artifact: `autoresearch-<name>` (e.g., `autoresearch-pdf-skill`). The user can also provide a custom name.
+
+### Artifact mutation flow
+
+The mutator rewrites the **actual file on disk** in place. The autoresearch loop manages backups:
+
+1. Before the first cycle, copy the artifact to `_autoresearch/original.md`.
+2. On each KEEP, copy the current artifact to `_autoresearch/best.md`.
+3. On each DROP, restore `_autoresearch/best.md` back to the artifact path.
+4. The eval always runs against the real file path — no temp files or indirection.
+
+### How the skill invokes eval
+
+Shell out to `agentv eval <eval-path> --experiment autoresearch-<name>` via the Bash tool, same as the existing interactive bench workflow.
+
+### Artifact layout
+
+Each cycle is a standard eval run. Autoresearch session metadata lives in `_autoresearch/` within the experiment directory:
+
+```
+.agentv/results/runs/<experiment>/
+  _autoresearch/                     # experiment-level outputs (not hidden)
+    original.md                    # snapshot of artifact before first mutation
+    best.md                        # current best-scoring version (updated on KEEP)
+    iterations.jsonl               # one line per cycle — data for chart + mutator
+    trajectory.html                # live-updating score trajectory chart
+  2026-04-15T10-30-00/             # cycle 1 — standard run artifacts
+    index.jsonl
+    grading.json
+    timing.json
+    benchmark.json
+    report.html
+  2026-04-15T10-35-00/             # cycle 2 — standard run artifacts
+    ...
+```
+
+The `_` prefix convention distinguishes workflow folders from timestamped run dirs.
+
+### iterations.jsonl
+
+One JSON object per line, one line per cycle:
+
+```jsonl
+{"cycle":1,"score":0.65,"decision":"keep","cost_usd":0.12,"assertions":{"IDENTIFIES_BUG":0.8,"SUGGESTS_FIX":0.4},"mutation":"added explicit null-check instruction","run_dir":"2026-04-15T10-30-00","timestamp":"2026-04-15T10:32:15Z"}
+```
+
+Fields: `cycle` (1-indexed), `score` (overall pass rate 0–1), `decision` ("keep" or "drop"), `cost_usd` (eval run cost), `assertions` (per-assertion pass rates), `mutation` (one-line description of what changed), `run_dir` (timestamped directory name), `timestamp` (ISO 8601).
+
+### trajectory.html
+
+A standalone HTML chart file with embedded Chart.js. Copy the template from `scripts/trajectory.html`, replace placeholders with data, and update after each cycle. Shows:
+
+- Score over iterations (line chart) with KEEP (green) / DISCARD (red) markers
+- Per-assertion pass rates over iterations
+- Cumulative cost across iterations
+- Best vs original score summary
+
+Auto-refreshes every 2 seconds during the loop. Becomes static after completion (remove the auto-refresh meta tag on final update).
+
+### Convergence
+
+Stop after **3** consecutive cycles with no improvement (no KEEP). Also stop at **max_cycles** (default 10). Either limit can be overridden by the user.
+
+### Human checkpoints
+
+Autoresearch mode **skips** human checkpoints at iterations 3/6/9. The user opted in to unattended operation by requesting autoresearch.
+
+### Procedure
+
+Follow this step-by-step procedure to execute autoresearch:
+
+#### 1. Setup
+
+1. Determine the **artifact path** (the file to optimize) and **eval path** (EVAL.yaml or evals.json).
+2. Derive the **experiment name**: `autoresearch-<name>` from the artifact filename (strip extension), or use a user-provided name.
+3. Set the experiment directory: `.agentv/results/runs/<experiment>/`.
+4. Create the `_autoresearch/` subdirectory inside the experiment directory.
+5. Copy the artifact to `_autoresearch/original.md` (preserve the original before any mutations).
+6. Copy `scripts/trajectory.html` to `_autoresearch/trajectory.html`.
+7. Initialize variables:
+   - `best_score = 0`
+   - `convergence_count = 0`
+   - `cycle = 1`
+   - `max_cycles = 10` (or user-specified)
+   - `max_convergence = 3` (or user-specified)
+
+#### 2. Main loop
+
+Repeat while `cycle <= max_cycles` and `convergence_count < max_convergence`:
+
+**a. Run eval**
+
+```bash
+agentv eval <eval-path> --experiment autoresearch-<name>
+```
+
+**b. Read results**
+
+Find the latest timestamped directory in the experiment folder. Parse `index.jsonl` to compute:
+- Overall score (mean pass rate across all test cases and assertions)
+- Per-assertion pass rates (group by assertion name, compute pass rate for each)
+- Cost from `timing.json` if available
+
+**c. Update iterations.jsonl**
+
+Append one JSON line with this cycle's data (cycle number, score, per-assertion rates, mutation description, run directory name, timestamp). Set `decision` to "keep" or "drop" after the next step — write the line after the decision is made.
+
+**d. Update trajectory.html**
+
+Read `_autoresearch/iterations.jsonl`, serialize as JSON array, and replace the `__ITERATIONS_DATA__` placeholder in `_autoresearch/trajectory.html` with the data. Write the updated file back.
+
+**e. Decide: KEEP or DROP**
+
+Apply the automated keep/discard rules from Step 5:
+
+1. Run `agentv compare <baseline>.jsonl <candidate>.jsonl --json` where `<baseline>` is the best iteration's `index.jsonl` (or the first run's `index.jsonl` for cycle 1) and `<candidate>` is this cycle's `index.jsonl`.
+2. If `wins > losses` → **KEEP**.
+3. If `wins <= losses` → **DISCARD**.
+4. If `mean_delta == 0` and the artifact is shorter → **KEEP** (simpler is better at equal performance).
+
+For cycle 1, there is no baseline to compare against — always **KEEP** the first cycle.
+
+**f. If KEEP**
+
+- Update `best_score` to this cycle's score.
+- Copy the current artifact to `_autoresearch/best.md`.
+- Record the current `index.jsonl` path as the new baseline for future comparisons.
+- Reset `convergence_count = 0`.
+
+**g. If DROP**
+
+- Restore `_autoresearch/best.md` back to the artifact path (overwrite the failed mutation).
+- Increment `convergence_count`.
+
+**h. Check stop conditions**
+
+If `convergence_count >= max_convergence` or `cycle >= max_cycles` → break out of the loop.
+
+**i. Mutate**
+
+Dispatch the **mutator** subagent (`agents/mutator.md`) with:
+- The current artifact path
+- Per-assertion pass rates from this cycle
+- Failure descriptions (test cases that scored below 1.0, with their transcripts or grading rationale)
+- The mutation history from `iterations.jsonl` (so it avoids repeating failed strategies)
+
+The mutator rewrites the artifact file in place. Verify the file was modified before continuing.
+
+**j. Continue**
+
+Increment `cycle` and return to step (a).
+
+#### 3. Completion
+
+1. Finalize `trajectory.html`: remove the auto-refresh `<meta>` tag so the chart becomes static.
+2. Log a final summary:
+   - Total cycles run
+   - Final best score vs original score (cycle 1)
+   - Number of KEEPs and DROPs
+   - Total cost across all cycles
+   - Path to `_autoresearch/best.md` (the best artifact version)
+   - Path to `_autoresearch/trajectory.html` (the score chart)
+3. Present results to the user with a recommendation: adopt the best version, revert to original, or continue iterating interactively.
+
+### Interactive/autonomous hybrid
+
+Users can start in interactive mode (the existing Step 3–5 loop with human checkpoints), build confidence in their eval quality, and then switch to autoresearch mode to run unattended. The two modes share the same eval infrastructure and artifact layout — autoresearch simply automates the keep/discard decisions and removes human checkpoints.
+
+### Model empathy recommendation
+
+For best results, use same-model pairings: the meta-agent running autoresearch should match the model used by the task agent being evaluated (e.g., Claude optimizing a Claude agent, GPT optimizing a GPT agent). Per AutoAgent research findings, same-model pairings produce better mutations because the optimizer has implicit knowledge of how the target model interprets instructions.
+
+---
+
 ## Environment Adaptation
 
 For provider-specific notes (Copilot, Codex, Claude SDK, custom CLI), CI/headless mode behavior, and fallback strategies when subagents aren't available, read `references/environment-adaptation.md`.
@@ -461,6 +658,7 @@ The `agents/` directory contains instructions for specialized subagents. Read th
 | grader | `agents/grader.md` | Grade responses with per-assertion evidence | Step 3 (grading — one per test × LLM grader pair) |
 | comparator | `agents/comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
 | analyzer | `agents/analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
+| mutator | `agents/mutator.md` | Rewrite artifact from failure analysis | Step 5 (autoresearch — dispatched per cycle) |
 
 The `references/` directory has additional documentation:
 - `references/eval-yaml-spec.md` — Eval YAML schema and assertion grading recipes

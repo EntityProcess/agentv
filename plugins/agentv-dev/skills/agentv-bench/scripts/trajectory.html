@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- __AUTO_REFRESH__ -->
+  <title>AgentV Autoresearch Trajectory</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      color: #fff;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    /* Summary cards */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .card .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .card .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .card .value.positive { color: #4ade80; }
+    .card .value.negative { color: #f87171; }
+    .card .value.neutral  { color: #60a5fa; }
+
+    /* Charts grid */
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+      max-width: 1400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .chart-container {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .chart-container h2 {
+      font-size: 0.95rem;
+      color: #ccc;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    canvas { width: 100% !important; }
+
+    /* Iterations table */
+    .table-section {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .table-section h2 {
+      font-size: 1.1rem;
+      color: #ccc;
+      margin-bottom: 12px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #0f3460;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    thead { background: #0f3460; }
+
+    th {
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #e0e0e0;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 8px 12px;
+      border-top: 1px solid #1e2d4a;
+      color: #ccc;
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge.keep    { background: #166534; color: #4ade80; }
+    .badge.discard { background: #7f1d1d; color: #f87171; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    .mutation-cell {
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<h1>AgentV Autoresearch Trajectory</h1>
+<div class="subtitle" id="subtitle"></div>
+
+<!-- Summary cards -->
+<div class="summary" id="summary"></div>
+
+<!-- Charts -->
+<div class="charts" id="charts-area">
+  <div class="chart-container">
+    <h2>Score over Iterations</h2>
+    <canvas id="scoreChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <h2>Per-Assertion Pass Rates</h2>
+    <canvas id="assertionChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <h2>Cumulative Cost (USD)</h2>
+    <canvas id="costChart"></canvas>
+  </div>
+</div>
+
+<!-- Iterations table -->
+<div class="table-section">
+  <h2>Iteration Log</h2>
+  <div class="table-wrapper" id="table-wrapper"></div>
+</div>
+
+<script>
+// ── Data placeholder (replaced by the skill) ──────────────────────────
+const ITERATIONS_DATA = __ITERATIONS_DATA__;
+
+// ── Helpers ────────────────────────────────────────────────────────────
+const fmt = (n, d = 2) => (n == null ? '—' : Number(n).toFixed(d));
+const fmtUsd = (n) => (n == null ? '—' : '$' + Number(n).toFixed(4));
+
+// ── Chart.js defaults ──────────────────────────────────────────────────
+Chart.defaults.color = '#aaa';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+const CHART_COLORS = [
+  '#60a5fa', '#f472b6', '#facc15', '#4ade80', '#c084fc',
+  '#fb923c', '#22d3ee', '#a3e635', '#e879f9', '#fbbf24',
+];
+
+// ── Render ─────────────────────────────────────────────────────────────
+function render(data) {
+  if (!data || data.length === 0) {
+    document.getElementById('subtitle').textContent = 'Waiting for data…';
+    document.getElementById('charts-area').style.display = 'none';
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('table-wrapper').innerHTML =
+      '<div class="empty-state">No iterations recorded yet. The chart will update automatically.</div>';
+    return;
+  }
+
+  const sorted = [...data].sort((a, b) => a.cycle - b.cycle);
+
+  // ── Summary ──────────────────────────────────────────────────────────
+  const originalScore = sorted[0].score;
+  const bestIteration = sorted.reduce((best, it) => (it.score > best.score ? it : best), sorted[0]);
+  const bestScore = bestIteration.score;
+  const totalCycles = sorted.length;
+  const totalCost = sorted.reduce((sum, it) => sum + (it.cost_usd || 0), 0);
+  const delta = bestScore - originalScore;
+
+  document.getElementById('subtitle').textContent =
+    `${totalCycles} cycle${totalCycles !== 1 ? 's' : ''} completed`;
+
+  const deltaClass = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
+
+  document.getElementById('summary').innerHTML = `
+    <div class="card"><div class="label">Original Score</div><div class="value neutral">${fmt(originalScore)}</div></div>
+    <div class="card"><div class="label">Best Score</div><div class="value positive">${fmt(bestScore)}</div></div>
+    <div class="card"><div class="label">Improvement</div><div class="value ${deltaClass}">${delta >= 0 ? '+' : ''}${fmt(delta)}</div></div>
+    <div class="card"><div class="label">Total Cycles</div><div class="value">${totalCycles}</div></div>
+    <div class="card"><div class="label">Total Cost</div><div class="value">${fmtUsd(totalCost)}</div></div>
+  `;
+
+  // ── Chart data prep ──────────────────────────────────────────────────
+  const labels = sorted.map(it => it.cycle);
+  const scores = sorted.map(it => it.score);
+  const decisions = sorted.map(it => (it.decision || '').toLowerCase());
+
+  // Cumulative cost
+  let cumCost = 0;
+  const cumCosts = sorted.map(it => { cumCost += (it.cost_usd || 0); return cumCost; });
+
+  // Assertion keys (union of all)
+  const assertionKeys = [...new Set(sorted.flatMap(it => Object.keys(it.assertions || {})))].sort();
+
+  document.getElementById('charts-area').style.display = '';
+
+  // ── 1. Score chart ───────────────────────────────────────────────────
+  const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+  new Chart(scoreCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Score',
+        data: scores,
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.15)',
+        borderWidth: 2,
+        tension: 0.2,
+        fill: true,
+        pointRadius: 6,
+        pointBorderWidth: 2,
+        pointBackgroundColor: decisions.map(d => d === 'keep' ? '#4ade80' : '#f87171'),
+        pointBorderColor: decisions.map(d => d === 'keep' ? '#166534' : '#7f1d1d'),
+      }],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: 0, max: 1, ticks: { stepSize: 0.1 } },
+        x: { title: { display: true, text: 'Cycle' } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (ctx) => `Decision: ${decisions[ctx.dataIndex] || '—'}`,
+          },
+        },
+      },
+    },
+  });
+
+  // ── 2. Assertion chart ───────────────────────────────────────────────
+  const assertCtx = document.getElementById('assertionChart').getContext('2d');
+  new Chart(assertCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: assertionKeys.map((key, i) => ({
+        label: key,
+        data: sorted.map(it => (it.assertions || {})[key] ?? null),
+        borderColor: CHART_COLORS[i % CHART_COLORS.length],
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        tension: 0.2,
+        pointRadius: 3,
+        spanGaps: true,
+      })),
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: 0, max: 1, ticks: { stepSize: 0.2 } },
+        x: { title: { display: true, text: 'Cycle' } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+      },
+    },
+  });
+
+  // ── 3. Cost chart ────────────────────────────────────────────────────
+  const costCtx = document.getElementById('costChart').getContext('2d');
+  new Chart(costCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Cumulative Cost (USD)',
+        data: cumCosts,
+        borderColor: '#facc15',
+        backgroundColor: 'rgba(250,204,21,0.1)',
+        borderWidth: 2,
+        tension: 0.2,
+        fill: true,
+        pointRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { ticks: { callback: v => '$' + v.toFixed(2) } },
+        x: { title: { display: true, text: 'Cycle' } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+
+  // ── Table ────────────────────────────────────────────────────────────
+  const rows = sorted.map(it => {
+    const badge = (it.decision || '').toLowerCase() === 'keep'
+      ? '<span class="badge keep">keep</span>'
+      : '<span class="badge discard">discard</span>';
+    const ts = it.timestamp
+      ? new Date(it.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' })
+      : '—';
+    return `<tr>
+      <td>${it.cycle}</td>
+      <td>${fmt(it.score)}</td>
+      <td>${badge}</td>
+      <td class="mutation-cell" title="${(it.mutation || '').replace(/"/g, '&quot;')}">${it.mutation || '—'}</td>
+      <td>${fmtUsd(it.cost_usd)}</td>
+      <td>${ts}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('table-wrapper').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Cycle</th><th>Score</th><th>Decision</th><th>Mutation</th><th>Cost</th><th>Timestamp</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+render(ITERATIONS_DATA);
+</script>
+
+</body>
+</html>
