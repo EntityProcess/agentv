@@ -26,7 +26,7 @@ The `results` command family works on existing AgentV run workspaces and `index.
 
 The `results report` command turns an existing run workspace or `index.jsonl` manifest into a self-contained HTML report for sharing, inspection, and human review.
 
-<Image src={resultsReportOverview} alt="AgentV results report overview showing 12 tests across 4 eval files and 3 targets with pass, fail, and error summary cards" />
+<Image src={resultsReportOverview} alt="AgentV results report overview showing 11 tests across 2 eval files with pass, fail, pass rate, duration, and cost summary cards" />
 
 ```bash
 agentv results report <run-workspace-or-index.jsonl>
@@ -45,12 +45,12 @@ agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude/index.json
 
 What it shows:
 
-- **Overview stats** — total tests, eval files, targets, pass/fail/error counts
-- **Eval file breakdown** — pass rate, totals, duration, tokens, and cost by eval file
-- **Target breakdown** — pass rate and aggregate scores by target
-- **Test Cases tab** — grouped cases with expandable details, grader results, assertions, prompts, and outputs
+- **Summary stats** — total tests, passed, failed, pass rate, duration, and cost
+- **Eval file groups** — test cases grouped by eval file with pass rate, test count, and duration
+- **Expandable details** — unified assertions with pass/fail indicators and type badges, collapsible input/output
+- **Criteria column** — shows the test prompt or description inline for quick scanning
 
-<Image src={resultsReportDetails} alt="AgentV results report Test Cases tab showing grouped eval files, a selected invoice-reconciliation case, grader badges for contains, regex, and llm-grader, and grader result details" />
+<Image src={resultsReportDetails} alt="AgentV results report showing an expanded failing test case with unified assertions, deterministic type badges, pass/fail indicators, evidence text, and collapsible input/output" />
 
 | Option | Description |
 |--------|-------------|
