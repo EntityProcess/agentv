@@ -31,26 +31,45 @@ agentv compare before.jsonl after.jsonl
 1. **Load Results** -- reads both JSONL files containing evaluation results
 2. **Match by test_id** -- pairs results with matching `test_id` fields
 3. **Compute Deltas** -- calculates `delta = score2 - score1` for each pair
-4. **Classify Outcomes**:
+4. **Compute Normalized Gain** -- calculates `g = delta / (1 - score1)` for each pair (see below)
+5. **Classify Outcomes**:
    - **win**: delta &gt;= threshold (candidate better)
    - **loss**: delta &lt;= -threshold (baseline better)
    - **tie**: |delta| &lt; threshold (no significant difference)
-5. **Output Summary** -- human-readable table or JSON
+6. **Output Summary** -- human-readable table or JSON
+
+## Normalized Gain (g)
+
+In addition to raw delta, `compare` reports **normalized gain** (`g`):
+
+```
+g = (score_candidate − score_baseline) / (1 − score_baseline)
+```
+
+`g` measures improvement relative to remaining headroom rather than as an absolute number. This matters when baselines differ across tasks:
+
+| Baseline | Candidate | Δ | g | Interpretation |
+|----------|-----------|------|------|----------------|
+| 0.10 | 0.55 | +0.45 | +0.50 | Captured 50% of remaining headroom |
+| 0.90 | 0.95 | +0.05 | +0.50 | Same proportional gain despite smaller Δ |
+| 0.50 | 0.25 | −0.25 | −0.50 | Regression: lost 50% of headroom |
+
+`g` is `null` when the baseline is already 1.0 (no headroom to improve). Null values are excluded from the mean.
 
 ## Output Formats
 
 ### Table Format (default)
 
 ```
-Comparing: baseline.jsonl -> candidate.jsonl
+Comparing: baseline/ → candidate/
 
-  Test ID        Baseline  Candidate     Delta  Result
-  -------------  --------  ---------  --------  --------
-  safety-check       0.70       0.90     +0.20  win
-  accuracy-test      0.85       0.80     -0.05  = tie
-  latency-eval       0.90       0.75     -0.15  loss
+  Test ID              Baseline  Candidate     Delta  Result
+  ───────────────────  ────────  ─────────  ────────  ────────
+  fix-cwd-bug              0.00       0.60     +0.60  ✓ win
+  spec-driven-impl         0.40       0.80     +0.40  ✓ win
+  multi-file-refactor      0.60       0.40     -0.20  ✗ loss
 
-Summary: 1 win, 1 loss, 1 tie | Mean delta: +0.000 | Status: neutral
+Summary: 2 wins, 1 loss, 0 ties | Mean Δ: +0.267 | g: +0.256 | Status: improved
 ```
 
 Wins are highlighted green, losses red, and ties gray. Colors are automatically disabled when output is piped or `NO_COLOR` is set.
@@ -63,10 +82,11 @@ Use `--json` or `--format=json` for machine-readable output. Fields use snake_ca
 {
   "matched": [
     {
-      "test_id": "case-1",
-      "score1": 0.7,
-      "score2": 0.9,
-      "delta": 0.2,
+      "test_id": "fix-cwd-bug",
+      "score1": 0.0,
+      "score2": 0.6,
+      "delta": 0.6,
+      "normalized_gain": 0.6,
       "outcome": "win"
     }
   ],
@@ -75,12 +95,13 @@ Use `--json` or `--format=json` for machine-readable output. Fields use snake_ca
     "file2": 0
   },
   "summary": {
-    "total": 2,
-    "matched": 1,
-    "wins": 1,
-    "losses": 0,
+    "total": 6,
+    "matched": 3,
+    "wins": 2,
+    "losses": 1,
     "ties": 0,
-    "mean_delta": 0.2
+    "mean_delta": 0.267,
+    "mean_normalized_gain": 0.256
   }
 }
 ```
@@ -143,5 +164,6 @@ echo "Candidate is equal or better than baseline."
 ## Tips
 
 - **Threshold selection** -- the default 0.1 means a 10% difference is required for a win or loss. Use stricter thresholds (0.05) for critical evaluations.
+- **Normalized gain vs delta** -- use `g` to compare across tasks with different baseline difficulty; use `Δ` for absolute improvement tracking.
 - **Unmatched results** -- check `unmatched` counts in JSON output to identify tests that only exist in one file.
 - **Multiple comparisons** -- compare against multiple baselines by running the command multiple times.

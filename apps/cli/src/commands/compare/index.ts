@@ -40,6 +40,7 @@ interface MatchedResult {
   score1: number;
   score2: number;
   delta: number;
+  normalizedGain: number | null;
   outcome: 'win' | 'loss' | 'tie';
 }
 
@@ -53,6 +54,7 @@ export interface ComparisonOutput {
     losses: number;
     ties: number;
     meanDelta: number;
+    meanNormalizedGain: number | null;
   };
   baseline?: string;
   candidate?: string;
@@ -111,6 +113,20 @@ export function loadCombinedResults(filePath: string): Map<string, EvalResult[]>
   return groups;
 }
 
+/**
+ * Hake's normalized gain: g = (score_candidate − score_baseline) / (1 − score_baseline)
+ * Measures improvement relative to remaining headroom. Returns null when baseline is 1.0
+ * (perfect score leaves no room for improvement).
+ * Reference: Hake (1998), used by SkillsBench (arXiv:2602.12670).
+ */
+export function computeNormalizedGain(
+  baselineScore: number,
+  candidateScore: number,
+): number | null {
+  if (baselineScore >= 1.0) return null;
+  return (candidateScore - baselineScore) / (1 - baselineScore);
+}
+
 export function classifyOutcome(delta: number, threshold: number): 'win' | 'loss' | 'tie' {
   if (delta >= threshold) return 'win';
   if (delta <= -threshold) return 'loss';
@@ -137,6 +153,7 @@ export function compareResults(
         score1,
         score2,
         delta,
+        normalizedGain: computeNormalizedGain(score1, score2),
         outcome: classifyOutcome(delta, threshold),
       });
       matchedIds.add(testId);
@@ -153,6 +170,12 @@ export function compareResults(
   const meanDelta =
     matched.length > 0 ? matched.reduce((sum, m) => sum + m.delta, 0) / matched.length : 0;
 
+  const gainValues = matched.map((m) => m.normalizedGain).filter((g): g is number => g !== null);
+  const meanNormalizedGain =
+    gainValues.length > 0
+      ? Math.round((gainValues.reduce((sum, g) => sum + g, 0) / gainValues.length) * 1000) / 1000
+      : null;
+
   return {
     matched,
     unmatched: { file1: unmatchedFile1, file2: unmatchedFile2 },
@@ -163,6 +186,7 @@ export function compareResults(
       losses,
       ties,
       meanDelta: Math.round(meanDelta * 1000) / 1000,
+      meanNormalizedGain,
     },
   };
 }
@@ -323,7 +347,7 @@ export function formatTable(comparison: ComparisonOutput, file1: string, file2: 
 
   // Summary
   lines.push('');
-  const { wins, losses, ties, meanDelta } = comparison.summary;
+  const { wins, losses, ties, meanDelta, meanNormalizedGain } = comparison.summary;
 
   const winStr =
     wins > 0 ? `${c.green}${wins} win${wins !== 1 ? 's' : ''}${c.reset}` : `${wins} wins`;
@@ -340,9 +364,15 @@ export function formatTable(comparison: ComparisonOutput, file1: string, file2: 
         ? `${c.red}regressed${c.reset}`
         : `${c.gray}neutral${c.reset}`;
 
-  lines.push(
-    `${c.bold}Summary:${c.reset} ${winStr}, ${lossStr}, ${tieStr} | Mean Δ: ${deltaColor}${deltaSign}${meanDelta.toFixed(3)}${c.reset} | Status: ${status}`,
-  );
+  let summaryLine = `${c.bold}Summary:${c.reset} ${winStr}, ${lossStr}, ${tieStr} | Mean Δ: ${deltaColor}${deltaSign}${meanDelta.toFixed(3)}${c.reset}`;
+  if (meanNormalizedGain != null) {
+    const gColor = meanNormalizedGain > 0 ? c.green : meanNormalizedGain < 0 ? c.red : c.gray;
+    const gSign = meanNormalizedGain >= 0 ? '+' : '';
+    summaryLine += ` | g: ${gColor}${gSign}${meanNormalizedGain.toFixed(3)}${c.reset}`;
+  }
+  summaryLine += ` | Status: ${status}`;
+
+  lines.push(summaryLine);
   lines.push('');
 
   return lines.join('\n');
@@ -414,13 +444,18 @@ export function formatMatrix(matrixOutput: MatrixOutput, baselineTarget?: string
       ...pairwise.map((pw) => `  ${pw.baseline} → ${pw.candidate}:`.length),
     );
     for (const p of pairwise) {
-      const { wins, losses, ties, meanDelta } = p.summary;
+      const { wins, losses, ties, meanDelta, meanNormalizedGain } = p.summary;
       const sign = meanDelta >= 0 ? '+' : '';
       const deltaColor = meanDelta > 0 ? c.green : meanDelta < 0 ? c.red : c.gray;
       const label = `  ${p.baseline} → ${p.candidate}:`;
-      lines.push(
-        `${padRight(label, maxLabelLen)}  ${wins} win${wins !== 1 ? 's' : ''}, ${losses} loss${losses !== 1 ? 'es' : ''}, ${ties} tie${ties !== 1 ? 's' : ''}  (${c.bold}Δ${c.reset} ${deltaColor}${sign}${meanDelta.toFixed(3)}${c.reset})`,
-      );
+      let pairLine = `${padRight(label, maxLabelLen)}  ${wins} win${wins !== 1 ? 's' : ''}, ${losses} loss${losses !== 1 ? 'es' : ''}, ${ties} tie${ties !== 1 ? 's' : ''}  (${c.bold}Δ${c.reset} ${deltaColor}${sign}${meanDelta.toFixed(3)}${c.reset}`;
+      if (meanNormalizedGain != null) {
+        const gColor = meanNormalizedGain > 0 ? c.green : meanNormalizedGain < 0 ? c.red : c.gray;
+        const gSign = meanNormalizedGain >= 0 ? '+' : '';
+        pairLine += `, ${c.bold}g${c.reset} ${gColor}${gSign}${meanNormalizedGain.toFixed(3)}${c.reset}`;
+      }
+      pairLine += ')';
+      lines.push(pairLine);
     }
   }
 
