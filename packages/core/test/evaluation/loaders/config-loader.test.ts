@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  extractBudgetUsd,
   extractFailOnError,
   extractTargetFromSuite,
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
-  extractTotalBudgetUsd,
   extractTrialsConfig,
   parseExecutionDefaults,
   parseResultsConfig,
@@ -380,40 +380,54 @@ describe('extractTargetsFromTestCase', () => {
   });
 });
 
-describe('extractTotalBudgetUsd', () => {
+describe('extractBudgetUsd', () => {
   it('returns undefined when no execution block', () => {
     const suite: JsonObject = { tests: [] };
-    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+    expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('returns undefined when no total_budget_usd in execution', () => {
+  it('returns undefined when no budget_usd in execution', () => {
     const suite: JsonObject = { execution: { target: 'default' } };
-    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+    expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('parses valid total_budget_usd (snake_case)', () => {
-    const suite: JsonObject = { execution: { total_budget_usd: 10.0 } };
-    expect(extractTotalBudgetUsd(suite)).toBe(10.0);
+  it('parses valid budget_usd (snake_case)', () => {
+    const suite: JsonObject = { execution: { budget_usd: 10.0 } };
+    expect(extractBudgetUsd(suite)).toBe(10.0);
   });
 
-  it('parses valid totalBudgetUsd (camelCase)', () => {
-    const suite: JsonObject = { execution: { totalBudgetUsd: 5.5 } };
-    expect(extractTotalBudgetUsd(suite)).toBe(5.5);
+  it('parses valid budgetUsd (camelCase)', () => {
+    const suite: JsonObject = { execution: { budgetUsd: 5.5 } };
+    expect(extractBudgetUsd(suite)).toBe(5.5);
   });
 
   it('returns undefined for zero budget', () => {
-    const suite: JsonObject = { execution: { total_budget_usd: 0 } };
-    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+    const suite: JsonObject = { execution: { budget_usd: 0 } };
+    expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
   it('returns undefined for negative budget', () => {
-    const suite: JsonObject = { execution: { total_budget_usd: -1 } };
-    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+    const suite: JsonObject = { execution: { budget_usd: -1 } };
+    expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
   it('returns undefined for non-number budget', () => {
-    const suite: JsonObject = { execution: { total_budget_usd: 'ten' } };
-    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+    const suite: JsonObject = { execution: { budget_usd: 'ten' } };
+    expect(extractBudgetUsd(suite)).toBeUndefined();
+  });
+
+  it('rejects old key total_budget_usd with a clear error', () => {
+    const suite: JsonObject = { execution: { total_budget_usd: 10.0 } };
+    expect(() => extractBudgetUsd(suite)).toThrow(
+      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
+    );
+  });
+
+  it('rejects old key totalBudgetUsd with a clear error', () => {
+    const suite: JsonObject = { execution: { totalBudgetUsd: 10.0 } };
+    expect(() => extractBudgetUsd(suite)).toThrow(
+      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
+    );
   });
 });
 

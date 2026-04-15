@@ -394,14 +394,22 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
  * Extract suite-level total budget from parsed eval suite's execution block.
  * Returns undefined when not specified.
  */
-export function extractTotalBudgetUsd(suite: JsonObject): number | undefined {
+export function extractBudgetUsd(suite: JsonObject): number | undefined {
   const execution = suite.execution;
   if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
     return undefined;
   }
 
   const executionObj = execution as Record<string, unknown>;
-  const rawBudget = executionObj.total_budget_usd ?? executionObj.totalBudgetUsd;
+
+  // Reject the old key with a clear error
+  if ('total_budget_usd' in executionObj || 'totalBudgetUsd' in executionObj) {
+    throw new Error(
+      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
+    );
+  }
+
+  const rawBudget = executionObj.budget_usd ?? executionObj.budgetUsd;
 
   if (rawBudget === undefined || rawBudget === null) {
     return undefined;
@@ -411,9 +419,7 @@ export function extractTotalBudgetUsd(suite: JsonObject): number | undefined {
     return rawBudget;
   }
 
-  logWarning(
-    `Invalid execution.total_budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`,
-  );
+  logWarning(`Invalid execution.budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`);
   return undefined;
 }
 

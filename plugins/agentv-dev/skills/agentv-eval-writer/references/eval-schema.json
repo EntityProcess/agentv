@@ -5015,11 +5015,11 @@
                         "required": ["count"],
                         "additionalProperties": false
                       },
-                      "total_budget_usd": {
+                      "budget_usd": {
                         "type": "number",
                         "minimum": 0
                       },
-                      "totalBudgetUsd": {
+                      "budgetUsd": {
                         "type": "number",
                         "minimum": 0
                       },
@@ -11543,11 +11543,11 @@
                         "required": ["count"],
                         "additionalProperties": false
                       },
-                      "total_budget_usd": {
+                      "budget_usd": {
                         "type": "number",
                         "minimum": 0
                       },
-                      "totalBudgetUsd": {
+                      "budgetUsd": {
                         "type": "number",
                         "minimum": 0
                       },
@@ -15682,11 +15682,11 @@
               "required": ["count"],
               "additionalProperties": false
             },
-            "total_budget_usd": {
+            "budget_usd": {
               "type": "number",
               "minimum": 0
             },
-            "totalBudgetUsd": {
+            "budgetUsd": {
               "type": "number",
               "minimum": 0
             },

@@ -15,7 +15,9 @@ export function buildTestTargetKey(testId?: string, target?: string): string {
 }
 
 // Deduplication helper — keeps the last entry per (test_id, target) pair.
-export function deduplicateByTestIdTarget(results: readonly EvaluationResult[]): EvaluationResult[] {
+export function deduplicateByTestIdTarget(
+  results: readonly EvaluationResult[],
+): EvaluationResult[] {
   const seen = new Map<string, number>();
   for (let i = 0; i < results.length; i++) {
     seen.set(buildTestTargetKey(results[i].testId, results[i].target), i);

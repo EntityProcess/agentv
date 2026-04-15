@@ -8,6 +8,7 @@ import { interpolateEnv } from './interpolation.js';
 import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
 import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
 import {
+  extractBudgetUsd,
   extractCacheConfig,
   extractFailOnError,
   extractTargetFromSuite,
@@ -15,7 +16,6 @@ import {
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
-  extractTotalBudgetUsd,
   extractTrialsConfig,
   extractWorkersFromSuite,
   loadConfig,
@@ -203,7 +203,7 @@ export type EvalSuiteResult = {
   /** Suite-level metadata (name, description, version, etc.) */
   readonly metadata?: import('./metadata.js').EvalMetadata;
   /** Suite-level total cost budget in USD */
-  readonly totalBudgetUsd?: number;
+  readonly budgetUsd?: number;
   /** Execution error tolerance: true or false */
   readonly failOnError?: import('./types.js').FailOnError;
   /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
@@ -243,7 +243,7 @@ export async function loadTestSuite(
     targetRefs: extractTargetRefsFromSuite(parsed),
     workers: extractWorkersFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
-    totalBudgetUsd: extractTotalBudgetUsd(parsed),
+    budgetUsd: extractBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
