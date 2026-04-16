@@ -453,7 +453,7 @@ Autoresearch is an unattended eval-improve loop that runs multiple optimize cycl
 ### Prerequisites
 
 - An eval file (`EVAL.yaml` or `evals.json`) must exist for the artifact being optimized.
-- The artifact must be a single file (SKILL.md, prompt template, or agent config).
+- The artifact must be a file or directory (SKILL.md, prompt template, agent config, or a directory of related files like a skill with references/).
 - The user should have run at least one interactive eval cycle to build confidence in eval quality before going unattended.
 
 ### The loop
@@ -472,12 +472,13 @@ Derive the experiment name from the artifact: `autoresearch-<name>` (e.g., `auto
 
 ### Artifact mutation flow
 
-The mutator rewrites the **actual file on disk** in place. The autoresearch loop manages backups:
+The mutator rewrites artifacts in the working tree in place. **Git is used for versioning** — HEAD always contains the best-known version:
 
-1. Before the first cycle, copy the artifact to `_autoresearch/original.md`.
-2. On each KEEP, copy the current artifact to `_autoresearch/best.md`.
-3. On each DROP, restore `_autoresearch/best.md` back to the artifact path.
+1. Record the starting commit SHA before the first cycle: `initial_sha=$(git rev-parse HEAD)`.
+2. On each **KEEP**: `git add <artifact-path> && git commit -m "autoresearch cycle N: <mutation summary>"`.
+3. On each **DROP**: `git checkout -- <artifact-path>` (restores working tree to HEAD, the last KEEP commit).
 4. The eval always runs against the real file path — no temp files or indirection.
+5. The mutator can reference the original via `git show <initial_sha>:<path>`.
 
 ### How the skill invokes eval
 
@@ -489,9 +490,7 @@ Each cycle is a standard eval run. Autoresearch session metadata lives in `_auto
 
 ```
 .agentv/results/runs/<experiment>/
-  _autoresearch/                     # experiment-level outputs (not hidden)
-    original.md                    # snapshot of artifact before first mutation
-    best.md                        # current best-scoring version (updated on KEEP)
+  _autoresearch/
     iterations.jsonl               # one line per cycle — data for chart + mutator
     trajectory.html                # live-updating score trajectory chart
   2026-04-15T10-30-00/             # cycle 1 — standard run artifacts
@@ -504,7 +503,7 @@ Each cycle is a standard eval run. Autoresearch session metadata lives in `_auto
     ...
 ```
 
-The `_` prefix convention distinguishes workflow folders from timestamped run dirs.
+No `original.md` or `best.md` files — git history serves as the backup. The `_` prefix convention distinguishes workflow folders from timestamped run dirs.
 
 ### iterations.jsonl
 
@@ -541,13 +540,14 @@ Follow this step-by-step procedure to execute autoresearch:
 
 #### 1. Setup
 
-1. Determine the **artifact path** (the file to optimize) and **eval path** (EVAL.yaml or evals.json).
-2. Derive the **experiment name**: `autoresearch-<name>` from the artifact filename (strip extension), or use a user-provided name.
-3. Set the experiment directory: `.agentv/results/runs/<experiment>/`.
-4. Create the `_autoresearch/` subdirectory inside the experiment directory.
-5. Copy the artifact to `_autoresearch/original.md` (preserve the original before any mutations).
-6. Copy `scripts/trajectory.html` to `_autoresearch/trajectory.html`.
-7. Initialize variables:
+1. Determine the **artifact path** (file or directory to optimize) and **eval path** (EVAL.yaml or evals.json).
+2. Detect **artifact mode**: `file` if the artifact path is a file, `directory` if it's a directory.
+3. Derive the **experiment name**: `autoresearch-<name>` from the artifact filename/dirname, or use a user-provided name.
+4. Set the experiment directory: `.agentv/results/runs/<experiment>/`.
+5. Create the `_autoresearch/` subdirectory inside the experiment directory.
+6. Record `initial_sha=$(git rev-parse HEAD)` — the commit before any mutations.
+7. Copy `scripts/trajectory.html` to `_autoresearch/trajectory.html`.
+8. Initialize variables:
    - `best_score = 0`
    - `convergence_count = 0`
    - `cycle = 1`
@@ -586,20 +586,20 @@ Apply the automated keep/discard rules from Step 5:
 1. Run `agentv compare <baseline>.jsonl <candidate>.jsonl --json` where `<baseline>` is the best iteration's `index.jsonl` (or the first run's `index.jsonl` for cycle 1) and `<candidate>` is this cycle's `index.jsonl`.
 2. If `wins > losses` → **KEEP**.
 3. If `wins <= losses` → **DISCARD**.
-4. If `mean_delta == 0` and the artifact is shorter → **KEEP** (simpler is better at equal performance).
+4. If `mean_delta == 0` and the artifact is simpler → **KEEP** (simpler is better at equal performance). Simplicity: for files, compare line count; for directories, compare total size via `du -sb`.
 
 For cycle 1, there is no baseline to compare against — always **KEEP** the first cycle.
 
 **f. If KEEP**
 
 - Update `best_score` to this cycle's score.
-- Copy the current artifact to `_autoresearch/best.md`.
+- Commit the artifact: `git add <artifact-path> && git commit -m "autoresearch cycle N: <mutation summary>"`.
 - Record the current `index.jsonl` path as the new baseline for future comparisons.
 - Reset `convergence_count = 0`.
 
 **g. If DROP**
 
-- Restore `_autoresearch/best.md` back to the artifact path (overwrite the failed mutation).
+- Revert the working tree to HEAD: `git checkout -- <artifact-path>` (for files) or `git checkout -- <artifact-path>/` (for directories).
 - Increment `convergence_count`.
 
 **h. Check stop conditions**
@@ -609,12 +609,15 @@ If `convergence_count >= max_convergence` or `cycle >= max_cycles` → break out
 **i. Mutate**
 
 Dispatch the **mutator** subagent (`agents/mutator.md`) with:
-- The current artifact path
+- `artifact-path`: the file or directory to mutate
+- `artifact-mode`: `file` or `directory`
+- `initial-sha`: the starting commit SHA (for referencing the original via `git show`)
 - Per-assertion pass rates from this cycle
 - Failure descriptions (test cases that scored below 1.0, with their transcripts or grading rationale)
 - The mutation history from `iterations.jsonl` (so it avoids repeating failed strategies)
+- For directory mode: `artifact-file-list` (listing of files in the artifact directory) and `focus-files` (files most likely contributing to failures)
 
-The mutator rewrites the artifact file in place. Verify the file was modified before continuing.
+The mutator rewrites artifacts in place. Verify the artifact was modified before continuing.
 
 **j. Continue**
 
@@ -628,9 +631,11 @@ Increment `cycle` and return to step (a).
    - Final best score vs original score (cycle 1)
    - Number of KEEPs and DROPs
    - Total cost across all cycles
-   - Path to `_autoresearch/best.md` (the best artifact version)
+   - The optimized artifact is in the working tree (and the latest commit)
+   - Run `git diff <initial_sha>` to see total changes from the original
+   - Run `git log --oneline <initial_sha>..HEAD` to see the mutation history
    - Path to `_autoresearch/trajectory.html` (the score chart)
-3. Present results to the user with a recommendation: adopt the best version, revert to original, or continue iterating interactively.
+3. Present results to the user with a recommendation: adopt the optimized version, revert to original (`git checkout <initial_sha> -- <artifact-path>`), or continue iterating interactively.
 
 ### Interactive/autonomous hybrid
 

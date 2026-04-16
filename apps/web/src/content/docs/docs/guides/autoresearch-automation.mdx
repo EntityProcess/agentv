@@ -47,12 +47,12 @@ The system uses a **hill-climbing ratchet**: each mutation builds on the best-sc
 
 ## What Gets Optimized
 
-Any single-file artifact: SKILL.md, prompt template, agent config, system prompt. The mutator rewrites the file in place while the eval stays fixed — same test cases, same assertions, different artifact versions.
+Any file or directory artifact: SKILL.md, prompt template, agent config, system prompt, or a directory of related files (e.g., a skill with `references/` and `agents/` subdirectories). The artifact mode is auto-detected — pass a file path for single-file optimization, or a directory path for multi-file optimization. The mutator rewrites artifacts in place while the eval stays fixed — same test cases, same assertions, different artifact versions.
 
 ## Prerequisites
 
 - An eval file (EVAL.yaml or evals.json) that covers the behavior you care about
-- The artifact must be a single file
+- The artifact must be a file or directory within a git repository (autoresearch uses git for versioning)
 - Run at least one manual eval cycle first to validate your test cases
 
 :::tip
@@ -78,8 +78,6 @@ Each autoresearch session creates a self-contained experiment directory:
 ```
 .agentv/results/runs/autoresearch-<name>/
 ├── _autoresearch/
-│   ├── original.md          # Snapshot before any mutations
-│   ├── best.md              # Current best-scoring version
 │   ├── iterations.jsonl     # Per-cycle data (score, decision, mutation)
 │   └── trajectory.html      # Live-updating Chart.js visualization
 ├── 2026-04-15T10-30-00/     # Cycle 1 run artifacts
@@ -91,9 +89,12 @@ Each autoresearch session creates a self-contained experiment directory:
 └── ...
 ```
 
-- **`_autoresearch/best.md`** — The final optimized artifact. Copy it back to your project when satisfied.
+Autoresearch uses **git-based versioning** instead of backup files. Each successful mutation is committed (`git add && git commit`), and failed mutations are reverted (`git checkout`). The optimized artifact lives in the working tree and the latest commit — no separate `best.md` to copy.
+
 - **`_autoresearch/trajectory.html`** — Open in a browser to see the score trajectory, per-assertion breakdown, and cumulative cost. Auto-refreshes during the loop, becomes static on completion.
 - **`_autoresearch/iterations.jsonl`** — Machine-readable log of every cycle for downstream analysis.
+
+Review the mutation history with `git log` after the run completes.
 
 ## The Keep/Drop Decision
 
@@ -188,7 +189,9 @@ You can override both limits when triggering autoresearch:
 
 **Watch the per-assertion chart.** If one assertion is stuck at 0% while others improve, the eval may be too strict or testing something the prompt can't control. Consider adjusting the assertion.
 
-**Review the optimized artifact.** Autoresearch improves scores, but always review `best.md` before adopting it. The optimizer may have found a valid but unexpected approach.
+**Review the optimized artifact.** Autoresearch improves scores, but always review the changes (`git diff <initial_sha>`) before adopting them. The optimizer may have found a valid but unexpected approach.
+
+**Keep artifact directories focused.** For directory mode, keep artifacts to 5–15 files. The mutator works best when it can reason about the full scope without reading dozens of files. Split large skill directories if needed.
 
 ## Relationship to Manual Workflow
 
