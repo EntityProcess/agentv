@@ -21,6 +21,7 @@ const ANSI_RESET = '\u001b[0m';
 export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
   '**/evals/**/*.eval.yaml',
   '**/evals/**/eval.yaml',
+  '**/evals/**/*.eval.ts',
 ];
 
 export type ExecutionDefaults = {

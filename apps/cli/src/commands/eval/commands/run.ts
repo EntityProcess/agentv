@@ -20,7 +20,7 @@ export const evalRunCommand = command({
     evalPaths: restPositionals({
       type: string,
       displayName: 'eval-paths',
-      description: 'Path(s) or glob(s) to evaluation .yaml file(s)',
+      description: 'Path(s) or glob(s) to evaluation files (.yaml, .eval.ts)',
     }),
     target: multioption({
       type: array(string),

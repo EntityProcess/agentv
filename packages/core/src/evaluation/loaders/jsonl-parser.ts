@@ -62,13 +62,16 @@ type RawJsonlEvalCase = JsonObject & {
 /**
  * Detect file format by extension.
  */
-export function detectFormat(filePath: string): 'yaml' | 'jsonl' | 'agent-skills-json' {
+export function detectFormat(
+  filePath: string,
+): 'yaml' | 'jsonl' | 'agent-skills-json' | 'typescript' {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.jsonl') return 'jsonl';
   if (ext === '.yaml' || ext === '.yml') return 'yaml';
   if (ext === '.json') return 'agent-skills-json';
+  if (ext === '.ts' || ext === '.mts') return 'typescript';
   throw new Error(
-    `Unsupported file format: '${ext}'. Supported formats: .yaml, .yml, .jsonl, .json`,
+    `Unsupported file format: '${ext}'. Supported formats: .yaml, .yml, .jsonl, .json, .ts`,
   );
 }
 

@@ -210,6 +210,10 @@ export type EvalSuiteResult = {
   readonly threshold?: number;
   /** Resolved workspace.path from the eval YAML (after env-var expansion), if set */
   readonly workspacePath?: string;
+  /** Inline target definition from a TS eval config. */
+  readonly inlineTarget?: import('./providers/types.js').TargetDefinition;
+  /** Custom provider factory from a TS eval config task(). */
+  readonly providerFactory?: import('./providers/provider-registry.js').ProviderFactoryFn;
 };
 
 /**
@@ -227,6 +231,10 @@ export async function loadTestSuite(
   }
   if (format === 'agent-skills-json') {
     return { tests: await loadTestsFromAgentSkills(evalFilePath) };
+  }
+  if (format === 'typescript') {
+    const { loadTsEvalSuite } = await import('./loaders/ts-eval-loader.js');
+    return loadTsEvalSuite(evalFilePath, resolveToAbsolutePath(repoRoot), options);
   }
   const { tests, parsed, suiteWorkspacePath } = await loadTestsFromYaml(
     evalFilePath,
@@ -266,6 +274,11 @@ export async function loadTests(
   }
   if (format === 'agent-skills-json') {
     return loadTestsFromAgentSkills(evalFilePath);
+  }
+  if (format === 'typescript') {
+    const { loadTsEvalSuite } = await import('./loaders/ts-eval-loader.js');
+    const suite = await loadTsEvalSuite(evalFilePath, resolveToAbsolutePath(repoRoot), options);
+    return suite.tests;
   }
   const { tests } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
   return tests;

@@ -20,6 +20,7 @@ import {
   loadConfig,
   loadTestSuite,
   loadTsConfig,
+  resolveTargetDefinition,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
@@ -531,6 +532,9 @@ async function prepareFileMetadata(params: {
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly tags?: readonly string[];
+  readonly providerFactory?: (
+    target: import('@agentv/core').ResolvedTarget,
+  ) => import('@agentv/core').Provider;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -572,6 +576,54 @@ async function prepareFileMetadata(params: {
       {
         selection: transcriptSelection,
         inlineTargetLabel: `transcript (${path.basename(options.transcript)})`,
+      },
+    ];
+  } else if (suite.inlineTarget && options.cliTargets.length === 0) {
+    const targetDefinition = suite.inlineTarget;
+    const resolvedTarget = options.dryRun
+      ? ({
+          kind: 'mock',
+          name: `${targetDefinition.name}-dry-run`,
+          graderTarget: undefined,
+          config: {
+            response: '{"answer":"Mock dry-run response"}',
+            delayMs: options.dryRunDelay,
+            delayMinMs: options.dryRunDelayMin,
+            delayMaxMs: options.dryRunDelayMax,
+          },
+        } satisfies ResolvedTarget)
+      : resolveTargetDefinition(targetDefinition, process.env, testFilePath, {
+          emitDeprecationWarnings: false,
+        });
+    selections = [
+      {
+        selection: {
+          definitions: [targetDefinition],
+          resolvedTarget,
+          targetName: targetDefinition.name,
+          targetSource: 'test-file',
+          targetsFilePath: testFilePath,
+        },
+        inlineTargetLabel: resolveTargetLabel(targetDefinition.name, resolvedTarget.name),
+      },
+    ];
+  } else if (suite.providerFactory && options.cliTargets.length === 0) {
+    const taskTarget: ResolvedTarget = {
+      kind: 'mock',
+      name: 'custom-task',
+      graderTarget: undefined,
+      config: {},
+    };
+    selections = [
+      {
+        selection: {
+          definitions: [],
+          resolvedTarget: taskTarget,
+          targetName: 'custom-task',
+          targetSource: 'test-file',
+          targetsFilePath: testFilePath,
+        },
+        inlineTargetLabel: 'custom-task',
       },
     ];
   } else {
@@ -658,6 +710,7 @@ async function prepareFileMetadata(params: {
     failOnError: suite.failOnError,
     threshold: suite.threshold,
     tags: suite.metadata?.tags,
+    providerFactory: suite.providerFactory,
   };
 }
 
@@ -1170,33 +1223,12 @@ export async function runEvalCommand(
       readonly failOnError?: FailOnError;
       readonly threshold?: number;
       readonly tags?: readonly string[];
+      readonly providerFactory?: (
+        target: import('@agentv/core').ResolvedTarget,
+      ) => import('@agentv/core').Provider;
     }
   >();
-  // Separate TypeScript/JS eval files from YAML files.
-  // TS files are self-contained scripts that call evaluate() directly.
-  const tsFiles: string[] = [];
-  const yamlFiles: string[] = [];
   for (const testFilePath of resolvedTestFiles) {
-    if (/\.(ts|js|mts|mjs)$/.test(testFilePath)) {
-      tsFiles.push(testFilePath);
-    } else {
-      yamlFiles.push(testFilePath);
-    }
-  }
-
-  // Run TypeScript eval files by importing them.
-  // evaluate() runs during import via top-level await and handles its own output.
-  for (const tsFile of tsFiles) {
-    await ensureFileExists(tsFile, 'TypeScript eval file');
-    await import(pathToFileURL(tsFile).href);
-  }
-
-  // If only TS files were provided, we're done — evaluate() handled everything.
-  if (yamlFiles.length === 0 && tsFiles.length > 0) {
-    return;
-  }
-
-  for (const testFilePath of yamlFiles) {
     const meta = await prepareFileMetadata({
       testFilePath,
       repoRoot,
@@ -1355,7 +1387,7 @@ export async function runEvalCommand(
     }
   }
 
-  // Use only files that survived tag filtering (fileMetadata keys)
+  // Use only files that survived tag filtering.
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
 
   // --transcript: create a shared TranscriptProvider and validate entry count
@@ -1442,7 +1474,7 @@ export async function runEvalCommand(
               budgetUsd: targetPrep.budgetUsd,
               failOnError: targetPrep.failOnError,
               threshold: resolvedThreshold,
-              providerFactory: transcriptProviderFactory,
+              providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
             });
             const evalFile = path.relative(cwd, testFilePath);
             const existingSummary = remoteEvalSummaries.find(
