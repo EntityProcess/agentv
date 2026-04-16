@@ -34,7 +34,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       : path.resolve(cwd, pattern);
     try {
       const stats = await stat(candidatePath);
-      if (stats.isFile() && /\.(ya?ml|jsonl|json|ts)$/i.test(candidatePath)) {
+      if (stats.isFile() && /\.(ya?ml|jsonl|json|[cm]?ts)$/i.test(candidatePath)) {
         results.add(candidatePath);
         continue;
       }
@@ -42,7 +42,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
         // Auto-expand directory to recursive eval file glob
         const dirGlob = path.posix.join(
           candidatePath.replace(/\\/g, '/'),
-          '**/*.eval.{yaml,yml,ts}',
+          '**/{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}',
         );
         const dirMatches = await fg(dirGlob, {
           absolute: true,
@@ -72,7 +72,9 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       ignore: ignorePatterns,
     });
 
-    const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl|json|ts)$/i.test(filePath));
+    const yamlMatches = matches.filter((filePath) =>
+      /\.(ya?ml|jsonl|json|[cm]?ts)$/i.test(filePath),
+    );
     for (const filePath of yamlMatches) {
       results.add(path.normalize(filePath));
     }
@@ -97,7 +99,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error(
       `No eval files matched any provided paths or globs: ${includePatterns.join(
         ', ',
-      )}. Provide YAML, JSONL, JSON, or TypeScript paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.eval.ts").`,
+      )}. Provide YAML, JSONL, JSON, or TypeScript paths or globs (e.g., "evals/**/eval.yaml", "evals/**/*.eval.ts").`,
     );
   }
 

@@ -58,12 +58,15 @@
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import micromatch from 'micromatch';
 import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
 import type { AssertFn } from './assertions.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
+import type { EvalMetadata } from './metadata.js';
 import { runEvaluation } from './orchestrator.js';
 import { createFunctionProvider } from './providers/function-provider.js';
+import type { ProviderFactoryFn } from './providers/provider-registry.js';
 import { readTargetDefinitions } from './providers/targets-file.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
@@ -77,7 +80,7 @@ import type {
   InlineAssertEvaluatorConfig,
   WorkspaceHookConfig,
 } from './types.js';
-import { loadTests } from './yaml-parser.js';
+import { loadTestSuite } from './yaml-parser.js';
 
 /**
  * Inline test definition for the programmatic API.
@@ -170,6 +173,8 @@ export interface EvalConfig {
   readonly task?: (input: string) => string | Promise<string>;
   /** Suite-level assertions applied to all tests */
   readonly assert?: readonly AssertEntry[];
+  /** Optional suite metadata used by CLI discovery, tagging, and reporting. */
+  readonly metadata?: EvalMetadata;
   /** Filter tests by ID pattern(s) (glob supported). Arrays use OR logic. */
   readonly filter?: string | readonly string[];
   /** Maximum concurrent workers (default: 3) */
@@ -190,6 +195,19 @@ export interface EvalConfig {
   readonly beforeAll?: string | readonly string[];
   /** Suite-level cost cap in USD. Stops dispatching new tests when exceeded. */
   readonly budgetUsd?: number;
+}
+
+export interface MaterializedEvalConfig {
+  readonly testFilePath: string;
+  readonly tests: readonly EvalTest[];
+  readonly workers?: number;
+  readonly cache?: boolean;
+  readonly budgetUsd?: number;
+  readonly threshold?: number;
+  readonly metadata?: EvalMetadata;
+  readonly target?: TargetDefinition;
+  readonly task?: (input: string) => string | Promise<string>;
+  readonly providerFactory?: ProviderFactoryFn;
 }
 
 /**
@@ -269,19 +287,22 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   const gitRoot = await findGitRoot(process.cwd());
   const repoRoot = gitRoot ?? process.cwd();
 
-  const testFilePath = config.specFile
-    ? path.resolve(config.specFile)
-    : path.join(process.cwd(), '__programmatic__.yaml');
+  const materialized = await materializeEvalConfig(config, {
+    repoRoot,
+    baseDir: process.cwd(),
+  });
+  const testFilePath = materialized.testFilePath;
 
   // Load .env files from the eval file hierarchy so nested eval-local .env
   // files participate even when the command is launched from a parent folder.
   await loadEnvHierarchy(repoRoot, testFilePath);
 
   let resolvedTarget: ResolvedTarget;
-  let taskProvider: ReturnType<typeof createFunctionProvider> | undefined;
-  if (config.task) {
-    // Wrap task function as a Provider
-    taskProvider = createFunctionProvider(config.task);
+  let providerFactory: ProviderFactoryFn | undefined;
+  if (config.task || materialized.providerFactory) {
+    providerFactory = config.task
+      ? () => createFunctionProvider(config.task as (input: string) => string | Promise<string>)
+      : materialized.providerFactory;
     resolvedTarget = {
       kind: 'mock',
       name: 'custom-task',
@@ -292,83 +313,12 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     let targetDef: TargetDefinition;
     if (config.target) {
       targetDef = config.target;
+    } else if (materialized.target) {
+      targetDef = materialized.target;
     } else {
       targetDef = (await discoverDefaultTarget(repoRoot)) ?? { name: 'default', provider: 'mock' };
     }
     resolvedTarget = resolveTargetDefinition(targetDef);
-  }
-
-  let evalCases: readonly EvalTest[] | EvalTest[];
-
-  if (config.specFile) {
-    // File-based mode: load from YAML
-    evalCases = await loadTests(testFilePath, repoRoot, {
-      verbose: config.verbose,
-      filter: config.filter,
-    });
-  } else {
-    // Build workspace config with before_all hook if beforeAll is provided
-    const suiteWorkspace = config.beforeAll
-      ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
-      : undefined;
-
-    // Inline mode: convert EvalTestInput[] to EvalTest[]
-    evalCases = (config.tests ?? []).map((test): EvalTest => {
-      // Conversation mode: use turns[] for input/question derivation
-      const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
-
-      if (!isConversation && !test.input) {
-        throw new Error(`Test '${test.id}': input is required for non-conversation tests`);
-      }
-
-      const input = isConversation
-        ? toMessageArray(test.turns?.[0]?.input ?? '')
-        : toMessageArray(test.input ?? '');
-
-      const question = isConversation
-        ? extractQuestion(test.turns?.[0]?.input ?? '')
-        : extractQuestion(test.input ?? '');
-
-      const expectedOutputValue = test.expectedOutput ?? test.expected_output;
-      const expectedOutput = expectedOutputValue
-        ? ([
-            { role: 'assistant' as const, content: expectedOutputValue },
-          ] as EvalTest['expected_output'])
-        : [];
-
-      // Convert inline assertions to evaluator config format
-      const allAssertions = [...(test.assert ?? []), ...(config.assert ?? [])];
-      const assertConfigs = convertAssertions(allAssertions);
-
-      // Convert conversation turns if present — keep input/expected_output as
-      // TestMessageContent (matching YAML parser behavior), not wrapped in message arrays.
-      const turns: ConversationTurn[] | undefined = test.turns?.map((turn) => {
-        const turnExpected = turn.expectedOutput ?? turn.expected_output;
-        return {
-          input: turn.input as ConversationTurn['input'],
-          ...(turnExpected !== undefined && {
-            expected_output: turnExpected as ConversationTurn['expected_output'],
-          }),
-          assertions: turn.assert ? convertAssertions([...turn.assert]) : undefined,
-        };
-      });
-
-      return {
-        id: test.id,
-        criteria: test.criteria ?? '',
-        question: String(question),
-        input,
-        expected_output: expectedOutput,
-        reference_answer: expectedOutputValue,
-        file_paths: [],
-        assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
-        metadata: test.metadata,
-        ...(suiteWorkspace && { workspace: suiteWorkspace }),
-        ...(isConversation && { mode: 'conversation' as const }),
-        ...(turns && { turns }),
-        ...(test.aggregation && { aggregation: test.aggregation }),
-      };
-    });
   }
 
   const collectedResults: EvaluationResult[] = [];
@@ -377,15 +327,15 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     testFilePath,
     repoRoot,
     target: resolvedTarget,
-    ...(taskProvider ? { providerFactory: () => taskProvider } : {}),
+    ...(providerFactory ? { providerFactory } : {}),
     maxRetries: config.maxRetries ?? 2,
     agentTimeoutMs: config.agentTimeoutMs,
     verbose: config.verbose,
     maxConcurrency: config.workers ?? 3,
     filter: config.filter,
     threshold: config.threshold,
-    evalCases,
-    ...(config.budgetUsd !== undefined && { budgetUsd: config.budgetUsd }),
+    evalCases: materialized.tests,
+    ...(materialized.budgetUsd !== undefined && { budgetUsd: materialized.budgetUsd }),
     onResult: async (result) => {
       collectedResults.push(result);
       config.onResult?.(result);
@@ -398,6 +348,62 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   return {
     results: allResults,
     summary: computeSummary(allResults, durationMs, config.threshold),
+  };
+}
+
+export async function materializeEvalConfig(
+  config: EvalConfig,
+  options?: {
+    readonly repoRoot?: string;
+    readonly baseDir?: string;
+    readonly filter?: string | readonly string[];
+    readonly category?: string;
+  },
+): Promise<MaterializedEvalConfig> {
+  const baseDir = options?.baseDir ?? process.cwd();
+  const repoRoot = options?.repoRoot ?? (await findGitRoot(baseDir)) ?? baseDir;
+  const testFilePath = config.specFile
+    ? path.resolve(baseDir, config.specFile)
+    : path.join(baseDir, '__programmatic__.yaml');
+  const effectiveFilter = options?.filter ?? config.filter;
+
+  if (config.specFile) {
+    const suite = await loadTestSuite(testFilePath, repoRoot, {
+      verbose: config.verbose,
+      filter: effectiveFilter,
+      category: options?.category,
+    });
+    const tests = applyProgrammaticSuiteOverrides(suite.tests, config);
+    return {
+      testFilePath,
+      tests,
+      workers: config.workers ?? suite.workers,
+      cache: config.cache ?? suite.cacheConfig?.enabled,
+      budgetUsd: config.budgetUsd ?? suite.budgetUsd,
+      threshold: config.threshold ?? suite.threshold,
+      metadata: config.metadata ?? suite.metadata,
+      target: config.target ?? suite.inlineTarget,
+      task: config.task,
+      providerFactory: suite.providerFactory,
+    };
+  }
+
+  const tests = buildInlineEvalTests(config, {
+    filter: effectiveFilter,
+    category: options?.category,
+    testFilePath,
+  });
+
+  return {
+    testFilePath,
+    tests,
+    workers: config.workers,
+    cache: config.cache,
+    budgetUsd: config.budgetUsd,
+    threshold: config.threshold,
+    metadata: config.metadata,
+    target: config.target,
+    task: config.task,
   };
 }
 
@@ -452,6 +458,116 @@ function convertAssertions(entries: readonly AssertEntry[]): GraderConfig[] {
       type: mapAssertionType(rawType),
     } as unknown as GraderConfig;
   });
+}
+
+function buildInlineEvalTests(
+  config: EvalConfig,
+  options: {
+    readonly filter?: string | readonly string[];
+    readonly category?: string;
+    readonly testFilePath: string;
+  },
+): readonly EvalTest[] {
+  const suiteWorkspace = config.beforeAll
+    ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
+    : undefined;
+  const derivedSuiteName = path
+    .basename(options.testFilePath)
+    .replace(/\.eval\.[cm]?ts$/i, '')
+    .replace(/\.[cm]?ts$/i, '');
+  const suiteName = config.metadata?.name ?? (derivedSuiteName || 'eval');
+
+  return (config.tests ?? [])
+    .filter((test) => !options.filter || matchesFilter(test.id, options.filter))
+    .map((test): EvalTest => {
+      const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
+
+      if (!isConversation && !test.input) {
+        throw new Error(`Test '${test.id}': input is required for non-conversation tests`);
+      }
+
+      const input = isConversation
+        ? toMessageArray(test.turns?.[0]?.input ?? '')
+        : toMessageArray(test.input ?? '');
+
+      const question = isConversation
+        ? extractQuestion(test.turns?.[0]?.input ?? '')
+        : extractQuestion(test.input ?? '');
+
+      const expectedOutputValue = test.expectedOutput ?? test.expected_output;
+      const expectedOutput = expectedOutputValue
+        ? ([
+            { role: 'assistant' as const, content: expectedOutputValue },
+          ] as EvalTest['expected_output'])
+        : [];
+
+      const allAssertions = [...(test.assert ?? []), ...(config.assert ?? [])];
+      const assertConfigs = convertAssertions(allAssertions);
+      const turns: ConversationTurn[] | undefined = test.turns?.map((turn) => {
+        const turnExpected = turn.expectedOutput ?? turn.expected_output;
+        return {
+          input: turn.input as ConversationTurn['input'],
+          ...(turnExpected !== undefined && {
+            expected_output: turnExpected as ConversationTurn['expected_output'],
+          }),
+          assertions: turn.assert ? convertAssertions([...turn.assert]) : undefined,
+        };
+      });
+
+      return {
+        id: test.id,
+        suite: suiteName,
+        category: options.category,
+        criteria: test.criteria ?? '',
+        question: String(question),
+        input,
+        expected_output: expectedOutput,
+        reference_answer: expectedOutputValue,
+        file_paths: [],
+        assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
+        metadata: test.metadata,
+        ...(suiteWorkspace && { workspace: suiteWorkspace }),
+        ...(isConversation && { mode: 'conversation' as const }),
+        ...(turns && { turns }),
+        ...(test.aggregation && { aggregation: test.aggregation }),
+      };
+    });
+}
+
+function applyProgrammaticSuiteOverrides(
+  tests: readonly EvalTest[],
+  config: EvalConfig,
+): readonly EvalTest[] {
+  if (!config.beforeAll && (!config.assert || config.assert.length === 0)) {
+    return tests;
+  }
+
+  const suiteWorkspace = config.beforeAll
+    ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
+    : undefined;
+  const suiteAssertions = config.assert ? convertAssertions(config.assert) : [];
+
+  return tests.map((test) => ({
+    ...test,
+    ...(suiteAssertions.length > 0 && {
+      assertions: [...(test.assertions ?? []), ...suiteAssertions],
+    }),
+    ...(suiteWorkspace && {
+      workspace: {
+        ...test.workspace,
+        hooks: {
+          ...test.workspace?.hooks,
+          ...(test.workspace?.hooks?.before_all ? {} : suiteWorkspace.hooks),
+        },
+      },
+    }),
+  }));
+}
+
+function matchesFilter(id: string, filter: string | readonly string[]): boolean {
+  return typeof filter === 'string'
+    ? micromatch.isMatch(id, filter)
+    : filter.some((pattern) => micromatch.isMatch(id, pattern));
 }
 
 /**

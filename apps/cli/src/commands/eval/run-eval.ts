@@ -17,11 +17,10 @@ import {
   runEvaluation as defaultRunEvaluation,
   deriveCategory,
   ensureVSCodeSubagents,
-  evaluate,
   loadConfig,
   loadTestSuite,
   loadTsConfig,
-  loadTsEvalFile,
+  resolveTargetDefinition,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
@@ -533,6 +532,9 @@ async function prepareFileMetadata(params: {
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly tags?: readonly string[];
+  readonly providerFactory?: (
+    target: import('@agentv/core').ResolvedTarget,
+  ) => import('@agentv/core').Provider;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -574,6 +576,54 @@ async function prepareFileMetadata(params: {
       {
         selection: transcriptSelection,
         inlineTargetLabel: `transcript (${path.basename(options.transcript)})`,
+      },
+    ];
+  } else if (suite.inlineTarget && options.cliTargets.length === 0) {
+    const targetDefinition = suite.inlineTarget;
+    const resolvedTarget = options.dryRun
+      ? ({
+          kind: 'mock',
+          name: `${targetDefinition.name}-dry-run`,
+          graderTarget: undefined,
+          config: {
+            response: '{"answer":"Mock dry-run response"}',
+            delayMs: options.dryRunDelay,
+            delayMinMs: options.dryRunDelayMin,
+            delayMaxMs: options.dryRunDelayMax,
+          },
+        } satisfies ResolvedTarget)
+      : resolveTargetDefinition(targetDefinition, process.env, testFilePath, {
+          emitDeprecationWarnings: false,
+        });
+    selections = [
+      {
+        selection: {
+          definitions: [targetDefinition],
+          resolvedTarget,
+          targetName: targetDefinition.name,
+          targetSource: 'test-file',
+          targetsFilePath: testFilePath,
+        },
+        inlineTargetLabel: resolveTargetLabel(targetDefinition.name, resolvedTarget.name),
+      },
+    ];
+  } else if (suite.providerFactory && options.cliTargets.length === 0) {
+    const taskTarget: ResolvedTarget = {
+      kind: 'mock',
+      name: 'custom-task',
+      graderTarget: undefined,
+      config: {},
+    };
+    selections = [
+      {
+        selection: {
+          definitions: [],
+          resolvedTarget: taskTarget,
+          targetName: 'custom-task',
+          targetSource: 'test-file',
+          targetsFilePath: testFilePath,
+        },
+        inlineTargetLabel: 'custom-task',
       },
     ];
   } else {
@@ -660,6 +710,7 @@ async function prepareFileMetadata(params: {
     failOnError: suite.failOnError,
     threshold: suite.threshold,
     tags: suite.metadata?.tags,
+    providerFactory: suite.providerFactory,
   };
 }
 
@@ -1172,21 +1223,12 @@ export async function runEvalCommand(
       readonly failOnError?: FailOnError;
       readonly threshold?: number;
       readonly tags?: readonly string[];
+      readonly providerFactory?: (
+        target: import('@agentv/core').ResolvedTarget,
+      ) => import('@agentv/core').Provider;
     }
   >();
-  // Separate TypeScript eval files from YAML/JSONL files.
-  // TS files export an EvalConfig and run through evaluate().
-  const tsFiles: string[] = [];
-  const yamlFiles: string[] = [];
   for (const testFilePath of resolvedTestFiles) {
-    if (/\.(ts|mts)$/.test(testFilePath)) {
-      tsFiles.push(testFilePath);
-    } else {
-      yamlFiles.push(testFilePath);
-    }
-  }
-
-  for (const testFilePath of yamlFiles) {
     const meta = await prepareFileMetadata({
       testFilePath,
       repoRoot,
@@ -1277,7 +1319,7 @@ export async function runEvalCommand(
     }
   }
 
-  if (totalEvalCount === 0 && tsFiles.length === 0) {
+  if (totalEvalCount === 0) {
     // When using --retry-errors, all tests being filtered means no errors or missing cases remain
     if (options.retryErrors && retryNonErrorResults && retryNonErrorResults.length > 0) {
       console.log('No execution errors or missing cases in the previous run. Nothing to retry.');
@@ -1345,7 +1387,7 @@ export async function runEvalCommand(
     }
   }
 
-  // Use only files that survived tag filtering (fileMetadata keys) — TS files are processed separately above
+  // Use only files that survived tag filtering.
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
 
   // --transcript: create a shared TranscriptProvider and validate entry count
@@ -1377,53 +1419,6 @@ export async function runEvalCommand(
   // This matches industry practice (promptfoo, deepeval, OpenAI Evals) and avoids cross-file
   // workspace races without any grouping complexity.
   try {
-    // Process TypeScript eval files through evaluate() with CLI overrides.
-    // Results flow through the same output/artifact pipeline as YAML evals.
-    // Note: TS eval files don't carry tags; they're skipped when --tag/--exclude-tag is active.
-    const tsFilesToRun = hasTagFilters
-      ? (() => {
-          if (tsFiles.length > 0 && options.verbose) {
-            console.log(
-              `Skipped ${tsFiles.length} TS eval file(s) — tag filters don't apply to *.eval.ts files.`,
-            );
-          }
-          return [] as string[];
-        })()
-      : tsFiles;
-
-    for (const tsFile of tsFilesToRun) {
-      await ensureFileExists(tsFile, 'TypeScript eval file');
-      const { config: tsConfig } = await loadTsEvalFile(tsFile);
-
-      const cliOverrides: Record<string, unknown> = {};
-      if (options.workers !== undefined) cliOverrides.workers = options.workers;
-      if (options.filter) cliOverrides.filter = options.filter;
-      if (resolvedThreshold !== undefined) cliOverrides.threshold = resolvedThreshold;
-      if (options.cache !== undefined) cliOverrides.cache = options.cache;
-      if (options.verbose !== undefined) cliOverrides.verbose = options.verbose;
-      if (options.maxRetries !== 2) cliOverrides.maxRetries = options.maxRetries;
-      if (options.agentTimeoutSeconds !== undefined) {
-        cliOverrides.agentTimeoutMs = options.agentTimeoutSeconds * 1000;
-      }
-
-      console.log(`Running TS eval: ${path.relative(cwd, tsFile)}`);
-
-      const evalResult = await evaluate({
-        ...tsConfig,
-        ...cliOverrides,
-        onResult: (result: EvaluationResult) => {
-          outputWriter.append(result);
-          tsConfig.onResult?.(result);
-        },
-      });
-
-      allResults.push(...evalResult.results);
-      remoteEvalSummaries.push({
-        evalFile: path.relative(cwd, tsFile),
-        results: [...evalResult.results],
-      });
-    }
-
     for (const testFilePath of activeTestFiles) {
       const targetPrep = fileMetadata.get(testFilePath);
       if (!targetPrep) {
@@ -1479,7 +1474,7 @@ export async function runEvalCommand(
               budgetUsd: targetPrep.budgetUsd,
               failOnError: targetPrep.failOnError,
               threshold: resolvedThreshold,
-              providerFactory: transcriptProviderFactory,
+              providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
             });
             const evalFile = path.relative(cwd, testFilePath);
             const existingSummary = remoteEvalSummaries.find(

@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import path from 'node:path';
 import { evaluate } from '../../src/evaluation/evaluate.js';
 
 describe('evaluate() — programmatic API extensions', () => {
@@ -222,6 +223,17 @@ describe('evaluate() — programmatic API extensions', () => {
       ],
       target: { name: 'default', provider: 'mock', response: 'hello world' },
     });
+    expect(summary.passed).toBe(1);
+  });
+
+  it('uses inline target from a TypeScript specFile', async () => {
+    const specFile = path.join(import.meta.dir, 'loaders', 'fixtures', 'default-export.eval.ts');
+
+    const { summary } = await evaluate({
+      specFile,
+    });
+
+    expect(summary.total).toBe(1);
     expect(summary.passed).toBe(1);
   });
 
