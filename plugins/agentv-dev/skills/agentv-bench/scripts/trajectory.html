@@ -7,28 +7,40 @@
   <title>AgentV Autoresearch Trajectory</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /*
+     * Visual language aligned with Studio DESIGN.md:
+     *   - bg-gray-950 (#030712) canvas, bg-gray-900 (#111827) containers
+     *   - border-gray-800 (#1f2937) borders, divide-gray-800/50 row dividers
+     *   - Cyan-only accent (#22d3ee), emerald/red for data status
+     *   - System sans-serif, tabular-nums on every number
+     *   - font-medium (500) max for headings, no bold (700)
+     *   - rounded-lg (8px) containers, rounded-md (6px) badges/buttons
+     *   - No drop shadows — borders carry elevation
+     */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-      background: #1a1a2e;
-      color: #e0e0e0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #030712;  /* bg-gray-950 */
+      color: #d1d5db;       /* text-gray-300 */
       padding: 24px;
       line-height: 1.5;
+      font-size: 0.875rem;  /* text-sm default */
     }
 
     h1 {
       text-align: center;
-      font-size: 1.6rem;
-      color: #fff;
+      font-size: 1.5rem;    /* text-2xl */
+      font-weight: 600;     /* font-semibold — ceiling */
+      color: #fff;          /* text-white */
       margin-bottom: 8px;
-      letter-spacing: 0.5px;
     }
 
     .subtitle {
       text-align: center;
-      font-size: 0.85rem;
-      color: #888;
+      font-size: 0.875rem;
+      color: #6b7280;       /* text-gray-500 */
       margin-bottom: 24px;
     }
 
@@ -37,59 +49,61 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 12px;
-      margin-bottom: 28px;
+      margin-bottom: 24px;  /* space-y-6 */
       max-width: 900px;
       margin-left: auto;
       margin-right: auto;
     }
 
     .card {
-      background: #16213e;
-      border: 1px solid #0f3460;
-      border-radius: 8px;
+      background: #111827;      /* bg-gray-900 */
+      border: 1px solid #1f2937; /* border-gray-800 */
+      border-radius: 8px;       /* rounded-lg */
       padding: 14px 16px;
       text-align: center;
     }
 
     .card .label {
-      font-size: 0.75rem;
+      font-size: 0.75rem;       /* text-xs */
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #888;
+      letter-spacing: 0.05em;   /* tracking-wider */
+      color: #6b7280;           /* text-gray-500 */
       margin-bottom: 4px;
     }
 
     .card .value {
       font-size: 1.5rem;
-      font-weight: 700;
+      font-weight: 500;         /* font-medium — NOT 700 */
       color: #fff;
+      font-variant-numeric: tabular-nums;
     }
 
-    .card .value.positive { color: #4ade80; }
-    .card .value.negative { color: #f87171; }
-    .card .value.neutral  { color: #60a5fa; }
+    .card .value.positive { color: #34d399; } /* text-emerald-400 */
+    .card .value.negative { color: #f87171; } /* text-red-400 */
+    .card .value.neutral  { color: #22d3ee; } /* text-cyan-400 */
 
     /* Charts grid */
     .charts {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-      gap: 20px;
-      margin-bottom: 32px;
+      gap: 16px;                /* space-y-4 */
+      margin-bottom: 24px;
       max-width: 1400px;
       margin-left: auto;
       margin-right: auto;
     }
 
     .chart-container {
-      background: #16213e;
-      border: 1px solid #0f3460;
+      background: #111827;
+      border: 1px solid #1f2937;
       border-radius: 8px;
       padding: 16px;
     }
 
     .chart-container h2 {
-      font-size: 0.95rem;
-      color: #ccc;
+      font-size: 0.875rem;
+      font-weight: 500;         /* font-medium */
+      color: #9ca3af;           /* text-gray-400 */
       margin-bottom: 12px;
       text-align: center;
     }
@@ -103,58 +117,77 @@
     }
 
     .table-section h2 {
-      font-size: 1.1rem;
-      color: #ccc;
+      font-size: 1.25rem;       /* text-xl */
+      font-weight: 600;         /* font-semibold */
+      color: #fff;              /* text-white */
       margin-bottom: 12px;
     }
 
     .table-wrapper {
       overflow-x: auto;
-      border-radius: 8px;
-      border: 1px solid #0f3460;
+      border-radius: 8px;       /* rounded-lg */
+      border: 1px solid #1f2937;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85rem;
+      font-size: 0.875rem;      /* text-sm */
+      text-align: left;
     }
 
-    thead { background: #0f3460; }
+    thead {
+      background: rgba(17, 24, 39, 0.5); /* bg-gray-900/50 */
+      border-bottom: 1px solid #1f2937;
+    }
 
     th {
-      padding: 10px 12px;
+      padding: 12px 16px;       /* px-4 py-3 */
       text-align: left;
-      font-weight: 600;
-      color: #e0e0e0;
+      font-weight: 500;         /* font-medium */
+      color: #9ca3af;           /* text-gray-400 */
       white-space: nowrap;
     }
 
     td {
-      padding: 8px 12px;
-      border-top: 1px solid #1e2d4a;
-      color: #ccc;
+      padding: 12px 16px;       /* px-4 py-3 */
+      color: #d1d5db;           /* text-gray-300 */
     }
 
-    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody tr { border-top: 1px solid rgba(31, 41, 55, 0.5); } /* divide-gray-800/50 */
+    tbody tr:hover { background: rgba(17, 24, 39, 0.3); }     /* hover:bg-gray-900/30 */
+
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #9ca3af;           /* text-gray-400 for numbers */
+    }
 
     .badge {
       display: inline-block;
       padding: 2px 8px;
-      border-radius: 4px;
+      border-radius: 6px;       /* rounded-md */
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 500;         /* font-medium */
       text-transform: uppercase;
     }
 
-    .badge.keep    { background: #166534; color: #4ade80; }
-    .badge.discard { background: #7f1d1d; color: #f87171; }
+    .badge.keep {
+      border: 1px solid rgba(6, 78, 59, 0.6);  /* border-emerald-900/60 */
+      background: rgba(6, 78, 59, 0.3);         /* bg-emerald-950/30 */
+      color: #34d399;                            /* text-emerald-400 */
+    }
+    .badge.discard {
+      border: 1px solid rgba(127, 29, 29, 0.6); /* border-red-900/60 */
+      background: rgba(127, 29, 29, 0.3);       /* bg-red-950/30 */
+      color: #f87171;                            /* text-red-400 */
+    }
 
     .empty-state {
       text-align: center;
-      padding: 60px 20px;
-      color: #666;
-      font-size: 1.1rem;
+      padding: 32px 20px;       /* p-8 for empty states */
+      color: #4b5563;           /* text-gray-600 */
+      font-size: 0.875rem;
     }
 
     .mutation-cell {
@@ -197,20 +230,33 @@
 
 <script>
 // ── Data placeholder (replaced by the skill) ──────────────────────────
-const ITERATIONS_DATA = __ITERATIONS_DATA__;
+// Guard: if the placeholder was never replaced, fall back to empty array
+// so the page renders a "waiting for data" state instead of crashing.
+let ITERATIONS_DATA;
+try { ITERATIONS_DATA = __ITERATIONS_DATA__; } catch (_) { ITERATIONS_DATA = []; }
+if (!Array.isArray(ITERATIONS_DATA)) ITERATIONS_DATA = [];
 
 // ── Helpers ────────────────────────────────────────────────────────────
 const fmt = (n, d = 2) => (n == null ? '—' : Number(n).toFixed(d));
 const fmtUsd = (n) => (n == null ? '—' : '$' + Number(n).toFixed(4));
 
-// ── Chart.js defaults ──────────────────────────────────────────────────
-Chart.defaults.color = '#aaa';
-Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
-Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+// ── Chart.js defaults (aligned with Studio DESIGN.md) ─────────────────
+Chart.defaults.color = '#9ca3af';  // text-gray-400
+Chart.defaults.borderColor = 'rgba(31, 41, 55, 0.5)'; // border-gray-800/50
+Chart.defaults.font.family = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
+// Cyan accent + Studio data-tone palette
 const CHART_COLORS = [
-  '#60a5fa', '#f472b6', '#facc15', '#4ade80', '#c084fc',
-  '#fb923c', '#22d3ee', '#a3e635', '#e879f9', '#fbbf24',
+  '#22d3ee', // cyan-400 (primary accent)
+  '#34d399', // emerald-400
+  '#f472b6', // pink-400
+  '#facc15', // yellow-400
+  '#c084fc', // purple-400
+  '#fb923c', // orange-400
+  '#a3e635', // lime-400
+  '#e879f9', // fuchsia-400
+  '#60a5fa', // blue-400
+  '#fbbf24', // amber-400
 ];
 
 // ── Render ─────────────────────────────────────────────────────────────
@@ -224,14 +270,24 @@ function render(data) {
     return;
   }
 
-  const sorted = [...data].sort((a, b) => a.cycle - b.cycle);
+  // Validate each iteration has at minimum a cycle and score
+  const valid = data.filter(it => it && typeof it.cycle === 'number' && typeof it.score === 'number');
+  if (valid.length === 0) {
+    document.getElementById('subtitle').textContent = 'Data present but missing required fields (cycle, score).';
+    document.getElementById('charts-area').style.display = 'none';
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('table-wrapper').innerHTML =
+      '<div class="empty-state">Iterations data is malformed. Each entry needs at minimum: cycle (number), score (number).</div>';
+    return;
+  }
+  const sorted = [...valid].sort((a, b) => a.cycle - b.cycle);
 
   // ── Summary ──────────────────────────────────────────────────────────
   const originalScore = sorted[0].score;
   const bestIteration = sorted.reduce((best, it) => (it.score > best.score ? it : best), sorted[0]);
   const bestScore = bestIteration.score;
   const totalCycles = sorted.length;
-  const totalCost = sorted.reduce((sum, it) => sum + (it.cost_usd || 0), 0);
+  const totalCost = sorted.reduce((sum, it) => sum + (parseFloat(it.cost_usd) || 0), 0);
   const delta = bestScore - originalScore;
 
   document.getElementById('subtitle').textContent =
@@ -261,7 +317,7 @@ function render(data) {
 
   document.getElementById('charts-area').style.display = '';
 
-  // ── 1. Score chart ───────────────────────────────────────────────────
+  // ── 1. Score chart (cyan line, emerald/red decision dots) ──────────
   const scoreCtx = document.getElementById('scoreChart').getContext('2d');
   new Chart(scoreCtx, {
     type: 'line',
@@ -270,15 +326,15 @@ function render(data) {
       datasets: [{
         label: 'Score',
         data: scores,
-        borderColor: '#60a5fa',
-        backgroundColor: 'rgba(96,165,250,0.15)',
+        borderColor: '#22d3ee',                    // cyan-400
+        backgroundColor: 'rgba(34, 211, 238, 0.1)', // cyan-400/10
         borderWidth: 2,
         tension: 0.2,
         fill: true,
         pointRadius: 6,
         pointBorderWidth: 2,
-        pointBackgroundColor: decisions.map(d => d === 'keep' ? '#4ade80' : '#f87171'),
-        pointBorderColor: decisions.map(d => d === 'keep' ? '#166534' : '#7f1d1d'),
+        pointBackgroundColor: decisions.map(d => d === 'keep' ? '#34d399' : '#f87171'),
+        pointBorderColor: decisions.map(d => d === 'keep' ? '#065f46' : '#7f1d1d'),
       }],
     },
     options: {
@@ -327,7 +383,7 @@ function render(data) {
     },
   });
 
-  // ── 3. Cost chart ────────────────────────────────────────────────────
+  // ── 3. Cost chart (cyan line) ─────────────────────────────────────
   const costCtx = document.getElementById('costChart').getContext('2d');
   new Chart(costCtx, {
     type: 'line',
@@ -336,8 +392,8 @@ function render(data) {
       datasets: [{
         label: 'Cumulative Cost (USD)',
         data: cumCosts,
-        borderColor: '#facc15',
-        backgroundColor: 'rgba(250,204,21,0.1)',
+        borderColor: '#22d3ee',                     // cyan-400
+        backgroundColor: 'rgba(34, 211, 238, 0.08)', // cyan-400/8
         borderWidth: 2,
         tension: 0.2,
         fill: true,
@@ -364,19 +420,24 @@ function render(data) {
       ? new Date(it.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' })
       : '—';
     return `<tr>
-      <td>${it.cycle}</td>
-      <td>${fmt(it.score)}</td>
+      <td class="num">${it.cycle}</td>
+      <td class="num">${fmt(it.score)}</td>
       <td>${badge}</td>
       <td class="mutation-cell" title="${(it.mutation || '').replace(/"/g, '&quot;')}">${it.mutation || '—'}</td>
-      <td>${fmtUsd(it.cost_usd)}</td>
-      <td>${ts}</td>
+      <td class="num">${fmtUsd(it.cost_usd)}</td>
+      <td style="color:#6b7280">${ts}</td>
     </tr>`;
   }).join('');
 
   document.getElementById('table-wrapper').innerHTML = `
     <table>
       <thead><tr>
-        <th>Cycle</th><th>Score</th><th>Decision</th><th>Mutation</th><th>Cost</th><th>Timestamp</th>
+        <th style="text-align:right">Cycle</th>
+        <th style="text-align:right">Score</th>
+        <th>Decision</th>
+        <th>Mutation</th>
+        <th style="text-align:right">Cost</th>
+        <th>Timestamp</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
