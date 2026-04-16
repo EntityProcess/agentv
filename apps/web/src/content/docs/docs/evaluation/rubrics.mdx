@@ -122,6 +122,23 @@ score = sum(criterion_score / 10 * weight) / sum(total_weights)
 
 Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic graders, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
 
+## Context Available to Rubric Graders
+
+Rubric assertions automatically receive the full evaluation context, not just the agent's text answer. When present, the following are appended to the grader prompt:
+
+- **`file_changes`** — unified diff of workspace file changes (when `workspace` is configured)
+- **`tool_calls`** — formatted summary of tool calls from agent execution (tool name + key inputs)
+
+This means rubric criteria can reason about *what the agent did*, not only what it said. For example, you can check whether an agent invoked a specific skill:
+
+```yaml
+assertions:
+  - The agent invoked the acme-deploy skill
+  - The agent used Read to inspect the config file before editing
+```
+
+This is a lightweight alternative to the `skill-trigger` evaluator when you want to check tool usage with natural-language criteria.
+
 ## Combining with Other Graders
 
 Rubrics work alongside code and LLM graders:

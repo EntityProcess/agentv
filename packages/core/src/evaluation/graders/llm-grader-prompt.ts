@@ -24,6 +24,7 @@ export function assembleLlmGraderPrompt(input: {
   evaluatorConfig?: LlmGraderConfig;
   output?: readonly Message[];
   fileChanges?: string;
+  toolCalls?: string;
   graderTemplateOverride?: string;
 }): LlmGraderPromptAssembly {
   const {
@@ -32,6 +33,7 @@ export function assembleLlmGraderPrompt(input: {
     promptInputs,
     evaluatorConfig,
     fileChanges,
+    toolCalls,
     graderTemplateOverride,
   } = input;
 
@@ -41,12 +43,19 @@ export function assembleLlmGraderPrompt(input: {
   if (rubrics && rubrics.length > 0) {
     const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
     if (hasScoreRanges) {
-      return assembleScoreRange(evalCase, candidate, promptInputs, rubrics, fileChanges);
+      return assembleScoreRange(evalCase, candidate, promptInputs, rubrics, fileChanges, toolCalls);
     }
-    return assembleChecklist(evalCase, candidate, promptInputs, rubrics, fileChanges);
+    return assembleChecklist(evalCase, candidate, promptInputs, rubrics, fileChanges, toolCalls);
   }
 
-  return assembleFreeform(evalCase, candidate, promptInputs, fileChanges, graderTemplateOverride);
+  return assembleFreeform(
+    evalCase,
+    candidate,
+    promptInputs,
+    fileChanges,
+    toolCalls,
+    graderTemplateOverride,
+  );
 }
 
 function assembleFreeform(
@@ -54,6 +63,7 @@ function assembleFreeform(
   candidate: string,
   promptInputs: PromptInputs,
   fileChanges?: string,
+  toolCalls?: string,
   graderTemplateOverride?: string,
 ): LlmGraderPromptAssembly {
   const formattedQuestion =
@@ -67,6 +77,7 @@ function assembleFreeform(
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (evalCase.reference_answer ?? '').trim(),
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
+    [TEMPLATE_VARIABLES.TOOL_CALLS]: toolCalls ?? '',
     // Deprecated aliases
     [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.OUTPUT_TEXT]: candidate.trim(),
@@ -77,9 +88,12 @@ function assembleFreeform(
   const template = graderTemplateOverride ?? DEFAULT_GRADER_TEMPLATE;
   let userPrompt = substituteVariables(template, variables);
 
-  // Append file_changes section to default template only when present
+  // Append file_changes and tool_calls sections to default template only when present
   if (fileChanges && !graderTemplateOverride) {
     userPrompt += `\n\n[[ ## file_changes ## ]]\n${fileChanges}`;
+  }
+  if (toolCalls && !graderTemplateOverride) {
+    userPrompt += `\n\n[[ ## tool_calls ## ]]\n${toolCalls}`;
   }
 
   return {
@@ -96,6 +110,7 @@ function assembleChecklist(
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
   fileChanges?: string,
+  toolCalls?: string,
 ): LlmGraderPromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
@@ -121,6 +136,10 @@ function assembleChecklist(
 
   if (fileChanges) {
     parts.push('[[ ## file_changes ## ]]', fileChanges, '');
+  }
+
+  if (toolCalls) {
+    parts.push('[[ ## tool_calls ## ]]', toolCalls, '');
   }
 
   parts.push('[[ ## rubrics ## ]]');
@@ -150,6 +169,7 @@ function assembleScoreRange(
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
   fileChanges?: string,
+  toolCalls?: string,
 ): LlmGraderPromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
@@ -176,6 +196,10 @@ function assembleScoreRange(
 
   if (fileChanges) {
     parts.push('[[ ## file_changes ## ]]', fileChanges, '');
+  }
+
+  if (toolCalls) {
+    parts.push('[[ ## tool_calls ## ]]', toolCalls, '');
   }
 
   parts.push('[[ ## scoring_criteria ## ]]');

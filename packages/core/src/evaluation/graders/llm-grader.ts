@@ -272,6 +272,7 @@ export class LlmGrader implements Grader {
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+      [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
       // Deprecated aliases — same values as the primary variables above
       [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
@@ -290,9 +291,12 @@ export class LlmGrader implements Grader {
 
     let userPrompt = substituteVariables(graderTemplate, variables);
 
-    // Append file_changes section to default template only when present
+    // Append file_changes and tool_calls sections to default template only when present
     if (context.fileChanges && !context.graderTemplateOverride && !this.graderTemplate) {
       userPrompt += `\n\n[[ ## file_changes ## ]]\n${context.fileChanges}`;
+    }
+    if (context.toolCalls && !context.graderTemplateOverride && !this.graderTemplate) {
+      userPrompt += `\n\n[[ ## tool_calls ## ]]\n${context.toolCalls}`;
     }
 
     const graderRawRequest: JsonObject = {
@@ -691,6 +695,7 @@ export class LlmGrader implements Grader {
       [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+      [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
       // Deprecated aliases
       [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
@@ -724,6 +729,10 @@ export class LlmGrader implements Grader {
 
     if (context.fileChanges) {
       parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    if (context.toolCalls) {
+      parts.push('[[ ## tool_calls ## ]]', context.toolCalls, '');
     }
 
     if (rubrics && rubrics.length > 0) {
@@ -766,6 +775,7 @@ export class LlmGrader implements Grader {
         [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
         [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
         [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+        [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
         // Deprecated aliases
         [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
         [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
@@ -799,6 +809,10 @@ export class LlmGrader implements Grader {
 
     if (context.fileChanges) {
       parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    if (context.toolCalls) {
+      parts.push('[[ ## tool_calls ## ]]', context.toolCalls, '');
     }
 
     if (rubrics && rubrics.length > 0) {
@@ -923,6 +937,10 @@ export class LlmGrader implements Grader {
       parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
     }
 
+    if (context.toolCalls) {
+      parts.push('[[ ## tool_calls ## ]]', context.toolCalls, '');
+    }
+
     parts.push('[[ ## scoring_criteria ## ]]');
 
     for (const rubric of rubrics) {
@@ -983,6 +1001,10 @@ export class LlmGrader implements Grader {
 
     if (context.fileChanges) {
       parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    if (context.toolCalls) {
+      parts.push('[[ ## tool_calls ## ]]', context.toolCalls, '');
     }
 
     parts.push('[[ ## rubrics ## ]]');

@@ -8,6 +8,7 @@
  *   - {{ expected_output }} — reference answer as plain text
  *   - {{ criteria }}        — evaluation criteria string
  *   - {{ file_changes }}    — file diff (if available)
+ *   - {{ tool_calls }}     — formatted summary of tool calls from agent execution
  *
  * Deprecated aliases (emit a warning when used in custom templates):
  *   - {{ input_text }}           → use {{ input }}
@@ -20,6 +21,7 @@ export const TEMPLATE_VARIABLES = {
   INPUT: 'input',
   OUTPUT: 'output',
   FILE_CHANGES: 'file_changes',
+  TOOL_CALLS: 'tool_calls',
   /** @deprecated Use INPUT instead — resolves to the same text value. */
   INPUT_TEXT: 'input_text',
   /** @deprecated Use OUTPUT instead — resolves to the same text value. */
