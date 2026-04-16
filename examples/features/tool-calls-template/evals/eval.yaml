@@ -1,43 +1,45 @@
 # Tool Calls Template Variable Demo
 #
-# Demonstrates using {{ tool_calls }} in LLM grader prompts to check
-# whether an agent invoked the right skills during execution — without
-# needing the skill-trigger evaluator.
+# Demonstrates using {{ tool_calls }} with rubric assertions to check
+# whether an agent invoked the right skills — without needing the
+# skill-trigger evaluator.
 #
-# The workspace template includes the acme-deploy skill in all provider
-# directories (.claude/, .agents/, .copilot/, .github/) so any agent
-# target can discover and use it.
+# Skills live in workspace/.agents/skills/. The before_all hook copies
+# them to .claude/skills/ so copilot and other providers can discover them.
 #
 # Run:
 #   bun agentv eval examples/features/tool-calls-template/evals/eval.yaml --target copilot
 
 name: tool-calls-template
-description: LLM grader with {{ tool_calls }} template variable for skill verification
+description: Rubric assertions with {{ tool_calls }} for skill verification
 
 workspace:
   template: ../workspace/
-
-execution:
-  workers: 1
+  hooks:
+    before_all:
+      command:
+        - bash
+        - -c
+        - 'WS=$(python3 -c "import json,sys;print(json.load(sys.stdin)[\"workspace_path\"])") && mkdir -p "$WS/.claude" && cp -r "$WS/.agents/skills" "$WS/.claude/skills"'
 
 tests:
   - id: deploy-skill-triggered
     input: How do I deploy payments-api to production?
     assertions:
-      - name: skill-invoked
-        type: llm-grader
-        prompt: file://../prompts/skill-usage-check.md
+      - type: rubrics
+        criteria:
+          - The agent invoked the acme-deploy skill
 
   - id: rollback-skill-triggered
     input: I need to roll back user-service in staging, what's the procedure?
     assertions:
-      - name: skill-invoked
-        type: llm-grader
-        prompt: file://../prompts/skill-usage-check.md
+      - type: rubrics
+        criteria:
+          - The agent invoked the acme-deploy skill
 
   - id: no-skill-for-unrelated
     input: Write a Python function that parses JSON logs and extracts error messages.
     assertions:
-      - name: no-skill-used
-        type: llm-grader
-        prompt: file://../prompts/no-skill-check.md
+      - type: rubrics
+        criteria:
+          - The tool_calls section does not contain any entry starting with "Skill:" (file creation, Read, Edit, and Bash are fine)
