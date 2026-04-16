@@ -270,4 +270,20 @@ describe('agentv eval CLI', () => {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
   });
+
+  it('passes run-level budget tracking through to the evaluator', async () => {
+    const fixture = await createFixture();
+    try {
+      await runCli(fixture, ['eval', fixture.testFilePath, '--budget-usd', '0.5']);
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        budgetUsd: null,
+        hasRunBudgetTracker: true,
+        runBudgetCapUsd: 0.5,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  });
 });

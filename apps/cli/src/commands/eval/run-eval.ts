@@ -684,6 +684,7 @@ async function runSingleEvalFile(params: {
   readonly trialsConfig?: TrialsConfig;
   readonly matrixMode?: boolean;
   readonly budgetUsd?: number;
+  readonly runBudgetTracker?: RunBudgetTracker;
   readonly failOnError?: FailOnError;
   readonly threshold?: number;
   readonly providerFactory?: (
@@ -710,6 +711,7 @@ async function runSingleEvalFile(params: {
     trialsConfig,
     matrixMode,
     budgetUsd,
+    runBudgetTracker,
     failOnError,
     providerFactory,
   } = params;
@@ -806,6 +808,7 @@ async function runSingleEvalFile(params: {
     keepWorkspaces: options.keepWorkspaces,
     trials: trialsConfig,
     budgetUsd,
+    runBudgetTracker,
     failOnError,
     graderTarget: options.graderTarget,
     model: options.model,
@@ -1480,6 +1483,7 @@ export async function runEvalCommand(
               trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
               matrixMode: targetPrep.selections.length > 1,
               budgetUsd: targetPrep.budgetUsd,
+              runBudgetTracker,
               failOnError: targetPrep.failOnError,
               threshold: resolvedThreshold,
               providerFactory: transcriptProviderFactory,
@@ -1529,15 +1533,6 @@ export async function runEvalCommand(
       );
       for (const results of targetResults) {
         allResults.push(...results);
-        // Accumulate file costs into run-level budget tracker
-        if (runBudgetTracker) {
-          for (const r of results) {
-            const cost = r.costUsd ?? 0;
-            if (cost > 0) {
-              runBudgetTracker.add(cost);
-            }
-          }
-        }
       }
     }
 

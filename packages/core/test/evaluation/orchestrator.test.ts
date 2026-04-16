@@ -17,6 +17,7 @@ import type {
   ProviderResponse,
   ToolCall,
 } from '../../src/evaluation/providers/types.js';
+import { RunBudgetTracker } from '../../src/evaluation/run-budget-tracker.js';
 import type { EvalTest, TrialsConfig } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
@@ -2660,6 +2661,51 @@ describe('suite-level total budget guardrail', () => {
     // Fourth should be budget-exceeded
     expect(results[3].budgetExceeded).toBe(true);
     expect(results[3].error).toContain('Suite budget exceeded');
+  });
+
+  it('uses shared run-level budget tracking to stop queued cases within a file', async () => {
+    let callCount = 0;
+    const provider: Provider = {
+      id: 'budget:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        callCount++;
+        return {
+          output: [{ role: 'assistant', content: 'response' }],
+          costUsd: 3.0,
+        };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'case-1' },
+      { ...baseTestCase, id: 'case-2' },
+      { ...baseTestCase, id: 'case-3' },
+      { ...baseTestCase, id: 'case-4' },
+    ];
+
+    const runBudgetTracker = new RunBudgetTracker(5.0);
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      maxConcurrency: 1,
+      runBudgetTracker,
+    });
+
+    expect(callCount).toBe(2);
+    expect(runBudgetTracker.currentCostUsd).toBe(6);
+    expect(results).toHaveLength(4);
+    expect(results[0].budgetExceeded).toBeUndefined();
+    expect(results[1].budgetExceeded).toBeUndefined();
+    expect(results[2].budgetExceeded).toBe(true);
+    expect(results[3].budgetExceeded).toBe(true);
+    expect(results[2].error).toContain('Run budget exceeded');
+    expect(results[3].error).toContain('Run budget exceeded');
   });
 });
 

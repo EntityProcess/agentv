@@ -42,6 +42,7 @@ import {
   isAgentProvider,
 } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions, discoverGraders } from './registry/index.js';
+import type { RunBudgetTracker } from './run-budget-tracker.js';
 import {
   type TokenUsage,
   type TraceSummary,
@@ -414,6 +415,8 @@ export interface RunEvaluationOptions {
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
   readonly budgetUsd?: number;
+  /** Run-level total cost tracker shared across multiple eval files/targets in one CLI invocation */
+  readonly runBudgetTracker?: RunBudgetTracker;
   /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
   /** Workspace pooling: true (default) enables pool, false disables, undefined defaults to true */
@@ -467,6 +470,7 @@ export async function runEvaluation(
     trials,
     streamCallbacks,
     budgetUsd,
+    runBudgetTracker,
     failOnError,
     poolWorkspaces,
     poolMaxSlots: configPoolMaxSlots,
@@ -1153,6 +1157,14 @@ export async function runEvaluation(
       return { ok: allPassed, depResults };
     }
 
+    function extractEvaluationCostUsd(result: EvaluationResult): number | undefined {
+      if (result.trials && result.trials.length > 0) {
+        const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
+        return trialCostSum > 0 ? trialCostSum : undefined;
+      }
+      return result.costUsd;
+    }
+
     // Worker function: dispatches a single eval case with dependency context
     async function dispatchTest(
       evalCase: EvalTest,
@@ -1160,6 +1172,47 @@ export async function runEvaluation(
     ): Promise<EvaluationResult> {
       const workerId = nextWorkerId++;
       workerIdByEvalId.set(evalCase.id, workerId);
+
+      // Check run-level budget before dispatching. This shared tracker spans all
+      // eval files/targets in the current CLI invocation, so queued cases stop once
+      // cumulative spend reaches the cap while already-running cases are allowed to finish.
+      if (runBudgetTracker?.isExceeded()) {
+        const budgetResult: EvaluationResult = {
+          timestamp: (now ?? (() => new Date()))().toISOString(),
+          testId: evalCase.id,
+          suite: evalCase.suite,
+          category: evalCase.category,
+          score: 0,
+          assertions: [],
+          output: [],
+          target: target.name,
+          error: `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`,
+          budgetExceeded: true,
+          executionStatus: 'execution_error',
+          failureStage: 'setup',
+          failureReasonCode: 'budget_exceeded',
+          executionError: {
+            message: `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`,
+            stage: 'setup',
+          },
+        };
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: evalCase.id,
+            status: 'failed',
+            completedAt: Date.now(),
+            error: budgetResult.error,
+            score: budgetResult.score,
+            executionStatus: budgetResult.executionStatus,
+          });
+        }
+        if (onResult) {
+          await onResult(budgetResult);
+        }
+        return budgetResult;
+      }
 
       // Check suite-level budget before dispatching
       if (budgetUsd !== undefined && budgetExhausted) {
@@ -1291,23 +1344,16 @@ export async function runEvaluation(
             ? await runEvalCaseWithTrials(runCaseOptions, trials)
             : await runEvalCase(runCaseOptions);
 
-        // Track suite-level budget
-        if (budgetUsd !== undefined) {
-          // Sum all trial costs when trials are used, otherwise use trace cost
-          let caseCost: number | undefined;
-          if (result.trials && result.trials.length > 0) {
-            const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
-            if (trialCostSum > 0) {
-              caseCost = trialCostSum;
-            }
-          } else {
-            caseCost = result.costUsd;
-          }
-          if (caseCost !== undefined) {
+        const caseCost = extractEvaluationCostUsd(result);
+        if (caseCost !== undefined) {
+          if (budgetUsd !== undefined) {
             cumulativeBudgetCost += caseCost;
             if (cumulativeBudgetCost >= budgetUsd) {
               budgetExhausted = true;
             }
+          }
+          if (runBudgetTracker) {
+            runBudgetTracker.add(caseCost);
           }
         }
 

@@ -18,6 +18,10 @@ interface RunEvaluationOptionsLike {
   readonly filter?: string | readonly string[];
   readonly evalCases?: ReadonlyArray<unknown>;
   readonly verbose?: boolean;
+  readonly budgetUsd?: number;
+  readonly runBudgetTracker?: {
+    readonly budgetCapUsd?: number;
+  };
   readonly onResult?: (result: EvaluationResultLike) => Promise<void> | void;
 }
 
@@ -82,6 +86,9 @@ async function maybeWriteDiagnostics(
     envSample: process.env.CLI_ENV_SAMPLE ?? null,
     envRootOnly: process.env.CLI_ENV_ROOT_ONLY ?? null,
     envLocalOnly: process.env.CLI_ENV_LOCAL_ONLY ?? null,
+    budgetUsd: options.budgetUsd ?? null,
+    hasRunBudgetTracker: options.runBudgetTracker !== undefined,
+    runBudgetCapUsd: options.runBudgetTracker?.budgetCapUsd ?? null,
     evalCaseIds: Array.isArray(options.evalCases)
       ? options.evalCases
           .map((evalCase) =>
