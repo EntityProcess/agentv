@@ -315,7 +315,9 @@ Before marking any branch as ready for review, complete this checklist:
 
 6. **Studio UX verification**: For changes affecting config, scoring display, or studio API, use `agent-browser` to verify the studio UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
 
-7. **Mark PR as ready** only after steps 1-6 have been completed AND red/green UAT evidence is included in the PR.
+7. **Check off test plan items in the PR body.** If the issue or PR has a test plan checklist, execute each item and mark it `[x]` in the PR description. Include the actual CLI output as E2E evidence (in a fenced code block) so reviewers can see the before/after results without re-running.
+
+8. **Mark PR as ready** only after steps 1-7 have been completed AND red/green UAT evidence is included in the PR.
 
 ## Documentation Updates
 
