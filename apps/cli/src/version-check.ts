@@ -1,4 +1,4 @@
-import { coerce, satisfies, validRange } from 'semver';
+import { coerce, major, satisfies, validRange } from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
 import { performSelfUpdate } from './self-update.js';
@@ -92,8 +92,14 @@ async function promptUpdate(): Promise<boolean> {
 }
 
 async function runInlineUpdate(currentVersion: string, versionRange: string): Promise<void> {
+  // Cap at the current major version to avoid unintended breaking changes.
+  // e.g., if current is 4.14.2 and range is ">=4.1.0", install ">=4.1.0 <5.0.0"
+  // so that a hypothetical 5.0.0 is never pulled in by auto-update.
+  const currentMajor = major(coerce(currentVersion) ?? currentVersion);
+  const safeRange = `${versionRange} <${currentMajor + 1}.0.0`;
+
   console.log('');
-  const result = await performSelfUpdate({ currentVersion, versionRange });
+  const result = await performSelfUpdate({ currentVersion, versionRange: safeRange });
 
   if (!result.success) {
     console.error(`${ANSI_RED}Update failed. Run \`agentv self update\` manually.${ANSI_RESET}`);
