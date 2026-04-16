@@ -244,7 +244,8 @@ async function loadData() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
-const fmt = (n, d = 2) => (n == null ? '—' : Number(n).toFixed(d));
+const fmtPct = (n) => (n == null ? '—' : Math.round(Number(n) * 100) + '%');
+const fmtPctDelta = (n) => (n == null ? '—' : (n >= 0 ? '+' : '') + Math.round(Number(n) * 100) + '%');
 const fmtUsd = (n) => (n == null ? '—' : '$' + Number(n).toFixed(4));
 
 // ── Chart.js defaults (aligned with Studio DESIGN.md) ─────────────────
@@ -303,9 +304,9 @@ function render(data) {
   const deltaClass = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
 
   document.getElementById('summary').innerHTML = `
-    <div class="card"><div class="label">Original Score</div><div class="value neutral">${fmt(originalScore)}</div></div>
-    <div class="card"><div class="label">Best Score</div><div class="value positive">${fmt(bestScore)}</div></div>
-    <div class="card"><div class="label">Improvement</div><div class="value ${deltaClass}">${delta >= 0 ? '+' : ''}${fmt(delta)}</div></div>
+    <div class="card"><div class="label">Original Score</div><div class="value neutral">${fmtPct(originalScore)}</div></div>
+    <div class="card"><div class="label">Best Score</div><div class="value positive">${fmtPct(bestScore)}</div></div>
+    <div class="card"><div class="label">Improvement</div><div class="value ${deltaClass}">${fmtPctDelta(delta)}</div></div>
     <div class="card"><div class="label">Total Cycles</div><div class="value">${totalCycles}</div></div>
     <div class="card"><div class="label">Total Cost</div><div class="value">${fmtUsd(totalCost)}</div></div>
   `;
@@ -325,6 +326,7 @@ function render(data) {
   document.getElementById('charts-area').style.display = '';
 
   // ── 1. Score chart (cyan line, emerald/red decision dots) ──────────
+  const scoresPct = scores.map(s => s * 100);
   const scoreCtx = document.getElementById('scoreChart').getContext('2d');
   new Chart(scoreCtx, {
     type: 'line',
@@ -332,7 +334,7 @@ function render(data) {
       labels,
       datasets: [{
         label: 'Score',
-        data: scores,
+        data: scoresPct,
         borderColor: '#22d3ee',                    // cyan-400
         backgroundColor: 'rgba(34, 211, 238, 0.1)', // cyan-400/10
         borderWidth: 2,
@@ -347,13 +349,14 @@ function render(data) {
     options: {
       responsive: true,
       scales: {
-        y: { min: 0, max: 1, ticks: { stepSize: 0.1 } },
+        y: { min: 0, max: 100, ticks: { stepSize: 10, callback: v => v + '%' } },
         x: { title: { display: true, text: 'Cycle' } },
       },
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
+            label: (ctx) => `Score: ${Math.round(ctx.parsed.y)}%`,
             afterLabel: (ctx) => `Decision: ${decisions[ctx.dataIndex] || '—'}`,
           },
         },
@@ -369,7 +372,7 @@ function render(data) {
       labels,
       datasets: assertionKeys.map((key, i) => ({
         label: key,
-        data: sorted.map(it => (it.assertions || {})[key] ?? null),
+        data: sorted.map(it => { const v = (it.assertions || {})[key]; return v == null ? null : v * 100; }),
         borderColor: CHART_COLORS[i % CHART_COLORS.length],
         backgroundColor: 'transparent',
         borderWidth: 2,
@@ -381,11 +384,12 @@ function render(data) {
     options: {
       responsive: true,
       scales: {
-        y: { min: 0, max: 1, ticks: { stepSize: 0.2 } },
+        y: { min: 0, max: 100, ticks: { stepSize: 20, callback: v => v + '%' } },
         x: { title: { display: true, text: 'Cycle' } },
       },
       plugins: {
         legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)}%` } },
       },
     },
   });
@@ -428,7 +432,7 @@ function render(data) {
       : '—';
     return `<tr>
       <td class="num">${it.cycle}</td>
-      <td class="num">${fmt(it.score)}</td>
+      <td class="num">${fmtPct(it.score)}</td>
       <td>${badge}</td>
       <td class="mutation-cell" title="${(it.mutation || '').replace(/"/g, '&quot;')}">${it.mutation || '—'}</td>
       <td class="num">${fmtUsd(it.cost_usd)}</td>
