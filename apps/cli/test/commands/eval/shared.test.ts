@@ -64,4 +64,41 @@ describe('resolveEvalPaths', () => {
       resolveEvalPaths(['evals/**/*.eval.yaml', 'evals/**/eval.yaml'], tempDir),
     ).rejects.toThrow('No eval files matched any provided paths or globs');
   });
+
+  it('discovers *.eval.ts files from directory auto-expansion', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const tsFile = path.join(evalDir, 'greeting.eval.ts');
+    writeFileSync(tsFile, 'export default { tests: [] }');
+
+    const resolved = await resolveEvalPaths([tempDir], tempDir);
+
+    expect(resolved).toEqual([path.normalize(tsFile)]);
+  });
+
+  it('accepts a direct .ts file path', async () => {
+    const tsFile = path.join(tempDir, 'custom.eval.ts');
+    writeFileSync(tsFile, 'export default { tests: [] }');
+
+    const resolved = await resolveEvalPaths([tsFile], tempDir);
+
+    expect(resolved).toEqual([path.normalize(tsFile)]);
+  });
+
+  it('discovers both .yaml and .ts files from directory', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const yamlFile = path.join(evalDir, 'suite.eval.yaml');
+    const tsFile = path.join(evalDir, 'suite.eval.ts');
+    writeFileSync(yamlFile, 'tests:\n  - id: sample\n    input: test\n');
+    writeFileSync(tsFile, 'export default { tests: [] }');
+
+    const resolved = await resolveEvalPaths([tempDir], tempDir);
+
+    expect(resolved).toContain(path.normalize(yamlFile));
+    expect(resolved).toContain(path.normalize(tsFile));
+    expect(resolved).toHaveLength(2);
+  });
 });

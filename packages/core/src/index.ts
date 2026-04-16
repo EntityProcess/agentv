@@ -12,6 +12,10 @@ export {
   type ResultsExportConfig,
 } from './evaluation/loaders/config-loader.js';
 export {
+  loadTsEvalFile,
+  type TsEvalResult,
+} from './evaluation/loaders/ts-eval-loader.js';
+export {
   transpileEvalYaml,
   transpileEvalYamlFile,
   getOutputFilenames,

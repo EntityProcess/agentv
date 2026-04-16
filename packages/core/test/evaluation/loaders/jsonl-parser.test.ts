@@ -27,6 +27,15 @@ describe('detectFormat', () => {
     expect(detectFormat('/path/to/evals.json')).toBe('agent-skills-json');
   });
 
+  it('returns typescript for .ts extension', () => {
+    expect(detectFormat('greeting.eval.ts')).toBe('typescript');
+    expect(detectFormat('/path/to/eval.ts')).toBe('typescript');
+  });
+
+  it('returns typescript for .mts extension', () => {
+    expect(detectFormat('greeting.eval.mts')).toBe('typescript');
+  });
+
   it('throws for unsupported extensions', () => {
     expect(() => detectFormat('test.txt')).toThrow('Unsupported file format');
     expect(() => detectFormat('test')).toThrow('Unsupported file format');
