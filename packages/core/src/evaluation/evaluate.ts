@@ -69,10 +69,13 @@ import { type ResolvedTarget, resolveTargetDefinition } from './providers/target
 import type { TargetDefinition } from './providers/types.js';
 import { INLINE_ASSERT_FN } from './registry/builtin-graders.js';
 import type {
+  ConversationAggregation,
+  ConversationTurn,
   EvalTest,
   EvaluationResult,
   GraderConfig,
   InlineAssertEvaluatorConfig,
+  WorkspaceHookConfig,
 } from './types.js';
 import { loadTests } from './yaml-parser.js';
 
@@ -85,8 +88,8 @@ export interface EvalTestInput {
   readonly id: string;
   /** What the response should accomplish */
   readonly criteria?: string;
-  /** Input to the agent (string or message array) */
-  readonly input: string | readonly { role: string; content: string }[];
+  /** Input to the agent (string or message array). Omit when using turns[]. */
+  readonly input?: string | readonly { role: string; content: string }[];
   /** Expected reference output (camelCase preferred) */
   readonly expectedOutput?: string;
   /** @deprecated Use `expectedOutput` instead */
@@ -95,6 +98,27 @@ export interface EvalTestInput {
   readonly assert?: readonly AssertEntry[];
   /** Arbitrary metadata */
   readonly metadata?: Record<string, unknown>;
+  /** Enable multi-turn conversation mode. Inferred automatically when turns[] is provided. */
+  readonly mode?: 'conversation';
+  /** Ordered turns for conversation evaluation. Each turn generates a fresh LLM call. */
+  readonly turns?: readonly ConversationTurnInput[];
+  /** Score aggregation across turns: 'mean' (default), 'min', or 'max'. */
+  readonly aggregation?: ConversationAggregation;
+}
+
+/**
+ * A single turn in a multi-turn conversation evaluation (programmatic API).
+ * Mirrors the YAML `turns` structure with camelCase naming.
+ */
+export interface ConversationTurnInput {
+  /** Input for this turn (string or message array) */
+  readonly input: string | readonly { role: string; content: string }[];
+  /** Expected reference output for this turn */
+  readonly expectedOutput?: string;
+  /** @deprecated Use `expectedOutput` instead */
+  readonly expected_output?: string;
+  /** Per-turn assertions (string criteria or grader config) */
+  readonly assert?: readonly AssertEntry[];
 }
 
 /**
@@ -162,6 +186,10 @@ export interface EvalConfig {
   readonly onResult?: (result: EvaluationResult) => void;
   /** Score threshold for pass/fail (0-1). Default: 0.8 (DEFAULT_THRESHOLD). */
   readonly threshold?: number;
+  /** Command(s) to run once before the suite starts. Same semantics as YAML before_all. */
+  readonly beforeAll?: string | readonly string[];
+  /** Suite-level cost cap in USD. Stops dispatching new tests when exceeded. */
+  readonly budgetUsd?: number;
 }
 
 /**
@@ -279,17 +307,27 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
       filter: config.filter,
     });
   } else {
+    // Build workspace config with before_all hook if beforeAll is provided
+    const suiteWorkspace = config.beforeAll
+      ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
+      : undefined;
+
     // Inline mode: convert EvalTestInput[] to EvalTest[]
     evalCases = (config.tests ?? []).map((test): EvalTest => {
-      const input =
-        typeof test.input === 'string'
-          ? ([{ role: 'user' as const, content: test.input }] as EvalTest['input'])
-          : (test.input as unknown as EvalTest['input']);
+      // Conversation mode: use turns[] for input/question derivation
+      const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
 
-      const question =
-        typeof test.input === 'string'
-          ? test.input
-          : (test.input.find((m) => m.role === 'user')?.content ?? '');
+      if (!isConversation && !test.input) {
+        throw new Error(`Test '${test.id}': input is required for non-conversation tests`);
+      }
+
+      const input = isConversation
+        ? toMessageArray(test.turns?.[0]?.input ?? '')
+        : toMessageArray(test.input ?? '');
+
+      const question = isConversation
+        ? extractQuestion(test.turns?.[0]?.input ?? '')
+        : extractQuestion(test.input ?? '');
 
       const expectedOutputValue = test.expectedOutput ?? test.expected_output;
       const expectedOutput = expectedOutputValue
@@ -300,24 +338,19 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 
       // Convert inline assertions to evaluator config format
       const allAssertions = [...(test.assert ?? []), ...(config.assert ?? [])];
-      const assertConfigs = allAssertions.map((entry, i) => {
-        if (typeof entry === 'function') {
-          // Wrap AssertFn as InlineAssertEvaluatorConfig with function attached via Symbol
-          const base: InlineAssertEvaluatorConfig = {
-            type: 'inline-assert',
-            name: `inline-assert-${i}`,
-          };
-          return Object.assign(base, {
-            [INLINE_ASSERT_FN]: entry as AssertFn,
-          }) as unknown as GraderConfig;
-        }
-        const a = entry as EvalAssertionInput;
-        const { type: rawType, ...rest } = a;
+      const assertConfigs = convertAssertions(allAssertions);
+
+      // Convert conversation turns if present — keep input/expected_output as
+      // TestMessageContent (matching YAML parser behavior), not wrapped in message arrays.
+      const turns: ConversationTurn[] | undefined = test.turns?.map((turn) => {
+        const turnExpected = turn.expectedOutput ?? turn.expected_output;
         return {
-          ...rest,
-          name: a.name ?? `${rawType}_${i}`,
-          type: mapAssertionType(rawType),
-        } as unknown as GraderConfig;
+          input: turn.input as ConversationTurn['input'],
+          ...(turnExpected !== undefined && {
+            expected_output: turnExpected as ConversationTurn['expected_output'],
+          }),
+          assertions: turn.assert ? convertAssertions([...turn.assert]) : undefined,
+        };
       });
 
       return {
@@ -330,6 +363,10 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         file_paths: [],
         assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
         metadata: test.metadata,
+        ...(suiteWorkspace && { workspace: suiteWorkspace }),
+        ...(isConversation && { mode: 'conversation' as const }),
+        ...(turns && { turns }),
+        ...(test.aggregation && { aggregation: test.aggregation }),
       };
     });
   }
@@ -348,6 +385,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     filter: config.filter,
     threshold: config.threshold,
     evalCases,
+    ...(config.budgetUsd !== undefined && { budgetUsd: config.budgetUsd }),
     onResult: async (result) => {
       collectedResults.push(result);
       config.onResult?.(result);
@@ -361,6 +399,59 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     results: allResults,
     summary: computeSummary(allResults, durationMs, config.threshold),
   };
+}
+
+/**
+ * Convert a flexible input (string or message array) to the internal TestMessage[] format.
+ */
+function toMessageArray(
+  input: string | readonly { role: string; content: string }[],
+): EvalTest['input'] {
+  if (typeof input === 'string') {
+    return [{ role: 'user' as const, content: input }] as EvalTest['input'];
+  }
+  return input as unknown as EvalTest['input'];
+}
+
+/**
+ * Extract the user-facing question string from a flexible input.
+ */
+function extractQuestion(input: string | readonly { role: string; content: string }[]): string {
+  if (typeof input === 'string') return input;
+  return input.find((m) => m.role === 'user')?.content ?? '';
+}
+
+/**
+ * Convert programmatic API beforeAll (string | string[]) to internal WorkspaceHookConfig.
+ * Accepts a shell command string or an array of command tokens.
+ */
+function toBeforeAllHook(beforeAll: string | readonly string[]): WorkspaceHookConfig {
+  const command = typeof beforeAll === 'string' ? ['sh', '-c', beforeAll] : [...beforeAll];
+  return { command };
+}
+
+/**
+ * Convert an array of assert entries (inline functions or config objects) to GraderConfig[].
+ */
+function convertAssertions(entries: readonly AssertEntry[]): GraderConfig[] {
+  return entries.map((entry, i) => {
+    if (typeof entry === 'function') {
+      const base: InlineAssertEvaluatorConfig = {
+        type: 'inline-assert',
+        name: `inline-assert-${i}`,
+      };
+      return Object.assign(base, {
+        [INLINE_ASSERT_FN]: entry as AssertFn,
+      }) as unknown as GraderConfig;
+    }
+    const a = entry as EvalAssertionInput;
+    const { type: rawType, ...rest } = a;
+    return {
+      ...rest,
+      name: a.name ?? `${rawType}_${i}`,
+      type: mapAssertionType(rawType),
+    } as unknown as GraderConfig;
+  });
 }
 
 /**

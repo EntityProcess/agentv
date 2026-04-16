@@ -28,6 +28,7 @@ export * from './evaluation/orchestrator.js';
 export {
   evaluate,
   type AssertEntry,
+  type ConversationTurnInput,
   type EvalConfig,
   type EvalTestInput,
   type EvalAssertionInput,
