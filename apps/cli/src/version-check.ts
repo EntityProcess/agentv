@@ -66,7 +66,7 @@ export async function enforceRequiredVersion(
   const warning = `${ANSI_YELLOW}Warning: This project requires agentv ${result.requiredRange} but you have ${result.currentVersion}.${ANSI_RESET}`;
 
   if (options?.strict) {
-    console.error(warning);
+    console.error(`${warning}\n  Run \`agentv self update\` to upgrade.`);
     console.error(
       `${ANSI_RED}Aborting: --strict mode requires the installed version to satisfy the required range.${ANSI_RESET}`,
     );

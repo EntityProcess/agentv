@@ -32,12 +32,14 @@ export function detectPackageManager(): 'bun' | 'npm' {
   return detectPackageManagerFromPath(process.argv[1] ?? '');
 }
 
-export function runCommand(
+function runCommand(
   cmd: string,
   args: string[],
 ): Promise<{ exitCode: number; stdout: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'], shell: true });
+    // No shell: true — args are passed directly to execvp, avoiding shell
+    // interpretation of semver operators (>, <, |) in version ranges.
+    const child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
     let stdout = '';
     child.stdout?.on('data', (data: Buffer) => {
       process.stdout.write(data);
