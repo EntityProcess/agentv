@@ -26,20 +26,14 @@ tests:
   - id: deploy-skill-triggered
     input: How do I deploy payments-api to production?
     assertions:
-      - type: rubrics
-        criteria:
-          - The agent invoked the acme-deploy skill
+      - The agent invoked the acme-deploy skill
 
   - id: rollback-skill-triggered
     input: I need to roll back user-service in staging, what's the procedure?
     assertions:
-      - type: rubrics
-        criteria:
-          - The agent invoked the acme-deploy skill
+      - The agent invoked the acme-deploy skill
 
   - id: no-skill-for-unrelated
     input: Write a Python function that parses JSON logs and extracts error messages.
     assertions:
-      - type: rubrics
-        criteria:
-          - The tool_calls section does not contain any entry starting with "Skill:" (file creation, Read, Edit, and Bash are fine)
+      - The tool_calls section does not contain any entry starting with "Skill:" (file creation, Read, Edit, and Bash are fine)
