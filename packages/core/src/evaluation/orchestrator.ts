@@ -15,6 +15,7 @@ import {
   type EvaluationScore,
   type Grader,
   LlmGrader,
+  formatToolCalls,
   negateScore,
   scoreToVerdict,
 } from './graders.js';
@@ -2271,6 +2272,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     fileChanges = fileChanges ? `${fileChanges}\n${providerFileChanges}` : providerFileChanges;
   }
 
+  // Format tool calls for LLM grader template variable
+  const toolCalls = formatToolCalls(output);
+
   const providerError = extractProviderError(providerResponse);
 
   // Execute target after_each hook (runs before workspace after_each)
@@ -2369,6 +2373,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       targetResolver,
       availableTargets,
       fileChanges,
+      toolCalls,
       workspacePath,
       dockerConfig: evalCase.workspace?.docker,
       verbose,
@@ -2631,6 +2636,7 @@ async function evaluateCandidate(options: {
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
+  readonly toolCalls?: string;
   readonly workspacePath?: string;
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly verbose?: boolean;
@@ -2659,6 +2665,7 @@ async function evaluateCandidate(options: {
     targetResolver,
     availableTargets,
     fileChanges,
+    toolCalls,
     workspacePath,
     dockerConfig,
     threshold: evalThreshold,
@@ -2688,6 +2695,7 @@ async function evaluateCandidate(options: {
     targetResolver,
     availableTargets,
     fileChanges,
+    toolCalls,
     workspacePath,
     dockerConfig,
     threshold: evalThreshold,
@@ -2775,6 +2783,7 @@ async function runEvaluatorsForCase(options: {
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
+  readonly toolCalls?: string;
   readonly workspacePath?: string;
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
@@ -2802,6 +2811,7 @@ async function runEvaluatorsForCase(options: {
     targetResolver,
     availableTargets,
     fileChanges,
+    toolCalls,
     workspacePath,
     dockerConfig,
     threshold,
@@ -2832,6 +2842,7 @@ async function runEvaluatorsForCase(options: {
       targetResolver,
       availableTargets,
       fileChanges,
+      toolCalls,
       workspacePath,
       dockerConfig,
       threshold,
@@ -2868,6 +2879,7 @@ async function runEvaluatorsForCase(options: {
     targetResolver,
     availableTargets,
     fileChanges,
+    toolCalls,
     workspacePath,
     dockerConfig,
     dependencyResults,
@@ -2914,6 +2926,7 @@ async function runEvaluatorList(options: {
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
+  readonly toolCalls?: string;
   readonly workspacePath?: string;
   readonly dockerConfig?: import('./types.js').DockerWorkspaceConfig;
   readonly threshold?: number;
@@ -2942,6 +2955,7 @@ async function runEvaluatorList(options: {
     targetResolver,
     availableTargets,
     fileChanges,
+    toolCalls,
     workspacePath,
     dockerConfig,
     dependencyResults,
@@ -2977,6 +2991,7 @@ async function runEvaluatorList(options: {
     targetResolver,
     availableTargets,
     fileChanges,
+    toolCalls,
     workspacePath,
     dockerConfig,
     dependencyResults,

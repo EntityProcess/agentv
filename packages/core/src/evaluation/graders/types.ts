@@ -55,6 +55,8 @@ export interface EvaluationContext {
   readonly availableTargets?: readonly string[];
   /** Unified diff of file changes from workspace */
   readonly fileChanges?: string;
+  /** Formatted summary of tool calls from agent execution */
+  readonly toolCalls?: string;
   /** Absolute path to the workspace directory */
   readonly workspacePath?: string;
   /** Docker workspace config: when present, code-grader commands run inside a container */

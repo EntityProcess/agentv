@@ -73,6 +73,7 @@ Score the response from 0.0 to 1.0 based on:
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
+| `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
 
 ## Per-Grader Target
 
@@ -228,6 +229,7 @@ Derived strings injected into grader prompts:
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
+| `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
 
 **Example flow:**
 
