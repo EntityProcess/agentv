@@ -2,14 +2,14 @@
 title: Skill Improvement Workflow
 description: Iteratively evaluate and improve agent skills using AgentV
 sidebar:
-  order: 6
+  order: 4
 ---
 
 ## Introduction
 
 AgentV supports a full evaluation-driven improvement loop for skills and agents. Instead of guessing whether a change makes things better, you run structured evaluations before and after, then compare.
 
-This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [agentv-bench](#automated-iteration).
+This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [Autoresearch](/docs/guides/autoresearch/).
 
 ## The Core Loop
 
@@ -244,7 +244,7 @@ After converting, you can:
 - Use `code-grader` for custom scoring logic
 - Define `tool-trajectory` assertions to check tool usage patterns
 
-See [Skill Evals (evals.json)](/docs/guides/agent-skills-evals/) for the full field mapping and side-by-side comparison.
+See [Skill Evals (evals.json)](/docs/integrations/agent-skills-evals/) for the full field mapping and side-by-side comparison.
 
 ## Migration from Skill-Creator
 
@@ -316,21 +316,14 @@ Start simple and add complexity only when the evaluation results demand it:
 
 ## Automated Iteration
 
-For users who want the full automated improvement cycle, the `agentv-bench` skill runs a 5-phase optimization loop:
+When you're confident in your eval quality, graduate to **autoresearch** — an unattended optimization loop that runs the full evaluate → analyze → improve cycle hands-free.
 
-1. **Analyze** — examines the current skill and evaluation results
-2. **Hypothesize** — generates improvement hypotheses from failure patterns
-3. **Implement** — applies targeted skill modifications
-4. **Evaluate** — re-runs the evaluation suite
-5. **Decide** — keeps improvements that help, reverts those that don't
+Autoresearch uses the same `agentv eval` and `agentv compare` primitives described above, but automates the human decision steps. A mutator subagent rewrites the artifact based on failure analysis, and an automated keep/discard rule promotes improvements and reverts regressions.
 
-The optimizer uses the same core loop described in this guide but automates the human steps. Start with the manual loop to build intuition, then graduate to the optimizer when you're comfortable with the evaluation workflow.
+```
+"Run autoresearch on my skill"
+```
 
-Its bundled scripts map directly onto the workflow stages:
+One command starts the loop. It runs until the optimizer converges (3 consecutive no-improvement cycles) or hits the cycle limit. Typical runs: 5–10 cycles, under $0.05 total cost.
 
-- `run-eval.ts` and `compare-runs.ts` run and compare evaluations while still delegating to `agentv`
-- `run-loop.ts` repeats the evaluation loop without moving grader logic into the script layer
-- `aggregate-benchmark.ts` and `generate-report.ts` summarize AgentV artifacts into review-friendly output
-- `improve-description.ts` proposes follow-up description experiments once execution quality is stable
-
-Code-grader execution, grading semantics, and artifact schemas still live in AgentV core. The scripts layer is orchestration glue over those existing primitives.
+See the full guide: [Autoresearch](/docs/guides/autoresearch/)

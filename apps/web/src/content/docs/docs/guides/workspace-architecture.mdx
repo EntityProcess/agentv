@@ -2,7 +2,7 @@
 title: Workspace Architecture
 description: How AgentV clones and materializes working trees for eval runs, with performance guidance for large repos.
 sidebar:
-  order: 3
+  order: 7
 ---
 
 AgentV evaluations that use `workspace.repos` clone repositories directly from their source (git URL or local path) into a workspace directory. [Workspace pooling](/docs/guides/workspace-pool/) (enabled by default) eliminates repeated clone costs by reusing materialized workspaces across runs.
@@ -131,4 +131,4 @@ To disable pooling for a run:
 agentv eval evals/my-eval.yaml --no-pool
 ```
 
-See the [Workspace Pool](/guides/workspace-pool/) guide for details on pool configuration, clean modes, concurrency, and drift detection.
+See the [Workspace Pool](/docs/guides/workspace-pool/) guide for details on pool configuration, clean modes, concurrency, and drift detection.
