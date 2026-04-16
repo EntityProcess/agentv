@@ -32,10 +32,7 @@ export function detectPackageManager(): 'bun' | 'npm' {
   return detectPackageManagerFromPath(process.argv[1] ?? '');
 }
 
-function runCommand(
-  cmd: string,
-  args: string[],
-): Promise<{ exitCode: number; stdout: string }> {
+function runCommand(cmd: string, args: string[]): Promise<{ exitCode: number; stdout: string }> {
   return new Promise((resolve, reject) => {
     // No shell: true — args are passed directly to execvp, avoiding shell
     // interpretation of semver operators (>, <, |) in version ranges.
