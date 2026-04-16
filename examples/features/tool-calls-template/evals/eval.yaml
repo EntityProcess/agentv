@@ -11,8 +11,8 @@
 # The LLM grader then inspects the tool call summary to verify skill usage.
 #
 # Setup:
-#   1. Create examples/features/.env with OPENROUTER_API_KEY and OPENROUTER_GRADER_MODEL
-#   2. Run from repo root: bun agentv eval examples/features/tool-calls-template/evals/dataset.eval.yaml
+#   1. Set GRADER_TARGET in your .env (e.g. openrouter)
+#   2. Run from repo root: bun agentv eval examples/features/tool-calls-template/evals/eval.yaml
 
 name: tool-calls-template
 description: LLM grader with {{ tool_calls }} template variable for skill verification

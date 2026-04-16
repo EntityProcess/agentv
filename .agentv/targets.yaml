@@ -120,15 +120,10 @@ targets:
   # ── Mock targets (for feature examples) ──────────────────────────
   - name: mock_agent
     provider: cli
-    grader_target: openrouter_grader
+    grader_target: grader
     command: bun run ../mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     healthcheck:
       command: bun run ../mock-agent.ts --healthcheck
-
-  - name: openrouter_grader
-    provider: openrouter
-    api_key: ${{ OPENROUTER_API_KEY }}
-    model: ${{ OPENROUTER_GRADER_MODEL }}
 
   # ── LLM targets (direct model access) ─────────────────────────────
   - name: gh-models
