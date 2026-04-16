@@ -517,7 +517,7 @@ Fields: `cycle` (1-indexed), `score` (overall pass rate 0–1), `decision` ("kee
 
 ### trajectory.html
 
-A standalone HTML chart file with embedded Chart.js. Copy the template from `scripts/trajectory.html`, replace placeholders with data, and update after each cycle. Shows:
+A standalone HTML chart file with embedded Chart.js. Copy the template from `scripts/trajectory.html` into the `_autoresearch/` directory. It fetches `iterations.jsonl` from the same directory on each auto-refresh — no data injection needed. Shows:
 
 - Score over iterations (line chart) with KEEP (green) / DISCARD (red) markers
 - Per-assertion pass rates over iterations
@@ -533,6 +533,15 @@ Stop after **3** consecutive cycles with no improvement (no KEEP). Also stop at 
 ### Human checkpoints
 
 Autoresearch mode **skips** human checkpoints at iterations 3/6/9. The user opted in to unattended operation by requesting autoresearch.
+
+### Context hygiene
+
+The orchestrator must run indefinitely without exhausting its context window. To do this:
+
+- **Never read eval results, artifacts, or transcripts into your own context.** Use bash commands (jq, agentv CLI) that output small structured summaries.
+- **Delegate all heavy reading to subagents.** The mutator reads artifacts, grading results, and transcripts from disk — you pass it paths, not content.
+- **Use bash for all file I/O** in the loop body: appending to `iterations.jsonl`, git operations, score extraction. The only tool calls per cycle should be bash commands and one subagent dispatch (mutator).
+- **trajectory.html auto-loads `iterations.jsonl`** via fetch — no need to read or update the HTML file after initial copy.
 
 ### Procedure
 
@@ -564,20 +573,37 @@ Repeat while `cycle <= max_cycles` and `convergence_count < max_convergence`:
 agentv eval <eval-path> --experiment autoresearch-<name>
 ```
 
-**b. Read results**
+**b. Extract scores (bash only — do NOT read result files into your context)**
 
-Find the latest timestamped directory in the experiment folder. Parse `index.jsonl` to compute:
-- Overall score (mean pass rate across all test cases and assertions)
-- Per-assertion pass rates (group by assertion name, compute pass rate for each)
-- Cost from `timing.json` if available
+Find the latest timestamped directory in the experiment folder. Use bash/jq to extract small structured values:
 
-**c. Update iterations.jsonl**
+```bash
+# Find latest run dir
+RUN_DIR=$(ls -td <experiment-dir>/20*/ | head -1)
 
-Append one JSON line with this cycle's data (cycle number, score, per-assertion rates, mutation description, run directory name, timestamp). Set `decision` to "keep" or "drop" after the next step — write the line after the decision is made.
+# Overall score (mean of all scores in index.jsonl)
+SCORE=$(jq -sr '[.[].scores[].score] | add / length' "$RUN_DIR/index.jsonl")
 
-**d. Update trajectory.html**
+# Per-assertion pass rates as JSON object
+PASS_RATES=$(jq -sr '[.[].scores[]] | group_by(.type) | map({key: .[0].type, value: (map(.score) | add / length)}) | from_entries' "$RUN_DIR/index.jsonl")
 
-Read `_autoresearch/iterations.jsonl`, serialize as JSON array, and replace the `__ITERATIONS_DATA__` placeholder in `_autoresearch/trajectory.html` with the data. Write the updated file back.
+# Cost (if timing.json exists)
+COST=$(jq -r '.cost_usd // 0' "$RUN_DIR/timing.json" 2>/dev/null || echo 0)
+```
+
+Capture only these small outputs (`SCORE`, `PASS_RATES`, `COST`) — never read the full JSONL into context.
+
+**c. Update iterations.jsonl (bash only)**
+
+After the KEEP/DROP decision (step e), append one JSON line via bash:
+
+```bash
+echo '{"cycle":'$CYCLE',"score":'$SCORE',"decision":"'$DECISION'","cost_usd":'$COST',"assertions":'$PASS_RATES',"mutation":"'"$MUTATION_DESC"'","run_dir":"'"$(basename $RUN_DIR)"'","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> <experiment-dir>/_autoresearch/iterations.jsonl
+```
+
+**d. trajectory.html — no action needed**
+
+The trajectory chart fetches `iterations.jsonl` directly via HTTP on each auto-refresh. No file manipulation required after the initial copy in setup.
 
 **e. Decide: KEEP or DROP**
 
@@ -612,12 +638,14 @@ Dispatch the **mutator** subagent (`agents/mutator.md`) with:
 - `artifact-path`: the file or directory to mutate
 - `artifact-mode`: `file` or `directory`
 - `initial-sha`: the starting commit SHA (for referencing the original via `git show`)
-- Per-assertion pass rates from this cycle
-- Failure descriptions (test cases that scored below 1.0, with their transcripts or grading rationale)
-- The mutation history from `iterations.jsonl` (so it avoids repeating failed strategies)
-- For directory mode: `artifact-file-list` (listing of files in the artifact directory) and `focus-files` (files most likely contributing to failures)
+- `pass-rates`: the `$PASS_RATES` JSON object from step (b) (small — just assertion names and rates)
+- `run-dir`: path to this cycle's run directory (the mutator reads `grading.json` and transcripts itself)
+- `iterations-path`: path to `_autoresearch/iterations.jsonl` (the mutator reads mutation history itself)
+- For directory mode: `focus-files` (optional — files most likely contributing to failures, derived from assertion names)
 
-The mutator rewrites artifacts in place. Verify the artifact was modified before continuing.
+**Do NOT pass failure descriptions, transcripts, or grading content** to the mutator — pass paths and let it read what it needs from disk. This keeps the orchestrator's context clean.
+
+The mutator rewrites artifacts in place. Verify the artifact was modified (e.g., `git diff --stat`) before continuing.
 
 **j. Continue**
 

@@ -26,10 +26,10 @@ You will receive:
 - `artifact-path`: Path to the file or directory to mutate (the artifact under test). **Write changes back to this same path.**
 - `artifact-mode`: `file` or `directory`. Determines how you read and write the artifact.
 - `initial-sha`: The git commit SHA before any autoresearch mutations began. Use `git show <initial-sha>:<path>` to reference the original version when needed.
-- `pass-rates`: Per-assertion pass rates as a mapping, e.g. `{"IDENTIFIES_CLARITY_ISSUES": "3/5", "SUGGESTS_CONCRETE_FIX": "5/5", "OUTPUT_IS_STRUCTURED": "1/5"}`
-- `failure-descriptions`: Array of top failure descriptions from the analyzer, e.g. `["Agent fails to identify ambiguous pronouns in user prompts", "Output lacks markdown headers required by structure check"]`
+- `pass-rates`: Per-assertion pass rates as a JSON mapping, e.g. `{"IDENTIFIES_CLARITY_ISSUES": 0.6, "SUGGESTS_CONCRETE_FIX": 1.0, "OUTPUT_IS_STRUCTURED": 0.2}`
+- `run-dir`: Path to this cycle's eval run directory. **Read `grading.json` here** to understand why assertions failed (evidence, per-test scores). Read test transcripts/responses as needed.
+- `iterations-path`: Path to `_autoresearch/iterations.jsonl`. **Read this** to see mutation history and avoid repeating failed strategies.
 - `iteration`: Current iteration number (for context in the changelog)
-- `artifact-file-list` (directory mode only): Listing of files in the artifact directory.
 - `focus-files` (directory mode, optional): Files most likely contributing to failures — read these first.
 
 ## Process
@@ -44,7 +44,8 @@ You will receive:
    - **Failing** (< 80%): These are your mutation targets.
    - **Near-passing** (60–79%): May need only minor reinforcement.
    - **Hard-failing** (< 40%): Need substantial new instructions.
-4. **Read failure descriptions** to understand *why* assertions fail, not just *which* ones fail.
+5. **Read failure evidence** from `<run-dir>/grading.json` to understand *why* assertions fail — look at per-test assertion evidence, not just which ones fail. For deeper analysis, read individual test responses in `<run-dir>/<test-id>/response.md`.
+6. **Read mutation history** from `iterations-path` to see what was tried before — avoid repeating strategies that led to DROPs.
 
 ### Step 2: Analyze Failure Causes
 

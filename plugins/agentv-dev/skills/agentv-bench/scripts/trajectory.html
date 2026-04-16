@@ -229,12 +229,19 @@
 </div>
 
 <script>
-// ── Data placeholder (replaced by the skill) ──────────────────────────
-// Guard: if the placeholder was never replaced, fall back to empty array
-// so the page renders a "waiting for data" state instead of crashing.
-let ITERATIONS_DATA;
-try { ITERATIONS_DATA = __ITERATIONS_DATA__; } catch (_) { ITERATIONS_DATA = []; }
-if (!Array.isArray(ITERATIONS_DATA)) ITERATIONS_DATA = [];
+// ── Data loading ─────────────────────────────────────────────────────
+// Fetch iterations.jsonl from the same directory. Each line is one JSON object.
+// Auto-refreshes every 2s (via the meta tag) so the chart stays live.
+async function loadData() {
+  try {
+    const resp = await fetch('iterations.jsonl');
+    if (!resp.ok) return [];
+    const text = await resp.text();
+    return text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  } catch (_) {
+    return [];
+  }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 const fmt = (n, d = 2) => (n == null ? '—' : Number(n).toFixed(d));
@@ -444,7 +451,7 @@ function render(data) {
   `;
 }
 
-render(ITERATIONS_DATA);
+loadData().then(render);
 </script>
 
 </body>
