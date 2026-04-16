@@ -407,21 +407,22 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
 
    The feature branch must be based on the freshly updated `main`, not a stale local checkout.
 
-4. **Implement the changes** and commit following the commit convention
-
-5. **Push regularly and open a draft Pull Request early**:
+4. **After your first commit, push and open a draft PR immediately:**
    ```bash
    git push -u origin <branch-name>
    gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue-number>"
    ```
-   Push incremental commits to the draft PR as you work so progress is visible and recoverable.
+   Do NOT wait until implementation is complete. The draft PR is a handoff artifact — if the session is interrupted, the user or another agent can pick up where you left off.
 
-6. **Before marking the PR ready for review or merging a low-risk change**, ensure (in this order):
-   1. **E2E verification completed** (see "Completing Work — E2E Checklist") — this must pass first.
-   2. For CLI or other user-facing changes, run at least one manual end-to-end check of the real user flow, not just unit/integration tests.
-   3. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
-   4. CI pipeline passes (all checks green).
-   5. No merge conflicts with `main`.
+5. **Implement the changes.** Commit and push incrementally as you work. Every meaningful checkpoint (feature compiles, tests pass, new behavior added) should be pushed to the draft PR so progress is visible and recoverable.
+
+6. **Complete E2E verification** (see "Completing Work — E2E Checklist") — this is BLOCKING. Do NOT mark the PR ready for review until every step of the E2E checklist has passed and evidence is documented in the PR body. Specifically:
+   1. Run unit tests.
+   2. Execute every test plan item from the issue/PR checklist, mark each `[x]`, and paste CLI output as evidence.
+   3. Manual red/green UAT with before/after evidence.
+   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
+   5. CI pipeline passes (all checks green).
+   6. No merge conflicts with `main`.
 
 7. **Only after verification is complete**:
    - Mark the draft PR ready for review, or

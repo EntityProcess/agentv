@@ -1,0 +1,104 @@
+/**
+ * Shared self-update logic for agentv.
+ *
+ * Used by both `agentv self update` and the version-check prompt
+ * when the installed version doesn't satisfy `required_version`.
+ *
+ * When called from the version-check prompt, a `versionRange` (from the
+ * project's `required_version` config) is passed through as the npm/bun
+ * version specifier (e.g., `agentv@">=4.1.0"`). This ensures the update
+ * respects the project's constraints and avoids unintended major-version jumps.
+ *
+ * When called from `agentv self update` (no range), it installs `@latest`.
+ *
+ * To add a new package manager: add a case to `detectPackageManagerFromPath()`
+ * and a corresponding install-args entry in `getInstallArgs()`.
+ */
+
+import { spawn } from 'node:child_process';
+
+/**
+ * Detect package manager from the script path.
+ * If the path contains '.bun', it was installed via bun; otherwise assume npm.
+ */
+export function detectPackageManagerFromPath(scriptPath: string): 'bun' | 'npm' {
+  if (scriptPath.includes('.bun')) {
+    return 'bun';
+  }
+  return 'npm';
+}
+
+export function detectPackageManager(): 'bun' | 'npm' {
+  return detectPackageManagerFromPath(process.argv[1] ?? '');
+}
+
+function runCommand(cmd: string, args: string[]): Promise<{ exitCode: number; stdout: string }> {
+  return new Promise((resolve, reject) => {
+    // No shell: true — args are passed directly to execvp, avoiding shell
+    // interpretation of semver operators (>, <, |) in version ranges.
+    const child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
+    let stdout = '';
+    child.stdout?.on('data', (data: Buffer) => {
+      process.stdout.write(data);
+      stdout += data.toString();
+    });
+    child.on('error', reject);
+    child.on('close', (code) => resolve({ exitCode: code ?? 1, stdout }));
+  });
+}
+
+function getInstallArgs(pm: 'bun' | 'npm', versionSpec: string): string[] {
+  const pkg = `agentv@${versionSpec}`;
+  return pm === 'npm' ? ['install', '-g', pkg] : ['add', '-g', pkg];
+}
+
+/**
+ * Run the self-update flow: install agentv globally using the detected
+ * (or specified) package manager.
+ *
+ * @param options.pm - Force a specific package manager
+ * @param options.currentVersion - Current installed version (for display)
+ * @param options.versionRange - Semver range from config (e.g., ">=4.1.0").
+ *   When provided, used as the npm/bun version specifier so the update
+ *   stays within the project's constraints. When omitted, installs `@latest`.
+ */
+export async function performSelfUpdate(options?: {
+  pm?: 'bun' | 'npm';
+  currentVersion?: string;
+  versionRange?: string;
+}): Promise<{ success: boolean; currentVersion: string; newVersion?: string }> {
+  const pm = options?.pm ?? detectPackageManager();
+  const currentVersion = options?.currentVersion ?? 'unknown';
+  const versionSpec = options?.versionRange ?? 'latest';
+
+  const args = getInstallArgs(pm, versionSpec);
+
+  try {
+    const result = await runCommand(pm, args);
+
+    if (result.exitCode !== 0) {
+      return { success: false, currentVersion };
+    }
+
+    // Best-effort version check after update
+    let newVersion: string | undefined;
+    try {
+      const versionResult = await runCommand('agentv', ['--version']);
+      newVersion = versionResult.stdout.trim();
+    } catch {
+      // Ignore - version check is best-effort
+    }
+
+    return { success: true, currentVersion, newVersion };
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('ENOENT') || error.message.includes('not found')) {
+        const alternative = pm === 'npm' ? 'bun' : 'npm';
+        console.error(`Error: ${pm} not found. Try using --${alternative} flag.`);
+      } else {
+        console.error(`Error: ${error.message}`);
+      }
+    }
+    return { success: false, currentVersion };
+  }
+}
