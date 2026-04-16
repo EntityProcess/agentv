@@ -3,9 +3,6 @@ You are evaluating whether an AI agent completed a task WITHOUT using a skill.
 [[ ## question ## ]]
 {{ input }}
 
-[[ ## criteria ## ]]
-{{ criteria }}
-
 [[ ## answer ## ]]
 {{ output }}
 

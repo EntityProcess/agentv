@@ -1,71 +1,42 @@
 # Tool Calls Template Variable Demo
 #
 # Demonstrates using {{ tool_calls }} in LLM grader prompts to check
-# whether an agent invoked the right skills during execution.
+# whether an agent invoked the right skills during execution — without
+# needing the skill-trigger evaluator.
 #
-# The {{ tool_calls }} variable provides a formatted summary of all tool
-# calls from the agent's output (tool name + key inputs). This lets LLM
-# graders reason about tool usage without parsing raw Message[] data.
+# The workspace template includes the acme-deploy skill in all provider
+# directories (.claude/, .agents/, .copilot/, .github/) so any agent
+# target can discover and use it.
 #
-# This example uses a mock CLI agent that returns tool calls in its output.
-# The LLM grader then inspects the tool call summary to verify skill usage.
-#
-# Setup:
-#   1. Set GRADER_TARGET in your .env (e.g. openrouter)
-#   2. Run from repo root: bun agentv eval examples/features/tool-calls-template/evals/eval.yaml
+# Run:
+#   bun agentv eval examples/features/tool-calls-template/evals/eval.yaml --target copilot
 
 name: tool-calls-template
 description: LLM grader with {{ tool_calls }} template variable for skill verification
 
+workspace:
+  template: ../workspace/
+
 execution:
-  target: mock_agent
+  workers: 1
 
 tests:
-  # ==========================================
-  # Example 1: Verify deploy skill was triggered
-  # The mock agent calls Skill(acme-deploy) + Bash(kubectl)
-  # LLM grader checks tool_calls for Skill invocation
-  # ==========================================
   - id: deploy-skill-triggered
-    criteria: |-
-      The agent should invoke the acme-deploy skill to deploy the
-      payments-api service to production.
-    input:
-      - role: user
-        content: Deploy payments-api to production using the deploy skill.
+    input: How do I deploy payments-api to production?
     assertions:
       - name: skill-invoked
         type: llm-grader
         prompt: file://../prompts/skill-usage-check.md
 
-  # ==========================================
-  # Example 2: Verify review-pr skill was triggered
-  # The mock agent calls Skill(review-pr) + Read(files)
-  # LLM grader checks tool_calls for skill invocation
-  # ==========================================
-  - id: review-skill-triggered
-    criteria: |-
-      The agent should invoke the review-pr skill to review pull request #42.
-    input:
-      - role: user
-        content: Review pull request #42 using the review skill.
+  - id: rollback-skill-triggered
+    input: I need to roll back user-service in staging, what's the procedure?
     assertions:
       - name: skill-invoked
         type: llm-grader
         prompt: file://../prompts/skill-usage-check.md
 
-  # ==========================================
-  # Example 3: Verify NO skill was triggered (negative case)
-  # The mock agent only calls Read/Edit/Bash — no Skill tool
-  # LLM grader checks tool_calls to confirm absence of Skill
-  # ==========================================
-  - id: no-skill-for-bugfix
-    criteria: |-
-      The agent should fix the bug using basic tools (Read, Edit, Bash)
-      without invoking any skill.
-    input:
-      - role: user
-        content: Fix the null pointer bug in auth.ts.
+  - id: no-skill-for-unrelated
+    input: Write a Python function that parses JSON logs and extracts error messages.
     assertions:
       - name: no-skill-used
         type: llm-grader
