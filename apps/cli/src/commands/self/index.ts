@@ -1,9 +1,6 @@
 import { command, flag, subcommands } from 'cmd-ts';
 import packageJson from '../../../package.json' with { type: 'json' };
-import {
-  detectPackageManager,
-  performSelfUpdate,
-} from '../../self-update.js';
+import { detectPackageManager, performSelfUpdate } from '../../self-update.js';
 
 // Re-export for existing tests
 export { detectPackageManagerFromPath } from '../../self-update.js';
