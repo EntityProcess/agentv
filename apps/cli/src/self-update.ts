@@ -16,6 +16,9 @@
  */
 
 import { spawn } from 'node:child_process';
+import { get } from 'node:https';
+
+const NPM_REGISTRY_URL = 'https://registry.npmjs.org/agentv/latest';
 
 /**
  * Detect package manager from the script path.
@@ -44,6 +47,39 @@ function runCommand(cmd: string, args: string[]): Promise<{ exitCode: number; st
     });
     child.on('error', reject);
     child.on('close', (code) => resolve({ exitCode: code ?? 1, stdout }));
+  });
+}
+
+/**
+ * Fetch the latest published version of agentv from the npm registry.
+ * Returns null on network errors or timeouts (best-effort).
+ */
+export function fetchLatestVersion(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const req = get(NPM_REGISTRY_URL, { timeout: 5000 }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        resolve(null);
+        return;
+      }
+      let body = '';
+      res.on('data', (chunk: Buffer) => {
+        body += chunk.toString();
+      });
+      res.on('end', () => {
+        try {
+          const version = JSON.parse(body).version;
+          resolve(typeof version === 'string' ? version : null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
   });
 }
 

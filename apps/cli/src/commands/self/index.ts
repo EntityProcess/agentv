@@ -1,6 +1,6 @@
 import { command, flag, subcommands } from 'cmd-ts';
 import packageJson from '../../../package.json' with { type: 'json' };
-import { detectPackageManager, performSelfUpdate } from '../../self-update.js';
+import { detectPackageManager, fetchLatestVersion, performSelfUpdate } from '../../self-update.js';
 
 // Re-export for existing tests
 export { detectPackageManagerFromPath } from '../../self-update.js';
@@ -29,6 +29,17 @@ const updateCommand = command({
 
     const currentVersion = packageJson.version;
     console.log(`Current version: ${currentVersion}`);
+    console.log('Checking for updates...');
+
+    const latestVersion = await fetchLatestVersion();
+    if (latestVersion && latestVersion === currentVersion) {
+      console.log(`Already up to date (${currentVersion}).`);
+      return;
+    }
+
+    if (latestVersion) {
+      console.log(`Update available: ${currentVersion} → ${latestVersion}`);
+    }
     console.log(`Updating agentv using ${pm}...\n`);
 
     const result = await performSelfUpdate({ pm, currentVersion });
