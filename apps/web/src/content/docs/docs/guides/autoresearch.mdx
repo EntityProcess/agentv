@@ -1,5 +1,5 @@
 ---
-title: Autoresearch — Automated Optimization
+title: Autoresearch
 description: Run an unattended eval-improve loop that iteratively optimizes agent skills
 sidebar:
   order: 7
@@ -161,7 +161,7 @@ Cycle  Score   Decision   Mutation
                           ↳ 3 consecutive drops → CONVERGED
 ```
 
-**Result:** 0.48 → 0.90 (+42 points) in 9 cycles, $0.03 total cost. The optimized prompt is in `_autoresearch/best.md`.
+**Result:** 0.48 → 0.90 (+42 points) in 9 cycles, $0.03 total cost. The optimized prompt is in the working tree (and the latest git commit).
 
 Key observations:
 - **Cycle 3** shows a failed mutation (verbose rules hurt reasoning) — the ratchet discarded it and continued from the cycle 2 version
