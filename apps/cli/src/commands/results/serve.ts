@@ -37,14 +37,17 @@ import {
   discoverBenchmarks,
   getBenchmark,
   loadBenchmarkRegistry,
+  loadConfig,
   removeBenchmark,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 
+import { enforceRequiredVersion } from '../../version-check.js';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
 import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
+import { findRepoRoot } from '../eval/shared.js';
 import { listResultFiles } from '../inspect/utils.js';
 import { registerEvalRoutes } from './eval-runner.js';
 import {
@@ -1447,6 +1450,18 @@ export const resultsServeCommand = command({
       }
       console.log(`\nDiscovered ${discovered.length} project(s).`);
       return;
+    }
+
+    // ── Version check ────────────────────────────────────────────────
+    // Enforce `required_version` from .agentv/config.yaml so Studio/serve
+    // match `agentv eval` behavior. Same prompt in TTY, warn+continue
+    // otherwise. Single-project scope only — multi-project deployments
+    // (one agentv serving repos with differing requirements) are not
+    // covered here (see GitHub #1127 for per-project local installs).
+    const repoRoot = await findRepoRoot(cwd);
+    const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
+    if (yamlConfig?.required_version) {
+      await enforceRequiredVersion(yamlConfig.required_version);
     }
 
     // ── Determine multi-project mode ────────────────────────────────
