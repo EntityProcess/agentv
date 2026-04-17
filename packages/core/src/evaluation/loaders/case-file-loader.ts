@@ -169,7 +169,7 @@ export async function loadCasesFromDirectory(dirPath: string): Promise<JsonObjec
   const entries = await readdir(dirPath, { withFileTypes: true });
   const subdirs = entries
     .filter((e) => e.isDirectory())
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
   const results: JsonObject[] = [];
   for (const subdir of subdirs) {
@@ -217,7 +217,7 @@ export async function loadCasesFromDirectory(dirPath: string): Promise<JsonObjec
     const caseObj = { ...parsed };
 
     // Inject id from directory name if not specified
-    if (!caseObj.id) {
+    if (caseObj.id === undefined || caseObj.id === null) {
       caseObj.id = subdir.name;
     }
 
