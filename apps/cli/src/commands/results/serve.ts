@@ -19,6 +19,10 @@
  * variants. They share handler functions via DataContext, differing only in
  * how searchDir is resolved.
  *
+ * Before starting the server, the command enforces `required_version` from
+ * the cwd's `.agentv/config.yaml` (single-project scope) via
+ * `enforceRequiredVersion()`, matching the behavior of `agentv eval`.
+ *
  * Exported functions (for testing):
  *   - resolveSourceFile(source, cwd) — resolves a run manifest path
  *   - loadResults(content) — parses JSONL into EvaluationResult[]
@@ -1455,9 +1459,9 @@ export const resultsServeCommand = command({
     // ── Version check ────────────────────────────────────────────────
     // Enforce `required_version` from .agentv/config.yaml so Studio/serve
     // match `agentv eval` behavior. Same prompt in TTY, warn+continue
-    // otherwise. Single-project scope only — multi-project deployments
-    // (one agentv serving repos with differing requirements) are not
-    // covered here (see GitHub #1127 for per-project local installs).
+    // otherwise. Single-project scope only — when one agentv instance
+    // serves multiple repos with differing version requirements, a
+    // per-project local install is required instead.
     const repoRoot = await findRepoRoot(cwd);
     const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
     if (yamlConfig?.required_version) {
