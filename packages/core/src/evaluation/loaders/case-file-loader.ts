@@ -167,7 +167,9 @@ export async function resolveFileReference(
  */
 export async function loadCasesFromDirectory(dirPath: string): Promise<JsonObject[]> {
   const entries = await readdir(dirPath, { withFileTypes: true });
-  const subdirs = entries.filter((e) => e.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
+  const subdirs = entries
+    .filter((e) => e.isDirectory())
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const results: JsonObject[] = [];
   for (const subdir of subdirs) {
