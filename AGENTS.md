@@ -33,16 +33,26 @@ Built-in graders provide **universal primitives** that users compose. A primitiv
 
 If a feature serves a niche use case or adds conditional logic, it belongs in a plugin.
 
-### 3. Align with Industry Standards
+### 3. Maximize Feature Surface Through Composition
+The goal is to achieve the **maximum feature surface with the minimum primitives** due to high reusability. Before proposing a new feature, enumerate which existing primitives could achieve the same outcome when composed:
+
+- **Oracle validation** is not a feature — it's a `cli` provider target that runs a reference solution through the same evaluators.
+- **Snapshot MCP for benchmarks** is not a feature — it's frozen data in the workspace template + `before_all`/`after_all` hooks to start/stop the server.
+- **Harness variant comparison** is not a feature — it's target hooks with different `before_each` setup scripts.
+- **Skill evaluation** is not a feature — it's `tool-trajectory` + `execution-metrics` + `rubric` composed via `composite`.
+
+**If existing primitives cover it, document the pattern instead of building a feature.** New primitives are justified only when the composition is impossible, not merely when it's undocumented.
+
+### 4. Align with Industry Standards
 Before adding features, research how peer frameworks solve the problem. Prefer the **lowest common denominator** that covers most use cases. Novel features without industry precedent require strong justification and should default to plugin implementation.
 
-### 4. YAGNI — You Aren't Gonna Need It
+### 5. YAGNI — You Aren't Gonna Need It
 Don't build features until there's a concrete need. Before adding a new capability, ask: "Is there real demand for this today, or am I anticipating future needs?" Numeric thresholds, extra tracking fields, and configurable knobs should be omitted until users actually request them. Start with the simplest version (e.g., boolean over numeric range) and extend later if needed.
 
-### 5. Non-Breaking Extensions
+### 6. Non-Breaking Extensions
 New fields should be optional. Existing configurations must continue working unchanged.
 
-### 6. AI-First Design
+### 7. AI-First Design
 AI agents are the primary users of AgentV—not humans reading docs. Design for AI comprehension and composability.
 
 **Skills over rigid commands:**
