@@ -11,6 +11,11 @@
  *
  * When called from `agentv self update` (no range), it installs `@latest`.
  *
+ * Install scope detection: if `process.argv[1]` contains `node_modules`,
+ * agentv was invoked from a local project dependency (e.g. `npx agentv` or
+ * `node_modules/.bin/agentv`); update the local dep instead of the global
+ * install. Otherwise, update globally (default).
+ *
  * To add a new package manager: add a case to `detectPackageManagerFromPath()`
  * and a corresponding install-args entry in `getInstallArgs()`.
  */
@@ -33,6 +38,24 @@ export function detectPackageManagerFromPath(scriptPath: string): 'bun' | 'npm' 
 
 export function detectPackageManager(): 'bun' | 'npm' {
   return detectPackageManagerFromPath(process.argv[1] ?? '');
+}
+
+/**
+ * Detect whether agentv was invoked from a local project install.
+ * A path containing a `node_modules` segment indicates a local dependency;
+ * anything else (system binary, `.bun/bin`, `.nvm/.../bin`) is treated as
+ * global. Matches both POSIX and Windows path separators so a directory
+ * that merely embeds the substring (e.g., `/opt/my_node_modules_tool/`)
+ * isn't misclassified.
+ */
+export function detectInstallScopeFromPath(scriptPath: string): 'local' | 'global' {
+  const hasSegment =
+    scriptPath.includes('/node_modules/') || scriptPath.includes('\\node_modules\\');
+  return hasSegment ? 'local' : 'global';
+}
+
+export function detectInstallScope(): 'local' | 'global' {
+  return detectInstallScopeFromPath(process.argv[1] ?? '');
 }
 
 function runCommand(cmd: string, args: string[]): Promise<{ exitCode: number; stdout: string }> {
@@ -83,37 +106,52 @@ export function fetchLatestVersion(): Promise<string | null> {
   });
 }
 
-function getInstallArgs(pm: 'bun' | 'npm', versionSpec: string): string[] {
+export function getInstallArgs(
+  pm: 'bun' | 'npm',
+  versionSpec: string,
+  scope: 'local' | 'global',
+): string[] {
   const pkg = `agentv@${versionSpec}`;
-  return pm === 'npm' ? ['install', '-g', pkg] : ['add', '-g', pkg];
+  const baseCmd = pm === 'npm' ? 'install' : 'add';
+  return scope === 'global' ? [baseCmd, '-g', pkg] : [baseCmd, pkg];
 }
 
 /**
- * Run the self-update flow: install agentv globally using the detected
- * (or specified) package manager.
+ * Run the self-update flow: install agentv using the detected (or specified)
+ * package manager, scoped to the detected install location (global by default,
+ * local when invoked from a project's `node_modules`).
  *
  * @param options.pm - Force a specific package manager
  * @param options.currentVersion - Current installed version (for display)
  * @param options.versionRange - Semver range from config (e.g., ">=4.1.0").
  *   When provided, used as the npm/bun version specifier so the update
  *   stays within the project's constraints. When omitted, installs `@latest`.
+ * @param options.scope - Force local or global install. Defaults to
+ *   auto-detection based on `process.argv[1]`.
  */
 export async function performSelfUpdate(options?: {
   pm?: 'bun' | 'npm';
   currentVersion?: string;
   versionRange?: string;
-}): Promise<{ success: boolean; currentVersion: string; newVersion?: string }> {
+  scope?: 'local' | 'global';
+}): Promise<{
+  success: boolean;
+  currentVersion: string;
+  newVersion?: string;
+  scope: 'local' | 'global';
+}> {
   const pm = options?.pm ?? detectPackageManager();
   const currentVersion = options?.currentVersion ?? 'unknown';
   const versionSpec = options?.versionRange ?? 'latest';
+  const scope = options?.scope ?? detectInstallScope();
 
-  const args = getInstallArgs(pm, versionSpec);
+  const args = getInstallArgs(pm, versionSpec, scope);
 
   try {
     const result = await runCommand(pm, args);
 
     if (result.exitCode !== 0) {
-      return { success: false, currentVersion };
+      return { success: false, currentVersion, scope };
     }
 
     // Best-effort version check after update
@@ -125,7 +163,7 @@ export async function performSelfUpdate(options?: {
       // Ignore - version check is best-effort
     }
 
-    return { success: true, currentVersion, newVersion };
+    return { success: true, currentVersion, newVersion, scope };
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes('ENOENT') || error.message.includes('not found')) {
@@ -135,6 +173,6 @@ export async function performSelfUpdate(options?: {
         console.error(`Error: ${error.message}`);
       }
     }
-    return { success: false, currentVersion };
+    return { success: false, currentVersion, scope };
   }
 }

@@ -1,9 +1,14 @@
 import { command, flag, subcommands } from 'cmd-ts';
 import packageJson from '../../../package.json' with { type: 'json' };
-import { detectPackageManager, fetchLatestVersion, performSelfUpdate } from '../../self-update.js';
+import {
+  detectInstallScope,
+  detectPackageManager,
+  fetchLatestVersion,
+  performSelfUpdate,
+} from '../../self-update.js';
 
 // Re-export for existing tests
-export { detectPackageManagerFromPath } from '../../self-update.js';
+export { detectInstallScopeFromPath, detectPackageManagerFromPath } from '../../self-update.js';
 
 const updateCommand = command({
   name: 'update',
@@ -40,9 +45,11 @@ const updateCommand = command({
     if (latestVersion) {
       console.log(`Update available: ${currentVersion} → ${latestVersion}`);
     }
-    console.log(`Updating agentv using ${pm}...\n`);
+    const scope = detectInstallScope();
+    const scopeLabel = scope === 'local' ? 'local project install' : 'global install';
+    console.log(`Updating agentv using ${pm} (${scopeLabel})...\n`);
 
-    const result = await performSelfUpdate({ pm, currentVersion });
+    const result = await performSelfUpdate({ pm, currentVersion, scope });
 
     if (!result.success) {
       console.error('\nUpdate failed.');
