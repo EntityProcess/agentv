@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import fg from 'fast-glob';
 import { parse as parseYaml } from 'yaml';
@@ -156,6 +156,88 @@ export async function resolveFileReference(
 
   // Direct file path
   return loadCasesFromFile(absolutePattern);
+}
+
+/**
+ * Load test cases from a directory structure.
+ * Scans immediate subdirectories for case.yaml/case.yml files.
+ * Each subdirectory becomes a test case, with the directory name used as `id`
+ * if the case file doesn't specify one. A `workspace/` subdirectory in the
+ * case directory sets the workspace template automatically.
+ */
+export async function loadCasesFromDirectory(dirPath: string): Promise<JsonObject[]> {
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  const subdirs = entries
+    .filter((e) => e.isDirectory())
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+  const results: JsonObject[] = [];
+  for (const subdir of subdirs) {
+    const subdirPath = path.join(dirPath, subdir.name);
+
+    // Look for case.yaml or case.yml
+    let caseFilePath: string | undefined;
+    for (const filename of ['case.yaml', 'case.yml']) {
+      const candidate = path.join(subdirPath, filename);
+      try {
+        const s = await stat(candidate);
+        if (s.isFile()) {
+          caseFilePath = candidate;
+          break;
+        }
+      } catch {
+        // File doesn't exist, try next
+      }
+    }
+
+    if (!caseFilePath) {
+      console.warn(
+        `${ANSI_YELLOW}Warning: Skipping directory '${subdir.name}' — no case.yaml found${ANSI_RESET}`,
+      );
+      continue;
+    }
+
+    // Parse case.yaml as a single object (not array)
+    let content: string;
+    try {
+      content = await readFile(caseFilePath, 'utf8');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Cannot read case file: ${caseFilePath}\n  ${message}`);
+    }
+
+    const raw = parseYaml(content) as unknown;
+    const parsed = interpolateEnv(raw, process.env);
+    if (!isJsonObject(parsed)) {
+      throw new Error(
+        `Case file must contain a YAML object, got ${typeof parsed}: ${caseFilePath}`,
+      );
+    }
+
+    const caseObj = { ...parsed };
+
+    // Inject id from directory name if not specified
+    if (caseObj.id === undefined || caseObj.id === null) {
+      caseObj.id = subdir.name;
+    }
+
+    // Check for workspace/ subdirectory
+    if (!caseObj.workspace) {
+      const workspaceDirPath = path.join(subdirPath, 'workspace');
+      try {
+        const s = await stat(workspaceDirPath);
+        if (s.isDirectory()) {
+          caseObj.workspace = { template: workspaceDirPath };
+        }
+      } catch {
+        // No workspace directory, that's fine
+      }
+    }
+
+    results.push(caseObj);
+  }
+
+  return results;
 }
 
 /**

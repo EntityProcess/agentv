@@ -1,9 +1,9 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
-import { loadCasesFromFile } from '../loaders/case-file-loader.js';
+import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-loader.js';
 import { isGraderKind } from '../types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -234,20 +234,27 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   const cases: JsonValue | undefined = parsed.tests;
 
-  // tests can be a string path (external file reference) or an array
+  // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
-    validateTestsStringPath(cases, absolutePath, errors);
     await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
 
-    const ext = path.extname(cases).toLowerCase();
-    if (VALID_TEST_FILE_EXTENSIONS.has(ext)) {
-      const externalCasesPath = path.resolve(path.dirname(absolutePath), cases);
+    const externalCasesPath = path.resolve(path.dirname(absolutePath), cases);
+    let isDir = false;
+    try {
+      const pathStat = await stat(externalCasesPath);
+      isDir = pathStat.isDirectory();
+    } catch {
+      // Path doesn't exist — fall through to file validation
+    }
+
+    if (isDir) {
+      // Directory path: load and validate discovered cases
       try {
-        const externalCases = await loadCasesFromFile(externalCasesPath);
-        for (let i = 0; i < externalCases.length; i++) {
-          const externalCase = externalCases[i];
+        const dirCases = await loadCasesFromDirectory(externalCasesPath);
+        for (let i = 0; i < dirCases.length; i++) {
+          const dirCase = dirCases[i];
           await validateWorkspaceConfig(
-            externalCase.workspace,
+            dirCase.workspace,
             absolutePath,
             errors,
             `tests[${i}].workspace`,
@@ -261,6 +268,32 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
           location: 'tests',
           message,
         });
+      }
+    } else {
+      // File path: validate extension and load
+      validateTestsStringPath(cases, absolutePath, errors);
+      const ext = path.extname(cases).toLowerCase();
+      if (VALID_TEST_FILE_EXTENSIONS.has(ext)) {
+        try {
+          const externalCases = await loadCasesFromFile(externalCasesPath);
+          for (let i = 0; i < externalCases.length; i++) {
+            const externalCase = externalCases[i];
+            await validateWorkspaceConfig(
+              externalCase.workspace,
+              absolutePath,
+              errors,
+              `tests[${i}].workspace`,
+            );
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push({
+            severity: 'error',
+            filePath: absolutePath,
+            location: 'tests',
+            message,
+          });
+        }
       }
     }
 

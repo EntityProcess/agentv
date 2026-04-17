@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
@@ -6,7 +6,11 @@ import { parse } from 'yaml';
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import { interpolateEnv } from './interpolation.js';
 import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
-import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
+import {
+  expandFileReferences,
+  loadCasesFromDirectory,
+  loadCasesFromFile,
+} from './loaders/case-file-loader.js';
 import {
   extractBudgetUsd,
   extractCacheConfig,
@@ -332,12 +336,22 @@ async function loadTestsFromYaml(
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);
 
-  // Resolve tests: string path to external file, inline array, or error
+  // Resolve tests: string path to external file/directory, inline array, or error
   let expandedTestCases: readonly JsonValue[];
   if (typeof rawTestCases === 'string') {
-    // String path: load tests from external file (YAML, JSONL)
     const externalPath = path.resolve(evalFileDir, rawTestCases);
-    expandedTestCases = await loadCasesFromFile(externalPath);
+    let isDir = false;
+    try {
+      const pathStat = await stat(externalPath);
+      isDir = pathStat.isDirectory();
+    } catch {
+      // Path doesn't exist — fall through to loadCasesFromFile for its error message
+    }
+    if (isDir) {
+      expandedTestCases = await loadCasesFromDirectory(externalPath);
+    } else {
+      expandedTestCases = await loadCasesFromFile(externalPath);
+    }
   } else if (Array.isArray(rawTestCases)) {
     // Inline array: expand any file:// references
     expandedTestCases = await expandFileReferences(rawTestCases, evalFileDir);

@@ -1,0 +1,4 @@
+criteria: Adds a greeting message that displays the user's name
+input: |
+  Add a greeting feature to the homepage. When a user logs in,
+  display "Welcome back, {name}!" at the top of the page.

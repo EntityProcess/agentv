@@ -40,7 +40,7 @@ tests:
 | `suite` | Optional suite identifier |
 | `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
 | `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config) |
-| `tests` | Array of individual tests, or a string path to an external file |
+| `tests` | Array of individual tests, or a string path to an external file or directory |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
@@ -177,6 +177,46 @@ tests: ./cases.yaml
 ```
 
 The path is resolved relative to the eval file's directory. The external file should contain a YAML array of test objects or a JSONL file with one test per line.
+
+### Tests as Directory Path
+
+When `tests` points to a directory, AgentV auto-discovers test cases from subdirectories. Each subdirectory containing a `case.yaml` (or `case.yml`) becomes a test case:
+
+```
+my-eval/
+  EVAL.yaml
+  cases/
+    fix-null-check/
+      case.yaml
+    add-greeting/
+      case.yaml
+      workspace/        # optional per-case workspace template
+        setup-files...
+```
+
+```yaml
+# EVAL.yaml
+name: my-benchmark
+tests: ./cases/
+```
+
+Each `case.yaml` is a single YAML object (not an array) with the same fields as an inline test:
+
+```yaml
+# cases/fix-null-check/case.yaml
+criteria: Fixes the null reference bug in the parser module
+input: Fix the null check bug in parser.ts
+```
+
+**Behavior:**
+
+- **Directory name as `id`:** If `case.yaml` doesn't specify an `id`, the directory name is used (e.g., `fix-null-check`)
+- **Alphabetical ordering:** Subdirectories are sorted alphabetically for deterministic order
+- **Per-case workspace:** A `workspace/` subdirectory inside the case directory automatically sets `workspace.template` to that path, unless the case already defines a `workspace` field
+- **Skipped directories:** Subdirectories without `case.yaml` are skipped with a warning
+- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, and `execution` still apply to directory-discovered cases
+
+This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
 
 ## Environment Variable Interpolation
 

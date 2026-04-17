@@ -1,0 +1,5 @@
+criteria: Identifies and fixes the null reference bug in the parser module
+input: |
+  Fix the null check bug in parser.ts. The function `parseToken` crashes
+  when given an empty string because it doesn't check for null before
+  accessing `.length`.
