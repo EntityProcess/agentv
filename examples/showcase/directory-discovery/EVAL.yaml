@@ -1,0 +1,4 @@
+name: directory-discovery
+description: Demonstrates auto-discovering test cases from a directory structure
+
+tests: ./cases/

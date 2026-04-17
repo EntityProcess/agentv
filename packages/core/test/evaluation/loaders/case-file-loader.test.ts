@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   expandFileReferences,
   isFileReference,
+  loadCasesFromDirectory,
   resolveFileReference,
 } from '../../../src/evaluation/loaders/case-file-loader.js';
 import { loadTestSuite, loadTests } from '../../../src/evaluation/yaml-parser.js';
@@ -440,5 +441,232 @@ tests: bare-cases.yaml
 
     expect(tests).toHaveLength(1);
     expect(tests[0].id).toBe('bare-path-test');
+  });
+});
+
+describe('loadCasesFromDirectory', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-dir-discovery-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('discovers cases from subdirectories with case.yaml', async () => {
+    const casesDir = path.join(tempDir, 'happy-path');
+    await mkdir(path.join(casesDir, 'fix-bug'), { recursive: true });
+    await mkdir(path.join(casesDir, 'add-feature'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'fix-bug', 'case.yaml'),
+      `criteria: "Fixes the null check bug"
+input: "Fix the null check"
+`,
+    );
+    await writeFile(
+      path.join(casesDir, 'add-feature', 'case.yaml'),
+      `criteria: "Adds greeting feature"
+input: "Add a greeting"
+`,
+    );
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(2);
+    // Alphabetical order: add-feature before fix-bug
+    expect(cases[0].id).toBe('add-feature');
+    expect(cases[0].criteria).toBe('Adds greeting feature');
+    expect(cases[1].id).toBe('fix-bug');
+    expect(cases[1].criteria).toBe('Fixes the null check bug');
+  });
+
+  it('uses directory name as id when not specified in case.yaml', async () => {
+    const casesDir = path.join(tempDir, 'no-id');
+    await mkdir(path.join(casesDir, 'my-case'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'my-case', 'case.yaml'),
+      `criteria: "Some goal"
+input: "Do something"
+`,
+    );
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('my-case');
+  });
+
+  it('id in case.yaml takes precedence over directory name', async () => {
+    const casesDir = path.join(tempDir, 'explicit-id');
+    await mkdir(path.join(casesDir, 'dir-name'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'dir-name', 'case.yaml'),
+      `id: custom-id
+criteria: "Some goal"
+input: "Do something"
+`,
+    );
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('custom-id');
+  });
+
+  it('skips subdirectories without case.yaml with warning', async () => {
+    const casesDir = path.join(tempDir, 'skip-warning');
+    await mkdir(path.join(casesDir, 'has-case'), { recursive: true });
+    await mkdir(path.join(casesDir, 'no-case'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'has-case', 'case.yaml'),
+      `criteria: "Goal"
+input: "Input"
+`,
+    );
+    // no-case directory has no case.yaml
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('has-case');
+  });
+
+  it('returns cases in alphabetical order', async () => {
+    const casesDir = path.join(tempDir, 'alpha-order');
+    for (const name of ['charlie', 'alpha', 'bravo']) {
+      await mkdir(path.join(casesDir, name), { recursive: true });
+      await writeFile(
+        path.join(casesDir, name, 'case.yaml'),
+        `criteria: "${name}"
+input: "${name}"
+`,
+      );
+    }
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases.map((c) => c.id)).toEqual(['alpha', 'bravo', 'charlie']);
+  });
+
+  it('sets workspace template from workspace/ subdirectory', async () => {
+    const casesDir = path.join(tempDir, 'workspace-dir');
+    await mkdir(path.join(casesDir, 'my-case', 'workspace'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'my-case', 'case.yaml'),
+      `criteria: "Goal"
+input: "Input"
+`,
+    );
+    await writeFile(path.join(casesDir, 'my-case', 'workspace', 'file.txt'), 'content');
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(1);
+    const ws = cases[0].workspace as { template: string };
+    expect(ws.template).toBe(path.join(casesDir, 'my-case', 'workspace'));
+  });
+
+  it('does not override explicit workspace in case.yaml', async () => {
+    const casesDir = path.join(tempDir, 'ws-explicit');
+    await mkdir(path.join(casesDir, 'my-case', 'workspace'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'my-case', 'case.yaml'),
+      `criteria: "Goal"
+input: "Input"
+workspace:
+  template: /custom/path
+`,
+    );
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(1);
+    const ws = cases[0].workspace as { template: string };
+    expect(ws.template).toBe('/custom/path');
+  });
+
+  it('returns empty array for empty directory', async () => {
+    const casesDir = path.join(tempDir, 'empty-dir');
+    await mkdir(casesDir, { recursive: true });
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(0);
+  });
+
+  it('supports case.yml extension', async () => {
+    const casesDir = path.join(tempDir, 'yml-ext');
+    await mkdir(path.join(casesDir, 'my-case'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'my-case', 'case.yml'),
+      `criteria: "YML goal"
+input: "YML input"
+`,
+    );
+
+    const cases = await loadCasesFromDirectory(casesDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('my-case');
+    expect(cases[0].criteria).toBe('YML goal');
+  });
+});
+
+describe('tests as directory path (integration)', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-dir-integration-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('loads tests from directory via tests: string path in eval YAML', async () => {
+    // Create directory structure
+    const casesDir = path.join(tempDir, 'cases');
+    await mkdir(path.join(casesDir, 'fix-null-check'), { recursive: true });
+    await mkdir(path.join(casesDir, 'add-greeting'), { recursive: true });
+
+    await writeFile(
+      path.join(casesDir, 'fix-null-check', 'case.yaml'),
+      `criteria: "Fixes the null check bug"
+input: "Fix the null check in parser.ts"
+`,
+    );
+    await writeFile(
+      path.join(casesDir, 'add-greeting', 'case.yaml'),
+      `criteria: "Adds a greeting message"
+input: "Add a greeting to the homepage"
+`,
+    );
+
+    // Create eval YAML pointing to the directory
+    await writeFile(
+      path.join(tempDir, 'suite.eval.yaml'),
+      `name: dir-discovery-suite
+description: Tests loaded from directory
+tests: ./cases/
+`,
+    );
+
+    const result = await loadTestSuite(path.join(tempDir, 'suite.eval.yaml'), tempDir);
+
+    expect(result.tests).toHaveLength(2);
+    expect(result.tests[0].id).toBe('add-greeting');
+    expect(result.tests[1].id).toBe('fix-null-check');
+    expect(result.metadata?.name).toBe('dir-discovery-suite');
   });
 });
