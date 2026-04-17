@@ -46,7 +46,7 @@ const updateCommand = command({
       console.log(`Update available: ${currentVersion} → ${latestVersion}`);
     }
     const scope = detectInstallScope();
-    const scopeLabel = scope === 'local' ? 'local (project)' : 'global';
+    const scopeLabel = scope === 'local' ? 'local project install' : 'global install';
     console.log(`Updating agentv using ${pm} (${scopeLabel})...\n`);
 
     const result = await performSelfUpdate({ pm, currentVersion, scope });

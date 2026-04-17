@@ -42,11 +42,16 @@ export function detectPackageManager(): 'bun' | 'npm' {
 
 /**
  * Detect whether agentv was invoked from a local project install.
- * A path containing `node_modules` indicates a local dependency; anything
- * else (system binary, `.bun/bin`, `.nvm/.../bin`) is treated as global.
+ * A path containing a `node_modules` segment indicates a local dependency;
+ * anything else (system binary, `.bun/bin`, `.nvm/.../bin`) is treated as
+ * global. Matches both POSIX and Windows path separators so a directory
+ * that merely embeds the substring (e.g., `/opt/my_node_modules_tool/`)
+ * isn't misclassified.
  */
 export function detectInstallScopeFromPath(scriptPath: string): 'local' | 'global' {
-  return scriptPath.includes('node_modules') ? 'local' : 'global';
+  const hasSegment =
+    scriptPath.includes('/node_modules/') || scriptPath.includes('\\node_modules\\');
+  return hasSegment ? 'local' : 'global';
 }
 
 export function detectInstallScope(): 'local' | 'global' {
@@ -101,7 +106,7 @@ export function fetchLatestVersion(): Promise<string | null> {
   });
 }
 
-function getInstallArgs(
+export function getInstallArgs(
   pm: 'bun' | 'npm',
   versionSpec: string,
   scope: 'local' | 'global',
