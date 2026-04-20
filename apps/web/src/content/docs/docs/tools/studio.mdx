@@ -49,7 +49,6 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 | `--single` | Force single-benchmark dashboard mode |
 | `--add <path>` | Register a benchmark by path |
 | `--remove <id>` | Unregister a benchmark by ID |
-| `--discovery-root <path>` | Watch a directory: benchmarks under it appear/disappear live without restart. Repeatable. |
 
 ## Features
 
@@ -154,24 +153,23 @@ agentv studio --add /path/to/other-evals
 
 Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/benchmarks.yaml`.
 
-### Runtime Discovery
+### Runtime behavior: no restart needed
 
-For a 24/7 Studio deployment, tell it which directory to watch:
+`benchmarks.yaml` is the single source of truth. Studio re-reads it on every `/api/benchmarks` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
 
-```bash
-agentv studio --discovery-root /path/to/repos
-```
+- Adding via the UI's **Add Benchmark** form or `POST /api/benchmarks`.
+- Removing via the UI's **Remove** button or `DELETE /api/benchmarks/:id`.
+- Editing `~/.agentv/benchmarks.yaml` directly.
+- Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Studio reflects it within the next poll.
 
-Studio rescans every configured root on each `/api/benchmarks` read (every ~10 s via the UI poll), so any `.agentv/` repo appearing or disappearing under a root shows up without restarting the server. The flag is repeatable and persisted to `~/.agentv/benchmarks.yaml` under `discovery_roots`, so you only need to pass it once.
-
-Click **Remove** on a discovered benchmark to hide it from the UI — its path goes into the `excluded_paths` list. Pinning it via `--add` or the UI's Add form un-hides it (manual always wins).
+This satisfies the 24/7-Studio use case: the server stays up; benchmarks come and go through config edits or API calls.
 
 ### Launching the Dashboard
 
-Studio auto-detects the mode based on how many benchmarks are active:
+Studio auto-detects the mode based on how many benchmarks are registered:
 
-- `0` or `1` active: single-benchmark view
-- `2+` active: Benchmarks dashboard
+- `0` or `1` registered: single-benchmark view
+- `2+` registered: Benchmarks dashboard
 
 ```bash
 agentv studio          # auto-detects

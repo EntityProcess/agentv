@@ -88,7 +88,6 @@ export {
 export {
   type BenchmarkEntry,
   type BenchmarkRegistry,
-  type BenchmarkSource,
   loadBenchmarkRegistry,
   saveBenchmarkRegistry,
   addBenchmark,
@@ -98,14 +97,6 @@ export {
   discoverBenchmarks,
   deriveBenchmarkId,
   getBenchmarksRegistryPath,
-  getDiscoveryRoots,
-  addDiscoveryRoot,
-  removeDiscoveryRoot,
-  getExcludedPaths,
-  addExcludedPath,
-  removeExcludedPath,
-  resolveActiveBenchmarks,
-  getActiveBenchmark,
 } from './benchmarks.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';

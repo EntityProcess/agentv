@@ -5,18 +5,14 @@ import path from 'node:path';
 
 import {
   addBenchmark,
-  addDiscoveryRoot,
-  addExcludedPath,
+  getBenchmark,
   getBenchmarksRegistryPath,
-  getDiscoveryRoots,
-  getExcludedPaths,
   loadBenchmarkRegistry,
-  removeDiscoveryRoot,
-  removeExcludedPath,
-  resolveActiveBenchmarks,
+  removeBenchmark,
+  touchBenchmark,
 } from '../src/benchmarks.js';
 
-describe('benchmarks registry + runtime discovery', () => {
+describe('benchmarks registry', () => {
   let fakeHome: string;
   let reposRoot: string;
   // biome-ignore lint/suspicious/noExplicitAny: spy typing from bun:test is intentionally loose.
@@ -40,51 +36,54 @@ describe('benchmarks registry + runtime discovery', () => {
     return dir;
   }
 
-  it('persists and lists discovery roots, omitting the key when empty', () => {
-    expect(getDiscoveryRoots()).toEqual([]);
-    expect(loadBenchmarkRegistry().discoveryRoots).toBeUndefined();
+  it('starts empty and surfaces new entries after addBenchmark', () => {
+    expect(loadBenchmarkRegistry().benchmarks).toEqual([]);
 
-    const added = addDiscoveryRoot(reposRoot);
-    expect(added).toBe(path.resolve(reposRoot));
-    expect(getDiscoveryRoots()).toEqual([path.resolve(reposRoot)]);
+    const repoPath = makeRepo('alpha');
+    const entry = addBenchmark(repoPath);
+    expect(entry.name).toBe('alpha');
+    expect(entry.path).toBe(path.resolve(repoPath));
 
-    // Serialized keys on disk are snake_case per AGENTS.md wire-format convention,
-    // even though the in-memory TS fields are camelCase.
-    const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
-    expect(yamlOnDisk).toContain('discovery_roots:');
-    expect(yamlOnDisk).not.toContain('discoveryRoots:');
-
-    // Adding the same root again is idempotent.
-    addDiscoveryRoot(reposRoot);
-    expect(getDiscoveryRoots()).toEqual([path.resolve(reposRoot)]);
-
-    expect(removeDiscoveryRoot(reposRoot)).toBe(true);
-    expect(getDiscoveryRoots()).toEqual([]);
-    expect(loadBenchmarkRegistry().discoveryRoots).toBeUndefined();
+    // Subsequent load reflects the write (per-request reload model).
+    expect(loadBenchmarkRegistry().benchmarks).toHaveLength(1);
+    expect(getBenchmark(entry.id)?.path).toBe(entry.path);
   });
 
-  it('surfaces repos appearing under a discovery root without restart', () => {
-    addDiscoveryRoot(reposRoot);
+  it('addBenchmark refuses a path with no .agentv/ directory', () => {
+    const bare = mkdtempSync(path.join(os.tmpdir(), 'agentv-bare-'));
+    expect(() => addBenchmark(bare)).toThrow(/No \.agentv\/ directory found/);
+    rmSync(bare, { recursive: true, force: true });
+  });
 
-    expect(resolveActiveBenchmarks()).toEqual([]);
+  it('addBenchmark is idempotent on the same path', () => {
+    const repoPath = makeRepo('idempotent');
+    const first = addBenchmark(repoPath);
+    const second = addBenchmark(repoPath);
+    expect(first.id).toBe(second.id);
+    expect(loadBenchmarkRegistry().benchmarks).toHaveLength(1);
+  });
 
-    makeRepo('r1');
-    const afterAdd = resolveActiveBenchmarks();
-    expect(afterAdd).toHaveLength(1);
-    expect(afterAdd[0]).toMatchObject({
-      name: 'r1',
-      path: path.resolve(reposRoot, 'r1'),
-      source: 'discovered',
-    });
+  it('removeBenchmark drops the entry by id', () => {
+    const entry = addBenchmark(makeRepo('to-remove'));
+    expect(removeBenchmark(entry.id)).toBe(true);
+    expect(loadBenchmarkRegistry().benchmarks).toEqual([]);
+    expect(removeBenchmark(entry.id)).toBe(false);
+  });
 
-    // Simulate removal: rm -rf the repo dir.
-    rmSync(path.join(reposRoot, 'r1'), { recursive: true, force: true });
-    expect(resolveActiveBenchmarks()).toEqual([]);
+  it('touchBenchmark updates lastOpenedAt without affecting other entries', () => {
+    const a = addBenchmark(makeRepo('a'));
+    const b = addBenchmark(makeRepo('b'));
+    const originalB = loadBenchmarkRegistry().benchmarks.find((e) => e.id === b.id);
+
+    touchBenchmark(a.id);
+    const reloadedA = loadBenchmarkRegistry().benchmarks.find((e) => e.id === a.id);
+    const reloadedB = loadBenchmarkRegistry().benchmarks.find((e) => e.id === b.id);
+    expect(reloadedA?.lastOpenedAt).not.toBe(a.lastOpenedAt);
+    expect(reloadedB?.lastOpenedAt).toBe(originalB?.lastOpenedAt);
   });
 
   it('serializes benchmark entries with snake_case keys on disk', () => {
-    const repoPath = makeRepo('snake');
-    const entry = addBenchmark(repoPath);
+    const entry = addBenchmark(makeRepo('snake'));
 
     const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
     expect(yamlOnDisk).toContain('added_at:');
@@ -99,76 +98,5 @@ describe('benchmarks registry + runtime discovery', () => {
       addedAt: entry.addedAt,
       lastOpenedAt: entry.lastOpenedAt,
     });
-  });
-
-  it('keeps manually-added entries even when their path is not under a root', () => {
-    const outside = makeRepo('manual');
-    const entry = addBenchmark(outside);
-
-    const active = resolveActiveBenchmarks();
-    expect(active).toHaveLength(1);
-    expect(active[0].id).toBe(entry.id);
-    expect(active[0].source).toBe('manual');
-  });
-
-  it('hides a discovered repo once its path is excluded, and shows it again when unexcluded', () => {
-    addDiscoveryRoot(reposRoot);
-    const repoPath = makeRepo('junk');
-
-    expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
-
-    const excluded = addExcludedPath(repoPath);
-    expect(excluded).toBe(path.resolve(repoPath));
-    expect(getExcludedPaths()).toEqual([path.resolve(repoPath)]);
-    expect(resolveActiveBenchmarks()).toEqual([]);
-
-    // Serialized form uses snake_case.
-    const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
-    expect(yamlOnDisk).toContain('excluded_paths:');
-    expect(yamlOnDisk).not.toContain('excludedPaths:');
-
-    // Unexclude → the repo reappears on the next scan.
-    expect(removeExcludedPath(repoPath)).toBe(true);
-    expect(getExcludedPaths()).toEqual([]);
-    expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
-  });
-
-  it('treats addExcludedPath on a pinned repo as a no-op', () => {
-    const repoPath = makeRepo('already-pinned');
-    addBenchmark(repoPath);
-
-    // Returns the resolved path but does not persist an exclusion.
-    expect(addExcludedPath(repoPath)).toBe(path.resolve(repoPath));
-    expect(getExcludedPaths()).toEqual([]);
-    // Pinned benchmark still shows up, unchanged.
-    expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
-  });
-
-  it('auto-unexcludes a path when it is manually pinned', () => {
-    addDiscoveryRoot(reposRoot);
-    const repoPath = makeRepo('pin-me');
-    addExcludedPath(repoPath);
-    expect(resolveActiveBenchmarks()).toEqual([]);
-
-    // Pinning wins: addBenchmark should drop the exclusion.
-    const entry = addBenchmark(repoPath);
-    expect(getExcludedPaths()).toEqual([]);
-    const active = resolveActiveBenchmarks();
-    expect(active).toHaveLength(1);
-    expect(active[0].id).toBe(entry.id);
-    expect(active[0].source).toBe('manual');
-  });
-
-  it('prefers the persisted entry when a discovery root would produce a duplicate path', () => {
-    const repoPath = makeRepo('shared');
-    // Register manually first.
-    const manual = addBenchmark(repoPath);
-    // Then configure a discovery root covering the same repo.
-    addDiscoveryRoot(reposRoot);
-
-    const active = resolveActiveBenchmarks();
-    expect(active).toHaveLength(1);
-    expect(active[0].id).toBe(manual.id);
-    expect(active[0].source).toBe('manual');
   });
 });

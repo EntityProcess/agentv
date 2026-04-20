@@ -19,7 +19,6 @@ import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceTo
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   addBenchmarkApi,
-  addDiscoveryRootApi,
   syncRemoteResultsApi,
   useBenchmarkList,
   useCompare,
@@ -69,7 +68,6 @@ function BenchmarksDashboard() {
   const { data: config } = useStudioConfig();
   const queryClient = useQueryClient();
   const [addPath, setAddPath] = useState('');
-  const [rootPath, setRootPath] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showRunEval, setShowRunEval] = useState(false);
@@ -85,19 +83,6 @@ function BenchmarksDashboard() {
       await addBenchmarkApi(addPath.trim());
       setAddPath('');
       setShowAddForm(false);
-      queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
-
-  async function handleAddDiscoveryRoot(e: React.FormEvent) {
-    e.preventDefault();
-    if (!rootPath.trim()) return;
-    setError(null);
-    try {
-      await addDiscoveryRootApi(rootPath.trim());
-      setRootPath('');
       queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
     } catch (err) {
       setError((err as Error).message);
@@ -151,21 +136,6 @@ function BenchmarksDashboard() {
               className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
             >
               Add
-            </button>
-          </form>
-          <form onSubmit={handleAddDiscoveryRoot} className="flex gap-2">
-            <input
-              type="text"
-              value={rootPath}
-              onChange={(e) => setRootPath(e.target.value)}
-              placeholder="Watch a directory for .agentv/ repos..."
-              className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-gray-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-600"
-            >
-              Watch
             </button>
           </form>
         </div>

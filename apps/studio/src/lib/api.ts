@@ -281,25 +281,6 @@ export async function removeBenchmarkApi(benchmarkId: string): Promise<void> {
   }
 }
 
-/**
- * Persist a directory as a discovery root. Studio rescans every configured
- * root on each `/api/benchmarks` read so benchmarks under it appear/disappear
- * live without a server restart.
- */
-export async function addDiscoveryRootApi(dirPath: string): Promise<string> {
-  const res = await fetch('/api/benchmarks/discovery-roots', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: dirPath }),
-  });
-  if (!res.ok) {
-    const err = (await res.json()) as { error: string };
-    throw new Error(err.error || `Failed to add discovery root: ${res.status}`);
-  }
-  const data = (await res.json()) as { root: string };
-  return data.root;
-}
-
 /** Build the API base URL for a benchmark-scoped request. */
 function benchmarkApiBase(benchmarkId: string): string {
   return `/api/benchmarks/${encodeURIComponent(benchmarkId)}`;
