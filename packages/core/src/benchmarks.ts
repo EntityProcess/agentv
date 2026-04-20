@@ -11,9 +11,9 @@
  *     - id: my-app
  *       name: My App
  *       path: /home/user/projects/my-app
- *       addedAt: "2026-03-20T10:00:00Z"
- *       lastOpenedAt: "2026-03-30T14:00:00Z"
- *   discoveryRoots:
+ *       addedAt: "2026-03-20T10:00:00Z"      # camelCase: pre-existing, kept for back-compat
+ *       lastOpenedAt: "2026-03-30T14:00:00Z" # camelCase: pre-existing, kept for back-compat
+ *   discovery_roots:                         # snake_case per AGENTS.md §"Wire Format Convention"
  *     - /home/user/agentv-repos
  *
  * Runtime model:
@@ -113,8 +113,8 @@ export function loadBenchmarkRegistry(): BenchmarkRegistry {
     const benchmarks = Array.isArray(parsed.benchmarks)
       ? (parsed.benchmarks as BenchmarkEntry[])
       : [];
-    const discoveryRoots = Array.isArray(parsed.discoveryRoots)
-      ? (parsed.discoveryRoots as unknown[]).filter((v): v is string => typeof v === 'string')
+    const discoveryRoots = Array.isArray(parsed.discovery_roots)
+      ? (parsed.discovery_roots as unknown[]).filter((v): v is string => typeof v === 'string')
       : undefined;
     return discoveryRoots !== undefined ? { benchmarks, discoveryRoots } : { benchmarks };
   } catch {
@@ -128,11 +128,12 @@ export function saveBenchmarkRegistry(registry: BenchmarkRegistry): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  // Omit empty/undefined discoveryRoots from the serialized form so existing
-  // registries without the feature don't grow a stray key.
+  // Omit empty/undefined discovery_roots from the serialized form so existing
+  // registries without the feature don't grow a stray key. YAML uses snake_case
+  // per AGENTS.md §"Wire Format Convention"; TS internals stay camelCase.
   const payload: Record<string, unknown> = { benchmarks: registry.benchmarks };
   if (registry.discoveryRoots && registry.discoveryRoots.length > 0) {
-    payload.discoveryRoots = registry.discoveryRoots;
+    payload.discovery_roots = registry.discoveryRoots;
   }
   writeFileSync(registryPath, stringifyYaml(payload), 'utf-8');
 }

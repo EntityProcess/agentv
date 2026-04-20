@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import {
   addBenchmark,
   addDiscoveryRoot,
+  getBenchmarksRegistryPath,
   getDiscoveryRoots,
   loadBenchmarkRegistry,
   removeDiscoveryRoot,
@@ -43,6 +44,12 @@ describe('benchmarks registry + runtime discovery', () => {
     const added = addDiscoveryRoot(reposRoot);
     expect(added).toBe(path.resolve(reposRoot));
     expect(getDiscoveryRoots()).toEqual([path.resolve(reposRoot)]);
+
+    // Serialized key on disk is snake_case per AGENTS.md wire-format convention,
+    // even though the in-memory TS field is discoveryRoots.
+    const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
+    expect(yamlOnDisk).toContain('discovery_roots:');
+    expect(yamlOnDisk).not.toContain('discoveryRoots:');
 
     // Adding the same root again is idempotent.
     addDiscoveryRoot(reposRoot);
