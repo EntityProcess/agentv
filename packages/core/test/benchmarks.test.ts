@@ -45,8 +45,8 @@ describe('benchmarks registry + runtime discovery', () => {
     expect(added).toBe(path.resolve(reposRoot));
     expect(getDiscoveryRoots()).toEqual([path.resolve(reposRoot)]);
 
-    // Serialized key on disk is snake_case per AGENTS.md wire-format convention,
-    // even though the in-memory TS field is discoveryRoots.
+    // Serialized keys on disk are snake_case per AGENTS.md wire-format convention,
+    // even though the in-memory TS fields are camelCase.
     const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
     expect(yamlOnDisk).toContain('discovery_roots:');
     expect(yamlOnDisk).not.toContain('discoveryRoots:');
@@ -77,6 +77,25 @@ describe('benchmarks registry + runtime discovery', () => {
     // Simulate removal: rm -rf the repo dir.
     rmSync(path.join(reposRoot, 'r1'), { recursive: true, force: true });
     expect(resolveActiveBenchmarks()).toEqual([]);
+  });
+
+  it('serializes benchmark entries with snake_case keys on disk', () => {
+    const repoPath = makeRepo('snake');
+    const entry = addBenchmark(repoPath);
+
+    const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
+    expect(yamlOnDisk).toContain('added_at:');
+    expect(yamlOnDisk).toContain('last_opened_at:');
+    expect(yamlOnDisk).not.toContain('addedAt:');
+    expect(yamlOnDisk).not.toContain('lastOpenedAt:');
+
+    // Round-trips cleanly back into the camelCase TS shape.
+    const reloaded = loadBenchmarkRegistry().benchmarks.find((b) => b.id === entry.id);
+    expect(reloaded).toMatchObject({
+      id: entry.id,
+      addedAt: entry.addedAt,
+      lastOpenedAt: entry.lastOpenedAt,
+    });
   });
 
   it('keeps manually-added entries even when their path is not under a root', () => {

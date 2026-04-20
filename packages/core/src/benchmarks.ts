@@ -6,14 +6,14 @@
  * plus an optional list of discovery roots that Studio continuously rescans at
  * runtime so repos can appear/disappear without a server restart.
  *
- * YAML format:
+ * YAML format (all keys snake_case per AGENTS.md §"Wire Format Convention"):
  *   benchmarks:
  *     - id: my-app
  *       name: My App
  *       path: /home/user/projects/my-app
- *       addedAt: "2026-03-20T10:00:00Z"      # camelCase: pre-existing, kept for back-compat
- *       lastOpenedAt: "2026-03-30T14:00:00Z" # camelCase: pre-existing, kept for back-compat
- *   discovery_roots:                         # snake_case per AGENTS.md §"Wire Format Convention"
+ *       added_at: "2026-03-20T10:00:00Z"
+ *       last_opened_at: "2026-03-30T14:00:00Z"
+ *   discovery_roots:
  *     - /home/user/agentv-repos
  *
  * Runtime model:
@@ -95,6 +95,45 @@ function migrateProjectsYaml(targetPath: string): void {
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
+// YAML uses snake_case per AGENTS.md §"Wire Format Convention"; TypeScript
+// internals stay camelCase. fromYaml / toYaml handle the translation; every
+// other function in this module works in camelCase only.
+
+interface BenchmarkEntryYaml {
+  id: string;
+  name: string;
+  path: string;
+  added_at: string;
+  last_opened_at: string;
+  source?: BenchmarkSource;
+}
+
+function fromYaml(raw: unknown): BenchmarkEntry | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const e = raw as Partial<BenchmarkEntryYaml>;
+  if (typeof e.id !== 'string' || typeof e.name !== 'string' || typeof e.path !== 'string') {
+    return null;
+  }
+  return {
+    id: e.id,
+    name: e.name,
+    path: e.path,
+    addedAt: typeof e.added_at === 'string' ? e.added_at : '',
+    lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
+    ...(e.source && { source: e.source }),
+  };
+}
+
+function toYaml(entry: BenchmarkEntry): BenchmarkEntryYaml {
+  return {
+    id: entry.id,
+    name: entry.name,
+    path: entry.path,
+    added_at: entry.addedAt,
+    last_opened_at: entry.lastOpenedAt,
+    ...(entry.source && { source: entry.source }),
+  };
+}
 
 export function loadBenchmarkRegistry(): BenchmarkRegistry {
   const registryPath = getBenchmarksRegistryPath();
@@ -111,7 +150,9 @@ export function loadBenchmarkRegistry(): BenchmarkRegistry {
       return { benchmarks: [] };
     }
     const benchmarks = Array.isArray(parsed.benchmarks)
-      ? (parsed.benchmarks as BenchmarkEntry[])
+      ? (parsed.benchmarks as unknown[])
+          .map(fromYaml)
+          .filter((e): e is BenchmarkEntry => e !== null)
       : [];
     const discoveryRoots = Array.isArray(parsed.discovery_roots)
       ? (parsed.discovery_roots as unknown[]).filter((v): v is string => typeof v === 'string')
@@ -128,10 +169,11 @@ export function saveBenchmarkRegistry(registry: BenchmarkRegistry): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  // Omit empty/undefined discovery_roots from the serialized form so existing
-  // registries without the feature don't grow a stray key. YAML uses snake_case
-  // per AGENTS.md §"Wire Format Convention"; TS internals stay camelCase.
-  const payload: Record<string, unknown> = { benchmarks: registry.benchmarks };
+  // Omit empty/undefined discovery_roots from the serialized form so registries
+  // without the feature don't grow a stray key.
+  const payload: Record<string, unknown> = {
+    benchmarks: registry.benchmarks.map(toYaml),
+  };
   if (registry.discoveryRoots && registry.discoveryRoots.length > 0) {
     payload.discovery_roots = registry.discoveryRoots;
   }

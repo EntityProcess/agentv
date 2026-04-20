@@ -146,36 +146,64 @@ cd ../agentv.worktrees/<type>-<short-desc>
 
 ## Wire Format Convention
 
-**All external-facing JSON and JSONL output uses `snake_case` keys.** This applies to:
-- JSONL result files on disk (`test_id`, `token_usage`, `duration_ms`)
-- Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`)
-- CLI command JSON output (`results summary`, `results failures`, `results show`)
-- YAML eval config fields
+**Everything that crosses a process boundary uses `snake_case` keys. Internal TypeScript uses `camelCase`. Translate at the boundary — never in the middle.**
 
-**Internal TypeScript uses `camelCase`** as standard. Convert at the serialization boundary only:
+The rule is blanket: if the key is going to disk, to a user's editor, into a JSON response, or onto a CLI, it's snake_case. There is no "well this file is internal-ish" carve-out. If in doubt, snake_case.
+
+### snake_case surfaces
+- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `projects.yaml`, `studio/config.yaml`, any future YAML we add.
+- JSONL result files (`test_id`, `token_usage`, `duration_ms`).
+- Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
+- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `project_id`).
+- CLI JSON output (`agentv results summary`, `results failures`, `results show`).
+- Anything consumed by non-TS tooling (Python, jq pipelines, external dashboards).
+
+### camelCase surfaces
+- TypeScript source: all variables, parameters, fields, type members.
+- Internal in-memory shapes passed between TS modules.
+
+### Translate only at the boundary
+Define a second interface for the wire shape and convert in one place — don't smear snake_case through TS internals.
 
 ```typescript
-// Interfaces for JSON output use snake_case (they define the wire format)
-interface SummaryJson {
-  total: number;
-  pass_rate: number;
-  failed_test_ids: string[];
+// Wire shape — snake_case, matches what hits disk / the network
+interface BenchmarkEntryYaml {
+  id: string;
+  name: string;
+  path: string;
+  added_at: string;
+  last_opened_at: string;
 }
 
-// Function internals use camelCase (idiomatic TypeScript)
-function formatSummary(results: EvaluationResult[]): SummaryJson {
-  const passRate = computePassRate(results);
-  const failedTestIds = findFailed(results);
+// Internal shape — camelCase, what every TS call site sees
+interface BenchmarkEntry {
+  id: string;
+  name: string;
+  path: string;
+  addedAt: string;
+  lastOpenedAt: string;
+}
 
-  return {
-    total: results.length,
-    pass_rate: passRate,
-    failed_test_ids: failedTestIds,
-  };
+function fromYaml(e: BenchmarkEntryYaml): BenchmarkEntry {
+  return { id: e.id, name: e.name, path: e.path, addedAt: e.added_at, lastOpenedAt: e.last_opened_at };
+}
+
+function toYaml(e: BenchmarkEntry): BenchmarkEntryYaml {
+  return { id: e.id, name: e.name, path: e.path, added_at: e.addedAt, last_opened_at: e.lastOpenedAt };
 }
 ```
 
-**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript.
+Yes, this is two interfaces and two functions per entity. That's the price of keeping TS idiomatic while staying faithful to the wire contract. Don't skip it — dumping TS objects directly to YAML leaks `addedAt`-style camelCase onto disk and breaks jq/Python consumers.
+
+### Anti-patterns
+- `writeFileSync(path, stringifyYaml(tsObject))` — dumps TS field names verbatim. Wrong.
+- `interface Foo { testId: string; ... }` for a JSON response body — `test_id`, always.
+- Accepting both `testId` and `test_id` on input "for back-compat" when nothing is shipped yet. Just snake_case.
+
+### Existing divergences
+If you spot a camelCase key already on disk or in a response (e.g. historical `projects.yaml`, a legacy endpoint), treat it as a bug: migrate it to snake_case in the same PR where you touch that code path. Don't grandfather it in.
+
+**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript. `fromYaml` / `toYaml` in `packages/core/src/benchmarks.ts` is the model for YAML boundaries.
 
 **Why:** Aligns with skill-creator (claude-plugins-official) and broader Python/JSON ecosystem conventions where snake_case is the standard wire format.
 
