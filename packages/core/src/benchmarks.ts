@@ -2,7 +2,9 @@
  * Benchmark registry for AgentV Studio multi-benchmark support.
  *
  * A Benchmark = any directory containing a `.agentv/` folder.
- * The registry lives at `~/.agentv/projects.yaml` and tracks registered benchmarks.
+ * The registry lives at `~/.agentv/projects.yaml` and tracks registered benchmarks
+ * plus an optional list of discovery roots that Studio continuously rescans at
+ * runtime so repos can appear/disappear without a server restart (#1144).
  *
  * YAML format:
  *   benchmarks:
@@ -11,9 +13,21 @@
  *       path: /home/user/projects/my-app
  *       addedAt: "2026-03-20T10:00:00Z"
  *       lastOpenedAt: "2026-03-30T14:00:00Z"
+ *   discoveryRoots:
+ *     - /home/user/agentv-repos
  *
- * To extend: use loadBenchmarkRegistry() / saveBenchmarkRegistry() for CRUD,
- * discoverBenchmarks() to scan a directory tree for `.agentv/` directories.
+ * Runtime model:
+ *   - Entries in `benchmarks` are persisted (manual add/remove).
+ *   - Entries under `discoveryRoots` are resolved live on each call to
+ *     `resolveActiveBenchmarks()` — they are NOT written to disk. This means
+ *     a repo appearing or disappearing under a root is reflected immediately,
+ *     and manual entries are never auto-removed.
+ *
+ * To extend:
+ *   - For CRUD on persisted entries: loadBenchmarkRegistry() / saveBenchmarkRegistry().
+ *   - For live discovery: addDiscoveryRoot() / removeDiscoveryRoot() /
+ *     resolveActiveBenchmarks().
+ *   - discoverBenchmarks() scans a single directory tree for `.agentv/` folders.
  */
 
 import {
@@ -33,16 +47,22 @@ import { getAgentvConfigDir, getAgentvHome } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
+export type BenchmarkSource = 'manual' | 'discovered';
+
 export interface BenchmarkEntry {
   id: string;
   name: string;
   path: string;
   addedAt: string;
   lastOpenedAt: string;
+  /** How this entry was registered. Absent (undefined) ≡ 'manual'. */
+  source?: BenchmarkSource;
 }
 
 export interface BenchmarkRegistry {
   benchmarks: BenchmarkEntry[];
+  /** Directories continuously rescanned for `.agentv/` repos. Optional. */
+  discoveryRoots?: string[];
 }
 
 // ── Registry path ───────────────────────────────────────────────────────
@@ -79,10 +99,16 @@ export function loadBenchmarkRegistry(): BenchmarkRegistry {
   try {
     const raw = readFileSync(registryPath, 'utf-8');
     const parsed = parseYaml(raw);
-    if (!parsed || !Array.isArray(parsed.benchmarks)) {
+    if (!parsed || typeof parsed !== 'object') {
       return { benchmarks: [] };
     }
-    return { benchmarks: parsed.benchmarks as BenchmarkEntry[] };
+    const benchmarks = Array.isArray(parsed.benchmarks)
+      ? (parsed.benchmarks as BenchmarkEntry[])
+      : [];
+    const discoveryRoots = Array.isArray(parsed.discoveryRoots)
+      ? (parsed.discoveryRoots as unknown[]).filter((v): v is string => typeof v === 'string')
+      : undefined;
+    return discoveryRoots !== undefined ? { benchmarks, discoveryRoots } : { benchmarks };
   } catch {
     return { benchmarks: [] };
   }
@@ -94,7 +120,13 @@ export function saveBenchmarkRegistry(registry: BenchmarkRegistry): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  writeFileSync(registryPath, stringifyYaml({ benchmarks: registry.benchmarks }), 'utf-8');
+  // Omit empty/undefined discoveryRoots from the serialized form so existing
+  // registries without the feature don't grow a stray key.
+  const payload: Record<string, unknown> = { benchmarks: registry.benchmarks };
+  if (registry.discoveryRoots && registry.discoveryRoots.length > 0) {
+    payload.discoveryRoots = registry.discoveryRoots;
+  }
+  writeFileSync(registryPath, stringifyYaml(payload), 'utf-8');
 }
 
 // ── CRUD operations ─────────────────────────────────────────────────────
@@ -225,4 +257,99 @@ export function discoverBenchmarks(rootDir: string, maxDepth = 2): string[] {
 
   scan(absRoot, 0);
   return results;
+}
+
+// ── Discovery roots (persisted) ─────────────────────────────────────────
+
+/**
+ * Return the persisted discovery roots as absolute paths. Never returns undefined.
+ */
+export function getDiscoveryRoots(): string[] {
+  const registry = loadBenchmarkRegistry();
+  return [...(registry.discoveryRoots ?? [])];
+}
+
+/**
+ * Add an absolute discovery root to the persisted registry (idempotent).
+ * Returns the resolved absolute path. Does NOT validate that the directory
+ * currently exists — a root may become populated after Studio starts.
+ */
+export function addDiscoveryRoot(rootPath: string): string {
+  const absRoot = path.resolve(rootPath);
+  const registry = loadBenchmarkRegistry();
+  const roots = registry.discoveryRoots ?? [];
+  if (!roots.includes(absRoot)) {
+    roots.push(absRoot);
+  }
+  saveBenchmarkRegistry({ benchmarks: registry.benchmarks, discoveryRoots: roots });
+  return absRoot;
+}
+
+/**
+ * Remove a discovery root. Returns true if it was present, false otherwise.
+ */
+export function removeDiscoveryRoot(rootPath: string): boolean {
+  const absRoot = path.resolve(rootPath);
+  const registry = loadBenchmarkRegistry();
+  const roots = registry.discoveryRoots ?? [];
+  const idx = roots.indexOf(absRoot);
+  if (idx < 0) return false;
+  roots.splice(idx, 1);
+  saveBenchmarkRegistry({ benchmarks: registry.benchmarks, discoveryRoots: roots });
+  return true;
+}
+
+// ── Active benchmarks (persisted + live-discovered) ─────────────────────
+
+/**
+ * Return the effective benchmark list: persisted entries merged with a live
+ * scan of every discovery root. Discovered entries are synthesized on the fly
+ * (tagged `source: 'discovered'`) and are NOT written to disk, so a repo
+ * disappearing from a root drops out of subsequent calls. Persisted entries
+ * win on absolute-path conflict, letting a user opt a discovered repo into
+ * manual management.
+ */
+export function resolveActiveBenchmarks(): BenchmarkEntry[] {
+  const registry = loadBenchmarkRegistry();
+  const persisted = registry.benchmarks.map((b) => ({
+    ...b,
+    source: b.source ?? ('manual' as const),
+  }));
+  const roots = registry.discoveryRoots ?? [];
+  if (roots.length === 0) return persisted;
+
+  const takenPaths = new Set(persisted.map((b) => b.path));
+  const takenIds = new Set(persisted.map((b) => b.id));
+  const discovered: BenchmarkEntry[] = [];
+  for (const root of roots) {
+    for (const repoPath of discoverBenchmarks(root)) {
+      if (takenPaths.has(repoPath)) continue;
+      takenPaths.add(repoPath);
+      const id = deriveBenchmarkId(repoPath, [...takenIds]);
+      takenIds.add(id);
+      // Synthetic timestamps: use the .agentv dir mtime if readable, else now.
+      let ts = new Date().toISOString();
+      try {
+        ts = statSync(path.join(repoPath, '.agentv')).mtime.toISOString();
+      } catch {
+        // Keep the fallback timestamp.
+      }
+      discovered.push({
+        id,
+        name: path.basename(repoPath),
+        path: repoPath,
+        addedAt: ts,
+        lastOpenedAt: ts,
+        source: 'discovered',
+      });
+    }
+  }
+  return [...persisted, ...discovered];
+}
+
+/**
+ * Look up an active benchmark (persisted or discovered) by id.
+ */
+export function getActiveBenchmark(benchmarkId: string): BenchmarkEntry | undefined {
+  return resolveActiveBenchmarks().find((b) => b.id === benchmarkId);
 }

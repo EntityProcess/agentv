@@ -11,7 +11,9 @@
  *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
- *   - GET /api/benchmarks  — list registered benchmarks
+ *   - GET /api/benchmarks  — list active benchmarks (persisted + live-discovered)
+ *   - POST /api/benchmarks/rescan — force a discovery-root rescan
+ *   - GET/POST/DELETE /api/benchmarks/discovery-roots — manage runtime discovery roots
  *   - GET /api/benchmarks/:benchmarkId/runs — benchmark-scoped run list
  *
  * All data routes (runs, suites, categories, evals, experiments, targets)
@@ -32,17 +34,30 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { command, flag, number, option, optional, positional, string } from 'cmd-ts';
+import {
+  array,
+  command,
+  flag,
+  multioption,
+  number,
+  option,
+  optional,
+  positional,
+  string,
+} from 'cmd-ts';
 
 import {
   DEFAULT_CATEGORY,
   type EvaluationResult,
   addBenchmark,
+  addDiscoveryRoot,
   discoverBenchmarks,
-  getBenchmark,
-  loadBenchmarkRegistry,
+  getActiveBenchmark,
+  getDiscoveryRoots,
   loadConfig,
   removeBenchmark,
+  removeDiscoveryRoot,
+  resolveActiveBenchmarks,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -897,11 +912,13 @@ export function createApp(
 
   // ── Benchmark resolution wrapper ──────────────────────────────────────
   // Resolves benchmarkId → DataContext, returning 404 if not found.
+  // Looks up against the *active* set (persisted + live-discovered) so repos
+  // under a configured discovery root resolve without a server restart.
   function withBenchmark(
     c: C,
     handler: (c: C, ctx: DataContext) => Response | Promise<Response>,
   ): Response | Promise<Response> {
-    const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
+    const benchmark = getActiveBenchmark(c.req.param('benchmarkId') ?? '');
     if (!benchmark || !existsSync(benchmark.path)) {
       return c.json({ error: 'Project not found' }, 404);
     }
@@ -940,6 +957,7 @@ export function createApp(
     path: string;
     addedAt: string;
     lastOpenedAt: string;
+    source?: 'manual' | 'discovered';
   }) {
     return {
       id: entry.id,
@@ -947,13 +965,14 @@ export function createApp(
       path: entry.path,
       added_at: entry.addedAt,
       last_opened_at: entry.lastOpenedAt,
+      source: entry.source ?? 'manual',
     };
   }
 
   app.get('/api/benchmarks', async (c) => {
-    const registry = loadBenchmarkRegistry();
+    const active = resolveActiveBenchmarks();
     const benchmarks = await Promise.all(
-      registry.benchmarks.map(async (p) => {
+      active.map(async (p) => {
         let runCount = 0;
         let passRate = 0;
         let lastRun: string | null = null;
@@ -997,13 +1016,24 @@ export function createApp(
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    const removed = removeBenchmark(c.req.param('benchmarkId') ?? '');
+    const benchmarkId = c.req.param('benchmarkId') ?? '';
+    const active = getActiveBenchmark(benchmarkId);
+    if (active?.source === 'discovered') {
+      return c.json(
+        {
+          error:
+            'This project was discovered from a configured root. Remove the root or delete its .agentv/ directory to drop it.',
+        },
+        400,
+      );
+    }
+    const removed = removeBenchmark(benchmarkId);
     if (!removed) return c.json({ error: 'Project not found' }, 404);
     return c.json({ ok: true });
   });
 
   app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
-    const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
+    const benchmark = getActiveBenchmark(c.req.param('benchmarkId') ?? '');
     if (!benchmark) return c.json({ error: 'Project not found' }, 404);
     try {
       const { runs: metas } = await listMergedResultFiles(benchmark.path);
@@ -1038,9 +1068,9 @@ export function createApp(
     }
   });
 
-  /** Aggregate runs from all registered benchmarks, sorted by timestamp descending. */
+  /** Aggregate runs from all active benchmarks, sorted by timestamp descending. */
   app.get('/api/benchmarks/all-runs', async (c) => {
-    const registry = loadBenchmarkRegistry();
+    const active = resolveActiveBenchmarks();
     const allRuns: Array<{
       filename: string;
       display_name: string;
@@ -1057,7 +1087,7 @@ export function createApp(
       project_name: string;
     }> = [];
 
-    for (const p of registry.benchmarks) {
+    for (const p of active) {
       try {
         const { runs: metas } = await listMergedResultFiles(p.path);
         for (const m of metas) {
@@ -1095,6 +1125,74 @@ export function createApp(
 
     allRuns.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     return c.json({ runs: allRuns });
+  });
+
+  // ── Discovery roots (runtime benchmark auto-discovery) ───────────────
+  // Roots are persisted in ~/.agentv/projects.yaml. On each GET
+  // /api/benchmarks, Studio rescans them and surfaces new `.agentv/` repos —
+  // no server restart required (#1144).
+
+  app.get('/api/benchmarks/discovery-roots', (c) => {
+    return c.json({ roots: getDiscoveryRoots() });
+  });
+
+  app.post('/api/benchmarks/discovery-roots', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    try {
+      const body = await c.req.json<{ path: string }>();
+      if (!body.path) return c.json({ error: 'Missing path' }, 400);
+      const root = addDiscoveryRoot(body.path);
+      return c.json({ root }, 201);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+  });
+
+  app.delete('/api/benchmarks/discovery-roots', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    try {
+      const body = await c.req.json<{ path: string }>();
+      if (!body.path) return c.json({ error: 'Missing path' }, 400);
+      const removed = removeDiscoveryRoot(body.path);
+      if (!removed) return c.json({ error: 'Root not found' }, 404);
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+  });
+
+  /** Explicit rescan hook — useful when the UI wants a refresh without the poll tick. */
+  app.post('/api/benchmarks/rescan', async (c) => {
+    const active = resolveActiveBenchmarks();
+    const benchmarks = await Promise.all(
+      active.map(async (p) => {
+        let runCount = 0;
+        let passRate = 0;
+        let lastRun: string | null = null;
+        try {
+          const { runs: metas } = await listMergedResultFiles(p.path);
+          runCount = metas.length;
+          if (metas.length > 0) {
+            const totalPassRate = metas.reduce((sum, m) => sum + m.passRate, 0);
+            passRate = totalPassRate / metas.length;
+            lastRun = metas[0].timestamp;
+          }
+        } catch {
+          // inaccessible
+        }
+        return {
+          ...benchmarkEntryToWire(p),
+          run_count: runCount,
+          pass_rate: passRate,
+          last_run: lastRun,
+        };
+      }),
+    );
+    return c.json({ projects: benchmarks });
   });
 
   // ── Data routes (unscoped) ────────────────────────────────────────────
@@ -1276,7 +1374,7 @@ export function createApp(
       // For benchmark-scoped routes, resolve to benchmark path; otherwise use searchDir
       const benchmarkId = c.req.param('benchmarkId');
       if (benchmarkId) {
-        const benchmark = getBenchmark(benchmarkId);
+        const benchmark = getActiveBenchmark(benchmarkId);
         if (benchmark) return benchmark.path;
       }
       return searchDir;
@@ -1408,14 +1506,31 @@ export const resultsServeCommand = command({
     discover: option({
       type: optional(string),
       long: 'discover',
-      description: 'Scan a directory tree for repos with .agentv/',
+      description: 'Scan a directory tree for repos with .agentv/ (one-shot; exits after)',
+    }),
+    discoveryRoot: multioption({
+      type: array(string),
+      long: 'discovery-root',
+      description:
+        'Persist a directory that Studio continuously rescans for .agentv/ repos. Repeatable.',
     }),
     readOnly: flag({
       long: 'read-only',
       description: 'Disable write operations and launch Studio in read-only leaderboard mode',
     }),
   },
-  handler: async ({ source, port, dir, multi, single, add, remove, discover, readOnly }) => {
+  handler: async ({
+    source,
+    port,
+    dir,
+    multi,
+    single,
+    add,
+    remove,
+    discover,
+    discoveryRoot,
+    readOnly,
+  }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
@@ -1456,6 +1571,15 @@ export const resultsServeCommand = command({
       return;
     }
 
+    // Persist --discovery-root paths before starting the server. The server
+    // keeps running after this so Studio continuously rescans the roots.
+    if (discoveryRoot.length > 0) {
+      for (const root of discoveryRoot) {
+        const abs = addDiscoveryRoot(root);
+        console.log(`Watching discovery root: ${abs}`);
+      }
+    }
+
     // ── Version check ────────────────────────────────────────────────
     // Enforce `required_version` from .agentv/config.yaml so Studio/serve
     // match `agentv eval` behavior. Same prompt in TTY, warn+continue
@@ -1469,8 +1593,10 @@ export const resultsServeCommand = command({
     }
 
     // ── Determine multi-project mode ────────────────────────────────
-    const registry = loadBenchmarkRegistry();
-    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.benchmarks.length, {
+    // Count active (persisted + live-discovered) benchmarks so that the
+    // dashboard mode reflects what the user will actually see in the UI.
+    const activeBenchmarks = resolveActiveBenchmarks();
+    const { isMultiProject, showMultiWarning } = resolveDashboardMode(activeBenchmarks.length, {
       multi,
       single,
     });
@@ -1515,7 +1641,7 @@ export const resultsServeCommand = command({
       }
 
       if (isMultiProject) {
-        console.log(`Multi-project mode: ${registry.benchmarks.length} project(s) registered`);
+        console.log(`Multi-project mode: ${activeBenchmarks.length} project(s) active`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {
