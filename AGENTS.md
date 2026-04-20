@@ -154,7 +154,7 @@ The rule is blanket: if the key is going to disk, to a user's editor, into a JSO
 - All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `benchmarks.yaml`, `studio/config.yaml`, any future YAML we add.
 - JSONL result files (`test_id`, `token_usage`, `duration_ms`).
 - Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
-- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `project_id`).
+- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `benchmark_id`).
 - CLI JSON output (`agentv results summary`, `results failures`, `results show`).
 - Anything consumed by non-TS tooling (Python, jq pipelines, external dashboards).
 
