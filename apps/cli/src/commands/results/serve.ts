@@ -1130,7 +1130,7 @@ export function createApp(
   // ── Discovery roots (runtime benchmark auto-discovery) ───────────────
   // Roots are persisted in ~/.agentv/projects.yaml. On each GET
   // /api/benchmarks, Studio rescans them and surfaces new `.agentv/` repos —
-  // no server restart required (#1144).
+  // no server restart required.
 
   app.get('/api/benchmarks/discovery-roots', (c) => {
     return c.json({ roots: getDiscoveryRoots() });

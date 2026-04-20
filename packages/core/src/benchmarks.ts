@@ -4,7 +4,7 @@
  * A Benchmark = any directory containing a `.agentv/` folder.
  * The registry lives at `~/.agentv/projects.yaml` and tracks registered benchmarks
  * plus an optional list of discovery roots that Studio continuously rescans at
- * runtime so repos can appear/disappear without a server restart (#1144).
+ * runtime so repos can appear/disappear without a server restart.
  *
  * YAML format:
  *   benchmarks:
@@ -23,11 +23,19 @@
  *     a repo appearing or disappearing under a root is reflected immediately,
  *     and manual entries are never auto-removed.
  *
+ * Concurrency: the registry assumes a single writer. All mutating calls
+ * (add/remove/touchBenchmark, add/removeDiscoveryRoot) do read-modify-write on
+ * projects.yaml without a lock. Interleaved writes from multiple processes
+ * can clobber each other; Studio's HTTP handlers are serialized by Node's
+ * single-threaded event loop, which satisfies the 24/7 Studio case. Run only
+ * one `agentv` process against a given home at a time.
+ *
  * To extend:
  *   - For CRUD on persisted entries: loadBenchmarkRegistry() / saveBenchmarkRegistry().
  *   - For live discovery: addDiscoveryRoot() / removeDiscoveryRoot() /
  *     resolveActiveBenchmarks().
- *   - discoverBenchmarks() scans a single directory tree for `.agentv/` folders.
+ *   - discoverBenchmarks() scans a single directory tree for `.agentv/` folders;
+ *     its output is sorted for deterministic id assignment under basename collisions.
  */
 
 import {
@@ -256,7 +264,9 @@ export function discoverBenchmarks(rootDir: string, maxDepth = 2): string[] {
   }
 
   scan(absRoot, 0);
-  return results;
+  // Sort for deterministic iteration — readdirSync order is filesystem-dependent,
+  // and basename collisions produce collision-suffix ids that must be stable.
+  return results.sort();
 }
 
 // ── Discovery roots (persisted) ─────────────────────────────────────────
