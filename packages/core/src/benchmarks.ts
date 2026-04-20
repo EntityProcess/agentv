@@ -101,6 +101,12 @@ export function getBenchmarksRegistryPath(): string {
  * Whichever is found first (1 beats 2) is copied to the current
  * benchmarks.yaml path and the legacy file is removed so the migration
  * doesn't keep repeating.
+ *
+ * TODO(v5.0.0): delete this function and the `rmSync` import. By the next
+ * major release, any surviving projects.yaml has been migrated on the first
+ * `agentv` invocation after upgrade; keeping the shim beyond then is dead
+ * weight. Callers can switch `loadBenchmarkRegistry` to skip the migration
+ * check unconditionally.
  */
 function migrateLegacyRegistry(targetPath: string): void {
   if (existsSync(targetPath)) return;
