@@ -89,7 +89,7 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
   useEffect(() => {
     if (runStatus?.status === 'finished' || runStatus?.status === 'failed') {
       queryClient.invalidateQueries({ queryKey: ['runs'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
     }
   }, [runStatus?.status, queryClient]);
 

@@ -408,7 +408,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
   );
 }
 
-// ── Project-scoped sidebars ──────────────────────────────────────────────
+// ── Benchmark-scoped sidebars ────────────────────────────────────────────
 
 function BenchmarkRunDetailSidebar({
   benchmarkId,

@@ -141,7 +141,7 @@ export function loadResults(content: string): EvaluationResult[] {
 }
 
 export function resolveDashboardMode(
-  projectCount: number,
+  benchmarkCount: number,
   options: { multi?: boolean; single?: boolean },
 ): { isMultiBenchmark: boolean; showMultiWarning: boolean } {
   if (options.single === true) {
@@ -152,7 +152,7 @@ export function resolveDashboardMode(
     return { isMultiBenchmark: true, showMultiWarning: true };
   }
 
-  return { isMultiBenchmark: projectCount > 1, showMultiWarning: false };
+  return { isMultiBenchmark: benchmarkCount > 1, showMultiWarning: false };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -270,7 +270,7 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
 // ── Shared data-route handlers ───────────────────────────────────────────
 //
 // Each handler takes a Hono Context and a DataContext (resolved directories).
-// Both unscoped and project-scoped routes call the same handler, differing
+// Both unscoped and benchmark-scoped routes call the same handler, differing
 // only in how the DataContext is constructed.
 
 interface DataContext {
@@ -1032,7 +1032,7 @@ export function createApp(
         last_run: lastRun,
       });
     } catch {
-      return c.json({ error: 'Failed to read project' }, 500);
+      return c.json({ error: 'Failed to read benchmark' }, 500);
     }
   });
 

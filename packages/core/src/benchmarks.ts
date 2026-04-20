@@ -364,11 +364,17 @@ export function getExcludedPaths(): string[] {
  * Append a path to the exclusion list (idempotent). Used when the user
  * clicks "Remove" on a discovered entry — the .agentv/ dir stays on disk,
  * but it's suppressed from the active set until the user unexcludes it.
- * Returns the resolved absolute path.
+ * Returns the resolved absolute path. No-op when the path is already
+ * pinned in `benchmarks[]`: exclusions only filter the discovered set, so
+ * tracking an excluded pin is meaningless state; `removeBenchmark` is the
+ * right tool for dropping a pin.
  */
 export function addExcludedPath(excludePath: string): string {
   const abs = path.resolve(excludePath);
   const registry = loadBenchmarkRegistry();
+  if (registry.benchmarks.some((b) => b.path === abs)) {
+    return abs;
+  }
   const excluded = registry.excludedPaths ?? [];
   if (!excluded.includes(abs)) {
     excluded.push(abs);

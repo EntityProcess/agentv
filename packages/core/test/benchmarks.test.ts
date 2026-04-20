@@ -133,6 +133,17 @@ describe('benchmarks registry + runtime discovery', () => {
     expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
   });
 
+  it('treats addExcludedPath on a pinned repo as a no-op', () => {
+    const repoPath = makeRepo('already-pinned');
+    addBenchmark(repoPath);
+
+    // Returns the resolved path but does not persist an exclusion.
+    expect(addExcludedPath(repoPath)).toBe(path.resolve(repoPath));
+    expect(getExcludedPaths()).toEqual([]);
+    // Pinned benchmark still shows up, unchanged.
+    expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
+  });
+
   it('auto-unexcludes a path when it is manually pinned', () => {
     addDiscoveryRoot(reposRoot);
     const repoPath = makeRepo('pin-me');
