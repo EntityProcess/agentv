@@ -45,11 +45,10 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 |--------|-------------|
 | `--port`, `-p` | Port to listen on (flag > `PORT` env var > 3117) |
 | `--dir`, `-d` | Working directory (default: current directory) |
-| `--multi` | Launch in multi-project dashboard mode (deprecated; use auto-detect or `--single`) |
-| `--single` | Force single-project dashboard mode |
-| `--add <path>` | Register a project by path |
-| `--remove <id>` | Unregister a project by ID |
-| `--discover <path>` | Scan a directory tree for repos with `.agentv/` |
+| `--multi` | Launch in multi-benchmark dashboard mode (deprecated; use auto-detect or `--single`) |
+| `--single` | Force single-benchmark dashboard mode |
+| `--add <path>` | Register a benchmark by path |
+| `--remove <id>` | Unregister a benchmark by ID |
 
 ## Features
 
@@ -152,28 +151,29 @@ agentv studio --add /path/to/my-evals
 agentv studio --add /path/to/other-evals
 ```
 
-Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/projects.yaml`.
+Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/benchmarks.yaml`.
 
-### Auto-Discovery
+### Runtime behavior: no restart needed
 
-Scan a parent directory to find and register all benchmark repos:
+`benchmarks.yaml` is the single source of truth. Studio re-reads it on every `/api/benchmarks` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
 
-```bash
-agentv studio --discover /path/to/repos
-```
+- Adding via the UI's **Add Benchmark** form or `POST /api/benchmarks`.
+- Removing via the UI's **Remove** button or `DELETE /api/benchmarks/:id`.
+- Editing `~/.agentv/benchmarks.yaml` directly.
+- Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Studio reflects it within the next poll.
 
-This recursively searches (up to 2 levels deep) for directories containing `.agentv/` and registers them.
+This satisfies the 24/7-Studio use case: the server stays up; benchmarks come and go through config edits or API calls.
 
 ### Launching the Dashboard
 
 Studio auto-detects the mode based on how many benchmarks are registered:
 
-- `0` or `1` registered: single-project view
+- `0` or `1` registered: single-benchmark view
 - `2+` registered: Benchmarks dashboard
 
 ```bash
 agentv studio          # auto-detects
-agentv studio --single # force single-project view
+agentv studio --single # force single-benchmark view
 ```
 
 The landing page shows a card for each benchmark with run count, pass rate, and last run time.

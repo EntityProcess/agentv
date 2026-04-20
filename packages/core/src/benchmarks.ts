@@ -2,34 +2,39 @@
  * Benchmark registry for AgentV Studio multi-benchmark support.
  *
  * A Benchmark = any directory containing a `.agentv/` folder.
- * The registry lives at `~/.agentv/projects.yaml` and tracks registered benchmarks.
+ * The registry lives at `~/.agentv/benchmarks.yaml` and is the single source of
+ * truth for which benchmarks Studio shows. Studio re-reads the file on every
+ * `/api/benchmarks` request, so edits (direct, via POST /api/benchmarks, via
+ * the CLI's --add/--remove, or via a Kubernetes ConfigMap mount) are reflected
+ * without restarting `agentv serve`.
  *
- * YAML format:
+ * YAML format (all keys snake_case per AGENTS.md §"Wire Format Convention"):
  *   benchmarks:
  *     - id: my-app
  *       name: My App
  *       path: /home/user/projects/my-app
- *       addedAt: "2026-03-20T10:00:00Z"
- *       lastOpenedAt: "2026-03-30T14:00:00Z"
+ *       added_at: "2026-03-20T10:00:00Z"
+ *       last_opened_at: "2026-03-30T14:00:00Z"
  *
- * To extend: use loadBenchmarkRegistry() / saveBenchmarkRegistry() for CRUD,
- * discoverBenchmarks() to scan a directory tree for `.agentv/` directories.
+ * Concurrency: the registry assumes a single writer. All mutating calls
+ * (add/remove/touchBenchmark) do read-modify-write on benchmarks.yaml
+ * without a lock. Studio's HTTP handlers are serialized by Node's
+ * single-threaded event loop, which satisfies the 24/7 deployment case.
+ * Run only one `agentv` process against a given home at a time.
+ *
+ * To extend:
+ *   - CRUD: loadBenchmarkRegistry() / saveBenchmarkRegistry() + the
+ *     add/remove/touch helpers.
+ *   - discoverBenchmarks() is a one-shot filesystem utility for bulk
+ *     registration; it does not run in the request path.
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-import { getAgentvConfigDir, getAgentvHome } from './paths.js';
+import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -48,41 +53,64 @@ export interface BenchmarkRegistry {
 // ── Registry path ───────────────────────────────────────────────────────
 
 export function getBenchmarksRegistryPath(): string {
-  return path.join(getAgentvConfigDir(), 'projects.yaml');
-}
-
-/**
- * One-time migration: if projects.yaml exists at the old AGENTV_HOME location
- * but not in ~/.agentv, copy it over. This handles the case where users had
- * AGENTV_HOME set and projects.yaml was created there before the config/data split.
- */
-function migrateProjectsYaml(targetPath: string): void {
-  const dataHome = getAgentvHome();
-  const configDir = getAgentvConfigDir();
-  if (dataHome === configDir) return;
-  const legacyPath = path.join(dataHome, 'projects.yaml');
-  if (!existsSync(legacyPath)) return;
-  mkdirSync(path.dirname(targetPath), { recursive: true });
-  copyFileSync(legacyPath, targetPath);
+  return path.join(getAgentvConfigDir(), 'benchmarks.yaml');
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
+// YAML uses snake_case per AGENTS.md §"Wire Format Convention"; TypeScript
+// internals stay camelCase. fromYaml / toYaml handle the translation; every
+// other function in this module works in camelCase only.
+
+interface BenchmarkEntryYaml {
+  id: string;
+  name: string;
+  path: string;
+  added_at: string;
+  last_opened_at: string;
+}
+
+function fromYaml(raw: unknown): BenchmarkEntry | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const e = raw as Partial<BenchmarkEntryYaml>;
+  if (typeof e.id !== 'string' || typeof e.name !== 'string' || typeof e.path !== 'string') {
+    return null;
+  }
+  return {
+    id: e.id,
+    name: e.name,
+    path: e.path,
+    addedAt: typeof e.added_at === 'string' ? e.added_at : '',
+    lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
+  };
+}
+
+function toYaml(entry: BenchmarkEntry): BenchmarkEntryYaml {
+  return {
+    id: entry.id,
+    name: entry.name,
+    path: entry.path,
+    added_at: entry.addedAt,
+    last_opened_at: entry.lastOpenedAt,
+  };
+}
 
 export function loadBenchmarkRegistry(): BenchmarkRegistry {
   const registryPath = getBenchmarksRegistryPath();
-  if (!existsSync(registryPath)) {
-    migrateProjectsYaml(registryPath);
-  }
   if (!existsSync(registryPath)) {
     return { benchmarks: [] };
   }
   try {
     const raw = readFileSync(registryPath, 'utf-8');
     const parsed = parseYaml(raw);
-    if (!parsed || !Array.isArray(parsed.benchmarks)) {
+    if (!parsed || typeof parsed !== 'object') {
       return { benchmarks: [] };
     }
-    return { benchmarks: parsed.benchmarks as BenchmarkEntry[] };
+    const benchmarks = Array.isArray(parsed.benchmarks)
+      ? (parsed.benchmarks as unknown[])
+          .map(fromYaml)
+          .filter((e): e is BenchmarkEntry => e !== null)
+      : [];
+    return { benchmarks };
   } catch {
     return { benchmarks: [] };
   }
@@ -94,7 +122,8 @@ export function saveBenchmarkRegistry(registry: BenchmarkRegistry): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  writeFileSync(registryPath, stringifyYaml({ benchmarks: registry.benchmarks }), 'utf-8');
+  const payload = { benchmarks: registry.benchmarks.map(toYaml) };
+  writeFileSync(registryPath, stringifyYaml(payload), 'utf-8');
 }
 
 // ── CRUD operations ─────────────────────────────────────────────────────
@@ -186,11 +215,13 @@ export function touchBenchmark(benchmarkId: string): void {
   }
 }
 
-// ── Discovery ───────────────────────────────────────────────────────────
+// ── Discovery utility ───────────────────────────────────────────────────
 
 /**
  * Scan a directory tree (up to maxDepth levels) for directories containing `.agentv/`.
- * Returns absolute paths of discovered benchmark directories.
+ * Returns absolute paths of discovered benchmark directories, sorted for
+ * deterministic iteration. This is a one-shot helper for bulk registration;
+ * Studio does not scan at request time.
  */
 export function discoverBenchmarks(rootDir: string, maxDepth = 2): string[] {
   const absRoot = path.resolve(rootDir);
@@ -224,5 +255,5 @@ export function discoverBenchmarks(rootDir: string, maxDepth = 2): string[] {
   }
 
   scan(absRoot, 0);
-  return results;
+  return results.sort();
 }

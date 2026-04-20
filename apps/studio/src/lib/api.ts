@@ -267,7 +267,7 @@ export async function addBenchmarkApi(benchmarkPath: string): Promise<BenchmarkE
   });
   if (!res.ok) {
     const err = (await res.json()) as { error: string };
-    throw new Error(err.error || `Failed to add project: ${res.status}`);
+    throw new Error(err.error || `Failed to add benchmark: ${res.status}`);
   }
   return res.json() as Promise<BenchmarkEntry>;
 }
@@ -277,22 +277,8 @@ export async function removeBenchmarkApi(benchmarkId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(`Failed to remove project: ${res.status}`);
+    throw new Error(`Failed to remove benchmark: ${res.status}`);
   }
-}
-
-export async function discoverBenchmarksApi(dirPath: string): Promise<BenchmarkEntry[]> {
-  const res = await fetch('/api/benchmarks/discover', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: dirPath }),
-  });
-  if (!res.ok) {
-    const err = (await res.json()) as { error: string };
-    throw new Error(err.error || `Failed to discover: ${res.status}`);
-  }
-  const data = (await res.json()) as { discovered: BenchmarkEntry[] };
-  return data.discovered;
 }
 
 /** Build the API base URL for a benchmark-scoped request. */

@@ -12,6 +12,8 @@
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
  *   - GET /api/benchmarks  — list registered benchmarks
+ *   - POST /api/benchmarks — register a benchmark by path
+ *   - DELETE /api/benchmarks/:benchmarkId — unregister a benchmark
  *   - GET /api/benchmarks/:benchmarkId/runs — benchmark-scoped run list
  *
  * All data routes (runs, suites, categories, evals, experiments, targets)
@@ -20,7 +22,7 @@
  * how searchDir is resolved.
  *
  * Before starting the server, the command enforces `required_version` from
- * the cwd's `.agentv/config.yaml` (single-project scope) via
+ * the cwd's `.agentv/config.yaml` (single-benchmark scope) via
  * `enforceRequiredVersion()`, matching the behavior of `agentv eval`.
  *
  * Exported functions (for testing):
@@ -38,7 +40,6 @@ import {
   DEFAULT_CATEGORY,
   type EvaluationResult,
   addBenchmark,
-  discoverBenchmarks,
   getBenchmark,
   loadBenchmarkRegistry,
   loadConfig,
@@ -123,18 +124,18 @@ export function loadResults(content: string): EvaluationResult[] {
 }
 
 export function resolveDashboardMode(
-  projectCount: number,
+  benchmarkCount: number,
   options: { multi?: boolean; single?: boolean },
-): { isMultiProject: boolean; showMultiWarning: boolean } {
+): { isMultiBenchmark: boolean; showMultiWarning: boolean } {
   if (options.single === true) {
-    return { isMultiProject: false, showMultiWarning: options.multi === true };
+    return { isMultiBenchmark: false, showMultiWarning: options.multi === true };
   }
 
   if (options.multi === true) {
-    return { isMultiProject: true, showMultiWarning: true };
+    return { isMultiBenchmark: true, showMultiWarning: true };
   }
 
-  return { isMultiProject: projectCount > 1, showMultiWarning: false };
+  return { isMultiBenchmark: benchmarkCount > 1, showMultiWarning: false };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -252,7 +253,7 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
 // ── Shared data-route handlers ───────────────────────────────────────────
 //
 // Each handler takes a Hono Context and a DataContext (resolved directories).
-// Both unscoped and project-scoped routes call the same handler, differing
+// Both unscoped and benchmark-scoped routes call the same handler, differing
 // only in how the DataContext is constructed.
 
 interface DataContext {
@@ -815,13 +816,13 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 function handleConfig(
   c: C,
   { agentvDir, searchDir }: DataContext,
-  options?: { readOnly?: boolean; multiProjectDashboard?: boolean },
+  options?: { readOnly?: boolean; multiBenchmarkDashboard?: boolean },
 ) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
-    project_name: path.basename(searchDir),
-    multi_project_dashboard: options?.multiProjectDashboard === true,
+    benchmark_name: path.basename(searchDir),
+    multi_benchmark_dashboard: options?.multiBenchmarkDashboard === true,
   });
 }
 
@@ -887,7 +888,7 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string; readOnly?: boolean; multiProjectDashboard?: boolean },
+  options?: { studioDir?: string; readOnly?: boolean; multiBenchmarkDashboard?: boolean },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
@@ -896,14 +897,16 @@ export function createApp(
   const app = new Hono();
 
   // ── Benchmark resolution wrapper ──────────────────────────────────────
-  // Resolves benchmarkId → DataContext, returning 404 if not found.
+  // Resolves benchmarkId → DataContext, returning 404 if not found. The
+  // registry is re-read on every request, so edits to benchmarks.yaml (or
+  // POST /api/benchmarks) take effect without restarting the server.
   function withBenchmark(
     c: C,
     handler: (c: C, ctx: DataContext) => Response | Promise<Response>,
   ): Response | Promise<Response> {
     const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
     if (!benchmark || !existsSync(benchmark.path)) {
-      return c.json({ error: 'Project not found' }, 404);
+      return c.json({ error: 'Benchmark not found' }, 404);
     }
     return handler(c, {
       searchDir: benchmark.path,
@@ -976,7 +979,7 @@ export function createApp(
         };
       }),
     );
-    return c.json({ projects: benchmarks });
+    return c.json({ benchmarks });
   });
 
   app.post('/api/benchmarks', async (c) => {
@@ -993,18 +996,9 @@ export function createApp(
     }
   });
 
-  app.delete('/api/benchmarks/:benchmarkId', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
-    }
-    const removed = removeBenchmark(c.req.param('benchmarkId') ?? '');
-    if (!removed) return c.json({ error: 'Project not found' }, 404);
-    return c.json({ ok: true });
-  });
-
   app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
     const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
-    if (!benchmark) return c.json({ error: 'Project not found' }, 404);
+    if (!benchmark) return c.json({ error: 'Benchmark not found' }, 404);
     try {
       const { runs: metas } = await listMergedResultFiles(benchmark.path);
       const runCount = metas.length;
@@ -1019,22 +1013,7 @@ export function createApp(
         last_run: lastRun,
       });
     } catch {
-      return c.json({ error: 'Failed to read project' }, 500);
-    }
-  });
-
-  app.post('/api/benchmarks/discover', async (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
-    }
-    try {
-      const body = await c.req.json<{ path: string }>();
-      if (!body.path) return c.json({ error: 'Missing path' }, 400);
-      const discovered = discoverBenchmarks(body.path);
-      const registered = discovered.map((p) => benchmarkEntryToWire(addBenchmark(p)));
-      return c.json({ discovered: registered });
-    } catch (err) {
-      return c.json({ error: (err as Error).message }, 400);
+      return c.json({ error: 'Failed to read benchmark' }, 500);
     }
   });
 
@@ -1053,8 +1032,8 @@ export function createApp(
       target?: string;
       experiment?: string;
       source: 'local' | 'remote';
-      project_id: string;
-      project_name: string;
+      benchmark_id: string;
+      benchmark_name: string;
     }> = [];
 
     for (const p of registry.benchmarks) {
@@ -1084,12 +1063,12 @@ export function createApp(
             source: m.source,
             ...(target && { target }),
             ...(experiment && { experiment }),
-            project_id: p.id,
-            project_name: p.name,
+            benchmark_id: p.id,
+            benchmark_name: p.name,
           });
         }
       } catch {
-        // skip inaccessible projects
+        // skip inaccessible benchmarks
       }
     }
 
@@ -1097,12 +1076,21 @@ export function createApp(
     return c.json({ runs: allRuns });
   });
 
+  app.delete('/api/benchmarks/:benchmarkId', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    const removed = removeBenchmark(c.req.param('benchmarkId') ?? '');
+    if (!removed) return c.json({ error: 'Benchmark not found' }, 404);
+    return c.json({ ok: true });
+  });
+
   // ── Data routes (unscoped) ────────────────────────────────────────────
 
   app.get('/api/config', (c) =>
     handleConfig(c, defaultCtx, {
       readOnly,
-      multiProjectDashboard: options?.multiProjectDashboard,
+      multiBenchmarkDashboard: options?.multiBenchmarkDashboard,
     }),
   );
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
@@ -1219,7 +1207,7 @@ export function createApp(
     withBenchmark(c, (ctx, dataCtx) =>
       handleConfig(ctx, dataCtx, {
         readOnly,
-        multiProjectDashboard: options?.multiProjectDashboard,
+        multiBenchmarkDashboard: options?.multiBenchmarkDashboard,
       }),
     ),
   );
@@ -1389,33 +1377,28 @@ export const resultsServeCommand = command({
     multi: flag({
       long: 'multi',
       description:
-        'Launch in multi-project dashboard mode (deprecated; use auto-detect or --single)',
+        'Launch in multi-benchmark dashboard mode (deprecated; use auto-detect or --single)',
     }),
     single: flag({
       long: 'single',
-      description: 'Force single-project dashboard mode',
+      description: 'Force single-benchmark dashboard mode',
     }),
     add: option({
       type: optional(string),
       long: 'add',
-      description: 'Register a project by path',
+      description: 'Register a benchmark by path',
     }),
     remove: option({
       type: optional(string),
       long: 'remove',
-      description: 'Unregister a project by ID',
-    }),
-    discover: option({
-      type: optional(string),
-      long: 'discover',
-      description: 'Scan a directory tree for repos with .agentv/',
+      description: 'Unregister a benchmark by ID',
     }),
     readOnly: flag({
       long: 'read-only',
       description: 'Disable write operations and launch Studio in read-only leaderboard mode',
     }),
   },
-  handler: async ({ source, port, dir, multi, single, add, remove, discover, readOnly }) => {
+  handler: async ({ source, port, dir, multi, single, add, remove, readOnly }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
@@ -1423,7 +1406,7 @@ export const resultsServeCommand = command({
     if (add) {
       try {
         const entry = addBenchmark(add);
-        console.log(`Registered project: ${entry.name} (${entry.id}) at ${entry.path}`);
+        console.log(`Registered benchmark: ${entry.name} (${entry.id}) at ${entry.path}`);
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);
@@ -1434,46 +1417,32 @@ export const resultsServeCommand = command({
     if (remove) {
       const removed = removeBenchmark(remove);
       if (removed) {
-        console.log(`Unregistered project: ${remove}`);
+        console.log(`Unregistered benchmark: ${remove}`);
       } else {
-        console.error(`Project not found: ${remove}`);
+        console.error(`Benchmark not found: ${remove}`);
         process.exit(1);
       }
-      return;
-    }
-
-    if (discover) {
-      const discovered = discoverBenchmarks(discover);
-      if (discovered.length === 0) {
-        console.log(`No projects with .agentv/ found under ${discover}`);
-        return;
-      }
-      for (const p of discovered) {
-        const entry = addBenchmark(p);
-        console.log(`Registered: ${entry.name} (${entry.id}) at ${entry.path}`);
-      }
-      console.log(`\nDiscovered ${discovered.length} project(s).`);
       return;
     }
 
     // ── Version check ────────────────────────────────────────────────
     // Enforce `required_version` from .agentv/config.yaml so Studio/serve
     // match `agentv eval` behavior. Same prompt in TTY, warn+continue
-    // otherwise. Single-project scope only — when one agentv instance
+    // otherwise. Single-benchmark scope only — when one agentv instance
     // serves multiple repos with differing version requirements, a
-    // per-project local install is required instead.
+    // per-benchmark local install is required instead.
     const repoRoot = await findRepoRoot(cwd);
     const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
     if (yamlConfig?.required_version) {
       await enforceRequiredVersion(yamlConfig.required_version);
     }
 
-    // ── Determine multi-project mode ────────────────────────────────
+    // ── Determine multi-benchmark mode ───────────────────────────────
     const registry = loadBenchmarkRegistry();
-    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.benchmarks.length, {
-      multi,
-      single,
-    });
+    const { isMultiBenchmark, showMultiWarning } = resolveDashboardMode(
+      registry.benchmarks.length,
+      { multi, single },
+    );
 
     try {
       let results: EvaluationResult[] = [];
@@ -1505,17 +1474,17 @@ export const resultsServeCommand = command({
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
       const app = createApp(results, resultDir, cwd, sourceFile, {
         readOnly,
-        multiProjectDashboard: isMultiProject,
+        multiBenchmarkDashboard: isMultiBenchmark,
       });
 
       if (showMultiWarning) {
         console.warn(
-          'Warning: --multi is deprecated. Studio now auto-detects multi-project mode when multiple projects are registered. Use --single to force the single-project view.',
+          'Warning: --multi is deprecated. Studio now auto-detects multi-benchmark mode when multiple benchmarks are registered. Use --single to force the single-benchmark view.',
         );
       }
 
-      if (isMultiProject) {
-        console.log(`Multi-project mode: ${registry.benchmarks.length} project(s) registered`);
+      if (isMultiBenchmark) {
+        console.log(`Multi-benchmark mode: ${registry.benchmarks.length} benchmark(s) registered`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {

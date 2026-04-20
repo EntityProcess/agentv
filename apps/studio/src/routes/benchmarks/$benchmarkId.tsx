@@ -1,7 +1,7 @@
 /**
- * Project home route: tabbed view (Runs, Experiments, Analytics, Targets) scoped to a project.
+ * Benchmark home route: tabbed view (Runs, Experiments, Analytics, Targets) scoped to a benchmark.
  *
- * Mirrors the single-project home page but fetches from project-scoped API endpoints.
+ * Mirrors the single-benchmark home page but fetches from benchmark-scoped API endpoints.
  */
 
 import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
@@ -32,11 +32,11 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'targets', label: 'Targets' },
 ];
 
-export const Route = createFileRoute('/projects/$benchmarkId')({
-  component: ProjectHomePage,
+export const Route = createFileRoute('/benchmarks/$benchmarkId')({
+  component: BenchmarkHomePage,
 });
 
-function ProjectHomePage() {
+function BenchmarkHomePage() {
   const { benchmarkId } = Route.useParams();
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
@@ -72,7 +72,7 @@ function ProjectHomePage() {
               key={t.id}
               onClick={() =>
                 navigate({
-                  to: '/projects/$benchmarkId',
+                  to: '/benchmarks/$benchmarkId',
                   params: { benchmarkId },
                   search: { tab: t.id } as Record<string, string>,
                 })
@@ -89,12 +89,12 @@ function ProjectHomePage() {
         </div>
       </div>
 
-      {activeTab === 'runs' && <ProjectRunsTab benchmarkId={benchmarkId} />}
-      {activeTab === 'experiments' && <ProjectExperimentsTab benchmarkId={benchmarkId} />}
+      {activeTab === 'runs' && <BenchmarkRunsTab benchmarkId={benchmarkId} />}
+      {activeTab === 'experiments' && <BenchmarkExperimentsTab benchmarkId={benchmarkId} />}
       {activeTab === 'analytics' && (
-        <ProjectAnalyticsTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
+        <BenchmarkAnalyticsTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
       )}
-      {activeTab === 'targets' && <ProjectTargetsTab benchmarkId={benchmarkId} />}
+      {activeTab === 'targets' && <BenchmarkTargetsTab benchmarkId={benchmarkId} />}
 
       {!isReadOnly && (
         <RunEvalModal
@@ -107,7 +107,7 @@ function ProjectHomePage() {
   );
 }
 
-function ProjectRunsTab({ benchmarkId }: { benchmarkId: string }) {
+function BenchmarkRunsTab({ benchmarkId }: { benchmarkId: string }) {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useBenchmarkRunList(benchmarkId);
   const { data: remoteStatus } = useRemoteStatus(benchmarkId);
@@ -167,7 +167,7 @@ function ProjectRunsTab({ benchmarkId }: { benchmarkId: string }) {
   );
 }
 
-function ProjectExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
+function BenchmarkExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
   const { data, isLoading } = useQuery(benchmarkExperimentsOptions(benchmarkId));
   const experiments = (data as ExperimentsResponse | undefined)?.experiments ?? [];
 
@@ -211,7 +211,7 @@ function ProjectExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
   );
 }
 
-function ProjectAnalyticsTab({
+function BenchmarkAnalyticsTab({
   benchmarkId,
   readOnly,
 }: {
@@ -231,7 +231,7 @@ function ProjectAnalyticsTab({
   );
 }
 
-function ProjectTargetsTab({ benchmarkId }: { benchmarkId: string }) {
+function BenchmarkTargetsTab({ benchmarkId }: { benchmarkId: string }) {
   const { data, isLoading } = useQuery(benchmarkTargetsOptions(benchmarkId));
   const targets = (data as TargetsResponse | undefined)?.targets ?? [];
 

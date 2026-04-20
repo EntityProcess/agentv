@@ -49,6 +49,16 @@ Before adding features, research how peer frameworks solve the problem. Prefer t
 ### 5. YAGNI — You Aren't Gonna Need It
 Don't build features until there's a concrete need. Before adding a new capability, ask: "Is there real demand for this today, or am I anticipating future needs?" Numeric thresholds, extra tracking fields, and configurable knobs should be omitted until users actually request them. Start with the simplest version (e.g., boolean over numeric range) and extend later if needed.
 
+**YAGNI applies to *how* you meet a real request, not just *whether* to meet it.** The common failure mode is not "I built X and nobody wanted it." It's "someone asked for X and I built a bigger X than they asked for." Guard against that with these habits:
+
+1. **Audit existing primitives before adding new ones.** When an issue asks for capability Y, the first question is not "how do I build Y?" — it's **"what does the codebase already do that addresses Y?"** Grep for existing functions, endpoints, and config shapes. Many requests are satisfied by a behavior that already exists and just needs to be surfaced, configured, or exercised differently.
+2. **Treat issue language as a hint, not a spec.** Issues describe problems *and* implementations. "We need a discovery root" is one implementation of "we need the registry to update live." When an issue lists multiple acceptable approaches (or its acceptance criteria don't actually require the implementation it names), pick the one with the least code surface. Summarize the acceptance criteria in your own words, strip out implementation nouns ("discovery root," "watcher," "registry reload"), then match them against existing primitives before designing anything new.
+3. **Prefer data/config changes over new mechanisms.** If the observable effect is "this list should be editable at runtime," prefer "re-read the file per request" over "add a watcher + a new field + a precedence rule + a new endpoint." Config-driven beats code-driven when both are sufficient.
+4. **Stop when scope doubles.** If an implementation's surface area grows more than ~2× the starting estimate (extra types, extra endpoints, extra invariants), that's a red flag to re-plan, not a sign to push through. Pause and ask: "What would the smallest possible version look like? Does the issue actually require more than that?"
+5. **If you are about to add a second mode, two-layer precedence, or an invariant between two optional fields, stop.** `source: manual | discovered`, "pinned wins over discovered," `excluded_paths` filtering the discovered set — every one of these is a sign that you're in complexity territory that a simpler data model would have avoided.
+
+**Call out existing overengineering.** If, while working on a task, you notice a *current* feature in the repo that looks overengineered relative to what it's used for (multiple modes, optional precedence rules, dead-looking extensibility scaffolding), flag it — don't silently fix it. Open a tracking issue titled "cleanup: simplify X" that lists: the observable behavior today, the simpler model that would cover it, and the migration notes. Link to the code. Do not widen your current PR to absorb the cleanup unless the user asks.
+
 ### 6. Non-Breaking Extensions
 New fields should be optional. Existing configurations must continue working unchanged.
 
@@ -146,36 +156,64 @@ cd ../agentv.worktrees/<type>-<short-desc>
 
 ## Wire Format Convention
 
-**All external-facing JSON and JSONL output uses `snake_case` keys.** This applies to:
-- JSONL result files on disk (`test_id`, `token_usage`, `duration_ms`)
-- Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`)
-- CLI command JSON output (`results summary`, `results failures`, `results show`)
-- YAML eval config fields
+**Everything that crosses a process boundary uses `snake_case` keys. Internal TypeScript uses `camelCase`. Translate at the boundary — never in the middle.**
 
-**Internal TypeScript uses `camelCase`** as standard. Convert at the serialization boundary only:
+The rule is blanket: if the key is going to disk, to a user's editor, into a JSON response, or onto a CLI, it's snake_case. There is no "well this file is internal-ish" carve-out. If in doubt, snake_case.
+
+### snake_case surfaces
+- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `benchmarks.yaml`, `studio/config.yaml`, any future YAML we add.
+- JSONL result files (`test_id`, `token_usage`, `duration_ms`).
+- Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
+- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `benchmark_id`).
+- CLI JSON output (`agentv results summary`, `results failures`, `results show`).
+- Anything consumed by non-TS tooling (Python, jq pipelines, external dashboards).
+
+### camelCase surfaces
+- TypeScript source: all variables, parameters, fields, type members.
+- Internal in-memory shapes passed between TS modules.
+
+### Translate only at the boundary
+Define a second interface for the wire shape and convert in one place — don't smear snake_case through TS internals.
 
 ```typescript
-// Interfaces for JSON output use snake_case (they define the wire format)
-interface SummaryJson {
-  total: number;
-  pass_rate: number;
-  failed_test_ids: string[];
+// Wire shape — snake_case, matches what hits disk / the network
+interface BenchmarkEntryYaml {
+  id: string;
+  name: string;
+  path: string;
+  added_at: string;
+  last_opened_at: string;
 }
 
-// Function internals use camelCase (idiomatic TypeScript)
-function formatSummary(results: EvaluationResult[]): SummaryJson {
-  const passRate = computePassRate(results);
-  const failedTestIds = findFailed(results);
+// Internal shape — camelCase, what every TS call site sees
+interface BenchmarkEntry {
+  id: string;
+  name: string;
+  path: string;
+  addedAt: string;
+  lastOpenedAt: string;
+}
 
-  return {
-    total: results.length,
-    pass_rate: passRate,
-    failed_test_ids: failedTestIds,
-  };
+function fromYaml(e: BenchmarkEntryYaml): BenchmarkEntry {
+  return { id: e.id, name: e.name, path: e.path, addedAt: e.added_at, lastOpenedAt: e.last_opened_at };
+}
+
+function toYaml(e: BenchmarkEntry): BenchmarkEntryYaml {
+  return { id: e.id, name: e.name, path: e.path, added_at: e.addedAt, last_opened_at: e.lastOpenedAt };
 }
 ```
 
-**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript.
+Yes, this is two interfaces and two functions per entity. That's the price of keeping TS idiomatic while staying faithful to the wire contract. Don't skip it — dumping TS objects directly to YAML leaks `addedAt`-style camelCase onto disk and breaks jq/Python consumers.
+
+### Anti-patterns
+- `writeFileSync(path, stringifyYaml(tsObject))` — dumps TS field names verbatim. Wrong.
+- `interface Foo { testId: string; ... }` for a JSON response body — `test_id`, always.
+- Accepting both `testId` and `test_id` on input "for back-compat" when nothing is shipped yet. Just snake_case.
+
+### Existing divergences
+If you spot a camelCase key already on disk or in a response (e.g. a legacy endpoint), treat it as a bug: migrate it to snake_case in the same PR where you touch that code path. Don't grandfather it in.
+
+**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript. `fromYaml` / `toYaml` in `packages/core/src/benchmarks.ts` is the model for YAML boundaries.
 
 **Why:** Aligns with skill-creator (claude-plugins-official) and broader Python/JSON ecosystem conventions where snake_case is the standard wire format.
 

@@ -102,44 +102,44 @@ describe('loadResults', () => {
 // ── resolveDashboardMode ───────────────────────────────────────────────
 
 describe('resolveDashboardMode', () => {
-  it('defaults to single-project mode when no projects are registered', () => {
+  it('defaults to single-benchmark mode when no benchmarks are registered', () => {
     expect(resolveDashboardMode(0, {})).toEqual({
-      isMultiProject: false,
+      isMultiBenchmark: false,
       showMultiWarning: false,
     });
   });
 
-  it('defaults to single-project mode when exactly one project is registered', () => {
+  it('defaults to single-benchmark mode when exactly one benchmark is registered', () => {
     expect(resolveDashboardMode(1, {})).toEqual({
-      isMultiProject: false,
+      isMultiBenchmark: false,
       showMultiWarning: false,
     });
   });
 
-  it('defaults to multi-project mode when multiple projects are registered', () => {
+  it('defaults to multi-benchmark mode when multiple benchmarks are registered', () => {
     expect(resolveDashboardMode(2, {})).toEqual({
-      isMultiProject: true,
+      isMultiBenchmark: true,
       showMultiWarning: false,
     });
   });
 
-  it('forces multi-project mode with a deprecation warning when --multi is used', () => {
+  it('forces multi-benchmark mode with a deprecation warning when --multi is used', () => {
     expect(resolveDashboardMode(1, { multi: true })).toEqual({
-      isMultiProject: true,
+      isMultiBenchmark: true,
       showMultiWarning: true,
     });
   });
 
-  it('forces single-project mode when --single is used', () => {
+  it('forces single-benchmark mode when --single is used', () => {
     expect(resolveDashboardMode(3, { single: true })).toEqual({
-      isMultiProject: false,
+      isMultiBenchmark: false,
       showMultiWarning: false,
     });
   });
 
   it('lets --single override --multi', () => {
     expect(resolveDashboardMode(3, { multi: true, single: true })).toEqual({
-      isMultiProject: false,
+      isMultiBenchmark: false,
       showMultiWarning: true,
     });
   });
@@ -370,17 +370,17 @@ describe('serve app', () => {
       const app = createApp(results, tempDir, undefined, undefined, {
         studioDir,
         readOnly: true,
-        multiProjectDashboard: true,
+        multiBenchmarkDashboard: true,
       });
 
       const res = await app.request('/api/config');
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
         read_only?: boolean;
-        multi_project_dashboard?: boolean;
+        multi_benchmark_dashboard?: boolean;
       };
       expect(data.read_only).toBe(true);
-      expect(data.multi_project_dashboard).toBe(true);
+      expect(data.multi_benchmark_dashboard).toBe(true);
     });
   });
 
