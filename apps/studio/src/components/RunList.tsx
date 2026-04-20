@@ -107,7 +107,7 @@ export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
                 <td className="px-4 py-3">
                   {benchmarkId ? (
                     <Link
-                      to="/projects/$benchmarkId/runs/$runId"
+                      to="/benchmarks/$benchmarkId/runs/$runId"
                       params={{ benchmarkId, runId: run.filename }}
                       className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                     >

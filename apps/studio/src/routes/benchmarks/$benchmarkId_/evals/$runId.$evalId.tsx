@@ -1,5 +1,5 @@
 /**
- * Project-scoped eval detail route.
+ * Benchmark-scoped eval detail route.
  */
 
 import { createFileRoute } from '@tanstack/react-router';
@@ -9,11 +9,11 @@ import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { useBenchmarkRunDetail, useStudioConfig } from '~/lib/api';
 
-export const Route = createFileRoute('/projects/$benchmarkId_/evals/$runId/$evalId')({
-  component: ProjectEvalDetailPage,
+export const Route = createFileRoute('/benchmarks/$benchmarkId_/evals/$runId/$evalId')({
+  component: BenchmarkEvalDetailPage,
 });
 
-function ProjectEvalDetailPage() {
+function BenchmarkEvalDetailPage() {
   const { benchmarkId, runId, evalId } = Route.useParams();
   const { data, isLoading, error } = useBenchmarkRunDetail(benchmarkId, runId);
   const { data: config } = useStudioConfig();

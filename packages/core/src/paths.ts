@@ -6,7 +6,7 @@ let logged = false;
 /**
  * The default config directory (~/.agentv). Always resolves to the user's home
  * directory regardless of AGENTV_HOME. Used for lightweight, machine-local files
- * like version-check.json, last-config.json, and projects.yaml.
+ * like version-check.json, last-config.json, and benchmarks.yaml.
  */
 export function getAgentvConfigDir(): string {
   return path.join(os.homedir(), '.agentv');

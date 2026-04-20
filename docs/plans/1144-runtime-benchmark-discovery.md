@@ -1,7 +1,7 @@
 # Studio Runtime Benchmark Discovery (#1144)
 
 ## Problem
-Studio reads `~/.agentv/projects.yaml` fresh on every `/api/benchmarks` request, so
+Studio reads `~/.agentv/benchmarks.yaml` fresh on every `/api/benchmarks` request, so
 edits to that file are already picked up live. What doesn't work is **filesystem
 discovery**: `--discover <path>` is a one-shot scan at startup, so any `.agentv/`
 repo that appears/disappears under that path while `agentv serve` is running is
@@ -9,7 +9,7 @@ invisible until restart.
 
 ## Design
 
-### Persisted state (projects.yaml)
+### Persisted state (benchmarks.yaml)
 Extend `BenchmarkRegistry` with an optional `discoveryRoots?: string[]`. This is
 the persisted list of directories Studio should continuously scan for
 `.agentv/` repos. Existing `benchmarks` entries remain untouched.

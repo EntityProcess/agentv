@@ -2,9 +2,9 @@
  * Benchmark registry for AgentV Studio multi-benchmark support.
  *
  * A Benchmark = any directory containing a `.agentv/` folder.
- * The registry lives at `~/.agentv/projects.yaml` and tracks registered benchmarks
- * plus an optional list of discovery roots that Studio continuously rescans at
- * runtime so repos can appear/disappear without a server restart.
+ * The registry lives at `~/.agentv/benchmarks.yaml` and tracks registered
+ * benchmarks plus an optional list of discovery roots that Studio continuously
+ * rescans at runtime so repos can appear/disappear without a server restart.
  *
  * YAML format (all keys snake_case per AGENTS.md §"Wire Format Convention"):
  *   benchmarks:
@@ -27,10 +27,14 @@
  *
  * Concurrency: the registry assumes a single writer. All mutating calls
  * (add/remove/touchBenchmark, add/removeDiscoveryRoot) do read-modify-write on
- * projects.yaml without a lock. Interleaved writes from multiple processes
+ * benchmarks.yaml without a lock. Interleaved writes from multiple processes
  * can clobber each other; Studio's HTTP handlers are serialized by Node's
  * single-threaded event loop, which satisfies the 24/7 Studio case. Run only
  * one `agentv` process against a given home at a time.
+ *
+ * Legacy filename: pre-rename installs stored this at `~/.agentv/projects.yaml`.
+ * On first load, migrateLegacyRegistry() copies that file to benchmarks.yaml
+ * (and deletes the old one) so nobody loses their registrations.
  *
  * To extend:
  *   - For CRUD on persisted entries: loadBenchmarkRegistry() / saveBenchmarkRegistry().
@@ -46,6 +50,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -84,22 +89,42 @@ export interface BenchmarkRegistry {
 // ── Registry path ───────────────────────────────────────────────────────
 
 export function getBenchmarksRegistryPath(): string {
-  return path.join(getAgentvConfigDir(), 'projects.yaml');
+  return path.join(getAgentvConfigDir(), 'benchmarks.yaml');
 }
 
 /**
- * One-time migration: if projects.yaml exists at the old AGENTV_HOME location
- * but not in ~/.agentv, copy it over. This handles the case where users had
- * AGENTV_HOME set and projects.yaml was created there before the config/data split.
+ * One-time migration run before every load. Two legacy forms are handled:
+ *   1. AGENTV_HOME-relative `projects.yaml` — from before the config/data
+ *      split, when the registry lived under AGENTV_HOME.
+ *   2. `~/.agentv/projects.yaml` — from before the projects→benchmarks
+ *      rename.
+ * Whichever is found first (1 beats 2) is copied to the current
+ * benchmarks.yaml path and the legacy file is removed so the migration
+ * doesn't keep repeating.
  */
-function migrateProjectsYaml(targetPath: string): void {
+function migrateLegacyRegistry(targetPath: string): void {
+  if (existsSync(targetPath)) return;
+
   const dataHome = getAgentvHome();
   const configDir = getAgentvConfigDir();
-  if (dataHome === configDir) return;
-  const legacyPath = path.join(dataHome, 'projects.yaml');
-  if (!existsSync(legacyPath)) return;
-  mkdirSync(path.dirname(targetPath), { recursive: true });
-  copyFileSync(legacyPath, targetPath);
+  const legacyCandidates: string[] = [];
+  if (dataHome !== configDir) {
+    legacyCandidates.push(path.join(dataHome, 'projects.yaml'));
+  }
+  legacyCandidates.push(path.join(configDir, 'projects.yaml'));
+
+  for (const legacy of legacyCandidates) {
+    if (!existsSync(legacy)) continue;
+    mkdirSync(path.dirname(targetPath), { recursive: true });
+    copyFileSync(legacy, targetPath);
+    try {
+      rmSync(legacy, { force: true });
+    } catch {
+      // Leaving the legacy file behind is harmless — next load sees
+      // targetPath exists and skips the migration entirely.
+    }
+    return;
+  }
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
@@ -146,7 +171,7 @@ function toYaml(entry: BenchmarkEntry): BenchmarkEntryYaml {
 export function loadBenchmarkRegistry(): BenchmarkRegistry {
   const registryPath = getBenchmarksRegistryPath();
   if (!existsSync(registryPath)) {
-    migrateProjectsYaml(registryPath);
+    migrateLegacyRegistry(registryPath);
   }
   if (!existsSync(registryPath)) {
     return { benchmarks: [] };

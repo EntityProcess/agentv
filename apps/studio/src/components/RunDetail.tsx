@@ -193,7 +193,7 @@ export function RunDetail({ results, runId, benchmarkId }: RunDetailProps) {
                     <td className="px-4 py-3">
                       {benchmarkId ? (
                         <Link
-                          to="/projects/$benchmarkId/evals/$runId/$evalId"
+                          to="/benchmarks/$benchmarkId/evals/$runId/$evalId"
                           params={{ benchmarkId, runId, evalId: result.testId }}
                           className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         >

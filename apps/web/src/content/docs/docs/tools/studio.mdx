@@ -45,11 +45,11 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 |--------|-------------|
 | `--port`, `-p` | Port to listen on (flag > `PORT` env var > 3117) |
 | `--dir`, `-d` | Working directory (default: current directory) |
-| `--multi` | Launch in multi-project dashboard mode (deprecated; use auto-detect or `--single`) |
-| `--single` | Force single-project dashboard mode |
-| `--add <path>` | Register a project by path |
-| `--remove <id>` | Unregister a project by ID |
-| `--discover <path>` | Scan a directory tree for repos with `.agentv/` |
+| `--multi` | Launch in multi-benchmark dashboard mode (deprecated; use auto-detect or `--single`) |
+| `--single` | Force single-benchmark dashboard mode |
+| `--add <path>` | Register a benchmark by path |
+| `--remove <id>` | Unregister a benchmark by ID |
+| `--discovery-root <path>` | Watch a directory: benchmarks under it appear/disappear live without restart. Repeatable. |
 
 ## Features
 
@@ -152,28 +152,30 @@ agentv studio --add /path/to/my-evals
 agentv studio --add /path/to/other-evals
 ```
 
-Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/projects.yaml`.
+Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/benchmarks.yaml`.
 
-### Auto-Discovery
+### Runtime Discovery
 
-Scan a parent directory to find and register all benchmark repos:
+For a 24/7 Studio deployment, tell it which directory to watch:
 
 ```bash
-agentv studio --discover /path/to/repos
+agentv studio --discovery-root /path/to/repos
 ```
 
-This recursively searches (up to 2 levels deep) for directories containing `.agentv/` and registers them.
+Studio rescans every configured root on each `/api/benchmarks` read (every ~10 s via the UI poll), so any `.agentv/` repo appearing or disappearing under a root shows up without restarting the server. The flag is repeatable and persisted to `~/.agentv/benchmarks.yaml` under `discovery_roots`, so you only need to pass it once.
+
+Click **Remove** on a discovered benchmark to hide it from the UI — its path goes into the `excluded_paths` list. Pinning it via `--add` or the UI's Add form un-hides it (manual always wins).
 
 ### Launching the Dashboard
 
-Studio auto-detects the mode based on how many benchmarks are registered:
+Studio auto-detects the mode based on how many benchmarks are active:
 
-- `0` or `1` registered: single-project view
-- `2+` registered: Benchmarks dashboard
+- `0` or `1` active: single-benchmark view
+- `2+` active: Benchmarks dashboard
 
 ```bash
 agentv studio          # auto-detects
-agentv studio --single # force single-project view
+agentv studio --single # force single-benchmark view
 ```
 
 The landing page shows a card for each benchmark with run count, pass rate, and last run time.

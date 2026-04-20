@@ -1,7 +1,7 @@
 /**
- * Home route: shows the multi-project dashboard when the server enables it,
+ * Home route: shows the multi-benchmark dashboard when the server enables it,
  * or the existing tabbed landing page (Runs, Experiments, Analytics, Targets)
- * in single-project mode.
+ * in single-benchmark mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
@@ -11,15 +11,15 @@ import { useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
+import { BenchmarkCard } from '~/components/BenchmarkCard';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
-import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   addBenchmarkApi,
-  discoverBenchmarksApi,
+  addDiscoveryRootApi,
   syncRemoteResultsApi,
   useBenchmarkList,
   useCompare,
@@ -43,38 +43,41 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
-  const { data: projectData, isLoading: projectsLoading } = useBenchmarkList();
+  const { data: benchmarkData, isLoading: benchmarksLoading } = useBenchmarkList();
   const { data: config, isLoading: configLoading } = useStudioConfig();
-  const hasProjects = (projectData?.projects.length ?? 0) > 0;
-  const multiProjectDashboard = config?.multi_project_dashboard;
+  const hasBenchmarks = (benchmarkData?.benchmarks.length ?? 0) > 0;
+  const multiBenchmarkDashboard = config?.multi_benchmark_dashboard;
 
-  if (projectsLoading || configLoading) {
+  if (benchmarksLoading || configLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (multiProjectDashboard === true || (multiProjectDashboard === undefined && hasProjects)) {
-    return <ProjectsDashboard />;
+  if (
+    multiBenchmarkDashboard === true ||
+    (multiBenchmarkDashboard === undefined && hasBenchmarks)
+  ) {
+    return <BenchmarksDashboard />;
   }
 
-  return <SingleProjectHome />;
+  return <SingleBenchmarkHome />;
 }
 
-// ── Projects Dashboard ──────────────────────────────────────────────────
+// ── Benchmarks Dashboard ────────────────────────────────────────────────
 
-function ProjectsDashboard() {
+function BenchmarksDashboard() {
   const { data } = useBenchmarkList();
   const { data: config } = useStudioConfig();
   const queryClient = useQueryClient();
   const [addPath, setAddPath] = useState('');
-  const [discoverPath, setDiscoverPath] = useState('');
+  const [rootPath, setRootPath] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showRunEval, setShowRunEval] = useState(false);
 
-  const projects = data?.projects ?? [];
+  const benchmarks = data?.benchmarks ?? [];
   const isReadOnly = config?.read_only === true;
 
-  async function handleAddProject(e: React.FormEvent) {
+  async function handleAddBenchmark(e: React.FormEvent) {
     e.preventDefault();
     if (!addPath.trim()) return;
     setError(null);
@@ -88,16 +91,13 @@ function ProjectsDashboard() {
     }
   }
 
-  async function handleDiscover(e: React.FormEvent) {
+  async function handleAddDiscoveryRoot(e: React.FormEvent) {
     e.preventDefault();
-    if (!discoverPath.trim()) return;
+    if (!rootPath.trim()) return;
     setError(null);
     try {
-      const discovered = await discoverBenchmarksApi(discoverPath.trim());
-      setDiscoverPath('');
-      if (discovered.length === 0) {
-        setError('No projects with .agentv/ found in that directory.');
-      }
+      await addDiscoveryRootApi(rootPath.trim());
+      setRootPath('');
       queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
     } catch (err) {
       setError((err as Error).message);
@@ -138,7 +138,7 @@ function ProjectsDashboard() {
 
       {!isReadOnly && showAddForm && (
         <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-          <form onSubmit={handleAddProject} className="flex gap-2">
+          <form onSubmit={handleAddBenchmark} className="flex gap-2">
             <input
               type="text"
               value={addPath}
@@ -153,27 +153,27 @@ function ProjectsDashboard() {
               Add
             </button>
           </form>
-          <form onSubmit={handleDiscover} className="flex gap-2">
+          <form onSubmit={handleAddDiscoveryRoot} className="flex gap-2">
             <input
               type="text"
-              value={discoverPath}
-              onChange={(e) => setDiscoverPath(e.target.value)}
-              placeholder="Discover benchmarks in directory..."
+              value={rootPath}
+              onChange={(e) => setRootPath(e.target.value)}
+              placeholder="Watch a directory for .agentv/ repos..."
               className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
             />
             <button
               type="submit"
               className="rounded-md bg-gray-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-600"
             >
-              Discover
+              Watch
             </button>
           </form>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((project) => (
-          <ProjectCard key={project.id} project={project} />
+        {benchmarks.map((benchmark) => (
+          <BenchmarkCard key={benchmark.id} benchmark={benchmark} />
         ))}
       </div>
 
@@ -182,9 +182,9 @@ function ProjectsDashboard() {
   );
 }
 
-// ── Single-project home (existing behavior) ─────────────────────────────
+// ── Single-benchmark home (existing behavior) ───────────────────────────
 
-function SingleProjectHome() {
+function SingleBenchmarkHome() {
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
@@ -225,8 +225,8 @@ function SingleProjectHome() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
-          {config?.project_name && (
-            <p className="mt-0.5 text-sm text-gray-500">{config.project_name}</p>
+          {config?.benchmark_name && (
+            <p className="mt-0.5 text-sm text-gray-500">{config.benchmark_name}</p>
           )}
         </div>
         {!isReadOnly && (

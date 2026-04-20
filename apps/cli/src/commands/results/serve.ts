@@ -23,7 +23,7 @@
  * how searchDir is resolved.
  *
  * Before starting the server, the command enforces `required_version` from
- * the cwd's `.agentv/config.yaml` (single-project scope) via
+ * the cwd's `.agentv/config.yaml` (single-benchmark scope) via
  * `enforceRequiredVersion()`, matching the behavior of `agentv eval`.
  *
  * Exported functions (for testing):
@@ -143,16 +143,16 @@ export function loadResults(content: string): EvaluationResult[] {
 export function resolveDashboardMode(
   projectCount: number,
   options: { multi?: boolean; single?: boolean },
-): { isMultiProject: boolean; showMultiWarning: boolean } {
+): { isMultiBenchmark: boolean; showMultiWarning: boolean } {
   if (options.single === true) {
-    return { isMultiProject: false, showMultiWarning: options.multi === true };
+    return { isMultiBenchmark: false, showMultiWarning: options.multi === true };
   }
 
   if (options.multi === true) {
-    return { isMultiProject: true, showMultiWarning: true };
+    return { isMultiBenchmark: true, showMultiWarning: true };
   }
 
-  return { isMultiProject: projectCount > 1, showMultiWarning: false };
+  return { isMultiBenchmark: projectCount > 1, showMultiWarning: false };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -833,13 +833,13 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 function handleConfig(
   c: C,
   { agentvDir, searchDir }: DataContext,
-  options?: { readOnly?: boolean; multiProjectDashboard?: boolean },
+  options?: { readOnly?: boolean; multiBenchmarkDashboard?: boolean },
 ) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
-    project_name: path.basename(searchDir),
-    multi_project_dashboard: options?.multiProjectDashboard === true,
+    benchmark_name: path.basename(searchDir),
+    multi_benchmark_dashboard: options?.multiBenchmarkDashboard === true,
   });
 }
 
@@ -905,7 +905,7 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string; readOnly?: boolean; multiProjectDashboard?: boolean },
+  options?: { studioDir?: string; readOnly?: boolean; multiBenchmarkDashboard?: boolean },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
@@ -923,7 +923,7 @@ export function createApp(
   ): Response | Promise<Response> {
     const benchmark = getActiveBenchmark(c.req.param('benchmarkId') ?? '');
     if (!benchmark || !existsSync(benchmark.path)) {
-      return c.json({ error: 'Project not found' }, 404);
+      return c.json({ error: 'Benchmark not found' }, 404);
     }
     return handler(c, {
       searchDir: benchmark.path,
@@ -998,7 +998,7 @@ export function createApp(
         };
       }),
     );
-    return c.json({ projects: benchmarks });
+    return c.json({ benchmarks });
   });
 
   app.post('/api/benchmarks', async (c) => {
@@ -1017,7 +1017,7 @@ export function createApp(
 
   app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
     const benchmark = getActiveBenchmark(c.req.param('benchmarkId') ?? '');
-    if (!benchmark) return c.json({ error: 'Project not found' }, 404);
+    if (!benchmark) return c.json({ error: 'Benchmark not found' }, 404);
     try {
       const { runs: metas } = await listMergedResultFiles(benchmark.path);
       const runCount = metas.length;
@@ -1051,8 +1051,8 @@ export function createApp(
       target?: string;
       experiment?: string;
       source: 'local' | 'remote';
-      project_id: string;
-      project_name: string;
+      benchmark_id: string;
+      benchmark_name: string;
     }> = [];
 
     for (const p of active) {
@@ -1082,12 +1082,12 @@ export function createApp(
             source: m.source,
             ...(target && { target }),
             ...(experiment && { experiment }),
-            project_id: p.id,
-            project_name: p.name,
+            benchmark_id: p.id,
+            benchmark_name: p.name,
           });
         }
       } catch {
-        // skip inaccessible projects
+        // skip inaccessible benchmarks
       }
     }
 
@@ -1096,7 +1096,7 @@ export function createApp(
   });
 
   // ── Discovery roots (runtime benchmark auto-discovery) ───────────────
-  // Roots are persisted in ~/.agentv/projects.yaml. On each GET
+  // Roots are persisted in ~/.agentv/benchmarks.yaml. On each GET
   // /api/benchmarks, Studio rescans them and surfaces new `.agentv/` repos —
   // no server restart required.
 
@@ -1165,7 +1165,7 @@ export function createApp(
     }
     const benchmarkId = c.req.param('benchmarkId') ?? '';
     const active = getActiveBenchmark(benchmarkId);
-    if (!active) return c.json({ error: 'Project not found' }, 404);
+    if (!active) return c.json({ error: 'Benchmark not found' }, 404);
     // For a discovered entry, "remove" means hide it from the UI. The
     // .agentv/ dir stays on disk; the path goes onto the exclusion list
     // and is filtered out of resolveActiveBenchmarks on the next rescan.
@@ -1174,7 +1174,7 @@ export function createApp(
       return c.json({ ok: true, excluded: active.path });
     }
     const removed = removeBenchmark(benchmarkId);
-    if (!removed) return c.json({ error: 'Project not found' }, 404);
+    if (!removed) return c.json({ error: 'Benchmark not found' }, 404);
     return c.json({ ok: true });
   });
 
@@ -1205,7 +1205,7 @@ export function createApp(
         };
       }),
     );
-    return c.json({ projects: benchmarks });
+    return c.json({ benchmarks });
   });
 
   // ── Data routes (unscoped) ────────────────────────────────────────────
@@ -1213,7 +1213,7 @@ export function createApp(
   app.get('/api/config', (c) =>
     handleConfig(c, defaultCtx, {
       readOnly,
-      multiProjectDashboard: options?.multiProjectDashboard,
+      multiBenchmarkDashboard: options?.multiBenchmarkDashboard,
     }),
   );
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
@@ -1330,7 +1330,7 @@ export function createApp(
     withBenchmark(c, (ctx, dataCtx) =>
       handleConfig(ctx, dataCtx, {
         readOnly,
-        multiProjectDashboard: options?.multiProjectDashboard,
+        multiBenchmarkDashboard: options?.multiBenchmarkDashboard,
       }),
     ),
   );
@@ -1500,21 +1500,21 @@ export const resultsServeCommand = command({
     multi: flag({
       long: 'multi',
       description:
-        'Launch in multi-project dashboard mode (deprecated; use auto-detect or --single)',
+        'Launch in multi-benchmark dashboard mode (deprecated; use auto-detect or --single)',
     }),
     single: flag({
       long: 'single',
-      description: 'Force single-project dashboard mode',
+      description: 'Force single-benchmark dashboard mode',
     }),
     add: option({
       type: optional(string),
       long: 'add',
-      description: 'Register a project by path',
+      description: 'Register a benchmark by path',
     }),
     remove: option({
       type: optional(string),
       long: 'remove',
-      description: 'Unregister a project by ID',
+      description: 'Unregister a benchmark by ID',
     }),
     discoveryRoot: multioption({
       type: array(string),
@@ -1535,7 +1535,7 @@ export const resultsServeCommand = command({
     if (add) {
       try {
         const entry = addBenchmark(add);
-        console.log(`Registered project: ${entry.name} (${entry.id}) at ${entry.path}`);
+        console.log(`Registered benchmark: ${entry.name} (${entry.id}) at ${entry.path}`);
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);
@@ -1546,9 +1546,9 @@ export const resultsServeCommand = command({
     if (remove) {
       const removed = removeBenchmark(remove);
       if (removed) {
-        console.log(`Unregistered project: ${remove}`);
+        console.log(`Unregistered benchmark: ${remove}`);
       } else {
-        console.error(`Project not found: ${remove}`);
+        console.error(`Benchmark not found: ${remove}`);
         process.exit(1);
       }
       return;
@@ -1566,20 +1566,20 @@ export const resultsServeCommand = command({
     // ── Version check ────────────────────────────────────────────────
     // Enforce `required_version` from .agentv/config.yaml so Studio/serve
     // match `agentv eval` behavior. Same prompt in TTY, warn+continue
-    // otherwise. Single-project scope only — when one agentv instance
+    // otherwise. Single-benchmark scope only — when one agentv instance
     // serves multiple repos with differing version requirements, a
-    // per-project local install is required instead.
+    // per-benchmark local install is required instead.
     const repoRoot = await findRepoRoot(cwd);
     const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
     if (yamlConfig?.required_version) {
       await enforceRequiredVersion(yamlConfig.required_version);
     }
 
-    // ── Determine multi-project mode ────────────────────────────────
+    // ── Determine multi-benchmark mode ───────────────────────────────
     // Count active (persisted + live-discovered) benchmarks so that the
     // dashboard mode reflects what the user will actually see in the UI.
     const activeBenchmarks = resolveActiveBenchmarks();
-    const { isMultiProject, showMultiWarning } = resolveDashboardMode(activeBenchmarks.length, {
+    const { isMultiBenchmark, showMultiWarning } = resolveDashboardMode(activeBenchmarks.length, {
       multi,
       single,
     });
@@ -1614,17 +1614,17 @@ export const resultsServeCommand = command({
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
       const app = createApp(results, resultDir, cwd, sourceFile, {
         readOnly,
-        multiProjectDashboard: isMultiProject,
+        multiBenchmarkDashboard: isMultiBenchmark,
       });
 
       if (showMultiWarning) {
         console.warn(
-          'Warning: --multi is deprecated. Studio now auto-detects multi-project mode when multiple projects are registered. Use --single to force the single-project view.',
+          'Warning: --multi is deprecated. Studio now auto-detects multi-benchmark mode when multiple benchmarks are registered. Use --single to force the single-benchmark view.',
         );
       }
 
-      if (isMultiProject) {
-        console.log(`Multi-project mode: ${activeBenchmarks.length} project(s) active`);
+      if (isMultiBenchmark) {
+        console.log(`Multi-benchmark mode: ${activeBenchmarks.length} benchmark(s) active`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {

@@ -151,7 +151,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 The rule is blanket: if the key is going to disk, to a user's editor, into a JSON response, or onto a CLI, it's snake_case. There is no "well this file is internal-ish" carve-out. If in doubt, snake_case.
 
 ### snake_case surfaces
-- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `projects.yaml`, `studio/config.yaml`, any future YAML we add.
+- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `benchmarks.yaml`, `studio/config.yaml`, any future YAML we add.
 - JSONL result files (`test_id`, `token_usage`, `duration_ms`).
 - Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
 - HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `project_id`).
@@ -201,7 +201,7 @@ Yes, this is two interfaces and two functions per entity. That's the price of ke
 - Accepting both `testId` and `test_id` on input "for back-compat" when nothing is shipped yet. Just snake_case.
 
 ### Existing divergences
-If you spot a camelCase key already on disk or in a response (e.g. historical `projects.yaml`, a legacy endpoint), treat it as a bug: migrate it to snake_case in the same PR where you touch that code path. Don't grandfather it in.
+If you spot a camelCase key already on disk or in a response (e.g. a legacy endpoint), treat it as a bug: migrate it to snake_case in the same PR where you touch that code path. Don't grandfather it in.
 
 **Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript. `fromYaml` / `toYaml` in `packages/core/src/benchmarks.ts` is the model for YAML boundaries.
 

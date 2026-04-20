@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -39,6 +39,25 @@ describe('benchmarks registry + runtime discovery', () => {
     mkdirSync(path.join(dir, '.agentv'), { recursive: true });
     return dir;
   }
+
+  it('migrates a legacy ~/.agentv/projects.yaml to benchmarks.yaml on first load', () => {
+    const legacyPath = path.join(fakeHome, '.agentv', 'projects.yaml');
+    mkdirSync(path.dirname(legacyPath), { recursive: true });
+    // Write a legacy registry by hand using the current snake_case format.
+    writeFileSync(
+      legacyPath,
+      'benchmarks:\n  - id: legacy\n    name: legacy\n    path: /legacy/path\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n',
+      'utf-8',
+    );
+
+    const registry = loadBenchmarkRegistry();
+    expect(registry.benchmarks).toHaveLength(1);
+    expect(registry.benchmarks[0].id).toBe('legacy');
+
+    // File moved, not copied: the legacy path is gone, the new one exists.
+    expect(existsSync(legacyPath)).toBe(false);
+    expect(existsSync(path.join(fakeHome, '.agentv', 'benchmarks.yaml'))).toBe(true);
+  });
 
   it('persists and lists discovery roots, omitting the key when empty', () => {
     expect(getDiscoveryRoots()).toEqual([]);

@@ -267,7 +267,7 @@ export async function addBenchmarkApi(benchmarkPath: string): Promise<BenchmarkE
   });
   if (!res.ok) {
     const err = (await res.json()) as { error: string };
-    throw new Error(err.error || `Failed to add project: ${res.status}`);
+    throw new Error(err.error || `Failed to add benchmark: ${res.status}`);
   }
   return res.json() as Promise<BenchmarkEntry>;
 }
@@ -277,22 +277,27 @@ export async function removeBenchmarkApi(benchmarkId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(`Failed to remove project: ${res.status}`);
+    throw new Error(`Failed to remove benchmark: ${res.status}`);
   }
 }
 
-export async function discoverBenchmarksApi(dirPath: string): Promise<BenchmarkEntry[]> {
-  const res = await fetch('/api/benchmarks/discover', {
+/**
+ * Persist a directory as a discovery root. Studio rescans every configured
+ * root on each `/api/benchmarks` read so benchmarks under it appear/disappear
+ * live without a server restart.
+ */
+export async function addDiscoveryRootApi(dirPath: string): Promise<string> {
+  const res = await fetch('/api/benchmarks/discovery-roots', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: dirPath }),
   });
   if (!res.ok) {
     const err = (await res.json()) as { error: string };
-    throw new Error(err.error || `Failed to discover: ${res.status}`);
+    throw new Error(err.error || `Failed to add discovery root: ${res.status}`);
   }
-  const data = (await res.json()) as { discovered: BenchmarkEntry[] };
-  return data.discovered;
+  const data = (await res.json()) as { root: string };
+  return data.root;
 }
 
 /** Build the API base URL for a benchmark-scoped request. */
