@@ -101,6 +101,9 @@ export {
   getDiscoveryRoots,
   addDiscoveryRoot,
   removeDiscoveryRoot,
+  getExcludedPaths,
+  addExcludedPath,
+  removeExcludedPath,
   resolveActiveBenchmarks,
   getActiveBenchmark,
 } from './benchmarks.js';

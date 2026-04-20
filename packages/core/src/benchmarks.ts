@@ -15,6 +15,8 @@
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *   discovery_roots:
  *     - /home/user/agentv-repos
+ *   excluded_paths:                  # discovered repos to hide from Studio
+ *     - /home/user/agentv-repos/experiment-v0
  *
  * Runtime model:
  *   - Entries in `benchmarks` are persisted (manual add/remove).
@@ -71,6 +73,12 @@ export interface BenchmarkRegistry {
   benchmarks: BenchmarkEntry[];
   /** Directories continuously rescanned for `.agentv/` repos. Optional. */
   discoveryRoots?: string[];
+  /**
+   * Absolute paths to exclude from the discovered set. Clicking "Remove" on a
+   * discovered entry in Studio adds its path here so the repo stays on disk
+   * but disappears from the UI. Has no effect on manually-pinned entries.
+   */
+  excludedPaths?: string[];
 }
 
 // ── Registry path ───────────────────────────────────────────────────────
@@ -157,7 +165,13 @@ export function loadBenchmarkRegistry(): BenchmarkRegistry {
     const discoveryRoots = Array.isArray(parsed.discovery_roots)
       ? (parsed.discovery_roots as unknown[]).filter((v): v is string => typeof v === 'string')
       : undefined;
-    return discoveryRoots !== undefined ? { benchmarks, discoveryRoots } : { benchmarks };
+    const excludedPaths = Array.isArray(parsed.excluded_paths)
+      ? (parsed.excluded_paths as unknown[]).filter((v): v is string => typeof v === 'string')
+      : undefined;
+    const result: BenchmarkRegistry = { benchmarks };
+    if (discoveryRoots !== undefined) result.discoveryRoots = discoveryRoots;
+    if (excludedPaths !== undefined) result.excludedPaths = excludedPaths;
+    return result;
   } catch {
     return { benchmarks: [] };
   }
@@ -169,13 +183,16 @@ export function saveBenchmarkRegistry(registry: BenchmarkRegistry): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  // Omit empty/undefined discovery_roots from the serialized form so registries
-  // without the feature don't grow a stray key.
+  // Omit empty/undefined optional lists from the serialized form so registries
+  // without the feature don't grow stray keys.
   const payload: Record<string, unknown> = {
     benchmarks: registry.benchmarks.map(toYaml),
   };
   if (registry.discoveryRoots && registry.discoveryRoots.length > 0) {
     payload.discovery_roots = registry.discoveryRoots;
+  }
+  if (registry.excludedPaths && registry.excludedPaths.length > 0) {
+    payload.excluded_paths = registry.excludedPaths;
   }
   writeFileSync(registryPath, stringifyYaml(payload), 'utf-8');
 }
@@ -217,8 +234,14 @@ export function addBenchmark(benchmarkPath: string): BenchmarkEntry {
   }
 
   const registry = loadBenchmarkRegistry();
+  // Pinning overrides a prior exclusion: if the user explicitly adds a path
+  // they had previously hidden from discovery, they clearly want to see it.
+  if (registry.excludedPaths?.includes(absPath)) {
+    registry.excludedPaths = registry.excludedPaths.filter((p) => p !== absPath);
+  }
   const existing = registry.benchmarks.find((p) => p.path === absPath);
   if (existing) {
+    saveBenchmarkRegistry(registry);
     return existing;
   }
 
@@ -334,7 +357,8 @@ export function addDiscoveryRoot(rootPath: string): string {
   if (!roots.includes(absRoot)) {
     roots.push(absRoot);
   }
-  saveBenchmarkRegistry({ benchmarks: registry.benchmarks, discoveryRoots: roots });
+  registry.discoveryRoots = roots;
+  saveBenchmarkRegistry(registry);
   return absRoot;
 }
 
@@ -348,7 +372,51 @@ export function removeDiscoveryRoot(rootPath: string): boolean {
   const idx = roots.indexOf(absRoot);
   if (idx < 0) return false;
   roots.splice(idx, 1);
-  saveBenchmarkRegistry({ benchmarks: registry.benchmarks, discoveryRoots: roots });
+  registry.discoveryRoots = roots;
+  saveBenchmarkRegistry(registry);
+  return true;
+}
+
+// ── Exclusions (hide a discovered repo without deleting its .agentv/) ──
+
+/**
+ * Return the persisted exclusion list as absolute paths.
+ */
+export function getExcludedPaths(): string[] {
+  return [...(loadBenchmarkRegistry().excludedPaths ?? [])];
+}
+
+/**
+ * Append a path to the exclusion list (idempotent). Used when the user
+ * clicks "Remove" on a discovered entry — the .agentv/ dir stays on disk,
+ * but it's suppressed from the active set until the user unexcludes it.
+ * Returns the resolved absolute path.
+ */
+export function addExcludedPath(excludePath: string): string {
+  const abs = path.resolve(excludePath);
+  const registry = loadBenchmarkRegistry();
+  const excluded = registry.excludedPaths ?? [];
+  if (!excluded.includes(abs)) {
+    excluded.push(abs);
+  }
+  registry.excludedPaths = excluded;
+  saveBenchmarkRegistry(registry);
+  return abs;
+}
+
+/**
+ * Remove a path from the exclusion list. Returns true if it was present.
+ * The repo will reappear on the next discovery rescan if still under a root.
+ */
+export function removeExcludedPath(excludePath: string): boolean {
+  const abs = path.resolve(excludePath);
+  const registry = loadBenchmarkRegistry();
+  const excluded = registry.excludedPaths ?? [];
+  const idx = excluded.indexOf(abs);
+  if (idx < 0) return false;
+  excluded.splice(idx, 1);
+  registry.excludedPaths = excluded;
+  saveBenchmarkRegistry(registry);
   return true;
 }
 
@@ -360,7 +428,8 @@ export function removeDiscoveryRoot(rootPath: string): boolean {
  * (tagged `source: 'discovered'`) and are NOT written to disk, so a repo
  * disappearing from a root drops out of subsequent calls. Persisted entries
  * win on absolute-path conflict, letting a user opt a discovered repo into
- * manual management.
+ * manual management. Paths in `excludedPaths` are filtered out of the
+ * discovered set (but never from pinned entries).
  */
 export function resolveActiveBenchmarks(): BenchmarkEntry[] {
   const registry = loadBenchmarkRegistry();
@@ -371,12 +440,14 @@ export function resolveActiveBenchmarks(): BenchmarkEntry[] {
   const roots = registry.discoveryRoots ?? [];
   if (roots.length === 0) return persisted;
 
+  const excluded = new Set(registry.excludedPaths ?? []);
   const takenPaths = new Set(persisted.map((b) => b.path));
   const takenIds = new Set(persisted.map((b) => b.id));
   const discovered: BenchmarkEntry[] = [];
   for (const root of roots) {
     for (const repoPath of discoverBenchmarks(root)) {
       if (takenPaths.has(repoPath)) continue;
+      if (excluded.has(repoPath)) continue;
       takenPaths.add(repoPath);
       const id = deriveBenchmarkId(repoPath, [...takenIds]);
       takenIds.add(id);

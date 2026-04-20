@@ -14,6 +14,7 @@
  *   - GET /api/benchmarks  — list active benchmarks (persisted + live-discovered)
  *   - POST /api/benchmarks/rescan — force a discovery-root rescan
  *   - GET/POST/DELETE /api/benchmarks/discovery-roots — manage runtime discovery roots
+ *   - GET/DELETE /api/benchmarks/exclusions — list / un-hide paths hidden via "Remove"
  *   - GET /api/benchmarks/:benchmarkId/runs — benchmark-scoped run list
  *
  * All data routes (runs, suites, categories, evals, experiments, targets)
@@ -51,12 +52,14 @@ import {
   type EvaluationResult,
   addBenchmark,
   addDiscoveryRoot,
-  discoverBenchmarks,
+  addExcludedPath,
   getActiveBenchmark,
   getDiscoveryRoots,
+  getExcludedPaths,
   loadConfig,
   removeBenchmark,
   removeDiscoveryRoot,
+  removeExcludedPath,
   resolveActiveBenchmarks,
 } from '@agentv/core';
 import type { Context } from 'hono';
@@ -1012,26 +1015,6 @@ export function createApp(
     }
   });
 
-  app.delete('/api/benchmarks/:benchmarkId', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
-    }
-    const benchmarkId = c.req.param('benchmarkId') ?? '';
-    const active = getActiveBenchmark(benchmarkId);
-    if (active?.source === 'discovered') {
-      return c.json(
-        {
-          error:
-            'This project was discovered from a configured root. Remove the root or delete its .agentv/ directory to drop it.',
-        },
-        400,
-      );
-    }
-    const removed = removeBenchmark(benchmarkId);
-    if (!removed) return c.json({ error: 'Project not found' }, 404);
-    return c.json({ ok: true });
-  });
-
   app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
     const benchmark = getActiveBenchmark(c.req.param('benchmarkId') ?? '');
     if (!benchmark) return c.json({ error: 'Project not found' }, 404);
@@ -1050,21 +1033,6 @@ export function createApp(
       });
     } catch {
       return c.json({ error: 'Failed to read project' }, 500);
-    }
-  });
-
-  app.post('/api/benchmarks/discover', async (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
-    }
-    try {
-      const body = await c.req.json<{ path: string }>();
-      if (!body.path) return c.json({ error: 'Missing path' }, 400);
-      const discovered = discoverBenchmarks(body.path);
-      const registered = discovered.map((p) => benchmarkEntryToWire(addBenchmark(p)));
-      return c.json({ discovered: registered });
-    } catch (err) {
-      return c.json({ error: (err as Error).message }, 400);
     }
   });
 
@@ -1163,6 +1131,51 @@ export function createApp(
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
+  });
+
+  // ── Exclusions (hide a discovered repo from the UI) ─────────────────
+  // DELETE /api/benchmarks/:id on a discovered entry adds its path here;
+  // these endpoints let users list or un-hide those paths.
+
+  app.get('/api/benchmarks/exclusions', (c) => {
+    return c.json({ excluded_paths: getExcludedPaths() });
+  });
+
+  app.delete('/api/benchmarks/exclusions', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    try {
+      const body = await c.req.json<{ path: string }>();
+      if (!body.path) return c.json({ error: 'Missing path' }, 400);
+      const removed = removeExcludedPath(body.path);
+      if (!removed) return c.json({ error: 'Path not in exclusions' }, 404);
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+  });
+
+  // Registered after all `/api/benchmarks/<literal>` sub-paths so Hono doesn't
+  // route e.g. `DELETE /api/benchmarks/exclusions` into this handler with
+  // benchmarkId="exclusions".
+  app.delete('/api/benchmarks/:benchmarkId', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    const benchmarkId = c.req.param('benchmarkId') ?? '';
+    const active = getActiveBenchmark(benchmarkId);
+    if (!active) return c.json({ error: 'Project not found' }, 404);
+    // For a discovered entry, "remove" means hide it from the UI. The
+    // .agentv/ dir stays on disk; the path goes onto the exclusion list
+    // and is filtered out of resolveActiveBenchmarks on the next rescan.
+    if (active.source === 'discovered') {
+      addExcludedPath(active.path);
+      return c.json({ ok: true, excluded: active.path });
+    }
+    const removed = removeBenchmark(benchmarkId);
+    if (!removed) return c.json({ error: 'Project not found' }, 404);
+    return c.json({ ok: true });
   });
 
   /** Explicit rescan hook — useful when the UI wants a refresh without the poll tick. */
@@ -1503,11 +1516,6 @@ export const resultsServeCommand = command({
       long: 'remove',
       description: 'Unregister a project by ID',
     }),
-    discover: option({
-      type: optional(string),
-      long: 'discover',
-      description: 'Scan a directory tree for repos with .agentv/ (one-shot; exits after)',
-    }),
     discoveryRoot: multioption({
       type: array(string),
       long: 'discovery-root',
@@ -1519,18 +1527,7 @@ export const resultsServeCommand = command({
       description: 'Disable write operations and launch Studio in read-only leaderboard mode',
     }),
   },
-  handler: async ({
-    source,
-    port,
-    dir,
-    multi,
-    single,
-    add,
-    remove,
-    discover,
-    discoveryRoot,
-    readOnly,
-  }) => {
+  handler: async ({ source, port, dir, multi, single, add, remove, discoveryRoot, readOnly }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
@@ -1554,20 +1551,6 @@ export const resultsServeCommand = command({
         console.error(`Project not found: ${remove}`);
         process.exit(1);
       }
-      return;
-    }
-
-    if (discover) {
-      const discovered = discoverBenchmarks(discover);
-      if (discovered.length === 0) {
-        console.log(`No projects with .agentv/ found under ${discover}`);
-        return;
-      }
-      for (const p of discovered) {
-        const entry = addBenchmark(p);
-        console.log(`Registered: ${entry.name} (${entry.id}) at ${entry.path}`);
-      }
-      console.log(`\nDiscovered ${discovered.length} project(s).`);
       return;
     }
 

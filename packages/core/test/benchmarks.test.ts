@@ -6,10 +6,13 @@ import path from 'node:path';
 import {
   addBenchmark,
   addDiscoveryRoot,
+  addExcludedPath,
   getBenchmarksRegistryPath,
   getDiscoveryRoots,
+  getExcludedPaths,
   loadBenchmarkRegistry,
   removeDiscoveryRoot,
+  removeExcludedPath,
   resolveActiveBenchmarks,
 } from '../src/benchmarks.js';
 
@@ -102,6 +105,43 @@ describe('benchmarks registry + runtime discovery', () => {
     const outside = makeRepo('manual');
     const entry = addBenchmark(outside);
 
+    const active = resolveActiveBenchmarks();
+    expect(active).toHaveLength(1);
+    expect(active[0].id).toBe(entry.id);
+    expect(active[0].source).toBe('manual');
+  });
+
+  it('hides a discovered repo once its path is excluded, and shows it again when unexcluded', () => {
+    addDiscoveryRoot(reposRoot);
+    const repoPath = makeRepo('junk');
+
+    expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
+
+    const excluded = addExcludedPath(repoPath);
+    expect(excluded).toBe(path.resolve(repoPath));
+    expect(getExcludedPaths()).toEqual([path.resolve(repoPath)]);
+    expect(resolveActiveBenchmarks()).toEqual([]);
+
+    // Serialized form uses snake_case.
+    const yamlOnDisk = readFileSync(getBenchmarksRegistryPath(), 'utf-8');
+    expect(yamlOnDisk).toContain('excluded_paths:');
+    expect(yamlOnDisk).not.toContain('excludedPaths:');
+
+    // Unexclude → the repo reappears on the next scan.
+    expect(removeExcludedPath(repoPath)).toBe(true);
+    expect(getExcludedPaths()).toEqual([]);
+    expect(resolveActiveBenchmarks().map((b) => b.path)).toEqual([repoPath]);
+  });
+
+  it('auto-unexcludes a path when it is manually pinned', () => {
+    addDiscoveryRoot(reposRoot);
+    const repoPath = makeRepo('pin-me');
+    addExcludedPath(repoPath);
+    expect(resolveActiveBenchmarks()).toEqual([]);
+
+    // Pinning wins: addBenchmark should drop the exclusion.
+    const entry = addBenchmark(repoPath);
+    expect(getExcludedPaths()).toEqual([]);
     const active = resolveActiveBenchmarks();
     expect(active).toHaveLength(1);
     expect(active[0].id).toBe(entry.id);
