@@ -49,6 +49,16 @@ Before adding features, research how peer frameworks solve the problem. Prefer t
 ### 5. YAGNI — You Aren't Gonna Need It
 Don't build features until there's a concrete need. Before adding a new capability, ask: "Is there real demand for this today, or am I anticipating future needs?" Numeric thresholds, extra tracking fields, and configurable knobs should be omitted until users actually request them. Start with the simplest version (e.g., boolean over numeric range) and extend later if needed.
 
+**YAGNI applies to *how* you meet a real request, not just *whether* to meet it.** The common failure mode is not "I built X and nobody wanted it." It's "someone asked for X and I built a bigger X than they asked for." Guard against that with these habits:
+
+1. **Audit existing primitives before adding new ones.** When an issue asks for capability Y, the first question is not "how do I build Y?" — it's **"what does the codebase already do that addresses Y?"** Grep for existing functions, endpoints, and config shapes. Many requests are satisfied by a behavior that already exists and just needs to be surfaced, configured, or exercised differently.
+2. **Treat issue language as a hint, not a spec.** Issues describe problems *and* implementations. "We need a discovery root" is one implementation of "we need the registry to update live." When an issue lists multiple acceptable approaches (or its acceptance criteria don't actually require the implementation it names), pick the one with the least code surface. Summarize the acceptance criteria in your own words, strip out implementation nouns ("discovery root," "watcher," "registry reload"), then match them against existing primitives before designing anything new.
+3. **Prefer data/config changes over new mechanisms.** If the observable effect is "this list should be editable at runtime," prefer "re-read the file per request" over "add a watcher + a new field + a precedence rule + a new endpoint." Config-driven beats code-driven when both are sufficient.
+4. **Stop when scope doubles.** If an implementation's surface area grows more than ~2× the starting estimate (extra types, extra endpoints, extra invariants), that's a red flag to re-plan, not a sign to push through. Pause and ask: "What would the smallest possible version look like? Does the issue actually require more than that?"
+5. **If you are about to add a second mode, two-layer precedence, or an invariant between two optional fields, stop.** `source: manual | discovered`, "pinned wins over discovered," `excluded_paths` filtering the discovered set — every one of these is a sign that you're in complexity territory that a simpler data model would have avoided.
+
+**Call out existing overengineering.** If, while working on a task, you notice a *current* feature in the repo that looks overengineered relative to what it's used for (multiple modes, optional precedence rules, dead-looking extensibility scaffolding), flag it — don't silently fix it. Open a tracking issue titled "cleanup: simplify X" that lists: the observable behavior today, the simpler model that would cover it, and the migration notes. Link to the code. Do not widen your current PR to absorb the cleanup unless the user asks.
+
 ### 6. Non-Breaking Extensions
 New fields should be optional. Existing configurations must continue working unchanged.
 
