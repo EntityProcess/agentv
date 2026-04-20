@@ -32,10 +32,6 @@
  * single-threaded event loop, which satisfies the 24/7 Studio case. Run only
  * one `agentv` process against a given home at a time.
  *
- * Legacy filename: pre-rename installs stored this at `~/.agentv/projects.yaml`.
- * On first load, migrateLegacyRegistry() copies that file to benchmarks.yaml
- * (and deletes the old one) so nobody loses their registrations.
- *
  * To extend:
  *   - For CRUD on persisted entries: loadBenchmarkRegistry() / saveBenchmarkRegistry().
  *   - For live discovery: addDiscoveryRoot() / removeDiscoveryRoot() /
@@ -44,21 +40,12 @@
  *     its output is sorted for deterministic id assignment under basename collisions.
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-import { getAgentvConfigDir, getAgentvHome } from './paths.js';
+import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -90,47 +77,6 @@ export interface BenchmarkRegistry {
 
 export function getBenchmarksRegistryPath(): string {
   return path.join(getAgentvConfigDir(), 'benchmarks.yaml');
-}
-
-/**
- * One-time migration run before every load. Two legacy forms are handled:
- *   1. AGENTV_HOME-relative `projects.yaml` — from before the config/data
- *      split, when the registry lived under AGENTV_HOME.
- *   2. `~/.agentv/projects.yaml` — from before the projects→benchmarks
- *      rename.
- * Whichever is found first (1 beats 2) is copied to the current
- * benchmarks.yaml path and the legacy file is removed so the migration
- * doesn't keep repeating.
- *
- * TODO(v5.0.0): delete this function and the `rmSync` import. By the next
- * major release, any surviving projects.yaml has been migrated on the first
- * `agentv` invocation after upgrade; keeping the shim beyond then is dead
- * weight. Callers can switch `loadBenchmarkRegistry` to skip the migration
- * check unconditionally.
- */
-function migrateLegacyRegistry(targetPath: string): void {
-  if (existsSync(targetPath)) return;
-
-  const dataHome = getAgentvHome();
-  const configDir = getAgentvConfigDir();
-  const legacyCandidates: string[] = [];
-  if (dataHome !== configDir) {
-    legacyCandidates.push(path.join(dataHome, 'projects.yaml'));
-  }
-  legacyCandidates.push(path.join(configDir, 'projects.yaml'));
-
-  for (const legacy of legacyCandidates) {
-    if (!existsSync(legacy)) continue;
-    mkdirSync(path.dirname(targetPath), { recursive: true });
-    copyFileSync(legacy, targetPath);
-    try {
-      rmSync(legacy, { force: true });
-    } catch {
-      // Leaving the legacy file behind is harmless — next load sees
-      // targetPath exists and skips the migration entirely.
-    }
-    return;
-  }
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
@@ -176,9 +122,6 @@ function toYaml(entry: BenchmarkEntry): BenchmarkEntryYaml {
 
 export function loadBenchmarkRegistry(): BenchmarkRegistry {
   const registryPath = getBenchmarksRegistryPath();
-  if (!existsSync(registryPath)) {
-    migrateLegacyRegistry(registryPath);
-  }
   if (!existsSync(registryPath)) {
     return { benchmarks: [] };
   }
