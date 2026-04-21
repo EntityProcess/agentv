@@ -1,0 +1,145 @@
+---
+title: CLI Provider
+description: Wrap any shell command as an evaluation target
+sidebar:
+  order: 4
+---
+
+The `cli` provider runs an arbitrary shell command per test case and captures its output as the target's response. It's the escape hatch that lets you evaluate *anything* that exposes a command-line entry point — your own agent, a third-party CLI, a stub that prints a fixed answer, a script that calls an in-house microservice, etc.
+
+Because the contract is "we invoke a command and read a file," almost any useful composition pattern (sanity-checking your grader against a known-good answer, diffing two implementations, driving a batch mode) can be built on top without any new primitives.
+
+## Minimal example
+
+```yaml
+# .agentv/targets.yaml
+targets:
+  - name: my_agent
+    provider: cli
+    command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
+    grader_target: azure-base   # required if your evals use LLM graders
+```
+
+Your `agent.py` reads the prompt, writes its response to the path passed as `--out`, and exits `0`. That's it.
+
+## Command contract
+
+Before each test case, AgentV renders the `command` template and spawns it as a shell process. The command has two responsibilities:
+
+1. **Read the input** via one of the placeholders below.
+2. **Write the response to `{OUTPUT_FILE}`** — AgentV reads *that file*, not your stdout.
+
+When the process exits successfully, AgentV parses the contents of `{OUTPUT_FILE}` and treats it as the target's response. Non-zero exits, timeouts, and unreadable output files are surfaced as test errors with the underlying stderr/exit code.
+
+### Template placeholders
+
+Use these in `command`; AgentV substitutes them per test case.
+
+| Placeholder | What it expands to |
+|---|---|
+| `{PROMPT}` | The test case's input text, shell-escaped. |
+| `{PROMPT_FILE}` | Path to a temp file containing the prompt (use this when the input is large enough to blow past shell argv limits). |
+| `{OUTPUT_FILE}` | Path to a temp file the command **must** write to. Deleted after the run unless `keep_temp_files: true`. |
+| `{FILES}` | Space-separated paths of any input files attached to the test case, formatted via `files_format`. |
+| `{EVAL_ID}` | Unique identifier of the current test case — useful for logging or per-case scratch dirs. |
+| `{ATTEMPT}` | Retry attempt number (0 on the first try). |
+
+### Output file format
+
+AgentV tries to parse `{OUTPUT_FILE}` as JSON first. If it parses and contains any of these keys, they're picked up; if it doesn't parse, the entire content is treated as the assistant's message text.
+
+```jsonc
+{
+  "output": [                    // preferred: full message array
+    { "role": "assistant", "content": "..." }
+  ],
+  "text": "...",                 // fallback: plain assistant text
+  "token_usage": { "input": 123, "output": 456, "cached": 0 },
+  "cost_usd": 0.0042,
+  "duration_ms": 1800
+}
+```
+
+For the common case, plain text is fine:
+
+```bash
+echo "Hello, world!" > {OUTPUT_FILE}
+```
+
+## Configuration fields
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `name` | string | yes | — | Target identifier used in eval configs. |
+| `provider` | literal `"cli"` | yes | — | Selects this provider. |
+| `command` | string | yes | — | Shell command template. |
+| `timeout_seconds` | number | no | — | Kill the process if it runs longer than this. |
+| `cwd` | string | no | eval dir | Working directory. Relative paths resolve against the eval file. |
+| `files_format` | string | no | `{path}` | How each entry in `{FILES}` is formatted. Placeholders: `{path}`, `{basename}`. |
+| `verbose` | boolean | no | `false` | Log the rendered command and cwd to stdout. Useful for debugging template substitution. |
+| `keep_temp_files` | boolean | no | `false` | Preserve `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run — handy while iterating on your command. |
+| `healthcheck` | object | no | — | Pre-run health check (HTTP or command); the eval aborts if it fails. |
+| `workers` | number | no | — | Concurrent test-case executions against this target. |
+| `provider_batching` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
+| `grader_target` | string | no | — | LLM target used by this target's LLM graders. Required if your evals use LLM-based graders. |
+
+## Batching
+
+For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `provider_batching: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
+
+```yaml
+targets:
+  - name: batched_agent
+    provider: cli
+    provider_batching: true
+    command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
+```
+
+`{PROMPT_FILE}` contains one JSON object per line with an `id` and the case's inputs; your command writes one line per case to `{OUTPUT_FILE}`, each carrying the matching `id` plus the same output shape as the non-batched case.
+
+## Pattern: Oracle validation (sanity-check your grader)
+
+A common question when building a new eval: **"if my grader scores my agent poorly, is the agent wrong or is the grader wrong?"** The classical testing answer is to run a known-correct reference ("the oracle") through the same grader — if a perfect answer doesn't pass, the grader is the bug.
+
+AgentV has no dedicated "oracle" feature because the `cli` provider already composes into one. Declare a second target that prints your known-good answer into `{OUTPUT_FILE}`, run the same eval against it, and assert a perfect score:
+
+```yaml
+# .agentv/targets.yaml
+targets:
+  - name: my_agent
+    provider: cli
+    command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
+    grader_target: azure-base
+
+  - name: oracle
+    provider: cli
+    command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
+    grader_target: azure-base
+```
+
+```bash
+# While iterating on your grader, run the oracle first.
+# If it doesn't score 100%, fix the grader before trusting any agent results.
+agentv eval my.EVAL.yaml --target oracle
+
+# Then run the real target.
+agentv eval my.EVAL.yaml --target my_agent
+```
+
+A few practical notes:
+
+- `{EVAL_ID}` in the oracle command lets one target serve an entire eval suite — just ship one `fixtures/<id>.expected.txt` per case. Alternatively, read the expected output from wherever your rubric already keeps it.
+- If the oracle doesn't reach 100%, that's the bug. Do not proceed to scoring real agents until it does.
+- If the oracle *does* reach 100%, low scores on real agents are a signal about the agent, not the grader.
+- The same composition works for other meta-tests: a "deliberately wrong" target that should score 0, a "mostly right" target pinned at a known partial score, etc.
+
+The pattern needs no special config field, no directory convention, and no flag — it's just a second target that happens to know the answer.
+
+## Debugging
+
+When a `cli` target misbehaves:
+
+1. Set `verbose: true` to see the rendered command and cwd.
+2. Set `keep_temp_files: true` and inspect `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run.
+3. Run the rendered command by hand with those files and check it exits `0` and writes the expected output shape.
+4. If the output looks right but grading is off, check the JSON schema — a typo in `output` vs `output_messages` silently falls back to "treat whole file as plain text."
