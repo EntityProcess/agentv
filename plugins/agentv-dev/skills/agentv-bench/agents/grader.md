@@ -152,12 +152,15 @@ Suggestions worth raising:
 
 If the evals are solid, set eval_feedback to `{"suggestions": [], "overall": "No suggestions, evals look solid."}`.
 
-### Step 9: Write grading.json
+### Step 9: Write results to disk
 
-Write results to `{bench-dir}/test-{test-id}/grading.json`:
+Write results to `{bench-dir}/{test-id}/llm_grader_results/<grader-name>.json`, where `<grader-name>` matches the filename from `llm_graders/<name>.json` (e.g. if the grader config is `llm_graders/rubrics.json`, write to `llm_grader_results/rubrics.json`).
+
+Do **NOT** write directly to `grading.json` — that file is produced by `agentv pipeline bench` after merging all `llm_grader_results`. Writing directly to it bypasses the merge step and will cause `pipeline bench` to report `pass_rate=0`.
 
 ```json
 {
+  "score": 0.85,
   "assertions": [
     {
       "text": "Response contains 'hello'",
@@ -170,16 +173,6 @@ Write results to `{bench-dir}/test-{test-id}/grading.json`:
     "failed": 0,
     "total": 1,
     "pass_rate": 1.0
-  },
-  "execution_metrics": {
-    "tool_calls": { "Read": 3, "Bash": 2 },
-    "total_tool_calls": 5,
-    "output_chars": 1200,
-    "transcript_chars": 800
-  },
-  "timing": {
-    "executor_duration_seconds": 12.5,
-    "total_duration_seconds": 15.0
   },
   "claims": [
     {
