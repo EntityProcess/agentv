@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { binary, run, subcommands } from 'cmd-ts';
 import { loadConfig, runBeforeSessionHook } from '@agentv/core';
+import { binary, run, subcommands } from 'cmd-ts';
 import { findRepoRoot } from './commands/eval/shared.js';
 
 import packageJson from '../package.json' with { type: 'json' };

@@ -994,7 +994,6 @@ export async function runEvalCommand(
     });
   }
 
-
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
   if (!process.env.AGENTV_EXPERIMENT) {
     process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
