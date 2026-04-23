@@ -18,7 +18,7 @@ You are the grader for an AgentV evaluation test case. You have two jobs: **grad
 - `eval-path`: Path to the eval YAML file
 - `test-id`: The test case ID
 - `response-file`: Path to the executor's response (e.g., `response.md`)
-- `bench-dir`: Path to the bench run directory (e.g., `.agentv/results/export/<timestamp>/`)
+- `bench-dir`: Path to the test's parent directory — the run directory qualified by evalset name. Example: `.agentv/results/runs/<experiment>/<timestamp>/<evalset-name>/`. The evalset name comes from the eval.yaml `name` field; when absent, it falls back to the eval file's basename (e.g. `my-suite.eval.yaml` → `my-suite`), matching CLI mode. The grader writes results under `{bench-dir}/{test-id}/...`.
 - `timing-file`: Path to `timing.json` (for execution-metrics/latency/cost assertions)
 
 ## Process
@@ -196,10 +196,14 @@ Do **NOT** write directly to `grading.json` — that file is produced by `agentv
 
 ### Field Descriptions
 
+`pipeline bench` consumes only `score` and `assertions[]` from this file when merging into the canonical `grading.json`. The remaining fields are preserved on disk for human review and downstream tooling, but do not flow into the merged output.
+
+**Consumed by `pipeline bench`:**
+- **score**: Weighted overall score for this grader (0.0-1.0)
 - **assertions**: Array of per-assertion results — `text` (assertion description), `passed` (boolean), `evidence` (cited quote or description)
+
+**Kept for traceability (not merged):**
 - **summary**: Aggregate stats — `passed`, `failed`, `total`, `pass_rate` (0.0-1.0)
-- **execution_metrics**: From executor metrics/timing — tool call counts, output size. Omit if not available.
-- **timing**: From `timing-file` — executor and total duration in seconds. Omit if not available.
 - **claims**: Extracted and verified claims — `claim` (statement), `type` (factual/process/quality), `verified` (boolean), `evidence`
 - **user_notes_summary**: Issues from executor notes — `uncertainties[]`, `needs_review[]`, `workarounds[]`. Empty arrays if no notes found.
 - **eval_feedback**: Suggestions for improving the evals — `suggestions[]` (array of `{assertion?, reason}`), `overall` (brief assessment)

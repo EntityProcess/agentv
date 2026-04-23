@@ -128,4 +128,18 @@ describe('pipeline input', () => {
     expect(regexGrader.type).toBe('regex');
     expect(regexGrader.value).toBe('h[aeiou]llo');
   });
+
+  it('falls back to eval file basename for suite directory when name is absent', async () => {
+    const { execa } = await import('execa');
+    const noNameEvalPath = join(FIXTURE_DIR, 'no-name.eval.yaml');
+    await execa('bun', [CLI_ENTRY, 'pipeline', 'input', noNameEvalPath, '--out', OUT_DIR]);
+
+    const input = JSON.parse(
+      await readFile(join(OUT_DIR, 'no-name', 'test-01', 'input.json'), 'utf8'),
+    );
+    expect(input.input[0].content).toBe('hello world');
+
+    const manifest = JSON.parse(await readFile(join(OUT_DIR, 'manifest.json'), 'utf8'));
+    expect(manifest.suite).toBe('no-name');
+  });
 });

@@ -147,11 +147,11 @@ The path hierarchy mirrors the CLI mode: `<evalset-name>` comes from the `name` 
 the eval.yaml. The target is recorded in `manifest.json` — one run = one target.
 
 ```
-.agentv/results/runs/<timestamp>/
+.agentv/results/runs/<experiment>/<timestamp>/
 ├── manifest.json                    ← eval metadata, target, test_ids
 ├── index.jsonl                      ← per-test scores
 ├── benchmark.json                   ← aggregate statistics
-└── <evalset-name>/                  ← from eval.yaml "name" field (omitted if absent)
+└── <evalset-name>/                  ← eval.yaml "name" field, or eval file basename if absent (same as CLI mode)
     └── <test-id>/                   ← test case id
         ├── input.json               ← test input text + messages
         ├── invoke.json              ← target command or agent instructions

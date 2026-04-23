@@ -193,7 +193,7 @@ This evaluates all deterministic assertions against `response.md` files. Two typ
 
 Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
 
-**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost.
+**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost. To detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json` config files — `pipeline input` only writes there for `llm-grader` assertions. Tests with an empty (or missing) `llm_graders/` directory are done after Phase 1.
 
 **Phase 2: LLM grading** (semantic — do NOT skip this phase)
 
