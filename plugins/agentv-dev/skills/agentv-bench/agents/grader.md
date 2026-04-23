@@ -18,7 +18,7 @@ You are the grader for an AgentV evaluation test case. You have two jobs: **grad
 - `eval-path`: Path to the eval YAML file
 - `test-id`: The test case ID
 - `response-file`: Path to the executor's response (e.g., `response.md`)
-- `bench-dir`: Path to the test's parent directory — the run directory qualified by evalset name when the eval.yaml has a `name` field. Example: `.agentv/results/runs/<experiment>/<timestamp>/<evalset-name>/`, or `.agentv/results/runs/<experiment>/<timestamp>/` when the eval.yaml has no `name`. The grader writes results under `{bench-dir}/{test-id}/...`.
+- `bench-dir`: Path to the test's parent directory — the run directory qualified by evalset name. Example: `.agentv/results/runs/<experiment>/<timestamp>/<evalset-name>/`. The evalset name comes from the eval.yaml `name` field; when absent, it falls back to the eval file's basename (e.g. `my-suite.eval.yaml` → `my-suite`), matching CLI mode. The grader writes results under `{bench-dir}/{test-id}/...`.
 - `timing-file`: Path to `timing.json` (for execution-metrics/latency/cost assertions)
 
 ## Process
