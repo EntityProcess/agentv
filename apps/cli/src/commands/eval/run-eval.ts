@@ -591,10 +591,8 @@ async function prepareFileMetadata(params: {
           graderTarget: undefined,
           config: {
             // Schema-valid grader response so --dry-run works end-to-end with LLM graders.
-            // Satisfies freeform (score), rubric (checks, overall_reasoning), and
-            // score-range (checks) schemas without real LLM calls.
-            response:
-              '{"score":1,"assertions":[],"checks":[],"overall_reasoning":"dry-run mock"}',
+            // Satisfies freeform (score), rubric (checks, overall_reasoning), and score-range (checks) without real LLM calls.
+            response: '{"score":1,"assertions":[],"checks":[],"overall_reasoning":"dry-run mock"}',
             delayMs: options.dryRunDelay,
             delayMinMs: options.dryRunDelayMin,
             delayMaxMs: options.dryRunDelayMax,
