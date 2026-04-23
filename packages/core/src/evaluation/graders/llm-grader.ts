@@ -147,7 +147,7 @@ const scoreRangeEvaluationSchema = z.object({
   overall_reasoning: z.string().describe('Overall assessment summary (1-2 sentences)').optional(),
 });
 
-export { freeformEvaluationSchema, rubricEvaluationSchema };
+export { freeformEvaluationSchema, rubricEvaluationSchema, scoreRangeEvaluationSchema };
 
 interface StructuredGenerationResult {
   readonly text: string;

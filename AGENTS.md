@@ -334,7 +334,7 @@ Unit tests alone are insufficient for grader changes. After implementing or modi
 
 4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
 
-5. **Note:** `--dry-run` returns schema-valid mock responses (`{}` as output, zeroed `tokenUsage`). Built-in graders will not crash, but scores are meaningless. Use it for testing harness flow, not grader logic.
+5. **Note:** `--dry-run` returns schema-valid mock responses for both agent output and grader evaluation (score=1, empty assertions/checks). Built-in LLM graders run without parse errors but scores are meaningless. Use it for end-to-end harness testing including grader plumbing.
 
 ### Completing Work — E2E Checklist
 
@@ -406,7 +406,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 When working on a GitHub issue, **ALWAYS** follow this workflow:
 
-1. **Claim the issue** — prevents other agents from duplicating work:
+1. **Claim the issue** — prevents other agents from duplicating work by stamping Agent ID and setting status on the project board:
    ```bash
    # Load AGENT_ID from .env; if not set, ask the user or default to <harness>-<model>
    # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
@@ -419,15 +419,13 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
      echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to devbox2-codex in this environment (otherwise use <harness>-<model>)."
    fi
 
-   # Check if already claimed
-   gh issue view <number> --json labels --jq '.labels[].name' | grep -q "in-progress" && echo "SKIP — already claimed" && exit 1
-
-   # Claim it — label + project roadmap status
-   gh issue edit <number> --add-label "in-progress"
+   # Check if already claimed via project board status
+   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .id')
+   CURRENT_STATUS=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .status')
+   [ "$CURRENT_STATUS" = "In Progress" ] && echo "SKIP — already claimed" && exit 1
 
    # Update project roadmap: ensure the issue is on the AgentV OSS board,
-   # then set status to "In progress" and stamp Agent ID
-   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .id')
+   # then set status to "In Progress" and stamp Agent ID
    if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
      ITEM_ID=$(gh project item-add 1 --owner EntityProcess --url "https://github.com/EntityProcess/agentv/issues/<number>" --format json | jq -r '.id')
    fi
@@ -436,7 +434,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
      gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
    fi
    ```
-   If the issue has the `in-progress` label, **do not work on it** — pick a different issue.
+   If the issue has project board status "In Progress", **do not work on it** — pick a different issue.
 
 2. **Update local `main` to the latest `origin/main`** before branching:
    ```bash
@@ -468,7 +466,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    1. Run unit tests.
    2. Execute every test plan item from the issue/PR checklist, mark each `[x]`, and paste CLI output as evidence.
    3. Manual red/green UAT with before/after evidence.
-   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
+   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings — **unless the change is focused** (single-responsibility, well-tested, no architectural impact), in which case this step may be skipped. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
    5. CI pipeline passes (all checks green).
    6. No merge conflicts with `main`.
 
@@ -481,17 +479,14 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    - Remove the local worktree created for the issue
    - Confirm the primary checkout is back on an up-to-date `main`
 
-The `in-progress` label stays on the issue until the PR is merged and the issue is closed. Do not remove it manually.
-
 **IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
 
 ### Tracker Conventions
 
-- The roadmap project is the source of truth for prioritization.
+- The roadmap project is the source of truth for prioritization and claim status — use it, not labels.
 - Issues in the roadmap are prioritized; issues outside it are not.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
-- `in-progress` marks an issue as claimed by an agent — do not start work on it.
 - `core`, `wui`, and `tui` are area labels.
 - Keep issue bodies focused on the handoff contract: objective, design latitude, acceptance signals, non-goals, and related links.
 - Do not put priority metadata in issue bodies.

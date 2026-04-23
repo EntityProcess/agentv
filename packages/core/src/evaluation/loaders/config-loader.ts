@@ -43,6 +43,11 @@ export type ResultsExportConfig = {
   readonly branch_prefix?: string;
 };
 
+export type HooksConfig = {
+  /** Shell command to run once at agentv startup. stdout is parsed for env var exports. */
+  readonly before_session?: string;
+};
+
 export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
@@ -50,6 +55,7 @@ export type AgentVConfig = {
   readonly results?: {
     readonly export?: ResultsExportConfig;
   };
+  readonly hooks?: HooksConfig;
 };
 
 /**
@@ -102,12 +108,14 @@ export async function loadConfig(
         configPath,
       );
       const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
+      const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
 
       return {
         required_version: requiredVersion as string | undefined,
         eval_patterns: evalPatterns as readonly string[] | undefined,
         execution: executionDefaults,
         results,
+        ...(hooks && { hooks }),
       };
     } catch (error) {
       logWarning(
@@ -621,6 +629,33 @@ export function parseResultsExportConfig(
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
     ...(branchPrefix && { branch_prefix: branchPrefix }),
   };
+}
+
+/**
+ * Parse the `hooks` block from .agentv/config.yaml.
+ * Currently supports `before_session` only.
+ */
+export function parseHooksConfig(raw: unknown, configPath: string): HooksConfig | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid hooks in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  const beforeSession = obj.before_session;
+  if (beforeSession !== undefined) {
+    if (typeof beforeSession !== 'string' || beforeSession.trim().length === 0) {
+      logWarning(`Invalid hooks.before_session in ${configPath}, expected non-empty string`);
+      return undefined;
+    }
+    return { before_session: beforeSession.trim() };
+  }
+
+  return undefined;
 }
 
 function logWarning(message: string): void {

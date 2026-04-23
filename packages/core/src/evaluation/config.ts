@@ -78,6 +78,20 @@ const AgentVConfigSchema = z.object({
       maxDurationMs: z.number().int().min(0).optional(),
     })
     .optional(),
+
+  /** Lifecycle hooks */
+  hooks: z
+    .object({
+      /**
+       * Shell command to run once at agentv startup, before any command executes.
+       * stdout is parsed for env var exports (`KEY=value` or `export KEY="value"`)
+       * and injected into process.env. Keys already set in the environment are
+       * not overwritten — existing env always takes priority.
+       * stderr is forwarded to the user. Non-zero exit aborts with an error.
+       */
+      beforeSession: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**
