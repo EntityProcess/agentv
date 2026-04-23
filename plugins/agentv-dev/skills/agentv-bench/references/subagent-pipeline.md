@@ -158,8 +158,9 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
         ├── criteria.md              ← grading criteria
         ├── response.md              ← target/agent output
         ├── timing.json              ← execution timing
-        ├── code_graders/<name>.json     ← code grader configs
+        ├── code_graders/<name>.json     ← grader configs written by `pipeline input`: code-grader scripts AND built-in types (contains, regex, equals, etc.)
         ├── llm_graders/<name>.json      ← LLM grader configs
-        ├── code_grader_results/<name>.json ← code grader results
-        └── grading.json             ← merged grading
+        ├── code_grader_results/<name>.json  ← code grader results
+        ├── llm_grader_results/<name>.json   ← LLM grader results (written by grader subagents; one file per grader)
+        └── grading.json              ← merged grading (written by `pipeline bench` — do NOT write here directly)
 ```

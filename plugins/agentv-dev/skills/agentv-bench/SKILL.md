@@ -187,7 +187,13 @@ This is the only opportunity to capture this data — it comes through the task 
 agentv pipeline grade <run-dir>
 ```
 
-This runs all `code-grader` assertions against the `response.md` files. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run code graders inline.
+This evaluates all deterministic assertions against `response.md` files. Two types are handled:
+- **`code-grader` scripts** — external scripts executed against the response (arbitrary logic, any language)
+- **Built-in assertion types** — evaluated in-process: `contains`, `contains-any`, `contains-all`, `icontains`, `regex`, `equals`, `starts-with`, `ends-with`, `is-json`, and variants
+
+Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
+
+**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost.
 
 **Phase 2: LLM grading** (semantic — do NOT skip this phase)
 
@@ -196,7 +202,9 @@ Example: 5 tests × 2 LLM graders = 10 grader subagents launched simultaneously.
 
 **Do NOT dispatch a single grader for multiple tests.** Each subagent grades exactly one (test, grader) pair.
 
-Each grader subagent (read `agents/grader.md`):
+**Before dispatching graders, read `agents/grader.md` and embed its full content as the system instructions in every grader subagent prompt.** The grader is a `general-purpose` task agent — there is no auto-resolved "grader" type. Without `agents/grader.md` embedded verbatim, the subagent has no grading process, no output format, and no file-path knowledge, and will produce empty or incorrect output.
+
+Each grader subagent (operating under `agents/grader.md` instructions):
 1. Reads `<test-id>/llm_graders/<name>.json` for the grading prompt
 2. Reads `<test-id>/response.md` for the candidate output
 3. Grades the response against the prompt criteria
@@ -220,6 +228,8 @@ agentv results validate <run-dir>
 ```
 
 `pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `benchmark.json`.
+
+> **Diagnosing `pass_rate=0`:** If `pipeline bench` reports `pass_rate=0` across the board, do **not** assume the tests genuinely failed. First verify the grading pipeline ran correctly: check that `<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each test. If these files are absent or empty, the grader subagents failed to produce output (most common cause: `agents/grader.md` was not embedded in the subagent prompts — see Phase 2). Treat `pass_rate=0` as a real signal only after confirming grader results exist.
 
 ### Artifacts
 
