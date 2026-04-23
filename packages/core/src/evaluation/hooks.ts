@@ -1,7 +1,7 @@
 /**
- * Pre-run hook execution for AgentV.
+ * Session hook execution for AgentV.
  *
- * Runs a shell command before an eval starts and injects exported environment
+ * Runs a shell command once at agentv startup and injects exported environment
  * variables into the current process. This lets projects fetch secrets at
  * runtime (e.g. from a vault) without needing a wrapper script.
  *
@@ -10,7 +10,7 @@
  * 1. The command is run via `sh -c` (or `cmd /c` on Windows).
  * 2. stdout is captured and parsed for env var exports.
  * 3. stderr is forwarded to the process stderr so the user sees output.
- * 4. Non-zero exit aborts the eval with a clear error.
+ * 4. Non-zero exit aborts with a clear error.
  * 5. Parsed keys are injected into `process.env` — only for keys not already
  *    set, so existing env always wins.
  *
@@ -72,7 +72,7 @@ export function parseEnvOutput(stdout: string): Record<string, string> {
 }
 
 /**
- * Run the pre_run hook command and inject exported env vars into process.env.
+ * Run the before_session hook command and inject exported env vars into process.env.
  *
  * - Runs via shell (`sh -c` on POSIX, `cmd /c` on Windows)
  * - Captured stdout is parsed for env vars; stderr is forwarded to process.stderr
@@ -81,12 +81,12 @@ export function parseEnvOutput(stdout: string): Record<string, string> {
  *
  * @param command Shell command string to execute
  */
-export function runPreRunHook(command: string): void {
+export function runBeforeSessionHook(command: string): void {
   const isWindows = process.platform === 'win32';
   const shell = isWindows ? 'cmd' : 'sh';
   const shellFlag = isWindows ? '/c' : '-c';
 
-  console.log(`${ANSI_YELLOW}Running pre-run hook: ${command}${ANSI_RESET}`);
+  console.log(`${ANSI_YELLOW}Running before_session hook: ${command}${ANSI_RESET}`);
 
   const result = spawnSync(shell, [shellFlag, command], {
     encoding: 'utf8',
@@ -100,11 +100,13 @@ export function runPreRunHook(command: string): void {
   }
 
   if (result.error) {
-    throw new Error(`Pre-run hook failed to start: ${result.error.message}`);
+    throw new Error(`before_session hook failed to start: ${result.error.message}`);
   }
 
   if (result.status !== 0) {
-    throw new Error(`Pre-run hook exited with code ${result.status ?? 'unknown'}: ${command}`);
+    throw new Error(
+      `before_session hook exited with code ${result.status ?? 'unknown'}: ${command}`,
+    );
   }
 
   const vars = parseEnvOutput(result.stdout ?? '');
@@ -118,6 +120,6 @@ export function runPreRunHook(command: string): void {
   }
 
   if (injected > 0) {
-    console.log(`Pre-run hook injected ${injected} environment variable(s).`);
+    console.log(`before_session hook injected ${injected} environment variable(s).`);
   }
 }

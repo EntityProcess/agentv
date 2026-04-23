@@ -83,13 +83,13 @@ const AgentVConfigSchema = z.object({
   hooks: z
     .object({
       /**
-       * Shell command to run before the eval starts.
+       * Shell command to run once at agentv startup, before any command executes.
        * stdout is parsed for env var exports (`KEY=value` or `export KEY="value"`)
        * and injected into process.env. Keys already set in the environment are
        * not overwritten — existing env always takes priority.
-       * stderr is forwarded to the user. Non-zero exit aborts the eval.
+       * stderr is forwarded to the user. Non-zero exit aborts with an error.
        */
-      preRun: z.string().optional(),
+      beforeSession: z.string().optional(),
     })
     .optional(),
 });

@@ -47,11 +47,11 @@
     },
     "hooks": {
       "type": "object",
-      "description": "Lifecycle hooks that run at specific points in the eval lifecycle.",
+      "description": "Lifecycle hooks that run at specific points during agentv execution.",
       "properties": {
-        "pre_run": {
+        "before_session": {
           "type": "string",
-          "description": "Shell command to run before the eval starts. stdout is parsed for env var exports (KEY=value or export KEY=\"value\") and injected into process.env. Keys already set in the environment are not overwritten. stderr is forwarded to the user. Non-zero exit aborts the eval.",
+          "description": "Shell command to run once at agentv startup, before any command executes. stdout is parsed for env var exports (KEY=value or export KEY=\"value\") and injected into process.env. Keys already set in the environment are not overwritten. stderr is forwarded to the user. Non-zero exit aborts with an error.",
           "examples": ["bun scripts/load-secrets.ts", "eval $(aws ssm get-parameters-by-path ...)"]
         }
       },

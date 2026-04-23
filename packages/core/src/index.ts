@@ -129,7 +129,7 @@ export {
 } from './evaluation/graders/assertions.js';
 export { discoverGraders } from './evaluation/registry/grader-discovery.js';
 export { RunBudgetTracker } from './evaluation/run-budget-tracker.js';
-export { runPreRunHook, parseEnvOutput } from './evaluation/hooks.js';
+export { runBeforeSessionHook, parseEnvOutput } from './evaluation/hooks.js';
 
 // Import pipeline
 export * from './import/index.js';

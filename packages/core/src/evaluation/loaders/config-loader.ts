@@ -44,8 +44,8 @@ export type ResultsExportConfig = {
 };
 
 export type HooksConfig = {
-  /** Shell command to run before the eval starts. stdout is parsed for env var exports. */
-  readonly pre_run?: string;
+  /** Shell command to run once at agentv startup. stdout is parsed for env var exports. */
+  readonly before_session?: string;
 };
 
 export type AgentVConfig = {
@@ -633,7 +633,7 @@ export function parseResultsExportConfig(
 
 /**
  * Parse the `hooks` block from .agentv/config.yaml.
- * Currently supports `pre_run` only.
+ * Currently supports `before_session` only.
  */
 export function parseHooksConfig(raw: unknown, configPath: string): HooksConfig | undefined {
   if (raw === undefined || raw === null) {
@@ -646,13 +646,13 @@ export function parseHooksConfig(raw: unknown, configPath: string): HooksConfig 
 
   const obj = raw as Record<string, unknown>;
 
-  const preRun = obj.pre_run;
-  if (preRun !== undefined) {
-    if (typeof preRun !== 'string' || preRun.trim().length === 0) {
-      logWarning(`Invalid hooks.pre_run in ${configPath}, expected non-empty string`);
+  const beforeSession = obj.before_session;
+  if (beforeSession !== undefined) {
+    if (typeof beforeSession !== 'string' || beforeSession.trim().length === 0) {
+      logWarning(`Invalid hooks.before_session in ${configPath}, expected non-empty string`);
       return undefined;
     }
-    return { pre_run: preRun.trim() };
+    return { before_session: beforeSession.trim() };
   }
 
   return undefined;
