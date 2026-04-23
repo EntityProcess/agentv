@@ -44,6 +44,18 @@
         }
       },
       "additionalProperties": false
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Lifecycle hooks that run at specific points in the eval lifecycle.",
+      "properties": {
+        "pre_run": {
+          "type": "string",
+          "description": "Shell command to run before the eval starts. stdout is parsed for env var exports (KEY=value or export KEY=\"value\") and injected into process.env. Keys already set in the environment are not overwritten. stderr is forwarded to the user. Non-zero exit aborts the eval.",
+          "examples": ["bun scripts/load-secrets.ts", "eval $(aws ssm get-parameters-by-path ...)"]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["$schema"],

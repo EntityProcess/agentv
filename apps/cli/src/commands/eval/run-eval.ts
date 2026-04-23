@@ -22,6 +22,7 @@ import {
   loadTestSuite,
   loadTsConfig,
   resolveTargetDefinition,
+  runPreRunHook,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
@@ -990,6 +991,13 @@ export async function runEvalCommand(
     await enforceRequiredVersion(yamlConfig.required_version, {
       strict: normalizeBoolean(input.rawOptions.strict),
     });
+  }
+
+  // Run pre-run hook (YAML config takes precedence; TS config is fallback)
+  // Hooks run before normalizeOptions so secrets are available for env interpolation
+  const preRunCommand = yamlConfig?.hooks?.pre_run ?? config?.hooks?.preRun;
+  if (preRunCommand) {
+    runPreRunHook(preRunCommand);
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
