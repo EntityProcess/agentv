@@ -334,7 +334,7 @@ Unit tests alone are insufficient for grader changes. After implementing or modi
 
 4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
 
-5. **Note:** `--dry-run` returns schema-valid mock responses (`{}` as output, zeroed `tokenUsage`). Built-in graders will not crash, but scores are meaningless. Use it for testing harness flow, not grader logic.
+5. **Note:** `--dry-run` returns schema-valid mock responses for both agent output and grader evaluation (score=1, empty assertions/checks). Built-in LLM graders run without parse errors but scores are meaningless. Use it for end-to-end harness testing including grader plumbing.
 
 ### Completing Work — E2E Checklist
 

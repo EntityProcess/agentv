@@ -13,6 +13,17 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
 const ANSI_RESET = '\u001b[0m';
 
+/**
+ * Dry-run mock response: satisfies all LLM grader schemas (freeform, rubric, score-range)
+ * so that --dry-run works end-to-end including graders without real LLM calls.
+ *
+ * - freeformEvaluationSchema:    "score" (required), "assertions" (optional)
+ * - rubricEvaluationSchema:      "checks" (required), "overall_reasoning" (required)
+ * - scoreRangeEvaluationSchema:  "checks" (required), "overall_reasoning" (optional)
+ */
+const DRY_RUN_MOCK_RESPONSE =
+  '{"score":1,"assertions":[],"checks":[],"overall_reasoning":"dry-run mock"}';
+
 function isTTY(): boolean {
   return process.stdout.isTTY ?? false;
 }
@@ -183,7 +194,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
       name: `${targetDefinition.name}-dry-run`,
       graderTarget: undefined,
       config: {
-        response: '{"answer":"Mock dry-run response"}',
+        response: DRY_RUN_MOCK_RESPONSE,
         delayMs: dryRunDelay,
         delayMinMs: dryRunDelayMin,
         delayMaxMs: dryRunDelayMax,
@@ -307,7 +318,7 @@ export async function selectMultipleTargets(
         name: `${targetDefinition.name}-dry-run`,
         graderTarget: undefined,
         config: {
-          response: '{"answer":"Mock dry-run response"}',
+          response: DRY_RUN_MOCK_RESPONSE,
           delayMs: dryRunDelay,
           delayMinMs: dryRunDelayMin,
           delayMaxMs: dryRunDelayMax,

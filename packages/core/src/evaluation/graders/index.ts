@@ -52,6 +52,7 @@ export {
   substituteVariables,
   freeformEvaluationSchema,
   rubricEvaluationSchema,
+  scoreRangeEvaluationSchema,
 } from './llm-grader.js';
 export type { LlmGraderOptions } from './llm-grader.js';
 
