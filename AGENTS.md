@@ -466,7 +466,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    1. Run unit tests.
    2. Execute every test plan item from the issue/PR checklist, mark each `[x]`, and paste CLI output as evidence.
    3. Manual red/green UAT with before/after evidence.
-   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
+   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings — **unless the change is focused** (single-responsibility, well-tested, no architectural impact), in which case this step may be skipped. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
    5. CI pipeline passes (all checks green).
    6. No merge conflicts with `main`.
 
