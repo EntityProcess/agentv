@@ -1,0 +1,59 @@
+name: Governance Compliance Lint
+
+# Lints governance: blocks in changed *.eval.yaml files using the agentv-compliance skill.
+# Posts violations as PR comments and exits non-zero on any failure.
+#
+# Adoption: copy this file to .github/workflows/compliance-lint.yml in your repo.
+# Required secret: ANTHROPIC_API_KEY
+# Optional: point SKILL_PATH at a fork of plugins/agentv-dev/skills/agentv-compliance/
+
+on:
+  pull_request:
+    paths:
+      - '**/*.eval.yaml'
+      - '**/*.EVAL.yaml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  compliance-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic pyyaml
+
+      - name: Find changed eval files
+        id: changed
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          FILES=$(git diff --name-only "$BASE" "$HEAD" -- '*.eval.yaml' '*.EVAL.yaml' | tr '\n' ' ')
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Run governance compliance lint
+        id: lint
+        if: steps.changed.outputs.files != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
+          SKILL_PATH: ${{ github.workspace }}/plugins/agentv-dev/skills/agentv-compliance
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: python examples/governance/compliance-lint/script/lint.py
+
+      - name: No eval files changed
+        if: steps.changed.outputs.files == ''
+        run: echo "No *.eval.yaml files changed — skipping governance lint."
