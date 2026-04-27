@@ -1,11 +1,11 @@
 name: Governance Compliance Lint
 
-# Lints governance: blocks in changed *.eval.yaml files using the agentv-compliance skill.
+# Lints governance: blocks in changed *.eval.yaml files using the agentv-governance skill.
 # Posts violations as PR comments and exits non-zero on any failure.
 #
 # Adoption: copy this file to .github/workflows/compliance-lint.yml in your repo.
 # Required secret: ANTHROPIC_API_KEY
-# Optional: point SKILL_PATH at a fork of plugins/agentv-dev/skills/agentv-compliance/
+# Optional: point SKILL_PATH at a fork of plugins/agentv-dev/skills/agentv-governance/
 
 on:
   pull_request:
@@ -48,7 +48,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CHANGED_FILES: ${{ steps.changed.outputs.files }}
-          SKILL_PATH: ${{ github.workspace }}/plugins/agentv-dev/skills/agentv-compliance
+          SKILL_PATH: ${{ github.workspace }}/plugins/agentv-dev/skills/agentv-governance
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}

@@ -3,13 +3,13 @@
 Governance compliance lint script.
 
 Reads each changed *.eval.yaml file, extracts governance: blocks, and calls
-the Claude API with the agentv-compliance skill loaded to lint them.
+the Claude API with the agentv-governance skill loaded to lint them.
 Posts violations as a PR comment and exits non-zero on any failure.
 
 Environment variables:
   ANTHROPIC_API_KEY  - required
   CHANGED_FILES      - space-separated list of changed eval file paths
-  SKILL_PATH         - path to the agentv-compliance skill directory
+  SKILL_PATH         - path to the agentv-governance skill directory
   GITHUB_TOKEN       - for posting PR comments (optional; skipped if absent)
   PR_NUMBER          - GitHub PR number (optional)
   REPO               - GitHub repo in "owner/repo" form (optional)
@@ -32,7 +32,7 @@ import yaml
 # ---------------------------------------------------------------------------
 
 MODEL = "claude-haiku-4-5-20251001"
-SKILL_PATH = Path(os.environ.get("SKILL_PATH", "plugins/agentv-dev/skills/agentv-compliance"))
+SKILL_PATH = Path(os.environ.get("SKILL_PATH", "plugins/agentv-dev/skills/agentv-governance"))
 CHANGED_FILES = os.environ.get("CHANGED_FILES", "").split()
 
 
@@ -42,7 +42,7 @@ def load_skill_content() -> str:
 
     skill_md = SKILL_PATH / "SKILL.md"
     if skill_md.exists():
-        parts.append(f"# Skill: agentv-compliance\n\n{skill_md.read_text()}")
+        parts.append(f"# Skill: agentv-governance\n\n{skill_md.read_text()}")
 
     refs_dir = SKILL_PATH / "references"
     if refs_dir.is_dir():
