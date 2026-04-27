@@ -39,10 +39,10 @@ For each assertion in the test's `assertions[]`, evaluate it natively based on i
 
 | Type | How to evaluate |
 |------|----------------|
-| `contains` | Check if response includes the `value` substring (case-insensitive by default) |
-| `contains-any` | Check if response includes ANY of the `value[]` substrings |
-| `contains-all` | Check if response includes ALL of the `value[]` substrings |
-| `icontains` / `icontains-any` / `icontains-all` | Same as above, explicitly case-insensitive |
+| `contains` | Check if response includes the `value` substring (case-sensitive) |
+| `contains-any` | Check if response includes ANY of the `value[]` substrings (case-sensitive) |
+| `contains-all` | Check if response includes ALL of the `value[]` substrings (case-sensitive) |
+| `icontains` / `icontains-any` / `icontains-all` | Same as above, case-insensitive |
 | `equals` | `response.trim() === value.trim()` |
 | `regex` | `new RegExp(value).test(response)` |
 | `starts-with` | `response.startsWith(value)` |

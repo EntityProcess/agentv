@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  runContainsAllAssertion,
+  runContainsAnyAssertion,
   runContainsAssertion,
   runEqualsAssertion,
   runIsJsonAssertion,
@@ -19,6 +21,25 @@ describe('deterministic assertions', () => {
       const result = runContainsAssertion('Hello world', 'foo');
       expect(result.score).toBe(0);
       expect(result.assertions).toEqual([{ text: 'Output does not contain "foo"', passed: false }]);
+    });
+
+    it('is case-sensitive', () => {
+      expect(runContainsAssertion('Hello, world!', 'hello').score).toBe(0);
+      expect(runContainsAssertion('hello, world!', 'hello').score).toBe(1);
+    });
+  });
+
+  describe('contains-any', () => {
+    it('is case-sensitive', () => {
+      expect(runContainsAnyAssertion('Hello World', ['hello', 'world']).score).toBe(0);
+      expect(runContainsAnyAssertion('Hello World', ['Hello', 'world']).score).toBe(1);
+    });
+  });
+
+  describe('contains-all', () => {
+    it('is case-sensitive', () => {
+      expect(runContainsAllAssertion('Hello World', ['Hello', 'world']).score).toBe(0);
+      expect(runContainsAllAssertion('Hello World', ['Hello', 'World']).score).toBe(1);
     });
   });
 
