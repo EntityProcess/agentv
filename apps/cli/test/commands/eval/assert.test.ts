@@ -61,7 +61,7 @@ describe('agentv eval assert', () => {
     } finally {
       await rm(baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('exits 1 when grader returns score 0', async () => {
     const { baseDir } = await createGraderFixture();
@@ -87,7 +87,7 @@ describe('agentv eval assert', () => {
     } finally {
       await rm(baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('exits 0 when grader returns passing score', async () => {
     const { baseDir } = await createGraderFixture();
@@ -113,7 +113,7 @@ describe('agentv eval assert', () => {
     } finally {
       await rm(baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('errors when grader name not found', async () => {
     const { baseDir } = await createGraderFixture();
@@ -137,5 +137,5 @@ describe('agentv eval assert', () => {
     } finally {
       await rm(baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });

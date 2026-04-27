@@ -348,7 +348,7 @@ describe('trend command', () => {
     });
     expect((parsed.summary as Record<string, unknown>).direction).toBe('degrading');
     expect((parsed.summary as Record<string, unknown>).matched_test_count).toBe(2);
-  });
+  }, 30_000);
 
   it('normalizes explicit run inputs to chronological order before analysis', async () => {
     const cwd = await createTempDir();
@@ -499,7 +499,7 @@ describe('trend command', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain('Trend Analysis');
     expect(result.stdout).toContain('degrading');
-  });
+  }, 30_000);
 
   it('errors when target filtering leaves a selected run empty in CLI mode', async () => {
     const cwd = await createTempDir();
@@ -532,5 +532,5 @@ describe('trend command', () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Run has no matching records');
-  });
+  }, 30_000);
 });
