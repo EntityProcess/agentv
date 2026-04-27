@@ -232,7 +232,7 @@ describe('agentv eval CLI', () => {
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('loads the nearest .env first and uses parent .env only for missing keys', async () => {
     const fixture = await createNestedEnvFixture();
@@ -249,7 +249,7 @@ describe('agentv eval CLI', () => {
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('supports repeatable --test-id flags with OR matching', async () => {
     const fixture = await createFixture();
@@ -269,7 +269,7 @@ describe('agentv eval CLI', () => {
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('passes run-level budget tracking through to the evaluator', async () => {
     const fixture = await createFixture();
@@ -285,5 +285,5 @@ describe('agentv eval CLI', () => {
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });

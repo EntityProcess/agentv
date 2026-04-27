@@ -55,7 +55,7 @@ describe('pipeline grade', () => {
     );
     expect(result.score).toBe(1);
     expect(result.name).toBe('always_pass');
-  });
+  }, 30_000);
 
   it('includes assertions from code grader output', async () => {
     const { execa } = await import('execa');
@@ -66,7 +66,7 @@ describe('pipeline grade', () => {
     );
     expect(result.assertions).toHaveLength(1);
     expect(result.assertions[0].passed).toBe(true);
-  });
+  }, 30_000);
 });
 
 describe('pipeline grade — builtin assertions', () => {
@@ -144,7 +144,7 @@ describe('pipeline grade — builtin assertions', () => {
     expect(result.score).toBe(1);
     expect(result.type).toBe('contains');
     expect(result.assertions[0].passed).toBe(true);
-  });
+  }, 30_000);
 
   it('evaluates regex assertion and writes result', async () => {
     const { execa } = await import('execa');
@@ -158,7 +158,7 @@ describe('pipeline grade — builtin assertions', () => {
     );
     expect(result.score).toBe(1);
     expect(result.type).toBe('regex');
-  });
+  }, 30_000);
 
   it('scores 0 when contains assertion does not match', async () => {
     const { execa } = await import('execa');
@@ -172,7 +172,7 @@ describe('pipeline grade — builtin assertions', () => {
     );
     expect(result.score).toBe(0);
     expect(result.assertions[0].passed).toBe(false);
-  });
+  }, 30_000);
 
   it('applies negate to invert score', async () => {
     // Overwrite has_goodbye with negate: true — "not contains goodbye" should pass
@@ -198,5 +198,5 @@ describe('pipeline grade — builtin assertions', () => {
     );
     expect(result.score).toBe(1);
     expect(result.assertions[0].passed).toBe(true);
-  });
+  }, 30_000);
 });

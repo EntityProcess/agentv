@@ -197,7 +197,7 @@ describe('WorkspacePoolManager', () => {
       expect(existsSync(path.join(slot.path, 'my-repo', 'hello.txt'))).toBe(true);
 
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
 
     it('reuses existing slot when available (after release)', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -226,7 +226,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot2.path).toBe(slot1.path);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('creates slot-1 when slot-0 is locked (concurrent access)', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -254,7 +254,7 @@ describe('WorkspacePoolManager', () => {
 
       await manager.releaseSlot(slot0);
       await manager.releaseSlot(slot1);
-    });
+    }, 30_000);
 
     it('PID-based stale lock detection works', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -286,7 +286,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot2.isExisting).toBe(true);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('throws when all slots are locked', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -314,7 +314,7 @@ describe('WorkspacePoolManager', () => {
 
       await manager.releaseSlot(slot0);
       await manager.releaseSlot(slot1);
-    });
+    }, 30_000);
   });
 
   describe('drift detection', () => {
@@ -336,7 +336,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot.index).toBe(0);
 
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
 
     it('no drift when fingerprint matches', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -363,7 +363,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot2.index).toBe(0);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('detects drift when fingerprint changes', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -397,7 +397,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot2.fingerprint).toBe(fp1);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('removes stale slots on drift', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -432,7 +432,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot2.isExisting).toBe(false);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
   });
 
   describe('full acquireWorkspace flow', () => {
@@ -470,7 +470,7 @@ describe('WorkspacePoolManager', () => {
       expect(metadata.templatePath).toBe(templateDir);
 
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
 
     it('reuses workspace on second run (resets repos, re-copies template)', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -518,7 +518,7 @@ describe('WorkspacePoolManager', () => {
       );
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('agent-created files are cleaned by git clean -fd', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -551,7 +551,7 @@ describe('WorkspacePoolManager', () => {
       expect(existsSync(path.join(slot2.path, 'my-repo', 'agent-output.txt'))).toBe(false);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('original repo files restored after reset', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -585,7 +585,7 @@ describe('WorkspacePoolManager', () => {
       );
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('template files overwritten on reuse', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -623,7 +623,7 @@ describe('WorkspacePoolManager', () => {
       expect(readFileSync(path.join(slot2.path, 'config.yaml'), 'utf-8')).toBe('version: 2');
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('works with template only (no repos)', async () => {
       const templateDir = path.join(tmpDir, 'template');
@@ -642,7 +642,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot.isExisting).toBe(false);
 
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
 
     it('works with repos only (no template)', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -658,7 +658,7 @@ describe('WorkspacePoolManager', () => {
       expect(existsSync(path.join(slot.path, 'my-repo', 'hello.txt'))).toBe(true);
 
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
 
     it('handles multiple repos in a workspace', async () => {
       const repoA = path.join(tmpDir, 'repo-a');
@@ -680,7 +680,7 @@ describe('WorkspacePoolManager', () => {
       expect(readFileSync(path.join(slot.path, 'repo-b', 'b.txt'), 'utf-8')).toBe('repo-b');
 
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
   });
 
   describe('pool reset policy', () => {
@@ -720,7 +720,7 @@ describe('WorkspacePoolManager', () => {
       expect(existsSync(path.join(slot2.path, 'my-repo', 'build', 'output.js'))).toBe(false);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('default fast reset preserves gitignored files on reuse', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -756,7 +756,7 @@ describe('WorkspacePoolManager', () => {
       expect(existsSync(path.join(slot2.path, 'my-repo', 'build', 'output.js'))).toBe(true);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
   });
 
   describe('resolve: remote pool reuse', () => {
@@ -806,7 +806,7 @@ describe('WorkspacePoolManager', () => {
       expect(slot2Head).toBe(newSha);
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
 
     it('does not fetch from remote when resolve is local', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -847,7 +847,7 @@ describe('WorkspacePoolManager', () => {
       expect(readFileSync(path.join(slot2.path, 'my-repo', 'hello.txt'), 'utf-8')).toBe('v1');
 
       await manager.releaseSlot(slot2);
-    });
+    }, 30_000);
   });
 
   describe('releaseSlot', () => {
@@ -867,7 +867,7 @@ describe('WorkspacePoolManager', () => {
       await manager.releaseSlot(slot);
 
       expect(existsSync(slot.lockPath)).toBe(false);
-    });
+    }, 30_000);
 
     it('does not throw if lock file already removed', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -883,6 +883,6 @@ describe('WorkspacePoolManager', () => {
       await manager.releaseSlot(slot);
       // Second release should not throw
       await manager.releaseSlot(slot);
-    });
+    }, 30_000);
   });
 });

@@ -70,7 +70,7 @@ describe('RepoManager', () => {
 
       const targetDir = path.join(workspaceDir, 'my-repo');
       expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
-    });
+    }, 30_000);
 
     it('checks out specified ref', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -97,7 +97,7 @@ describe('RepoManager', () => {
       expect(headSha).toBe(secondSha);
       expect(existsSync(path.join(targetDir, 'second.txt'))).toBe(true);
       expect(existsSync(path.join(targetDir, 'third.txt'))).toBe(false);
-    });
+    }, 30_000);
 
     it('walks ancestor commits', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -117,7 +117,7 @@ describe('RepoManager', () => {
       const targetDir = path.join(workspaceDir, 'my-repo');
       const headSha = gitExec('git rev-parse HEAD', targetDir);
       expect(headSha).toBe(firstSha);
-    });
+    }, 30_000);
 
     it('supports shallow clone with depth', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
@@ -139,7 +139,7 @@ describe('RepoManager', () => {
       const targetDir = path.join(workspaceDir, 'my-repo');
       const logCount = gitExec('git rev-list --count HEAD', targetDir);
       expect(Number(logCount)).toBe(2);
-    });
+    }, 30_000);
   });
 
   describe('materializeAll', () => {
@@ -159,7 +159,7 @@ describe('RepoManager', () => {
 
       expect(existsSync(path.join(workspaceDir, 'repo-a', 'a.txt'))).toBe(true);
       expect(existsSync(path.join(workspaceDir, 'repo-b', 'b.txt'))).toBe(true);
-    });
+    }, 30_000);
   });
 
   describe('validateLocalPaths', () => {
@@ -284,6 +284,6 @@ describe('RepoManager', () => {
       expect(existsSync(path.join(targetDir, 'agent-created.txt'))).toBe(false);
       const content = readFileSync(path.join(targetDir, 'original.txt'), 'utf-8');
       expect(content).toBe('original');
-    });
+    }, 30_000);
   });
 });

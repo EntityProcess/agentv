@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { interpolateEnv } from '../interpolation.js';
-import { parseYamlValue } from '../yaml-loader.js';
 import type {
   EvalTargetRef,
   FailOnError,
@@ -13,6 +12,7 @@ import type {
   WorkspaceHookConfig,
 } from '../types.js';
 import { isJsonObject } from '../types.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
 const ANSI_YELLOW = '\u001b[33m';

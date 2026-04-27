@@ -3,7 +3,6 @@ import path from 'node:path';
 
 import { normalizePreprocessorType } from '../content-preprocessor.js';
 import { interpolateEnv } from '../interpolation.js';
-import { parseYamlValue } from '../yaml-loader.js';
 import type { ToolTrajectoryExpectedItem, ToolTrajectoryGraderConfig } from '../trace.js';
 import type {
   ContentPreprocessorConfig,
@@ -14,6 +13,7 @@ import type {
 } from '../types.js';
 import { isGraderKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import { resolveFileReference } from './file-resolver.js';
 
 const ANSI_YELLOW = '\u001b[33m';
