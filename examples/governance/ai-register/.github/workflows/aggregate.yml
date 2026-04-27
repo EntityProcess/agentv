@@ -1,0 +1,174 @@
+name: aggregate-ai-register
+
+# Sweeps every repo the bot can see for an `.ai-register.yaml`, merges them
+# into a CSV + a static HTML dashboard, and surfaces stale entries (those
+# whose `last_reviewed` is older than STALE_DAYS) on the workflow summary.
+#
+# Drop this file into a dedicated `ai-register` repo (or your governance
+# repo). Each AI-system repo just commits a `.ai-register.yaml` at its
+# root — there is nothing to install on those repos.
+#
+# Required: GH_AGGREGATE_TOKEN secret with `repo` (or `read:org` + `repo`)
+# scope, scoped to the GitHub org or user you want to enumerate. The
+# default GITHUB_TOKEN works for public repos; a PAT is needed for
+# private ones.
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: GitHub org or user to scan (defaults to current repo owner)
+        required: false
+  schedule:
+    - cron: "0 6 * * 1"   # every Monday 06:00 UTC
+
+env:
+  STALE_DAYS: "90"
+
+permissions:
+  contents: read
+  issues: write   # for posting the stale-review summary as an issue comment
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate .ai-register.yaml across the org
+        id: locate
+        env:
+          GH_TOKEN: ${{ secrets.GH_AGGREGATE_TOKEN || secrets.GITHUB_TOKEN }}
+          ORG: ${{ inputs.org || github.repository_owner }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          # GitHub code search returns up to 1000 hits; use REST search/code
+          # filtered to filename. Cursor pagination via per_page+page.
+          : > out/repos.txt
+          page=1
+          while :; do
+            resp=$(gh api -X GET search/code \
+              -f q="filename:.ai-register.yaml org:${ORG}" \
+              -F per_page=100 -F page=$page)
+            count=$(jq -r '.items | length' <<<"$resp")
+            jq -r '.items[] | "\(.repository.full_name)\t\(.path)"' <<<"$resp" >> out/repos.txt
+            [ "$count" -lt 100 ] && break
+            page=$((page+1))
+          done
+          wc -l out/repos.txt
+
+      - name: Fetch each manifest
+        env:
+          GH_TOKEN: ${{ secrets.GH_AGGREGATE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p out/manifests
+          while IFS=$'\t' read -r repo path; do
+            [ -z "$repo" ] && continue
+            slug=$(echo "$repo" | tr '/' '_')
+            gh api "repos/${repo}/contents/${path}" --jq '.content' \
+              | base64 -d > "out/manifests/${slug}.yaml" || echo "skip $repo"
+          done < out/repos.txt
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet "PyYAML==6.0.2"
+
+      - name: Aggregate to CSV + HTML
+        run: |
+          python3 - <<'PY'
+          import csv, datetime, glob, html, json, os, pathlib, sys, yaml
+
+          stale_days = int(os.environ.get("STALE_DAYS", "90"))
+          today = datetime.date.today()
+          rows = []
+          stale = []
+          for fn in sorted(glob.glob("out/manifests/*.yaml")):
+              try:
+                  data = yaml.safe_load(pathlib.Path(fn).read_text())
+              except yaml.YAMLError as e:
+                  rows.append({"id": fn, "error": str(e)})
+                  continue
+              sys_ = (data or {}).get("system", {})
+              row = {
+                  "id": sys_.get("id", ""),
+                  "name": sys_.get("name", ""),
+                  "owner": sys_.get("owner", ""),
+                  "risk_tier": sys_.get("risk_tier", ""),
+                  "deployment": sys_.get("deployment", ""),
+                  "last_reviewed": str(sys_.get("last_reviewed", "")),
+                  "controls": "; ".join(sys_.get("controls", []) or []),
+                  "models": "; ".join(
+                      f"{m.get('provider','?')}:{m.get('model','?')}"
+                      for m in sys_.get("models", []) or []
+                  ),
+                  "source_file": pathlib.Path(fn).name,
+              }
+              rows.append(row)
+              try:
+                  reviewed = datetime.date.fromisoformat(row["last_reviewed"])
+                  if (today - reviewed).days > stale_days:
+                      stale.append(row)
+              except (TypeError, ValueError):
+                  pass
+
+          out = pathlib.Path("out")
+          with (out / "register.csv").open("w", newline="") as f:
+              writer = csv.DictWriter(
+                  f,
+                  fieldnames=["id", "name", "owner", "risk_tier", "deployment",
+                              "last_reviewed", "controls", "models",
+                              "source_file"],
+              )
+              writer.writeheader()
+              for r in rows:
+                  writer.writerow({k: r.get(k, "") for k in writer.fieldnames})
+
+          def esc(v): return html.escape(str(v))
+          th = lambda s: f"<th>{esc(s)}</th>"
+          td = lambda s: f"<td>{esc(s)}</td>"
+          headers = ["id", "name", "owner", "risk_tier", "deployment",
+                     "last_reviewed", "controls", "models", "source_file"]
+          tbl = ["<table>", "<thead><tr>" + "".join(th(h) for h in headers) + "</tr></thead>", "<tbody>"]
+          for r in rows:
+              tbl.append("<tr>" + "".join(td(r.get(h, "")) for h in headers) + "</tr>")
+          tbl += ["</tbody>", "</table>"]
+          stale_html = ""
+          if stale:
+              stale_html = "<h2>Stale entries (>" + str(stale_days) + " days)</h2><ul>"
+              for r in stale:
+                  stale_html += f"<li>{esc(r['id'])} ({esc(r['owner'])}) — last_reviewed={esc(r['last_reviewed'])}</li>"
+              stale_html += "</ul>"
+          (out / "register.html").write_text(
+              "<!doctype html><meta charset=utf-8>"
+              "<title>AI System Register</title>"
+              "<style>body{font-family:system-ui;margin:2rem}"
+              "table{border-collapse:collapse}td,th{padding:.4em .8em;border:1px solid #ccc}"
+              "th{background:#f4f4f4;text-align:left}</style>"
+              "<h1>AI System Register</h1>"
+              + stale_html
+              + "\n".join(tbl)
+          )
+
+          # Workflow summary
+          summary = pathlib.Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null"))
+          with summary.open("a") as f:
+              f.write(f"## AI System Register\n\nFound **{len(rows)}** systems.\n\n")
+              if stale:
+                  f.write(f"### Stale (>{stale_days} days)\n\n")
+                  for r in stale:
+                      f.write(f"- `{r['id']}` ({r['owner']}) last_reviewed={r['last_reviewed']}\n")
+              else:
+                  f.write(f"All entries reviewed within the last {stale_days} days.\n")
+          print(json.dumps({"systems": len(rows), "stale": len(stale)}))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-register
+          path: |
+            out/register.csv
+            out/register.html
