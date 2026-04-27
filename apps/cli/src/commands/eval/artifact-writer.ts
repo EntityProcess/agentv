@@ -160,6 +160,8 @@ export interface IndexArtifactEntry {
   readonly output_path?: string;
   readonly input_path?: string;
   readonly response_path?: string;
+  /** Case-level metadata pass-through (governance taxonomies, skill tags, etc.). */
+  readonly metadata?: Record<string, unknown>;
 }
 
 export type ResultIndexArtifact = IndexArtifactEntry;
@@ -573,6 +575,7 @@ export function buildIndexArtifactEntry(
     input_path: options.inputPath
       ? toRelativeArtifactPath(options.outputDir, options.inputPath)
       : undefined,
+    metadata: result.metadata,
   };
 }
 
@@ -606,6 +609,7 @@ export function buildResultIndexArtifact(result: EvaluationResult): ResultIndexA
     response_path: hasResponse
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
       : undefined,
+    metadata: result.metadata,
   };
 }
 

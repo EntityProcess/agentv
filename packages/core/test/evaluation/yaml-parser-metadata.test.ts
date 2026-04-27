@@ -132,4 +132,71 @@ tests:
     const suite = await loadTestSuite(filePath, dir);
     expect(suite.metadata?.tags).toEqual(['unit', 'integration', 'smoke']);
   });
+
+  it('parses suite-level governance from top-level governance:', async () => {
+    const { filePath, dir } = createTempYaml(`
+name: red-team
+governance:
+  schema_version: "1.0"
+  owasp_llm_top_10_2025: [LLM01]
+  controls:
+    - NIST-AI-RMF-1.0:MEASURE-2.7
+  risk_tier: high
+  owner: security-team
+tests:
+  - id: case-1
+    criteria: "Refuses"
+    input: "Query"
+`);
+
+    const suite = await loadTestSuite(filePath, dir);
+    expect(suite.metadata?.governance).toEqual({
+      schema_version: '1.0',
+      owasp_llm_top_10_2025: ['LLM01'],
+      controls: ['NIST-AI-RMF-1.0:MEASURE-2.7'],
+      risk_tier: 'high',
+      owner: 'security-team',
+    });
+  });
+
+  it('merges case-level governance into suite-level (arrays concat, scalars override)', async () => {
+    const { filePath, dir } = createTempYaml(`
+name: red-team
+governance:
+  owasp_llm_top_10_2025: [LLM01]
+  controls:
+    - NIST-AI-RMF-1.0:MEASURE-2.7
+  risk_tier: high
+tests:
+  - id: case-1
+    criteria: "Refuses"
+    input: "Query"
+    metadata:
+      governance:
+        owasp_llm_top_10_2025: [LLM06]
+        risk_tier: limited
+`);
+
+    const suite = await loadTestSuite(filePath, dir);
+    const govern = suite.tests[0].metadata?.governance as Record<string, unknown>;
+    expect(govern.owasp_llm_top_10_2025).toEqual(['LLM01', 'LLM06']);
+    expect(govern.controls).toEqual(['NIST-AI-RMF-1.0:MEASURE-2.7']);
+    expect(govern.risk_tier).toBe('limited');
+  });
+
+  it('keeps suite governance on cases that have no metadata of their own', async () => {
+    const { filePath, dir } = createTempYaml(`
+governance:
+  owasp_llm_top_10_2025: [LLM01]
+tests:
+  - id: case-1
+    criteria: "Refuses"
+    input: "Query"
+`);
+
+    const suite = await loadTestSuite(filePath, dir);
+    expect(suite.tests[0].metadata?.governance).toEqual({
+      owasp_llm_top_10_2025: ['LLM01'],
+    });
+  });
 });

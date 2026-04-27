@@ -1160,6 +1160,12 @@ export interface EvaluationResult {
   readonly failureReasonCode?: string;
   /** Structured error detail (only when executionStatus === 'execution_error') */
   readonly executionError?: ExecutionError;
+  /**
+   * Pass-through of `EvalTest.metadata` so case-level information (e.g. governance taxonomies,
+   * skill-name tags) flows into the JSONL artifact and downstream consumers without each
+   * surface having to thread the EvalTest separately.
+   */
+  readonly metadata?: Record<string, unknown>;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'skip';
