@@ -36,6 +36,7 @@
       "**/*.gen.ts",
       "**/__generated__/**",
       "**/test-output/**",
+      "**/__tmp_*/**",
       "**/.agentv/**",
       ".claude/**",
       ".opencode/**",
