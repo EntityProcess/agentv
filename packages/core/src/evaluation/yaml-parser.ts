@@ -79,7 +79,7 @@ export {
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig, ExecutionDefaults } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
-export type { EvalMetadata } from './metadata.js';
+export type { EvalMetadata, GovernanceMetadata } from './metadata.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -361,6 +361,10 @@ async function loadTestsFromYaml(
 
   const suiteWorkspace = await resolveWorkspaceConfig(suite.workspace, evalFileDir);
 
+  // Suite-level governance block (top-level `governance:` wins over `metadata.governance:`).
+  // Per-case `metadata.governance` merges with this — arrays concatenate, scalars override.
+  const suiteGovernance = extractSuiteGovernance(suite);
+
   // Resolve suite-level input (prepended to each test's input messages)
   const suiteInputMessages = expandInputShorthand(suite.input);
 
@@ -543,10 +547,12 @@ async function loadTestsFromYaml(
     const caseWorkspace = await resolveWorkspaceConfig(testCaseConfig.workspace, evalFileDir);
     const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
 
-    // Parse per-case metadata
-    const metadata = isJsonObject(testCaseConfig.metadata)
+    // Parse per-case metadata, then merge suite-level governance onto the case.
+    // Arrays concatenate (suite controls + case controls), scalars on the case win.
+    const rawCaseMetadata = isJsonObject(testCaseConfig.metadata)
       ? (testCaseConfig.metadata as Record<string, unknown>)
       : undefined;
+    const metadata = mergeCaseGovernance(rawCaseMetadata, suiteGovernance);
 
     // Extract per-test targets override (matrix evaluation)
     const caseTargets = extractTargetsFromTestCase(testCaseConfig as JsonObject);
@@ -924,6 +930,67 @@ function mergeWorkspaceConfigs(
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Pull the optional `governance` block out of a suite YAML. Top-level `governance:` wins
+ * over the nested `metadata.governance:` form so that authors who already use top-level
+ * suite metadata fields (`name`, `description`, `tags`) can keep their existing layout.
+ */
+function extractSuiteGovernance(suite: RawTestSuite): Record<string, unknown> | undefined {
+  const top = (suite as JsonObject).governance;
+  if (isJsonObject(top)) {
+    return top as Record<string, unknown>;
+  }
+  const wrapper = (suite as JsonObject).metadata;
+  if (isJsonObject(wrapper)) {
+    const nested = (wrapper as JsonObject).governance;
+    if (isJsonObject(nested)) {
+      return nested as Record<string, unknown>;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Merge suite-level governance into a case's metadata. Arrays concatenate (suite controls +
+ * case controls, deduplicated); scalar fields on the case override the suite. The case's
+ * other metadata keys are preserved verbatim. Returns undefined if neither side has anything.
+ */
+function mergeCaseGovernance(
+  caseMetadata: Record<string, unknown> | undefined,
+  suiteGovernance: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const caseGovernance = isJsonObject(caseMetadata?.governance)
+    ? (caseMetadata?.governance as Record<string, unknown>)
+    : undefined;
+
+  if (!suiteGovernance && !caseGovernance) {
+    return caseMetadata;
+  }
+
+  const merged: Record<string, unknown> = { ...(suiteGovernance ?? {}) };
+  if (caseGovernance) {
+    for (const [key, caseValue] of Object.entries(caseGovernance)) {
+      const suiteValue = merged[key];
+      if (Array.isArray(suiteValue) && Array.isArray(caseValue)) {
+        const seen = new Set<string>();
+        const out: unknown[] = [];
+        for (const v of [...suiteValue, ...caseValue]) {
+          const key = typeof v === 'string' ? v : JSON.stringify(v);
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push(v);
+          }
+        }
+        merged[key] = out;
+      } else {
+        merged[key] = caseValue;
+      }
+    }
+  }
+
+  return { ...(caseMetadata ?? {}), governance: merged };
 }
 
 function logWarning(message: string, details?: readonly string[]): void {

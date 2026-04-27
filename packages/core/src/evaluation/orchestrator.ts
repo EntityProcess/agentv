@@ -1369,6 +1369,13 @@ export async function runEvaluation(
           beforeAllOutputAttached = true;
         }
 
+        // Surface case-level metadata (e.g. governance taxonomies) on the result so
+        // it round-trips into the JSONL artifact and downstream consumers (reports,
+        // jq pipelines, attestation exports). Already-set metadata wins.
+        if (evalCase.metadata && !result.metadata) {
+          result = { ...result, metadata: evalCase.metadata };
+        }
+
         if (onProgress) {
           await onProgress({
             workerId,

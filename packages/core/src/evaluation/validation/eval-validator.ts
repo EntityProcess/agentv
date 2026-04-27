@@ -51,6 +51,8 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'evaluators',
   'preprocessors',
   'workspace',
+  'metadata',
+  'governance',
 ]);
 
 /**
@@ -194,6 +196,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
+
+  // Soft-warning lint for the optional governance block (suite-level).
+  // Accepts both top-level `governance:` and nested `metadata.governance:`.
+  validateGovernance(extractGovernanceBlock(parsed), 'governance', absolutePath, errors);
 
   // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
@@ -456,6 +462,16 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     // Cross-field validation for conversation mode
     validateConversationMode(evalCase, location, absolutePath, errors);
+
+    // Soft-warning lint for case-level governance block.
+    if (isObject(evalCase.metadata)) {
+      validateGovernance(
+        (evalCase.metadata as JsonObject).governance,
+        `${location}.metadata.governance`,
+        absolutePath,
+        errors,
+      );
+    }
 
     await validateWorkspaceConfig(
       evalCase.workspace,
@@ -1004,5 +1020,127 @@ function validateConversationMode(
         });
       }
     }
+  }
+}
+
+/**
+ * Recognized fields inside the optional `governance` block. Any other key produces a soft
+ * warning so that authors notice typos like `owasp_lm_top_10_2025`. Unknown frameworks (e.g.
+ * a future `iso_42001_2027`) require updating this set in the same PR — that is intentional;
+ * the alternative (silent acceptance) lets typos rot in production evals.
+ */
+const KNOWN_GOVERNANCE_FIELDS = new Set([
+  'schema_version',
+  'owasp_llm_top_10_2025',
+  'owasp_agentic_top_10_2025',
+  'mitre_atlas',
+  'controls',
+  'risk_tier',
+  'owner',
+]);
+
+/** EU AI Act risk-tier vocabulary (the default; other strings produce a soft warning). */
+const EU_AI_ACT_RISK_TIERS = new Set(['prohibited', 'high', 'limited', 'minimal']);
+
+/**
+ * Validates a `<FRAMEWORK>-<VERSION>:<ID>` control string. Custom prefixes are first-class
+ * (e.g. `INTERNAL-AI-POLICY-3.2:CTRL-7`) — only the *shape* is checked. Returns true if the
+ * string has the required `:` separator AND the framework segment ends with a version-looking
+ * token (digit-or-dot suffix, e.g. `1.0`, `2024`, `3.2`). Misses on this heuristic produce
+ * a soft warning, never an error.
+ */
+function isWellFormedControlId(value: string): boolean {
+  const colonIdx = value.indexOf(':');
+  if (colonIdx <= 0 || colonIdx === value.length - 1) {
+    return false;
+  }
+  const prefix = value.slice(0, colonIdx);
+  const lastSegment = prefix.split('-').pop() ?? '';
+  // Version-looking: starts with a digit or contains a dot.
+  return /[0-9]/.test(lastSegment.charAt(0)) || lastSegment.includes('.');
+}
+
+/** Top-level `governance:` wins; falls back to nested `metadata.governance:`. */
+function extractGovernanceBlock(parsed: JsonObject): JsonValue | undefined {
+  if (parsed.governance !== undefined) {
+    return parsed.governance;
+  }
+  if (isObject(parsed.metadata)) {
+    return (parsed.metadata as JsonObject).governance;
+  }
+  return undefined;
+}
+
+function validateGovernance(
+  block: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (block === undefined) return;
+  if (!isObject(block)) {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location,
+      message: `'${location}' must be an object; got ${Array.isArray(block) ? 'array' : typeof block}.`,
+    });
+    return;
+  }
+
+  for (const key of Object.keys(block)) {
+    if (!KNOWN_GOVERNANCE_FIELDS.has(key)) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Unknown governance field '${key}'. Known fields: ${[...KNOWN_GOVERNANCE_FIELDS].join(', ')}.`,
+      });
+    }
+  }
+
+  const controls = block.controls;
+  if (controls !== undefined) {
+    if (!Array.isArray(controls)) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.controls`,
+        message: "'controls' should be an array of '<FRAMEWORK>-<VERSION>:<ID>' strings.",
+      });
+    } else {
+      for (let i = 0; i < controls.length; i++) {
+        const entry = controls[i];
+        if (typeof entry !== 'string') {
+          errors.push({
+            severity: 'warning',
+            filePath,
+            location: `${location}.controls[${i}]`,
+            message: 'Control entries must be strings.',
+          });
+        } else if (!isWellFormedControlId(entry)) {
+          errors.push({
+            severity: 'warning',
+            filePath,
+            location: `${location}.controls[${i}]`,
+            message: `Malformed control '${entry}'. Expected '<FRAMEWORK>-<VERSION>:<ID>' (e.g. NIST-AI-RMF-1.0:MEASURE-2.7). Custom prefixes are allowed.`,
+          });
+        }
+      }
+    }
+  }
+
+  const riskTier = block.risk_tier;
+  if (
+    riskTier !== undefined &&
+    typeof riskTier === 'string' &&
+    !EU_AI_ACT_RISK_TIERS.has(riskTier)
+  ) {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: `${location}.risk_tier`,
+      message: `'risk_tier: ${riskTier}' is outside EU AI Act vocabulary (prohibited | high | limited | minimal). Other vocabularies (e.g. NIST 800-30) are accepted but flagged.`,
+    });
   }
 }
