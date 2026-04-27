@@ -123,7 +123,7 @@ Examples of valid control IDs:
 ## Rule 6 — risk_tier_value
 
 **What:** `risk_tier`, when present, must be one of:
-`prohibited`, `high_risk`, `limited_risk`, `minimal_risk`
+`prohibited`, `high`, `limited`, `minimal`
 
 **On violation:**
 ```json
@@ -131,16 +131,16 @@ Examples of valid control IDs:
   "rule": "risk_tier_value",
   "key": "risk_tier",
   "value": "<offending-value>",
-  "message": "Unknown risk_tier value '<offending-value>'. Allowed: prohibited, high_risk, limited_risk, minimal_risk.",
+  "message": "Unknown risk_tier value '<offending-value>'. Allowed: prohibited, high, limited, minimal.",
   "suggestion": "Use one of the EU AI Act risk tiers from references/eu-ai-act-risk-tiers.md."
 }
 ```
 
 Common mistakes:
-- `high` → `high_risk`
-- `limited` → `limited_risk`
-- `minimal` → `minimal_risk`
-- `low` → `minimal_risk` (not an EU AI Act term)
+- `high_risk` → `high`
+- `limited_risk` → `limited`
+- `minimal_risk` → `minimal`
+- `low` → `minimal` (not an EU AI Act term)
 
 ---
 
