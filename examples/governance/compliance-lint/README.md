@@ -1,15 +1,15 @@
 # Governance Compliance Lint Action
 
 A reference GitHub Action that lints `governance:` blocks in changed `*.eval.yaml` files
-using the `agentv-compliance` skill. The same skill that powers AI authoring also powers
+using the `agentv-governance` skill. The same skill that powers AI authoring also powers
 CI enforcement — no separate runtime package needed.
 
 ## How it works
 
 1. On every PR touching `*.eval.yaml` files, the Action extracts `governance:` blocks from
    each changed file (suite-level and per-case).
-2. Each block is passed to Claude with the `agentv-compliance` skill loaded.
-3. Claude applies the rules in `plugins/agentv-dev/skills/agentv-compliance/references/lint-rules.md`
+2. Each block is passed to Claude with the `agentv-governance` skill loaded.
+3. Claude applies the rules in `plugins/agentv-dev/skills/agentv-governance/references/lint-rules.md`
    and returns a structured JSON report (`{ pass: bool, violations: [...] }`).
 4. The Action posts a summary as a PR comment and exits non-zero on any `pass: false` result.
 
@@ -29,12 +29,12 @@ Name: `ANTHROPIC_API_KEY`, value: your key from console.anthropic.com.
 ### 3. Point at your skill location (optional)
 
 By default the workflow looks for the skill at
-`plugins/agentv-dev/skills/agentv-compliance/` relative to the repo root.
+`plugins/agentv-dev/skills/agentv-governance/` relative to the repo root.
 If your skill lives elsewhere, set `SKILL_PATH` in the workflow env:
 
 ```yaml
 env:
-  SKILL_PATH: path/to/your/agentv-compliance
+  SKILL_PATH: path/to/your/agentv-governance
 ```
 
 ### 4. Push a PR with a `*.eval.yaml` change
@@ -83,7 +83,7 @@ This Action is **opt-in** by default. To make it mandatory:
 
 ## Customising the rules
 
-Edit `plugins/agentv-dev/skills/agentv-compliance/references/lint-rules.md` to add, remove,
+Edit `plugins/agentv-dev/skills/agentv-governance/references/lint-rules.md` to add, remove,
 or adjust rules. The Action picks up changes automatically on the next run — no code change needed.
 
 ## Files
@@ -98,7 +98,7 @@ examples/governance/compliance-lint/
 
 The skill lives at:
 ```
-plugins/agentv-dev/skills/agentv-compliance/
+plugins/agentv-dev/skills/agentv-governance/
 ├── SKILL.md
 └── references/
     ├── governance-yaml-shape.md

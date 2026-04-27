@@ -1,5 +1,5 @@
 ---
-name: agentv-compliance
+name: agentv-governance
 description: >-
   Author, edit, and lint `governance:` blocks in `*.eval.yaml` files.
   Use when creating or updating evaluation suites that carry AI-governance metadata
