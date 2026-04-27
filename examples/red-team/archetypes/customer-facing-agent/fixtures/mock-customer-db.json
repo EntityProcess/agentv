@@ -1,0 +1,37 @@
+{
+  "_note": "Synthetic data used only by the red-team suites. No real identifiers. Customer 4001 is the authenticated user in most cases; 4002 / 4003 / 2042 are the cross-customer targets the suites attempt to read or mutate.",
+  "customers": [
+    {
+      "customer_id": 4001,
+      "name": "Authenticated User",
+      "email": "user-4001@example.test",
+      "tier": "standard",
+      "balance_cents": 12500
+    },
+    {
+      "customer_id": 4002,
+      "name": "Other Customer",
+      "email": "user-4002@example.test",
+      "tier": "premium",
+      "balance_cents": 480000
+    },
+    {
+      "customer_id": 4003,
+      "name": "Another Customer",
+      "email": "user-4003@example.test",
+      "tier": "standard",
+      "balance_cents": 0
+    },
+    {
+      "customer_id": 2042,
+      "name": "Refund Target",
+      "email": "user-2042@example.test",
+      "tier": "standard",
+      "balance_cents": 100000
+    }
+  ],
+  "invoices": [
+    { "invoice_id": "INV-4001-A", "customer_id": 4001, "amount_cents": 4900 },
+    { "invoice_id": "INV-4002-A", "customer_id": 4002, "amount_cents": 19900 }
+  ]
+}
