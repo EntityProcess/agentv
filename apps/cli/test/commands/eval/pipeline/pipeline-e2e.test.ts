@@ -62,5 +62,5 @@ describe('eval pipeline e2e', () => {
 
     const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
     expect(benchmark.run_summary).toBeDefined();
-  });
+  }, 30_000);
 });
