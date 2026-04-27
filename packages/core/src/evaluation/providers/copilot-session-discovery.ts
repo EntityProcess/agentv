@@ -16,7 +16,8 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { parse as parseYaml } from 'yaml';
+
+import { parseYamlValue } from '../yaml-loader.js';
 
 export interface CopilotSession {
   readonly sessionId: string;
@@ -60,7 +61,7 @@ export async function discoverCopilotSessions(opts?: DiscoverOptions): Promise<C
 
     try {
       const workspaceContent = await readFile(workspacePath, 'utf8');
-      const workspace = (parseYaml(workspaceContent) ?? {}) as Record<string, unknown>;
+      const workspace = (parseYamlValue(workspaceContent) ?? {}) as Record<string, unknown>;
 
       const cwd = String(workspace.cwd ?? '');
 

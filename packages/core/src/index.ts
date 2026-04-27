@@ -1,6 +1,7 @@
 export * from './evaluation/content.js';
 export * from './evaluation/types.js';
 export * from './evaluation/trace.js';
+export { parseYamlValue } from './evaluation/yaml-loader.js';
 export * from './evaluation/yaml-parser.js';
 export {
   isAgentSkillsFormat,

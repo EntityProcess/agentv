@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
 import { buildSearchRoots, findGitRoot, resolveFileReference } from '../file-utils.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
@@ -40,7 +40,7 @@ export async function validateFileReferences(
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = parse(content);
+    parsed = parseYamlValue(content);
   } catch {
     // Parse errors are already caught by eval-validator
     return errors;

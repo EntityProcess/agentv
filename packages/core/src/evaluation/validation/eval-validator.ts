@@ -1,10 +1,10 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
 import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-loader.js';
 import { isGraderKind } from '../types.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
@@ -165,7 +165,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = interpolateEnv(parse(content), process.env);
+    parsed = interpolateEnv(parseYamlValue(content), process.env);
   } catch (error) {
     errors.push({
       severity: 'error',
@@ -514,7 +514,7 @@ async function validateWorkspaceConfig(
 
   try {
     const workspaceContent = await readFile(workspacePath, 'utf8');
-    const parsedWorkspace = interpolateEnv(parse(workspaceContent), process.env);
+    const parsedWorkspace = interpolateEnv(parseYamlValue(workspaceContent), process.env);
     if (!isObject(parsedWorkspace)) {
       errors.push({
         severity: 'error',

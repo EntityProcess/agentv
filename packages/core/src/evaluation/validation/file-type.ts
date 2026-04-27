@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
+import { parseYamlValue } from '../yaml-loader.js';
 import type { FileType } from './types.js';
 
 const SCHEMA_EVAL_V2 = 'agentv-eval-v2';
@@ -18,7 +18,7 @@ const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
 export async function detectFileType(filePath: string): Promise<FileType> {
   try {
     const content = await readFile(filePath, 'utf8');
-    const parsed = parse(content) as unknown;
+    const parsed = parseYamlValue(content);
 
     // YAML array root → cases file (array of test case objects)
     if (Array.isArray(parsed)) {

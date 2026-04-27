@@ -21,8 +21,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_THRESHOLD } from '@agentv/core';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { DEFAULT_THRESHOLD, parseYamlValue } from '@agentv/core';
+import { stringify as stringifyYaml } from 'yaml';
 
 export interface StudioConfig {
   threshold: number;
@@ -47,7 +47,7 @@ export function loadStudioConfig(agentvDir: string): StudioConfig {
   }
 
   const raw = readFileSync(configPath, 'utf-8');
-  const parsed = parseYaml(raw);
+  const parsed = parseYamlValue(raw);
 
   if (!parsed || typeof parsed !== 'object') {
     return { ...DEFAULTS };
@@ -89,7 +89,7 @@ export function saveStudioConfig(agentvDir: string, config: StudioConfig): void 
   let existing: Record<string, unknown> = {};
   if (existsSync(configPath)) {
     const raw = readFileSync(configPath, 'utf-8');
-    const parsed = parseYaml(raw);
+    const parsed = parseYamlValue(raw);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       existing = parsed as Record<string, unknown>;
     }

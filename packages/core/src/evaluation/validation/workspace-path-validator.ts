@@ -1,7 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
+import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
@@ -38,7 +38,7 @@ export async function validateWorkspacePaths(
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = parse(content);
+    parsed = parseYamlValue(content);
   } catch {
     // Parse errors are already caught by eval-validator
     return errors;
@@ -55,7 +55,7 @@ export async function validateWorkspacePaths(
     const workspaceFilePath = path.resolve(evalDir, workspaceRaw);
     try {
       const wsContent = await readFile(workspaceFilePath, 'utf8');
-      const wsParsed = parse(wsContent);
+      const wsParsed = parseYamlValue(wsContent);
       if (isObject(wsParsed)) {
         const wsDir = path.dirname(workspaceFilePath);
         await validateWorkspaceObject(wsParsed, wsDir, absolutePath, 'workspace', errors);
