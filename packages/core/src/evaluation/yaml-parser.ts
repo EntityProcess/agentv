@@ -79,7 +79,7 @@ export {
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig, ExecutionDefaults } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
-export type { EvalMetadata, GovernanceMetadata } from './metadata.js';
+export type { EvalMetadata } from './metadata.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -362,7 +362,7 @@ async function loadTestsFromYaml(
   const suiteWorkspace = await resolveWorkspaceConfig(suite.workspace, evalFileDir);
 
   // Suite-level governance block (top-level `governance:` wins over `metadata.governance:`).
-  // Per-case `metadata.governance` merges with this — arrays concatenate, scalars override.
+  // Merged into each case's `metadata.governance` via mergeSuiteMetadataPayload.
   const suiteGovernance = extractSuiteGovernance(suite);
 
   // Resolve suite-level input (prepended to each test's input messages)
@@ -547,12 +547,13 @@ async function loadTestsFromYaml(
     const caseWorkspace = await resolveWorkspaceConfig(testCaseConfig.workspace, evalFileDir);
     const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
 
-    // Parse per-case metadata, then merge suite-level governance onto the case.
-    // Arrays concatenate (suite controls + case controls), scalars on the case win.
+    // Parse per-case metadata, then merge suite-level metadata payload.
+    // Arrays concatenate (suite-first, deduplicated), scalars on the case win.
     const rawCaseMetadata = isJsonObject(testCaseConfig.metadata)
       ? (testCaseConfig.metadata as Record<string, unknown>)
       : undefined;
-    const metadata = mergeCaseGovernance(rawCaseMetadata, suiteGovernance);
+    const suitePayload = suiteGovernance !== undefined ? { governance: suiteGovernance } : undefined;
+    const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suitePayload);
 
     // Extract per-test targets override (matrix evaluation)
     const caseTargets = extractTargetsFromTestCase(testCaseConfig as JsonObject);
@@ -953,44 +954,40 @@ function extractSuiteGovernance(suite: RawTestSuite): Record<string, unknown> | 
 }
 
 /**
- * Merge suite-level governance into a case's metadata. Arrays concatenate (suite controls +
- * case controls, deduplicated); scalar fields on the case override the suite. The case's
- * other metadata keys are preserved verbatim. Returns undefined if neither side has anything.
+ * Merge a suite-level metadata payload into a case's metadata map. The same rules apply to
+ * every key in the payload: arrays concatenate suite-first and deduplicate; nested objects
+ * recurse; scalar fields on the case win; suite fills in keys the case omits.
  */
-function mergeCaseGovernance(
+function mergeSuiteMetadataPayload(
   caseMetadata: Record<string, unknown> | undefined,
-  suiteGovernance: Record<string, unknown> | undefined,
+  suitePayload: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
-  const caseGovernance = isJsonObject(caseMetadata?.governance)
-    ? (caseMetadata?.governance as Record<string, unknown>)
-    : undefined;
+  if (!suitePayload) return caseMetadata;
 
-  if (!suiteGovernance && !caseGovernance) {
-    return caseMetadata;
-  }
-
-  const merged: Record<string, unknown> = { ...(suiteGovernance ?? {}) };
-  if (caseGovernance) {
-    for (const [key, caseValue] of Object.entries(caseGovernance)) {
-      const suiteValue = merged[key];
-      if (Array.isArray(suiteValue) && Array.isArray(caseValue)) {
-        const seen = new Set<string>();
-        const out: unknown[] = [];
-        for (const v of [...suiteValue, ...caseValue]) {
-          const key = typeof v === 'string' ? v : JSON.stringify(v);
-          if (!seen.has(key)) {
-            seen.add(key);
-            out.push(v);
-          }
+  const result: Record<string, unknown> = { ...(caseMetadata ?? {}) };
+  for (const [key, suiteVal] of Object.entries(suitePayload)) {
+    const caseVal = result[key];
+    if (Array.isArray(suiteVal) && Array.isArray(caseVal)) {
+      const seen = new Set<string>();
+      const out: unknown[] = [];
+      for (const v of [...suiteVal, ...caseVal]) {
+        const k = typeof v === 'string' ? v : JSON.stringify(v);
+        if (!seen.has(k)) {
+          seen.add(k);
+          out.push(v);
         }
-        merged[key] = out;
-      } else {
-        merged[key] = caseValue;
       }
+      result[key] = out;
+    } else if (isJsonObject(suiteVal) && isJsonObject(caseVal)) {
+      result[key] = mergeSuiteMetadataPayload(
+        caseVal as Record<string, unknown>,
+        suiteVal as Record<string, unknown>,
+      );
+    } else if (caseVal === undefined) {
+      result[key] = suiteVal;
     }
   }
-
-  return { ...(caseMetadata ?? {}), governance: merged };
+  return result;
 }
 
 function logWarning(message: string, details?: readonly string[]): void {

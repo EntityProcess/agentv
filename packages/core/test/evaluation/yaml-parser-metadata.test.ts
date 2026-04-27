@@ -133,32 +133,6 @@ tests:
     expect(suite.metadata?.tags).toEqual(['unit', 'integration', 'smoke']);
   });
 
-  it('parses suite-level governance from top-level governance:', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: red-team
-governance:
-  schema_version: "1.0"
-  owasp_llm_top_10_2025: [LLM01]
-  controls:
-    - NIST-AI-RMF-1.0:MEASURE-2.7
-  risk_tier: high
-  owner: security-team
-tests:
-  - id: case-1
-    criteria: "Refuses"
-    input: "Query"
-`);
-
-    const suite = await loadTestSuite(filePath, dir);
-    expect(suite.metadata?.governance).toEqual({
-      schema_version: '1.0',
-      owasp_llm_top_10_2025: ['LLM01'],
-      controls: ['NIST-AI-RMF-1.0:MEASURE-2.7'],
-      risk_tier: 'high',
-      owner: 'security-team',
-    });
-  });
-
   it('merges case-level governance into suite-level (arrays concat, scalars override)', async () => {
     const { filePath, dir } = createTempYaml(`
 name: red-team

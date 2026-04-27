@@ -53,49 +53,10 @@ describe('parseMetadata', () => {
     });
   });
 
-  it('parses an optional governance block at the top level', () => {
+  it('returns undefined when only governance is present and name is absent', () => {
     const result = parseMetadata({
-      name: 'red-team',
-      governance: {
-        schema_version: '1.0',
-        owasp_llm_top_10_2025: ['LLM01'],
-        controls: ['NIST-AI-RMF-1.0:MEASURE-2.7'],
-        risk_tier: 'high',
-      },
+      governance: { risk_tier: 'high_risk' },
     });
-    expect(result?.governance).toEqual({
-      schema_version: '1.0',
-      owasp_llm_top_10_2025: ['LLM01'],
-      controls: ['NIST-AI-RMF-1.0:MEASURE-2.7'],
-      risk_tier: 'high',
-    });
-  });
-
-  it('parses governance from nested metadata.governance form', () => {
-    const result = parseMetadata({
-      name: 'red-team',
-      metadata: {
-        governance: { owasp_llm_top_10_2025: ['LLM06'], owner: 'security-team' },
-      },
-    });
-    expect(result?.governance).toEqual({
-      owasp_llm_top_10_2025: ['LLM06'],
-      owner: 'security-team',
-    });
-  });
-
-  it('returns metadata when only governance is present (no name)', () => {
-    const result = parseMetadata({
-      governance: { risk_tier: 'high' },
-    });
-    expect(result).toEqual({ governance: { risk_tier: 'high' } });
-  });
-
-  it('passes unknown governance keys through (custom taxonomies extend without forking)', () => {
-    const result = parseMetadata({
-      name: 'red-team',
-      governance: { custom_company_taxonomy: ['X-1'] },
-    });
-    expect(result?.governance).toEqual({ custom_company_taxonomy: ['X-1'] });
+    expect(result).toBeUndefined();
   });
 });
