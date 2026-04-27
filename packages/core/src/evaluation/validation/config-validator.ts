@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { parse } from 'yaml';
 
+import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
 /**
@@ -11,7 +11,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
 
   try {
     const content = await readFile(filePath, 'utf8');
-    const parsed = parse(content) as unknown;
+    const parsed = parseYamlValue(content);
 
     // Check if parsed content is an object
     if (typeof parsed !== 'object' || parsed === null) {

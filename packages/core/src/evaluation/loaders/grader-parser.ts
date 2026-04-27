@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
 import { normalizePreprocessorType } from '../content-preprocessor.js';
 import { interpolateEnv } from '../interpolation.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import type { ToolTrajectoryExpectedItem, ToolTrajectoryGraderConfig } from '../trace.js';
 import type {
   ContentPreprocessorConfig,
@@ -183,7 +183,7 @@ async function loadAssertionTemplateEntries(
   }
 
   const content = await readFile(resolved.resolvedPath, 'utf8');
-  const parsed = interpolateEnv(parse(content), process.env) as unknown;
+  const parsed = interpolateEnv(parseYamlValue(content), process.env) as unknown;
   if (!isJsonObject(parsed)) {
     throw new Error(
       `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} (expected a YAML object with an assertions array)`,

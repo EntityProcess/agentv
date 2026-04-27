@@ -9,7 +9,8 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { parse } from 'yaml';
+
+import { parseYamlValue } from '../yaml-loader.js';
 
 // ---------------------------------------------------------------------------
 // evals.json output types
@@ -510,7 +511,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
  */
 export function transpileEvalYamlFile(evalYamlPath: string): TranspileResult {
   const content = readFileSync(evalYamlPath, 'utf8');
-  const parsed = parse(content) as unknown;
+  const parsed = parseYamlValue(content);
   return transpileEvalYaml(parsed, path.basename(evalYamlPath));
 }
 

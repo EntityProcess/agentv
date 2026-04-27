@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
+import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
@@ -26,7 +26,7 @@ export async function validateCasesFile(filePath: string): Promise<ValidationRes
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = parse(content);
+    parsed = parseYamlValue(content);
   } catch (error) {
     errors.push({
       severity: 'error',

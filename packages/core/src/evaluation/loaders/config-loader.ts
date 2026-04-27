@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import type {
   EvalTargetRef,
   FailOnError,
@@ -77,7 +77,7 @@ export async function loadConfig(
 
     try {
       const rawConfig = await readFile(configPath, 'utf8');
-      const parsed = interpolateEnv(parse(rawConfig), process.env) as unknown;
+      const parsed = interpolateEnv(parseYamlValue(rawConfig), process.env) as unknown;
 
       if (!isJsonObject(parsed)) {
         logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);

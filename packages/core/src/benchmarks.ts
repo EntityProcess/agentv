@@ -32,8 +32,9 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml } from 'yaml';
 
+import { parseYamlValue } from './evaluation/yaml-loader.js';
 import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -101,7 +102,7 @@ export function loadBenchmarkRegistry(): BenchmarkRegistry {
   }
   try {
     const raw = readFileSync(registryPath, 'utf-8');
-    const parsed = parseYaml(raw);
+    const parsed = parseYamlValue(raw) as { benchmarks?: unknown } | null | undefined;
     if (!parsed || typeof parsed !== 'object') {
       return { benchmarks: [] };
     }

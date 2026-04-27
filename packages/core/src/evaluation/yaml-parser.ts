@@ -1,7 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
-import { parse } from 'yaml';
 
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import { interpolateEnv } from './interpolation.js';
@@ -61,6 +60,7 @@ import type {
 } from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
 import { parseRepoConfig } from './workspace/repo-config-parser.js';
+import { parseYamlValue } from './yaml-loader.js';
 
 // Re-export public APIs from modules
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
@@ -172,7 +172,7 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
   try {
     const absolutePath = path.resolve(testFilePath);
     const content = await readFile(absolutePath, 'utf8');
-    const parsed = interpolateEnv(parse(content), process.env) as unknown;
+    const parsed = interpolateEnv(parseYamlValue(content), process.env) as unknown;
 
     if (!isJsonObject(parsed)) {
       return {};
@@ -308,7 +308,7 @@ async function loadTestsFromYaml(
   const config = await loadConfig(absoluteTestPath, repoRootPath);
 
   const rawFile = await readFile(absoluteTestPath, 'utf8');
-  const interpolated = interpolateEnv(parse(rawFile), process.env) as unknown;
+  const interpolated = interpolateEnv(parseYamlValue(rawFile), process.env) as unknown;
   if (!isJsonObject(interpolated)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
@@ -783,7 +783,7 @@ async function resolveWorkspaceConfig(
     } catch {
       throw new Error(`Workspace file not found: ${raw} (resolved to ${workspaceFilePath})`);
     }
-    const parsed = interpolateEnv(parse(content), process.env) as unknown;
+    const parsed = interpolateEnv(parseYamlValue(content), process.env) as unknown;
     if (!isJsonObject(parsed)) {
       throw new Error(
         `Invalid workspace file format: ${workspaceFilePath} (expected a YAML object)`,

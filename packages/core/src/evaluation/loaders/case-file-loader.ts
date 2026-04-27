@@ -1,11 +1,11 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import fg from 'fast-glob';
-import { parse as parseYaml } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
 import type { JsonObject, JsonValue } from '../types.js';
 import { isJsonObject } from '../types.js';
+import { parseYamlValue } from '../yaml-loader.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
@@ -38,7 +38,7 @@ function isGlobPattern(filePath: string): boolean {
  * Expects the file to contain an array of test objects.
  */
 function parseYamlCases(content: string, filePath: string): JsonObject[] {
-  const raw = parseYaml(content) as unknown;
+  const raw = parseYamlValue(content);
   const parsed = interpolateEnv(raw, process.env);
   if (!Array.isArray(parsed)) {
     throw new Error(
@@ -206,7 +206,7 @@ export async function loadCasesFromDirectory(dirPath: string): Promise<JsonObjec
       throw new Error(`Cannot read case file: ${caseFilePath}\n  ${message}`);
     }
 
-    const raw = parseYaml(content) as unknown;
+    const raw = parseYamlValue(content);
     const parsed = interpolateEnv(raw, process.env);
     if (!isJsonObject(parsed)) {
       throw new Error(

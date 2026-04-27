@@ -17,10 +17,10 @@
  */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
 
 import { interpolateEnv } from '../interpolation.js';
 import type { RepoCheckout, RepoClone, RepoSource } from '../types.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import { parseRepoCheckout, parseRepoClone, parseRepoSource } from './repo-config-parser.js';
 
 /** A single git repo dependency discovered from eval files. */
@@ -115,7 +115,7 @@ interface RawRepo {
 
 async function extractReposFromEvalFile(filePath: string): Promise<RawRepo[]> {
   const content = await readFile(filePath, 'utf8');
-  const parsed = interpolateEnv(parse(content), process.env);
+  const parsed = interpolateEnv(parseYamlValue(content), process.env);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
   const obj = parsed as Record<string, unknown>;
   const evalFileDir = path.dirname(path.resolve(filePath));
@@ -148,7 +148,7 @@ async function extractReposFromWorkspaceRaw(raw: unknown, evalFileDir: string): 
     // External workspace file reference
     const workspaceFilePath = path.resolve(evalFileDir, raw);
     const content = await readFile(workspaceFilePath, 'utf8');
-    const parsed = interpolateEnv(parse(content), process.env);
+    const parsed = interpolateEnv(parseYamlValue(content), process.env);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
     return extractReposFromObject(parsed as Record<string, unknown>);
   }
