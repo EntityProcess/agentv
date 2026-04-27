@@ -552,7 +552,8 @@ async function loadTestsFromYaml(
     const rawCaseMetadata = isJsonObject(testCaseConfig.metadata)
       ? (testCaseConfig.metadata as Record<string, unknown>)
       : undefined;
-    const suitePayload = suiteGovernance !== undefined ? { governance: suiteGovernance } : undefined;
+    const suitePayload =
+      suiteGovernance !== undefined ? { governance: suiteGovernance } : undefined;
     const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suitePayload);
 
     // Extract per-test targets override (matrix evaluation)

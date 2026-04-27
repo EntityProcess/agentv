@@ -1008,4 +1008,3 @@ function validateConversationMode(
     }
   }
 }
-
