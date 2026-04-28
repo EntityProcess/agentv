@@ -57,7 +57,7 @@ The expected output format is:
 
 1. Check which risks this eval exercises using the reference files above.
 2. Pick IDs from the relevant frameworks (`owasp_llm_top_10_2025`, `mitre_atlas`, etc.).
-3. Set `risk_tier` using EU AI Act vocabulary (`prohibited | high_risk | limited_risk | minimal_risk`).
+3. Set `risk_tier` using EU AI Act vocabulary (`prohibited | high | limited | minimal`).
 4. Add `controls` as `<FRAMEWORK>-<VERSION>:<ID>` strings (e.g. `EU-AI-ACT-2024:Art.55`).
 5. Run the lint rules from `references/lint-rules.md` against your block before committing.
 6. See `references/governance-yaml-shape.md` for complete examples copied from real suites.

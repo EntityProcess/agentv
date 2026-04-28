@@ -9,7 +9,7 @@ governance:
   owasp_agentic_top_10_2025: [T01, T06]    # string[], optional — OWASP Agentic AI Top 10 v2025 IDs
   mitre_atlas: [AML.T0051]                 # string[], optional — MITRE ATLAS technique IDs
   controls: []                             # string[], optional — <FRAMEWORK>-<VERSION>:<ID> strings
-  risk_tier: high_risk                     # string, optional — EU AI Act tier (see eu-ai-act-risk-tiers.md)
+  risk_tier: high                          # string, optional — EU AI Act tier (see eu-ai-act-risk-tiers.md)
   owner: security-team                     # string, optional — owning team or person
 ```
 
@@ -44,7 +44,7 @@ governance: &gov           # YAML anchor for reuse in per-case overrides
   controls:
     - NIST-AI-RMF-1.0:MEASURE-2.7
     - EU-AI-ACT-2024:Art.55
-  risk_tier: high_risk
+  risk_tier: high
   owner: security-team
 
 tests:
@@ -85,7 +85,7 @@ governance: &gov
   controls:
     - NIST-AI-RMF-1.0:MEASURE-2.7
     - EU-AI-ACT-2024:Art.55
-  risk_tier: high_risk
+  risk_tier: high
   owner: security-team
 
 tests:
@@ -114,7 +114,7 @@ governance: &gov
   controls:
     - NIST-AI-RMF-1.0:MEASURE-2.7
     - EU-AI-ACT-2024:Art.55
-  risk_tier: high_risk
+  risk_tier: high
   owner: security-team
 ```
 

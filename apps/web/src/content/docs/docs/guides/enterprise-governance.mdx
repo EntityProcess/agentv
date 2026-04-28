@@ -66,7 +66,7 @@ The full example, including comments, is in the agentv repo at
 - **`risk_tier`** — EU AI Act vocabulary (`prohibited | high | limited | minimal`).
   Other vocabularies (e.g. NIST 800-30) work too; pick one and stick with it.
 - **`controls`** — same string format as the eval-level `governance` schema
-  documented in [governance metadata]. That overlap is intentional: a
+  documented [below](#eval-level-governance). That overlap is intentional: a
   control declared on a system can be cross-referenced against the controls
   exercised by its evals.
 - **`last_reviewed`** — a date. Aggregators flag entries older than
@@ -138,4 +138,53 @@ You don't have to rip out the manifest convention either. Most teams keep
 the Git-native artifact as the **canonical source** and the platform as
 the **operations surface**, syncing one direction.
 
-[governance metadata]: ./agent-eval-layers/
+## Eval-level governance
+
+Individual eval suites can carry their own `governance:` block that records
+which risks the suite exercises. The block is passed through verbatim to the
+JSONL results file, making it queryable by downstream tools.
+
+### YAML shape
+
+```yaml
+governance:
+  schema_version: "1.0"                    # optional — schema version
+  owasp_llm_top_10_2025: [LLM01]           # OWASP LLM Top 10 v2025 IDs
+  owasp_agentic_top_10_2025: [T01, T06]    # OWASP Agentic AI Top 10 v2025 IDs
+  mitre_atlas: [AML.T0051]                 # MITRE ATLAS technique IDs
+  controls:                                # <FRAMEWORK>-<VERSION>:<ID> strings
+    - NIST-AI-RMF-1.0:MEASURE-2.7
+    - EU-AI-ACT-2024:Art.55
+  risk_tier: high                          # EU AI Act tier: prohibited | high | limited | minimal
+  owner: security-team                     # owning team or person
+```
+
+All fields are optional. Blocks can appear at suite level (top-level `governance:` key,
+merged into every test case) or on individual test cases under `metadata.governance`.
+When both are present, arrays are concatenated and deduplicated; scalar fields on the
+case win over the suite.
+
+### agentv-governance skill
+
+The `agentv-governance` Claude Code skill teaches an AI agent how to author and lint
+`governance:` blocks. Load it alongside `agentv-eval-writer` when building red-team or
+compliance suites:
+
+```
+/load agentv-governance
+```
+
+The skill operates in two modes:
+
+- **Authoring** — provides valid IDs from OWASP LLM, OWASP Agentic, MITRE ATLAS, and EU
+  AI Act, and validates your block before you commit.
+- **Linting (CI)** — invoked from a GitHub Action, it lints each changed `*.eval.yaml`
+  against a set of vocabulary rules and returns a structured JSON violation report.
+
+### Compliance-lint GitHub Action
+
+`examples/governance/compliance-lint/` contains a ready-to-copy GitHub Action that runs
+the agentv-governance skill on every pull request and fails the check if any governance
+block contains unknown keys, malformed IDs, or invalid `risk_tier` values. See the
+[README](https://github.com/EntityProcess/agentv/blob/main/examples/governance/compliance-lint/README.md)
+in that directory for setup instructions.
