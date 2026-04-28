@@ -11,7 +11,7 @@ describe('ProgressDisplay', () => {
 
   afterEach(() => {
     if (originalNoColor === undefined) {
-      delete process.env.NO_COLOR;
+      process.env.NO_COLOR = undefined;
     } else {
       process.env.NO_COLOR = originalNoColor;
     }
