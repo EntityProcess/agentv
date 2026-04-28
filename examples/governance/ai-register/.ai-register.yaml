@@ -1,13 +1,37 @@
 system:
   id: example-support-agent
   name: Example Customer Support Agent
+  version: v1.0.0
   owner: support-platform-team
+  contact: support-platform-oncall@example.com
   risk_tier: high                  # EU AI Act vocabulary: prohibited | high | limited | minimal
-  deployment: production
   data_classification: restricted
+  created_at: 2025-06-01
   description: >-
     Answers customer support questions over chat. Routes to humans when the
     user requests a refund or asks anything outside the documented FAQ.
+
+  # The specific contexts where this system is authorised to operate, separate
+  # from the general description. Required by EU AI Act Annex IV §1(a) and
+  # NIST AI RMF GOVERN-1.1.
+  intended_use: >-
+    Authorised for registered customers via the public chat interface only.
+    Not authorised for internal employee support, financial advice, or any
+    context outside the documented FAQ scope.
+
+  # Known limitations and out-of-scope uses. Required by NIST AI RMF
+  # MEASURE-1.1 and EU AI Act Annex IV §2.
+  limitations: >-
+    May produce incorrect answers for queries outside the training FAQ.
+    Does not retain conversation history between sessions. Not suitable
+    for legally sensitive or regulated financial inquiries.
+
+  # Human oversight process. Required for high-risk systems under EU AI Act
+  # Art. 14 and NIST AI RMF GOVERN-4. Document who holds override authority
+  # and under what conditions escalation occurs.
+  human_oversight: >-
+    On-call engineer (contact above) holds override authority. Escalation
+    triggers automatically on refund requests and low-confidence responses.
 
   # Models actually in use. Versioned strings so an auditor a year from now
   # can see which family + model identifier was running, not just "Anthropic".
@@ -21,17 +45,19 @@ system:
   # can `git ls-tree HEAD evals/` to count cases, or run `agentv eval` on demand.
   evals:
     path: evals/
-    runs_in_ci: true
 
-  # Cross-framework controls. Format follows the convention in #1161:
-  # <FRAMEWORK>-<VERSION>:<ID>. Custom prefixes are explicitly supported.
+  # Cross-framework controls. Format: <FRAMEWORK>-<VERSION>:<ID>. Custom
+  # prefixes are explicitly supported. This same string format appears in eval
+  # result JSONL — that's the correlation point between manifest and eval evidence.
   controls:
     - NIST-AI-RMF-1.0:GOVERN-1.3
     - NIST-AI-RMF-1.0:MEASURE-2.7
     - ISO-42001-2023:Clause-7
+    - EU-AI-ACT-2024:Art.14
     - EU-AI-ACT-2024:Art.55
     - INTERNAL-AI-POLICY-1.0:CTRL-CUSTOMER-ISOLATION
 
-  # When the system was last reviewed by the owning team. Aggregators flag
-  # entries older than your governance cadence (quarterly is typical).
+  # Lifecycle dates. Aggregators flag last_reviewed entries older than your
+  # governance cadence (quarterly is typical).
+  created_at: 2025-06-01
   last_reviewed: 2026-04-24
