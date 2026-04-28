@@ -12,16 +12,16 @@ import { AnalyticsTab } from '~/components/AnalyticsTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
+import { TargetsTab } from '~/components/TargetsTab';
 import {
   benchmarkCompareOptions,
   benchmarkExperimentsOptions,
-  benchmarkTargetsOptions,
   syncRemoteResultsApi,
   useBenchmarkRunList,
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
-import type { ExperimentsResponse, TargetsResponse } from '~/lib/types';
+import type { ExperimentsResponse } from '~/lib/types';
 
 type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
 
@@ -94,7 +94,7 @@ function BenchmarkHomePage() {
       {activeTab === 'analytics' && (
         <BenchmarkAnalyticsTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
       )}
-      {activeTab === 'targets' && <BenchmarkTargetsTab benchmarkId={benchmarkId} />}
+      {activeTab === 'targets' && <TargetsTab benchmarkId={benchmarkId} />}
 
       {!isReadOnly && (
         <RunEvalModal
@@ -228,50 +228,5 @@ function BenchmarkAnalyticsTab({
       benchmarkId={benchmarkId}
       readOnly={readOnly}
     />
-  );
-}
-
-function BenchmarkTargetsTab({ benchmarkId }: { benchmarkId: string }) {
-  const { data, isLoading } = useQuery(benchmarkTargetsOptions(benchmarkId));
-  const targets = (data as TargetsResponse | undefined)?.targets ?? [];
-
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {['s1', 's2', 's3'].map((id) => (
-          <div key={id} className="h-12 animate-pulse rounded-lg bg-gray-900" />
-        ))}
-      </div>
-    );
-  }
-
-  if (targets.length === 0) {
-    return (
-      <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-        <p className="text-lg text-gray-400">No targets found</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {targets.map((t) => (
-        <div
-          key={t.name}
-          className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 p-4"
-        >
-          <div>
-            <p className="font-medium text-white">{t.name}</p>
-            <p className="text-sm text-gray-400">
-              {t.run_count} run{t.run_count !== 1 ? 's' : ''} &middot; {t.experiment_count}{' '}
-              experiment{t.experiment_count !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <span className="text-lg font-semibold tabular-nums text-cyan-400">
-            {Math.round(t.pass_rate * 100)}%
-          </span>
-        </div>
-      ))}
-    </div>
   );
 }
