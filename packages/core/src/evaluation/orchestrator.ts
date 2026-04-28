@@ -384,6 +384,10 @@ export interface ProgressEvent {
   readonly score?: number;
   /** Execution status classification for completed/failed tests */
   readonly executionStatus?: ExecutionStatus;
+  /** Candidate/agent execution duration in milliseconds */
+  readonly durationMs?: number;
+  /** Full eval duration in milliseconds, including grading/orchestration */
+  readonly evalRunDurationMs?: number;
 }
 
 export interface RunEvaluationOptions {
@@ -1386,6 +1390,8 @@ export async function runEvaluation(
             error: result.error,
             score: result.score,
             executionStatus: result.executionStatus,
+            durationMs: result.durationMs,
+            evalRunDurationMs: result.evalRun?.durationMs,
           });
         }
 
@@ -1768,6 +1774,7 @@ async function runBatchEvaluation(options: {
           error: error instanceof Error ? error.message : String(error),
           score: errorResult.score,
           executionStatus: errorResult.executionStatus,
+          evalRunDurationMs: errorResult.evalRun?.durationMs,
         });
       }
       continue;
@@ -1788,6 +1795,8 @@ async function runBatchEvaluation(options: {
         error: result.error,
         score: result.score,
         executionStatus: result.executionStatus,
+        durationMs: result.durationMs,
+        evalRunDurationMs: result.evalRun?.durationMs,
       });
     }
   }

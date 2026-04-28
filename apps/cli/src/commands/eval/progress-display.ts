@@ -10,6 +10,8 @@ export interface WorkerProgress {
   targetLabel?: string;
   score?: number;
   verdict?: Verdict;
+  durationMs?: number;
+  totalDurationMs?: number;
 }
 
 const ANSI_BOLD = '\x1b[1m';
@@ -35,6 +37,20 @@ function formatVerdict(score: number | undefined, verdict: Verdict | undefined):
   const color = verdict === 'PASS' ? ANSI_GREEN : verdict === 'FAIL' ? ANSI_RED : ANSI_YELLOW;
 
   return ` | ${color}${ANSI_BOLD}${verdictLabel}${ANSI_RESET}`;
+}
+
+function formatDurations(
+  durationMs: number | undefined,
+  totalDurationMs: number | undefined,
+): string {
+  const segments: string[] = [];
+  if (durationMs !== undefined) {
+    segments.push(`agent ${durationMs}ms`);
+  }
+  if (totalDurationMs !== undefined) {
+    segments.push(`total ${totalDurationMs}ms`);
+  }
+  return segments.length > 0 ? ` | ${segments.join(' | ')}` : '';
 }
 
 /**
@@ -99,14 +115,14 @@ export class ProgressDisplay {
         // Pick icon based on verdict: ✅ PASS, ⚠️ FAIL, ❌ ERROR
         const icon = progress.verdict === 'FAIL' ? '⚠️' : progress.verdict === 'ERROR' ? '❌' : '✅';
         console.log(
-          `${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
+          `${countPrefix}   ${icon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${formatDurations(progress.durationMs, progress.totalDurationMs)}`,
         );
         break;
       }
       case 'failed': {
         const failIcon = progress.verdict === 'ERROR' ? '❌' : '⚠️';
         console.log(
-          `${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
+          `${countPrefix}   ${failIcon} ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${formatDurations(progress.durationMs, progress.totalDurationMs)}${progress.error ? `: ${progress.error}` : ''}`,
         );
         break;
       }

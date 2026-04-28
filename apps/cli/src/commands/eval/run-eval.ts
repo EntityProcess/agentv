@@ -932,6 +932,8 @@ async function runSingleEvalFile(params: {
         targetLabel: inlineTargetLabel,
         score: event.score,
         verdict,
+        durationMs: event.durationMs,
+        totalDurationMs: event.evalRunDurationMs,
       });
     },
   });
