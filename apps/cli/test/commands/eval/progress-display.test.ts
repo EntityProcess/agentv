@@ -17,7 +17,7 @@ describe('ProgressDisplay', () => {
     }
   });
 
-  it('prints agent and total durations after the verdict', () => {
+  it('prints compact agent/total durations after the verdict', () => {
     const display = new ProgressDisplay(1);
     const logs: string[] = [];
     const logSpy = mock((message?: unknown) => {
@@ -44,7 +44,38 @@ describe('ProgressDisplay', () => {
     }
 
     expect(logs).toEqual([
-      '1/1   ✅ test-42-billing-negative-margin | wtalms-stg | 94% PASS | agent 18342ms | total 22109ms',
+      '1/1   ✅ test-42-billing-negative-margin | wtalms-stg | 94% PASS | ⏱ 18342/22109ms',
+    ]);
+  });
+
+  it('normalizes total duration when reported agent time is higher', () => {
+    const display = new ProgressDisplay(1);
+    const logs: string[] = [];
+    const logSpy = mock((message?: unknown) => {
+      logs.push(String(message ?? ''));
+    });
+    const originalLog = console.log;
+    console.log = logSpy as typeof console.log;
+
+    try {
+      display.start();
+      display.setTotalTests(1);
+      display.updateWorker({
+        workerId: 1,
+        testId: 'simple-thresholds-pass',
+        status: 'completed',
+        targetLabel: 'mock_metrics_agent',
+        score: 1,
+        verdict: 'PASS',
+        durationMs: 245,
+        totalDurationMs: 78,
+      });
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(logs).toEqual([
+      '1/1   ✅ simple-thresholds-pass | mock_metrics_agent | 100% PASS | ⏱ 245/245ms',
     ]);
   });
 

@@ -43,14 +43,17 @@ function formatDurations(
   durationMs: number | undefined,
   totalDurationMs: number | undefined,
 ): string {
-  const segments: string[] = [];
-  if (durationMs !== undefined) {
-    segments.push(`agent ${durationMs}ms`);
+  if (durationMs === undefined && totalDurationMs === undefined) {
+    return '';
   }
-  if (totalDurationMs !== undefined) {
-    segments.push(`total ${totalDurationMs}ms`);
+
+  if (durationMs !== undefined && totalDurationMs !== undefined) {
+    const normalizedTotalMs = Math.max(durationMs, totalDurationMs);
+    return ` | ⏱ ${durationMs}/${normalizedTotalMs}ms`;
   }
-  return segments.length > 0 ? ` | ${segments.join(' | ')}` : '';
+
+  const singleDurationMs = durationMs ?? totalDurationMs;
+  return singleDurationMs !== undefined ? ` | ⏱ ${singleDurationMs}ms` : '';
 }
 
 /**
