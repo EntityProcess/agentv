@@ -44,7 +44,7 @@ describe('ProgressDisplay', () => {
     }
 
     expect(logs).toEqual([
-      '1/1   ✅ test-42-billing-negative-margin | wtalms-stg | 94% PASS | ⏱ 18342/22109ms',
+      '1/1   ✅ test-42-billing-negative-margin | wtalms-stg | 94% PASS | τ 18342/22109ms',
     ]);
   });
 
@@ -75,7 +75,7 @@ describe('ProgressDisplay', () => {
     }
 
     expect(logs).toEqual([
-      '1/1   ✅ simple-thresholds-pass | mock_metrics_agent | 100% PASS | ⏱ 245/245ms',
+      '1/1   ✅ simple-thresholds-pass | mock_metrics_agent | 100% PASS | τ 245/245ms',
     ]);
   });
 

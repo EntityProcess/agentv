@@ -49,11 +49,11 @@ function formatDurations(
 
   if (durationMs !== undefined && totalDurationMs !== undefined) {
     const normalizedTotalMs = Math.max(durationMs, totalDurationMs);
-    return ` | ⏱ ${durationMs}/${normalizedTotalMs}ms`;
+    return ` | τ ${durationMs}/${normalizedTotalMs}ms`;
   }
 
   const singleDurationMs = durationMs ?? totalDurationMs;
-  return singleDurationMs !== undefined ? ` | ⏱ ${singleDurationMs}ms` : '';
+  return singleDurationMs !== undefined ? ` | τ ${singleDurationMs}ms` : '';
 }
 
 /**
