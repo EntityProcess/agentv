@@ -222,8 +222,8 @@ export function useCategorySuites(runId: string, category: string) {
   return useQuery(categorySuitesOptions(runId, category));
 }
 
-export function useStudioConfig() {
-  return useQuery(studioConfigOptions);
+export function useStudioConfig(benchmarkId?: string) {
+  return useQuery(benchmarkId ? benchmarkConfigOptions(benchmarkId) : studioConfigOptions);
 }
 
 export function useRemoteStatus(benchmarkId?: string) {

@@ -21,8 +21,14 @@ import {
   useEvalDiscover,
   useEvalRunStatus,
   useEvalTargets,
+  useStudioConfig,
 } from '~/lib/api';
 import type { RunEvalRequest } from '~/lib/types';
+import {
+  buildRunEvalRequest,
+  getDefaultThresholdInputValue,
+  getThresholdFieldValue,
+} from './run-eval-threshold';
 
 // ── Props ────────────────────────────────────────────────────────────────
 
@@ -49,6 +55,7 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
   const [testIds, setTestIds] = useState<string[]>(prefill?.testIds ?? []);
   const [target, setTarget] = useState(prefill?.target ?? '');
   const [threshold, setThreshold] = useState('');
+  const [thresholdEdited, setThresholdEdited] = useState(false);
   const [workers, setWorkers] = useState('');
   const [dryRun, setDryRun] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -63,9 +70,18 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
   const { data: discoverData } = useEvalDiscover(benchmarkId);
   const { data: targetsData } = useEvalTargets(benchmarkId);
   const { data: runStatus } = useEvalRunStatus(activeRunId);
+  const { data: studioConfig } = useStudioConfig(benchmarkId);
 
   const evalFiles = useMemo(() => discoverData?.eval_files ?? [], [discoverData]);
   const targetNames = useMemo(() => targetsData?.targets ?? [], [targetsData]);
+  const defaultThresholdInput = useMemo(
+    () => getDefaultThresholdInputValue(threshold, studioConfig?.threshold),
+    [studioConfig?.threshold, threshold],
+  );
+  const thresholdFieldValue = useMemo(
+    () => getThresholdFieldValue(threshold, thresholdEdited, studioConfig?.threshold),
+    [studioConfig?.threshold, threshold, thresholdEdited],
+  );
 
   // Reset form when opening with new prefill
   useEffect(() => {
@@ -75,6 +91,7 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
       setTarget(prefill?.target ?? '');
       setTestIdInput('');
       setThreshold('');
+      setThresholdEdited(false);
       setWorkers('');
       setDryRun(false);
       setShowAdvanced(false);
@@ -95,15 +112,16 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
 
   // Build request body from form state
   const buildRequest = useCallback((): RunEvalRequest => {
-    const req: RunEvalRequest = {};
-    if (suiteFilter.trim()) req.suite_filter = suiteFilter.trim();
-    if (testIds.length > 0) req.test_ids = testIds;
-    if (target) req.target = target;
-    if (threshold) req.threshold = Number.parseFloat(threshold);
-    if (workers) req.workers = Number.parseInt(workers, 10);
-    if (dryRun) req.dry_run = true;
-    return req;
-  }, [suiteFilter, testIds, target, threshold, workers, dryRun]);
+    return buildRunEvalRequest({
+      suiteFilter,
+      testIds,
+      target,
+      thresholdInput: threshold,
+      studioThreshold: studioConfig?.threshold,
+      workers,
+      dryRun,
+    });
+  }, [dryRun, studioConfig?.threshold, suiteFilter, target, testIds, threshold, workers]);
 
   // Update CLI preview when form changes
   useEffect(() => {
@@ -297,12 +315,15 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
                 <input
                   id="threshold-input"
                   type="number"
-                  value={threshold}
-                  onChange={(e) => setThreshold(e.target.value)}
+                  value={thresholdFieldValue}
+                  onChange={(e) => {
+                    setThresholdEdited(true);
+                    setThreshold(e.target.value);
+                  }}
                   min="0"
                   max="1"
                   step="0.1"
-                  placeholder="0.8"
+                  placeholder={defaultThresholdInput}
                   className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
                 />
               </div>
