@@ -2304,7 +2304,7 @@ export function parseInlineRubrics(
   }
 
   return {
-    name: 'rubric',
+    name: 'rubrics',
     type: 'llm-grader',
     rubrics: rubricItems,
   };
