@@ -16,12 +16,19 @@
  * `node_modules/.bin/agentv`); update the local dep instead of the global
  * install. Otherwise, update globally (default).
  *
+ * Package-manager command resolution prefers runtime-adjacent executables
+ * (for example Node's bundled npm-cli.js or the current Bun executable)
+ * before falling back to PATH. This keeps self-update working in shells
+ * where `agentv` is reachable but `npm`/`bun` are not on PATH.
+ *
  * To add a new package manager: add a case to `detectPackageManagerFromPath()`
- * and a corresponding install-args entry in `getInstallArgs()`.
+ * and a corresponding install-args / resolver entry below.
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { get } from 'node:https';
+import { basename, dirname, join, win32 } from 'node:path';
 
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/agentv/latest';
 
@@ -116,6 +123,54 @@ export function getInstallArgs(
   return scope === 'global' ? [baseCmd, '-g', pkg] : [baseCmd, pkg];
 }
 
+function findBundledNpmCli(
+  execPath: string,
+  platform: NodeJS.Platform,
+  exists: (path: string) => boolean,
+): string | undefined {
+  const pathApi = platform === 'win32' ? win32 : { dirname, join };
+  const execDir = pathApi.dirname(execPath);
+  const candidates =
+    platform === 'win32'
+      ? [pathApi.join(execDir, 'node_modules', 'npm', 'bin', 'npm-cli.js')]
+      : [
+          pathApi.join(execDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+          pathApi.join(execDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+        ];
+
+  return candidates.find((candidate) => exists(candidate));
+}
+
+export function resolvePackageManagerCommand(
+  pm: 'bun' | 'npm',
+  args: string[],
+  options?: {
+    execPath?: string;
+    platform?: NodeJS.Platform;
+    exists?: (path: string) => boolean;
+  },
+): { cmd: string; args: string[] } {
+  const execPath = options?.execPath ?? process.execPath;
+  const platform = options?.platform ?? process.platform;
+  const exists = options?.exists ?? existsSync;
+  const pathApi = platform === 'win32' ? win32 : { basename };
+
+  if (pm === 'bun') {
+    const runtimeName = pathApi.basename(execPath).toLowerCase();
+    if ((runtimeName === 'bun' || runtimeName === 'bun.exe') && exists(execPath)) {
+      return { cmd: execPath, args };
+    }
+    return { cmd: 'bun', args };
+  }
+
+  const npmCliPath = findBundledNpmCli(execPath, platform, exists);
+  if (npmCliPath) {
+    return { cmd: execPath, args: [npmCliPath, ...args] };
+  }
+
+  return { cmd: 'npm', args };
+}
+
 /**
  * Run the self-update flow: install agentv using the detected (or specified)
  * package manager, scoped to the detected install location (global by default,
@@ -146,9 +201,10 @@ export async function performSelfUpdate(options?: {
   const scope = options?.scope ?? detectInstallScope();
 
   const args = getInstallArgs(pm, versionSpec, scope);
+  const command = resolvePackageManagerCommand(pm, args);
 
   try {
-    const result = await runCommand(pm, args);
+    const result = await runCommand(command.cmd, command.args);
 
     if (result.exitCode !== 0) {
       return { success: false, currentVersion, scope };

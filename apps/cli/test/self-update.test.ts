@@ -3,7 +3,7 @@ import {
   detectInstallScopeFromPath,
   detectPackageManagerFromPath,
 } from '../src/commands/self/index.js';
-import { getInstallArgs } from '../src/self-update.js';
+import { getInstallArgs, resolvePackageManagerCommand } from '../src/self-update.js';
 
 describe('detectPackageManagerFromPath', () => {
   test('detects bun when path contains .bun', () => {
@@ -91,5 +91,52 @@ describe('getInstallArgs', () => {
 
   test('forwards a semver range as the version spec', () => {
     expect(getInstallArgs('npm', '>=4.1.0', 'local')).toEqual(['install', 'agentv@>=4.1.0']);
+  });
+});
+
+describe('resolvePackageManagerCommand', () => {
+  test('resolves npm via npm-cli.js next to process.execPath on Windows', () => {
+    const execPath = 'C:\\Program Files\\nodejs\\node.exe';
+    const npmCliPath = 'C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js';
+
+    expect(
+      resolvePackageManagerCommand('npm', ['install', '-g', 'agentv@latest'], {
+        execPath,
+        platform: 'win32',
+        exists: (candidate) => candidate === npmCliPath,
+      }),
+    ).toEqual({
+      cmd: execPath,
+      args: [npmCliPath, 'install', '-g', 'agentv@latest'],
+    });
+  });
+
+  test('resolves npm via bundled npm-cli.js near node on unix-like installs', () => {
+    const execPath = '/home/user/.nvm/versions/node/v20.19.0/bin/node';
+    const npmCliPath = '/home/user/.nvm/versions/node/v20.19.0/lib/node_modules/npm/bin/npm-cli.js';
+
+    expect(
+      resolvePackageManagerCommand('npm', ['install', '-g', 'agentv@latest'], {
+        execPath,
+        platform: 'linux',
+        exists: (candidate) => candidate === npmCliPath,
+      }),
+    ).toEqual({
+      cmd: execPath,
+      args: [npmCliPath, 'install', '-g', 'agentv@latest'],
+    });
+  });
+
+  test('falls back to PATH when no runtime-adjacent npm installation is found', () => {
+    expect(
+      resolvePackageManagerCommand('npm', ['install', '-g', 'agentv@latest'], {
+        execPath: '/usr/bin/node',
+        platform: 'linux',
+        exists: () => false,
+      }),
+    ).toEqual({
+      cmd: 'npm',
+      args: ['install', '-g', 'agentv@latest'],
+    });
   });
 });
