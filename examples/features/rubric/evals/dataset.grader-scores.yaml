@@ -1,0 +1,20 @@
+# Expected grader score ranges for dataset.eval.yaml.
+#
+# Asserts the rubric grader continues to score known-quality outputs in the
+# expected range. Run after `agentv eval ... --out dataset.results.jsonl`.
+# Check with: bun scripts/check-grader-scores.ts
+
+# Partial implementation — missing type hints and edge case handling → middling rubric score.
+- test_id: code-quality-multi-eval
+  grader: rubrics
+  range: { min: 0.3 }
+
+# Clear, complete explanation — rubric should score high.
+- test_id: code-explanation-simple
+  grader: rubrics
+  range: { min: 0.8 }
+
+# Detailed technical writing hitting all rubric criteria — should score high.
+- test_id: technical-writing-detailed
+  grader: rubrics
+  range: { min: 0.8 }
