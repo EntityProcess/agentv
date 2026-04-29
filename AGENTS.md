@@ -336,6 +336,29 @@ Unit tests alone are insufficient for grader changes. After implementing or modi
 
 5. **Note:** `--dry-run` returns schema-valid mock responses for both agent output and grader evaluation (score=1, empty assertions/checks). Built-in LLM graders run without parse errors but scores are meaningless. Use it for end-to-end harness testing including grader plumbing.
 
+### Checking Grader Score Ranges (manual e2e)
+
+`scripts/check-grader-scores.ts` is a post-processor that asserts each grader's score on each test case falls within an expected range. Run it manually after an eval to catch grader regressions (false positives / false negatives) before merging.
+
+**Workflow:**
+```bash
+# 1. Run the eval, writing results to a sibling *.results.jsonl file
+bun apps/cli/src/cli.ts eval examples/path/to/suite.eval.yaml --target azure \
+  --out examples/path/to/suite.results.jsonl
+
+# 2. Assert all expected score ranges pass
+bun scripts/check-grader-scores.ts
+```
+
+The script auto-discovers `examples/**/*.grader-scores.yaml`, locates the sibling `*.results.jsonl` (same stem), and exits non-zero if any score is out of range.
+
+**To add score checks for a new eval:**
+1. Create `<eval-stem>.grader-scores.yaml` next to the eval YAML.
+2. Add entries for each `(test_id, grader, range)` you care about — `grader` must match a `scores[].name` value in the JSONL output, and `range.min`/`range.max` default to 0/1 if omitted.
+3. Run the eval with `--out <eval-stem>.results.jsonl`, then run the script.
+
+See `examples/red-team/archetypes/coding-agent/suites/screenshot-pii-upload.grader-scores.yaml` for a concrete example.
+
 ### Completing Work — E2E Checklist
 
 Before marking any branch as ready for review, complete this checklist:
