@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 
-import { parseEnvOutput } from '../../src/evaluation/hooks.js';
+import { parseEnvOutput, runBeforeSessionHook } from '../../src/evaluation/hooks.js';
 
 describe('parseEnvOutput', () => {
   it('parses dotenv KEY=value lines', () => {
@@ -60,5 +60,31 @@ describe('parseEnvOutput', () => {
 
   it('accepts keys with underscores and digits', () => {
     expect(parseEnvOutput('MY_KEY_123=hello')).toEqual({ MY_KEY_123: 'hello' });
+  });
+});
+
+describe('runBeforeSessionHook', () => {
+  it('logs hook startup without ANSI color codes', () => {
+    const envKey = 'AGENTV_TEST_BEFORE_SESSION_HOOK_COLOR';
+    const originalValue = process.env[envKey];
+    const command = `bun -e "process.stdout.write('${envKey}=plain\\n')"`;
+    const logSpy = spyOn(console, 'log').mockImplementation(() => {});
+
+    delete process.env[envKey];
+
+    try {
+      runBeforeSessionHook(command);
+
+      expect(logSpy.mock.calls[0]?.[0]).toBe(`Running before_session hook: ${command}`);
+      expect(process.env[envKey]).toBe('plain');
+    } finally {
+      logSpy.mockRestore();
+
+      if (originalValue === undefined) {
+        delete process.env[envKey];
+      } else {
+        process.env[envKey] = originalValue;
+      }
+    }
   });
 });

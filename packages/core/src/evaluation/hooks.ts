@@ -27,9 +27,6 @@
 
 import { spawnSync } from 'node:child_process';
 
-const ANSI_YELLOW = '[33m';
-const ANSI_RESET = '[0m';
-
 /**
  * Parse env var lines from hook stdout.
  *
@@ -86,7 +83,7 @@ export function runBeforeSessionHook(command: string): void {
   const shell = isWindows ? 'cmd' : 'sh';
   const shellFlag = isWindows ? '/c' : '-c';
 
-  console.log(`${ANSI_YELLOW}Running before_session hook: ${command}${ANSI_RESET}`);
+  console.log(`Running before_session hook: ${command}`);
 
   const result = spawnSync(shell, [shellFlag, command], {
     encoding: 'utf8',
