@@ -577,7 +577,7 @@ describe('serve app', () => {
         );
         mkdirSync(runDir, { recursive: true });
         writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-        addBenchmark(benchmarkDir);
+        const benchmark = addBenchmark(benchmarkDir);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/benchmarks/all-runs');
@@ -588,7 +588,7 @@ describe('serve app', () => {
         };
         expect(data.runs).toHaveLength(1);
         expect(data.runs[0]).toMatchObject({
-          benchmark_id: 'bench-one',
+          benchmark_id: benchmark.id,
           experiment: 'issue-1198-benchmark',
           target: 'gpt-4o',
         });
