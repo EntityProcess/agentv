@@ -11,6 +11,7 @@ import type React from 'react';
 import { Link } from '@tanstack/react-router';
 
 import { DEFAULT_PASS_THRESHOLD, useStudioConfig } from '~/lib/api';
+import { formatRunLabel } from '~/lib/run-label';
 import type { RunMeta } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -39,14 +40,6 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
   } catch {
     return { date: 'N/A', full: 'N/A' };
   }
-}
-
-/** Human-readable run label: "target · experiment" or filename fallback. */
-function runLabel(run: RunMeta): string {
-  const parts = [run.target, run.experiment].filter((p) => p && p !== 'default' && p !== '-');
-  if (parts.length > 0) return parts.join(' · ');
-  if (run.target) return run.target;
-  return run.display_name ?? run.filename;
 }
 
 export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
@@ -89,7 +82,7 @@ export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
           {runs.map((run) => {
             const ts = formatDate(run.timestamp);
             const passing = run.pass_rate >= passThreshold;
-            const label = runLabel(run);
+            const label = formatRunLabel(run);
             const passedCount = Math.round(run.pass_rate * run.test_count);
             const failedCount = run.test_count - passedCount;
             return (

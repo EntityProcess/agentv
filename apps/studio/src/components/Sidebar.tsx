@@ -29,6 +29,7 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
+import { formatRunLabel } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
 /** Responsive <aside> wrapper. Handles mobile overlay and desktop static placement. */
@@ -213,7 +214,7 @@ function RunSidebar() {
                 className="mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
                 title={run.benchmark_name}
               >
-                {run.display_name ?? run.filename}
+                {formatRunLabel(run)}
               </Link>
             );
           }
@@ -229,7 +230,7 @@ function RunSidebar() {
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {run.display_name ?? run.filename}
+              {formatRunLabel(run)}
             </Link>
           );
         })}
@@ -451,7 +452,7 @@ function BenchmarkRunDetailSidebar({
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {run.display_name ?? run.filename}
+              {formatRunLabel(run)}
             </Link>
           );
         })}

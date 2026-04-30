@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { addBenchmark } from '@agentv/core';
+
 import {
   createApp,
   loadResults,
@@ -485,6 +487,28 @@ describe('serve app', () => {
       expect(data.runs[0].pass_rate).toBe(1);
     });
 
+    it('infers the experiment name from the run id when live results have not written it yet', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'issue-1198-live-name');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T12-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs');
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        runs: Array<{ experiment?: string; target?: string }>;
+      };
+      expect(data.runs).toHaveLength(1);
+      expect(data.runs[0]).toMatchObject({
+        experiment: 'issue-1198-live-name',
+        target: 'gpt-4o',
+      });
+    });
+
     it('merges cached remote runs and tags them with remote source metadata', async () => {
       const previousHome = process.env.AGENTV_HOME;
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
@@ -525,6 +549,48 @@ describe('serve app', () => {
         expect(data.runs[0]).toMatchObject({
           filename: 'remote::2026-03-26T10-00-00-000Z',
           source: 'remote',
+        });
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+  });
+
+  describe('GET /api/benchmarks/all-runs', () => {
+    it('infers experiment names for live benchmark runs before records persist them', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+
+      try {
+        const benchmarkDir = path.join(tempDir, 'bench-one');
+        const runDir = path.join(
+          benchmarkDir,
+          '.agentv',
+          'results',
+          'runs',
+          'issue-1198-benchmark',
+          '2026-03-25T12-00-00-000Z',
+        );
+        mkdirSync(runDir, { recursive: true });
+        writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+        const benchmark = addBenchmark(benchmarkDir);
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/benchmarks/all-runs');
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          runs: Array<{ benchmark_id: string; experiment?: string; target?: string }>;
+        };
+        expect(data.runs).toHaveLength(1);
+        expect(data.runs[0]).toMatchObject({
+          benchmark_id: benchmark.id,
+          experiment: 'issue-1198-benchmark',
+          target: 'gpt-4o',
         });
       } finally {
         if (previousHome === undefined) {

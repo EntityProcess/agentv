@@ -264,19 +264,31 @@ interface DataContext {
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
 type C = Context<any, any, any>;
 
+function inferExperimentFromRunId(runId: string): string | undefined {
+  const separatorIndex = runId.lastIndexOf('::');
+  if (separatorIndex === -1) {
+    return undefined;
+  }
+  const experiment = runId.slice(0, separatorIndex).trim();
+  if (!experiment || experiment === 'default') {
+    return undefined;
+  }
+  return experiment;
+}
+
 async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: passThreshold } = loadStudioConfig(agentvDir);
   return c.json({
     runs: metas.map((m) => {
       let target: string | undefined;
-      let experiment: string | undefined;
+      let experiment = inferExperimentFromRunId(m.raw_filename);
       let passRate = m.passRate;
       try {
         const records = loadLightweightResults(m.path);
         if (records.length > 0) {
           target = records[0].target;
-          experiment = records[0].experiment;
+          experiment = records[0].experiment ?? experiment;
           passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
         }
       } catch {
@@ -1041,12 +1053,12 @@ export function createApp(
         const { runs: metas } = await listMergedResultFiles(p.path);
         for (const m of metas) {
           let target: string | undefined;
-          let experiment: string | undefined;
+          let experiment = inferExperimentFromRunId(m.raw_filename);
           try {
             const records = loadLightweightResults(m.path);
             if (records.length > 0) {
               target = records[0].target;
-              experiment = records[0].experiment;
+              experiment = records[0].experiment ?? experiment;
             }
           } catch {
             // ignore enrichment errors
