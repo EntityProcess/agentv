@@ -5,14 +5,11 @@ import {
   type EvaluationResult,
   type ResultsExportConfig,
   type ResultsRepoStatus,
-  commitAndPushResultsBranch,
-  createDraftResultsPr,
+  directPushResults,
   directorySizeBytes,
   getResultsRepoStatus,
   loadConfig,
-  prepareResultsRepoBranch,
   resolveResultsRepoRunsDir,
-  stageResultsArtifacts,
   syncResultsRepo,
 } from '@agentv/core';
 
@@ -78,15 +75,6 @@ function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {
   return result.score >= DEFAULT_THRESHOLD ? 'PASS' : 'FAIL';
 }
 
-function slugify(value: string): string {
-  return value
-    .trim()
-    .replace(/[^A-Za-z0-9._/-]+/g, '-')
-    .replace(/\/+/g, '/')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 120);
-}
-
 function getRelativeRunPath(cwd: string, runDir: string): string {
   const relative = path.relative(path.join(cwd, '.agentv', 'results', 'runs'), runDir);
   if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
@@ -98,23 +86,6 @@ function getRelativeRunPath(cwd: string, runDir: string): string {
   return experiment && experiment !== runName ? path.join(experiment, runName) : runName;
 }
 
-function buildBranchName(
-  config: Required<ResultsExportConfig>,
-  payload: RemoteExportPayload,
-): string {
-  const timestamp = path.basename(payload.run_dir);
-  const evalStem =
-    payload.test_files.length === 1
-      ? path
-          .basename(payload.test_files[0])
-          .replace(/\.eval\.ya?ml$/i, '')
-          .replace(/\.[^.]+$/i, '')
-      : `${payload.test_files.length}-evals`;
-  const experiment = slugify(payload.experiment ?? 'default');
-  const branchLeaf = slugify(`${experiment}-${evalStem}-${timestamp}`) || timestamp;
-  return `${config.branch_prefix}/${branchLeaf}`;
-}
-
 function buildCommitTitle(payload: RemoteExportPayload): string {
   const passed = payload.results.filter((result) => result.score >= DEFAULT_THRESHOLD).length;
   const avgScore =
@@ -123,35 +94,6 @@ function buildCommitTitle(payload: RemoteExportPayload): string {
       : 0;
   const experiment = payload.experiment ?? 'default';
   return `feat(results): ${experiment} - ${passed}/${payload.results.length} PASS (${avgScore.toFixed(3)})`;
-}
-
-function buildPrBody(payload: RemoteExportPayload): string {
-  const sections = payload.eval_summaries
-    .map((summary) => {
-      const table = summary.results
-        .map((result) => `| ${result.test_id} | ${result.score.toFixed(3)} | ${result.status} |`)
-        .join('\n');
-      return [
-        `### ${summary.eval_file}`,
-        '',
-        `Summary: ${summary.passed}/${summary.total} PASS (${summary.avg_score.toFixed(3)})`,
-        '',
-        '| Test | Score | Status |',
-        '|---|---|---|',
-        table || '| (no results) | 0.000 | ERROR |',
-      ].join('\n');
-    })
-    .join('\n\n');
-
-  return [
-    '## Results',
-    '',
-    sections,
-    '',
-    `Run: ${path.basename(payload.run_dir)}`,
-    `Experiment: ${payload.experiment ?? 'default'}`,
-    `Eval Files: ${payload.test_files.join(', ')}`,
-  ].join('\n');
 }
 
 async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
@@ -279,43 +221,22 @@ export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload):
   try {
     await maybeWarnLargeArtifact(payload.run_dir);
 
-    const branchName = buildBranchName(config, payload);
-    const prepared = await prepareResultsRepoBranch(config, branchName);
+    const relativeRunPath = getRelativeRunPath(payload.cwd, payload.run_dir);
+    const commitTitle = buildCommitTitle(payload);
 
-    try {
-      const relativeRunPath = getRelativeRunPath(payload.cwd, payload.run_dir);
-      const destinationDir = path.join(prepared.repoDir, config.path, relativeRunPath);
-      await stageResultsArtifacts({
-        repoDir: prepared.repoDir,
-        sourceDir: payload.run_dir,
-        destinationDir,
-      });
+    const pushed = await directPushResults({
+      config,
+      sourceDir: payload.run_dir,
+      destinationPath: relativeRunPath,
+      commitMessage: commitTitle,
+    });
 
-      const commitTitle = buildCommitTitle(payload);
-      const changed = await commitAndPushResultsBranch({
-        repoDir: prepared.repoDir,
-        branchName,
-        commitMessage: commitTitle,
-      });
-
-      if (!changed) {
-        console.warn('Warning: results export produced no git changes. Skipping PR creation.');
-        return;
-      }
-
-      const prUrl = await createDraftResultsPr({
-        repo: config.repo,
-        repoDir: prepared.repoDir,
-        baseBranch: prepared.baseBranch,
-        branchName,
-        title: commitTitle,
-        body: buildPrBody(payload),
-      });
-
-      console.log(`Remote results draft PR created: ${prUrl}`);
-    } finally {
-      await prepared.cleanup();
+    if (!pushed) {
+      console.warn('Warning: results export produced no git changes. Skipping push.');
+      return;
     }
+
+    console.log(`Results pushed to ${config.repo} (${config.path}/${relativeRunPath})`);
   } catch (error) {
     console.warn(`Warning: skipping results export: ${getStatusMessage(error)}`);
     console.warn("Warning: Run 'gh auth login' if GitHub authentication is missing.");

@@ -396,3 +396,60 @@ export async function createDraftResultsPr(params: {
   );
   return stdout.trim();
 }
+
+const DIRECT_PUSH_MAX_RETRIES = 3;
+
+/**
+ * Push results directly to the base branch of the results repo.
+ * Handles non-fast-forward conflicts by pulling with rebase and retrying.
+ * Returns true if artifacts were pushed, false if no changes were detected.
+ */
+export async function directPushResults(params: {
+  readonly config: ResultsExportConfig;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly commitMessage: string;
+}): Promise<boolean> {
+  const normalized = normalizeResultsExportConfig(params.config);
+  const repoDir = await ensureResultsRepoClone(normalized);
+  const baseBranch = await resolveDefaultBranch(repoDir);
+  await updateCacheRepo(repoDir, baseBranch);
+
+  const destinationDir = path.join(repoDir, normalized.path, params.destinationPath);
+  await stageResultsArtifacts({
+    repoDir,
+    sourceDir: params.sourceDir,
+    destinationDir,
+  });
+
+  await runGit(['add', '--all'], { cwd: repoDir });
+  const { stdout: status } = await runGit(['status', '--porcelain'], {
+    cwd: repoDir,
+    check: false,
+  });
+  if (status.trim().length === 0) {
+    return false;
+  }
+
+  await runGit(['commit', '-m', params.commitMessage], { cwd: repoDir });
+
+  for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
+    try {
+      await runGit(['push', 'origin', baseBranch], { cwd: repoDir });
+      updateStatusFile(normalized, {
+        last_synced_at: new Date().toISOString(),
+        last_error: undefined,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
+        await runGit(['pull', '--rebase', 'origin', baseBranch], { cwd: repoDir });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return false;
+}
