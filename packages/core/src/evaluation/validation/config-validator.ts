@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
+import { interpolateEnv } from '../interpolation.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -11,7 +12,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
 
   try {
     const content = await readFile(filePath, 'utf8');
-    const parsed = parseYamlValue(content);
+    const parsed = interpolateEnv(parseYamlValue(content), process.env);
 
     // Check if parsed content is an object
     if (typeof parsed !== 'object' || parsed === null) {

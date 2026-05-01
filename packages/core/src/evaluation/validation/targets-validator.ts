@@ -6,6 +6,7 @@ import {
   COMMON_TARGET_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
 } from '../providers/targets.js';
+import { interpolateEnv } from '../interpolation.js';
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -280,7 +281,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = parseYamlValue(content);
+    parsed = interpolateEnv(parseYamlValue(content), process.env);
   } catch (error) {
     errors.push({
       severity: 'error',
