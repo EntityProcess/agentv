@@ -73,6 +73,7 @@ export {
   commitAndPushResultsBranch,
   pushResultsRepoBranch,
   createDraftResultsPr,
+  directPushResults,
   type CheckedOutResultsRepoBranch,
   type PreparedResultsRepoBranch,
   type ResultsRepoCachePaths,

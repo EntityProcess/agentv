@@ -203,11 +203,12 @@ results:
   export:
     repo: EntityProcess/agentv-evals   # GitHub repo (owner/repo or full URL)
     path: runs                          # Directory within the repo
-    auto_push: true                     # Push automatically after every eval run
-    branch_prefix: eval-results         # Branch naming prefix (default: eval-results)
+    auto_push: true                     # Push directly to base branch after every eval run
 ```
 
-With `auto_push: true`, every `agentv eval run` or `agentv pipeline bench` automatically creates a draft PR in the configured repo with a structured results table.
+With `auto_push: true`, every `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Studio without requiring PR merges.
+
+Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
 
 ### Authentication
 
