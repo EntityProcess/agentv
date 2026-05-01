@@ -98,6 +98,31 @@ describe('interpolateEnv', () => {
       const input = { auto_push: '${{ PUSH }}', label: 'runs' };
       expect(interpolateEnv(input, { PUSH: 'true' })).toEqual({ auto_push: true, label: 'runs' });
     });
+
+    // Numeric edge-case regression tests — these must stay as strings
+    it('does not coerce scientific notation (1e3)', () => {
+      expect(interpolateEnv('${{ VAL }}', { VAL: '1e3' })).toBe('1e3');
+    });
+
+    it('does not coerce hex strings (0x10)', () => {
+      expect(interpolateEnv('${{ VAL }}', { VAL: '0x10' })).toBe('0x10');
+    });
+
+    it('does not coerce "Infinity"', () => {
+      expect(interpolateEnv('${{ VAL }}', { VAL: 'Infinity' })).toBe('Infinity');
+    });
+
+    it('does not coerce whitespace-only string', () => {
+      expect(interpolateEnv('${{ VAL }}', { VAL: ' ' })).toBe(' ');
+    });
+
+    it('does not coerce leading-zero string (00123)', () => {
+      expect(interpolateEnv('${{ VAL }}', { VAL: '00123' })).toBe('00123');
+    });
+
+    it('coerces negative integer', () => {
+      expect(interpolateEnv('${{ VAL }}', { VAL: '-7' })).toBe(-7);
+    });
   });
 
   it('is case-sensitive for variable names', () => {
