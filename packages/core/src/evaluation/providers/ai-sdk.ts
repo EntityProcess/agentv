@@ -639,12 +639,22 @@ function resolvePiModel(
   }
 
   if (!model) {
+    // pi-ai's getModel didn't recognize this (provider, modelId) — typical when
+    // the user is on a custom gateway, a brand-new model, or an Azure deployment
+    // name. We must still hand pi-ai a non-empty baseUrl: pi-ai forwards it to
+    // `new OpenAI({ baseURL })` which misbehaves on empty string.
+    const fallbackBaseUrl = baseUrl ?? defaultBaseUrlFor(providerName);
+    if (!fallbackBaseUrl) {
+      throw new Error(
+        `pi-ai adapter cannot resolve a baseUrl for provider '${providerName}' / model '${modelId}'. Either set the target's baseUrl/endpoint or use a model id pi-ai recognizes.`,
+      );
+    }
     model = {
       id: modelId,
       name: modelId,
       api: apiId,
       provider: providerName,
-      baseUrl: baseUrl ?? '',
+      baseUrl: fallbackBaseUrl,
       reasoning: false,
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -667,6 +677,18 @@ function resolvePiModel(
   return m;
 }
 
+/**
+ * Default baseUrl when `getModel` misses and the caller didn't supply one.
+ * Returning `undefined` makes resolvePiModel throw — preferable to passing an
+ * empty string into pi-ai's OpenAI client, which fails opaquely.
+ */
+function defaultBaseUrlFor(providerName: string): string | undefined {
+  if (providerName === 'openai') {
+    return 'https://api.openai.com/v1';
+  }
+  return undefined;
+}
+
 interface PiContext {
   readonly systemPrompt: string | undefined;
   // biome-ignore lint/suspicious/noExplicitAny: pi-ai Message shape
@@ -674,11 +696,13 @@ interface PiContext {
 }
 
 function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
-  // Step 1 of the pi-ai migration only ports rubric-generator, which sends
-  // a single system prompt + a single user turn. We intentionally don't
-  // handle assistant/tool/function roles here — when later consumer steps
-  // need them (llm-grader's multi-turn / tool-use paths), add the cases
-  // alongside the work that exercises them. YAGNI today.
+  // OpenAIProvider.invoke() is reached from the orchestrator's multi-turn
+  // and single-turn paths, so the chatPrompt may legitimately contain
+  // `assistant` (prior turn output) and `tool`/`function` (rare — most callers
+  // remap these upstream in prompt-builder). We mirror the Vercel path's
+  // toModelMessages: pass assistant through as-is; fold tool/function back
+  // into assistant text with a `@[name]:` prefix so pi-ai sees a clean
+  // user/assistant alternation.
   const systemSegments: string[] = [];
   // biome-ignore lint/suspicious/noExplicitAny: pi-ai Message shape
   const messages: any[] = [];
@@ -688,12 +712,32 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
       systemSegments.push(message.content);
       continue;
     }
-    if (message.role !== 'user') {
-      throw new Error(
-        `pi-ai adapter received unsupported message role '${message.role}'. Only system + user are wired up in step 1 of the pi-ai migration (#1205).`,
-      );
+    if (message.role === 'user') {
+      messages.push({ role: 'user', content: message.content, timestamp: Date.now() });
+      continue;
     }
-    messages.push({ role: 'user', content: message.content, timestamp: Date.now() });
+    if (message.role === 'assistant') {
+      // pi-ai's AssistantMessage type carries api/provider/model/usage/stopReason
+      // for round-trip continuity, but its OpenAI-completions converter only
+      // reads role + content blocks for replayed history. Omitting them is safe
+      // at runtime — `messages` is typed `any[]` to absorb the type mismatch.
+      messages.push({
+        role: 'assistant',
+        content: [{ type: 'text', text: message.content }],
+        timestamp: Date.now(),
+      });
+      continue;
+    }
+    if (message.role === 'tool' || message.role === 'function') {
+      const prefix = message.name ? `@[${message.name}]: ` : '@[Tool]: ';
+      messages.push({
+        role: 'assistant',
+        content: [{ type: 'text', text: `${prefix}${message.content}` }],
+        timestamp: Date.now(),
+      });
+      continue;
+    }
+    throw new Error(`pi-ai adapter received unsupported message role '${message.role}'.`);
   }
 
   return {
@@ -730,12 +774,18 @@ function mapPiResponse(
     ...(cached !== undefined ? { cached } : {}),
   };
 
+  // pi-ai always populates `cost.total`, but it computes 0 when the model
+  // descriptor lacks pricing (fallback descriptor for unknown ids, or pi-ai's
+  // registry simply not having rates yet). Surface 0 as "unknown" by leaving
+  // costUsd undefined — matches the Vercel path, which never sets it.
+  const costUsd = result.usage.cost.total > 0 ? result.usage.cost.total : undefined;
+
   return {
     raw: result,
     usage: toJsonObject(result.usage),
     output: [{ role: 'assistant' as const, content: text }],
     tokenUsage,
-    costUsd: result.usage.cost.total,
+    ...(costUsd !== undefined ? { costUsd } : {}),
     durationMs: timing.durationMs,
     startTime: timing.startTime,
     endTime: timing.endTime,
