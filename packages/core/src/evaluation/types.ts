@@ -188,6 +188,7 @@ const GRADER_KIND_VALUES = [
   'equals',
   'rubrics',
   'inline-assert',
+  'shell',
 ] as const;
 
 export type GraderKind = (typeof GRADER_KIND_VALUES)[number];
@@ -339,6 +340,25 @@ export type DockerWorkspaceConfig = {
   readonly cpus?: number;
 };
 
+/**
+ * Preflight environment requirements for the workspace.
+ * Checked once before before_all hooks run. Fails fast if anything is missing.
+ *
+ * @example
+ * ```yaml
+ * workspace:
+ *   env:
+ *     required_commands: [ffmpeg, pandoc]
+ *     required_python_modules: [PIL, openai]
+ * ```
+ */
+export type WorkspaceEnvConfig = {
+  /** Shell commands that must be present in PATH (checked via `command -v`) */
+  readonly required_commands?: readonly string[];
+  /** Python modules that must be importable (checked via `python3 -c "import <module>"`) */
+  readonly required_python_modules?: readonly string[];
+};
+
 export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
@@ -359,6 +379,8 @@ export type WorkspaceConfig = {
    *  Used as default cwd for hook commands so that file-referenced templates resolve
    *  relative paths from their own directory, not the eval file's directory. */
   readonly workspaceFileDir?: string;
+  /** Preflight environment requirements. Checked before before_all hooks run. */
+  readonly env?: WorkspaceEnvConfig;
 };
 
 export type CodeGraderConfig = {
@@ -868,6 +890,54 @@ export type InlineAssertEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
+/**
+ * Numeric comparison operators for shell assertions.
+ * When set, the shell command stdout is compared numerically against `expected`.
+ */
+export type ShellOperator = '>' | '<' | '>=' | '<=' | '==' | '!=';
+
+/**
+ * Configuration for the shell grader.
+ * Runs a shell command and checks its stdout against an expected value.
+ *
+ * - With no `expected`: passes when the command exits with code 0.
+ * - With `expected` and no `operator`: trims stdout and compares exactly.
+ * - With `expected` and `operator`: parses both sides as floats and compares numerically.
+ *
+ * The command runs in the workspace directory (if available).
+ *
+ * @example Exact match
+ * ```yaml
+ * - type: shell
+ *   command: "wc -l output.txt | awk '{print $1}'"
+ *   expected: "42"
+ * ```
+ *
+ * @example Numeric comparison
+ * ```yaml
+ * - type: shell
+ *   command: "pdfinfo report.pdf | grep Pages | awk '{print $2}'"
+ *   operator: ">="
+ *   expected: "5"
+ * ```
+ */
+export type ShellGraderConfig = {
+  readonly name: string;
+  readonly type: 'shell';
+  /** Shell command to execute */
+  readonly command: string;
+  /** Expected stdout value. If omitted, only the exit code (0 = pass) is checked. */
+  readonly expected?: string;
+  /** Numeric comparison operator. When set, both stdout and expected are parsed as floats. */
+  readonly operator?: ShellOperator;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
+  readonly min_score?: number;
+  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
 export type GraderConfig =
   | CodeGraderConfig
   | LlmGraderConfig
@@ -891,7 +961,8 @@ export type GraderConfig =
   | IsJsonGraderConfig
   | EqualsGraderConfig
   | RubricsEvaluatorConfig
-  | InlineAssertEvaluatorConfig;
+  | InlineAssertEvaluatorConfig
+  | ShellGraderConfig;
 
 /**
  * A single turn in a multi-turn conversation evaluation.

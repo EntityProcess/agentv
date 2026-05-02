@@ -59,6 +59,7 @@ export type AssertionType =
   | 'equals'
   | 'regex'
   | 'is-json'
+  | 'shell'
   // legacy snake_case aliases (still accepted)
   | 'llm_grader'
   | 'code_grader'

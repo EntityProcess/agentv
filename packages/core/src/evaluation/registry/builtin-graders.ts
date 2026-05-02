@@ -15,6 +15,7 @@ import {
   type Grader,
   LatencyGrader,
   LlmGrader,
+  ShellGrader,
   SkillTriggerGrader,
   TokenUsageGrader,
   ToolTrajectoryGrader,
@@ -54,6 +55,7 @@ import type {
   LatencyGraderConfig,
   LlmGraderConfig,
   RegexGraderConfig,
+  ShellGraderConfig,
   SkillTriggerGraderConfig,
   StartsWithGraderConfig,
   TokenUsageGraderConfig,
@@ -427,6 +429,7 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('regex', regexFactory)
     .register('is-json', isJsonFactory)
     .register('equals', equalsFactory)
+    .register('shell', (config) => new ShellGrader(config as ShellGraderConfig))
     .register('inline-assert', (config) => {
       // biome-ignore lint/suspicious/noExplicitAny: symbol key access requires any
       const fn = (config as any)[INLINE_ASSERT_FN] as
