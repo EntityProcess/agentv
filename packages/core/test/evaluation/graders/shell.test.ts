@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { ShellGraderConfig } from '../../../src/evaluation/types.js';
+import { describe, expect, it } from 'vitest';
 import { ShellGrader } from '../../../src/evaluation/graders/shell.js';
 import type { EvaluationContext } from '../../../src/evaluation/graders/types.js';
+import type { ShellGraderConfig } from '../../../src/evaluation/types.js';
 
 const mockContext = (workspacePath?: string): EvaluationContext =>
   ({

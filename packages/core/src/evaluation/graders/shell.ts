@@ -64,11 +64,11 @@ export class ShellGrader implements Grader {
     if (expected === undefined) {
       passed = result.exitCode === 0;
       assertionText = passed
-        ? `Command exited with code 0`
+        ? 'Command exited with code 0'
         : `Command exited with code ${result.exitCode}`;
     } else if (operator !== undefined) {
-      const actualNum = parseFloat(stdout);
-      const expectedNum = parseFloat(expected);
+      const actualNum = Number.parseFloat(stdout);
+      const expectedNum = Number.parseFloat(expected);
       if (Number.isNaN(actualNum) || Number.isNaN(expectedNum)) {
         return {
           score: 0,

@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { interpolateEnv } from '../interpolation.js';
 import {
   CLI_PLACEHOLDERS,
   COMMON_TARGET_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
 } from '../providers/targets.js';
-import { interpolateEnv } from '../interpolation.js';
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
