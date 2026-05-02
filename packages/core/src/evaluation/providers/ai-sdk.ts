@@ -58,8 +58,12 @@ export class OpenAIProvider implements Provider {
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-    return invokeModel({
-      model: this.model,
+    return invokePiAi({
+      providerName: 'openai',
+      apiId: this.config.apiFormat === 'responses' ? 'openai-responses' : 'openai-completions',
+      modelId: this.config.model,
+      apiKey: this.config.apiKey,
+      baseUrl: this.config.baseURL,
       request,
       defaults: this.defaults,
       retryConfig: this.retryConfig,
@@ -515,6 +519,227 @@ function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): nu
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------------------------------------------------------------------------
+// pi-ai migration (issue #1205)
+// ---------------------------------------------------------------------------
+//
+// invokePiAi runs a single non-streaming, non-tool-using completion through
+// @mariozechner/pi-ai. It is the new code path; the existing invokeModel
+// (Vercel AI SDK) above is still in use for the four providers we have not
+// ported yet (Azure, OpenRouter, Anthropic, Gemini).
+//
+// Why dynamic import + `any` casts: pi-ai ships .d.ts files whose top-level
+// named exports do not resolve through TypeScript's NodeNext/Bundler module
+// resolution (same issue worked around in pi-coding-agent.ts:250). The runtime
+// exports are correct; only the static type graph is broken. We mirror the
+// pi-coding-agent.ts pattern: load the module dynamically once, cast through
+// `any`, and rely on the local invokePiAi shape for type safety.
+//
+// To port a provider:
+//   1. Map its config to the invokePiAi options below (api id, baseUrl, key).
+//   2. Replace the provider's invoke() to call invokePiAi.
+//   3. Drop the createX() / this.model build from the constructor when
+//      asLanguageModel() is no longer used by any consumer.
+
+// biome-ignore lint/suspicious/noExplicitAny: pi-ai type defs do not statically resolve named exports; mirrors the existing workaround in pi-coding-agent.ts.
+let piAiSdk: any | null = null;
+let piAiLoading: Promise<void> | null = null;
+
+async function loadPiAi(): Promise<void> {
+  if (piAiSdk) return;
+  if (!piAiLoading) {
+    piAiLoading = (async () => {
+      const mod = await import('@mariozechner/pi-ai');
+      // biome-ignore lint/suspicious/noExplicitAny: see comment above
+      const m = mod as any;
+      m.registerBuiltInApiProviders?.();
+      piAiSdk = m;
+    })().catch((err) => {
+      piAiLoading = null;
+      throw err;
+    });
+  }
+  await piAiLoading;
+}
+
+interface InvokePiAiOptions {
+  /** pi-ai provider name (matches `KnownProvider`, e.g. 'openai'). */
+  readonly providerName: string;
+  /** pi-ai api id, picks which provider impl runs the call. */
+  readonly apiId: string;
+  /** Model id from user config (may or may not exist in pi-ai's registry). */
+  readonly modelId: string;
+  readonly apiKey: string;
+  /** Optional baseUrl override; falls back to the registry's default. */
+  readonly baseUrl?: string;
+  readonly request: ProviderRequest;
+  readonly defaults: ProviderDefaults;
+  readonly retryConfig?: RetryConfig;
+}
+
+async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
+  const { providerName, apiId, modelId, apiKey, baseUrl, request, defaults, retryConfig } = options;
+
+  await loadPiAi();
+  const sdk = piAiSdk;
+
+  const model = resolvePiModel(sdk, { providerName, apiId, modelId, baseUrl });
+  const { systemPrompt, messages } = chatPromptToPiContext(buildChatPrompt(request));
+  const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
+
+  const startTime = new Date().toISOString();
+  const startMs = Date.now();
+
+  const result = await withRetry(
+    () =>
+      sdk.complete(
+        model,
+        { systemPrompt, messages },
+        {
+          apiKey,
+          temperature,
+          ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}),
+          signal: request.signal,
+        },
+      ),
+    retryConfig,
+    request.signal,
+  );
+
+  const endTime = new Date().toISOString();
+  const durationMs = Date.now() - startMs;
+
+  return mapPiResponse(result as PiAssistantMessage, { durationMs, startTime, endTime });
+}
+
+function resolvePiModel(
+  // biome-ignore lint/suspicious/noExplicitAny: pi-ai SDK module — see top-of-section comment
+  sdk: any,
+  args: {
+    providerName: string;
+    apiId: string;
+    modelId: string;
+    baseUrl?: string;
+  },
+  // biome-ignore lint/suspicious/noExplicitAny: pi-ai Model<Api> shape
+): any {
+  const { providerName, apiId, modelId, baseUrl } = args;
+
+  // pi-ai's getModel returns a strongly-typed Model<Api> when the (provider,
+  // modelId) pair is in its generated registry. For runtime-string configs or
+  // unknown model ids we construct a minimal descriptor with the same shape
+  // the providers consume — every field below is required.
+  let model: { api: string; baseUrl: string } | undefined;
+  try {
+    model = sdk.getModel(providerName, modelId);
+  } catch {
+    model = undefined;
+  }
+
+  if (!model) {
+    model = {
+      id: modelId,
+      name: modelId,
+      api: apiId,
+      provider: providerName,
+      baseUrl: baseUrl ?? '',
+      reasoning: false,
+      input: ['text'],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 128000,
+      maxTokens: 16384,
+      // biome-ignore lint/suspicious/noExplicitAny: minimal Model<Api> descriptor
+    } as any;
+  }
+
+  // model is always defined past this point.
+  // biome-ignore lint/style/noNonNullAssertion: see comment above
+  let m = model!;
+  if (m.api !== apiId) {
+    m = { ...m, api: apiId };
+  }
+  if (baseUrl) {
+    m = { ...m, baseUrl };
+  }
+
+  return m;
+}
+
+interface PiContext {
+  readonly systemPrompt: string | undefined;
+  // biome-ignore lint/suspicious/noExplicitAny: pi-ai Message shape
+  readonly messages: any[];
+}
+
+function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
+  // Step 1 of the pi-ai migration only ports rubric-generator, which sends
+  // a single system prompt + a single user turn. We intentionally don't
+  // handle assistant/tool/function roles here — when later consumer steps
+  // need them (llm-grader's multi-turn / tool-use paths), add the cases
+  // alongside the work that exercises them. YAGNI today.
+  const systemSegments: string[] = [];
+  // biome-ignore lint/suspicious/noExplicitAny: pi-ai Message shape
+  const messages: any[] = [];
+
+  for (const message of chatPrompt) {
+    if (message.role === 'system') {
+      systemSegments.push(message.content);
+      continue;
+    }
+    if (message.role !== 'user') {
+      throw new Error(
+        `pi-ai adapter received unsupported message role '${message.role}'. Only system + user are wired up in step 1 of the pi-ai migration (#1205).`,
+      );
+    }
+    messages.push({ role: 'user', content: message.content, timestamp: Date.now() });
+  }
+
+  return {
+    systemPrompt: systemSegments.length > 0 ? systemSegments.join('\n\n') : undefined,
+    messages,
+  };
+}
+
+interface PiUsage {
+  readonly input: number;
+  readonly output: number;
+  readonly cacheRead: number;
+  readonly cost: { readonly total: number };
+}
+
+interface PiAssistantMessage {
+  readonly content: ReadonlyArray<{ type: string; text?: string }>;
+  readonly usage: PiUsage;
+}
+
+function mapPiResponse(
+  result: PiAssistantMessage,
+  timing: { durationMs: number; startTime: string; endTime: string },
+): ProviderResponse {
+  const text = result.content
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text ?? '')
+    .join('');
+
+  const cached = result.usage.cacheRead > 0 ? result.usage.cacheRead : undefined;
+  const tokenUsage = {
+    input: result.usage.input,
+    output: result.usage.output,
+    ...(cached !== undefined ? { cached } : {}),
+  };
+
+  return {
+    raw: result,
+    usage: toJsonObject(result.usage),
+    output: [{ role: 'assistant' as const, content: text }],
+    tokenUsage,
+    costUsd: result.usage.cost.total,
+    durationMs: timing.durationMs,
+    startTime: timing.startTime,
+    endTime: timing.endTime,
+  };
 }
 
 async function withRetry<T>(

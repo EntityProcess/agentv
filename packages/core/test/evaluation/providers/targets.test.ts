@@ -38,6 +38,43 @@ const createOpenRouterMock = mock((options: unknown) => () => ({
 const createAnthropicMock = mock(() => () => ({ provider: 'anthropic' }));
 const createGeminiMock = mock(() => () => ({ provider: 'gemini' }));
 
+const piCompleteMock = mock(async () => ({
+  content: [{ type: 'text', text: 'ok' }],
+  usage: {
+    input: 1,
+    output: 1,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 2,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  },
+  api: 'openai-completions',
+  provider: 'openai',
+  model: 'gpt-test',
+  stopReason: 'stop',
+  timestamp: Date.now(),
+  role: 'assistant',
+}));
+const piGetModelMock = mock((provider: string, modelId: string) => ({
+  id: modelId,
+  name: modelId,
+  api: 'openai-completions',
+  provider,
+  baseUrl: '',
+  reasoning: false,
+  input: ['text'],
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 128000,
+  maxTokens: 16384,
+}));
+const piRegisterMock = mock(() => {});
+
+mock.module('@mariozechner/pi-ai', () => ({
+  complete: (...args: unknown[]) => piCompleteMock(...(args as [])),
+  getModel: (provider: string, modelId: string) => piGetModelMock(provider, modelId),
+  registerBuiltInApiProviders: () => piRegisterMock(),
+}));
+
 mock.module('ai', () => ({
   generateText: () => generateTextMock(),
 }));
@@ -1183,7 +1220,7 @@ describe('createProvider', () => {
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
 
-  it('creates an openai provider that calls the Vercel AI SDK', async () => {
+  it('creates an openai provider that calls @mariozechner/pi-ai', async () => {
     const env = {
       OPENAI_ENDPOINT: 'https://llm-gateway.example.com/v1',
       OPENAI_API_KEY: 'openai-key',
@@ -1201,13 +1238,16 @@ describe('createProvider', () => {
       env,
     );
 
+    piCompleteMock.mockClear();
+    piGetModelMock.mockClear();
+
     const provider = createProvider(resolved);
     expect(provider.kind).toBe('openai');
 
     const response = await provider.invoke({ question: 'Hello from OpenAI' });
 
-    expect(createOpenAIMock).toHaveBeenCalledTimes(1);
-    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    expect(piGetModelMock).toHaveBeenCalledWith('openai', 'gpt-5.4');
+    expect(piCompleteMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
 

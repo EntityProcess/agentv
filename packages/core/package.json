@@ -47,6 +47,7 @@
     "@ai-sdk/google": "^3.0.0",
     "@ai-sdk/openai": "^3.0.0",
     "@github/copilot-sdk": "^0.1.25",
+    "@mariozechner/pi-ai": "^0.62.0",
     "@openai/codex-sdk": "^0.104.0",
     "@openrouter/ai-sdk-provider": "^2.3.1",
     "ai": "^6.0.0",
