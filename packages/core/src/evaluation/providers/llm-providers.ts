@@ -479,7 +479,15 @@ export function resolvePiModel(args: {
         `pi-ai adapter cannot resolve a baseUrl for provider '${providerName}' / model '${modelId}'. Either set the target's baseUrl/endpoint or use a model id pi-ai recognizes.`,
       );
     }
-    const { contextWindow, maxTokens } = defaultModelMetadata(providerName);
+    // Universal fallback matching pi-coding-agent's ModelRegistry. These
+    // numbers are mostly metadata: on the complete() / streamOpenAICompletions
+    // path we use, pi-ai only sets max_tokens when the caller passes
+    // StreamOptions.maxTokens (we omit it unless request.maxOutputTokens is
+    // set). pi-ai's *simple* options builder (buildBaseOptions in
+    // simple-options.js) does fall back to Math.min(model.maxTokens, 32000)
+    // when maxTokens is omitted — we don't currently call that path, but if
+    // a future caller switches to completeSimple, the 16384 here keeps the
+    // fallback ceiling sane.
     model = {
       id: modelId,
       name: modelId,
@@ -489,8 +497,8 @@ export function resolvePiModel(args: {
       reasoning: false,
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow,
-      maxTokens,
+      contextWindow: 128_000,
+      maxTokens: 16_384,
     };
   }
 
@@ -513,36 +521,6 @@ function defaultBaseUrlFor(providerName: string): string | undefined {
   if (providerName === 'openai') return 'https://api.openai.com/v1';
   if (providerName === 'openrouter') return 'https://openrouter.ai/api/v1';
   return undefined;
-}
-
-/**
- * Generous per-provider context-window / output-token metadata used in the
- * synthesized fallback Model when pi-ai's registry doesn't recognize the
- * (provider, modelId) pair. These values are *metadata only* — pi-ai uses
- * them for cost telemetry and display, not to cap the API call (the actual
- * request size comes from StreamOptions.maxTokens, which we omit unless
- * the caller set request.maxOutputTokens). Numbers track the largest
- * commonly-deployed model family per provider; bump them if a custom
- * gateway routes to bigger windows.
- */
-function defaultModelMetadata(providerName: string): {
-  contextWindow: number;
-  maxTokens: number;
-} {
-  switch (providerName) {
-    case 'openai':
-      return { contextWindow: 400_000, maxTokens: 128_000 };
-    case 'azure-openai-responses':
-      return { contextWindow: 400_000, maxTokens: 128_000 };
-    case 'anthropic':
-      return { contextWindow: 200_000, maxTokens: 32_000 };
-    case 'google':
-      return { contextWindow: 1_000_000, maxTokens: 64_000 };
-    case 'openrouter':
-      return { contextWindow: 200_000, maxTokens: 32_000 };
-    default:
-      return { contextWindow: 128_000, maxTokens: 16_000 };
-  }
 }
 
 interface PiContext {
