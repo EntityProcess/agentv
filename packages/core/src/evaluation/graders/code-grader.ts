@@ -262,23 +262,25 @@ export class CodeGrader implements Grader {
       // Plain-text fallback: when stdout is not a JSON object, interpret as a simple score.
       // Supports exit-code convention (empty stdout = pass/fail by exit code), boolean
       // strings, and numeric scores — so short shell one-liners work without JSON protocol.
-      const score = parsed != null
-        ? clampScore(typeof parsed.score === 'number' ? parsed.score : 0)
-        : parsePlainScore(stdout, exitCode);
-      const assertions: AssertionEntry[] = parsed != null && Array.isArray(parsed?.assertions)
-        ? parsed.assertions
-            .filter(
-              (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
-                typeof a === 'object' &&
-                a !== null &&
-                typeof (a as Record<string, unknown>).text === 'string',
-            )
-            .map((a) => ({
-              text: String(a.text),
-              passed: Boolean(a.passed),
-              ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),
-            }))
-        : [];
+      const score =
+        parsed != null
+          ? clampScore(typeof parsed.score === 'number' ? parsed.score : 0)
+          : parsePlainScore(stdout, exitCode);
+      const assertions: AssertionEntry[] =
+        parsed != null && Array.isArray(parsed?.assertions)
+          ? parsed.assertions
+              .filter(
+                (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
+                  typeof a === 'object' &&
+                  a !== null &&
+                  typeof (a as Record<string, unknown>).text === 'string',
+              )
+              .map((a) => ({
+                text: String(a.text),
+                passed: Boolean(a.passed),
+                ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),
+              }))
+          : [];
       // Capture optional structured details from code judge output
       const details =
         parsed?.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)
