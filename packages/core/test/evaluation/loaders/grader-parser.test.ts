@@ -14,7 +14,6 @@ import type {
   LatencyGraderConfig,
   LlmGraderConfig,
   RegexGraderConfig,
-  ShellGraderConfig,
 } from '../../../src/evaluation/types.js';
 
 describe('parseGraders - deterministic assertion types', () => {
@@ -205,59 +204,6 @@ describe('parseGraders - deterministic assertion types', () => {
       {
         evaluators: [{ name: 'no-value', type: 'equals' }],
       },
-      undefined,
-      [tempDir],
-      'test-1',
-    );
-    expect(evaluators).toBeUndefined();
-  });
-
-  it('parses type: shell with command only', async () => {
-    const evaluators = await parseGraders(
-      { evaluators: [{ name: 'check-exit', type: 'shell', command: 'echo hi' }] },
-      undefined,
-      [tempDir],
-      'test-1',
-    );
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ShellGraderConfig;
-    expect(config.type).toBe('shell');
-    expect(config.command).toBe('echo hi');
-    expect(config.expected).toBeUndefined();
-    expect(config.operator).toBeUndefined();
-  });
-
-  it('parses type: shell with expected and operator', async () => {
-    const evaluators = await parseGraders(
-      {
-        evaluators: [
-          { name: 'check-pages', type: 'shell', command: 'echo 14', expected: '5', operator: '>=' },
-        ],
-      },
-      undefined,
-      [tempDir],
-      'test-1',
-    );
-    expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as ShellGraderConfig;
-    expect(config.type).toBe('shell');
-    expect(config.expected).toBe('5');
-    expect(config.operator).toBe('>=');
-  });
-
-  it('skips shell evaluator with invalid operator', async () => {
-    const evaluators = await parseGraders(
-      { evaluators: [{ name: 'bad-op', type: 'shell', command: 'echo 1', operator: '???' }] },
-      undefined,
-      [tempDir],
-      'test-1',
-    );
-    expect(evaluators).toBeUndefined();
-  });
-
-  it('skips shell evaluator with missing command', async () => {
-    const evaluators = await parseGraders(
-      { evaluators: [{ name: 'no-cmd', type: 'shell' }] },
       undefined,
       [tempDir],
       'test-1',

@@ -58,8 +58,6 @@ export type { LlmGraderOptions } from './llm-grader.js';
 
 export { formatToolCalls } from './format-tool-calls.js';
 
-export { ShellGrader } from './shell.js';
-
 export { SkillTriggerGrader } from './skill-trigger.js';
 
 export { assembleLlmGraderPrompt } from './llm-grader-prompt.js';

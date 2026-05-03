@@ -188,7 +188,6 @@ const GRADER_KIND_VALUES = [
   'equals',
   'rubrics',
   'inline-assert',
-  'shell',
 ] as const;
 
 export type GraderKind = (typeof GRADER_KIND_VALUES)[number];
@@ -890,54 +889,6 @@ export type InlineAssertEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
-/**
- * Numeric comparison operators for shell assertions.
- * When set, the shell command stdout is compared numerically against `expected`.
- */
-export type ShellOperator = '>' | '<' | '>=' | '<=' | '==' | '!=';
-
-/**
- * Configuration for the shell grader.
- * Runs a shell command and checks its stdout against an expected value.
- *
- * - With no `expected`: passes when the command exits with code 0.
- * - With `expected` and no `operator`: trims stdout and compares exactly.
- * - With `expected` and `operator`: parses both sides as floats and compares numerically.
- *
- * The command runs in the workspace directory (if available).
- *
- * @example Exact match
- * ```yaml
- * - type: shell
- *   command: "wc -l output.txt | awk '{print $1}'"
- *   expected: "42"
- * ```
- *
- * @example Numeric comparison
- * ```yaml
- * - type: shell
- *   command: "pdfinfo report.pdf | grep Pages | awk '{print $2}'"
- *   operator: ">="
- *   expected: "5"
- * ```
- */
-export type ShellGraderConfig = {
-  readonly name: string;
-  readonly type: 'shell';
-  /** Shell command to execute */
-  readonly command: string;
-  /** Expected stdout value. If omitted, only the exit code (0 = pass) is checked. */
-  readonly expected?: string;
-  /** Numeric comparison operator. When set, both stdout and expected are parsed as floats. */
-  readonly operator?: ShellOperator;
-  readonly weight?: number;
-  readonly required?: boolean | number;
-  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
-  readonly min_score?: number;
-  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
-  readonly negate?: boolean;
-};
-
 export type GraderConfig =
   | CodeGraderConfig
   | LlmGraderConfig
@@ -961,8 +912,7 @@ export type GraderConfig =
   | IsJsonGraderConfig
   | EqualsGraderConfig
   | RubricsEvaluatorConfig
-  | InlineAssertEvaluatorConfig
-  | ShellGraderConfig;
+  | InlineAssertEvaluatorConfig;
 
 /**
  * A single turn in a multi-turn conversation evaluation.

@@ -1371,45 +1371,6 @@ async function parseGraderList(
       continue;
     }
 
-    if (typeValue === 'shell') {
-      const command = asString(rawEvaluator.command);
-      if (!command) {
-        logWarning(`Skipping shell evaluator '${name}' in '${evalId}': missing command`);
-        continue;
-      }
-      const expected = asString(rawEvaluator.expected);
-      const rawOperator = asString(rawEvaluator.operator);
-      const validOperators = ['>', '<', '>=', '<=', '==', '!='] as const;
-      const operator = validOperators.includes(rawOperator as (typeof validOperators)[number])
-        ? (rawOperator as (typeof validOperators)[number])
-        : undefined;
-      if (rawOperator && !operator) {
-        logWarning(
-          `Skipping shell evaluator '${name}' in '${evalId}': invalid operator "${rawOperator}". Valid: ${validOperators.join(', ')}`,
-        );
-        continue;
-      }
-      const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const { required, min_score } = parseRequiredAndMinScore(
-        rawEvaluator.required,
-        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
-        name,
-        evalId,
-      );
-      evaluators.push({
-        name,
-        type: 'shell',
-        command,
-        ...(expected !== undefined ? { expected } : {}),
-        ...(operator !== undefined ? { operator } : {}),
-        ...(weight !== undefined ? { weight } : {}),
-        ...(required !== undefined ? { required } : {}),
-        ...(min_score !== undefined ? { min_score } : {}),
-        ...(negate !== undefined ? { negate } : {}),
-      });
-      continue;
-    }
-
     const graderTarget = rawEvaluator.target;
     let graderTargetName: string | undefined;
     if (graderTarget !== undefined) {
@@ -1773,10 +1734,6 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
       return 'is-json';
     case 'equals':
       return value ? `equals-${value}` : 'equals';
-    case 'shell': {
-      const cmd = asString(rawEvaluator.command);
-      return cmd ? `shell-${cmd.slice(0, 30)}` : 'shell';
-    }
     case 'rubrics':
       return 'rubrics';
     default:

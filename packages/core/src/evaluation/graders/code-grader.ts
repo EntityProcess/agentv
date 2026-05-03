@@ -212,6 +212,8 @@ export class CodeGrader implements Grader {
 
     try {
       let stdout: string;
+      let exitCode = 0;
+      let execStderr = '';
       if (context.dockerConfig) {
         // Docker execution mode: run grader inside a container
         const { DockerWorkspaceProvider } = await import('../workspace/docker-workspace.js');
@@ -221,27 +223,49 @@ export class CodeGrader implements Grader {
           stdin: inputPayload,
           repoCheckouts: getRepoCheckoutTargets(context.evalCase.workspace?.repos),
         });
-        if (result.exitCode !== 0) {
-          const trimmedErr = result.stderr.trim();
-          throw new Error(
-            trimmedErr.length > 0
-              ? `Code evaluator exited with code ${result.exitCode}: ${trimmedErr}`
-              : `Code evaluator exited with code ${result.exitCode}`,
-          );
-        }
+        exitCode = result.exitCode;
         stdout = result.stdout.trim();
+        execStderr = result.stderr;
       } else {
-        stdout = await executeScript(
+        const result = await runScriptRaw(
           this.command,
           inputPayload,
           this.agentTimeoutMs,
           this.cwd,
           env,
         );
+        exitCode = result.exitCode;
+        stdout = result.stdout.trim();
+        execStderr = result.stderr;
       }
-      const parsed = parseJsonSafe(stdout);
-      const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
-      const assertions: AssertionEntry[] = Array.isArray(parsed?.assertions)
+      // Non-zero exit with JSON stdout, or with stderr output, is treated as an error
+      // (script signaled failure through the protocol or wrote an error message).
+      // Non-zero exit with plain stdout and no stderr uses the exit-code convention
+      // (score 0 = fail) — so one-liners like `[ "$pages" -ge 5 ]` work cleanly.
+      const looksLikeJson = stdout.startsWith('{') || stdout.startsWith('[');
+      const hasStderr = execStderr.trim().length > 0;
+      if (exitCode !== 0 && (looksLikeJson || hasStderr)) {
+        const trimmedErr = formatStderr(execStderr);
+        throw new Error(
+          trimmedErr.length > 0
+            ? `Code evaluator exited with code ${exitCode}: ${trimmedErr}`
+            : `Code evaluator exited with code ${exitCode}`,
+        );
+      }
+      const rawParsed = parseJsonSafe(stdout);
+      // Only treat stdout as the JSON protocol if it parsed as an object (not a bare
+      // boolean, number, or string). Plain scalars fall through to parsePlainScore.
+      const parsed =
+        rawParsed != null && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
+          ? rawParsed
+          : undefined;
+      // Plain-text fallback: when stdout is not a JSON object, interpret as a simple score.
+      // Supports exit-code convention (empty stdout = pass/fail by exit code), boolean
+      // strings, and numeric scores — so short shell one-liners work without JSON protocol.
+      const score = parsed != null
+        ? clampScore(typeof parsed.score === 'number' ? parsed.score : 0)
+        : parsePlainScore(stdout, exitCode);
+      const assertions: AssertionEntry[] = parsed != null && Array.isArray(parsed?.assertions)
         ? parsed.assertions
             .filter(
               (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
@@ -325,6 +349,19 @@ export class CodeGrader implements Grader {
   }
 }
 
+/** Run a script and return raw stdout/stderr/exitCode without throwing. */
+async function runScriptRaw(
+  scriptPath: readonly string[] | string,
+  input: string,
+  agentTimeoutMs?: number,
+  cwd?: string,
+  env?: Record<string, string>,
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return typeof scriptPath === 'string'
+    ? execShellWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs, env })
+    : execFileWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs, env });
+}
+
 export async function executeScript(
   scriptPath: readonly string[] | string,
   input: string,
@@ -332,10 +369,13 @@ export async function executeScript(
   cwd?: string,
   env?: Record<string, string>,
 ): Promise<string> {
-  const { stdout, stderr, exitCode } =
-    typeof scriptPath === 'string'
-      ? await execShellWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs, env })
-      : await execFileWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs, env });
+  const { stdout, stderr, exitCode } = await runScriptRaw(
+    scriptPath,
+    input,
+    agentTimeoutMs,
+    cwd,
+    env,
+  );
 
   if (exitCode !== 0) {
     const trimmedErr = formatStderr(stderr);
@@ -347,6 +387,27 @@ export async function executeScript(
   }
 
   return stdout.trim();
+}
+
+/**
+ * Interpret plain-text (non-JSON) stdout as a score.
+ *
+ * | stdout (trimmed, lowercase) | score |
+ * |---|---|
+ * | empty string | 1 if exit 0, 0 if exit non-zero |
+ * | "true", "pass", "1" | 1 |
+ * | "false", "fail", "0" | 0 |
+ * | numeric string | clamped float |
+ * | anything else | 1 if exit 0, 0 if exit non-zero |
+ */
+function parsePlainScore(stdout: string, exitCode: number): number {
+  const t = stdout.trim().toLowerCase();
+  if (t === '' || t === 'true' || t === 'pass') return exitCode === 0 ? 1 : 0;
+  if (t === '1') return 1;
+  if (t === 'false' || t === 'fail' || t === '0') return 0;
+  const n = Number(t);
+  if (!Number.isNaN(n)) return clampScore(n);
+  return exitCode === 0 ? 1 : 0;
 }
 
 function formatStderr(stderr: string): string {
