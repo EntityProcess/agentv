@@ -39,10 +39,3 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
-
-      - id: check-pi-ai-shim
-        name: Validate pi-ai shim sync
-        entry: bun run check:pi-ai-shim
-        language: system
-        pass_filenames: false
-        stages: [pre-push]

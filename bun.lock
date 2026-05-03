@@ -91,7 +91,6 @@
         "@github/copilot-sdk": "^0.1.25",
         "@mariozechner/pi-ai": "^0.62.0",
         "@openai/codex-sdk": "^0.104.0",
-        "@sinclair/typebox": "^0.34.41",
         "fast-glob": "^3.3.3",
         "json5": "^2.2.3",
         "micromatch": "^4.0.8",

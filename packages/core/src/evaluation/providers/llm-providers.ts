@@ -19,15 +19,22 @@
  */
 
 import {
+  type Api as PiApi,
   type AssistantMessage as PiAssistantMessage,
+  type KnownProvider as PiKnownProvider,
   type Message as PiMessage,
-  type Model as PiModel,
+  type Model as PiModelBase,
   type Tool as PiTool,
   type ToolCall as PiToolCall,
   complete as piComplete,
   getModel as piGetModel,
   registerBuiltInApiProviders,
 } from '@mariozechner/pi-ai';
+
+// Pi-ai's `Model<TApi>` is generic over the api id. Every site that passes a
+// model around treats it as `Model<Api>` (the runtime-string variant), so
+// alias once here.
+type PiModel = PiModelBase<PiApi>;
 
 // pi-ai routes complete()/stream() by Model.api; the built-in providers must be
 // registered once at module load. Cheap; idempotent across repeated imports.
@@ -332,12 +339,17 @@ export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderRe
   if (request.images && request.images.length > 0) {
     attachImagesToLastUserMessage(messages, request.images);
   }
+  // Pi-ai's `Tool.parameters` is typed as a TypeBox `TSchema` (Symbol-branded
+  // for TS-level inference), but at runtime its OpenAI-completions converter
+  // forwards `parameters` to the wire format unchanged — see pi-ai's
+  // openai-completions.js convertTools(): "TypeBox already generates JSON
+  // Schema". We pass plain JSON Schema and cast at the boundary.
   const piTools: PiTool[] | undefined = tools
-    ? tools.map((t) => ({
+    ? (tools.map((t) => ({
         name: t.name,
         description: t.description,
         parameters: t.parameters,
-      }))
+      })) as unknown as PiTool[])
     : undefined;
   const ctx = { systemPrompt, messages, ...(piTools ? { tools: piTools } : {}) };
   const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
@@ -444,12 +456,13 @@ export function resolvePiModel(args: {
 }): PiModel {
   const { providerName, apiId, modelId, baseUrl } = args;
 
-  // pi-ai's getModel returns a Model when (provider, modelId) is in its
-  // registry; otherwise we synthesize a minimal descriptor — every field is
-  // required by the Model interface.
+  // pi-ai's getModel is generic over a typed registry of (provider, modelId)
+  // pairs; runtime strings need a cast at the boundary. Returns a Model when
+  // the pair is in its registry, throws otherwise; we synthesize a minimal
+  // descriptor below for unknown pairs (custom gateways, Azure deployments).
   let model: PiModel | undefined;
   try {
-    model = piGetModel(providerName, modelId) as PiModel;
+    model = piGetModel(providerName as PiKnownProvider, modelId as never) as PiModel;
   } catch {
     model = undefined;
   }
