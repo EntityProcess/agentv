@@ -33,6 +33,7 @@ declare module '@mariozechner/pi-ai' {
     id: string;
     name: string;
     arguments: unknown;
+    thoughtSignature?: string;
   }
 
   export interface Usage {
@@ -88,9 +89,23 @@ declare module '@mariozechner/pi-ai' {
     maxTokens: number;
   }
 
+  /**
+   * Pi-ai's Tool wraps a TypeBox schema; we send JSON Schema directly via the
+   * adapter, so the relaxed `parameters: object` here lets us pass plain
+   * JSON-Schema objects without round-tripping through TypeBox builders. Pi-ai
+   * forwards `parameters` to the provider's wire format unchanged (it
+   * stringifies it for OpenAI completions, etc.) so this is safe at runtime.
+   */
+  export interface Tool {
+    name: string;
+    description: string;
+    parameters: object;
+  }
+
   export interface Context {
     systemPrompt?: string;
     messages: Message[];
+    tools?: Tool[];
   }
 
   export interface StreamOptions {

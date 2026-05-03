@@ -6,6 +6,8 @@ import {
   type AssistantMessage as PiAssistantMessage,
   type Message as PiMessage,
   type Model as PiModel,
+  type Tool as PiTool,
+  type ToolCall as PiToolCall,
   complete as piComplete,
   getModel as piGetModel,
   registerBuiltInApiProviders,
@@ -577,33 +579,111 @@ interface InvokePiAiOptions {
 
 async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
   const { model, apiKey, request, defaults, retryConfig } = options;
+  const tools = request.tools && request.tools.length > 0 ? request.tools : undefined;
+  const maxSteps = tools ? Math.max(1, request.maxSteps ?? 1) : 1;
 
   const { systemPrompt, messages } = chatPromptToPiContext(buildChatPrompt(request));
+  const piTools: PiTool[] | undefined = tools
+    ? tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      }))
+    : undefined;
+  const ctx = { systemPrompt, messages, ...(piTools ? { tools: piTools } : {}) };
   const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
+  const callOptions = {
+    apiKey,
+    temperature,
+    ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}),
+    signal: request.signal,
+  };
 
   const startTime = new Date().toISOString();
   const startMs = Date.now();
 
-  const result = await withRetry(
-    () =>
-      piComplete(
-        model,
-        { systemPrompt, messages },
-        {
-          apiKey,
-          temperature,
-          ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}),
-          signal: request.signal,
-        },
-      ),
+  const aggregateUsage: AggregatedUsage = { input: 0, output: 0, cacheRead: 0, cost: 0 };
+  let stepCount = 0;
+  let toolCallCount = 0;
+  let result: PiAssistantMessage = await withRetry(
+    () => piComplete(model, ctx, callOptions),
     retryConfig,
     request.signal,
   );
+  ctx.messages.push(result);
+  stepCount = 1;
+  accumulateUsage(aggregateUsage, result.usage);
+
+  // Agent loop: run tool calls and re-invoke until the model stops requesting
+  // tools or we hit maxSteps. Single-shot calls (no tools) skip this entirely.
+  while (tools) {
+    const calls = result.content.filter(
+      (b: PiAssistantMessage['content'][number]): b is PiToolCall => b.type === 'toolCall',
+    );
+    if (calls.length === 0) break;
+    if (stepCount >= maxSteps) break;
+
+    toolCallCount += calls.length;
+
+    for (const call of calls) {
+      const tool = tools.find((t) => t.name === call.name);
+      let output: unknown;
+      let isError = false;
+      try {
+        if (!tool) {
+          throw new Error(`pi-ai adapter: model called unknown tool '${call.name}'`);
+        }
+        output = await tool.execute(call.arguments);
+      } catch (err) {
+        output = err instanceof Error ? err.message : String(err);
+        isError = true;
+      }
+      ctx.messages.push({
+        role: 'toolResult',
+        toolCallId: call.id,
+        toolName: call.name,
+        content: [
+          { type: 'text', text: typeof output === 'string' ? output : JSON.stringify(output) },
+        ],
+        isError,
+        timestamp: Date.now(),
+      });
+    }
+
+    result = await withRetry(
+      () => piComplete(model, ctx, callOptions),
+      retryConfig,
+      request.signal,
+    );
+    ctx.messages.push(result);
+    stepCount += 1;
+    accumulateUsage(aggregateUsage, result.usage);
+  }
 
   const endTime = new Date().toISOString();
   const durationMs = Date.now() - startMs;
 
-  return mapPiResponse(result, { durationMs, startTime, endTime });
+  return mapPiResponse(result, {
+    durationMs,
+    startTime,
+    endTime,
+    aggregateUsage,
+    steps: tools ? { count: stepCount, toolCallCount } : undefined,
+  });
+}
+
+interface AggregatedUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cost: number;
+}
+
+function accumulateUsage(agg: AggregatedUsage, u: PiAssistantMessage['usage']): void {
+  agg.input += u.input;
+  agg.output += u.output;
+  agg.cacheRead += u.cacheRead;
+  agg.cost += u.cost.total;
 }
 
 function resolvePiModel(args: {
@@ -758,17 +838,25 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
 
 function mapPiResponse(
   result: PiAssistantMessage,
-  timing: { durationMs: number; startTime: string; endTime: string },
+  timing: {
+    durationMs: number;
+    startTime: string;
+    endTime: string;
+    aggregateUsage: AggregatedUsage;
+    steps?: { count: number; toolCallCount: number };
+  },
 ): ProviderResponse {
   const text = result.content
     .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
     .map((b) => b.text)
     .join('');
 
-  const cached = result.usage.cacheRead > 0 ? result.usage.cacheRead : undefined;
+  // Token usage is aggregated across all model turns in the agent loop, not
+  // just the final turn. Single-shot calls have aggregateUsage == lastTurnUsage.
+  const cached = timing.aggregateUsage.cacheRead > 0 ? timing.aggregateUsage.cacheRead : undefined;
   const tokenUsage = {
-    input: result.usage.input,
-    output: result.usage.output,
+    input: timing.aggregateUsage.input,
+    output: timing.aggregateUsage.output,
     ...(cached !== undefined ? { cached } : {}),
   };
 
@@ -776,7 +864,7 @@ function mapPiResponse(
   // descriptor lacks pricing (fallback descriptor for unknown ids, or pi-ai's
   // registry simply not having rates yet). Surface 0 as "unknown" by leaving
   // costUsd undefined — matches the Vercel path, which never sets it.
-  const costUsd = result.usage.cost.total > 0 ? result.usage.cost.total : undefined;
+  const costUsd = timing.aggregateUsage.cost > 0 ? timing.aggregateUsage.cost : undefined;
 
   return {
     raw: result,
@@ -787,6 +875,7 @@ function mapPiResponse(
     durationMs: timing.durationMs,
     startTime: timing.startTime,
     endTime: timing.endTime,
+    ...(timing.steps ? { steps: timing.steps } : {}),
   };
 }
 
