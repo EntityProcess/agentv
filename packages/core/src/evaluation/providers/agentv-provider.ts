@@ -1,4 +1,4 @@
-import { invokePiAi, resolvePiModel } from './ai-sdk.js';
+import { invokePiAi, resolvePiModel } from './llm-providers.js';
 import type { AgentVResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -39,8 +39,8 @@ export class AgentvProvider implements Provider {
 }
 
 /**
- * Parse `provider:model` into the pi-ai routing fields. Each ai-sdk-style
- * provider name maps to a pi-ai (providerName, apiId) pair:
+ * Parse `provider:model` into the pi-ai routing fields. Each provider
+ * shorthand maps to a pi-ai (providerName, apiId) pair:
  *
  *   openai:<id>    → ('openai', 'openai-completions')
  *   anthropic:<id> → ('anthropic', 'anthropic-messages')

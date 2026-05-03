@@ -8,6 +8,10 @@
 //
 // Keep this minimal: only what we actively call. Mirror the upstream shape
 // from node_modules/.bun/@mariozechner+pi-ai@*/dist/*.d.ts.
+//
+// `bun run check:pi-ai-shim` (also runs on pre-push) compares this file
+// against pi-ai's published types and fails when interfaces or fields drift.
+// Run it locally after editing this shim or bumping pi-ai.
 
 declare module '@mariozechner/pi-ai' {
   // ---- types/types.d.ts ----

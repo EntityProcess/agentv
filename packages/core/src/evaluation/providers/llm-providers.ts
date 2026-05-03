@@ -8,7 +8,6 @@
  *   2. Implements invoke() by delegating to invokePiAi(), which runs the
  *      stateless single-shot path or the multi-step agent loop depending on
  *      whether the request carries `tools`.
- *   3. Holds no Vercel AI SDK references.
  *
  * To add a new provider:
  *   1. Add a config interface in targets.ts.
@@ -17,9 +16,6 @@
  *      truth for `providerName`; pi-ai's KnownApi list is the source of
  *      truth for `apiId`.
  *   3. Register it in providers/index.ts.
- *
- * File name: kept as ai-sdk.ts for now to minimize diff churn during the
- * pi-ai migration — rename in a follow-up once the dust settles.
  */
 
 import {
@@ -630,7 +626,8 @@ function mapPiResponse(
   // pi-ai always populates `cost.total`, but it computes 0 when the model
   // descriptor lacks pricing (fallback descriptor for unknown ids, or pi-ai's
   // registry simply not having rates yet). Surface 0 as "unknown" by leaving
-  // costUsd undefined — matches the legacy ai-sdk path, which never set it.
+  // costUsd undefined — keeps parity with consumers that previously saw it
+  // unset.
   const costUsd = timing.aggregateUsage.cost > 0 ? timing.aggregateUsage.cost : undefined;
 
   return {
