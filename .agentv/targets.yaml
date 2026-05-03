@@ -151,3 +151,16 @@ targets:
     provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: ${{ OPENROUTER_MODEL }}
+
+  # ── MiMo (Xiaomi) via OpenRouter ───────────────────────────────────
+  - name: mimo
+    provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: xiaomi/mimo-v2.5-pro
+    grader_target: grader
+
+  - name: mimo-flash
+    provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: xiaomi/mimo-v2-flash
+    grader_target: grader

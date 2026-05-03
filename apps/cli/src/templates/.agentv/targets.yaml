@@ -63,3 +63,34 @@ targets:
     cwd: ${{ CLI_EVALS_DIR }}
     healthcheck:
       command: uv run ./mock_cli.py --healthcheck
+
+  # ── MiMo (Xiaomi) via OpenRouter ───────────────────────────────────
+  # All MiMo models are available through OpenRouter with OpenAI-compatible API.
+  # See https://openrouter.ai/xiaomi/mimo-v2.5-pro for pricing and limits.
+  #
+  # Models:
+  #   mimo-v2.5-pro    — 1M context, 131K output, flagship
+  #   mimo-v2-pro      — 1M context, ~131K output
+  #   mimo-v2.5        — 1M context, ~131K output, multimodal
+  #   mimo-v2-flash    — 262K context, 65K output, fast MoE (open-source)
+  #   mimo-v2-omni     — 262K context, 65K output, omni-modal
+  - name: mimo
+    provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: xiaomi/mimo-v2.5-pro
+
+  - name: mimo-flash
+    provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: xiaomi/mimo-v2-flash
+
+  # ── Direct provider (not through OpenRouter) ───────────────────────
+  # For providers not in pi-ai's model registry, set max_output_tokens
+  # to match your model's actual output limit. Without this, the default
+  # is 16K which may cap output below the model's capability.
+  # - name: mimo-direct
+  #   provider: openai
+  #   base_url: ${{ MIMO_API_ENDPOINT }}
+  #   api_key: ${{ MIMO_API_KEY }}
+  #   model: ${{ MIMO_MODEL }}
+  #   max_output_tokens: 131072
