@@ -205,7 +205,7 @@ export class LlmGrader implements Grader {
       throw new Error('No grader provider available for LLM grading');
     }
 
-    // Built-in agent mode: agentv provider → AI SDK generateText with filesystem tools
+    // Built-in agent mode: agentv provider → provider.invoke() with filesystem tools
     if (graderProvider.kind === 'agentv') {
       return this.evaluateBuiltIn(preparedContext, graderProvider);
     }
@@ -471,11 +471,14 @@ export class LlmGrader implements Grader {
   }
 
   // ---------------------------------------------------------------------------
-  // Built-in agent mode (agentv provider — AI SDK generateText with filesystem tools)
+  // Built-in agent mode (agentv provider — provider.invoke() with filesystem tools)
   // ---------------------------------------------------------------------------
 
   /**
-   * Built-in mode: Uses Vercel AI SDK generateText() with sandboxed filesystem tools.
+   * Built-in mode: drives the grader through provider.invoke() with the
+   * sandboxed filesystem tools and a step budget. The pi-ai-backed agentv
+   * provider runs the agent loop (tool call → tool execute → next model
+   * turn) until the model stops requesting tools or maxSteps is hit.
    */
   private async evaluateBuiltIn(
     context: EvaluationContext,

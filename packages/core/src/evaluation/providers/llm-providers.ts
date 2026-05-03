@@ -339,11 +339,12 @@ export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderRe
   if (request.images && request.images.length > 0) {
     attachImagesToLastUserMessage(messages, request.images);
   }
-  // Pi-ai's `Tool.parameters` is typed as a TypeBox `TSchema` (Symbol-branded
-  // for TS-level inference), but at runtime its OpenAI-completions converter
-  // forwards `parameters` to the wire format unchanged — see pi-ai's
-  // openai-completions.js convertTools(): "TypeBox already generates JSON
-  // Schema". We pass plain JSON Schema and cast at the boundary.
+  // Cast safety: pi-ai types `Tool.parameters` as a TypeBox `TSchema` for
+  // TS-level inference, but its OpenAI-completions converter forwards
+  // `parameters` to the wire format as-is — see pi-ai/dist/providers/openai-
+  // completions.js `convertTools` which annotates `parameters: tool.parameters
+  // // TypeBox already generates JSON Schema`. Plain JSON Schema works at
+  // runtime; the cast bridges the TS-only Symbol-branding gap.
   const piTools: PiTool[] | undefined = tools
     ? (tools.map((t) => ({
         name: t.name,
@@ -456,13 +457,17 @@ export function resolvePiModel(args: {
 }): PiModel {
   const { providerName, apiId, modelId, baseUrl } = args;
 
-  // pi-ai's getModel is generic over a typed registry of (provider, modelId)
-  // pairs; runtime strings need a cast at the boundary. Returns a Model when
-  // the pair is in its registry, throws otherwise; we synthesize a minimal
-  // descriptor below for unknown pairs (custom gateways, Azure deployments).
+  // Cast safety: pi-ai's `getModel<TProvider, TModelId>` is generic over a
+  // generated registry, but its implementation in pi-ai/dist/models.js is a
+  // plain Map lookup — `modelRegistry.get(provider)?.get(modelId)` — that
+  // accepts any string and returns `undefined` on miss. The PiKnownProvider /
+  // `as never` casts satisfy the type-level constraint without changing
+  // runtime behavior; the try/catch is defensive in case a future pi-ai
+  // version starts throwing. We synthesize a minimal descriptor below for
+  // unknown pairs (custom gateways, Azure deployments).
   let model: PiModel | undefined;
   try {
-    model = piGetModel(providerName as PiKnownProvider, modelId as never) as PiModel;
+    model = piGetModel(providerName as PiKnownProvider, modelId as never) as PiModel | undefined;
   } catch {
     model = undefined;
   }
@@ -474,6 +479,7 @@ export function resolvePiModel(args: {
         `pi-ai adapter cannot resolve a baseUrl for provider '${providerName}' / model '${modelId}'. Either set the target's baseUrl/endpoint or use a model id pi-ai recognizes.`,
       );
     }
+    const { contextWindow, maxTokens } = defaultModelMetadata(providerName);
     model = {
       id: modelId,
       name: modelId,
@@ -483,8 +489,8 @@ export function resolvePiModel(args: {
       reasoning: false,
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 128000,
-      maxTokens: 16384,
+      contextWindow,
+      maxTokens,
     };
   }
 
@@ -507,6 +513,36 @@ function defaultBaseUrlFor(providerName: string): string | undefined {
   if (providerName === 'openai') return 'https://api.openai.com/v1';
   if (providerName === 'openrouter') return 'https://openrouter.ai/api/v1';
   return undefined;
+}
+
+/**
+ * Generous per-provider context-window / output-token metadata used in the
+ * synthesized fallback Model when pi-ai's registry doesn't recognize the
+ * (provider, modelId) pair. These values are *metadata only* — pi-ai uses
+ * them for cost telemetry and display, not to cap the API call (the actual
+ * request size comes from StreamOptions.maxTokens, which we omit unless
+ * the caller set request.maxOutputTokens). Numbers track the largest
+ * commonly-deployed model family per provider; bump them if a custom
+ * gateway routes to bigger windows.
+ */
+function defaultModelMetadata(providerName: string): {
+  contextWindow: number;
+  maxTokens: number;
+} {
+  switch (providerName) {
+    case 'openai':
+      return { contextWindow: 400_000, maxTokens: 128_000 };
+    case 'azure-openai-responses':
+      return { contextWindow: 400_000, maxTokens: 128_000 };
+    case 'anthropic':
+      return { contextWindow: 200_000, maxTokens: 32_000 };
+    case 'google':
+      return { contextWindow: 1_000_000, maxTokens: 64_000 };
+    case 'openrouter':
+      return { contextWindow: 200_000, maxTokens: 32_000 };
+    default:
+      return { contextWindow: 128_000, maxTokens: 16_000 };
+  }
 }
 
 interface PiContext {
