@@ -2,8 +2,20 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { type AzureOpenAIProviderSettings, createAzure } from '@ai-sdk/azure';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
+import {
+  type AssistantMessage as PiAssistantMessage,
+  type Message as PiMessage,
+  type Model as PiModel,
+  complete as piComplete,
+  getModel as piGetModel,
+  registerBuiltInApiProviders,
+} from '@mariozechner/pi-ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { type LanguageModel, type ModelMessage, generateText } from 'ai';
+
+// pi-ai routes complete()/stream() by Model.api; the built-in providers must be
+// registered once at module load. Cheap; idempotent across repeated imports.
+registerBuiltInApiProviders();
 
 import type { JsonObject } from '../types.js';
 import type {
@@ -530,39 +542,16 @@ async function sleep(ms: number): Promise<void> {
 // (Vercel AI SDK) above is still in use for the four providers we have not
 // ported yet (Azure, OpenRouter, Anthropic, Gemini).
 //
-// Why dynamic import + `any` casts: pi-ai ships .d.ts files whose top-level
-// named exports do not resolve through TypeScript's NodeNext/Bundler module
-// resolution (same issue worked around in pi-coding-agent.ts:250). The runtime
-// exports are correct; only the static type graph is broken. We mirror the
-// pi-coding-agent.ts pattern: load the module dynamically once, cast through
-// `any`, and rely on the local invokePiAi shape for type safety.
+// Types come through `@mariozechner/pi-ai` plus our local `pi-ai-shim.d.ts`
+// ambient augmentation. Pi-ai's published d.ts re-exports do not surface at
+// the package root under NodeNext, so the shim re-declares the small subset
+// we use (Model, Message, complete, getModel, ...). See pi-ai-shim.d.ts.
 //
 // To port a provider:
 //   1. Map its config to the invokePiAi options below (api id, baseUrl, key).
 //   2. Replace the provider's invoke() to call invokePiAi.
 //   3. Drop the createX() / this.model build from the constructor when
 //      asLanguageModel() is no longer used by any consumer.
-
-// biome-ignore lint/suspicious/noExplicitAny: pi-ai type defs do not statically resolve named exports; mirrors the existing workaround in pi-coding-agent.ts.
-let piAiSdk: any | null = null;
-let piAiLoading: Promise<void> | null = null;
-
-async function loadPiAi(): Promise<void> {
-  if (piAiSdk) return;
-  if (!piAiLoading) {
-    piAiLoading = (async () => {
-      const mod = await import('@mariozechner/pi-ai');
-      // biome-ignore lint/suspicious/noExplicitAny: see comment above
-      const m = mod as any;
-      m.registerBuiltInApiProviders?.();
-      piAiSdk = m;
-    })().catch((err) => {
-      piAiLoading = null;
-      throw err;
-    });
-  }
-  await piAiLoading;
-}
 
 interface InvokePiAiOptions {
   /** pi-ai provider name (matches `KnownProvider`, e.g. 'openai'). */
@@ -582,10 +571,7 @@ interface InvokePiAiOptions {
 async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
   const { providerName, apiId, modelId, apiKey, baseUrl, request, defaults, retryConfig } = options;
 
-  await loadPiAi();
-  const sdk = piAiSdk;
-
-  const model = resolvePiModel(sdk, { providerName, apiId, modelId, baseUrl });
+  const model = resolvePiModel({ providerName, apiId, modelId, baseUrl });
   const { systemPrompt, messages } = chatPromptToPiContext(buildChatPrompt(request));
   const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
 
@@ -594,7 +580,7 @@ async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse>
 
   const result = await withRetry(
     () =>
-      sdk.complete(
+      piComplete(
         model,
         { systemPrompt, messages },
         {
@@ -611,29 +597,26 @@ async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse>
   const endTime = new Date().toISOString();
   const durationMs = Date.now() - startMs;
 
-  return mapPiResponse(result as PiAssistantMessage, { durationMs, startTime, endTime });
+  return mapPiResponse(result, { durationMs, startTime, endTime });
 }
 
-function resolvePiModel(
-  // biome-ignore lint/suspicious/noExplicitAny: pi-ai SDK module — see top-of-section comment
-  sdk: any,
-  args: {
-    providerName: string;
-    apiId: string;
-    modelId: string;
-    baseUrl?: string;
-  },
-  // biome-ignore lint/suspicious/noExplicitAny: pi-ai Model<Api> shape
-): any {
+function resolvePiModel(args: {
+  providerName: string;
+  apiId: string;
+  modelId: string;
+  baseUrl?: string;
+}): PiModel {
   const { providerName, apiId, modelId, baseUrl } = args;
 
-  // pi-ai's getModel returns a strongly-typed Model<Api> when the (provider,
-  // modelId) pair is in its generated registry. For runtime-string configs or
-  // unknown model ids we construct a minimal descriptor with the same shape
-  // the providers consume — every field below is required.
-  let model: { api: string; baseUrl: string } | undefined;
+  // pi-ai's getModel returns a Model when the (provider, modelId) pair is in
+  // its generated registry. For runtime-string configs or unknown model ids
+  // we construct a minimal descriptor — every field is required by Model.
+  // piGetModel's upstream signature is generic over a typed model registry; at
+  // runtime the strings flow through and it returns a plain Model. The cast
+  // converts the unresolved generic return type to the shim's Model.
+  let model: PiModel | undefined;
   try {
-    model = sdk.getModel(providerName, modelId);
+    model = piGetModel(providerName, modelId) as PiModel;
   } catch {
     model = undefined;
   }
@@ -660,21 +643,17 @@ function resolvePiModel(
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: 128000,
       maxTokens: 16384,
-      // biome-ignore lint/suspicious/noExplicitAny: minimal Model<Api> descriptor
-    } as any;
+    };
   }
 
-  // model is always defined past this point.
-  // biome-ignore lint/style/noNonNullAssertion: see comment above
-  let m = model!;
-  if (m.api !== apiId) {
-    m = { ...m, api: apiId };
+  if (model.api !== apiId) {
+    model = { ...model, api: apiId };
   }
   if (baseUrl) {
-    m = { ...m, baseUrl };
+    model = { ...model, baseUrl };
   }
 
-  return m;
+  return model;
 }
 
 /**
@@ -691,8 +670,7 @@ function defaultBaseUrlFor(providerName: string): string | undefined {
 
 interface PiContext {
   readonly systemPrompt: string | undefined;
-  // biome-ignore lint/suspicious/noExplicitAny: pi-ai Message shape
-  readonly messages: any[];
+  readonly messages: PiMessage[];
 }
 
 function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
@@ -703,9 +681,15 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
   // toModelMessages: pass assistant through as-is; fold tool/function back
   // into assistant text with a `@[name]:` prefix so pi-ai sees a clean
   // user/assistant alternation.
+  //
+  // Pi-ai's AssistantMessage type carries api/provider/model/usage/stopReason
+  // for round-trip continuity, but its OpenAI-completions converter only reads
+  // role + content blocks for replayed history. We synthesize a minimal
+  // assistant turn with placeholder metadata — pi-ai ignores those fields when
+  // converting to the wire format.
   const systemSegments: string[] = [];
-  // biome-ignore lint/suspicious/noExplicitAny: pi-ai Message shape
-  const messages: any[] = [];
+  const messages: PiMessage[] = [];
+  const now = Date.now();
 
   for (const message of chatPrompt) {
     if (message.role === 'system') {
@@ -713,18 +697,26 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
       continue;
     }
     if (message.role === 'user') {
-      messages.push({ role: 'user', content: message.content, timestamp: Date.now() });
+      messages.push({ role: 'user', content: message.content, timestamp: now });
       continue;
     }
     if (message.role === 'assistant') {
-      // pi-ai's AssistantMessage type carries api/provider/model/usage/stopReason
-      // for round-trip continuity, but its OpenAI-completions converter only
-      // reads role + content blocks for replayed history. Omitting them is safe
-      // at runtime — `messages` is typed `any[]` to absorb the type mismatch.
       messages.push({
         role: 'assistant',
         content: [{ type: 'text', text: message.content }],
-        timestamp: Date.now(),
+        api: '',
+        provider: '',
+        model: '',
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+        stopReason: 'stop',
+        timestamp: now,
       });
       continue;
     }
@@ -733,7 +725,19 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
       messages.push({
         role: 'assistant',
         content: [{ type: 'text', text: `${prefix}${message.content}` }],
-        timestamp: Date.now(),
+        api: '',
+        provider: '',
+        model: '',
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+        stopReason: 'stop',
+        timestamp: now,
       });
       continue;
     }
@@ -746,25 +750,13 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
   };
 }
 
-interface PiUsage {
-  readonly input: number;
-  readonly output: number;
-  readonly cacheRead: number;
-  readonly cost: { readonly total: number };
-}
-
-interface PiAssistantMessage {
-  readonly content: ReadonlyArray<{ type: string; text?: string }>;
-  readonly usage: PiUsage;
-}
-
 function mapPiResponse(
   result: PiAssistantMessage,
   timing: { durationMs: number; startTime: string; endTime: string },
 ): ProviderResponse {
   const text = result.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text ?? '')
+    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .map((b) => b.text)
     .join('');
 
   const cached = result.usage.cacheRead > 0 ? result.usage.cacheRead : undefined;
