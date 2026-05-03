@@ -1,44 +1,6 @@
 import { beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
-const generateTextMock = mock(async () => ({
-  text: 'ok',
-  reasoningText: undefined,
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  totalUsage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  content: [],
-  reasoning: [],
-  files: [],
-  sources: [],
-  toolCalls: [],
-  staticToolCalls: [],
-  dynamicToolCalls: [],
-  toolResults: [],
-  staticToolResults: [],
-  dynamicToolResults: [],
-  finishReason: 'stop',
-  warnings: undefined,
-  providerMetadata: undefined,
-}));
 
-const createAzureMock = mock((options: unknown) => {
-  const fn = () => ({ provider: 'azure', options, apiFormat: 'responses' });
-  fn.chat = () => ({ provider: 'azure', options, apiFormat: 'chat' });
-  fn.responses = () => ({ provider: 'azure', options, apiFormat: 'responses' });
-  return fn;
-});
-const createOpenAIMock = mock((options: unknown) => {
-  const fn = () => ({ provider: 'openai', options });
-  fn.chat = () => ({ provider: 'openai', options });
-  fn.responses = () => ({ provider: 'openai', options });
-  return fn;
-});
-const createOpenRouterMock = mock((options: unknown) => () => ({
-  provider: 'openrouter',
-  options,
-}));
-const createAnthropicMock = mock(() => () => ({ provider: 'anthropic' }));
-const createGeminiMock = mock(() => () => ({ provider: 'gemini' }));
-
-const piCompleteMock = mock(async () => ({
+const piCompleteMock = mock(async (model: { provider: string }) => ({
   content: [{ type: 'text', text: 'ok' }],
   usage: {
     input: 1,
@@ -49,8 +11,8 @@ const piCompleteMock = mock(async () => ({
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
   },
   api: 'openai-completions',
-  provider: 'openai',
-  model: 'gpt-test',
+  provider: model.provider,
+  model: 'mock',
   stopReason: 'stop',
   timestamp: Date.now(),
   role: 'assistant',
@@ -70,33 +32,9 @@ const piGetModelMock = mock((provider: string, modelId: string) => ({
 const piRegisterMock = mock(() => {});
 
 mock.module('@mariozechner/pi-ai', () => ({
-  complete: (...args: unknown[]) => piCompleteMock(...(args as [])),
+  complete: (...args: unknown[]) => piCompleteMock(...(args as [{ provider: string }])),
   getModel: (provider: string, modelId: string) => piGetModelMock(provider, modelId),
   registerBuiltInApiProviders: () => piRegisterMock(),
-}));
-
-mock.module('ai', () => ({
-  generateText: () => generateTextMock(),
-}));
-
-mock.module('@ai-sdk/azure', () => ({
-  createAzure: (options: unknown) => createAzureMock(options),
-}));
-
-mock.module('@ai-sdk/openai', () => ({
-  createOpenAI: (options: unknown) => createOpenAIMock(options),
-}));
-
-mock.module('@openrouter/ai-sdk-provider', () => ({
-  createOpenRouter: (options: unknown) => createOpenRouterMock(options),
-}));
-
-mock.module('@ai-sdk/anthropic', () => ({
-  createAnthropic: () => createAnthropicMock(),
-}));
-
-mock.module('@ai-sdk/google', () => ({
-  createGoogleGenerativeAI: () => createGeminiMock(),
 }));
 
 const providerModule = await import('../../../src/evaluation/providers/index.js');
@@ -145,7 +83,8 @@ describe('resolveDelegatedTargetDefinition', () => {
 
 describe('resolveTargetDefinition', () => {
   beforeEach(() => {
-    generateTextMock.mockClear();
+    piCompleteMock.mockClear();
+    piGetModelMock.mockClear();
   });
 
   it("throws when settings don't use ${{ }} syntax", () => {
@@ -1131,96 +1070,11 @@ describe('resolveTargetDefinition', () => {
 
 describe('createProvider', () => {
   beforeEach(() => {
-    generateTextMock.mockClear();
-    createAzureMock.mockClear();
-    createOpenAIMock.mockClear();
-    createOpenRouterMock.mockClear();
-    createAnthropicMock.mockClear();
-    createGeminiMock.mockClear();
+    piCompleteMock.mockClear();
+    piGetModelMock.mockClear();
   });
 
-  it('creates an azure provider that calls the Vercel AI SDK', async () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'key',
-      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
-    } satisfies Record<string, string>;
-
-    const resolved = resolveTargetDefinition(
-      {
-        name: 'azure-target',
-        provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-      },
-      env,
-    );
-
-    const provider = createProvider(resolved);
-    const response = await provider.invoke({ question: 'Hello' });
-
-    expect(createAzureMock).toHaveBeenCalledTimes(1);
-    expect(createAzureMock.mock.calls[0]?.[0]).toMatchObject({ useDeploymentBasedUrls: true });
-    expect(provider.asLanguageModel()).toMatchObject({ apiFormat: 'chat' });
-    expect(generateTextMock).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.output)).toBe('ok');
-  });
-
-  it('creates an azure provider using the responses api when requested', async () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'key',
-      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
-    } satisfies Record<string, string>;
-
-    const resolved = resolveTargetDefinition(
-      {
-        name: 'azure-responses-target',
-        provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        api_format: 'responses',
-      },
-      env,
-    );
-
-    const provider = createProvider(resolved);
-    const response = await provider.invoke({ question: 'Hello' });
-
-    expect(createAzureMock).toHaveBeenCalledTimes(1);
-    expect(createAzureMock.mock.calls[0]?.[0]).toMatchObject({ useDeploymentBasedUrls: false });
-    expect(provider.asLanguageModel()).toMatchObject({ apiFormat: 'responses' });
-    expect(generateTextMock).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.output)).toBe('ok');
-  });
-  it('creates a gemini provider that calls the Vercel AI SDK', async () => {
-    const env = {
-      GOOGLE_API_KEY: 'gemini-key',
-    } satisfies Record<string, string>;
-
-    const resolved = resolveTargetDefinition(
-      {
-        name: 'gemini-target',
-        provider: 'gemini',
-        api_key: '${{ GOOGLE_API_KEY }}',
-      },
-      env,
-    );
-
-    const provider = createProvider(resolved);
-    expect(provider.kind).toBe('gemini');
-    expect(provider.targetName).toBe('gemini-target');
-
-    const response = await provider.invoke({ question: 'Test prompt' });
-
-    expect(createGeminiMock).toHaveBeenCalled();
-    expect(generateTextMock).toHaveBeenCalled();
-    expect(extractLastAssistantContent(response.output)).toBe('ok');
-  });
-
-  it('creates an openai provider that calls @mariozechner/pi-ai', async () => {
+  it('routes openai targets through pi-ai openai-completions', async () => {
     const env = {
       OPENAI_ENDPOINT: 'https://llm-gateway.example.com/v1',
       OPENAI_API_KEY: 'openai-key',
@@ -1238,9 +1092,6 @@ describe('createProvider', () => {
       env,
     );
 
-    piCompleteMock.mockClear();
-    piGetModelMock.mockClear();
-
     const provider = createProvider(resolved);
     expect(provider.kind).toBe('openai');
 
@@ -1251,12 +1102,35 @@ describe('createProvider', () => {
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
 
-  it('creates an openrouter provider that calls the Vercel AI SDK', async () => {
+  it('routes openai targets with apiFormat=responses through pi-ai openai-responses', async () => {
+    const env = {
+      OPENAI_ENDPOINT: 'https://api.openai.com/v1',
+      OPENAI_API_KEY: 'k',
+      OPENAI_MODEL: 'gpt-5',
+    } satisfies Record<string, string>;
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'openai-resp',
+        provider: 'openai',
+        endpoint: '${{ OPENAI_ENDPOINT }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        model: '${{ OPENAI_MODEL }}',
+        api_format: 'responses',
+      },
+      env,
+    );
+    const provider = createProvider(resolved);
+    await provider.invoke({ question: 'Hello' });
+    // The model passed to pi-ai's complete() should carry api='openai-responses'
+    const modelArg = piCompleteMock.mock.calls[0]?.[0] as { api: string };
+    expect(modelArg.api).toBe('openai-responses');
+  });
+
+  it('routes openrouter targets through pi-ai openai-completions with the OpenRouter baseUrl', async () => {
     const env = {
       OPENROUTER_API_KEY: 'openrouter-key',
       OPENROUTER_MODEL: 'openai/gpt-5-mini',
     } satisfies Record<string, string>;
-
     const resolved = resolveTargetDefinition(
       {
         name: 'openrouter-target',
@@ -1266,15 +1140,78 @@ describe('createProvider', () => {
       },
       env,
     );
-
     const provider = createProvider(resolved);
     expect(provider.kind).toBe('openrouter');
+    await provider.invoke({ question: 'Hello' });
 
-    const response = await provider.invoke({ question: 'Hello from OpenRouter' });
+    expect(piGetModelMock).toHaveBeenCalledWith('openrouter', 'openai/gpt-5-mini');
+    const modelArg = piCompleteMock.mock.calls[0]?.[0] as { baseUrl: string };
+    expect(modelArg.baseUrl).toBe('https://openrouter.ai/api/v1');
+  });
 
-    expect(createOpenRouterMock).toHaveBeenCalledTimes(1);
-    expect(generateTextMock).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.output)).toBe('ok');
+  it('routes anthropic targets through pi-ai anthropic-messages and forwards thinkingBudget', async () => {
+    const env = {
+      ANTHROPIC_API_KEY: 'k',
+      ANTHROPIC_MODEL: 'claude-sonnet-4',
+    } satisfies Record<string, string>;
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'anthropic-target',
+        provider: 'anthropic',
+        api_key: '${{ ANTHROPIC_API_KEY }}',
+        model: '${{ ANTHROPIC_MODEL }}',
+        thinking_budget: 4096,
+      },
+      env,
+    );
+    const provider = createProvider(resolved);
+    expect(provider.kind).toBe('anthropic');
+    await provider.invoke({ question: 'Hello' });
+
+    expect(piGetModelMock).toHaveBeenCalledWith('anthropic', 'claude-sonnet-4');
+    const callOptions = piCompleteMock.mock.calls[0]?.[2] as Record<string, unknown>;
+    expect(callOptions).toMatchObject({
+      thinkingEnabled: true,
+      thinkingBudgetTokens: 4096,
+    });
+  });
+
+  it('routes gemini targets through pi-ai google-generative-ai', async () => {
+    const env = { GOOGLE_API_KEY: 'gemini-key' } satisfies Record<string, string>;
+    const resolved = resolveTargetDefinition(
+      { name: 'gemini-target', provider: 'gemini', api_key: '${{ GOOGLE_API_KEY }}' },
+      env,
+    );
+    const provider = createProvider(resolved);
+    expect(provider.kind).toBe('gemini');
+    await provider.invoke({ question: 'Hello' });
+    expect(piGetModelMock.mock.calls[0]?.[0]).toBe('google');
+  });
+
+  it('routes azure targets through pi-ai azure-openai-responses and forwards azureBaseUrl', async () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'key',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+    } satisfies Record<string, string>;
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'azure-target',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+      },
+      env,
+    );
+    const provider = createProvider(resolved);
+    await provider.invoke({ question: 'Hello' });
+
+    expect(piGetModelMock).toHaveBeenCalledWith('azure-openai-responses', 'gpt-4o');
+    const callOptions = piCompleteMock.mock.calls[0]?.[2] as Record<string, unknown>;
+    expect(callOptions).toMatchObject({
+      azureBaseUrl: 'https://example.openai.azure.com/openai/v1',
+    });
   });
 
   it('resolves pi-coding-agent with azure subprovider and base_url', () => {

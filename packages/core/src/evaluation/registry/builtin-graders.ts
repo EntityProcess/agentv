@@ -95,8 +95,8 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
     }
     // Only pass graderTargetProvider for agent providers (delegate mode).
     // LLM providers use the normal resolveGraderProvider path for structured JSON mode.
-    // Note: agentv uses asLanguageModel() not invoke(), so it's not in AGENT_PROVIDER_KINDS;
-    // check it explicitly here for built-in agent mode.
+    // The agentv provider drives the built-in agent loop directly, so include
+    // it alongside AGENT_PROVIDER_KINDS even though it doesn't spawn a subprocess.
     const isAgent = isAgentProvider(graderTargetProvider) || graderTargetProvider.kind === 'agentv';
     evaluator = new LlmGrader({
       resolveGraderProvider: async (evalContext) => {

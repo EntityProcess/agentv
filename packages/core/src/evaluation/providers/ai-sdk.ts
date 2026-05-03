@@ -1,7 +1,27 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { type AzureOpenAIProviderSettings, createAzure } from '@ai-sdk/azure';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenAI } from '@ai-sdk/openai';
+/**
+ * LLM provider classes for the five direct-API providers AgentV supports:
+ * OpenAI, Azure OpenAI, OpenRouter, Anthropic, Google (Gemini).
+ *
+ * All five route through @mariozechner/pi-ai. Each provider class:
+ *   1. Resolves a pi-ai Model in its constructor (registry lookup + field
+ *      merges; one-time work).
+ *   2. Implements invoke() by delegating to invokePiAi(), which runs the
+ *      stateless single-shot path or the multi-step agent loop depending on
+ *      whether the request carries `tools`.
+ *   3. Holds no Vercel AI SDK references.
+ *
+ * To add a new provider:
+ *   1. Add a config interface in targets.ts.
+ *   2. Add a class here that resolves a PiModel + maps config to invokePiAi
+ *      options. Pi-ai's KnownProvider list (see types.d.ts) is the source of
+ *      truth for `providerName`; pi-ai's KnownApi list is the source of
+ *      truth for `apiId`.
+ *   3. Register it in providers/index.ts.
+ *
+ * File name: kept as ai-sdk.ts for now to minimize diff churn during the
+ * pi-ai migration — rename in a follow-up once the dust settles.
+ */
+
 import {
   type AssistantMessage as PiAssistantMessage,
   type Message as PiMessage,
@@ -12,8 +32,6 @@ import {
   getModel as piGetModel,
   registerBuiltInApiProviders,
 } from '@mariozechner/pi-ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { type LanguageModel, type ModelMessage, generateText } from 'ai';
 
 // pi-ai routes complete()/stream() by Model.api; the built-in providers must be
 // registered once at module load. Cheap; idempotent across repeated imports.
@@ -33,51 +51,35 @@ import type { ChatPrompt, Provider, ProviderRequest, ProviderResponse } from './
 const DEFAULT_SYSTEM_PROMPT =
   'You are a careful assistant. Follow all provided instructions and do not fabricate results.';
 
-type TextResult = Awaited<ReturnType<typeof generateText>>;
-type GenerateTextOptions = Parameters<typeof generateText>[0];
-
 export interface ProviderDefaults {
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly thinkingBudget?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Provider classes — model is resolved in the constructor, invoke() is thin.
+// ---------------------------------------------------------------------------
+
 export class OpenAIProvider implements Provider {
   readonly id: string;
   readonly kind = 'openai' as const;
   readonly targetName: string;
 
-  // Vercel LanguageModel kept only for asLanguageModel() callers (llm-grader,
-  // composite, agentv-provider) until they migrate off it in #1205. Once gone,
-  // delete this field and the createOpenAI build below.
-  private readonly model: LanguageModel;
-  // pi-ai's Model is plain data — what model, where it lives — with no auth.
-  // We resolve once at construction (registry lookup + field merges) and pass
-  // it on each invoke. apiKey stays a per-call StreamOptions field, mirroring
-  // pi-ai's own API: model and credentials are orthogonal concerns.
   private readonly piModel: PiModel;
   private readonly defaults: ProviderDefaults;
   private readonly retryConfig?: RetryConfig;
+  private readonly apiKey: string;
 
-  constructor(
-    targetName: string,
-    private readonly config: OpenAIResolvedConfig,
-  ) {
+  constructor(targetName: string, config: OpenAIResolvedConfig) {
     this.id = `openai:${targetName}`;
     this.targetName = targetName;
+    this.apiKey = config.apiKey;
     this.defaults = {
       temperature: config.temperature,
       maxOutputTokens: config.maxOutputTokens,
     };
     this.retryConfig = config.retry;
-
-    const openai = createOpenAI({
-      apiKey: config.apiKey,
-      baseURL: config.baseURL,
-    });
-    this.model =
-      config.apiFormat === 'responses' ? openai(config.model) : openai.chat(config.model);
-
     this.piModel = resolvePiModel({
       providerName: 'openai',
       apiId: config.apiFormat === 'responses' ? 'openai-responses' : 'openai-completions',
@@ -89,57 +91,11 @@ export class OpenAIProvider implements Provider {
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     return invokePiAi({
       model: this.piModel,
-      apiKey: this.config.apiKey,
+      apiKey: this.apiKey,
       request,
       defaults: this.defaults,
       retryConfig: this.retryConfig,
     });
-  }
-
-  asLanguageModel(): LanguageModel {
-    return this.model;
-  }
-}
-
-export class AzureProvider implements Provider {
-  readonly id: string;
-  readonly kind = 'azure' as const;
-  readonly targetName: string;
-
-  private readonly model: LanguageModel;
-  private readonly defaults: ProviderDefaults;
-  private readonly retryConfig?: RetryConfig;
-
-  constructor(
-    targetName: string,
-    private readonly config: AzureResolvedConfig,
-  ) {
-    this.id = `azure:${targetName}`;
-    this.targetName = targetName;
-    this.defaults = {
-      temperature: config.temperature,
-      maxOutputTokens: config.maxOutputTokens,
-    };
-    this.retryConfig = config.retry;
-
-    const azure = createAzure(buildAzureOptions(config));
-    this.model =
-      config.apiFormat === 'responses'
-        ? azure(config.deploymentName)
-        : azure.chat(config.deploymentName);
-  }
-
-  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-    return invokeModel({
-      model: this.model,
-      request,
-      defaults: this.defaults,
-      retryConfig: this.retryConfig,
-    });
-  }
-
-  asLanguageModel(): LanguageModel {
-    return this.model;
   }
 }
 
@@ -148,39 +104,38 @@ export class OpenRouterProvider implements Provider {
   readonly kind = 'openrouter' as const;
   readonly targetName: string;
 
-  private readonly model: LanguageModel;
+  private readonly piModel: PiModel;
   private readonly defaults: ProviderDefaults;
   private readonly retryConfig?: RetryConfig;
+  private readonly apiKey: string;
 
-  constructor(
-    targetName: string,
-    private readonly config: OpenRouterResolvedConfig,
-  ) {
+  constructor(targetName: string, config: OpenRouterResolvedConfig) {
     this.id = `openrouter:${targetName}`;
     this.targetName = targetName;
+    this.apiKey = config.apiKey;
     this.defaults = {
       temperature: config.temperature,
       maxOutputTokens: config.maxOutputTokens,
     };
     this.retryConfig = config.retry;
-
-    const openrouter = createOpenRouter({
-      apiKey: config.apiKey,
+    // OpenRouter exposes an OpenAI-compatible endpoint; pi-ai routes it through
+    // openai-completions with a fixed baseUrl.
+    this.piModel = resolvePiModel({
+      providerName: 'openrouter',
+      apiId: 'openai-completions',
+      modelId: config.model,
+      baseUrl: 'https://openrouter.ai/api/v1',
     });
-    this.model = openrouter(config.model);
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-    return invokeModel({
-      model: this.model,
+    return invokePiAi({
+      model: this.piModel,
+      apiKey: this.apiKey,
       request,
       defaults: this.defaults,
       retryConfig: this.retryConfig,
     });
-  }
-
-  asLanguageModel(): LanguageModel {
-    return this.model;
   }
 }
 
@@ -189,43 +144,48 @@ export class AnthropicProvider implements Provider {
   readonly kind = 'anthropic' as const;
   readonly targetName: string;
 
-  private readonly model: LanguageModel;
+  private readonly piModel: PiModel;
   private readonly defaults: ProviderDefaults;
   private readonly retryConfig?: RetryConfig;
+  private readonly apiKey: string;
+  private readonly thinkingBudget?: number;
 
-  constructor(
-    targetName: string,
-    private readonly config: AnthropicResolvedConfig,
-  ) {
+  constructor(targetName: string, config: AnthropicResolvedConfig) {
     this.id = `anthropic:${targetName}`;
     this.targetName = targetName;
+    this.apiKey = config.apiKey;
+    this.thinkingBudget = config.thinkingBudget;
     this.defaults = {
       temperature: config.temperature,
       maxOutputTokens: config.maxOutputTokens,
       thinkingBudget: config.thinkingBudget,
     };
     this.retryConfig = config.retry;
-
-    const anthropic = createAnthropic({
-      apiKey: config.apiKey,
+    this.piModel = resolvePiModel({
+      providerName: 'anthropic',
+      apiId: 'anthropic-messages',
+      modelId: config.model,
     });
-    this.model = anthropic(config.model);
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-    const providerOptions = buildAnthropicProviderOptions(this.defaults);
+    // Pi-ai's Anthropic provider takes the same numeric thinking budget as the
+    // legacy Vercel path — no lossy bucket mapping needed for older models.
+    // Newer models (Opus 4.6, Sonnet 4.6) ignore thinkingBudgetTokens in favor
+    // of adaptive thinking; we still pass it for forward-compat.
+    const providerOptions =
+      this.thinkingBudget !== undefined
+        ? { thinkingEnabled: true, thinkingBudgetTokens: this.thinkingBudget }
+        : undefined;
 
-    return invokeModel({
-      model: this.model,
+    return invokePiAi({
+      model: this.piModel,
+      apiKey: this.apiKey,
       request,
       defaults: this.defaults,
       retryConfig: this.retryConfig,
-      providerOptions,
+      ...(providerOptions ? { providerOptions } : {}),
     });
-  }
-
-  asLanguageModel(): LanguageModel {
-    return this.model;
   }
 }
 
@@ -234,338 +194,117 @@ export class GeminiProvider implements Provider {
   readonly kind = 'gemini' as const;
   readonly targetName: string;
 
-  private readonly model: LanguageModel;
+  private readonly piModel: PiModel;
   private readonly defaults: ProviderDefaults;
   private readonly retryConfig?: RetryConfig;
+  private readonly apiKey: string;
 
-  constructor(
-    targetName: string,
-    private readonly config: GeminiResolvedConfig,
-  ) {
+  constructor(targetName: string, config: GeminiResolvedConfig) {
     this.id = `gemini:${targetName}`;
     this.targetName = targetName;
+    this.apiKey = config.apiKey;
+    this.defaults = {
+      temperature: config.temperature,
+      maxOutputTokens: config.maxOutputTokens,
+    };
+    this.retryConfig = config.retry;
+    this.piModel = resolvePiModel({
+      providerName: 'google',
+      apiId: 'google-generative-ai',
+      modelId: config.model,
+    });
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    return invokePiAi({
+      model: this.piModel,
+      apiKey: this.apiKey,
+      request,
+      defaults: this.defaults,
+      retryConfig: this.retryConfig,
+    });
+  }
+}
+
+export class AzureProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'azure' as const;
+  readonly targetName: string;
+
+  private readonly piModel: PiModel;
+  private readonly defaults: ProviderDefaults;
+  private readonly retryConfig?: RetryConfig;
+  private readonly apiKey: string;
+  private readonly providerOptions: Record<string, unknown>;
+
+  constructor(targetName: string, config: AzureResolvedConfig) {
+    this.id = `azure:${targetName}`;
+    this.targetName = targetName;
+    this.apiKey = config.apiKey;
     this.defaults = {
       temperature: config.temperature,
       maxOutputTokens: config.maxOutputTokens,
     };
     this.retryConfig = config.retry;
 
-    const google = createGoogleGenerativeAI({
-      apiKey: config.apiKey,
+    // Pi-ai's azure-openai-responses provider handles the Azure-specific URL
+    // shape and api-version query param. We pass either a full base URL or a
+    // resource name + apiVersion via providerOptions; pi-ai does the rest.
+    //
+    // apiFormat is intentionally not branched here: pi-ai uses Azure's
+    // Responses API for both chat-style and responses-style calls. Users who
+    // hit an Azure deployment that only exposes /chat/completions can route
+    // through `provider: openai` with a deployment-scoped baseURL instead.
+    const trimmed = config.resourceName.trim();
+    const isFullUrl = /^https?:\/\//i.test(trimmed);
+    const baseUrl = isFullUrl ? buildAzureBaseUrl(trimmed) : undefined;
+
+    this.providerOptions = {
+      ...(baseUrl ? { azureBaseUrl: baseUrl } : { azureResourceName: trimmed }),
+      ...(config.version ? { azureApiVersion: config.version } : {}),
+    };
+
+    this.piModel = resolvePiModel({
+      providerName: 'azure-openai-responses',
+      apiId: 'azure-openai-responses',
+      // The "model id" for Azure is the deployment name.
+      modelId: config.deploymentName,
+      ...(baseUrl ? { baseUrl } : {}),
     });
-    this.model = google(config.model);
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-    return invokeModel({
-      model: this.model,
+    return invokePiAi({
+      model: this.piModel,
+      apiKey: this.apiKey,
       request,
       defaults: this.defaults,
       retryConfig: this.retryConfig,
+      providerOptions: this.providerOptions,
     });
   }
-
-  asLanguageModel(): LanguageModel {
-    return this.model;
-  }
 }
 
-function buildAzureOptions(config: AzureResolvedConfig): AzureOpenAIProviderSettings {
-  const options: AzureOpenAIProviderSettings = {
-    apiKey: config.apiKey,
-    apiVersion: config.version,
-    // Chat completions still use deployment-scoped Azure URLs for compatibility
-    // with existing deployments. Responses API should use the SDK's v1 path.
-    useDeploymentBasedUrls: config.apiFormat !== 'responses',
-  };
-
-  const baseURL = normalizeAzureBaseUrl(config.resourceName);
-  if (baseURL) {
-    options.baseURL = baseURL;
-  } else {
-    options.resourceName = config.resourceName;
-  }
-
-  return options;
-}
-
-function normalizeAzureBaseUrl(resourceName: string): string | undefined {
-  const trimmed = resourceName.trim();
-  if (!/^https?:\/\//i.test(trimmed)) {
-    return undefined;
-  }
-
-  const withoutSlash = trimmed.replace(/\/+$/, '');
-  const normalized = withoutSlash.endsWith('/openai') ? withoutSlash : `${withoutSlash}/openai`;
-  return normalized;
-}
-
-function buildAnthropicProviderOptions(
-  defaults: ProviderDefaults,
-): GenerateTextOptions['providerOptions'] | undefined {
-  if (defaults.thinkingBudget === undefined) {
-    return undefined;
-  }
-
-  return {
-    anthropic: {
-      thinking: {
-        type: 'enabled',
-        budgetTokens: defaults.thinkingBudget,
-      },
-    },
-  };
-}
-
-function buildChatPrompt(request: ProviderRequest): ChatPrompt {
-  const provided = request.chatPrompt?.length ? request.chatPrompt : undefined;
-  if (provided) {
-    const hasSystemMessage = provided.some((message) => message.role === 'system');
-    if (hasSystemMessage) {
-      return provided;
-    }
-
-    const systemContent = resolveSystemContent(request);
-    return [{ role: 'system', content: systemContent }, ...provided];
-  }
-
-  const systemContent = resolveSystemContent(request);
-  const userContent = request.question.trim();
-
-  const prompt: ChatPrompt = [
-    { role: 'system', content: systemContent },
-    { role: 'user', content: userContent },
-  ];
-
-  return prompt;
-}
-
-function resolveSystemContent(request: ProviderRequest): string {
-  const systemSegments: string[] = [];
-
-  if (request.systemPrompt && request.systemPrompt.trim().length > 0) {
-    systemSegments.push(request.systemPrompt.trim());
-  } else {
-    systemSegments.push(DEFAULT_SYSTEM_PROMPT);
-  }
-
-  return systemSegments.join('\n\n');
-}
-
-function toModelMessages(chatPrompt: ChatPrompt): ModelMessage[] {
-  return chatPrompt.map((message) => {
-    if (message.role === 'tool' || message.role === 'function') {
-      const prefix = message.name ? `@[${message.name}]: ` : '@[Tool]: ';
-      return {
-        role: 'assistant',
-        content: `${prefix}${message.content}`,
-      } satisfies ModelMessage;
-    }
-
-    if (message.role === 'assistant' || message.role === 'system' || message.role === 'user') {
-      return {
-        role: message.role,
-        content: message.content,
-      } satisfies ModelMessage;
-    }
-
-    return {
-      role: 'user',
-      content: message.content,
-    } satisfies ModelMessage;
-  });
-}
-
-function resolveModelSettings(
-  request: ProviderRequest,
-  defaults: ProviderDefaults,
-): { temperature?: number; maxOutputTokens?: number } {
-  const temperature = request.temperature ?? defaults.temperature;
-  const maxOutputTokens = request.maxOutputTokens ?? defaults.maxOutputTokens;
-  return {
-    temperature,
-    maxOutputTokens,
-  };
-}
-
-async function invokeModel(options: {
-  readonly model: LanguageModel;
-  readonly request: ProviderRequest;
-  readonly defaults: ProviderDefaults;
-  readonly retryConfig?: RetryConfig;
-  readonly providerOptions?: GenerateTextOptions['providerOptions'];
-}): Promise<ProviderResponse> {
-  const { model, request, defaults, retryConfig, providerOptions } = options;
-  const chatPrompt = buildChatPrompt(request);
-  const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
-
-  const startTime = new Date().toISOString();
-  const startMs = Date.now();
-
-  const result = await withRetry(
-    () =>
-      generateText({
-        model,
-        messages: toModelMessages(chatPrompt),
-        temperature,
-        maxOutputTokens,
-        maxRetries: 0,
-        abortSignal: request.signal,
-        ...(providerOptions ? { providerOptions } : {}),
-      }),
-    retryConfig,
-    request.signal,
-  );
-
-  const endTime = new Date().toISOString();
-  const durationMs = Date.now() - startMs;
-
-  return mapResponse(result, { durationMs, startTime, endTime });
-}
-
-function mapResponse(
-  result: TextResult,
-  timing?: { durationMs: number; startTime: string; endTime: string },
-): ProviderResponse {
-  const content = result.text ?? '';
-  const rawUsage = result.totalUsage ?? result.usage;
-  const reasoning = rawUsage?.outputTokenDetails?.reasoningTokens ?? undefined;
-  const cached = rawUsage?.inputTokenDetails?.cacheReadTokens ?? undefined;
-  const tokenUsage =
-    rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
-      ? {
-          input: rawUsage.inputTokens,
-          output: rawUsage.outputTokens,
-          ...(reasoning != null ? { reasoning } : {}),
-          ...(cached != null ? { cached } : {}),
-        }
-      : undefined;
-
-  return {
-    raw: result,
-    usage: toJsonObject(rawUsage),
-    output: [{ role: 'assistant' as const, content }],
-    tokenUsage,
-    durationMs: timing?.durationMs,
-    startTime: timing?.startTime,
-    endTime: timing?.endTime,
-  };
-}
-
-function toJsonObject(value: unknown): JsonObject | undefined {
-  if (!value || typeof value !== 'object') {
-    return undefined;
-  }
-
-  try {
-    return JSON.parse(JSON.stringify(value)) as JsonObject;
-  } catch {
-    return undefined;
-  }
-}
-
-function extractStatus(error: unknown): number | undefined {
-  if (!error || typeof error !== 'object') {
-    return undefined;
-  }
-
-  const candidate = error as Record<string, unknown>;
-  const directStatus = candidate.status ?? candidate.statusCode;
-  if (typeof directStatus === 'number' && Number.isFinite(directStatus)) {
-    return directStatus;
-  }
-
-  const responseStatus =
-    typeof candidate.response === 'object' && candidate.response
-      ? (candidate.response as { status?: unknown }).status
-      : undefined;
-  if (typeof responseStatus === 'number' && Number.isFinite(responseStatus)) {
-    return responseStatus;
-  }
-
-  const message = typeof candidate.message === 'string' ? candidate.message : undefined;
-  if (message) {
-    const match = message.match(/HTTP\s+(\d{3})/i);
-    if (match) {
-      const parsed = Number.parseInt(match[1], 10);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function isNetworkError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') {
-    return false;
-  }
-
-  const candidate = error as Record<string, unknown>;
-  if (candidate.name === 'AbortError') {
-    return false;
-  }
-
-  const code = candidate.code;
-  if (typeof code === 'string' && /^E(AI|CONN|HOST|NET|PIPE|TIME|REFUSED|RESET)/i.test(code)) {
-    return true;
-  }
-
-  const message = typeof candidate.message === 'string' ? candidate.message : undefined;
-  if (
-    message &&
-    /(network|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED)/i.test(message)
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function isRetryableError(error: unknown, retryableStatusCodes: readonly number[]): boolean {
-  const status = extractStatus(error);
-  if (status === 401 || status === 403) {
-    return false;
-  }
-  if (typeof status === 'number') {
-    return retryableStatusCodes.includes(status);
-  }
-
-  return isNetworkError(error);
-}
-
-function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): number {
-  const delay = Math.min(
-    config.maxDelayMs,
-    config.initialDelayMs * config.backoffFactor ** attempt,
-  );
-  return delay * (0.75 + Math.random() * 0.5);
-}
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Normalize a user-supplied Azure URL to pi-ai's expected base.
+ *
+ * Pi-ai's azure-openai-responses appends `/responses?api-version=...` to the
+ * baseUrl, so the URL we hand it should end at the `/openai/v1` segment.
+ * Accept either:
+ *   - https://<resource>.openai.azure.com         → add `/openai/v1`
+ *   - https://<resource>.openai.azure.com/openai  → replace `/openai` with `/openai/v1`
+ *   - https://<resource>.openai.azure.com/openai/v1 → keep as-is
+ */
+function buildAzureBaseUrl(input: string): string {
+  const trimmed = input.replace(/\/+$/, '');
+  if (trimmed.endsWith('/openai/v1')) return trimmed;
+  if (trimmed.endsWith('/openai')) return `${trimmed}/v1`;
+  return `${trimmed}/openai/v1`;
 }
 
 // ---------------------------------------------------------------------------
-// pi-ai migration (issue #1205)
+// Shared adapter — invokePiAi runs the model call (single-shot or agent loop)
 // ---------------------------------------------------------------------------
-//
-// invokePiAi runs a single non-streaming, non-tool-using completion through
-// @mariozechner/pi-ai. It is the new code path; the existing invokeModel
-// (Vercel AI SDK) above is still in use for the four providers we have not
-// ported yet (Azure, OpenRouter, Anthropic, Gemini).
-//
-// Types come through `@mariozechner/pi-ai` plus our local `pi-ai-shim.d.ts`
-// ambient augmentation. Pi-ai's published d.ts re-exports do not surface at
-// the package root under NodeNext, so the shim re-declares the small subset
-// we use (Model, Message, complete, getModel, ...). See pi-ai-shim.d.ts.
-//
-// To port a provider:
-//   1. Map its config to the invokePiAi options below (api id, baseUrl, key).
-//   2. Replace the provider's invoke() to call invokePiAi.
-//   3. Drop the createX() / this.model build from the constructor when
-//      asLanguageModel() is no longer used by any consumer.
 
 export interface InvokePiAiOptions {
   /** Pre-resolved pi-ai model (built once in the provider constructor). */
@@ -579,10 +318,17 @@ export interface InvokePiAiOptions {
   readonly request: ProviderRequest;
   readonly defaults: ProviderDefaults;
   readonly retryConfig?: RetryConfig;
+  /**
+   * Provider-specific options merged into pi-ai's call options. Pi-ai's
+   * ProviderStreamOptions is `StreamOptions & Record<string, unknown>`, so
+   * extra keys flow through to the underlying provider impl. Example:
+   * Anthropic accepts `{ thinkingEnabled: true, thinkingBudgetTokens: 8000 }`.
+   */
+  readonly providerOptions?: Record<string, unknown>;
 }
 
 export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
-  const { model, apiKey, request, defaults, retryConfig } = options;
+  const { model, apiKey, request, defaults, retryConfig, providerOptions } = options;
   const tools = request.tools && request.tools.length > 0 ? request.tools : undefined;
   const maxSteps = tools ? Math.max(1, request.maxSteps ?? 1) : 1;
 
@@ -604,6 +350,7 @@ export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderRe
     temperature,
     ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}),
     signal: request.signal,
+    ...(providerOptions ?? {}),
   };
 
   const startTime = new Date().toISOString();
@@ -701,12 +448,9 @@ export function resolvePiModel(args: {
 }): PiModel {
   const { providerName, apiId, modelId, baseUrl } = args;
 
-  // pi-ai's getModel returns a Model when the (provider, modelId) pair is in
-  // its generated registry. For runtime-string configs or unknown model ids
-  // we construct a minimal descriptor — every field is required by Model.
-  // piGetModel's upstream signature is generic over a typed model registry; at
-  // runtime the strings flow through and it returns a plain Model. The cast
-  // converts the unresolved generic return type to the shim's Model.
+  // pi-ai's getModel returns a Model when (provider, modelId) is in its
+  // registry; otherwise we synthesize a minimal descriptor — every field is
+  // required by the Model interface.
   let model: PiModel | undefined;
   try {
     model = piGetModel(providerName, modelId) as PiModel;
@@ -715,10 +459,6 @@ export function resolvePiModel(args: {
   }
 
   if (!model) {
-    // pi-ai's getModel didn't recognize this (provider, modelId) — typical when
-    // the user is on a custom gateway, a brand-new model, or an Azure deployment
-    // name. We must still hand pi-ai a non-empty baseUrl: pi-ai forwards it to
-    // `new OpenAI({ baseURL })` which misbehaves on empty string.
     const fallbackBaseUrl = baseUrl ?? defaultBaseUrlFor(providerName);
     if (!fallbackBaseUrl) {
       throw new Error(
@@ -755,9 +495,8 @@ export function resolvePiModel(args: {
  * empty string into pi-ai's OpenAI client, which fails opaquely.
  */
 function defaultBaseUrlFor(providerName: string): string | undefined {
-  if (providerName === 'openai') {
-    return 'https://api.openai.com/v1';
-  }
+  if (providerName === 'openai') return 'https://api.openai.com/v1';
+  if (providerName === 'openrouter') return 'https://openrouter.ai/api/v1';
   return undefined;
 }
 
@@ -766,54 +505,7 @@ interface PiContext {
   readonly messages: PiMessage[];
 }
 
-function attachImagesToLastUserMessage(
-  messages: PiMessage[],
-  images: ProviderRequest['images'],
-): void {
-  if (!images || images.length === 0) return;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role !== 'user') continue;
-    const text = typeof m.content === 'string' ? m.content : '';
-    messages[i] = {
-      ...m,
-      content: [
-        ...(text ? [{ type: 'text' as const, text }] : []),
-        ...images.map((img) => ({
-          type: 'image' as const,
-          data: img.source,
-          mimeType: img.media_type,
-        })),
-      ],
-    };
-    return;
-  }
-  // No user message to attach images to — synthesize one.
-  messages.push({
-    role: 'user',
-    content: images.map((img) => ({
-      type: 'image' as const,
-      data: img.source,
-      mimeType: img.media_type,
-    })),
-    timestamp: Date.now(),
-  });
-}
-
 function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
-  // OpenAIProvider.invoke() is reached from the orchestrator's multi-turn
-  // and single-turn paths, so the chatPrompt may legitimately contain
-  // `assistant` (prior turn output) and `tool`/`function` (rare — most callers
-  // remap these upstream in prompt-builder). We mirror the Vercel path's
-  // toModelMessages: pass assistant through as-is; fold tool/function back
-  // into assistant text with a `@[name]:` prefix so pi-ai sees a clean
-  // user/assistant alternation.
-  //
-  // Pi-ai's AssistantMessage type carries api/provider/model/usage/stopReason
-  // for round-trip continuity, but its OpenAI-completions converter only reads
-  // role + content blocks for replayed history. We synthesize a minimal
-  // assistant turn with placeholder metadata — pi-ai ignores those fields when
-  // converting to the wire format.
   const systemSegments: string[] = [];
   const messages: PiMessage[] = [];
   const now = Date.now();
@@ -877,6 +569,40 @@ function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {
   };
 }
 
+function attachImagesToLastUserMessage(
+  messages: PiMessage[],
+  images: ProviderRequest['images'],
+): void {
+  if (!images || images.length === 0) return;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== 'user') continue;
+    const text = typeof m.content === 'string' ? m.content : '';
+    messages[i] = {
+      ...m,
+      content: [
+        ...(text ? [{ type: 'text' as const, text }] : []),
+        ...images.map((img) => ({
+          type: 'image' as const,
+          data: img.source,
+          mimeType: img.media_type,
+        })),
+      ],
+    };
+    return;
+  }
+  // No user message to attach images to — synthesize one.
+  messages.push({
+    role: 'user',
+    content: images.map((img) => ({
+      type: 'image' as const,
+      data: img.source,
+      mimeType: img.media_type,
+    })),
+    timestamp: Date.now(),
+  });
+}
+
 function mapPiResponse(
   result: PiAssistantMessage,
   timing: {
@@ -904,7 +630,7 @@ function mapPiResponse(
   // pi-ai always populates `cost.total`, but it computes 0 when the model
   // descriptor lacks pricing (fallback descriptor for unknown ids, or pi-ai's
   // registry simply not having rates yet). Surface 0 as "unknown" by leaving
-  // costUsd undefined — matches the Vercel path, which never sets it.
+  // costUsd undefined — matches the legacy ai-sdk path, which never set it.
   const costUsd = timing.aggregateUsage.cost > 0 ? timing.aggregateUsage.cost : undefined;
 
   return {
@@ -918,6 +644,132 @@ function mapPiResponse(
     endTime: timing.endTime,
     ...(timing.steps ? { steps: timing.steps } : {}),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Chat-prompt construction (shared with old paths; not pi-ai-specific)
+// ---------------------------------------------------------------------------
+
+function buildChatPrompt(request: ProviderRequest): ChatPrompt {
+  const provided = request.chatPrompt?.length ? request.chatPrompt : undefined;
+  if (provided) {
+    const hasSystemMessage = provided.some((message) => message.role === 'system');
+    if (hasSystemMessage) {
+      return provided;
+    }
+    const systemContent = resolveSystemContent(request);
+    return [{ role: 'system', content: systemContent }, ...provided];
+  }
+
+  const systemContent = resolveSystemContent(request);
+  const userContent = request.question.trim();
+
+  return [
+    { role: 'system', content: systemContent },
+    { role: 'user', content: userContent },
+  ];
+}
+
+function resolveSystemContent(request: ProviderRequest): string {
+  if (request.systemPrompt && request.systemPrompt.trim().length > 0) {
+    return request.systemPrompt.trim();
+  }
+  return DEFAULT_SYSTEM_PROMPT;
+}
+
+function resolveModelSettings(
+  request: ProviderRequest,
+  defaults: ProviderDefaults,
+): { temperature?: number; maxOutputTokens?: number } {
+  return {
+    temperature: request.temperature ?? defaults.temperature,
+    maxOutputTokens: request.maxOutputTokens ?? defaults.maxOutputTokens,
+  };
+}
+
+function toJsonObject(value: unknown): JsonObject | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  try {
+    return JSON.parse(JSON.stringify(value)) as JsonObject;
+  } catch {
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Retry / backoff — library-agnostic; wraps any async fn that may transient-fail
+// ---------------------------------------------------------------------------
+
+function extractStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+
+  const candidate = error as Record<string, unknown>;
+  const directStatus = candidate.status ?? candidate.statusCode;
+  if (typeof directStatus === 'number' && Number.isFinite(directStatus)) {
+    return directStatus;
+  }
+
+  const responseStatus =
+    typeof candidate.response === 'object' && candidate.response
+      ? (candidate.response as { status?: unknown }).status
+      : undefined;
+  if (typeof responseStatus === 'number' && Number.isFinite(responseStatus)) {
+    return responseStatus;
+  }
+
+  const message = typeof candidate.message === 'string' ? candidate.message : undefined;
+  if (message) {
+    const match = message.match(/HTTP\s+(\d{3})/i);
+    if (match) {
+      const parsed = Number.parseInt(match[1], 10);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function isNetworkError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const candidate = error as Record<string, unknown>;
+  if (candidate.name === 'AbortError') return false;
+
+  const code = candidate.code;
+  if (typeof code === 'string' && /^E(AI|CONN|HOST|NET|PIPE|TIME|REFUSED|RESET)/i.test(code)) {
+    return true;
+  }
+
+  const message = typeof candidate.message === 'string' ? candidate.message : undefined;
+  if (
+    message &&
+    /(network|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED)/i.test(message)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isRetryableError(error: unknown, retryableStatusCodes: readonly number[]): boolean {
+  const status = extractStatus(error);
+  if (status === 401 || status === 403) return false;
+  if (typeof status === 'number') return retryableStatusCodes.includes(status);
+  return isNetworkError(error);
+}
+
+function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): number {
+  const delay = Math.min(
+    config.maxDelayMs,
+    config.initialDelayMs * config.backoffFactor ** attempt,
+  );
+  return delay * (0.75 + Math.random() * 0.5);
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function withRetry<T>(
@@ -945,13 +797,8 @@ async function withRetry<T>(
     } catch (error) {
       lastError = error;
 
-      if (attempt >= config.maxRetries) {
-        break;
-      }
-
-      if (!isRetryableError(error, config.retryableStatusCodes)) {
-        throw error;
-      }
+      if (attempt >= config.maxRetries) break;
+      if (!isRetryableError(error, config.retryableStatusCodes)) throw error;
 
       const delay = calculateRetryDelay(attempt, config);
       await sleep(delay);
