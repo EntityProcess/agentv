@@ -26,7 +26,10 @@ declare module '@mariozechner/pi-ai' {
   }
   export interface ImageContent {
     type: 'image';
-    [k: string]: unknown;
+    /** Base64 data, data URL, or absolute URL. */
+    data: string;
+    /** MIME type, e.g. "image/png". */
+    mimeType: string;
   }
   export interface ToolCall {
     type: 'toolCall';

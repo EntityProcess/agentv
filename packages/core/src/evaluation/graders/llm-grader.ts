@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 
 import {
@@ -10,7 +9,7 @@ import {
 } from '../content-preprocessor.js';
 import type { ContentImage } from '../content.js';
 import { isContentArray } from '../content.js';
-import type { Message, Provider, ProviderResponse } from '../providers/types.js';
+import type { Message, Provider, ProviderResponse, ProviderTool } from '../providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
 import { DEPRECATED_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
@@ -482,13 +481,6 @@ export class LlmGrader implements Grader {
     context: EvaluationContext,
     graderProvider: Provider,
   ): Promise<EvaluationScore> {
-    const model = graderProvider.asLanguageModel?.();
-    if (!model) {
-      throw new Error(
-        `Grader provider '${graderProvider.targetName}' does not support asLanguageModel() — required for built-in agent mode`,
-      );
-    }
-
     const workspacePath = context.workspacePath;
     if (!workspacePath) {
       throw new Error(
@@ -512,20 +504,23 @@ export class LlmGrader implements Grader {
     };
 
     try {
-      const { text, steps } = await generateText({
-        model,
-        system: systemPrompt,
-        prompt: userPrompt,
-        tools: fsTools,
-        stopWhen: stepCountIs(this.maxSteps),
+      const response = await graderProvider.invoke({
+        question: userPrompt,
+        systemPrompt,
+        evalCaseId: context.evalCase.id,
+        attempt: context.attempt,
         temperature: this.temperature ?? 0,
+        tools: fsTools,
+        maxSteps: this.maxSteps,
       });
 
-      const toolCallCount = steps.reduce((count, step) => count + (step.toolCalls?.length ?? 0), 0);
+      const text = extractLastAssistantContent(response.output);
+      const stepCount = response.steps?.count ?? 1;
+      const toolCallCount = response.steps?.toolCallCount ?? 0;
 
       const details: JsonObject = {
         mode: 'built-in',
-        steps: steps.length,
+        steps: stepCount,
         tool_calls: toolCallCount,
       };
 
@@ -1103,44 +1098,6 @@ export class LlmGrader implements Grader {
   }): Promise<StructuredGenerationResult> {
     const { context, graderProvider, systemPrompt, userPrompt, images } = options;
 
-    const model = graderProvider.asLanguageModel?.();
-    if (model) {
-      const modelOptions = {
-        ...(this.maxOutputTokens ? { maxTokens: this.maxOutputTokens } : {}),
-        ...(typeof this.temperature === 'number' ? { temperature: this.temperature } : {}),
-      };
-
-      const hasImages = images && images.length > 0;
-      const result = hasImages
-        ? await generateText({
-            model,
-            system: systemPrompt,
-            messages: [
-              {
-                role: 'user' as const,
-                content: [
-                  { type: 'text' as const, text: userPrompt },
-                  ...toAiSdkImageParts(images),
-                ],
-              },
-            ],
-            ...modelOptions,
-          })
-        : await generateText({
-            model,
-            system: systemPrompt,
-            prompt: userPrompt,
-            ...modelOptions,
-          });
-
-      const rawUsage = result.usage;
-      const tokenUsage =
-        rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
-          ? { input: rawUsage.inputTokens, output: rawUsage.outputTokens }
-          : undefined;
-      return { text: result.text, tokenUsage };
-    }
-
     const response = await graderProvider.invoke({
       question: userPrompt,
       systemPrompt,
@@ -1148,6 +1105,7 @@ export class LlmGrader implements Grader {
       attempt: context.attempt,
       maxOutputTokens: this.maxOutputTokens,
       temperature: this.temperature,
+      ...(images && images.length > 0 ? { images } : {}),
     });
 
     return {
@@ -1434,23 +1392,6 @@ export function extractImageBlocks(messages: readonly Message[]): ContentImage[]
   return images;
 }
 
-/**
- * Convert AgentV `ContentImage` blocks to Vercel AI SDK image content parts.
- *
- * The AI SDK `ImagePart` expects `{ type: 'image', image: string | URL, mediaType?: string }`.
- * `ContentImage.source` may be a URL, data URI, or base64 string — all are passed through
- * as the `image` field which the SDK handles natively.
- */
-function toAiSdkImageParts(
-  images: readonly ContentImage[],
-): Array<{ type: 'image'; image: string; mediaType?: string }> {
-  return images.map((img) => ({
-    type: 'image' as const,
-    image: img.source,
-    mediaType: img.media_type || undefined,
-  }));
-}
-
 // ---------------------------------------------------------------------------
 // Sandboxed filesystem tools for built-in agent mode
 // ---------------------------------------------------------------------------
@@ -1468,19 +1409,32 @@ function resolveSandboxed(basePath: string, relativePath: string): string {
 }
 
 /**
- * Create sandboxed filesystem tools for the AI SDK agent loop.
+ * Create sandboxed filesystem tools for the built-in grader agent loop.
+ *
+ * Tools are returned as plain `ProviderTool` records with JSON Schema
+ * `parameters`. The provider serializes them to whatever wire format the
+ * underlying API expects (OpenAI: tools[], Anthropic: tools, ...).
  */
-function createFilesystemTools(workspacePath: string) {
-  return {
-    list_files: tool({
+function createFilesystemTools(workspacePath: string): ProviderTool[] {
+  return [
+    {
+      name: 'list_files',
       description:
         'List files and directories at a relative path within the workspace. Returns names only (single level, no recursion).',
-      inputSchema: z.object({
-        path: z.string().describe('Relative path within workspace (use "." for root)').default('.'),
-      }),
-      execute: async (input: { path: string }) => {
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description: 'Relative path within workspace (use "." for root)',
+            default: '.',
+          },
+        },
+      },
+      execute: async (input: unknown) => {
+        const args = (input ?? {}) as { path?: string };
         try {
-          const resolved = resolveSandboxed(workspacePath, input.path);
+          const resolved = resolveSandboxed(workspacePath, args.path ?? '.');
           const entries = await fs.readdir(resolved, { withFileTypes: true });
           return entries
             .map((e) => ({
@@ -1492,20 +1446,26 @@ function createFilesystemTools(workspacePath: string) {
           return { error: error instanceof Error ? error.message : String(error) };
         }
       },
-    }),
-
-    read_file: tool({
+    },
+    {
+      name: 'read_file',
       description:
         'Read the content of a file at a relative path within the workspace. Large files are truncated at 50KB.',
-      inputSchema: z.object({
-        path: z.string().describe('Relative path to file within workspace'),
-      }),
-      execute: async (input: { path: string }) => {
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Relative path to file within workspace' },
+        },
+        required: ['path'],
+      },
+      execute: async (input: unknown) => {
+        const args = (input ?? {}) as { path?: string };
+        const relPath = args.path ?? '';
         try {
-          const resolved = resolveSandboxed(workspacePath, input.path);
+          const resolved = resolveSandboxed(workspacePath, relPath);
           const stat = await fs.stat(resolved);
           if (stat.isDirectory()) {
-            return { error: `'${input.path}' is a directory, not a file` };
+            return { error: `'${relPath}' is a directory, not a file` };
           }
           const buffer = Buffer.alloc(Math.min(stat.size, MAX_FILE_SIZE));
           const fd = await fs.open(resolved, 'r');
@@ -1521,21 +1481,30 @@ function createFilesystemTools(workspacePath: string) {
           return { error: error instanceof Error ? error.message : String(error) };
         }
       },
-    }),
-
-    search_files: tool({
+    },
+    {
+      name: 'search_files',
       description:
         'Search for a regex pattern across files in the workspace. Returns up to 20 matches. Skips binary files and node_modules/.git.',
-      inputSchema: z.object({
-        pattern: z.string().describe('Regex pattern to search for'),
-        path: z.string().describe('Relative path to search within (use "." for root)').default('.'),
-      }),
-      execute: async (input: { pattern: string; path: string }) => {
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Regex pattern to search for' },
+          path: {
+            type: 'string',
+            description: 'Relative path to search within (use "." for root)',
+            default: '.',
+          },
+        },
+        required: ['pattern'],
+      },
+      execute: async (input: unknown) => {
+        const args = (input ?? {}) as { pattern?: string; path?: string };
         try {
-          const resolved = resolveSandboxed(workspacePath, input.path);
+          const resolved = resolveSandboxed(workspacePath, args.path ?? '.');
           let regex: RegExp;
           try {
-            regex = new RegExp(input.pattern, 'gi');
+            regex = new RegExp(args.pattern ?? '', 'gi');
           } catch (regexErr) {
             return {
               error: `Invalid regex pattern: ${regexErr instanceof Error ? regexErr.message : String(regexErr)}`,
@@ -1550,8 +1519,8 @@ function createFilesystemTools(workspacePath: string) {
           return { error: error instanceof Error ? error.message : String(error) };
         }
       },
-    }),
-  };
+    },
+  ];
 }
 
 /**

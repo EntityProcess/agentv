@@ -36,7 +36,7 @@ const DEFAULT_SYSTEM_PROMPT =
 type TextResult = Awaited<ReturnType<typeof generateText>>;
 type GenerateTextOptions = Parameters<typeof generateText>[0];
 
-interface ProviderDefaults {
+export interface ProviderDefaults {
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly thinkingBudget?: number;
@@ -567,22 +567,29 @@ async function sleep(ms: number): Promise<void> {
 //   3. Drop the createX() / this.model build from the constructor when
 //      asLanguageModel() is no longer used by any consumer.
 
-interface InvokePiAiOptions {
+export interface InvokePiAiOptions {
   /** Pre-resolved pi-ai model (built once in the provider constructor). */
   readonly model: PiModel;
-  /** Per-call credential — pi-ai treats apiKey as a StreamOptions field. */
-  readonly apiKey: string;
+  /**
+   * Per-call credential — pi-ai treats apiKey as a StreamOptions field. When
+   * omitted, pi-ai falls back to the provider-specific env var (OPENAI_API_KEY,
+   * ANTHROPIC_API_KEY, ...). The agentv provider relies on that fallback.
+   */
+  readonly apiKey?: string;
   readonly request: ProviderRequest;
   readonly defaults: ProviderDefaults;
   readonly retryConfig?: RetryConfig;
 }
 
-async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
+export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
   const { model, apiKey, request, defaults, retryConfig } = options;
   const tools = request.tools && request.tools.length > 0 ? request.tools : undefined;
   const maxSteps = tools ? Math.max(1, request.maxSteps ?? 1) : 1;
 
   const { systemPrompt, messages } = chatPromptToPiContext(buildChatPrompt(request));
+  if (request.images && request.images.length > 0) {
+    attachImagesToLastUserMessage(messages, request.images);
+  }
   const piTools: PiTool[] | undefined = tools
     ? tools.map((t) => ({
         name: t.name,
@@ -593,7 +600,7 @@ async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse>
   const ctx = { systemPrompt, messages, ...(piTools ? { tools: piTools } : {}) };
   const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
   const callOptions = {
-    apiKey,
+    ...(apiKey !== undefined ? { apiKey } : {}),
     temperature,
     ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}),
     signal: request.signal,
@@ -686,7 +693,7 @@ function accumulateUsage(agg: AggregatedUsage, u: PiAssistantMessage['usage']): 
   agg.cost += u.cost.total;
 }
 
-function resolvePiModel(args: {
+export function resolvePiModel(args: {
   providerName: string;
   apiId: string;
   modelId: string;
@@ -757,6 +764,40 @@ function defaultBaseUrlFor(providerName: string): string | undefined {
 interface PiContext {
   readonly systemPrompt: string | undefined;
   readonly messages: PiMessage[];
+}
+
+function attachImagesToLastUserMessage(
+  messages: PiMessage[],
+  images: ProviderRequest['images'],
+): void {
+  if (!images || images.length === 0) return;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== 'user') continue;
+    const text = typeof m.content === 'string' ? m.content : '';
+    messages[i] = {
+      ...m,
+      content: [
+        ...(text ? [{ type: 'text' as const, text }] : []),
+        ...images.map((img) => ({
+          type: 'image' as const,
+          data: img.source,
+          mimeType: img.media_type,
+        })),
+      ],
+    };
+    return;
+  }
+  // No user message to attach images to — synthesize one.
+  messages.push({
+    role: 'user',
+    content: images.map((img) => ({
+      type: 'image' as const,
+      data: img.source,
+      mimeType: img.media_type,
+    })),
+    timestamp: Date.now(),
+  });
 }
 
 function chatPromptToPiContext(chatPrompt: ChatPrompt): PiContext {

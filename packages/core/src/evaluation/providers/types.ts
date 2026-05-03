@@ -1,4 +1,4 @@
-import type { Content } from '../content.js';
+import type { Content, ContentImage } from '../content.js';
 import { getTextContent, isContentArray } from '../content.js';
 import type { JsonObject } from '../types.js';
 
@@ -192,6 +192,12 @@ export interface ProviderRequest {
    * step). Required when `tools` is non-empty. Ignored otherwise.
    */
   readonly maxSteps?: number;
+  /**
+   * Image inputs appended to the last user turn. Used by graders that judge
+   * screenshot/image content (e.g. red-team UI evals). Providers that do not
+   * support multimodal input should drop these gracefully.
+   */
+  readonly images?: readonly ContentImage[];
 }
 
 /**
