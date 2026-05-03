@@ -45,7 +45,15 @@ export class OpenAIProvider implements Provider {
   readonly kind = 'openai' as const;
   readonly targetName: string;
 
+  // Vercel LanguageModel kept only for asLanguageModel() callers (llm-grader,
+  // composite, agentv-provider) until they migrate off it in #1205. Once gone,
+  // delete this field and the createOpenAI build below.
   private readonly model: LanguageModel;
+  // pi-ai's Model is plain data — what model, where it lives — with no auth.
+  // We resolve once at construction (registry lookup + field merges) and pass
+  // it on each invoke. apiKey stays a per-call StreamOptions field, mirroring
+  // pi-ai's own API: model and credentials are orthogonal concerns.
+  private readonly piModel: PiModel;
   private readonly defaults: ProviderDefaults;
   private readonly retryConfig?: RetryConfig;
 
@@ -67,15 +75,19 @@ export class OpenAIProvider implements Provider {
     });
     this.model =
       config.apiFormat === 'responses' ? openai(config.model) : openai.chat(config.model);
+
+    this.piModel = resolvePiModel({
+      providerName: 'openai',
+      apiId: config.apiFormat === 'responses' ? 'openai-responses' : 'openai-completions',
+      modelId: config.model,
+      baseUrl: config.baseURL,
+    });
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     return invokePiAi({
-      providerName: 'openai',
-      apiId: this.config.apiFormat === 'responses' ? 'openai-responses' : 'openai-completions',
-      modelId: this.config.model,
+      model: this.piModel,
       apiKey: this.config.apiKey,
-      baseUrl: this.config.baseURL,
       request,
       defaults: this.defaults,
       retryConfig: this.retryConfig,
@@ -554,24 +566,18 @@ async function sleep(ms: number): Promise<void> {
 //      asLanguageModel() is no longer used by any consumer.
 
 interface InvokePiAiOptions {
-  /** pi-ai provider name (matches `KnownProvider`, e.g. 'openai'). */
-  readonly providerName: string;
-  /** pi-ai api id, picks which provider impl runs the call. */
-  readonly apiId: string;
-  /** Model id from user config (may or may not exist in pi-ai's registry). */
-  readonly modelId: string;
+  /** Pre-resolved pi-ai model (built once in the provider constructor). */
+  readonly model: PiModel;
+  /** Per-call credential — pi-ai treats apiKey as a StreamOptions field. */
   readonly apiKey: string;
-  /** Optional baseUrl override; falls back to the registry's default. */
-  readonly baseUrl?: string;
   readonly request: ProviderRequest;
   readonly defaults: ProviderDefaults;
   readonly retryConfig?: RetryConfig;
 }
 
 async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderResponse> {
-  const { providerName, apiId, modelId, apiKey, baseUrl, request, defaults, retryConfig } = options;
+  const { model, apiKey, request, defaults, retryConfig } = options;
 
-  const model = resolvePiModel({ providerName, apiId, modelId, baseUrl });
   const { systemPrompt, messages } = chatPromptToPiContext(buildChatPrompt(request));
   const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
 
