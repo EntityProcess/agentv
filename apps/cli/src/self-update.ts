@@ -49,16 +49,42 @@ export function detectPackageManager(): 'bun' | 'npm' {
 
 /**
  * Detect whether agentv was invoked from a local project install.
- * A path containing a `node_modules` segment indicates a local dependency;
- * anything else (system binary, `.bun/bin`, `.nvm/.../bin`) is treated as
- * global. Matches both POSIX and Windows path separators so a directory
- * that merely embeds the substring (e.g., `/opt/my_node_modules_tool/`)
- * isn't misclassified.
+ * npm global installs can also live under a `node_modules` segment, so
+ * the path alone is not enough. We treat `npx` cache paths as local and
+ * otherwise require the current working directory to be inside the package
+ * root before classifying it as local.
  */
-export function detectInstallScopeFromPath(scriptPath: string): 'local' | 'global' {
-  const hasSegment =
-    scriptPath.includes('/node_modules/') || scriptPath.includes('\\node_modules\\');
-  return hasSegment ? 'local' : 'global';
+export function detectInstallScopeFromPath(
+  scriptPath: string,
+  cwd = process.cwd(),
+): 'local' | 'global' {
+  const normalizedScriptPath = scriptPath.replace(/\\/g, '/');
+  const normalizedCwd = cwd.replace(/\\/g, '/');
+
+  if (!normalizedScriptPath.includes('/node_modules/')) {
+    return 'global';
+  }
+
+  if (normalizedScriptPath.includes('/.npm/_npx/') || normalizedScriptPath.includes('/npm-cache/_npx/')) {
+    return 'local';
+  }
+
+  const packageRoot = normalizedScriptPath.split('/node_modules/')[0];
+  if (!packageRoot) {
+    return 'global';
+  }
+
+  const scriptPathComparable = process.platform === 'win32'
+    ? normalizedScriptPath.toLowerCase()
+    : normalizedScriptPath;
+  const cwdComparable = process.platform === 'win32' ? normalizedCwd.toLowerCase() : normalizedCwd;
+  const packageRootComparable = process.platform === 'win32' ? packageRoot.toLowerCase() : packageRoot;
+
+  const projectOwnsPackage =
+    cwdComparable === packageRootComparable ||
+    cwdComparable.startsWith(`${packageRootComparable}/`);
+
+  return projectOwnsPackage ? 'local' : 'global';
 }
 
 export function detectInstallScope(): 'local' | 'global' {

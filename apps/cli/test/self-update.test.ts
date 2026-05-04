@@ -27,7 +27,12 @@ describe('detectPackageManagerFromPath', () => {
 
 describe('detectInstallScopeFromPath', () => {
   test('detects local for project node_modules path', () => {
-    expect(detectInstallScopeFromPath('/home/user/proj/node_modules/.bin/agentv')).toBe('local');
+    expect(
+      detectInstallScopeFromPath(
+        '/home/user/proj/node_modules/.bin/agentv',
+        '/home/user/proj',
+      ),
+    ).toBe('local');
   });
 
   test('detects local for nested npx cache path', () => {
@@ -51,9 +56,39 @@ describe('detectInstallScopeFromPath', () => {
   });
 
   test('detects local for Windows node_modules path', () => {
-    expect(detectInstallScopeFromPath('C:\\Users\\dev\\proj\\node_modules\\.bin\\agentv.cmd')).toBe(
-      'local',
-    );
+    expect(
+      detectInstallScopeFromPath(
+        'C:\\Users\\dev\\proj\\node_modules\\.bin\\agentv.cmd',
+        'C:\\Users\\dev\\proj',
+      ),
+    ).toBe('local');
+  });
+
+  test('detects global for Windows npm global install path', () => {
+    expect(
+      detectInstallScopeFromPath(
+        'C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\agentv\\dist\\cli.js',
+        'C:\\Users\\dev\\work\\repo',
+      ),
+    ).toBe('global');
+  });
+
+  test('detects global for Windows npm global install path from home directory', () => {
+    expect(
+      detectInstallScopeFromPath(
+        'C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\agentv\\dist\\cli.js',
+        'C:\\Users\\dev',
+      ),
+    ).toBe('global');
+  });
+
+  test('detects local when cwd is inside the project using the dependency', () => {
+    expect(
+      detectInstallScopeFromPath(
+        'C:\\Users\\dev\\repo\\node_modules\\agentv\\dist\\cli.js',
+        'C:\\Users\\dev\\repo\\packages\\cli',
+      ),
+    ).toBe('local');
   });
 
   test('treats unrelated directory containing node_modules substring as global', () => {
