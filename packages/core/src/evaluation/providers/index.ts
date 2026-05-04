@@ -1,11 +1,4 @@
 import { AgentvProvider } from './agentv-provider.js';
-import {
-  AnthropicProvider,
-  AzureProvider,
-  GeminiProvider,
-  OpenAIProvider,
-  OpenRouterProvider,
-} from './ai-sdk.js';
 import { ClaudeCliProvider } from './claude-cli.js';
 import { ClaudeSdkProvider } from './claude-sdk.js';
 import { ClaudeProvider } from './claude.js';
@@ -14,6 +7,13 @@ import { CodexProvider } from './codex.js';
 import { CopilotCliProvider } from './copilot-cli.js';
 import { CopilotLogProvider } from './copilot-log.js';
 import { CopilotSdkProvider } from './copilot-sdk.js';
+import {
+  AnthropicProvider,
+  AzureProvider,
+  GeminiProvider,
+  OpenAIProvider,
+  OpenRouterProvider,
+} from './llm-providers.js';
 import { MockProvider } from './mock.js';
 import { PiCliProvider } from './pi-cli.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';

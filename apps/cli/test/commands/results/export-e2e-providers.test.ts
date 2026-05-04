@@ -3,7 +3,7 @@
  *
  * Validates that reasoning tokens, cached tokens, duration, cost,
  * and other metrics survive the JSONL → artifact conversion pipeline
- * for: claude-cli, codex, copilot-cli, pi-coding-agent, and llm (ai-sdk).
+ * for: claude-cli, codex, copilot-cli, pi-coding-agent, and llm (pi-ai).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';

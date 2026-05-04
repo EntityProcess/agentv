@@ -1,5 +1,3 @@
-import { generateText } from 'ai';
-
 import { extractLastAssistantContent } from '../providers/types.js';
 import type {
   AssertionEntry,
@@ -340,30 +338,6 @@ export class CompositeGrader implements Grader {
     };
 
     try {
-      const model = graderProvider.asLanguageModel?.();
-      if (model) {
-        const { text } = await generateText({
-          model,
-          system: systemPrompt,
-          prompt: userPrompt,
-        });
-
-        const data = freeformEvaluationSchema.parse(parseJsonFromText(text));
-        const score = clampScore(data.score);
-        const assertions: AssertionEntry[] = Array.isArray(data.assertions)
-          ? data.assertions.slice(0, 8)
-          : [];
-
-        return {
-          score,
-          verdict: scoreToVerdict(score),
-          assertions,
-          expectedAspectCount: Math.max(assertions.length, 1),
-          graderRawRequest,
-          scores,
-        };
-      }
-
       const response = await graderProvider.invoke({
         question: userPrompt,
         systemPrompt,

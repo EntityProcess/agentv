@@ -1,7 +1,7 @@
-import { generateText } from 'ai';
 import { z } from 'zod';
 
 import type { Provider } from '../providers/types.js';
+import { extractLastAssistantContent } from '../providers/types.js';
 import type { RubricItem } from '../types.js';
 
 const rubricItemSchema = z.object({
@@ -24,6 +24,10 @@ export interface GenerateRubricsOptions {
 
 /**
  * Generate rubrics from expected outcome using an LLM.
+ *
+ * Calls the provider through `Provider.invoke()` — the LLM call itself is
+ * a single non-streaming, non-tool-using completion. JSON output is parsed
+ * with up to 3 retries to absorb model formatting variance.
  */
 export async function generateRubrics(
   options: GenerateRubricsOptions,
@@ -31,11 +35,6 @@ export async function generateRubrics(
   const { criteria, question, referenceAnswer, provider } = options;
 
   const prompt = buildPrompt(criteria, question, referenceAnswer);
-
-  const model = provider.asLanguageModel?.();
-  if (!model) {
-    throw new Error('Provider does not support language model interface');
-  }
 
   const system = `You are an expert at creating evaluation rubrics.
 You must return a valid JSON object matching this schema:
@@ -55,12 +54,12 @@ You must return a valid JSON object matching this schema:
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const { text } = await generateText({
-        model,
-        system,
-        prompt,
+      const response = await provider.invoke({
+        question: prompt,
+        systemPrompt: system,
       });
 
+      const text = extractLastAssistantContent(response.output);
       const cleaned = text.replace(/```json\n?|```/g, '').trim();
       result = rubricGenerationSchema.parse(JSON.parse(cleaned));
       break;

@@ -1,87 +1,82 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createAzure } from '@ai-sdk/azure';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenAI } from '@ai-sdk/openai';
-import type { LanguageModel } from 'ai';
-
+import { invokePiAi, resolvePiModel } from './llm-providers.js';
 import type { AgentVResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 /**
- * Parse a model string like "openai:gpt-5-mini" into provider prefix and model name.
- */
-function parseModelString(model: string): { provider: string; modelName: string } {
-  const colonIndex = model.indexOf(':');
-  if (colonIndex === -1) {
-    throw new Error(
-      `Invalid model string "${model}". Expected format "provider:model" (e.g., "openai:gpt-5-mini")`,
-    );
-  }
-  return {
-    provider: model.slice(0, colonIndex),
-    modelName: model.slice(colonIndex + 1),
-  };
-}
-
-/**
- * Create a LanguageModel from a model string using the appropriate AI SDK provider.
- */
-function createLanguageModel(modelString: string): LanguageModel {
-  const { provider, modelName } = parseModelString(modelString);
-
-  switch (provider) {
-    case 'openai':
-      return createOpenAI()(modelName);
-    case 'anthropic':
-      return createAnthropic()(modelName);
-    case 'azure':
-      return createAzure().chat(modelName);
-    case 'google':
-      return createGoogleGenerativeAI()(modelName);
-    default:
-      throw new Error(
-        `Unsupported AI SDK provider "${provider}" in model string "${modelString}". Supported providers: openai, anthropic, azure, google`,
-      );
-  }
-}
-
-/**
- * AgentV built-in provider for LLM grader evaluation.
+ * AgentV built-in grader provider.
  *
- * Resolves an AI SDK model string (e.g., "openai:gpt-5-mini", "anthropic:claude-sonnet-4-20250514")
- * to a Vercel AI SDK LanguageModel by parsing the provider prefix and creating the appropriate
- * AI SDK provider directly. This provider is used exclusively for grader evaluation — it does not
- * support direct agent invocation.
+ * Resolves a `provider:model` string (e.g. `openai:gpt-5-mini`,
+ * `anthropic:claude-sonnet-4-20250514`) into a pi-ai Model and runs the call
+ * through the shared invokePiAi adapter. API keys are read from the
+ * provider-specific env var (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) by pi-ai;
+ * we don't carry credentials in this provider's config.
  *
- * Usage: `--grader-target agentv --model openai:gpt-5-mini`
+ * Used as `--grader-target agentv --model openai:gpt-5-mini`.
  */
 export class AgentvProvider implements Provider {
   readonly id: string;
   readonly kind = 'agentv' as const;
   readonly targetName: string;
 
-  private readonly model: LanguageModel;
+  private readonly piModel: ReturnType<typeof resolvePiModel>;
+  private readonly defaults: { temperature: number };
 
   constructor(targetName: string, config: AgentVResolvedConfig) {
     this.id = `agentv:${targetName}`;
     this.targetName = targetName;
-    this.model = createLanguageModel(config.model);
+    const { providerName, apiId, modelId } = parseAgentvModel(config.model);
+    this.piModel = resolvePiModel({ providerName, apiId, modelId });
+    this.defaults = { temperature: config.temperature };
   }
 
-  /**
-   * Direct invoke is not supported for the agentv provider.
-   * Use asLanguageModel() with generateText() instead.
-   */
-  async invoke(_request: ProviderRequest): Promise<ProviderResponse> {
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    return invokePiAi({
+      model: this.piModel,
+      request,
+      defaults: this.defaults,
+    });
+  }
+}
+
+/**
+ * Parse `provider:model` into the pi-ai routing fields. Each provider
+ * shorthand maps to a pi-ai (providerName, apiId) pair:
+ *
+ *   openai:<id>    → ('openai', 'openai-completions')
+ *   anthropic:<id> → ('anthropic', 'anthropic-messages')
+ *   azure:<id>     → ('azure-openai-responses', 'azure-openai-responses')
+ *   google:<id>    → ('google', 'google-generative-ai')
+ */
+function parseAgentvModel(model: string): {
+  providerName: string;
+  apiId: string;
+  modelId: string;
+} {
+  const colonIndex = model.indexOf(':');
+  if (colonIndex === -1) {
     throw new Error(
-      'AgentvProvider does not support direct invoke(). Use asLanguageModel() with generateText() instead.',
+      `Invalid agentv model "${model}". Expected "provider:model" (e.g., "openai:gpt-5-mini").`,
     );
   }
+  const provider = model.slice(0, colonIndex);
+  const modelId = model.slice(colonIndex + 1);
 
-  /**
-   * Returns the resolved AI SDK LanguageModel for use with generateText/generateObject.
-   */
-  asLanguageModel(): LanguageModel {
-    return this.model;
+  switch (provider) {
+    case 'openai':
+      return { providerName: 'openai', apiId: 'openai-completions', modelId };
+    case 'anthropic':
+      return { providerName: 'anthropic', apiId: 'anthropic-messages', modelId };
+    case 'azure':
+      return {
+        providerName: 'azure-openai-responses',
+        apiId: 'azure-openai-responses',
+        modelId,
+      };
+    case 'google':
+      return { providerName: 'google', apiId: 'google-generative-ai', modelId };
+    default:
+      throw new Error(
+        `Unsupported agentv provider "${provider}" in "${model}". Supported: openai, anthropic, azure, google.`,
+      );
   }
 }
