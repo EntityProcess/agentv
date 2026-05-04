@@ -88,9 +88,6 @@ targets:
   # For providers not in pi-ai's model registry, set max_output_tokens
   # to match your model's actual output limit. Without this, the default
   # is 16K which may cap output below the model's capability.
-  # MiMo direct API (not through OpenRouter).
-  # API key: fetch from Bitwarden with `bws secret get xiaomi-mimo`
-  # Endpoints: openai=https://token-plan-sgp.xiaomimimo.com/v1, anthropic=https://token-plan-sgp.xiaomimimo.com/anthropic
   # - name: mimo-direct
   #   provider: openai
   #   base_url: https://token-plan-sgp.xiaomimimo.com/v1
