@@ -83,9 +83,9 @@ describe('code-grader plain-text fallback', () => {
   });
 
   it('assertions all failing without score → score 0', async () => {
-    const result = await grader(
-      `echo '{"assertions":[{"text":"a","passed":false}]}'`,
-    ).evaluate(ctx);
+    const result = await grader(`echo '{"assertions":[{"text":"a","passed":false}]}'`).evaluate(
+      ctx,
+    );
     expect(result.score).toBe(0);
   });
 
