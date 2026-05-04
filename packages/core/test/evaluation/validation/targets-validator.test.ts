@@ -96,7 +96,7 @@ describe('validateTargetsFile', () => {
     ).toBe(true);
   });
 
-  it('accepts azure api_format as a known setting', async () => {
+  it('rejects azure api_format with a migration error', async () => {
     const filePath = path.join(tempDir, 'azure-api-format.yaml');
     await writeFile(
       filePath,
@@ -115,9 +115,10 @@ describe('validateTargetsFile', () => {
     expect(
       result.errors.some(
         (error) =>
+          error.severity === 'error' &&
           error.location === 'targets[0].api_format' &&
-          error.message.includes("Unknown setting 'api_format'"),
+          /'api_format' field is no longer supported/i.test(error.message),
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 });

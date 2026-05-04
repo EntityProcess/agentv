@@ -124,16 +124,16 @@ targets:
     api_key: ${{ GH_MODELS_TOKEN }}
     model: ${{ GH_MODELS_MODEL }}
 
-  # Single Azure target. Control the endpoint shape with AZURE_OPENAI_API_FORMAT:
-  # - chat (default): uses /chat/completions and AZURE_OPENAI_API_VERSION
-  #   If AZURE_OPENAI_API_VERSION is omitted, AgentV defaults chat targets to 2024-12-01-preview.
-  # - responses: uses /responses and AgentV auto-defaults the version to v1
+  # Single Azure target. Always uses Azure's Responses API
+  # (`/openai/v1/responses`); the api version defaults to `v1` and can be
+  # overridden via AZURE_OPENAI_API_VERSION. Chat-completions-only Azure
+  # deployments must use `provider: openai` with a deployment-scoped
+  # `base_url` instead.
   - name: azure
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
-    api_format: ${{ AZURE_OPENAI_API_FORMAT }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
   - name: gemini

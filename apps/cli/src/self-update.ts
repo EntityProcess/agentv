@@ -65,7 +65,10 @@ export function detectInstallScopeFromPath(
     return 'global';
   }
 
-  if (normalizedScriptPath.includes('/.npm/_npx/') || normalizedScriptPath.includes('/npm-cache/_npx/')) {
+  if (
+    normalizedScriptPath.includes('/.npm/_npx/') ||
+    normalizedScriptPath.includes('/npm-cache/_npx/')
+  ) {
     return 'local';
   }
 
@@ -74,11 +77,11 @@ export function detectInstallScopeFromPath(
     return 'global';
   }
 
-  const scriptPathComparable = process.platform === 'win32'
-    ? normalizedScriptPath.toLowerCase()
-    : normalizedScriptPath;
+  const scriptPathComparable =
+    process.platform === 'win32' ? normalizedScriptPath.toLowerCase() : normalizedScriptPath;
   const cwdComparable = process.platform === 'win32' ? normalizedCwd.toLowerCase() : normalizedCwd;
-  const packageRootComparable = process.platform === 'win32' ? packageRoot.toLowerCase() : packageRoot;
+  const packageRootComparable =
+    process.platform === 'win32' ? packageRoot.toLowerCase() : packageRoot;
 
   const projectOwnsPackage =
     cwdComparable === packageRootComparable ||

@@ -253,11 +253,9 @@ export class AzureProvider implements Provider {
     // Pi-ai's azure-openai-responses provider handles the Azure-specific URL
     // shape and api-version query param. We pass either a full base URL or a
     // resource name + apiVersion via providerOptions; pi-ai does the rest.
-    //
-    // apiFormat is intentionally not branched here: pi-ai uses Azure's
-    // Responses API for both chat-style and responses-style calls. Users who
-    // hit an Azure deployment that only exposes /chat/completions can route
-    // through `provider: openai` with a deployment-scoped baseURL instead.
+    // The Responses API is the only path here — chat-completions-only Azure
+    // deployments must route through `provider: openai` with a
+    // deployment-scoped baseURL.
     const trimmed = config.resourceName.trim();
     const isFullUrl = /^https?:\/\//i.test(trimmed);
     const baseUrl = isFullUrl ? buildAzureBaseUrl(trimmed) : undefined;
@@ -368,11 +366,18 @@ export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderRe
   const aggregateUsage: AggregatedUsage = { input: 0, output: 0, cacheRead: 0, cost: 0 };
   let stepCount = 0;
   let toolCallCount = 0;
-  let result: PiAssistantMessage = await withRetry(
-    () => piComplete(model, ctx, callOptions),
-    retryConfig,
-    request.signal,
-  );
+  // pi-ai catches provider errors and surfaces them as `stopReason: 'error'`
+  // with `errorMessage` populated and `content: []`. Without this re-raise,
+  // the empty content propagates up as a "successful" empty response and
+  // downstream graders report misleading "JSON parse" errors instead of the
+  // underlying HTTP failure. Throw so withRetry can apply its status-based
+  // retry policy and the real cause reaches the surface.
+  const callPi = async (): Promise<PiAssistantMessage> => {
+    const r = await piComplete(model, ctx, callOptions);
+    if (r.stopReason === 'error') throw piErrorFromResult(r);
+    return r;
+  };
+  let result: PiAssistantMessage = await withRetry(callPi, retryConfig, request.signal);
   ctx.messages.push(result);
   stepCount = 1;
   accumulateUsage(aggregateUsage, result.usage);
@@ -413,11 +418,7 @@ export async function invokePiAi(options: InvokePiAiOptions): Promise<ProviderRe
       });
     }
 
-    result = await withRetry(
-      () => piComplete(model, ctx, callOptions),
-      retryConfig,
-      request.signal,
-    );
+    result = await withRetry(callPi, retryConfig, request.signal);
     ctx.messages.push(result);
     stepCount += 1;
     accumulateUsage(aggregateUsage, result.usage);
@@ -794,6 +795,25 @@ function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): nu
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Build a thrown Error from a pi-ai result whose `stopReason === 'error'`.
+ * Pi-ai's `errorMessage` typically begins with the HTTP status (e.g. "400 API
+ * version not supported"); we prefix it with `HTTP <status>` so
+ * `extractStatus()` can parse it for retry-policy decisions.
+ */
+function piErrorFromResult(r: PiAssistantMessage): Error {
+  const raw = r.errorMessage ?? 'pi-ai call failed with no error message';
+  const statusMatch = raw.match(/^(\d{3})\b\s*(.*)$/);
+  if (statusMatch) {
+    const status = statusMatch[1];
+    const rest = statusMatch[2] || raw;
+    const err = new Error(`pi-ai call failed: HTTP ${status} ${rest}`);
+    (err as { status?: number }).status = Number.parseInt(status, 10);
+    return err;
+  }
+  return new Error(`pi-ai call failed: ${raw}`);
 }
 
 async function withRetry<T>(

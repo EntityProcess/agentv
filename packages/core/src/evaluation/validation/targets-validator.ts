@@ -41,7 +41,6 @@ const AZURE_SETTINGS = new Set([
   'model',
   'version',
   'api_version',
-  'api_format',
   'temperature',
   'max_output_tokens',
 ]);
@@ -248,6 +247,19 @@ function validateUnknownSettings(
   ]);
 
   const removedFields = new Set(['workspace_template', 'workspaceTemplate']);
+  // Provider-specific removed fields. Map value is the migration message.
+  const removedPerProvider: Record<string, Map<string, string>> = {
+    azure: new Map([
+      [
+        'api_format',
+        "The 'api_format' field is no longer supported on Azure targets. " +
+          "AgentV always uses Azure's Responses API (`/openai/v1/responses`). " +
+          "If your deployment only exposes /chat/completions, use 'provider: openai' " +
+          "with a deployment-scoped 'base_url' instead.",
+      ],
+    ]),
+  };
+  const removedForProvider = removedPerProvider[provider];
 
   for (const key of Object.keys(target)) {
     if (removedFields.has(key)) {
@@ -257,6 +269,15 @@ function validateUnknownSettings(
         location: `${location}.${key}`,
         message:
           'workspace_template has been removed from targets. Use eval-level workspace.template instead.',
+      });
+      continue;
+    }
+    if (removedForProvider?.has(key)) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message: removedForProvider.get(key) as string,
       });
       continue;
     }
