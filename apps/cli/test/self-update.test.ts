@@ -28,10 +28,7 @@ describe('detectPackageManagerFromPath', () => {
 describe('detectInstallScopeFromPath', () => {
   test('detects local for project node_modules path', () => {
     expect(
-      detectInstallScopeFromPath(
-        '/home/user/proj/node_modules/.bin/agentv',
-        '/home/user/proj',
-      ),
+      detectInstallScopeFromPath('/home/user/proj/node_modules/.bin/agentv', '/home/user/proj'),
     ).toBe('local');
   });
 
