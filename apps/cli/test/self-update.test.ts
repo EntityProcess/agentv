@@ -56,6 +56,24 @@ describe('detectInstallScopeFromPath', () => {
     );
   });
 
+  test('detects global for Windows npm global install path', () => {
+    expect(
+      detectInstallScopeFromPath(
+        'C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\agentv\\dist\\cli.js',
+        'C:\\Users\\dev\\work\\repo',
+      ),
+    ).toBe('global');
+  });
+
+  test('detects local when cwd is inside the project using the dependency', () => {
+    expect(
+      detectInstallScopeFromPath(
+        'C:\\Users\\dev\\repo\\node_modules\\agentv\\dist\\cli.js',
+        'C:\\Users\\dev\\repo\\packages\\cli',
+      ),
+    ).toBe('local');
+  });
+
   test('treats unrelated directory containing node_modules substring as global', () => {
     // A path with the substring but no actual `node_modules` path segment
     // (e.g. a third-party tool installed under /opt/my_node_modules_tool/)
