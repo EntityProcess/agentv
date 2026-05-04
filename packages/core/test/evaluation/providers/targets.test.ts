@@ -131,7 +131,7 @@ describe('resolveTargetDefinition', () => {
       resourceName: 'https://example.openai.azure.com',
       deploymentName: 'gpt-4o',
       apiKey: 'secret',
-      version: '2024-12-01-preview',
+      version: 'v1',
     });
   });
 
@@ -231,64 +231,29 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.version).toBe('2024-08-01-preview');
   });
 
-  it('resolves azure api_format when configured', () => {
+  it('rejects azure api_format with a migration error', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
       AZURE_OPENAI_API_KEY: 'secret',
       AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
-    const target = resolveTargetDefinition(
-      {
-        name: 'azure-responses',
-        provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        api_format: 'responses',
-      },
-      env,
-    );
-
-    expect(target.kind).toBe('azure');
-    if (target.kind !== 'azure') {
-      throw new Error('expected azure target');
-    }
-
-    expect(target.config.apiFormat).toBe('responses');
-    expect(target.config.version).toBe('v1');
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'azure-with-api-format',
+          provider: 'azure',
+          endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+          api_key: '${{ AZURE_OPENAI_API_KEY }}',
+          model: '${{ AZURE_DEPLOYMENT_NAME }}',
+          api_format: 'responses',
+        },
+        env,
+      ),
+    ).toThrow(/'api_format' field is no longer supported/i);
   });
 
-  it('resolves azure api_format from env interpolation', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'secret',
-      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
-      AZURE_OPENAI_API_FORMAT: 'responses',
-    } satisfies Record<string, string>;
-
-    const target = resolveTargetDefinition(
-      {
-        name: 'azure-env-format',
-        provider: 'azure',
-        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
-        api_key: '${{ AZURE_OPENAI_API_KEY }}',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        api_format: '${{ AZURE_OPENAI_API_FORMAT }}',
-      },
-      env,
-    );
-
-    expect(target.kind).toBe('azure');
-    if (target.kind !== 'azure') {
-      throw new Error('expected azure target');
-    }
-
-    expect(target.config.apiFormat).toBe('responses');
-    expect(target.config.version).toBe('v1');
-  });
-
-  it('defaults azure responses targets to api version v1', () => {
+  it('defaults azure to api version v1', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
       AZURE_OPENAI_API_KEY: 'secret',
@@ -297,12 +262,11 @@ describe('resolveTargetDefinition', () => {
 
     const target = resolveTargetDefinition(
       {
-        name: 'azure-responses-default-version',
+        name: 'azure-default-version',
         provider: 'azure',
         endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
         api_key: '${{ AZURE_OPENAI_API_KEY }}',
         model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        api_format: 'responses',
       },
       env,
     );

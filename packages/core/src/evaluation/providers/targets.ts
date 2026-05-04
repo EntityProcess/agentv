@@ -359,14 +359,17 @@ export interface RetryConfig {
 export type ApiFormat = 'chat' | 'responses';
 
 /**
- * Azure OpenAI settings used by the Vercel AI SDK.
+ * Azure OpenAI settings.
+ *
+ * Note: `api_format` was removed — AgentV always routes Azure targets through
+ * pi-ai's Responses API path. Chat-completions-only Azure deployments must
+ * use `provider: openai` with a deployment-scoped `base_url`.
  */
 export interface AzureResolvedConfig {
   readonly resourceName: string;
   readonly deploymentName: string;
   readonly apiKey: string;
   readonly version?: string;
-  readonly apiFormat?: ApiFormat;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly retry?: RetryConfig;
@@ -757,28 +760,24 @@ const BASE_TARGET_SCHEMA = z
   })
   .passthrough();
 
-const DEFAULT_AZURE_API_VERSION = '2024-12-01-preview';
-const DEFAULT_AZURE_RESPONSES_API_VERSION = 'v1';
+// Azure targets always go through pi-ai's `/openai/v1/responses` path, which
+// requires `?api-version=v1`. The legacy chat-completions default
+// (`2024-12-01-preview`) is no longer reachable from the Azure provider here.
+const DEFAULT_AZURE_API_VERSION = 'v1';
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
-function normalizeAzureApiVersion(
-  value: string | undefined,
-  apiFormat: ApiFormat | undefined,
-): string {
-  const defaultVersion =
-    apiFormat === 'responses' ? DEFAULT_AZURE_RESPONSES_API_VERSION : DEFAULT_AZURE_API_VERSION;
-
+function normalizeAzureApiVersion(value: string | undefined): string {
   if (!value) {
-    return defaultVersion;
+    return DEFAULT_AZURE_API_VERSION;
   }
 
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    return defaultVersion;
+    return DEFAULT_AZURE_API_VERSION;
   }
 
   const withoutPrefix = trimmed.replace(/^api[-_]?version\s*=\s*/i, '').trim();
-  return withoutPrefix.length > 0 ? withoutPrefix : defaultVersion;
+  return withoutPrefix.length > 0 ? withoutPrefix : DEFAULT_AZURE_API_VERSION;
 }
 
 function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
@@ -1087,6 +1086,16 @@ function resolveAzureConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): AzureResolvedConfig {
+  // `api_format` was removed from Azure targets — pi-ai always routes Azure
+  // through `/openai/v1/responses`, so the chat-completions branch is gone.
+  // Reject the field loudly so users on chat-only deployments switch to the
+  // documented escape hatch instead of silently 400-ing on every call.
+  if (target.api_format !== undefined) {
+    throw new Error(
+      `The 'api_format' field is no longer supported on Azure targets ('${target.name}'). AgentV always uses Azure's Responses API. If your deployment only exposes /chat/completions, use 'provider: openai' with a deployment-scoped 'base_url' instead. See docs/targets/llm-providers for details.`,
+    );
+  }
+
   const endpointSource = target.endpoint ?? target.resource;
   const apiKeySource = target.api_key;
   const deploymentSource = target.deployment ?? target.model;
@@ -1097,13 +1106,11 @@ function resolveAzureConfig(
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
-  const apiFormat = resolveApiFormat(target, env, target.name);
   const version = normalizeAzureApiVersion(
     resolveOptionalString(versionSource, env, `${target.name} api version`, {
       allowLiteral: true,
       optionalEnv: true,
     }),
-    apiFormat,
   );
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
   const maxOutputTokens = resolveOptionalNumber(
@@ -1117,7 +1124,6 @@ function resolveAzureConfig(
     deploymentName,
     apiKey,
     version,
-    apiFormat,
     temperature,
     maxOutputTokens,
     retry,
