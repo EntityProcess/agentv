@@ -958,6 +958,20 @@ export async function runEvaluation(
       setupLog('Docker image pull complete');
     }
 
+    // Run preflight environment checks (fail fast before any hooks or test cases)
+    if (suiteWorkspace?.env) {
+      try {
+        await runPreflightChecks(suiteWorkspace.env, sharedWorkspacePath ?? undefined, setupLog);
+        setupLog('preflight checks passed');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (sharedWorkspacePath && !useStaticWorkspace) {
+          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+        }
+        throw new Error(message);
+      }
+    }
+
     // Execute before_all (runs ONCE before first test per workspace)
     const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
     const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
@@ -3923,4 +3937,46 @@ function computeWeightedMean(
   }
 
   return totalWeight > 0 ? weightedSum / totalWeight : 0;
+}
+
+/**
+ * Run preflight environment checks for workspace.env config.
+ * Fails fast if any required command or Python module is missing.
+ * Called once before before_all hooks, so long evals abort immediately on missing deps.
+ */
+async function runPreflightChecks(
+  env: import('./types.js').WorkspaceEnvConfig,
+  cwd: string | undefined,
+  log: (msg: string) => void,
+): Promise<void> {
+  const execFileAsync = promisify(execFile);
+  const missing: string[] = [];
+
+  for (const cmd of env.required_commands ?? []) {
+    log(`preflight: checking command "${cmd}"`);
+    try {
+      if (process.platform === 'win32') {
+        await execFileAsync('where', [cmd], { cwd });
+      } else {
+        await execFileAsync('sh', ['-c', `command -v ${cmd}`], { cwd });
+      }
+    } catch {
+      missing.push(`command: ${cmd}`);
+    }
+  }
+
+  for (const mod of env.required_python_modules ?? []) {
+    log(`preflight: checking Python module "${mod}"`);
+    try {
+      await execFileAsync('python3', ['-c', `import ${mod}`], { cwd });
+    } catch {
+      missing.push(`python module: ${mod}`);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Preflight checks failed — missing dependencies:\n${missing.map((m) => `  • ${m}`).join('\n')}\n\nInstall the missing dependencies before running this eval.`,
+    );
+  }
 }

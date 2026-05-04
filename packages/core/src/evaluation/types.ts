@@ -339,6 +339,25 @@ export type DockerWorkspaceConfig = {
   readonly cpus?: number;
 };
 
+/**
+ * Preflight environment requirements for the workspace.
+ * Checked once before before_all hooks run. Fails fast if anything is missing.
+ *
+ * @example
+ * ```yaml
+ * workspace:
+ *   env:
+ *     required_commands: [ffmpeg, pandoc]
+ *     required_python_modules: [PIL, openai]
+ * ```
+ */
+export type WorkspaceEnvConfig = {
+  /** Shell commands that must be present in PATH (checked via `command -v`) */
+  readonly required_commands?: readonly string[];
+  /** Python modules that must be importable (checked via `python3 -c "import <module>"`) */
+  readonly required_python_modules?: readonly string[];
+};
+
 export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
@@ -359,6 +378,8 @@ export type WorkspaceConfig = {
    *  Used as default cwd for hook commands so that file-referenced templates resolve
    *  relative paths from their own directory, not the eval file's directory. */
   readonly workspaceFileDir?: string;
+  /** Preflight environment requirements. Checked before before_all hooks run. */
+  readonly env?: WorkspaceEnvConfig;
 };
 
 export type CodeGraderConfig = {

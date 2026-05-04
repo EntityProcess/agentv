@@ -54,6 +54,7 @@ import type {
   TrialsConfig,
   TurnFailurePolicy,
   WorkspaceConfig,
+  WorkspaceEnvConfig,
   WorkspaceHookConfig,
   WorkspaceHooksConfig,
   WorkspaceScriptConfig,
@@ -853,8 +854,9 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const mode = explicitMode ?? (workspacePath ? 'static' : undefined);
 
   const docker = parseDockerWorkspaceConfig(obj.docker);
+  const env = parseWorkspaceEnvConfig(obj.env);
 
-  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath && !docker)
+  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath && !docker && !env)
     return undefined;
 
   return {
@@ -865,6 +867,26 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(mode !== undefined && { mode }),
     ...(workspacePath !== undefined && { path: workspacePath }),
     ...(docker !== undefined && { docker }),
+    ...(env !== undefined && { env }),
+  };
+}
+
+function parseWorkspaceEnvConfig(raw: unknown): WorkspaceEnvConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  const required_commands = Array.isArray(obj.required_commands)
+    ? (obj.required_commands.filter((c) => typeof c === 'string') as string[])
+    : undefined;
+  const required_python_modules = Array.isArray(obj.required_python_modules)
+    ? (obj.required_python_modules.filter((m) => typeof m === 'string') as string[])
+    : undefined;
+
+  if (!required_commands?.length && !required_python_modules?.length) return undefined;
+
+  return {
+    ...(required_commands?.length && { required_commands }),
+    ...(required_python_modules?.length && { required_python_modules }),
   };
 }
 
