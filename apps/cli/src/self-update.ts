@@ -51,8 +51,8 @@ export function detectPackageManager(): 'bun' | 'npm' {
  * Detect whether agentv was invoked from a local project install.
  * npm global installs can also live under a `node_modules` segment, so
  * the path alone is not enough. We treat `npx` cache paths as local and
- * otherwise require the package root to be the current project or one of
- * its ancestors before classifying it as local.
+ * otherwise require the current working directory to be inside the package
+ * root before classifying it as local.
  */
 export function detectInstallScopeFromPath(
   scriptPath: string,
@@ -82,8 +82,7 @@ export function detectInstallScopeFromPath(
 
   const projectOwnsPackage =
     cwdComparable === packageRootComparable ||
-    cwdComparable.startsWith(`${packageRootComparable}/`) ||
-    packageRootComparable.startsWith(`${cwdComparable}/`);
+    cwdComparable.startsWith(`${packageRootComparable}/`);
 
   return projectOwnsPackage ? 'local' : 'global';
 }
