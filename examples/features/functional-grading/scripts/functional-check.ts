@@ -19,7 +19,6 @@ const workspacePath: string | null = input.workspace_path;
 if (!workspacePath) {
   console.log(
     JSON.stringify({
-      score: 0,
       assertions: [
         {
           text: 'workspace_path not provided — cannot run functional checks',
@@ -63,13 +62,4 @@ if (compiled) {
   runStage('tests', 'npm', ['test']);
 }
 
-const passed = assertions.filter((a) => a.passed).length;
-const total = assertions.length;
-const score = total > 0 ? passed / total : 0;
-
-console.log(
-  JSON.stringify({
-    score,
-    assertions,
-  }),
-);
+console.log(JSON.stringify({ assertions }));

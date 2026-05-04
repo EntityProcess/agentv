@@ -17,10 +17,7 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (!trace) {
-    return {
-      score: 0,
-      assertions: [{ text: 'No trace provided', passed: false }],
-    };
+    return { assertions: [{ text: 'No trace provided', passed: false }] };
   }
 
   // Check for tokenUsage
@@ -47,11 +44,5 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
     assertions.push({ text: 'durationMs not present', passed: false });
   }
 
-  const passed = assertions.filter((a) => a.passed).length;
-  const score = passed / assertions.length;
-
-  return {
-    score,
-    assertions,
-  };
+  return { assertions };
 });

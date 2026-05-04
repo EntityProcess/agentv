@@ -26,10 +26,7 @@ defineCodeGrader(({ fileChanges, config }) => {
 
   if (!fileChanges) {
     assertions.push({ text: 'No file changes captured', passed: false });
-    return {
-      score: 0,
-      assertions,
-    };
+    return { assertions };
   }
 
   // Parse diff blocks
@@ -57,12 +54,7 @@ defineCodeGrader(({ fileChanges, config }) => {
     }
   }
 
-  const passed = assertions.filter((a) => a.passed).length;
-  const total = assertions.length;
-  const score = total > 0 ? passed / total : 0;
-
   return {
-    score,
     assertions,
     details: {
       files_checked: expectedFiles.length,

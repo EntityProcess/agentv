@@ -37,10 +37,5 @@ export default defineCodeGrader(({ output }) => {
     assertions.push({ text: 'Answer does not mention France', passed: false });
   }
 
-  const passed = assertions.filter((a) => a.passed).length;
-  const total = assertions.length;
-  return {
-    score: total > 0 ? passed / total : 0,
-    assertions,
-  };
+  return { assertions };
 });

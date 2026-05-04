@@ -28,9 +28,5 @@ export default defineCodeGrader(({ output }) => {
     passed: emptyAssistant.length === 0,
   });
 
-  const passed = assertions.filter((a) => a.passed).length;
-  return {
-    score: assertions.length > 0 ? passed / assertions.length : 0,
-    assertions,
-  };
+  return { assertions };
 });
