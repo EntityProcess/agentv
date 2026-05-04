@@ -164,3 +164,12 @@ targets:
     api_key: ${{ OPENROUTER_API_KEY }}
     model: xiaomi/mimo-v2-flash
     grader_target: grader
+
+  # MiMo direct API. Fetch key from Bitwarden: bws secret get xiaomi-mimo
+  - name: mimo-direct
+    provider: openai
+    base_url: https://token-plan-sgp.xiaomimimo.com/v1
+    api_key: ${{ XIAOMI_MIMO_API_KEY }}
+    model: xiaomi/mimo-v2.5-pro
+    max_output_tokens: 131072
+    grader_target: grader
