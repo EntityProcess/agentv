@@ -240,8 +240,8 @@ export class CodeGrader implements Grader {
       }
       // Non-zero exit with JSON stdout, or with stderr output, is treated as an error
       // (script signaled failure through the protocol or wrote an error message).
-      // Non-zero exit with plain stdout and no stderr uses the exit-code convention
-      // (score 0 = fail) — so one-liners like `[ "$pages" -ge 5 ]` work cleanly.
+      // Non-zero exit with plain stdout and no stderr uses the exit-code convention —
+      // score 0 (fail), stdout becomes the assertion text.
       const looksLikeJson = stdout.startsWith('{') || stdout.startsWith('[');
       const hasStderr = execStderr.trim().length > 0;
       if (exitCode !== 0 && (looksLikeJson || hasStderr)) {
@@ -253,19 +253,16 @@ export class CodeGrader implements Grader {
         );
       }
       const rawParsed = parseJsonSafe(stdout);
-      // Only treat stdout as the JSON protocol if it parsed as an object (not a bare
-      // boolean, number, or string). Plain scalars fall through to parsePlainScore.
+      // Only treat stdout as the JSON protocol if it parsed as a plain object.
+      // Bare JSON scalars (numbers, booleans, strings) fall through to the plain-text path.
       const parsed =
         rawParsed != null && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
           ? rawParsed
           : undefined;
-      // Plain-text fallback: when stdout is not a JSON object, interpret as a simple score.
-      // Supports exit-code convention (empty stdout = pass/fail by exit code), boolean
-      // strings, and numeric scores — so short shell one-liners work without JSON protocol.
-      const score =
-        parsed != null
-          ? clampScore(typeof parsed.score === 'number' ? parsed.score : 0)
-          : parsePlainScore(stdout, exitCode);
+      // Plain-text fallback: exit code is pass/fail, stdout is the assertion text.
+      // For numeric scores or multi-aspect results, use the JSON protocol instead.
+      const passed = exitCode === 0;
+      const score = parsed != null ? clampScore(typeof parsed.score === 'number' ? parsed.score : 0) : (passed ? 1 : 0);
       const assertions: AssertionEntry[] =
         parsed != null && Array.isArray(parsed?.assertions)
           ? parsed.assertions
@@ -280,7 +277,9 @@ export class CodeGrader implements Grader {
                 passed: Boolean(a.passed),
                 ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),
               }))
-          : [];
+          : parsed == null
+            ? [{ text: stdout.trim() || (passed ? 'exit 0' : `exit ${exitCode}`), passed }]
+            : [];
       // Capture optional structured details from code judge output
       const details =
         parsed?.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)
@@ -389,27 +388,6 @@ export async function executeScript(
   }
 
   return stdout.trim();
-}
-
-/**
- * Interpret plain-text (non-JSON) stdout as a score.
- *
- * | stdout (trimmed, lowercase) | score |
- * |---|---|
- * | empty string | 1 if exit 0, 0 if exit non-zero |
- * | "true", "pass", "1" | 1 |
- * | "false", "fail", "0" | 0 |
- * | numeric string | clamped float |
- * | anything else | 1 if exit 0, 0 if exit non-zero |
- */
-function parsePlainScore(stdout: string, exitCode: number): number {
-  const t = stdout.trim().toLowerCase();
-  if (t === '' || t === 'true' || t === 'pass') return exitCode === 0 ? 1 : 0;
-  if (t === '1') return 1;
-  if (t === 'false' || t === 'fail' || t === '0') return 0;
-  const n = Number(t);
-  if (!Number.isNaN(n)) return clampScore(n);
-  return exitCode === 0 ? 1 : 0;
 }
 
 function formatStderr(stderr: string): string {

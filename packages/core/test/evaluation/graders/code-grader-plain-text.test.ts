@@ -1,9 +1,9 @@
 /**
  * Tests for code-grader plain-text fallback.
  *
- * When a code-grader script emits non-JSON stdout, the grader interprets it
- * as a simple score instead of requiring the full JSON protocol. This lets
- * shell one-liners work without a JSON wrapper.
+ * When a script emits non-JSON stdout, the grader uses the exit code as
+ * pass/fail (0 = score 1, non-zero = score 0) and stdout as the assertion
+ * text. For numeric scores or multi-aspect results, use the JSON protocol.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -13,57 +13,41 @@ import type { EvaluationContext } from '../../../src/evaluation/graders/types.js
 const ctx = { candidate: '', evalCase: { id: 'test', input: [] } } as unknown as EvaluationContext;
 
 const grader = (cmd: string) =>
-  new CodeGrader({
-    command: ['bash', '-c', cmd],
-    agentTimeoutMs: 10_000,
-  });
+  new CodeGrader({ command: ['bash', '-c', cmd], agentTimeoutMs: 10_000 });
 
 describe('code-grader plain-text fallback', () => {
-  it('exit 0 with empty stdout → score 1', async () => {
+  it('exit 0 with empty stdout → score 1, assertion text "exit 0"', async () => {
     const result = await grader('true').evaluate(ctx);
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
+    expect(result.assertions[0]).toMatchObject({ text: 'exit 0', passed: true });
   });
 
-  it('exit 1 with empty stdout → score 0', async () => {
+  it('exit 1 with empty stdout → score 0, assertion text "exit 1"', async () => {
     const result = await grader('false').evaluate(ctx);
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
+    expect(result.assertions[0]).toMatchObject({ text: 'exit 1', passed: false });
   });
 
-  it('stdout "PASS" → score 1', async () => {
-    const result = await grader('echo PASS').evaluate(ctx);
+  it('exit 0 with stdout → score 1, stdout is assertion text', async () => {
+    const result = await grader('echo "PDF has 14 pages (≥5 required)"').evaluate(ctx);
     expect(result.score).toBe(1);
+    expect(result.assertions[0]).toMatchObject({
+      text: 'PDF has 14 pages (≥5 required)',
+      passed: true,
+    });
   });
 
-  it('stdout "FAIL" → score 0', async () => {
-    const result = await grader('echo FAIL').evaluate(ctx);
+  it('exit 1 with stdout → score 0, stdout is assertion text', async () => {
+    const result = await grader(
+      'echo "PDF has 3 pages (<5 required)"; exit 1',
+    ).evaluate(ctx);
     expect(result.score).toBe(0);
-  });
-
-  it('stdout "true" → score 1', async () => {
-    const result = await grader('echo true').evaluate(ctx);
-    expect(result.score).toBe(1);
-  });
-
-  it('stdout "false" → score 0', async () => {
-    const result = await grader('echo false').evaluate(ctx);
-    expect(result.score).toBe(0);
-  });
-
-  it('stdout numeric string → score as float', async () => {
-    const result = await grader('echo 0.75').evaluate(ctx);
-    expect(result.score).toBe(0.75);
-  });
-
-  it('stdout numeric "1" → score 1', async () => {
-    const result = await grader('echo 1').evaluate(ctx);
-    expect(result.score).toBe(1);
-  });
-
-  it('stdout numeric "0" → score 0', async () => {
-    const result = await grader('echo 0').evaluate(ctx);
-    expect(result.score).toBe(0);
+    expect(result.assertions[0]).toMatchObject({
+      text: 'PDF has 3 pages (<5 required)',
+      passed: false,
+    });
   });
 
   it('exit-code numeric comparison: [ 14 -ge 5 ] → score 1', async () => {
@@ -76,11 +60,18 @@ describe('code-grader plain-text fallback', () => {
     expect(result.score).toBe(0);
   });
 
-  it('JSON protocol still works (score from JSON)', async () => {
+  it('JSON protocol still works (score + assertions)', async () => {
     const result = await grader(
       `echo '{"score":0.6,"assertions":[{"text":"ok","passed":true}]}'`,
     ).evaluate(ctx);
     expect(result.score).toBe(0.6);
     expect(result.assertions).toHaveLength(1);
+    expect(result.assertions[0].text).toBe('ok');
+  });
+
+  it('script with stderr on non-zero exit → surfaces as error assertion', async () => {
+    const result = await grader('echo "bad" >&2; exit 1').evaluate(ctx);
+    expect(result.score).toBe(0);
+    expect(result.assertions[0].text).toContain('exited with code');
   });
 });

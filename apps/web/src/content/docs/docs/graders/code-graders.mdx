@@ -9,7 +9,7 @@ Code graders are scripts that evaluate agent responses deterministically. Write 
 
 ## Contract
 
-Code graders communicate via stdin/stdout JSON:
+Code graders receive eval context via stdin JSON and return a result via stdout.
 
 **Input (stdin):**
 ```json
@@ -19,8 +19,12 @@ Code graders communicate via stdin/stdout JSON:
   "output": "The answer is 42.",
   "expected_output": "42"
 }
+```
 
-**Output (stdout):**
+### JSON output (full protocol)
+
+Emit a JSON object for numeric scores or multi-aspect results:
+
 ```json
 {
   "score": 1.0,
@@ -34,6 +38,43 @@ Code graders communicate via stdin/stdout JSON:
 |-------------|------|-------------|
 | `score` | `number` | 0.0 to 1.0 |
 | `assertions` | `Array<{ text, passed, evidence? }>` | Per-aspect results with verdict and optional evidence |
+
+### Plain-text output (exit-code convention)
+
+For simple pass/fail checks, skip the JSON protocol entirely. The exit code determines the score and stdout becomes the assertion text:
+
+| Exit code | Score | Verdict |
+|-----------|-------|---------|
+| 0 | 1.0 | pass |
+| non-zero (no stderr) | 0.0 | fail |
+
+```bash
+#!/bin/bash
+# check-pages.sh — passes when PDF has at least 5 pages
+pages=$(pdfinfo report.pdf | grep Pages | awk '{print $2}')
+if [ "$pages" -ge 5 ]; then
+  echo "PDF has $pages pages (≥5 required)"
+else
+  echo "PDF has only $pages pages (<5 required)"
+  exit 1
+fi
+```
+
+```yaml
+assertions:
+  - type: code-grader
+    command: [bash, scripts/check-pages.sh]
+```
+
+Silent one-liners work too — stdout is optional:
+
+```yaml
+assertions:
+  - type: code-grader
+    command: ["bash", "-c", "[ $(wc -l < output.txt) -ge 10 ]"]
+```
+
+Scripts that write to stderr and exit non-zero surface as execution errors rather than quality failures.
 
 ## Python Example
 
