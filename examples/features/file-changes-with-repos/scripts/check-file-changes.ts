@@ -22,7 +22,7 @@ if (!fileChanges || fileChanges.trim().length === 0) {
     passed: false,
     evidence: 'file_changes is empty — workspace not configured or file tracking failed',
   });
-  console.log(JSON.stringify({ score: 0, assertions }));
+  console.log(JSON.stringify({ assertions }));
   process.exit(0);
 }
 
@@ -56,5 +56,4 @@ assertions.push({
   evidence: hasAddFn ? undefined : 'add() function not found in diff',
 });
 
-const passed = assertions.filter((a) => a.passed).length;
-console.log(JSON.stringify({ score: passed / assertions.length, assertions }));
+console.log(JSON.stringify({ assertions }));

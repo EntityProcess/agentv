@@ -58,11 +58,5 @@ export default defineCodeGrader(({ expectedOutput, output, inputFiles }) => {
     }
   }
 
-  const passed = assertions.filter((a) => a.passed).length;
-  const score = assertions.length === 0 ? 0 : passed / assertions.length;
-
-  return {
-    score,
-    assertions,
-  };
+  return { assertions };
 });

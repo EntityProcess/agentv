@@ -67,6 +67,28 @@ describe('code-grader plain-text fallback', () => {
     expect(result.assertions[0].text).toBe('ok');
   });
 
+  it('assertions without score → derived as passing/total', async () => {
+    const result = await grader(
+      `echo '{"assertions":[{"text":"a","passed":true},{"text":"b","passed":false},{"text":"c","passed":true}]}'`,
+    ).evaluate(ctx);
+    expect(result.score).toBeCloseTo(2 / 3);
+    expect(result.assertions).toHaveLength(3);
+  });
+
+  it('assertions all passing without score → score 1', async () => {
+    const result = await grader(
+      `echo '{"assertions":[{"text":"a","passed":true},{"text":"b","passed":true}]}'`,
+    ).evaluate(ctx);
+    expect(result.score).toBe(1);
+  });
+
+  it('assertions all failing without score → score 0', async () => {
+    const result = await grader(
+      `echo '{"assertions":[{"text":"a","passed":false}]}'`,
+    ).evaluate(ctx);
+    expect(result.score).toBe(0);
+  });
+
   it('script with stderr on non-zero exit → surfaces as error assertion', async () => {
     const result = await grader('echo "bad" >&2; exit 1').evaluate(ctx);
     expect(result.score).toBe(0);

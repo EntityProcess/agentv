@@ -262,12 +262,6 @@ export class CodeGrader implements Grader {
       // Plain-text fallback: exit code is pass/fail, stdout is the assertion text.
       // For numeric scores or multi-aspect results, use the JSON protocol instead.
       const passed = exitCode === 0;
-      const score =
-        parsed != null
-          ? clampScore(typeof parsed.score === 'number' ? parsed.score : 0)
-          : passed
-            ? 1
-            : 0;
       const assertions: AssertionEntry[] =
         parsed != null && Array.isArray(parsed?.assertions)
           ? parsed.assertions
@@ -285,6 +279,19 @@ export class CodeGrader implements Grader {
           : parsed == null
             ? [{ text: stdout.trim() || (passed ? 'exit 0' : `exit ${exitCode}`), passed }]
             : [];
+      // When the script omits `score` but returns `assertions`, derive score as passing/total.
+      const score =
+        parsed != null
+          ? clampScore(
+              typeof parsed.score === 'number'
+                ? parsed.score
+                : assertions.length > 0
+                  ? assertions.filter((a) => a.passed).length / assertions.length
+                  : 0,
+            )
+          : passed
+            ? 1
+            : 0;
       // Capture optional structured details from code judge output
       const details =
         parsed?.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)

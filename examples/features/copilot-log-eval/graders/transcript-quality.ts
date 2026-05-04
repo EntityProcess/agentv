@@ -91,8 +91,5 @@ export default defineCodeGrader(({ output }) => {
     });
   }
 
-  const passed = assertions.filter((a) => a.passed).length;
-  const score = assertions.length > 0 ? passed / assertions.length : 0;
-
-  return { score, assertions };
+  return { assertions };
 });

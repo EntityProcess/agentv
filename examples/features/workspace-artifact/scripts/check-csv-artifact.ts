@@ -25,7 +25,7 @@ if (!fileChanges || fileChanges.trim().length === 0) {
     passed: false,
     evidence: 'file_changes is empty — workspace snapshot or git baseline may not be configured',
   });
-  console.log(JSON.stringify({ score: 0, assertions }));
+  console.log(JSON.stringify({ assertions }));
   process.exit(0);
 }
 
@@ -65,7 +65,4 @@ assertions.push({
   evidence: hasDataRow ? undefined : 'No data rows found after the header',
 });
 
-const passed = assertions.filter((a) => a.passed).length;
-const score = passed / assertions.length;
-
-console.log(JSON.stringify({ score, assertions }));
+console.log(JSON.stringify({ assertions }));
