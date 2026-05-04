@@ -40,9 +40,7 @@ describe('code-grader plain-text fallback', () => {
   });
 
   it('exit 1 with stdout → score 0, stdout is assertion text', async () => {
-    const result = await grader(
-      'echo "PDF has 3 pages (<5 required)"; exit 1',
-    ).evaluate(ctx);
+    const result = await grader('echo "PDF has 3 pages (<5 required)"; exit 1').evaluate(ctx);
     expect(result.score).toBe(0);
     expect(result.assertions[0]).toMatchObject({
       text: 'PDF has 3 pages (<5 required)',
