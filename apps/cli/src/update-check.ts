@@ -6,7 +6,7 @@ import { getAgentvConfigDir } from '@agentv/core';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CONFIG_DIR = getAgentvConfigDir();
 const CACHE_FILE = 'version-check.json';
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org/agentv/latest';
+const NPM_REGISTRY_BASE = 'https://registry.npmjs.org/agentv/';
 
 export interface UpdateCache {
   latestVersion: string;
@@ -66,16 +66,17 @@ export function buildNotice(currentVersion: string, latestVersion: string | null
  * fetches latest version from npm and updates the cache file. The child
  * survives even if the parent calls process.exit().
  */
-export function backgroundUpdateCheck(): void {
+export function backgroundUpdateCheck(distTag: 'latest' | 'next' = 'latest'): void {
   const dir = CONFIG_DIR;
   const filePath = join(dir, CACHE_FILE);
+  const registryUrl = `${NPM_REGISTRY_BASE}${distTag}`;
 
   const script = `
     const https = require('https');
     const fs = require('fs');
     const dir = ${JSON.stringify(dir)};
     const filePath = ${JSON.stringify(filePath)};
-    https.get(${JSON.stringify(NPM_REGISTRY_URL)}, { timeout: 5000 }, (res) => {
+    https.get(${JSON.stringify(registryUrl)}, { timeout: 5000 }, (res) => {
       if (res.statusCode !== 200) { res.resume(); process.exit(); }
       let body = '';
       res.on('data', (c) => body += c);
@@ -110,9 +111,10 @@ export async function getUpdateNotice(currentVersion: string): Promise<string | 
   if (process.env.AGENTV_NO_UPDATE_CHECK === '1' || process.env.CI === 'true') {
     return null;
   }
+  const distTag = currentVersion.includes('-') ? 'next' : 'latest';
   const cache = await getCachedUpdateInfo();
   if (shouldCheck(cache)) {
-    backgroundUpdateCheck();
+    backgroundUpdateCheck(distTag);
   }
   return buildNotice(currentVersion, cache?.latestVersion ?? null);
 }
