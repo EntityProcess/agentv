@@ -233,7 +233,8 @@ export async function performSelfUpdate(options?: {
   const pm = options?.pm ?? detectPackageManager();
   const currentVersion = options?.currentVersion ?? 'unknown';
   const versionSpec =
-    options?.versionRange ?? getDistTagForVersion(currentVersion === 'unknown' ? '' : currentVersion);
+    options?.versionRange ??
+    getDistTagForVersion(currentVersion === 'unknown' ? '' : currentVersion);
   const scope = options?.scope ?? detectInstallScope();
 
   const args = getInstallArgs(pm, versionSpec, scope);
