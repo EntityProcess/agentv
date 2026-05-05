@@ -4,6 +4,7 @@ import {
   detectInstallScope,
   detectPackageManager,
   fetchLatestVersion,
+  getDistTagForVersion,
   performSelfUpdate,
 } from '../../self-update.js';
 
@@ -33,10 +34,11 @@ const updateCommand = command({
     }
 
     const currentVersion = packageJson.version;
+    const distTag = getDistTagForVersion(currentVersion);
     console.log(`Current version: ${currentVersion}`);
     console.log('Checking for updates...');
 
-    const latestVersion = await fetchLatestVersion();
+    const latestVersion = await fetchLatestVersion(distTag);
     if (latestVersion && latestVersion === currentVersion) {
       console.log(`Already up to date (${currentVersion}).`);
       return;
@@ -49,7 +51,7 @@ const updateCommand = command({
     const scopeLabel = scope === 'local' ? 'local project install' : 'global install';
     console.log(`Updating agentv using ${pm} (${scopeLabel})...\n`);
 
-    const result = await performSelfUpdate({ pm, currentVersion, scope });
+    const result = await performSelfUpdate({ pm, currentVersion, versionRange: distTag, scope });
 
     if (!result.success) {
       console.error('\nUpdate failed.');

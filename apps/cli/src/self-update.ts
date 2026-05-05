@@ -9,7 +9,8 @@
  * version specifier (e.g., `agentv@">=4.1.0"`). This ensures the update
  * respects the project's constraints and avoids unintended major-version jumps.
  *
- * When called from `agentv self update` (no range), it installs `@latest`.
+ * When called from `agentv self update` (no range), it installs `@latest` for stable
+ * versions or `@next` when the current version has a prerelease identifier.
  *
  * Install scope detection: if `process.argv[1]` contains `node_modules`,
  * agentv was invoked from a local project dependency (e.g. `npx agentv` or
@@ -30,7 +31,12 @@ import { existsSync } from 'node:fs';
 import { get } from 'node:https';
 import { basename, dirname, join, win32 } from 'node:path';
 
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org/agentv/latest';
+const NPM_REGISTRY_BASE = 'https://registry.npmjs.org/agentv/';
+
+/** Returns 'next' if the version has a prerelease identifier, 'latest' otherwise. */
+export function getDistTagForVersion(version: string): 'next' | 'latest' {
+  return version.includes('-') ? 'next' : 'latest';
+}
 
 /**
  * Detect package manager from the script path.
@@ -111,11 +117,11 @@ function runCommand(cmd: string, args: string[]): Promise<{ exitCode: number; st
 
 /**
  * Fetch the latest published version of agentv from the npm registry.
- * Returns null on network errors or timeouts (best-effort).
+ * Pass distTag='next' for prerelease channels. Returns null on network errors.
  */
-export function fetchLatestVersion(): Promise<string | null> {
+export function fetchLatestVersion(distTag: 'latest' | 'next' = 'latest'): Promise<string | null> {
   return new Promise((resolve) => {
-    const req = get(NPM_REGISTRY_URL, { timeout: 5000 }, (res) => {
+    const req = get(`${NPM_REGISTRY_BASE}${distTag}`, { timeout: 5000 }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         resolve(null);
@@ -226,7 +232,9 @@ export async function performSelfUpdate(options?: {
 }> {
   const pm = options?.pm ?? detectPackageManager();
   const currentVersion = options?.currentVersion ?? 'unknown';
-  const versionSpec = options?.versionRange ?? 'latest';
+  const versionSpec =
+    options?.versionRange ??
+    getDistTagForVersion(currentVersion === 'unknown' ? '' : currentVersion);
   const scope = options?.scope ?? detectInstallScope();
 
   const args = getInstallArgs(pm, versionSpec, scope);
