@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { listTargetNames, readTargetDefinitions } from '@agentv/core';
 import { checkbox, confirm, number, search, select } from '@inquirer/prompts';
@@ -42,6 +43,22 @@ export async function launchInteractiveWizard(): Promise<void> {
     return;
   }
 
+  if (action === 'resume' && lastConfig?.outputDir) {
+    const relativeDir = path.relative(cwd, lastConfig.outputDir) || lastConfig.outputDir;
+    console.log(`\n${ANSI_DIM}Resuming run at ${relativeDir}...${ANSI_RESET}\n`);
+    await executeConfig(
+      {
+        evalPaths: lastConfig.evalPaths,
+        target: lastConfig.target,
+        workers: lastConfig.workers,
+        dryRun: lastConfig.dryRun,
+        cache: lastConfig.cache,
+      },
+      { resumeOutputDir: lastConfig.outputDir },
+    );
+    return;
+  }
+
   if (action === 'rerun' && lastConfig) {
     console.log(`\n${ANSI_DIM}Rerunning last configuration...${ANSI_RESET}\n`);
     await executeConfig({
@@ -66,25 +83,27 @@ export async function launchInteractiveWizard(): Promise<void> {
     return;
   }
 
-  // Save last config
-  await saveLastConfig({
-    timestamp: new Date().toISOString(),
-    cwd,
-    evalPaths: config.evalPaths,
-    target: config.target,
-    workers: config.workers,
-    dryRun: config.dryRun,
-    cache: config.cache,
-  });
-
   await executeConfig(config);
 }
 
 async function promptMainMenu(
   lastConfig: LastConfig | undefined,
-): Promise<'new' | 'rerun' | 'exit'> {
-  type MenuChoice = 'new' | 'rerun' | 'exit';
+): Promise<'new' | 'rerun' | 'resume' | 'exit'> {
+  type MenuChoice = 'new' | 'rerun' | 'resume' | 'exit';
   const choices: Array<{ name: string; value: MenuChoice; description?: string }> = [];
+
+  // Resume entry: only when the prior run has a known artifact dir with an index.jsonl
+  if (lastConfig?.outputDir) {
+    const indexPath = path.join(lastConfig.outputDir, 'index.jsonl');
+    if (existsSync(indexPath)) {
+      const dirLabel = path.basename(lastConfig.outputDir);
+      choices.push({
+        name: '⏯  Resume last run',
+        value: 'resume',
+        description: `${dirLabel} (target: ${lastConfig.target})`,
+      });
+    }
+  }
 
   if (lastConfig) {
     const evalCount = lastConfig.evalPaths.length;
@@ -315,12 +334,17 @@ async function promptReviewAndConfirm(config: InteractiveConfig, cwd: string): P
   });
 }
 
-async function executeConfig(config: InteractiveConfig): Promise<void> {
+async function executeConfig(
+  config: InteractiveConfig,
+  opts?: { resumeOutputDir?: string },
+): Promise<void> {
+  const cwd = process.cwd();
   const rawOptions: Record<string, unknown> = {
     target: config.target,
     workers: config.workers,
     dryRun: config.dryRun,
     cache: config.cache,
+    ...(opts?.resumeOutputDir ? { output: opts.resumeOutputDir, resume: true } : {}),
     dryRunDelay: 0,
     dryRunDelayMin: 0,
     dryRunDelayMax: 0,
@@ -336,6 +360,22 @@ async function executeConfig(config: InteractiveConfig): Promise<void> {
     testFiles: [...config.evalPaths],
     rawOptions,
   });
+
+  // Persist config with the resolved artifact dir so the wizard can offer
+  // "Resume last run" on the next invocation. Done after a successful run so
+  // the saved outputDir always points at a real index.jsonl.
+  if (result) {
+    await saveLastConfig({
+      timestamp: new Date().toISOString(),
+      cwd,
+      evalPaths: config.evalPaths,
+      target: config.target,
+      workers: config.workers,
+      dryRun: config.dryRun,
+      cache: config.cache,
+      outputDir: path.dirname(result.outputPath),
+    });
+  }
 
   // Prompt to retry errors when execution errors were detected in a TTY
   if (result && result.executionErrorCount > 0 && process.stdin.isTTY) {

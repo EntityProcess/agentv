@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -42,6 +43,21 @@ export async function loadRunCache(cwd: string): Promise<RunCache | undefined> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Resolve the cached last-run directory for a cwd, if it still exists on disk.
+ * Returns undefined when there is no cache, the cache lacks a `lastRunDir`,
+ * or the directory has since been deleted. Used by `--resume` / `--rerun-failed`
+ * to default `--output` to the most recent run when no explicit dir is given,
+ * matching the convention used by promptfoo (`--resume [evalId]`) and
+ * OpenCompass (`-r [timestamp]`).
+ */
+export async function resolveCachedRunDir(cwd: string): Promise<string | undefined> {
+  const cache = await loadRunCache(cwd);
+  if (!cache?.lastRunDir) return undefined;
+  if (!existsSync(cache.lastRunDir)) return undefined;
+  return cache.lastRunDir;
 }
 
 export async function saveRunCache(cwd: string, resultPath: string): Promise<void> {

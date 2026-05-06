@@ -50,7 +50,7 @@ import {
   loadFullyCompletedTestIds,
   loadNonErrorResults,
 } from './retry-errors.js';
-import { saveRunCache } from './run-cache.js';
+import { resolveCachedRunDir, saveRunCache } from './run-cache.js';
 import { findRepoRoot } from './shared.js';
 import {
   calculateEvaluationSummary,
@@ -1031,6 +1031,20 @@ export async function runEvalCommand(
     }
   }
 
+  // --resume / --rerun-failed without an explicit --output: default to the
+  // last-known run dir for this cwd from .agentv/cache.json. Matches promptfoo's
+  // `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default"
+  // convention. The cache pointer is written by saveRunCache after every eval.
+  if (options.resume && !options.retryErrors && !options.outputDir && !options.artifacts) {
+    const cachedDir = await resolveCachedRunDir(cwd);
+    if (cachedDir) {
+      options = { ...options, outputDir: cachedDir };
+      const flagLabel = options.rerunFailed ? 'rerun-failed' : 'resume';
+      const displayDir = path.relative(cwd, cachedDir) || cachedDir;
+      console.log(`Auto-detected last run dir for --${flagLabel}: ${displayDir}`);
+    }
+  }
+
   // --resume / --rerun-failed: skip already-completed tests and append to existing output.
   // IMPORTANT: JSONL must be loaded before the output writer is created (same file).
   let resumeSkipKeys: Set<string> | undefined;
@@ -1059,7 +1073,7 @@ export async function runEvalCommand(
       }
     } else {
       console.warn(
-        'Warning: --resume requires --output <dir> to identify the run directory. Ignoring --resume.',
+        'Warning: --resume requires --output <dir> (or a cached last run) to identify the run directory. Ignoring --resume.',
       );
     }
   }

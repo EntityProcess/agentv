@@ -13,6 +13,12 @@ export interface LastConfig {
   readonly workers: number;
   readonly dryRun: boolean;
   readonly cache: boolean;
+  /**
+   * Resolved artifact directory of the last completed wizard run. Used to
+   * power the wizard's "Resume last run" entry. Optional for backward
+   * compatibility with configs saved before this field existed.
+   */
+  readonly outputDir?: string;
 }
 
 export async function loadLastConfig(): Promise<LastConfig | undefined> {

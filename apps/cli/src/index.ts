@@ -94,9 +94,11 @@ export function preprocessArgv(argv: string[]): string[] {
     }
   }
 
-  // Implicit `run` subcommand: `agentv eval <arg>` → `agentv eval run <arg>`
-  // when the first arg after `eval` is not a known eval subcommand.
-  // This preserves backward compatibility now that `eval` is a subcommands group.
+  // Implicit `run` subcommand: `agentv eval [<arg>]` → `agentv eval run [<arg>]`
+  // when the first arg after `eval` is absent or is not a known eval subcommand.
+  // Backward-compat: `eval` used to be a direct command; now it is a subcommands group.
+  // Bare `agentv eval` falls through to the run handler so its TTY check can launch
+  // the interactive wizard.
   // Only applies when `eval` is the top-level subcommand.
   // Exception: `--help` / `-h` should show the eval group help, not run's help.
   const evalIdx = result.indexOf('eval');
@@ -106,12 +108,9 @@ export function preprocessArgv(argv: string[]): string[] {
     const isTopLevel = !result.slice(0, evalIdx).some((arg) => TOP_LEVEL_COMMANDS.has(arg));
     if (isTopLevel) {
       const nextArg = result[evalIdx + 1];
-      if (
-        nextArg !== undefined &&
-        !EVAL_SUBCOMMANDS.has(nextArg) &&
-        nextArg !== '--help' &&
-        nextArg !== '-h'
-      ) {
+      const isHelp = nextArg === '--help' || nextArg === '-h';
+      const isKnownSubcommand = nextArg !== undefined && EVAL_SUBCOMMANDS.has(nextArg);
+      if (!isHelp && !isKnownSubcommand) {
         result.splice(evalIdx + 1, 0, 'run');
       }
     }
