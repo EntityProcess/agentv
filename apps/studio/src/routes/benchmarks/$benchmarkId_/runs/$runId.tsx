@@ -5,6 +5,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
+import { ResumeRunActions } from '~/components/ResumeRunActions';
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { useBenchmarkRunDetail, useStudioConfig } from '~/lib/api';
@@ -68,15 +69,25 @@ function BenchmarkRunDetailPage() {
           <h1 className="text-2xl font-semibold text-white">{heading}</h1>
           <p className="mt-1 text-sm text-gray-500">{meta}</p>
         </div>
-        {!isReadOnly && (
-          <button
-            type="button"
-            onClick={() => setShowRunEval(true)}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-          >
-            ▶ Re-run with Filters
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <ResumeRunActions
+            results={data?.results ?? []}
+            runDir={data?.run_dir}
+            suiteFilter={data?.suite_filter}
+            target={target ?? undefined}
+            benchmarkId={benchmarkId}
+            isReadOnly={isReadOnly}
+          />
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => setShowRunEval(true)}
+              className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+            >
+              ▶ Re-run with Filters
+            </button>
+          )}
+        </div>
       </div>
       <RunDetail results={data?.results ?? []} runId={runId} benchmarkId={benchmarkId} />
       {!isReadOnly && (
