@@ -105,6 +105,31 @@ interface RunEvalRequest {
   threshold?: number;
   workers?: number;
   dry_run?: boolean;
+  /** Resume an interrupted run: skip already-completed tests and append results to `output`. */
+  resume?: boolean;
+  /** Re-run failed/errored tests while keeping passing results. */
+  rerun_failed?: boolean;
+  /** Path to a previous run dir or index.jsonl — re-run only execution_error cases. */
+  retry_errors?: string;
+  /** Artifact directory for run output. Required when resume/rerun_failed are set without auto-detect. */
+  output?: string;
+}
+
+/**
+ * Validate mutually-exclusive resume modes.
+ * Returns an error message if invalid, or undefined if valid.
+ */
+function validateResumeOptions(req: RunEvalRequest): string | undefined {
+  const modes: string[] = [];
+  if (req.resume) modes.push('resume');
+  if (req.rerun_failed) modes.push('rerun_failed');
+  if (req.retry_errors !== undefined && req.retry_errors !== null && req.retry_errors !== '') {
+    modes.push('retry_errors');
+  }
+  if (modes.length > 1) {
+    return `resume, rerun_failed, and retry_errors are mutually exclusive (got: ${modes.join(', ')})`;
+  }
+  return undefined;
 }
 
 function buildCliArgs(req: RunEvalRequest): string[] {
@@ -146,6 +171,20 @@ function buildCliArgs(req: RunEvalRequest): string[] {
   // Dry run
   if (req.dry_run) {
     args.push('--dry-run');
+  }
+
+  // Resume / rerun-failed / retry-errors / output
+  if (req.output?.trim()) {
+    args.push('--output', req.output.trim());
+  }
+  if (req.resume) {
+    args.push('--resume');
+  }
+  if (req.rerun_failed) {
+    args.push('--rerun-failed');
+  }
+  if (req.retry_errors?.trim()) {
+    args.push('--retry-errors', req.retry_errors.trim());
   }
 
   return args;
@@ -253,6 +292,11 @@ export function registerEvalRoutes(
     // Validate: need at least a suite filter
     if (!body.suite_filter?.trim() && (!body.test_ids || body.test_ids.length === 0)) {
       return c.json({ error: 'Provide suite_filter or test_ids' }, 400);
+    }
+
+    const resumeError = validateResumeOptions(body);
+    if (resumeError) {
+      return c.json({ error: resumeError }, 400);
     }
 
     const cliPaths = resolveCliPath(cwd);
@@ -405,6 +449,9 @@ export function registerEvalRoutes(
   });
 
   app.post('/api/benchmarks/:benchmarkId/eval/run', async (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
     const cwd = getCwd(c);
 
     let body: RunEvalRequest;
@@ -416,6 +463,11 @@ export function registerEvalRoutes(
 
     if (!body.suite_filter?.trim() && (!body.test_ids || body.test_ids.length === 0)) {
       return c.json({ error: 'Provide suite_filter or test_ids' }, 400);
+    }
+
+    const resumeError = validateResumeOptions(body);
+    if (resumeError) {
+      return c.json({ error: resumeError }, 400);
     }
 
     const cliPaths = resolveCliPath(cwd);

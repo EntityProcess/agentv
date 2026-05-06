@@ -319,14 +319,51 @@ async function handleRunDetail(c: C, { searchDir }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = loadManifestResults(meta.path);
+    // Surface run_dir + suite_filter for local runs so the UI can launch a
+    // Studio-side resume against this exact run. Remote runs live in the
+    // results-repo cache and cannot be resumed in place, so omit both fields.
+    const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
     return c.json({
       results: stripHeavyFields(loaded),
       source: meta.source,
       source_label: meta.displayName,
+      ...resumeMeta,
     });
   } catch {
     return c.json({ error: 'Failed to load run' }, 500);
   }
+}
+
+/**
+ * Compute `run_dir` (relative to cwd, snake_case) and `suite_filter` (the
+ * eval file path stored in benchmark.json metadata) for a local run manifest.
+ * Returns whatever fields could be resolved — both are best-effort and only
+ * needed by the Studio "Resume run" / "Rerun failed" actions.
+ */
+function deriveResumeMeta(
+  cwd: string,
+  manifestPath: string,
+): { run_dir?: string; suite_filter?: string } {
+  const out: { run_dir?: string; suite_filter?: string } = {};
+  const runDir = path.dirname(manifestPath);
+  const relative = path.relative(cwd, runDir);
+  // If runDir is outside cwd, path.relative returns "../..." — keep absolute in that case.
+  out.run_dir = relative && !relative.startsWith('..') ? relative : runDir;
+  try {
+    const benchmarkPath = path.join(runDir, 'benchmark.json');
+    if (existsSync(benchmarkPath)) {
+      const parsed = JSON.parse(readFileSync(benchmarkPath, 'utf8')) as {
+        metadata?: { eval_file?: string };
+      };
+      const evalFile = parsed.metadata?.eval_file;
+      if (typeof evalFile === 'string' && evalFile.trim()) {
+        out.suite_filter = evalFile.trim();
+      }
+    }
+  } catch {
+    // benchmark.json missing / unreadable / malformed — leave suite_filter unset.
+  }
+  return out;
 }
 
 async function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {

@@ -871,4 +871,261 @@ describe('serve app', () => {
       expect(data.error).toBe('Not found');
     });
   });
+
+  // ── POST /api/eval/run — resume / rerun-failed / retry-errors ─────────
+  //
+  // These tests assert the launch endpoint accepts the resume-family fields,
+  // translates them to CLI flags in the `command` preview returned to the
+  // client, validates mutual exclusivity, and respects the read-only guard.
+  // They do not depend on the spawned child process — once the request is
+  // accepted and the command is built, we have validated the contract.
+
+  describe('POST /api/eval/run (resume API)', () => {
+    function makeAppForRun(opts?: { readOnly?: boolean }) {
+      return createApp([], tempDir, undefined, undefined, {
+        studioDir,
+        readOnly: opts?.readOnly === true,
+      });
+    }
+
+    it('builds --resume + --output flags from the request', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          target: 'gpt-4o',
+          output: '.agentv/results/runs/2026-05-06T00-00-00-000Z',
+          resume: true,
+        }),
+      });
+      // Either 202 (spawn succeeded) or 500 (no CLI on disk in test env).
+      expect([202, 500]).toContain(res.status);
+      const data = (await res.json()) as { command?: string; error?: string };
+      if (res.status === 202) {
+        expect(data.command).toContain('--resume');
+        expect(data.command).toContain('--output .agentv/results/runs/2026-05-06T00-00-00-000Z');
+      }
+    });
+
+    it('builds --rerun-failed + --output flags from the request', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          target: 'gpt-4o',
+          output: 'runs/r1',
+          rerun_failed: true,
+        }),
+      });
+      expect([202, 500]).toContain(res.status);
+      if (res.status === 202) {
+        const data = (await res.json()) as { command: string };
+        expect(data.command).toContain('--rerun-failed');
+        expect(data.command).toContain('--output runs/r1');
+      }
+    });
+
+    it('builds --retry-errors <path> from the request', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          retry_errors: 'runs/r0/index.jsonl',
+        }),
+      });
+      expect([202, 500]).toContain(res.status);
+      if (res.status === 202) {
+        const data = (await res.json()) as { command: string };
+        expect(data.command).toContain('--retry-errors runs/r0/index.jsonl');
+      }
+    });
+
+    it('rejects resume + rerun_failed combo with 400', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          output: 'runs/r1',
+          resume: true,
+          rerun_failed: true,
+        }),
+      });
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toContain('mutually exclusive');
+    });
+
+    it('rejects resume + retry_errors combo with 400', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          output: 'runs/r1',
+          resume: true,
+          retry_errors: 'runs/r0/index.jsonl',
+        }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 403 in read-only mode for unscoped /api/eval/run', async () => {
+      const app = makeAppForRun({ readOnly: true });
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          resume: true,
+          output: 'runs/r1',
+        }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 403 in read-only mode for benchmark-scoped /api/benchmarks/:id/eval/run', async () => {
+      const app = makeAppForRun({ readOnly: true });
+      const res = await app.request('/api/benchmarks/some-id/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          resume: true,
+          output: 'runs/r1',
+        }),
+      });
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ── POST /api/eval/preview — argument shaping for resume flags ─────────
+  //
+  // /api/eval/preview is a lightweight endpoint that returns the CLI
+  // command without spawning anything. Use it to assert the exact CLI
+  // surface produced by the new fields independent of test-host CLI state.
+
+  describe('POST /api/eval/preview (resume API)', () => {
+    it('emits --resume and --output for resume:true requests', async () => {
+      const app = createApp([], tempDir, undefined, undefined, { studioDir });
+      const res = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          target: 'gpt-4o',
+          output: 'runs/r1',
+          resume: true,
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--resume');
+      expect(data.command).toContain('--output runs/r1');
+      expect(data.command).not.toContain('--rerun-failed');
+    });
+
+    it('emits --rerun-failed for rerun_failed:true requests', async () => {
+      const app = createApp([], tempDir, undefined, undefined, { studioDir });
+      const res = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          output: 'runs/r1',
+          rerun_failed: true,
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--rerun-failed');
+      expect(data.command).not.toContain('--resume');
+    });
+
+    it('emits --retry-errors <path> for retry_errors requests', async () => {
+      const app = createApp([], tempDir, undefined, undefined, { studioDir });
+      const res = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          retry_errors: 'runs/r0/index.jsonl',
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--retry-errors runs/r0/index.jsonl');
+    });
+  });
+
+  // ── GET /api/runs/:filename — run_dir + suite_filter for resume UI ─────
+  //
+  // The Studio "Resume run" / "Rerun failed cases" buttons need the run dir
+  // and the original eval file path to issue a launch request that targets
+  // the same run workspace. handleRunDetail reads benchmark.json's
+  // metadata.eval_file and reports the run dir relative to cwd.
+
+  describe('GET /api/runs/:filename (resume metadata)', () => {
+    it('includes run_dir and suite_filter for local runs with benchmark.json', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-05-06T00-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+      writeFileSync(
+        path.join(runDir, 'benchmark.json'),
+        JSON.stringify(
+          {
+            metadata: {
+              eval_file: 'examples/demo.eval.yaml',
+              timestamp: '2026-05-06T00:00:00.000Z',
+              targets: ['gpt-4o'],
+              tests_run: ['test-greeting'],
+            },
+            run_summary: {},
+            notes: [],
+          },
+          null,
+          2,
+        ),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        run_dir?: string;
+        suite_filter?: string;
+        source: 'local' | 'remote';
+      };
+      expect(data.source).toBe('local');
+      expect(data.run_dir).toBe(path.join('.agentv', 'results', 'runs', filename));
+      expect(data.suite_filter).toBe('examples/demo.eval.yaml');
+    });
+
+    it('omits suite_filter when benchmark.json is missing', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-05-06T00-00-01-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { run_dir?: string; suite_filter?: string };
+      expect(data.run_dir).toBeDefined();
+      expect(data.suite_filter).toBeUndefined();
+    });
+  });
 });

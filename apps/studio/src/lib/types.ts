@@ -76,6 +76,10 @@ export interface RunDetailResponse {
   results: EvalResult[];
   source: 'local' | 'remote';
   source_label?: string;
+  /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
+  run_dir?: string;
+  /** Eval file path the run was launched against, if recorded in benchmark.json. Local runs only. */
+  suite_filter?: string;
 }
 
 export interface SuiteSummary {
@@ -301,6 +305,14 @@ export interface RunEvalRequest {
   threshold?: number;
   workers?: number;
   dry_run?: boolean;
+  /** Resume an interrupted run: skip already-completed tests and append to `output`. */
+  resume?: boolean;
+  /** Re-run failed/errored tests while keeping passing results. */
+  rerun_failed?: boolean;
+  /** Path to a previous run dir or index.jsonl — re-run only execution_error cases. */
+  retry_errors?: string;
+  /** Artifact directory for run output — required to target an existing run dir. */
+  output?: string;
 }
 
 export interface EvalRunResponse {
