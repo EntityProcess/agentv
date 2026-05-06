@@ -31,9 +31,9 @@ describe('preprocessArgv', () => {
       expect(preprocessArgv(argv)).toEqual(argv);
     });
 
-    it('does not insert `run` for bare eval', () => {
+    it('inserts `run` for bare eval so the run handler can launch the wizard', () => {
       const argv = ['node', 'agentv', 'eval'];
-      expect(preprocessArgv(argv)).toEqual(argv);
+      expect(preprocessArgv(argv)).toEqual(['node', 'agentv', 'eval', 'run']);
     });
 
     it('inserts `run` when eval is followed by a flag', () => {

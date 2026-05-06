@@ -241,15 +241,32 @@ Notes:
 - `hooks.enabled: false` skips all lifecycle hooks (setup, teardown, reset).
 - Pool slots are managed separately (`agentv workspace list|clean`).
 
-### Retry Execution Errors
+### Resume an Interrupted Run
 
-Re-run only the tests that had infrastructure/execution errors from a previous output:
+AgentV ships three flags for picking up a partial run. They differ only in **which prior results are skipped**; in all three modes the new results are merged with the prior run.
+
+| Flag | What it skips | What it re-runs | Use when |
+|------|---------------|-----------------|----------|
+| `--resume` | Anything that finished without an `execution_error` (passes, fails, threshold misses) | Errors and missing cases | The run was interrupted (Ctrl-C, crash, OOM) and you just want it to finish |
+| `--rerun-failed` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
+| `--retry-errors <path>` | Anything that completed without an `execution_error` (same set as `--resume`) | Errors and missing cases | You want to point at an arbitrary prior run/manifest by path, instead of resuming the run dir you're currently writing to |
+
+`--resume` and `--rerun-failed` both append to the existing `index.jsonl` and require `--output <dir>` so AgentV knows which run directory to scan. `--retry-errors` takes the prior run's path directly (a directory or an `index.jsonl`).
 
 ```bash
+# Resume an interrupted run — finish the missing/errored cases
+agentv eval evals/my-eval.yaml --output .agentv/results/runs/<timestamp> --resume
+
+# Re-run errors AND failed cases against the same run dir
+agentv eval evals/my-eval.yaml --output .agentv/results/runs/<timestamp> --rerun-failed
+
+# Re-run only execution errors from any prior run by path
 agentv eval evals/my-eval.yaml --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
 ```
 
-This reads the previous run manifest, filters for `executionStatus === 'execution_error'`, and re-runs only those test cases. Non-error results from the previous run are preserved and merged into the new output.
+After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it.
+
+The interactive wizard (`agentv eval` with no arguments) remembers the last run's artifact directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
 
 ### Execution Error Tolerance
 
