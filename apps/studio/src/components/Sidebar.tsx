@@ -29,7 +29,7 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
-import { formatRunLabel } from '~/lib/run-label';
+import { formatRunLabel, timeAgo } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
 /** Responsive <aside> wrapper. Handles mobile overlay and desktop static placement. */
@@ -211,10 +211,11 @@ function RunSidebar() {
                 key={`${run.benchmark_id}/${run.filename}`}
                 to="/benchmarks/$benchmarkId/runs/$runId"
                 params={{ benchmarkId: run.benchmark_id, runId: run.filename }}
-                className="mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
+                className="mb-0.5 block rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
                 title={run.benchmark_name}
               >
-                {formatRunLabel(run)}
+                <span className="block truncate">{formatRunLabel(run)}</span>
+                <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
               </Link>
             );
           }
@@ -224,13 +225,14 @@ function RunSidebar() {
               key={run.filename}
               to="/runs/$runId"
               params={{ runId: run.filename }}
-              className={`mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
+              className={`mb-0.5 block rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {formatRunLabel(run)}
+              <span className="block truncate">{formatRunLabel(run)}</span>
+              <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
             </Link>
           );
         })}
@@ -446,13 +448,14 @@ function BenchmarkRunDetailSidebar({
               key={run.filename}
               to="/benchmarks/$benchmarkId/runs/$runId"
               params={{ benchmarkId, runId: run.filename }}
-              className={`mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
+              className={`mb-0.5 block rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {formatRunLabel(run)}
+              <span className="block truncate">{formatRunLabel(run)}</span>
+              <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
             </Link>
           );
         })}
