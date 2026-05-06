@@ -3,23 +3,34 @@ import { describe, expect, it } from 'bun:test';
 import { formatRunLabel } from './run-label';
 
 describe('formatRunLabel', () => {
-  it('prefers target and experiment over the timestamp display name', () => {
+  it('shows DD/MM HH:mm · target · experiment · score', () => {
     expect(
       formatRunLabel({
-        filename: 'issue-1198::2026-04-29T09-17-30-111Z',
-        display_name: '2026-04-29T09-17-30-111Z',
         target: 'llm-dry-run',
         experiment: 'issue-1198',
+        timestamp: '2026-04-29T09:17:30.111Z',
+        pass_rate: 0.8,
       }),
-    ).toBe('llm-dry-run · issue-1198');
+    ).toBe('29/04 09:17 · llm-dry-run · issue-1198 · 80%');
   });
 
-  it('falls back to the display name when no richer metadata is available', () => {
+  it('omits experiment when it is the default', () => {
     expect(
       formatRunLabel({
-        filename: '2026-04-29T09-17-30-111Z',
-        display_name: '2026-04-29T09-17-30-111Z',
+        target: 'azure',
+        experiment: 'default',
+        timestamp: '2026-04-29T09:17:30.111Z',
+        pass_rate: 1,
       }),
-    ).toBe('2026-04-29T09-17-30-111Z');
+    ).toBe('29/04 09:17 · azure · 100%');
+  });
+
+  it('shows just timestamp and score when no target is present', () => {
+    expect(
+      formatRunLabel({
+        timestamp: '2026-04-29T09:17:30.111Z',
+        pass_rate: 0,
+      }),
+    ).toBe('29/04 09:17 · 0%');
   });
 });
