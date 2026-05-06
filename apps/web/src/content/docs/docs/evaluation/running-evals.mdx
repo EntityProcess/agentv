@@ -251,14 +251,17 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 | `--rerun-failed` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
 | `--retry-errors <path>` | Anything that completed without an `execution_error` (same set as `--resume`) | Errors and missing cases | You want to point at an arbitrary prior run/manifest by path, instead of resuming the run dir you're currently writing to |
 
-`--resume` and `--rerun-failed` both append to the existing `index.jsonl` and require `--output <dir>` so AgentV knows which run directory to scan. `--retry-errors` takes the prior run's path directly (a directory or an `index.jsonl`).
+`--resume` and `--rerun-failed` both append to the existing `index.jsonl`. When `--output <dir>` is given they target that directory; when omitted they default to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. This matches promptfoo's `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default" convention. `--retry-errors` takes the prior run's path directly (a directory or an `index.jsonl`).
 
 ```bash
-# Resume an interrupted run — finish the missing/errored cases
+# Resume the last run — no args needed; AgentV finds it from .agentv/cache.json
+agentv eval evals/my-eval.yaml --resume
+
+# Or target a specific run dir explicitly
 agentv eval evals/my-eval.yaml --output .agentv/results/runs/<timestamp> --resume
 
-# Re-run errors AND failed cases against the same run dir
-agentv eval evals/my-eval.yaml --output .agentv/results/runs/<timestamp> --rerun-failed
+# Re-run errors AND failed cases against the last run dir
+agentv eval evals/my-eval.yaml --rerun-failed
 
 # Re-run only execution errors from any prior run by path
 agentv eval evals/my-eval.yaml --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
