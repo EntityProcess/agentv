@@ -209,11 +209,16 @@ function resolveCliPath(cwd: string): { binPath: string; args: string[] } | unde
   }
 
   // 2. Try from the current running process location (handles both CJS __dirname
-  //    and ESM import.meta.url; fileURLToPath works correctly on Windows)
+  //    and ESM import.meta.url; fileURLToPath works correctly on Windows).
+  //    Layouts we can be loaded from:
+  //      - dev/source: this module sits at apps/cli/src/commands/results/eval-runner.ts,
+  //        so cli.ts is two dirs up at apps/cli/src/cli.ts.
+  //      - bundled dist: tsup emits the chunk into apps/cli/dist/, alongside cli.js,
+  //        so the entry is in the same directory as currentDir.
   const currentDir =
     typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
-  const fromSrc = path.resolve(currentDir, '../../../cli.ts');
-  const fromDist = path.resolve(currentDir, '../../cli.js');
+  const fromSrc = path.resolve(currentDir, '../../cli.ts');
+  const fromDist = path.resolve(currentDir, 'cli.js');
 
   if (existsSync(fromSrc)) return { binPath: 'bun', args: [fromSrc] };
   if (existsSync(fromDist)) return { binPath: 'bun', args: [fromDist] };

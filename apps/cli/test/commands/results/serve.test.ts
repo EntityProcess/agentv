@@ -900,13 +900,13 @@ describe('serve app', () => {
           resume: true,
         }),
       });
-      // Either 202 (spawn succeeded) or 500 (no CLI on disk in test env).
-      expect([202, 500]).toContain(res.status);
-      const data = (await res.json()) as { command?: string; error?: string };
-      if (res.status === 202) {
-        expect(data.command).toContain('--resume');
-        expect(data.command).toContain('--output .agentv/results/runs/2026-05-06T00-00-00-000Z');
-      }
+      // resolveCliPath must resolve in the test env via the running-process
+      // fallback (apps/cli/src/cli.ts is two dirs up from this module). A
+      // 500 here would mean the off-by-one regression from #1221 came back.
+      expect(res.status).toBe(202);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--resume');
+      expect(data.command).toContain('--output .agentv/results/runs/2026-05-06T00-00-00-000Z');
     });
 
     it('builds --rerun-failed + --output flags from the request', async () => {
@@ -921,12 +921,10 @@ describe('serve app', () => {
           rerun_failed: true,
         }),
       });
-      expect([202, 500]).toContain(res.status);
-      if (res.status === 202) {
-        const data = (await res.json()) as { command: string };
-        expect(data.command).toContain('--rerun-failed');
-        expect(data.command).toContain('--output runs/r1');
-      }
+      expect(res.status).toBe(202);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--rerun-failed');
+      expect(data.command).toContain('--output runs/r1');
     });
 
     it('builds --retry-errors <path> from the request', async () => {
@@ -939,11 +937,9 @@ describe('serve app', () => {
           retry_errors: 'runs/r0/index.jsonl',
         }),
       });
-      expect([202, 500]).toContain(res.status);
-      if (res.status === 202) {
-        const data = (await res.json()) as { command: string };
-        expect(data.command).toContain('--retry-errors runs/r0/index.jsonl');
-      }
+      expect(res.status).toBe(202);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--retry-errors runs/r0/index.jsonl');
     });
 
     it('rejects resume + rerun_failed combo with 400', async () => {
