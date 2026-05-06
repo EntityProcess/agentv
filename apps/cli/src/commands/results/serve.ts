@@ -347,8 +347,10 @@ function deriveResumeMeta(
   const out: { run_dir?: string; suite_filter?: string } = {};
   const runDir = path.dirname(manifestPath);
   const relative = path.relative(cwd, runDir);
-  // If runDir is outside cwd, path.relative returns "../..." — keep absolute in that case.
-  out.run_dir = relative && !relative.startsWith('..') ? relative : runDir;
+  // path.relative returns '..'-prefixed paths when runDir is outside cwd; keep
+  // those absolute so the CLI doesn't get confused. An empty string ('' = same
+  // dir as cwd) is unusual but valid — fall through to absolute in that case.
+  out.run_dir = relative !== '' && !relative.startsWith('..') ? relative : runDir;
   try {
     const benchmarkPath = path.join(runDir, 'benchmark.json');
     if (existsSync(benchmarkPath)) {

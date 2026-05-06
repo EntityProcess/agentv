@@ -123,7 +123,7 @@ function validateResumeOptions(req: RunEvalRequest): string | undefined {
   const modes: string[] = [];
   if (req.resume) modes.push('resume');
   if (req.rerun_failed) modes.push('rerun_failed');
-  if (req.retry_errors !== undefined && req.retry_errors !== null && req.retry_errors !== '') {
+  if (req.retry_errors?.trim()) {
     modes.push('retry_errors');
   }
   if (modes.length > 1) {
