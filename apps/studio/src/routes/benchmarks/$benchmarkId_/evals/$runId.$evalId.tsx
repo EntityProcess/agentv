@@ -64,7 +64,9 @@ function BenchmarkEvalDetailPage() {
             Run: {runId} / Eval: {evalId}
           </p>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
-            <span className={`text-2xl font-bold leading-none ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span
+              className={`text-2xl font-bold leading-none ${passed ? 'text-emerald-400' : 'text-red-400'}`}
+            >
               {passed ? '✓' : '✗'}
             </span>
             {evalId}
