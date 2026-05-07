@@ -11,7 +11,7 @@ import { useState } from 'react';
 
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { useRunDetail, useStudioConfig } from '~/lib/api';
+import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/evals/$runId/$evalId')({
   component: EvalDetailPage,
@@ -54,6 +54,12 @@ function EvalDetailPage() {
     );
   }
 
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
+  const passed =
+    isPassing(result.score, passThreshold) &&
+    result.executionStatus !== 'error' &&
+    result.executionStatus !== 'failed';
+
   return (
     <div className="flex h-full flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -61,7 +67,12 @@ function EvalDetailPage() {
           <p className="text-sm text-gray-400">
             Run: {runId} / Eval: {evalId}
           </p>
-          <h1 className="text-2xl font-semibold text-white">{evalId}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
+            <span className={`text-2xl font-bold leading-none ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+              {passed ? '✓' : '✗'}
+            </span>
+            {evalId}
+          </h1>
         </div>
         {!isReadOnly && (
           <button

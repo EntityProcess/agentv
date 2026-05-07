@@ -59,20 +59,6 @@ export function EvalDetail({ eval: result, runId, benchmarkId }: EvalDetailProps
 
   return (
     <div className="flex min-h-full flex-col">
-      {/* Compact header: test ID + metadata (no scores — scores live in Checks tab) */}
-      <div className="flex items-start justify-between border-b border-gray-800 px-4 py-3">
-        <div>
-          <h3 className="text-lg font-medium">{result.testId}</h3>
-          <p className="mt-0.5 text-sm text-gray-400">
-            {result.target && <span>Target: {result.target}</span>}
-            {result.durationMs != null && (
-              <span className="ml-4">{(result.durationMs / 1000).toFixed(1)}s</span>
-            )}
-            {result.costUsd != null && <span className="ml-4">${result.costUsd.toFixed(4)}</span>}
-          </p>
-        </div>
-      </div>
-
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
       <div className="border-b border-gray-800">
         <div className="flex gap-1 px-4">
