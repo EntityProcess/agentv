@@ -20,7 +20,7 @@ import path from 'node:path';
  * Mirrors the internal listSkillNames / readSkill logic without depending on
  * import.meta.url resolution so we can test it with a fixture directory.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 function listSkillNames(skillsDir: string): string[] {
   if (!existsSync(skillsDir)) return [];
@@ -79,15 +79,12 @@ beforeEach(() => {
   // Create two skill directories
   write(
     'agentv-bench/SKILL.md',
-    `---\nname: agentv-bench\ndescription: Run evals\n---\n# AgentV Bench\nContent here.\n`,
+    '---\nname: agentv-bench\ndescription: Run evals\n---\n# AgentV Bench\nContent here.\n',
   );
-  write(
-    'agentv-bench/references/cli.md',
-    `# CLI Reference\nSome commands.\n`,
-  );
+  write('agentv-bench/references/cli.md', '# CLI Reference\nSome commands.\n');
   write(
     'agentv-eval-writer/SKILL.md',
-    `---\nname: agentv-eval-writer\ndescription: Write evals\nhidden: true\n---\n# Eval Writer\n`,
+    '---\nname: agentv-eval-writer\ndescription: Write evals\nhidden: true\n---\n# Eval Writer\n',
   );
 });
 
@@ -112,14 +109,14 @@ describe('readSkill', () => {
   it('reads SKILL.md content', () => {
     const skill = readSkill(tmpDir, 'agentv-bench', false);
     expect(skill).not.toBeNull();
-    expect(skill!.name).toBe('agentv-bench');
-    expect(skill!.content).toContain('# AgentV Bench');
-    expect(skill!.files).toBeUndefined();
+    expect(skill?.name).toBe('agentv-bench');
+    expect(skill?.content).toContain('# AgentV Bench');
+    expect(skill?.files).toBeUndefined();
   });
 
   it('includes frontmatter including hidden: true', () => {
     const skill = readSkill(tmpDir, 'agentv-eval-writer', false);
-    expect(skill!.content).toContain('hidden: true');
+    expect(skill?.content).toContain('hidden: true');
   });
 
   it('returns null for non-existent skill', () => {
@@ -128,13 +125,13 @@ describe('readSkill', () => {
 
   it('--full collects references/ files', () => {
     const skill = readSkill(tmpDir, 'agentv-bench', true);
-    expect(skill!.files).toBeDefined();
-    expect(skill!.files!['references/cli.md']).toContain('# CLI Reference');
+    expect(skill?.files).toBeDefined();
+    expect(skill?.files?.['references/cli.md']).toContain('# CLI Reference');
   });
 
   it('--full returns no files key when no references/ or templates/', () => {
     const skill = readSkill(tmpDir, 'agentv-eval-writer', true);
-    expect(skill!.files).toBeUndefined();
+    expect(skill?.files).toBeUndefined();
   });
 });
 

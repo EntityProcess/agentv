@@ -21,10 +21,10 @@
  *   { success: false, error: string }
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { boolean, command, flag, optional, positional, string, subcommands } from 'cmd-ts';
+import { command, flag, optional, positional, string, subcommands } from 'cmd-ts';
 
 // ── Resolution ────────────────────────────────────────────────────────────────
 
@@ -135,7 +135,7 @@ function readSkill(skillsDir: string, name: string, full: boolean): SkillData | 
 
 function printSkill(skill: SkillData, json: boolean): void {
   if (json) {
-    process.stdout.write(JSON.stringify({ success: true, data: [skill] }) + '\n');
+    process.stdout.write(`${JSON.stringify({ success: true, data: [skill] })}\n`);
     return;
   }
   process.stdout.write(skill.content);
@@ -161,7 +161,7 @@ const skillsListCommand = command({
     const skillsDir = requireSkillsDir();
     const names = listSkillNames(skillsDir);
     if (json) {
-      process.stdout.write(JSON.stringify({ success: true, data: names }) + '\n');
+      process.stdout.write(`${JSON.stringify({ success: true, data: names })}\n`);
     } else {
       for (const name of names) {
         console.log(name);
@@ -192,7 +192,7 @@ const skillsGetCommand = command({
         .filter((s): s is SkillData => s !== null);
 
       if (json) {
-        process.stdout.write(JSON.stringify({ success: true, data: skills }) + '\n');
+        process.stdout.write(`${JSON.stringify({ success: true, data: skills })}\n`);
         return;
       }
       for (const skill of skills) {
@@ -208,7 +208,7 @@ const skillsGetCommand = command({
     if (!skill) {
       if (json) {
         process.stdout.write(
-          JSON.stringify({ success: false, error: `Skill '${name}' not found` }) + '\n',
+          `${JSON.stringify({ success: false, error: `Skill '${name}' not found` })}\n`,
         );
       } else {
         console.error(`Error: skill '${name}' not found`);
