@@ -143,3 +143,19 @@ When analyzing traces, think about:
 4. **Latency distribution**: P50 vs P99 spread indicates consistency. Large spread means unpredictable performance — investigate P99 outliers.
 
 5. **Regression detection**: After a prompt/config change, compare before/after. Mean delta > 0 is good, but check individual test regressions — a few large losses can hide behind many small wins.
+
+## Accessing reference files
+
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-trace-analyst --ref <filename>
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-trace-analyst)/references/<filename>.md
+```
+
+Use `--full` to retrieve every file in the skill at once.

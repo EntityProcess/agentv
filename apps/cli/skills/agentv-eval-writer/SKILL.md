@@ -689,3 +689,19 @@ Full guide: https://agentv.dev/guides/human-review/
 
 - Eval file: `references/eval-schema.json`
 - Config: `references/config-schema.json`
+
+## Accessing reference files
+
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-eval-writer --ref eval-schema.json
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-eval-writer)/references/eval-schema.json
+```
+
+Use `--full` to retrieve every file in the skill at once.

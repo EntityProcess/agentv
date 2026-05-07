@@ -5,11 +5,13 @@
  * This ensures skill content always matches the installed CLI version — no drift possible.
  *
  * Subcommands:
- *   list              — print skill names (one per line, or JSON with --json)
- *   get <name>        — print SKILL.md content; --full also includes references/ and templates/
- *   get <name> --all  — get all skills
- *   get --all         — get all skills
- *   path [<name>]     — print resolved path to skills dir or specific skill dir
+ *   list                       — print skill names (one per line, or JSON with --json)
+ *   get <name>                 — print SKILL.md content
+ *   get <name> --full          — also include references/, templates/, agents/
+ *   get <name> --ref <file>    — print one reference file (searches references/, templates/, agents/, then skill root)
+ *   get <name> --all           — get all skills
+ *   get --all                  — get all skills
+ *   path [<name>]              — print resolved path to skills dir or specific skill dir
  *
  * Resolution: walk from this module's file upward to find `dist/skills/` or `skills/`
  * that contains actual skill content (validated by presence of SKILL.md files).
@@ -24,7 +26,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { command, flag, optional, positional, string, subcommands } from 'cmd-ts';
+import { command, flag, option, optional, positional, string, subcommands } from 'cmd-ts';
 
 // ── Resolution ────────────────────────────────────────────────────────────────
 
@@ -121,14 +123,61 @@ function readSkill(skillsDir: string, name: string, full: boolean): SkillData | 
 
   if (!full) return { name, content };
 
-  // Collect extra directories: references/ and templates/
+  // Collect extra directories: references/, templates/, agents/
   const files: Record<string, string> = {};
-  for (const sub of ['references', 'templates']) {
+  for (const sub of ['references', 'templates', 'agents']) {
     const subDir = path.join(skillDir, sub);
     const collected = collectDir(subDir, sub);
     Object.assign(files, collected);
   }
   return { name, content, files: Object.keys(files).length > 0 ? files : undefined };
+}
+
+/**
+ * Find a single reference file by name within a skill.
+ *
+ * Search order: references/, templates/, agents/, then the skill root for
+ * a bare filename. The name may include or omit the `.md` extension — we
+ * try the literal name first, then with `.md` appended, so callers can
+ * write `--ref eval-yaml-spec` instead of `--ref eval-yaml-spec.md`.
+ */
+function findRefFile(
+  skillDir: string,
+  refName: string,
+): { relPath: string; content: string } | null {
+  const candidates = refName.endsWith('.md') ? [refName] : [refName, `${refName}.md`];
+  for (const sub of ['references', 'templates', 'agents']) {
+    for (const candidate of candidates) {
+      const filePath = path.join(skillDir, sub, candidate);
+      if (existsSync(filePath)) {
+        return { relPath: `${sub}/${candidate}`, content: readFileSync(filePath, 'utf-8') };
+      }
+    }
+  }
+  // Bare name in the skill root (e.g. LICENSE.txt)
+  for (const candidate of candidates) {
+    const filePath = path.join(skillDir, candidate);
+    if (existsSync(filePath)) {
+      return { relPath: candidate, content: readFileSync(filePath, 'utf-8') };
+    }
+  }
+  return null;
+}
+
+/**
+ * List ref-discoverable filenames inside a skill (used to print a useful
+ * error when a `--ref` lookup misses).
+ */
+function listRefFiles(skillDir: string): string[] {
+  const out: string[] = [];
+  for (const sub of ['references', 'templates', 'agents']) {
+    const subDir = path.join(skillDir, sub);
+    if (!existsSync(subDir)) continue;
+    for (const entry of readdirSync(subDir, { withFileTypes: true })) {
+      if (entry.isFile()) out.push(`${sub}/${entry.name}`);
+    }
+  }
+  return out.sort();
 }
 
 // ── Output helpers ────────────────────────────────────────────────────────────
@@ -178,12 +227,77 @@ const skillsGetCommand = command({
     all: flag({ long: 'all', description: 'Get all skills' }),
     full: flag({
       long: 'full',
-      description: 'Also include files under references/ and templates/',
+      description: 'Also include files under references/, templates/, and agents/',
+    }),
+    ref: option({
+      type: optional(string),
+      long: 'ref',
+      description:
+        'Load a single reference file by name (searches references/, templates/, agents/). Takes precedence over --full.',
     }),
     json: flag({ long: 'json', description: 'Output as JSON' }),
   },
-  handler: ({ name, all, full, json }) => {
+  handler: ({ name, all, full, ref, json }) => {
     const skillsDir = requireSkillsDir();
+
+    if (ref !== undefined && all) {
+      const msg = '--ref is incompatible with --all';
+      if (json) {
+        process.stdout.write(`${JSON.stringify({ success: false, error: msg })}\n`);
+      } else {
+        console.error(`Error: ${msg}`);
+      }
+      process.exit(1);
+    }
+
+    if (ref !== undefined) {
+      if (name === undefined) {
+        const msg = '--ref requires a skill name';
+        if (json) {
+          process.stdout.write(`${JSON.stringify({ success: false, error: msg })}\n`);
+        } else {
+          console.error(`Error: ${msg}`);
+        }
+        process.exit(1);
+      }
+      const skillDir = path.join(skillsDir, name);
+      if (!existsSync(skillDir)) {
+        const msg = `skill '${name}' not found`;
+        if (json) {
+          process.stdout.write(`${JSON.stringify({ success: false, error: msg })}\n`);
+        } else {
+          console.error(`Error: ${msg}`);
+          const available = listSkillNames(skillsDir);
+          if (available.length > 0) {
+            console.error(`Available skills: ${available.join(', ')}`);
+          }
+        }
+        process.exit(1);
+      }
+      const file = findRefFile(skillDir, ref);
+      if (!file) {
+        const msg = `reference '${ref}' not found in skill '${name}'`;
+        if (json) {
+          process.stdout.write(`${JSON.stringify({ success: false, error: msg })}\n`);
+        } else {
+          console.error(`Error: ${msg}`);
+          const available = listRefFiles(skillDir);
+          if (available.length > 0) {
+            console.error(`Available reference files:\n  ${available.join('\n  ')}`);
+          }
+        }
+        process.exit(1);
+      }
+      if (json) {
+        process.stdout.write(
+          `${JSON.stringify({ success: true, data: [{ name, content: file.content, files: { [file.relPath]: file.content } }] })}\n`,
+        );
+        return;
+      }
+      process.stdout.write(file.content);
+      if (!file.content.endsWith('\n')) process.stdout.write('\n');
+      return;
+    }
 
     if (all || name === undefined) {
       const names = listSkillNames(skillsDir);

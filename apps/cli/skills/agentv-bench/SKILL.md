@@ -426,3 +426,19 @@ Repeating the core loop for emphasis:
 - Repeat until you and the user are satisfied
 
 Take your time with improvements. Read the transcripts. Understand why failures happened. Make changes that generalize beyond the test set. This is important work.
+
+## Accessing reference files
+
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-bench --ref eval-yaml-spec
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-bench)/references/eval-yaml-spec.md
+```
+
+Use `--full` to retrieve every file in the skill at once.

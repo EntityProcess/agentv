@@ -1,6 +1,6 @@
 ---
 name: agentv-onboarding
-description: Bootstrap AgentV in the current workspace after plugin-manager install. Ensures CLI availability, runs workspace init, and verifies setup artifacts.
+description: Bootstrap AgentV in the current workspace. Ensures CLI availability, runs workspace init, and verifies setup artifacts.
 ---
 
 # AgentV Onboarding
@@ -16,48 +16,50 @@ Set up AgentV in the current workspace:
 
 ## Workflow
 
-### 1. Resolve Script Path
+### 1. Verify the CLI is available
 
-Find the directory that contains this `SKILL.md`, then resolve script paths relative to it.
+Run `agentv --version` from the repository root.
 
-Packaged scripts:
-- `scripts/onboard-agentv.sh` for bash/zsh
-- `scripts/onboard-agentv.ps1` for PowerShell
+- If it succeeds, record the version and skip to step 2.
+- If `agentv` is not on PATH, install it once with the user's package manager:
+  - `bun install -g agentv` (preferred)
+  - `npm install -g agentv` (fallback)
 
-### 2. Run the Platform Script
+Re-check `agentv --version` after install. Stop and report the exact error if it still fails.
 
-Run from the repository root where AgentV should be initialized.
+### 2. Initialize the workspace
 
-POSIX shells:
+Run from the repository root:
 
 ```bash
-bash <skill-dir>/scripts/onboard-agentv.sh
+agentv init
 ```
 
-PowerShell:
+This is idempotent — re-running is safe and will fill in any setup artifacts that are still missing.
 
-```powershell
-pwsh -File <skill-dir>/scripts/onboard-agentv.ps1
-```
+### 3. Verify setup artifacts
 
-If `pwsh` is unavailable on Windows:
+Confirm the expected files exist (e.g. `.agentv/`, `agentv.config.yaml` if applicable).
+If verification fails after a fresh `agentv init`, surface the exact error and stop. Do not claim setup succeeded.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File <skill-dir>/scripts/onboard-agentv.ps1
-```
-
-### 3. Handle Errors
-
-If the script fails, report the exact error and stop. Do not claim setup succeeded.
-
-### 4. Report Outcome Clearly
+### 4. Report outcome
 
 Summarize:
 - `agentv` version in use
-- whether CLI was installed during this run
-- whether `agentv init` completed
+- whether the CLI was installed during this run
+- whether `agentv init` completed successfully
 - whether setup verification passed
 
-## Re-run Behavior
+## Accessing reference files
 
-Re-running is safe. The scripts run `agentv init`, and if setup artifacts are still missing they rerun once automatically before failing.
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-onboarding --ref <filename>
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-onboarding)/references/<filename>.md
+```

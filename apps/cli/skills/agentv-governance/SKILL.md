@@ -61,3 +61,19 @@ The expected output format is:
 4. Add `controls` as `<FRAMEWORK>-<VERSION>:<ID>` strings (e.g. `EU-AI-ACT-2024:Art.55`).
 5. Run the lint rules from `references/lint-rules.md` against your block before committing.
 6. See `references/governance-yaml-shape.md` for complete examples copied from real suites.
+
+## Accessing reference files
+
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-governance --ref lint-rules
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-governance)/references/lint-rules.md
+```
+
+Use `--full` to retrieve every framework reference in one shot.
