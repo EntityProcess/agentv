@@ -77,6 +77,7 @@ function RunDetailPage() {
             suiteFilter={data?.suite_filter}
             target={target ?? undefined}
             isReadOnly={isReadOnly}
+            plannedTestCount={data?.planned_test_count}
           />
           {!isReadOnly && (
             <button

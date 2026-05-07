@@ -347,8 +347,8 @@ async function handleRunDetail(c: C, { searchDir }: DataContext) {
 function deriveResumeMeta(
   cwd: string,
   manifestPath: string,
-): { run_dir?: string; suite_filter?: string } {
-  const out: { run_dir?: string; suite_filter?: string } = {};
+): { run_dir?: string; suite_filter?: string; planned_test_count?: number } {
+  const out: { run_dir?: string; suite_filter?: string; planned_test_count?: number } = {};
   const runDir = path.dirname(manifestPath);
   const relative = path.relative(cwd, runDir);
   // path.relative returns '..'-prefixed paths when runDir is outside cwd; keep
@@ -359,15 +359,19 @@ function deriveResumeMeta(
     const benchmarkPath = path.join(runDir, 'benchmark.json');
     if (existsSync(benchmarkPath)) {
       const parsed = JSON.parse(readFileSync(benchmarkPath, 'utf8')) as {
-        metadata?: { eval_file?: string };
+        metadata?: { eval_file?: string; planned_test_count?: number };
       };
       const evalFile = parsed.metadata?.eval_file;
       if (typeof evalFile === 'string' && evalFile.trim()) {
         out.suite_filter = evalFile.trim();
       }
+      const planned = parsed.metadata?.planned_test_count;
+      if (typeof planned === 'number' && Number.isFinite(planned) && planned > 0) {
+        out.planned_test_count = planned;
+      }
     }
   } catch {
-    // benchmark.json missing / unreadable / malformed — leave suite_filter unset.
+    // benchmark.json missing / unreadable / malformed — leave fields unset.
   }
   return out;
 }

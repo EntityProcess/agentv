@@ -35,6 +35,7 @@ export interface ResumeRunActionsProps {
   target?: string;
   benchmarkId?: string;
   isReadOnly: boolean;
+  plannedTestCount?: number;
 }
 
 export function ResumeRunActions({
@@ -44,12 +45,13 @@ export function ResumeRunActions({
   target,
   benchmarkId,
   isReadOnly,
+  plannedTestCount,
 }: ResumeRunActionsProps) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState<ResumeMode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (!shouldShowResumeActions(results, isReadOnly)) return null;
+  if (!shouldShowResumeActions(results, isReadOnly, plannedTestCount)) return null;
 
   // Both actions need the run dir + the original eval file. Without those
   // we can't target the existing run workspace, so we render the buttons

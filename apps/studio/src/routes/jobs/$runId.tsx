@@ -9,7 +9,8 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 
-import { useEvalRunStatus } from '~/lib/api';
+import { StopRunButton } from '~/components/StopRunButton';
+import { useEvalRunStatus, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/jobs/$runId')({
   component: JobDetailPage,
@@ -18,6 +19,8 @@ export const Route = createFileRoute('/jobs/$runId')({
 function JobDetailPage() {
   const { runId } = Route.useParams();
   const { data: status, isLoading, error } = useEvalRunStatus(runId);
+  const { data: config } = useStudioConfig();
+  const isReadOnly = config?.read_only === true;
 
   if (isLoading) {
     return (
@@ -74,7 +77,8 @@ function JobDetailPage() {
             )}
           </p>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-3">
+          <StopRunButton runId={runId} status={status.status} isReadOnly={isReadOnly} />
           <span className={`text-sm font-medium ${statusColor}`}>
             {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
           </span>

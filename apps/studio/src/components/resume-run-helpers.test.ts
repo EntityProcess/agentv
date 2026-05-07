@@ -32,6 +32,23 @@ describe('shouldShowResumeActions', () => {
   it('hides on empty results', () => {
     expect(shouldShowResumeActions([], false)).toBe(false);
   });
+
+  it('shows for an incomplete partial run with only ok rows when planned_test_count exceeds results', () => {
+    // Stop button / Ctrl+C scenario: 5 of 10 planned tests finished
+    // successfully before the run was killed. No execution errors, but
+    // still resumable.
+    const results = [ok('a'), ok('b'), ok('c'), ok('d'), ok('e')];
+    expect(shouldShowResumeActions(results, false, 10)).toBe(true);
+  });
+
+  it('hides when results match planned_test_count (complete passing run)', () => {
+    const results = [ok('a'), ok('b'), ok('c')];
+    expect(shouldShowResumeActions(results, false, 3)).toBe(false);
+  });
+
+  it('hides incomplete partial run in read-only mode', () => {
+    expect(shouldShowResumeActions([ok('a')], true, 5)).toBe(false);
+  });
 });
 
 describe('buildResumeRequestBody', () => {

@@ -80,6 +80,8 @@ export interface RunDetailResponse {
   run_dir?: string;
   /** Eval file path the run was launched against, if recorded in benchmark.json. Local runs only. */
   suite_filter?: string;
+  /** Total (test_id, target) executions originally planned for this run. Used to detect incomplete partial runs as resumable. Local runs only, populated when the run was launched after the planned-count metadata feature shipped. */
+  planned_test_count?: number;
 }
 
 export interface SuiteSummary {
