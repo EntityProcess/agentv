@@ -44,20 +44,27 @@ function isValidSkillsDir(dir: string): boolean {
 
 /**
  * Walk from the directory containing this module's source file up to find
- * a `dist/skills` or `skills` directory that contains actual skill content.
- * Covers:
- *   - Production npm install: binary at dist/cli.js → dist/skills/ is sibling
- *   - Source run (bun src/cli.ts): walking up finds apps/cli/skills/ or apps/cli/dist/skills/
+ * a directory that contains actual skill content. In priority order at
+ * each ancestor level:
+ *   1. `dist/skills/` — production npm install (binary at dist/cli.js,
+ *      skills are a sibling) and post-build dev runs.
+ *   2. `skills-data/` — repo-root source layout (mirrors agent-browser's
+ *      top-level `skill-data/`); used when running from TypeScript source
+ *      without a build.
+ *   3. `skills/` — legacy in-package location, retained for backward
+ *      compatibility with any downstream consumer that still bundles
+ *      this module without the dist copy step.
  */
 function findSkillsDir(): string | null {
   const selfFile = fileURLToPath(import.meta.url);
   let dir = path.dirname(selfFile);
   for (let i = 0; i < 6; i++) {
-    // Prefer dist/skills/ over bare skills/ to match the production layout
     const distCandidate = path.join(dir, 'dist', 'skills');
     if (isValidSkillsDir(distCandidate)) return distCandidate;
-    const candidate = path.join(dir, 'skills');
-    if (isValidSkillsDir(candidate)) return candidate;
+    const repoRootCandidate = path.join(dir, 'skills-data');
+    if (isValidSkillsDir(repoRootCandidate)) return repoRootCandidate;
+    const legacyCandidate = path.join(dir, 'skills');
+    if (isValidSkillsDir(legacyCandidate)) return legacyCandidate;
     dir = path.dirname(dir);
   }
   return null;

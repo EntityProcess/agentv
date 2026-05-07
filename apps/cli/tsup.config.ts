@@ -46,11 +46,12 @@ export default defineConfig({
 
     console.log('✓ Template files copied to dist/templates');
 
-    // Copy bundled skills from apps/cli/skills/ → dist/skills/
-    // `apps/cli/skills/` is the source of truth for full skill content; the
+    // Copy bundled skills from <repo-root>/skills-data/ → dist/skills/.
+    // `skills-data/` at the repo root is the source of truth for full skill
+    // content (mirrors agent-browser's top-level `skill-data/` layout); the
     // marketplace plugin files (plugins/agentv-dev/skills/) are stubs that
     // redirect agents to `agentv skills get <name>`.
-    const srcSkillsDir = path.join('skills');
+    const srcSkillsDir = path.resolve('..', '..', 'skills-data');
     const distSkillsDir = path.join('dist', 'skills');
     rmSync(distSkillsDir, { recursive: true, force: true });
     if (existsSync(srcSkillsDir)) {
