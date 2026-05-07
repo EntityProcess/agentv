@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { trackChild } from '../../runtime/child-tracker.js';
 import { recordCodexLogEntry } from './codex-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
@@ -755,6 +756,7 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: shouldShellExecute(options.executable),
     });
+    trackChild(child);
 
     let stdout = '';
     let stderr = '';

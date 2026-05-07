@@ -16,6 +16,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { trackChild } from '../../runtime/child-tracker.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
@@ -958,6 +959,7 @@ async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+    trackChild(child);
 
     let stdout = '';
     let stderr = '';

@@ -5,6 +5,7 @@ import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import { trackChild } from '../../runtime/child-tracker.js';
 import { extractTextContent, toContentArray } from './claude-content.js';
 import { recordClaudeLogEntry } from './claude-log-tracker.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
@@ -270,6 +271,7 @@ export class ClaudeCliProvider implements Provider {
       }
 
       const child = spawn(this.config.executable, options.args, spawnOptions);
+      trackChild(child);
 
       let stdout = '';
       let stderr = '';

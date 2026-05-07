@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process';
 
 import * as acp from '@agentclientprotocol/sdk';
 
+import { trackChild } from '../../runtime/child-tracker.js';
 import { captureSessionArtifacts } from '../workspace/file-changes.js';
 import { recordCopilotCliLogEntry } from './copilot-cli-log-tracker.js';
 import {
@@ -83,6 +84,7 @@ export class CopilotCliProvider implements Provider {
     const agentProcess = spawn(executable, args, {
       stdio: ['pipe', 'pipe', 'inherit'],
     });
+    trackChild(agentProcess);
 
     await waitForProcessSpawn(agentProcess, executable, this.targetName);
 

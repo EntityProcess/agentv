@@ -132,6 +132,11 @@ export {
 export { discoverGraders } from './evaluation/registry/grader-discovery.js';
 export { RunBudgetTracker } from './evaluation/run-budget-tracker.js';
 export { runBeforeSessionHook, parseEnvOutput } from './evaluation/hooks.js';
+export {
+  trackChild,
+  killAllTrackedChildren,
+  trackedChildCount,
+} from './runtime/child-tracker.js';
 
 // Import pipeline
 export * from './import/index.js';

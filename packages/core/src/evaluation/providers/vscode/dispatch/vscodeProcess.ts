@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { trackChild } from '../../../../runtime/child-tracker.js';
 import { pathExists, removeIfExists } from '../utils/fs.js';
 import { pathToFileUri } from '../utils/path.js';
 import { sleep } from '../utils/time.js';
@@ -36,6 +37,7 @@ function spawnVsCode(
     shell: useShell,
     detached: false,
   });
+  trackChild(child);
   child.on('error', (error) => {
     const label = options?.label ?? 'spawn';
     const renderedArgs = args.map((value) => JSON.stringify(value)).join(' ');
