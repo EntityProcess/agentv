@@ -337,6 +337,7 @@ export interface EvalRunListResponse {
     id: string;
     status: string;
     command: string;
+    target?: string;
     started_at: string;
     finished_at: string | null;
     exit_code: number | null;
