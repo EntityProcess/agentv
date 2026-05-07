@@ -2,19 +2,23 @@
 
 ## Scope
 
-Make Ctrl+C / DELETE work. No staged shutdown, no new status words, no
+Make Ctrl+C / POST work. No staged shutdown, no new status words, no
 AbortSignal threading.
 
 1. **CLI** — Ctrl+C → install `process.on('SIGINT'|'SIGTERM')` that kills
    tracked child processes, then exits. Partial `index.jsonl` is already
    row-by-row durable; whatever finished is preserved.
-2. **Studio API** — `DELETE /api/eval/run/:id` (and benchmark-scoped
+2. **Studio API** — `POST /api/eval/run/:id/stop` (and benchmark-scoped
    variant) calls `child.kill('SIGTERM')` on the spawned CLI. Existing
    `child.on('close')` flips `running → failed` once the process exits.
+   Idempotent: returns 200 `{stopped:false, reason:'already_terminal'}`
+   on terminal runs rather than 4xx, so clients can fire-and-forget.
    No new `'stopping'` state on the server.
-3. **Studio UI** — Red Stop button on `/jobs/:runId` while
-   `status ∈ {starting, running}` and not read-only. On click, optimistic
-   local "Stopping…" label until the next status poll flips to terminal.
+3. **Studio UI** — Neutral-styled Stop button on `/jobs/:runId` while
+   `status ∈ {starting, running}` and not read-only. Stop is part of the
+   stop → resume workflow, not a destructive cancel, so styling is gray
+   (not red). On click, optimistic local "Stopping…" label until the
+   next status poll flips to terminal.
 4. **Resume detection for partial runs** — Persist `planned_test_count` in
    `benchmark.json.metadata` at run start (early write), updated at end.
    Run-detail API surfaces the number; Studio computes
@@ -35,10 +39,10 @@ AbortSignal threading.
   `killAll('SIGTERM')` then `process.exit(130)` / `143`. Idempotent on
   re-entry; second signal hard-exits (`process.exit(1)`).
 
-### Studio DELETE endpoint
+### Studio POST endpoint
 - `apps/cli/src/commands/results/eval-runner.ts` — add
-  `app.delete('/api/eval/run/:id', ...)` and
-  `app.delete('/api/benchmarks/:benchmarkId/eval/run/:id', ...)`.
+  `app.post('/api/eval/run/:id/stop', ...)` and
+  `app.post('/api/benchmarks/:benchmarkId/eval/run/:id/stop', ...)`.
   - 404 if id unknown
   - 403 in read-only mode
   - 200 `{stopped: true}` after `child.kill('SIGTERM')`
@@ -46,10 +50,11 @@ AbortSignal threading.
   - No status mutation here; close handler does it.
 
 ### Studio Stop button
-- `apps/studio/src/components/StopRunButton.tsx` — *new*. Renders the red
-  destructive button when `status` is non-terminal; calls DELETE with the
-  benchmark-scoped path when `benchmarkId` is set; sets local
-  `stopping=true` state to flip the label optimistically.
+- `apps/studio/src/components/StopRunButton.tsx` — *new*. Renders a
+  neutral-styled (gray, not red) Stop button when `status` is
+  non-terminal; calls POST with the benchmark-scoped path when
+  `benchmarkId` is set; sets local `stopping=true` state to flip the
+  label optimistically.
 - `apps/studio/src/components/stop-run-helpers.ts` — *new*. Pure
   `shouldShowStopButton(status, isReadOnly)` for unit testing.
 - `apps/studio/src/lib/api.ts` — add `stopEvalRun(id, benchmarkId?)`.
@@ -80,9 +85,9 @@ AbortSignal threading.
   detail routes — pass `plannedTestCount` through.
 
 ### Tests (narrow)
-- `apps/cli/test/commands/results/serve.test.ts` (or co-located) — DELETE
-  endpoint: 404 unknown, 403 read-only, 200 happy path with a fake child
-  whose `kill` is observable.
+- `apps/cli/test/commands/results/serve.test.ts` (or co-located) — stop
+  endpoint: 404 unknown, 403 read-only, base + benchmark-scoped paths.
+  Happy path SIGTERM is covered by manual UAT (race-prone in unit tests).
 - `apps/studio/src/components/resume-run-helpers.test.ts` — case where
   every result is `ok` but `results.length < plannedTestCount` → button
   visible.
@@ -101,8 +106,8 @@ AbortSignal threading.
 
 - [ ] CLI: `Ctrl+C` during a multi-test eval kills all spawned providers
       and the partial `index.jsonl` is preserved.
-- [ ] Server: `DELETE /api/eval/run/:id` returns 200 in normal mode, 403
-      in read-only, 404 for unknown id.
+- [ ] Server: `POST /api/eval/run/:id/stop` returns 200 in normal mode,
+      403 in read-only, 404 for unknown id; idempotent on terminal runs.
 - [ ] UI: Stop button appears while running, hidden in read-only, hidden
       when terminal. Optimistic "Stopping…" label appears until status
       poll flips.

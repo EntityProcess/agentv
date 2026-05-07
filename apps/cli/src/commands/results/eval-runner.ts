@@ -413,11 +413,17 @@ export function registerEvalRoutes(
   });
 
   // ── Stop a running eval ────────────────────────────────────────────────
-  // SIGTERM the spawned CLI; the existing child.on('close') flips status to
-  // 'finished'/'failed'. The CLI's own signal handler walks its tracked
+  // POST (not DELETE) because Stop is part of the stop → resume → complete
+  // workflow, not a destructive cancel. The run remains resumable from the
+  // partial index.jsonl on disk. Idempotent: hitting /stop on a terminal
+  // run returns 200 with `stopped: false, reason: 'already_terminal'`
+  // rather than 4xx, so clients can fire-and-forget.
+  //
+  // SIGTERM the spawned CLI; the existing child.on('close') flips status
+  // to 'finished'/'failed'. The CLI's own signal handler walks its tracked
   // grandchildren (claude/codex/pi/copilot subprocesses) and kills them
   // before exiting.
-  app.delete('/api/eval/run/:id', (c) => {
+  app.post('/api/eval/run/:id/stop', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -599,7 +605,7 @@ export function registerEvalRoutes(
     }
   });
 
-  app.delete('/api/benchmarks/:benchmarkId/eval/run/:id', (c) => {
+  app.post('/api/benchmarks/:benchmarkId/eval/run/:id/stop', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }

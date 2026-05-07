@@ -1,16 +1,16 @@
 /**
- * StopRunButton — destructive button on /jobs/:runId that terminates a
- * Studio-launched eval.
+ * StopRunButton — pause-style affordance on /jobs/:runId that interrupts
+ * a Studio-launched eval. Stop is part of the stop → resume → complete
+ * workflow, not a destructive cancel: the partial index.jsonl is
+ * preserved and can be resumed in one click from the run-detail page.
  *
- * Calls DELETE /api/eval/run/:id (or the benchmark-scoped variant).
+ * Calls POST /api/eval/run/:id/stop (or the benchmark-scoped variant).
  * Optimistically flips the local label to "Stopping…" until the next
  * poll of /api/eval/status/:id observes a terminal state — at which
  * point the button hides via `shouldShowStopButton`.
  *
- * To extend with a "Force kill" affordance: thread a second handler
- * through that POSTs DELETE again (the CLI's signal handler interprets
- * a second SIGTERM within the same process as hard-exit) and surfaces a
- * confirmation prompt.
+ * Styling is intentionally neutral (gray, not red) to signal that this
+ * is a pause, not a kill.
  */
 
 import { useState } from 'react';
@@ -51,10 +51,10 @@ export function StopRunButton({ runId, status, isReadOnly, benchmarkId }: StopRu
         type="button"
         onClick={onClick}
         disabled={stopping}
-        className="rounded-md border border-red-700/70 bg-transparent px-3 py-1.5 text-sm font-medium text-red-300 hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md border border-gray-700 bg-transparent px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="stop-run-button"
       >
-        {stopping ? 'Stopping…' : '■ Stop run'}
+        {stopping ? 'Stopping…' : '⏸ Stop'}
       </button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

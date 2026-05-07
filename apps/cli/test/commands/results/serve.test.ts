@@ -1003,14 +1003,16 @@ describe('serve app', () => {
     });
   });
 
-  // ── DELETE /api/eval/run/:id — stop a running eval ─────────────────────
+  // ── POST /api/eval/run/:id/stop — interrupt a running eval ─────────────
   //
-  // The DELETE endpoint validates routing/auth shape (404 unknown id, 403
-  // read-only). The happy-path SIGTERM behavior is covered by manual UAT
-  // because it requires a live subprocess that is reliably mid-run; unit
-  // tests that race a launch against a delete are flaky.
+  // Stop is part of the stop → resume workflow, not a destructive cancel —
+  // POST (not DELETE) and idempotent on already-terminal runs. These tests
+  // validate routing/auth shape (404 unknown id, 403 read-only). The happy
+  // path SIGTERM behavior is covered by manual UAT because it requires a
+  // live subprocess that is reliably mid-run; unit tests that race a launch
+  // against a stop are flaky.
 
-  describe('DELETE /api/eval/run/:id (stop API)', () => {
+  describe('POST /api/eval/run/:id/stop (stop API)', () => {
     function makeAppForStop(opts?: { readOnly?: boolean }) {
       return createApp([], tempDir, undefined, undefined, {
         studioDir,
@@ -1020,28 +1022,28 @@ describe('serve app', () => {
 
     it('returns 404 for an unknown run id', async () => {
       const app = makeAppForStop();
-      const res = await app.request('/api/eval/run/no-such-id', { method: 'DELETE' });
+      const res = await app.request('/api/eval/run/no-such-id/stop', { method: 'POST' });
       expect(res.status).toBe(404);
     });
 
     it('returns 403 in read-only mode', async () => {
       const app = makeAppForStop({ readOnly: true });
-      const res = await app.request('/api/eval/run/anything', { method: 'DELETE' });
+      const res = await app.request('/api/eval/run/anything/stop', { method: 'POST' });
       expect(res.status).toBe(403);
     });
 
-    it('returns 404 for benchmark-scoped DELETE with unknown run id', async () => {
+    it('returns 404 for benchmark-scoped stop with unknown run id', async () => {
       const app = makeAppForStop();
-      const res = await app.request('/api/benchmarks/some-id/eval/run/no-such-id', {
-        method: 'DELETE',
+      const res = await app.request('/api/benchmarks/some-id/eval/run/no-such-id/stop', {
+        method: 'POST',
       });
       expect(res.status).toBe(404);
     });
 
-    it('returns 403 in read-only mode for benchmark-scoped DELETE', async () => {
+    it('returns 403 in read-only mode for benchmark-scoped stop', async () => {
       const app = makeAppForStop({ readOnly: true });
-      const res = await app.request('/api/benchmarks/some-id/eval/run/anything', {
-        method: 'DELETE',
+      const res = await app.request('/api/benchmarks/some-id/eval/run/anything/stop', {
+        method: 'POST',
       });
       expect(res.status).toBe(403);
     });

@@ -544,9 +544,9 @@ export async function stopEvalRun(
   benchmarkId?: string,
 ): Promise<{ stopped: boolean; reason?: string; status?: string }> {
   const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/eval/run/${runId}`
-    : `/api/eval/run/${runId}`;
-  const res = await fetch(url, { method: 'DELETE' });
+    ? `${benchmarkApiBase(benchmarkId)}/eval/run/${runId}/stop`
+    : `/api/eval/run/${runId}/stop`;
+  const res = await fetch(url, { method: 'POST' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error((err as { error?: string }).error ?? `Failed: ${res.status}`);
