@@ -46,6 +46,20 @@ export default defineConfig({
 
     console.log('✓ Template files copied to dist/templates');
 
+    // Copy bundled skills from apps/cli/skills/ → dist/skills/
+    // `apps/cli/skills/` is the source of truth for full skill content; the
+    // marketplace plugin files (plugins/agentv-dev/skills/) are stubs that
+    // redirect agents to `agentv skills get <name>`.
+    const srcSkillsDir = path.join('skills');
+    const distSkillsDir = path.join('dist', 'skills');
+    rmSync(distSkillsDir, { recursive: true, force: true });
+    if (existsSync(srcSkillsDir)) {
+      cpSync(srcSkillsDir, distSkillsDir, { recursive: true });
+      console.log('✓ Skills copied to dist/skills');
+    } else {
+      console.log('⚠ Skills source not found at', srcSkillsDir, '— skipping');
+    }
+
     // Copy studio dist if available (built by apps/studio)
     const studioDistDir = path.resolve('..', 'studio', 'dist');
     const cliStudioDir = path.join('dist', 'studio');
