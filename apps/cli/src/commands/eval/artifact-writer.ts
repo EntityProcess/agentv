@@ -34,7 +34,7 @@ export function deduplicateByTestIdTarget(
 
 export async function aggregateRunDir(
   runDir: string,
-  options?: { evalFile?: string; experiment?: string },
+  options?: { evalFile?: string; experiment?: string; plannedTestCount?: number },
 ): Promise<{ benchmarkPath: string; timingPath: string; testCount: number; targetCount: number }> {
   const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
   const content = await readFile(indexPath, 'utf8');
@@ -45,12 +45,34 @@ export async function aggregateRunDir(
   const timingPath = path.join(runDir, 'timing.json');
   await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
 
-  const benchmark = buildBenchmarkArtifact(results, options?.evalFile, options?.experiment);
+  // Preserve `planned_test_count` from any pre-existing benchmark.json (e.g.
+  // the stub written at run start, or from the original run when this is a
+  // resume) unless an explicit value was passed.
+  const plannedTestCount =
+    options?.plannedTestCount ?? (await readPlannedTestCount(path.join(runDir, 'benchmark.json')));
+
+  const benchmark = buildBenchmarkArtifact(
+    results,
+    options?.evalFile,
+    options?.experiment,
+    plannedTestCount,
+  );
   const benchmarkPath = path.join(runDir, 'benchmark.json');
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
   const targetSet = new Set(results.map((r) => r.target ?? 'unknown'));
   return { benchmarkPath, timingPath, testCount: results.length, targetCount: targetSet.size };
+}
+
+async function readPlannedTestCount(benchmarkPath: string): Promise<number | undefined> {
+  try {
+    const raw = await readFile(benchmarkPath, 'utf8');
+    const parsed = JSON.parse(raw) as { metadata?: { planned_test_count?: number } };
+    const value = parsed.metadata?.planned_test_count;
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +132,13 @@ export interface BenchmarkArtifact {
     readonly targets: readonly string[];
     readonly tests_run: readonly string[];
     readonly experiment?: string;
+    /**
+     * Total number of test cases the run was planned to execute (across all
+     * targets and eval files). Written at run start so an interrupted run
+     * can be diagnosed as resumable when `tests_run.length < planned_test_count`,
+     * even if every recorded row has `execution_status: ok`.
+     */
+    readonly planned_test_count?: number;
   };
   readonly run_summary: Record<
     string,
@@ -364,6 +393,7 @@ export function buildBenchmarkArtifact(
   results: readonly EvaluationResult[],
   evalFile = '',
   experiment?: string,
+  plannedTestCount?: number,
 ): BenchmarkArtifact {
   const targetSet = new Set<string>();
   const testIdSet = new Set<string>();
@@ -457,11 +487,41 @@ export function buildBenchmarkArtifact(
       targets,
       tests_run: testIds,
       experiment,
+      planned_test_count: plannedTestCount,
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
     notes,
   };
+}
+
+/**
+ * Write a stub `benchmark.json` at the start of a run, before any tests
+ * have executed. Carries `planned_test_count` so an interrupted run can
+ * still be detected as resumable even when every recorded row has
+ * `execution_status: ok`.
+ *
+ * The end-of-run write (writeArtifactsFromResults / aggregateRunDir)
+ * overwrites this file with the full summary; preserve `planned_test_count`
+ * by passing it through.
+ */
+export async function writeInitialBenchmarkArtifact(
+  runDir: string,
+  options: {
+    evalFile: string;
+    plannedTestCount: number;
+    experiment?: string;
+  },
+): Promise<void> {
+  await mkdir(runDir, { recursive: true });
+  const stub = buildBenchmarkArtifact(
+    [],
+    options.evalFile,
+    options.experiment,
+    options.plannedTestCount,
+  );
+  const benchmarkPath = path.join(runDir, 'benchmark.json');
+  await writeFile(benchmarkPath, `${JSON.stringify(stub, null, 2)}\n`, 'utf8');
 }
 
 export function buildAggregateGradingArtifact(
@@ -826,7 +886,7 @@ export async function writePerTestArtifacts(
 export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
-  options?: { evalFile?: string; experiment?: string },
+  options?: { evalFile?: string; experiment?: string; plannedTestCount?: number },
 ): Promise<{
   testArtifactDir: string;
   timingPath: string;
@@ -877,8 +937,16 @@ export async function writeArtifactsFromResults(
   const timing = buildTimingArtifact(results);
   await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
 
-  // Write benchmark
-  const benchmark = buildBenchmarkArtifact(results, options?.evalFile, options?.experiment);
+  // Write benchmark — preserve `planned_test_count` from the run-start stub
+  // (or from the original run when this is a resume) unless an explicit
+  // value was passed by the caller.
+  const plannedTestCount = options?.plannedTestCount ?? (await readPlannedTestCount(benchmarkPath));
+  const benchmark = buildBenchmarkArtifact(
+    results,
+    options?.evalFile,
+    options?.experiment,
+    plannedTestCount,
+  );
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
   await writeJsonlFile(indexPath, indexRecords);

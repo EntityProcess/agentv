@@ -77,6 +77,7 @@ function BenchmarkRunDetailPage() {
             target={target ?? undefined}
             benchmarkId={benchmarkId}
             isReadOnly={isReadOnly}
+            plannedTestCount={data?.planned_test_count}
           />
           {!isReadOnly && (
             <button

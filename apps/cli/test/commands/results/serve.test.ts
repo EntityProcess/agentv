@@ -1003,6 +1003,50 @@ describe('serve app', () => {
     });
   });
 
+  // ── DELETE /api/eval/run/:id — stop a running eval ─────────────────────
+  //
+  // The DELETE endpoint validates routing/auth shape (404 unknown id, 403
+  // read-only). The happy-path SIGTERM behavior is covered by manual UAT
+  // because it requires a live subprocess that is reliably mid-run; unit
+  // tests that race a launch against a delete are flaky.
+
+  describe('DELETE /api/eval/run/:id (stop API)', () => {
+    function makeAppForStop(opts?: { readOnly?: boolean }) {
+      return createApp([], tempDir, undefined, undefined, {
+        studioDir,
+        readOnly: opts?.readOnly === true,
+      });
+    }
+
+    it('returns 404 for an unknown run id', async () => {
+      const app = makeAppForStop();
+      const res = await app.request('/api/eval/run/no-such-id', { method: 'DELETE' });
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 403 in read-only mode', async () => {
+      const app = makeAppForStop({ readOnly: true });
+      const res = await app.request('/api/eval/run/anything', { method: 'DELETE' });
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 404 for benchmark-scoped DELETE with unknown run id', async () => {
+      const app = makeAppForStop();
+      const res = await app.request('/api/benchmarks/some-id/eval/run/no-such-id', {
+        method: 'DELETE',
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 403 in read-only mode for benchmark-scoped DELETE', async () => {
+      const app = makeAppForStop({ readOnly: true });
+      const res = await app.request('/api/benchmarks/some-id/eval/run/anything', {
+        method: 'DELETE',
+      });
+      expect(res.status).toBe(403);
+    });
+  });
+
   // ── POST /api/eval/preview — argument shaping for resume flags ─────────
   //
   // /api/eval/preview is a lightweight endpoint that returns the CLI

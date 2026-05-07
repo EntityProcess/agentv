@@ -412,6 +412,29 @@ export function registerEvalRoutes(
     }
   });
 
+  // ── Stop a running eval ────────────────────────────────────────────────
+  // SIGTERM the spawned CLI; the existing child.on('close') flips status to
+  // 'finished'/'failed'. The CLI's own signal handler walks its tracked
+  // grandchildren (claude/codex/pi/copilot subprocesses) and kills them
+  // before exiting.
+  app.delete('/api/eval/run/:id', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    const id = c.req.param('id');
+    const run = activeRuns.get(id ?? '');
+    if (!run) return c.json({ error: 'Run not found' }, 404);
+    if (run.status === 'finished' || run.status === 'failed' || !run.process) {
+      return c.json({ stopped: false, reason: 'already_terminal', status: run.status });
+    }
+    try {
+      run.process.kill('SIGTERM');
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
+    }
+    return c.json({ stopped: true, status: run.status });
+  });
+
   // ── Run status ─────────────────────────────────────────────────────────
   app.get('/api/eval/status/:id', (c) => {
     const id = c.req.param('id');
@@ -574,6 +597,24 @@ export function registerEvalRoutes(
       run.finishedAt = new Date().toISOString();
       return c.json({ error: (err as Error).message }, 500);
     }
+  });
+
+  app.delete('/api/benchmarks/:benchmarkId/eval/run/:id', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+    }
+    const id = c.req.param('id');
+    const run = activeRuns.get(id ?? '');
+    if (!run) return c.json({ error: 'Run not found' }, 404);
+    if (run.status === 'finished' || run.status === 'failed' || !run.process) {
+      return c.json({ stopped: false, reason: 'already_terminal', status: run.status });
+    }
+    try {
+      run.process.kill('SIGTERM');
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
+    }
+    return c.json({ stopped: true, status: run.status });
   });
 
   app.get('/api/benchmarks/:benchmarkId/eval/status/:id', (c) => {

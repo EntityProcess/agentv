@@ -38,6 +38,7 @@ import {
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifactsFromResults,
+  writeInitialBenchmarkArtifact,
 } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
@@ -1445,6 +1446,21 @@ export async function runEvalCommand(
     console.log(
       `Using transcript: ${options.transcript} (${transcriptProvider.lineCount} entry(s))`,
     );
+  }
+
+  // Write a stub benchmark.json before dispatching tests, carrying the planned
+  // execution count so an interrupted run can still surface as resumable in
+  // Studio (results.length < planned_test_count) even when every recorded row
+  // has execution_status: ok. The end-of-run write preserves this value via
+  // readPlannedTestCount inside aggregateRunDir / writeArtifactsFromResults.
+  // Skip on resume — we want to preserve the *original* planned count.
+  if (!isResumeAppend && usesDefaultArtifactWorkspace && totalEvalCount > 0) {
+    const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
+    await writeInitialBenchmarkArtifact(runDir, {
+      evalFile,
+      plannedTestCount: totalEvalCount,
+      experiment: normalizeExperimentName(options.experiment),
+    });
   }
 
   // Eval files run sequentially; within each file, --workers N test cases run in parallel.

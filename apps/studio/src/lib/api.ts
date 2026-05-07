@@ -539,6 +539,21 @@ export async function launchEvalRun(
   return res.json() as Promise<EvalRunResponse>;
 }
 
+export async function stopEvalRun(
+  runId: string,
+  benchmarkId?: string,
+): Promise<{ stopped: boolean; reason?: string; status?: string }> {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/eval/run/${runId}`
+    : `/api/eval/run/${runId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed: ${res.status}`);
+  }
+  return res.json() as Promise<{ stopped: boolean; reason?: string; status?: string }>;
+}
+
 export function evalRunStatusOptions(runId: string | null) {
   return queryOptions({
     queryKey: ['eval-status', runId],

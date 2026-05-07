@@ -21,14 +21,29 @@ export interface BuildResumeRequestParams {
 }
 
 /**
- * Whether the resume actions should be visible. The button only makes sense
- * when at least one row failed with an execution error and the user has
- * write access (read-only mode hides the entire control rather than
- * showing a disabled button — see issue acceptance criteria).
+ * Whether the resume actions should be visible. The button is shown when:
+ *   1. At least one recorded row has `execution_status: execution_error`, OR
+ *   2. The run is *incomplete* — fewer recorded rows than the originally
+ *      planned execution count, even if every recorded row is `ok`.
+ *
+ * Case 2 covers Stop-button / Ctrl+C interruptions where the run produced
+ * only successful rows before being killed: there is no `execution_error`
+ * to anchor on, but the run is still resumable. `plannedTestCount` is
+ * persisted in `benchmark.json.metadata` at run start (see
+ * `writeInitialBenchmarkArtifact`).
+ *
+ * Hidden in read-only mode — the server also returns 403, but UI-level
+ * hiding avoids dead controls.
  */
-export function shouldShowResumeActions(results: EvalResult[], isReadOnly: boolean): boolean {
+export function shouldShowResumeActions(
+  results: EvalResult[],
+  isReadOnly: boolean,
+  plannedTestCount?: number,
+): boolean {
   if (isReadOnly) return false;
-  return results.some((r) => r.executionStatus === 'execution_error');
+  if (results.some((r) => r.executionStatus === 'execution_error')) return true;
+  if (plannedTestCount !== undefined && results.length < plannedTestCount) return true;
+  return false;
 }
 
 /**
