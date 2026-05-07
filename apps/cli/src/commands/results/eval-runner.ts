@@ -24,6 +24,7 @@ import type { Hono } from 'hono';
 
 import { TARGET_FILE_CANDIDATES, discoverTargetsFile } from '../../utils/targets.js';
 import { discoverEvalFiles } from '../eval/discover.js';
+import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 
 // ── In-memory run tracker ────────────────────────────────────────────────
@@ -32,6 +33,10 @@ interface StudioRun {
   id: string;
   status: 'starting' | 'running' | 'finished' | 'failed';
   command: string;
+  /** Target name passed via --target (if any). Stored so the run list can show it before the first result is written. */
+  target?: string;
+  /** Absolute path to the run directory (e.g. .agentv/results/runs/default/<timestamp>). Used to correlate this in-memory run with the filesystem run when the JSONL has 0 records yet. */
+  outputDir?: string;
   startedAt: string;
   finishedAt?: string;
   exitCode?: number | null;
@@ -60,6 +65,19 @@ function pruneFinishedRuns() {
       activeRuns.delete(id);
     }
   }
+}
+
+/**
+ * Look up the target for a Studio-launched run by its index.jsonl path.
+ * Called by handleRuns in serve.ts when the JSONL has 0 records (run just started).
+ */
+export function getActiveRunTarget(indexJsonlPath: string): string | undefined {
+  for (const run of activeRuns.values()) {
+    if (run.outputDir && path.join(run.outputDir, 'index.jsonl') === indexJsonlPath) {
+      return run.target;
+    }
+  }
+  return undefined;
 }
 
 // ── Discover targets file from project root ──────────────────────────────
@@ -310,6 +328,17 @@ export function registerEvalRoutes(
     }
 
     const args = buildCliArgs(body);
+    // Determine the output directory for this run. When the caller provides
+    // an explicit --output (resume/rerun), use that path. Otherwise generate
+    // the default path now so we can pass it via --output and later correlate
+    // the filesystem run with this in-memory StudioRun (needed to show the
+    // target in the sidebar before any results have been written).
+    const outputDir = body.output?.trim()
+      ? path.resolve(cwd, body.output.trim())
+      : buildDefaultRunDir(cwd);
+    if (!body.output?.trim()) {
+      args.push('--output', outputDir);
+    }
     const command = buildCliPreview(args);
     const runId = generateRunId();
 
@@ -317,6 +346,8 @@ export function registerEvalRoutes(
       id: runId,
       status: 'starting',
       command,
+      target: body.target?.trim() || undefined,
+      outputDir,
       startedAt: new Date().toISOString(),
       stdout: '',
       stderr: '',
@@ -405,6 +436,7 @@ export function registerEvalRoutes(
       id: r.id,
       status: r.status,
       command: r.command,
+      target: r.target,
       started_at: r.startedAt,
       finished_at: r.finishedAt ?? null,
       exit_code: r.exitCode ?? null,
@@ -481,6 +513,12 @@ export function registerEvalRoutes(
     }
 
     const args = buildCliArgs(body);
+    const outputDir = body.output?.trim()
+      ? path.resolve(cwd, body.output.trim())
+      : buildDefaultRunDir(cwd);
+    if (!body.output?.trim()) {
+      args.push('--output', outputDir);
+    }
     const command = buildCliPreview(args);
     const runId = generateRunId();
 
@@ -488,6 +526,8 @@ export function registerEvalRoutes(
       id: runId,
       status: 'starting',
       command,
+      target: body.target?.trim() || undefined,
+      outputDir,
       startedAt: new Date().toISOString(),
       stdout: '',
       stderr: '',
@@ -557,6 +597,7 @@ export function registerEvalRoutes(
       id: r.id,
       status: r.status,
       command: r.command,
+      target: r.target,
       started_at: r.startedAt,
       finished_at: r.finishedAt ?? null,
       exit_code: r.exitCode ?? null,

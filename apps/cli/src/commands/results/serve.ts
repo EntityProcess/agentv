@@ -54,7 +54,7 @@ import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { listResultFiles } from '../inspect/utils.js';
-import { registerEvalRoutes } from './eval-runner.js';
+import { getActiveRunTarget, registerEvalRoutes } from './eval-runner.js';
 import {
   loadLightweightResults,
   loadManifestResults,
@@ -290,6 +290,10 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
           passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
+        } else {
+          // Run is in-progress with 0 results written yet — fall back to the
+          // in-memory target stored when the Studio launched this run.
+          target = getActiveRunTarget(m.path);
         }
       } catch {
         // ignore enrichment errors

@@ -33,4 +33,14 @@ describe('formatRunLabel', () => {
       }),
     ).toBe('29/04 09:17 · 0%');
   });
+
+  it('shows target even when pass rate is 0 (active/in-progress run)', () => {
+    expect(
+      formatRunLabel({
+        target: 'wtalms-stg',
+        timestamp: '2026-05-07T10:56:00.000Z',
+        pass_rate: 0,
+      }),
+    ).toBe('07/05 10:56 · wtalms-stg · 0%');
+  });
 });
