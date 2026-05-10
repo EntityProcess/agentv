@@ -465,9 +465,21 @@ async function writeGraderConfigs(
       } else if (typeof config.prompt === 'string') {
         promptContent = config.prompt;
       }
+      // For rubrics assertions, include the criteria array directly
+      const rubrics = (config as LlmGraderConfig).rubrics;
+      const rubricsData = rubrics?.map((r) => ({
+        id: r.id,
+        outcome: r.outcome,
+        weight: r.weight ?? 1.0,
+        ...(r.score_ranges ? { score_range: r.score_ranges } : {}),
+        ...(r.required !== undefined ? { required: r.required } : {}),
+        ...(r.required_min_score !== undefined ? { required_min_score: r.required_min_score } : {}),
+      }));
+
       await writeJson(join(llmGradersDir, `${config.name}.json`), {
         name: config.name,
         prompt_content: promptContent,
+        ...(rubricsData && rubricsData.length > 0 ? { rubrics: rubricsData } : {}),
         weight: config.weight ?? 1.0,
         threshold: 0.5,
         config: {},
