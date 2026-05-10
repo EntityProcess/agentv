@@ -63,7 +63,7 @@ function loadEnvFile(dir: string): Record<string, string> {
 
 export const evalRunCommand = command({
   name: 'run',
-  description: 'Extract inputs, invoke CLI targets, and run code graders in one step',
+  description: 'Extract inputs, invoke CLI targets, and run code graders (for agent targets, use pipeline input + subagents)',
   args: {
     evalPath: positional({
       type: string,
