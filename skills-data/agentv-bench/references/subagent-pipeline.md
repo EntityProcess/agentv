@@ -109,7 +109,8 @@ agentv pipeline input evals/repro.eval.yaml
 # Step 3: Run code graders
 agentv pipeline grade <run-dir>
 
-# Step 4: Subagent does LLM grading, writes results to llm_grader_results/<name>.json per test
+# Step 4: Agent grades its own outputs against criteria (you ARE the LLM)
+#          Writes results to llm_grader_results/<name>.json per test
 
 # Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
 agentv pipeline bench <run-dir>
@@ -120,8 +121,7 @@ agentv results validate <run-dir>
 
 ## LLM Grading JSON Format
 
-The agent reads `llm_graders/<name>.json` for each test, grades the response using the prompt
-content, and produces a scores JSON:
+In subagent-as-target mode, the agent grades its own outputs — it reads `llm_graders/<name>.json` for each test, scores its own `response.md` against the prompt criteria, and writes results JSON:
 
 ```json
 {
@@ -161,6 +161,6 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
         ├── code_graders/<name>.json     ← grader configs written by `pipeline input`: code-grader scripts AND built-in types (contains, regex, equals, etc.)
         ├── llm_graders/<name>.json      ← LLM grader configs
         ├── code_grader_results/<name>.json  ← code grader results
-        ├── llm_grader_results/<name>.json   ← LLM grader results (written by grader subagents; one file per grader)
+        ├── llm_grader_results/<name>.json   ← LLM grader results (written by agent self-grading; one file per grader)
         └── grading.json              ← merged grading (written by `pipeline bench` — do NOT write here directly)
 ```

@@ -218,16 +218,19 @@ export const evalInputCommand = command({
       console.log(`  Tests:  ${testIds.join(', ')}`);
       console.log('');
       console.log('  Next steps for the orchestrating agent:');
-      console.log('  1. Dispatch one executor subagent per test case (all in parallel)');
-      console.log('     - Each reads <run-dir>/<test-id>/input.json');
-      console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
+      console.log('  1. For each test case, read <run-dir>/<test-id>/input.json');
+      console.log('     - Execute the task using your own tools');
+      console.log('     - Write your response to <run-dir>/<test-id>/response.md');
       console.log('  2. Run code graders:  agentv pipeline grade <run-dir>');
-      console.log('  3. Dispatch LLM grader subagents for tests with llm_graders/ configs');
-      console.log('     - Read agents/grader.md for the grading procedure');
-      console.log('     - Each grader writes <run-dir>/<test-id>/llm_grader_results/<name>.json');
+      console.log('  3. Grade your own responses against criteria using LLM grading');
+      console.log('     - Read <run-dir>/<test-id>/llm_graders/<name>.json for each grader config');
+      console.log('     - Read <run-dir>/<test-id>/criteria.md and response.md');
+      console.log('     - Write score + per-assertion evidence to <run-dir>/<test-id>/llm_grader_results/<name>.json');
+      console.log('     - Format: {"score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}]}');
       console.log('  4. Merge scores:     agentv pipeline bench <run-dir>');
       console.log('');
-      console.log('  For the full procedure, run:');
+      console.log('  The agent grades its own outputs (you ARE the LLM). No separate grader subagents needed.');
+      console.log('  For the full procedure:');
       console.log('    agentv skills get agentv-bench --ref subagent-pipeline');
       console.log('');
     }
