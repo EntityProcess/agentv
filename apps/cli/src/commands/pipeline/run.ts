@@ -341,15 +341,39 @@ export const evalRunCommand = command({
       await Promise.all(pending);
       process.stderr.write('\n');
     } else {
-      console.log('Subagent-as-target mode — skipping CLI invocation.');
+      console.log('Subagent-as-target mode — the agent IS the target.');
+      console.log('');
+      console.log('  What happened: pipeline extracted inputs but did NOT invoke a CLI target.');
+      console.log('  The orchestrating agent must dispatch executor subagents to process each test.');
+      console.log('');
+      console.log('  Next steps:');
+      console.log('  1. For each test case, dispatch an executor subagent that:');
+      console.log('     - Reads <run-dir>/<test-id>/input.json');
+      console.log('     - Performs the task using its own tools');
+      console.log('     - Writes <run-dir>/<test-id>/response.md');
+      console.log('  2. Run code graders:   agentv pipeline grade <run-dir>');
+      console.log('  3. Dispatch LLM grader subagents (read agents/grader.md for procedure)');
+      console.log('  4. Merge scores:       agentv pipeline bench <run-dir>');
+      console.log('');
+      console.log('  For the full subagent pipeline procedure:');
+      console.log('    agentv skills get agentv-bench --ref subagent-pipeline');
+      console.log('');
     }
 
     // ── Step 3: Run code graders (only when explicitly requested) ─────
     if (graderType !== 'code') {
       console.log(`\nDone. Results in ${outDir}`);
-      console.log(
-        'To run code graders: agentv pipeline grade <run-dir>  (or re-run with --grader-type code)',
-      );
+      console.log('');
+      if (targetKind === 'agent') {
+        console.log('  The agent must now:');
+        console.log('  1. Dispatch executor subagents to generate response.md files');
+        console.log('  2. Run code graders:   agentv pipeline grade <run-dir>');
+        console.log('  3. Dispatch LLM grader subagents for llm_graders/ configs');
+        console.log('  4. Merge scores:       agentv pipeline bench <run-dir>');
+      } else {
+        console.log('  To run code graders: agentv pipeline grade <run-dir>');
+        console.log('  Or re-run with --grader-type code to grade inline.');
+      }
       return;
     }
 
@@ -382,7 +406,12 @@ export const evalRunCommand = command({
     const graderConcurrency = workers ?? 10;
     const { totalGraders, totalPassed } = await runCodeGraders(graderTasks, graderConcurrency);
     console.log(`Graded ${totalGraders} code-grader(s): ${totalPassed} passed`);
-    console.log(`\nDone. Agent can now perform LLM grading on responses in ${outDir}`);
+    console.log('');
+    console.log(`Results in ${outDir}`);
+    console.log('');
+    console.log('  Remaining steps:');
+    console.log('  1. If llm_graders/ configs exist, dispatch grader subagents (read agents/grader.md)');
+    console.log('  2. Merge all scores: agentv pipeline bench <run-dir>');
   },
 });
 

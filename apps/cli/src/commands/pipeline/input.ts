@@ -210,14 +210,38 @@ export const evalInputCommand = command({
     });
 
     console.log(`Extracted ${testIds.length} test(s) to ${outDir}`);
+
+    // --- Subagent mode guidance ---
+    if (targetKind === 'agent') {
+      console.log(`
+  Target: ${targetName} (subagent-as-target mode)`);
+      console.log(`  Tests:  ${testIds.join(', ')}`);
+      console.log('');
+      console.log('  Next steps for the orchestrating agent:');
+      console.log('  1. Dispatch one executor subagent per test case (all in parallel)');
+      console.log('     - Each reads <run-dir>/<test-id>/input.json');
+      console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
+      console.log('  2. Run code graders:  agentv pipeline grade <run-dir>');
+      console.log('  3. Dispatch LLM grader subagents for tests with llm_graders/ configs');
+      console.log('     - Read agents/grader.md for the grading procedure');
+      console.log('     - Each grader writes <run-dir>/<test-id>/llm_grader_results/<name>.json');
+      console.log('  4. Merge scores:     agentv pipeline bench <run-dir>');
+      console.log('');
+      console.log('  For the full procedure, run:');
+      console.log('    agentv skills get agentv-bench --ref subagent-pipeline');
+      console.log('');
+    }
   },
 });
+
+interface GraderCounts { codeGraders: number; llmGraders: number; builtinAssertions: number; }
 
 async function writeGraderConfigs(
   testDir: string,
   assertions: readonly GraderConfig[],
   evalDir: string,
-): Promise<void> {
+): Promise<GraderCounts> {
+  const counts: GraderCounts = { codeGraders: 0, llmGraders: 0, builtinAssertions: 0 };
   const codeGradersDir = join(testDir, 'code_graders');
   const llmGradersDir = join(testDir, 'llm_graders');
 
@@ -280,6 +304,7 @@ async function writeGraderConfigs(
       });
     }
   }
+  return counts;
 }
 
 async function writeJson(filePath: string, data: unknown): Promise<void> {
