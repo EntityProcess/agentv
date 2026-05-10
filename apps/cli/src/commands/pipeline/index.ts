@@ -7,7 +7,7 @@ import { evalRunCommand } from './run.js';
 
 export const pipelineCommand = subcommands({
   name: 'pipeline',
-  description: 'Subagent-mode eval pipeline (input → executor subagents → grade → bench) — use this for agent targets',
+  description: 'Subagent-mode eval pipeline (input → executor subagents → grade → bench) — use this when the eval target is an AI agent (Claude, Codex, etc.)',
   cmds: {
     input: evalInputCommand,
     grade: evalGradeCommand,
