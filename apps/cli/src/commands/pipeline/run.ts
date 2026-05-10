@@ -352,9 +352,9 @@ export const evalRunCommand = command({
       console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
       console.log('  2. Run code graders:   agentv pipeline grade <run-dir>');
       console.log('  3. Dispatch grader subagents — one per (test x LLM grader) pair (all in parallel):');
-      console.log('     - Read agents/grader.md for the grading procedure');
-      console.log('     - Each reads llm_graders/<name>.json + response.md');
-      console.log('     - Writes llm_grader_results/<name>.json');
+      console.log('     - Read agents/grader.md and embed its content as system instructions in each subagent prompt');
+      console.log('     - Each subagent reads llm_graders/<name>.json + response.md');
+      console.log('     - Each writes llm_grader_results/<name>.json');
       console.log('  4. Merge scores:       agentv pipeline bench <run-dir>');
       console.log('');
       console.log('  For the full procedure:');
@@ -412,7 +412,8 @@ export const evalRunCommand = command({
     console.log(`Results in ${outDir}`);
     console.log('');
     console.log('  Remaining steps:');
-    console.log('  1. If llm_graders/ configs exist, dispatch grader subagents (read agents/grader.md)');
+    console.log('  1. If llm_graders/ configs exist, dispatch grader subagents');
+    console.log('     - Read agents/grader.md, embed as system instructions in each subagent prompt');
     console.log('  2. Merge all scores: agentv pipeline bench <run-dir>');
   },
 });
