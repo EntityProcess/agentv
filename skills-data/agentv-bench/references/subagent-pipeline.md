@@ -91,6 +91,21 @@ Example: 5 tests = 5 executor subagents launched simultaneously.
 #   - Writes <run-dir>/<test-id>/response.md
 ```
 
+### After executors complete: read results from disk
+
+When all executor subagents have finished, **read `response.md` directly from disk** — do
+NOT use `read_agent` to fetch results. The executors wrote their outputs to the run directory.
+
+```bash
+# Verify all responses exist:
+for d in <run-dir>/<evalset>/*/; do
+  echo "$(basename $d): $(ls "$d"/response.md 2>/dev/null && echo OK || echo MISSING)"
+done
+```
+
+If any `response.md` is MISSING, re-run that specific executor subagent. Do not proceed to
+grading until all responses are present.
+
 ### Step 3 onward: Grade and merge
 
 See SKILL.md Step 3 "Grading" section for the three-phase grading process (code graders →
@@ -109,8 +124,7 @@ agentv pipeline input evals/repro.eval.yaml
 # Step 3: Run code graders
 agentv pipeline grade <run-dir>
 
-# Step 4: Dispatch grader subagents to score responses
-#          Each writes llm_grader_results/<name>.json per test
+# Step 4: Subagent does LLM grading, writes results to llm_grader_results/<name>.json per test
 
 # Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
 agentv pipeline bench <run-dir>

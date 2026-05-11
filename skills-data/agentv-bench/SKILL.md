@@ -175,6 +175,21 @@ When each subagent task completes, you receive a notification containing `total_
 
 This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
 
+### After all executors complete
+
+Once all executor subagent notifications arrive, **read `response.md` directly from disk**.
+Do NOT use `read_agent` to fetch executor results — they are already written to the run
+directory. Verify all responses exist before proceeding:
+
+```bash
+for d in <run-dir>/<evalset>/*/; do
+  echo "$(basename $d): $(ls "$d"/response.md 2>/dev/null && echo OK || echo MISSING)"
+done
+```
+
+If any `response.md` is MISSING, re-run that specific executor subagent. Do not proceed to
+grading until all responses are present.
+
 ### Grading
 
 **In CLI mode**, `agentv eval` handles all grading end-to-end — no manual phases needed.
