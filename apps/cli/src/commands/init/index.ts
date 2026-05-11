@@ -13,7 +13,7 @@ function printSkillFirstInstructions(): void {
   console.log('\nAI-skills-first setup (recommended):');
   console.log('  agentv skills get agentv-bench');
   console.log('  Then ask your agent: "Set up AgentV in this repo."');
-  console.log('\nFor Claude Code users, the agentv-dev plugin also provides skill discovery:');
+  console.log('\nOr install the agentv-dev plugin for automatic skill discovery:');
   console.log('  npx allagents plugin marketplace add EntityProcess/agentv');
   console.log('  npx allagents plugin install agentv-dev@agentv');
 }
