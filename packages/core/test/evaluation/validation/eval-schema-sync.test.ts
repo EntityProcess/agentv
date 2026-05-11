@@ -9,7 +9,7 @@ describe('eval-schema.json sync', () => {
     const repoRoot = path.resolve(import.meta.dirname, '../../../../..');
     const schemaPath = path.join(
       repoRoot,
-      'plugins/agentv-dev/skills/agentv-eval-writer/references/eval-schema.json',
+      'skills-data/agentv-eval-writer/references/eval-schema.json',
     );
 
     // Read committed schema
