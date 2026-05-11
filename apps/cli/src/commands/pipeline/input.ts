@@ -222,8 +222,12 @@ export const evalInputCommand = command({
       console.log('     - Each reads <run-dir>/<test-id>/input.json');
       console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
       console.log('  2. Run code graders:  agentv pipeline grade <run-dir>');
-      console.log('  3. Dispatch grader subagents — one per (test × LLM grader) pair (all in parallel):');
-      console.log('     - Read agents/grader.md and embed its content as system instructions in each subagent prompt');
+      console.log(
+        '  3. Dispatch grader subagents — one per (test × LLM grader) pair (all in parallel):',
+      );
+      console.log(
+        '     - Read agents/grader.md and embed its content as system instructions in each subagent prompt',
+      );
       console.log('     - Each subagent reads llm_graders/<name>.json + response.md for its test');
       console.log('     - Each writes llm_grader_results/<name>.json');
       console.log('  4. Merge scores:     agentv pipeline bench <run-dir>');
@@ -235,7 +239,11 @@ export const evalInputCommand = command({
   },
 });
 
-interface GraderCounts { codeGraders: number; llmGraders: number; builtinAssertions: number; }
+interface GraderCounts {
+  codeGraders: number;
+  llmGraders: number;
+  builtinAssertions: number;
+}
 
 async function writeGraderConfigs(
   testDir: string,

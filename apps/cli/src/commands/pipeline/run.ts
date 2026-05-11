@@ -63,7 +63,8 @@ function loadEnvFile(dir: string): Record<string, string> {
 
 export const evalRunCommand = command({
   name: 'run',
-  description: 'Extract inputs, invoke CLI targets, and run code graders (for agent targets, use pipeline input + subagents)',
+  description:
+    'Extract inputs, invoke CLI targets, and run code graders (for agent targets, use pipeline input + subagents)',
   args: {
     evalPath: positional({
       type: string,
@@ -344,15 +345,21 @@ export const evalRunCommand = command({
       console.log('Subagent-as-target mode — the agent IS the target.');
       console.log('');
       console.log('  What happened: pipeline extracted inputs but did NOT invoke a CLI target.');
-      console.log('  The orchestrating agent must dispatch executor subagents to process each test.');
+      console.log(
+        '  The orchestrating agent must dispatch executor subagents to process each test.',
+      );
       console.log('');
       console.log('  Next steps:');
       console.log('  1. Dispatch executor subagents — one per test case (all in parallel):');
       console.log('     - Each reads <run-dir>/<test-id>/input.json');
       console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
       console.log('  2. Run code graders:   agentv pipeline grade <run-dir>');
-      console.log('  3. Dispatch grader subagents — one per (test x LLM grader) pair (all in parallel):');
-      console.log('     - Read agents/grader.md and embed its content as system instructions in each subagent prompt');
+      console.log(
+        '  3. Dispatch grader subagents — one per (test x LLM grader) pair (all in parallel):',
+      );
+      console.log(
+        '     - Read agents/grader.md and embed its content as system instructions in each subagent prompt',
+      );
       console.log('     - Each subagent reads llm_graders/<name>.json + response.md');
       console.log('     - Each writes llm_grader_results/<name>.json');
       console.log('  4. Merge scores:       agentv pipeline bench <run-dir>');
@@ -413,7 +420,9 @@ export const evalRunCommand = command({
     console.log('');
     console.log('  Remaining steps:');
     console.log('  1. If llm_graders/ configs exist, dispatch grader subagents');
-    console.log('     - Read agents/grader.md, embed as system instructions in each subagent prompt');
+    console.log(
+      '     - Read agents/grader.md, embed as system instructions in each subagent prompt',
+    );
     console.log('  2. Merge all scores: agentv pipeline bench <run-dir>');
   },
 });

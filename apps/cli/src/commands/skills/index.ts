@@ -7,8 +7,8 @@
  * Subcommands:
  *   list                       — print skill names (one per line, or JSON with --json)
  *   get <name>                 — print SKILL.md content
- *   get <name> --full          — also include references/, templates/, agents/
- *   get <name> --ref <file>    — print one reference file (searches references/, templates/, agents/, then skill root)
+ *   get <name> --full          — also include all subdirectories (references/, scripts/, agents/, etc.)
+ *   get <name> --ref <file>    — print any file from the skill directory by relative path
  *   get <name> --all           — get all skills
  *   get --all                  — get all skills
  *   path [<name>]              — print resolved path to skills dir or specific skill dir
@@ -121,6 +121,18 @@ function collectDir(dir: string, prefix = ''): Record<string, string> {
   return result;
 }
 
+/**
+ * List all immediate subdirectories of a skill folder (excluding hidden dirs).
+ * This is the dynamic alternative to hardcoding ['references', 'templates', 'agents'].
+ */
+function listSkillSubdirs(skillDir: string): string[] {
+  if (!existsSync(skillDir)) return [];
+  return readdirSync(skillDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+    .map((e) => e.name)
+    .sort();
+}
+
 function readSkill(skillsDir: string, name: string, full: boolean): SkillData | null {
   const skillDir = path.join(skillsDir, name);
   if (!existsSync(skillDir)) return null;
@@ -130,9 +142,9 @@ function readSkill(skillsDir: string, name: string, full: boolean): SkillData | 
 
   if (!full) return { name, content };
 
-  // Collect extra directories: references/, templates/, agents/
+  // Collect ALL subdirectories dynamically — no hardcoded list
   const files: Record<string, string> = {};
-  for (const sub of ['references', 'templates', 'agents']) {
+  for (const sub of listSkillSubdirs(skillDir)) {
     const subDir = path.join(skillDir, sub);
     const collected = collectDir(subDir, sub);
     Object.assign(files, collected);
@@ -141,19 +153,20 @@ function readSkill(skillsDir: string, name: string, full: boolean): SkillData | 
 }
 
 /**
- * Find a single reference file by name within a skill.
+ * Find a single file by name within a skill.
  *
- * Search order: references/, templates/, agents/, then the skill root for
- * a bare filename. The name may include or omit the `.md` extension — we
- * try the literal name first, then with `.md` appended, so callers can
- * write `--ref eval-yaml-spec` instead of `--ref eval-yaml-spec.md`.
+ * Searches all subdirectories first, then the skill root for a bare filename.
+ * The name may include or omit the `.md` extension — we try the literal name
+ * first, then with `.md` appended, so callers can write `--ref eval-yaml-spec`
+ * instead of `--ref eval-yaml-spec.md`.
  */
 function findRefFile(
   skillDir: string,
   refName: string,
 ): { relPath: string; content: string } | null {
   const candidates = refName.endsWith('.md') ? [refName] : [refName, `${refName}.md`];
-  for (const sub of ['references', 'templates', 'agents']) {
+  // Search all subdirectories dynamically
+  for (const sub of listSkillSubdirs(skillDir)) {
     for (const candidate of candidates) {
       const filePath = path.join(skillDir, sub, candidate);
       if (existsSync(filePath)) {
@@ -172,14 +185,13 @@ function findRefFile(
 }
 
 /**
- * List ref-discoverable filenames inside a skill (used to print a useful
+ * List all discoverable filenames inside a skill (used to print a useful
  * error when a `--ref` lookup misses).
  */
 function listRefFiles(skillDir: string): string[] {
   const out: string[] = [];
-  for (const sub of ['references', 'templates', 'agents']) {
+  for (const sub of listSkillSubdirs(skillDir)) {
     const subDir = path.join(skillDir, sub);
-    if (!existsSync(subDir)) continue;
     for (const entry of readdirSync(subDir, { withFileTypes: true })) {
       if (entry.isFile()) out.push(`${sub}/${entry.name}`);
     }
@@ -234,13 +246,14 @@ const skillsGetCommand = command({
     all: flag({ long: 'all', description: 'Get all skills' }),
     full: flag({
       long: 'full',
-      description: 'Also include files under references/, templates/, and agents/',
+      description:
+        'Also include all files under subdirectories (references/, scripts/, agents/, etc.)',
     }),
     ref: option({
       type: optional(string),
       long: 'ref',
       description:
-        'Load a single reference file by name (searches references/, templates/, agents/). Takes precedence over --full.',
+        'Load a single file from the skill by relative path (searches all subdirectories). Takes precedence over --full.',
     }),
     json: flag({ long: 'json', description: 'Output as JSON' }),
   },
