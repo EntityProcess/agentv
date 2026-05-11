@@ -788,6 +788,16 @@ async function runSingleEvalFile(params: {
     console.log(`${targetMessage}`);
   }
 
+  // Hint about pipeline for CLI agent targets
+  const targetKind = resolvedTargetSelection.resolvedTarget.kind;
+  if ((targetKind === 'claude-cli' || targetKind === 'copilot-cli') && !options.dryRun) {
+    console.log('');
+    console.log('  TIP: For subagent-mode evals, use `agentv pipeline` instead of `eval run`.');
+    console.log('  The agent orchestrates executor + grader subagents directly.');
+    console.log('  Run: agentv pipeline --help');
+    console.log('');
+  }
+
   const agentTimeoutMs =
     options.agentTimeoutSeconds != null
       ? Math.max(0, options.agentTimeoutSeconds) * 1000

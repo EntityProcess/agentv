@@ -1,51 +1,41 @@
 ---
 title: Installation
-description: Install AgentV with Claude plugin manager or CLI
+description: Install AgentV CLI and get started with bundled skills
 sidebar:
   order: 2
 ---
 
 ## Prerequisites
 
-- **Claude Code** with plugin manager support
 - **Node.js** 20 or later
 
-## Canonical Setup (Claude Plugin Manager)
+## Canonical Setup
 
-Install the AgentV marketplace and plugin:
-
-```bash
-npx allagents plugin marketplace add EntityProcess/agentv
-npx allagents plugin install agentv-dev@agentv
-```
-
-`npx allagents` is command-surface compatible with `claude` and `copilot`.
-
-Then ask Claude to bootstrap AgentV in your current repository:
-
-```text
-Set up AgentV in this repo.
-```
-
-The onboarding skill will:
-- verify `agentv` CLI availability
-- install `agentv` if needed
-- run `agentv init`
-- verify setup artifacts
-
-## CLI-Only Setup (Fallback)
-
-If you are not using Claude plugins:
+Install the AgentV CLI:
 
 ```bash
 npm install -g agentv
-agentv init
 ```
 
-Verify the CLI:
+Then load the onboarding skill and follow the instructions:
 
 ```bash
-agentv --version
+agentv skills get agentv-onboarding
+```
+
+Paste the output to your AI agent and ask it to set up AgentV in your repository.
+
+## Skills
+
+AgentV ships skill content inside the CLI package, version-matched to the binary.
+No separate plugin install required.
+
+```bash
+agentv skills list                         # list available skills
+agentv skills get agentv-bench             # load a specific skill
+agentv skills get agentv-bench --full      # include references and templates
+agentv skills get agentv-bench --json      # machine-readable output
+agentv skills get --all                    # load all skills
 ```
 
 ## Verify Workspace Files
@@ -61,21 +51,28 @@ test -f .agentv/config.yaml
 test -f .agentv/targets.yaml
 ```
 
-## Troubleshooting
+## Claude Code Plugin (Optional)
 
-### Plugin installed but setup skill does not run
-
-Reinstall and retry:
+For Claude Code users who prefer plugin-based skill discovery, the `agentv-dev` plugin
+provides marketplace integration. Each plugin SKILL.md is a discovery stub that loads
+the full skill content from the CLI:
 
 ```bash
 npx allagents plugin marketplace add EntityProcess/agentv
 npx allagents plugin install agentv-dev@agentv
 ```
 
-Then ask Claude:
+`npx allagents` is command-surface compatible with `claude` and `copilot`.
 
-```text
-Set up AgentV in this repo.
+## Troubleshooting
+
+### Skills directory not found
+
+Reinstall the CLI to ensure bundled skills are present:
+
+```bash
+npm install -g agentv
+agentv skills list
 ```
 
 ### Recover setup manually

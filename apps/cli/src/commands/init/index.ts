@@ -11,9 +11,11 @@ export interface InitCommandOptions {
 
 function printSkillFirstInstructions(): void {
   console.log('\nAI-skills-first setup (recommended):');
+  console.log('  agentv skills get agentv-bench');
+  console.log('  Then ask your agent: "Set up AgentV in this repo."');
+  console.log('\nOr install the agentv-dev plugin for automatic skill discovery:');
   console.log('  npx allagents plugin marketplace add EntityProcess/agentv');
   console.log('  npx allagents plugin install agentv-dev@agentv');
-  console.log('  Then ask your agent: "Set up AgentV in this repo."');
 }
 
 async function promptYesNo(message: string): Promise<boolean> {

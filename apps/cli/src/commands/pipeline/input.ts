@@ -210,14 +210,47 @@ export const evalInputCommand = command({
     });
 
     console.log(`Extracted ${testIds.length} test(s) to ${outDir}`);
+
+    // --- Subagent mode guidance ---
+    if (targetKind === 'agent') {
+      console.log(`
+  Target: ${targetName} (subagent-as-target mode)`);
+      console.log(`  Tests:  ${testIds.join(', ')}`);
+      console.log('');
+      console.log('  Next steps for the orchestrating agent:');
+      console.log('  1. Dispatch executor subagents — one per test case (all in parallel):');
+      console.log('     - Each reads <run-dir>/<test-id>/input.json');
+      console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
+      console.log('  2. Run code graders:  agentv pipeline grade <run-dir>');
+      console.log(
+        '  3. Dispatch grader subagents — one per (test × LLM grader) pair (all in parallel):',
+      );
+      console.log(
+        '     - Read agents/grader.md and embed its content as system instructions in each subagent prompt',
+      );
+      console.log('     - Each subagent reads llm_graders/<name>.json + response.md for its test');
+      console.log('     - Each writes llm_grader_results/<name>.json');
+      console.log('  4. Merge scores:     agentv pipeline bench <run-dir>');
+      console.log('');
+      console.log('  For the full procedure:');
+      console.log('    agentv skills get agentv-bench --ref subagent-pipeline');
+      console.log('');
+    }
   },
 });
+
+interface GraderCounts {
+  codeGraders: number;
+  llmGraders: number;
+  builtinAssertions: number;
+}
 
 async function writeGraderConfigs(
   testDir: string,
   assertions: readonly GraderConfig[],
   evalDir: string,
-): Promise<void> {
+): Promise<GraderCounts> {
+  const counts: GraderCounts = { codeGraders: 0, llmGraders: 0, builtinAssertions: 0 };
   const codeGradersDir = join(testDir, 'code_graders');
   const llmGradersDir = join(testDir, 'llm_graders');
 
@@ -257,9 +290,22 @@ async function writeGraderConfigs(
         promptContent = config.prompt;
       }
 
+      // For rubrics assertions, include the criteria array directly
+      // so grader subagents can evaluate without needing a prompt file.
+      const rubrics = (config as LlmGraderConfig).rubrics;
+      const rubricsData = rubrics?.map((r) => ({
+        id: r.id,
+        outcome: r.outcome,
+        weight: r.weight ?? 1.0,
+        ...(r.score_ranges ? { score_range: r.score_ranges } : {}),
+        ...(r.required !== undefined ? { required: r.required } : {}),
+        ...(r.required_min_score !== undefined ? { required_min_score: r.required_min_score } : {}),
+      }));
+
       await writeJson(join(llmGradersDir, `${config.name}.json`), {
         name: config.name,
         prompt_content: promptContent,
+        ...(rubricsData && rubricsData.length > 0 ? { rubrics: rubricsData } : {}),
         weight: config.weight ?? 1.0,
         threshold: 0.5,
         config: {},
@@ -280,6 +326,7 @@ async function writeGraderConfigs(
       });
     }
   }
+  return counts;
 }
 
 async function writeJson(filePath: string, data: unknown): Promise<void> {

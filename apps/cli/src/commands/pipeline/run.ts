@@ -63,7 +63,8 @@ function loadEnvFile(dir: string): Record<string, string> {
 
 export const evalRunCommand = command({
   name: 'run',
-  description: 'Extract inputs, invoke CLI targets, and run code graders in one step',
+  description:
+    'Extract inputs, invoke CLI targets, and run code graders (for agent targets, use pipeline input + subagents)',
   args: {
     evalPath: positional({
       type: string,
@@ -341,15 +342,47 @@ export const evalRunCommand = command({
       await Promise.all(pending);
       process.stderr.write('\n');
     } else {
-      console.log('Subagent-as-target mode — skipping CLI invocation.');
+      console.log('Subagent-as-target mode — the agent IS the target.');
+      console.log('');
+      console.log('  What happened: pipeline extracted inputs but did NOT invoke a CLI target.');
+      console.log(
+        '  The orchestrating agent must dispatch executor subagents to process each test.',
+      );
+      console.log('');
+      console.log('  Next steps:');
+      console.log('  1. Dispatch executor subagents — one per test case (all in parallel):');
+      console.log('     - Each reads <run-dir>/<test-id>/input.json');
+      console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
+      console.log('  2. Run code graders:   agentv pipeline grade <run-dir>');
+      console.log(
+        '  3. Dispatch grader subagents — one per (test x LLM grader) pair (all in parallel):',
+      );
+      console.log(
+        '     - Read agents/grader.md and embed its content as system instructions in each subagent prompt',
+      );
+      console.log('     - Each subagent reads llm_graders/<name>.json + response.md');
+      console.log('     - Each writes llm_grader_results/<name>.json');
+      console.log('  4. Merge scores:       agentv pipeline bench <run-dir>');
+      console.log('');
+      console.log('  For the full procedure:');
+      console.log('    agentv skills get agentv-bench --ref subagent-pipeline');
+      console.log('');
     }
 
     // ── Step 3: Run code graders (only when explicitly requested) ─────
     if (graderType !== 'code') {
       console.log(`\nDone. Results in ${outDir}`);
-      console.log(
-        'To run code graders: agentv pipeline grade <run-dir>  (or re-run with --grader-type code)',
-      );
+      console.log('');
+      if (targetKind === 'agent') {
+        console.log('  The agent must now:');
+        console.log('  1. Dispatch executor subagents to generate response.md files');
+        console.log('  2. Run code graders:   agentv pipeline grade <run-dir>');
+        console.log('  3. Dispatch grader subagents for llm_graders/ configs');
+        console.log('  4. Merge scores:       agentv pipeline bench <run-dir>');
+      } else {
+        console.log('  To run code graders: agentv pipeline grade <run-dir>');
+        console.log('  Or re-run with --grader-type code to grade inline.');
+      }
       return;
     }
 
@@ -382,7 +415,15 @@ export const evalRunCommand = command({
     const graderConcurrency = workers ?? 10;
     const { totalGraders, totalPassed } = await runCodeGraders(graderTasks, graderConcurrency);
     console.log(`Graded ${totalGraders} code-grader(s): ${totalPassed} passed`);
-    console.log(`\nDone. Agent can now perform LLM grading on responses in ${outDir}`);
+    console.log('');
+    console.log(`Results in ${outDir}`);
+    console.log('');
+    console.log('  Remaining steps:');
+    console.log('  1. If llm_graders/ configs exist, dispatch grader subagents');
+    console.log(
+      '     - Read agents/grader.md, embed as system instructions in each subagent prompt',
+    );
+    console.log('  2. Merge all scores: agentv pipeline bench <run-dir>');
   },
 });
 
@@ -433,9 +474,21 @@ async function writeGraderConfigs(
       } else if (typeof config.prompt === 'string') {
         promptContent = config.prompt;
       }
+      // For rubrics assertions, include the criteria array directly
+      const rubrics = (config as LlmGraderConfig).rubrics;
+      const rubricsData = rubrics?.map((r) => ({
+        id: r.id,
+        outcome: r.outcome,
+        weight: r.weight ?? 1.0,
+        ...(r.score_ranges ? { score_range: r.score_ranges } : {}),
+        ...(r.required !== undefined ? { required: r.required } : {}),
+        ...(r.required_min_score !== undefined ? { required_min_score: r.required_min_score } : {}),
+      }));
+
       await writeJson(join(llmGradersDir, `${config.name}.json`), {
         name: config.name,
         prompt_content: promptContent,
+        ...(rubricsData && rubricsData.length > 0 ? { rubrics: rubricsData } : {}),
         weight: config.weight ?? 1.0,
         threshold: 0.5,
         config: {},

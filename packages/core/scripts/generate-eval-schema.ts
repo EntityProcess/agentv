@@ -25,7 +25,7 @@ const schema = {
 
 const outputPath = path.resolve(
   import.meta.dirname,
-  '../../../plugins/agentv-dev/skills/agentv-eval-writer/references/eval-schema.json',
+  '../../../skills-data/agentv-eval-writer/references/eval-schema.json',
 );
 
 await writeFile(outputPath, `${JSON.stringify(schema, null, 2)}\n`);

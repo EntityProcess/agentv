@@ -1,0 +1,130 @@
+description: >-
+  Tests whether the agent picks the correct bundled agentv skill (by name)
+  for a given natural-language task. Each test injects the bundled skills
+  list as context so the agent has the same options a real user would.
+
+tags: [agent, skills]
+
+# Suite-level input: every test sees the bundled skills list as the first
+# user message, so the agent always has the canonical set of names to
+# choose from. Per-test `input:` is appended to this.
+input:
+  - role: user
+    content:
+      - type: file
+        value: fixtures/skills-list-all.txt
+      - type: text
+        value: |
+          The JSON above lists every agentv skill bundled with the CLI.
+          For the next task, name the **single** skill (or skills, only if
+          the task genuinely requires more than one) that best fits.
+          Reply with the skill name(s) only — no commentary.
+
+tests:
+  - id: select-bench-for-eval-run
+    criteria: "Task: \"run evals on my agent\" → agent selects agentv-bench."
+    input: |
+      Task: I have a YAML eval file and I need to run it against an LLM target
+      and see the pass rate. Which skill?
+    assertions:
+      - type: contains
+        value: agentv-bench
+      - type: rubrics
+        criteria:
+          - Selects only agentv-bench (not agentv-eval-writer, which is for authoring)
+          - Does not select agentv-trace-analyst (which is for after-the-fact debugging)
+
+  - id: select-eval-writer-for-create
+    criteria: "Task: \"write an eval YAML for my skill\" → agent selects agentv-eval-writer."
+    input: |
+      Task: I want to author a brand-new `.eval.yaml` file for my custom skill
+      from scratch. Which skill should I load?
+    assertions:
+      - type: contains
+        value: agentv-eval-writer
+      - type: rubrics
+        criteria:
+          - Selects only agentv-eval-writer
+          - Does not select agentv-bench (running) or agentv-eval-review (auditing existing)
+
+  - id: select-eval-review-for-audit
+    criteria: "Task: \"review my eval file for issues\" → agent selects agentv-eval-review."
+    input: |
+      Task: I already wrote my `.eval.yaml` and want a second pair of eyes to
+      audit it for missing assertions, bad rubric phrasing, and structural
+      issues. Which skill?
+    assertions:
+      - type: contains
+        value: agentv-eval-review
+      - type: rubrics
+        criteria:
+          - Selects agentv-eval-review (the audit-focused skill)
+          - Does not select agentv-eval-writer (which is for writing, not reviewing)
+
+  - id: select-governance-for-policy
+    criteria: "Task: \"what are the design principles?\" → agent selects agentv-governance."
+    input: |
+      Task: I'm proposing a new built-in feature and want to check whether it
+      aligns with the AgentV project's design principles before I open a PR.
+      Which skill?
+    assertions:
+      - type: contains
+        value: agentv-governance
+      - type: rubrics
+        criteria:
+          - Selects agentv-governance
+          - Does not select agentv-onboarding (which is install-time setup, not design review)
+
+  - id: select-onboarding-for-setup
+    criteria: "Task: \"help me get started with agentv\" → agent selects agentv-onboarding."
+    input: |
+      Task: I just `npm install -g agentv`'d for the first time and have no
+      idea where to start. Which skill walks me through first steps?
+    assertions:
+      - type: contains
+        value: agentv-onboarding
+      - type: rubrics
+        criteria:
+          - Selects agentv-onboarding
+          - Does not select agentv-governance (which is for design-principle checks, not first-time setup)
+
+  - id: select-trace-analyst-for-debug
+    criteria: "Task: \"analyze why this eval failed\" → agent selects agentv-trace-analyst."
+    input: |
+      Task: My eval run produced an `index.jsonl` with several failing rows.
+      I want to dig into the per-test traces and figure out what went wrong.
+      Which skill?
+    assertions:
+      - type: contains
+        value: agentv-trace-analyst
+      - type: rubrics
+        criteria:
+          - Selects agentv-trace-analyst
+          - Does not select agentv-bench (running) or agentv-eval-review (static audit)
+
+  - id: select-distinguishes-bench-vs-writer
+    criteria: "Task: \"I need to write AND run evals\" → agent names both skills."
+    input: |
+      Task: I'm starting a new eval project. I'll need to author the `.eval.yaml`
+      from scratch *and* run it against a target. Which skill or skills?
+    assertions:
+      - type: contains
+        value: agentv-eval-writer
+      - type: contains
+        value: agentv-bench
+      - type: rubrics
+        criteria:
+          - Names both agentv-eval-writer (for authoring) and agentv-bench (for running)
+          - Does not name agentv-eval-review or agentv-trace-analyst, which are not asked for
+
+  - id: select-no-false-positive
+    criteria: "Task: \"help me deploy my app\" → agent names no agentv skill."
+    input: |
+      Task: I want to deploy my Node.js app to a Kubernetes cluster. Which
+      agentv skill should I load?
+    assertions:
+      - type: rubrics
+        criteria:
+          - Correctly states that no bundled agentv skill is relevant — these skills are for evaluation workflows, not deployment
+          - Does not invent a fake skill name
+          - Does not falsely select agentv-bench, agentv-eval-writer, agentv-onboarding, or any other listed skill
