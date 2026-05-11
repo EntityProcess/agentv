@@ -1,6 +1,6 @@
 {
   "name": "@agentv/eval",
-  "version": "4.26.1",
+  "version": "4.27.0-next.1",
   "description": "Evaluation SDK for AgentV - build custom code judges",
   "type": "module",
   "repository": {
