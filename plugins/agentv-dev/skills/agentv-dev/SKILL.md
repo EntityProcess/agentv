@@ -3,7 +3,7 @@ name: agentv-dev
 description: >-
   AgentV CLI skills for evaluating, optimizing, and governing AI agents.
   Triggers: run evals, benchmark agents, write evals, review evals, analyze traces,
-  optimize prompts, governance linting, agentv onboarding, agentv setup.
+  optimize prompts, governance linting.
   Covers: eval running, eval writing, eval review, trace analysis, description
   optimization, autoresearch, and governance compliance.
 ---
@@ -24,7 +24,6 @@ agentv skills get <skill-name>
 | agentv-eval-review | `agentv skills get agentv-eval-review` | Review, lint, or check eval quality before committing |
 | agentv-governance | `agentv skills get agentv-governance` | Author or lint governance blocks (OWASP, MITRE, EU AI Act, ISO 42001) |
 | agentv-trace-analyst | `agentv skills get agentv-trace-analyst` | Analyze eval traces, find regressions, inspect tool trajectories |
-| agentv-onboarding | `agentv skills get agentv-onboarding` | Bootstrap AgentV in a new workspace |
 
 ## Quick Start
 
