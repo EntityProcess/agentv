@@ -7,6 +7,7 @@ import packageJson from '../package.json' with { type: 'json' };
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
+import { doctorCommand } from './commands/doctor/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { importCommand } from './commands/import/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
@@ -33,6 +34,7 @@ export const app = subcommands({
     compare: compareCommand,
     convert: convertCommand,
     create: createCommand,
+    doctor: doctorCommand,
     init: initCmdTsCommand,
     pipeline: pipelineCommand,
     results: resultsCommand,
@@ -65,6 +67,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'compare',
   'convert',
   'create',
+  'doctor',
   'init',
   'pipeline',
   'results',

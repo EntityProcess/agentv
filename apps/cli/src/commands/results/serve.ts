@@ -44,6 +44,7 @@ import {
   loadBenchmarkRegistry,
   loadConfig,
   removeBenchmark,
+  syncBenchmarks,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -1502,6 +1503,10 @@ export const resultsServeCommand = command({
       registry.benchmarks.length,
       { multi, single },
     );
+
+    // ── Benchmark sync preflight ─────────────────────────────────────
+    // Clone or pull any benchmark entries that declare a source.
+    await syncBenchmarks(registry.benchmarks);
 
     try {
       let results: EvaluationResult[] = [];

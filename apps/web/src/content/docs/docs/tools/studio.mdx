@@ -153,6 +153,20 @@ agentv studio --add /path/to/other-evals
 
 Each path must contain a `.agentv/` directory. Registered benchmarks are stored in `~/.agentv/benchmarks.yaml`.
 
+To register a remote repo and keep it synced automatically, add a `source` block to the entry in `~/.agentv/benchmarks.yaml`:
+
+```yaml
+benchmarks:
+  - id: my-evals
+    name: My Evals
+    path: /srv/agentv/my-evals
+    source:
+      url: https://github.com/example/my-evals
+      ref: main
+```
+
+On each Studio startup, AgentV clones the repo if the path is empty (`git clone --depth 1`) or pulls the latest if a clone already exists (`git pull --ff-only`). You can also trigger a sync manually from the Studio UI's **Sync** button.
+
 ### Runtime behavior: no restart needed
 
 `benchmarks.yaml` is the single source of truth. Studio re-reads it on every `/api/benchmarks` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:

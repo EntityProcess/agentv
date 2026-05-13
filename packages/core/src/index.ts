@@ -89,6 +89,7 @@ export {
 } from './paths.js';
 export {
   type BenchmarkEntry,
+  type BenchmarkSource,
   type BenchmarkRegistry,
   loadBenchmarkRegistry,
   saveBenchmarkRegistry,
@@ -100,6 +101,7 @@ export {
   deriveBenchmarkId,
   getBenchmarksRegistryPath,
 } from './benchmarks.js';
+export { syncBenchmark, syncBenchmarks } from './benchmark-sync.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';
 export * from './observability/index.js';

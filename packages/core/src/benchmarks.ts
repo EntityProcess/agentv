@@ -13,8 +13,15 @@
  *     - id: my-app
  *       name: My App
  *       path: /home/user/projects/my-app
+ *       source:
+ *         url: ${{ BENCHMARK_REPO_URL }}
+ *         ref: ${{ BENCHMARK_REPO_REF:-main }}
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
+ *
+ * The optional `source` field enables remote sync via syncBenchmarks():
+ *   first run — git clone --depth 1 --filter=blob:none
+ *   subsequent runs — git pull --ff-only
  *
  * Concurrency: the registry assumes a single writer. All mutating calls
  * (add/remove/touchBenchmark) do read-modify-write on benchmarks.yaml
@@ -34,10 +41,16 @@ import path from 'node:path';
 
 import { stringify as stringifyYaml } from 'yaml';
 
+import { interpolateEnv } from './evaluation/interpolation.js';
 import { parseYamlValue } from './evaluation/yaml-loader.js';
 import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
+
+export interface BenchmarkSource {
+  url: string;
+  ref: string;
+}
 
 export interface BenchmarkEntry {
   id: string;
@@ -45,6 +58,7 @@ export interface BenchmarkEntry {
   path: string;
   addedAt: string;
   lastOpenedAt: string;
+  source?: BenchmarkSource;
 }
 
 export interface BenchmarkRegistry {
@@ -62,12 +76,18 @@ export function getBenchmarksRegistryPath(): string {
 // internals stay camelCase. fromYaml / toYaml handle the translation; every
 // other function in this module works in camelCase only.
 
+interface BenchmarkSourceYaml {
+  url: string;
+  ref: string;
+}
+
 interface BenchmarkEntryYaml {
   id: string;
   name: string;
   path: string;
   added_at: string;
   last_opened_at: string;
+  source?: BenchmarkSourceYaml;
 }
 
 function fromYaml(raw: unknown): BenchmarkEntry | null {
@@ -76,23 +96,34 @@ function fromYaml(raw: unknown): BenchmarkEntry | null {
   if (typeof e.id !== 'string' || typeof e.name !== 'string' || typeof e.path !== 'string') {
     return null;
   }
-  return {
+  const entry: BenchmarkEntry = {
     id: e.id,
     name: e.name,
     path: e.path,
     addedAt: typeof e.added_at === 'string' ? e.added_at : '',
     lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
   };
+  if (e.source && typeof e.source === 'object') {
+    const s = e.source as Partial<BenchmarkSourceYaml>;
+    if (typeof s.url === 'string' && typeof s.ref === 'string') {
+      entry.source = { url: s.url, ref: s.ref };
+    }
+  }
+  return entry;
 }
 
 function toYaml(entry: BenchmarkEntry): BenchmarkEntryYaml {
-  return {
+  const yaml: BenchmarkEntryYaml = {
     id: entry.id,
     name: entry.name,
     path: entry.path,
     added_at: entry.addedAt,
     last_opened_at: entry.lastOpenedAt,
   };
+  if (entry.source) {
+    yaml.source = { url: entry.source.url, ref: entry.source.ref };
+  }
+  return yaml;
 }
 
 export function loadBenchmarkRegistry(): BenchmarkRegistry {
@@ -106,9 +137,10 @@ export function loadBenchmarkRegistry(): BenchmarkRegistry {
     if (!parsed || typeof parsed !== 'object') {
       return { benchmarks: [] };
     }
+    const env = process.env as Record<string, string>;
     const benchmarks = Array.isArray(parsed.benchmarks)
       ? (parsed.benchmarks as unknown[])
-          .map(fromYaml)
+          .map((e) => fromYaml(interpolateEnv(e, env)))
           .filter((e): e is BenchmarkEntry => e !== null)
       : [];
     return { benchmarks };

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -98,5 +98,60 @@ describe('benchmarks registry', () => {
       addedAt: entry.addedAt,
       lastOpenedAt: entry.lastOpenedAt,
     });
+  });
+
+  it('round-trips source field through YAML', () => {
+    const registryPath = getBenchmarksRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `benchmarks:
+  - id: remote-bench
+    name: Remote Bench
+    path: /srv/agentv/repo
+    source:
+      url: https://github.com/example/repo
+      ref: main
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadBenchmarkRegistry();
+    expect(registry.benchmarks).toHaveLength(1);
+    const entry = registry.benchmarks[0];
+    expect(entry.source).toEqual({ url: 'https://github.com/example/repo', ref: 'main' });
+  });
+
+  it('interpolates env vars in source url', () => {
+    const registryPath = getBenchmarksRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    // Use concatenation to avoid JS template literal evaluating ${{ ... }}
+    const d = '$';
+    writeFileSync(
+      registryPath,
+      `benchmarks:\n  - id: env-bench\n    name: Env Bench\n    path: /srv/agentv/repo\n    source:\n      url: "${d}{{ BENCH_URL }}"\n      ref: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n`,
+      'utf-8',
+    );
+
+    const origUrl = process.env.BENCH_URL;
+    try {
+      process.env.BENCH_URL = 'https://github.com/example/bench-repo';
+      const registry = loadBenchmarkRegistry();
+      expect(registry.benchmarks[0].source?.url).toBe('https://github.com/example/bench-repo');
+    } finally {
+      if (origUrl === undefined) delete process.env.BENCH_URL;
+      else process.env.BENCH_URL = origUrl;
+    }
+  });
+
+  it('entries without source work unchanged', () => {
+    const repoPath = makeRepo('no-source');
+    const entry = addBenchmark(repoPath);
+    expect(entry.source).toBeUndefined();
+
+    const reloaded = loadBenchmarkRegistry().benchmarks.find((b) => b.id === entry.id);
+    expect(reloaded?.source).toBeUndefined();
   });
 });
