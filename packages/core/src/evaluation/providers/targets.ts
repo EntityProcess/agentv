@@ -533,6 +533,8 @@ export interface ClaudeResolvedConfig {
   readonly logFormat?: 'summary' | 'json';
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
+  /** When true (default), passes --dangerously-skip-permissions to the Claude CLI. Matches ClaudeSdkProvider behavior. */
+  readonly bypassPermissions?: boolean;
 }
 
 export interface MockResolvedConfig {
@@ -1853,6 +1855,11 @@ function resolveClaudeConfig(
   const maxBudgetUsd =
     typeof target.max_budget_usd === 'number' ? target.max_budget_usd : undefined;
 
+  const bypassPermissions =
+    target.bypass_permissions !== undefined
+      ? resolveOptionalBoolean(target.bypass_permissions)
+      : undefined;
+
   return {
     executable,
     model,
@@ -1864,6 +1871,7 @@ function resolveClaudeConfig(
     logDir,
     logFormat,
     streamLog: streamLogResult.streamLog,
+    bypassPermissions,
   };
 }
 
