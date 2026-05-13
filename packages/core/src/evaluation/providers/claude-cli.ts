@@ -182,6 +182,10 @@ export class ClaudeCliProvider implements Provider {
       '--verbose',
     ];
 
+    if (this.config.bypassPermissions !== false) {
+      args.push('--dangerously-skip-permissions');
+    }
+
     if (this.config.model) {
       args.push('--model', this.config.model);
     }

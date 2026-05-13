@@ -6,6 +6,7 @@ import { ClaudeProvider } from '../../../src/evaluation/providers/claude.js';
 import { createBuiltinProviderRegistry } from '../../../src/evaluation/providers/index.js';
 
 const mockClaudeConfig = {
+  executable: 'claude',
   model: undefined,
   cwd: undefined,
   timeoutMs: undefined,
@@ -59,5 +60,28 @@ describe('Claude provider alias resolution', () => {
     expect(sdkProvider).toBeInstanceOf(ClaudeProvider);
     expect(cliProvider.kind).toBe('claude-cli');
     expect(sdkProvider.kind).toBe('claude');
+  });
+});
+
+describe('ClaudeCliProvider buildArgs', () => {
+  it('includes --dangerously-skip-permissions by default', () => {
+    const provider = new ClaudeCliProvider('target', mockClaudeConfig);
+    // biome-ignore lint/suspicious/noExplicitAny: testing private method
+    const args: string[] = (provider as any).buildArgs();
+    expect(args).toContain('--dangerously-skip-permissions');
+  });
+
+  it('includes --dangerously-skip-permissions when bypassPermissions is true', () => {
+    const provider = new ClaudeCliProvider('target', { ...mockClaudeConfig, bypassPermissions: true });
+    // biome-ignore lint/suspicious/noExplicitAny: testing private method
+    const args: string[] = (provider as any).buildArgs();
+    expect(args).toContain('--dangerously-skip-permissions');
+  });
+
+  it('omits --dangerously-skip-permissions when bypassPermissions is false', () => {
+    const provider = new ClaudeCliProvider('target', { ...mockClaudeConfig, bypassPermissions: false });
+    // biome-ignore lint/suspicious/noExplicitAny: testing private method
+    const args: string[] = (provider as any).buildArgs();
+    expect(args).not.toContain('--dangerously-skip-permissions');
   });
 });
