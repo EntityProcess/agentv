@@ -1,11 +1,11 @@
 /**
- * Pi Coding Agent provider using the @mariozechner/pi-coding-agent SDK directly.
+ * Pi Coding Agent provider using the @earendil-works/pi-coding-agent SDK directly.
  *
  * Uses `createAgentSession` from the SDK instead of spawning the Pi CLI as a subprocess.
  * Events are consumed via `session.subscribe()` to extract messages, tool calls, and token usage.
  *
  * Dependencies are lazy-loaded on first use to avoid bundling issues.
- * The package `@mariozechner/pi-coding-agent` must be installed.
+ * The package `@earendil-works/pi-coding-agent` must be installed.
  */
 
 import { execSync } from 'node:child_process';
@@ -39,8 +39,8 @@ import type {
 
 // Lazy-loaded SDK modules — guarded by a shared promise so concurrent workers
 // all wait on a single load attempt (and at most one interactive prompt).
-let piCodingAgentModule: typeof import('@mariozechner/pi-coding-agent') | null = null;
-let piAiModule: typeof import('@mariozechner/pi-ai') | null = null;
+let piCodingAgentModule: typeof import('@earendil-works/pi-coding-agent') | null = null;
+let piAiModule: typeof import('@earendil-works/pi-ai') | null = null;
 let loadingPromise: Promise<void> | null = null;
 
 async function promptInstall(): Promise<boolean> {
@@ -49,7 +49,7 @@ async function promptInstall(): Promise<boolean> {
   try {
     return await new Promise<boolean>((resolve) => {
       rl.question(
-        '@mariozechner/pi-coding-agent is not installed. Install it now? (y/N) ',
+        '@earendil-works/pi-coding-agent is not installed. Install it now? (y/N) ',
         (answer) => resolve(answer.trim().toLowerCase() === 'y'),
       );
     });
@@ -112,8 +112,8 @@ function findAccessiblePath(paths: readonly string[]): string | undefined {
 async function tryImportLocalSdkModules(): Promise<boolean> {
   try {
     [piCodingAgentModule, piAiModule] = await Promise.all([
-      import('@mariozechner/pi-coding-agent'),
-      import('@mariozechner/pi-ai'),
+      import('@earendil-works/pi-coding-agent'),
+      import('@earendil-works/pi-ai'),
     ]);
     return true;
   } catch {
@@ -124,17 +124,24 @@ async function tryImportLocalSdkModules(): Promise<boolean> {
 async function tryImportManagedSdkModules(): Promise<boolean> {
   const managedRoot = findManagedSdkInstallRoot();
   const piCodingAgentEntry = findAccessiblePath([
-    path.join(managedRoot, 'node_modules', '@mariozechner', 'pi-coding-agent', 'dist', 'index.js'),
-  ]);
-  const piAiEntry = findAccessiblePath([
-    path.join(managedRoot, 'node_modules', '@mariozechner', 'pi-ai', 'dist', 'index.js'),
     path.join(
       managedRoot,
       'node_modules',
-      '@mariozechner',
+      '@earendil-works',
+      'pi-coding-agent',
+      'dist',
+      'index.js',
+    ),
+  ]);
+  const piAiEntry = findAccessiblePath([
+    path.join(managedRoot, 'node_modules', '@earendil-works', 'pi-ai', 'dist', 'index.js'),
+    path.join(
+      managedRoot,
+      'node_modules',
+      '@earendil-works',
       'pi-coding-agent',
       'node_modules',
-      '@mariozechner',
+      '@earendil-works',
       'pi-ai',
       'dist',
       'index.js',
@@ -159,16 +166,16 @@ async function tryImportGlobalSdkModules(): Promise<boolean> {
   if (!globalNpmRoot) return false;
 
   const piCodingAgentEntry = findAccessiblePath([
-    buildGlobalModuleEntry('@mariozechner/pi-coding-agent', globalNpmRoot),
+    buildGlobalModuleEntry('@earendil-works/pi-coding-agent', globalNpmRoot),
   ]);
   const piAiEntry = findAccessiblePath([
-    buildGlobalModuleEntry('@mariozechner/pi-ai', globalNpmRoot),
+    buildGlobalModuleEntry('@earendil-works/pi-ai', globalNpmRoot),
     path.join(
       globalNpmRoot,
-      '@mariozechner',
+      '@earendil-works',
       'pi-coding-agent',
       'node_modules',
-      '@mariozechner',
+      '@earendil-works',
       'pi-ai',
       'dist',
       'index.js',
@@ -189,9 +196,9 @@ async function tryImportGlobalSdkModules(): Promise<boolean> {
 }
 
 function installSdkModules(installDir: string): void {
-  console.error(`Installing @mariozechner/pi-coding-agent into ${installDir} via npm...`);
+  console.error(`Installing @earendil-works/pi-coding-agent into ${installDir} via npm...`);
   mkdirSync(installDir, { recursive: true });
-  execSync('npm install --no-save --no-package-lock @mariozechner/pi-coding-agent', {
+  execSync('npm install --no-save --no-package-lock @earendil-works/pi-coding-agent', {
     cwd: installDir,
     stdio: 'inherit',
   });
@@ -215,7 +222,7 @@ async function doLoadSdkModules(): Promise<void> {
   }
 
   throw new Error(
-    'pi-coding-agent SDK is not installed. Install it with:\n  npm install @mariozechner/pi-coding-agent',
+    'pi-coding-agent SDK is not installed. Install it with:\n  npm install @earendil-works/pi-coding-agent',
   );
 }
 
