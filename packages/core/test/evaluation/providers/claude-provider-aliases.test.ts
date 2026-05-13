@@ -72,14 +72,20 @@ describe('ClaudeCliProvider buildArgs', () => {
   });
 
   it('includes --dangerously-skip-permissions when bypassPermissions is true', () => {
-    const provider = new ClaudeCliProvider('target', { ...mockClaudeConfig, bypassPermissions: true });
+    const provider = new ClaudeCliProvider('target', {
+      ...mockClaudeConfig,
+      bypassPermissions: true,
+    });
     // biome-ignore lint/suspicious/noExplicitAny: testing private method
     const args: string[] = (provider as any).buildArgs();
     expect(args).toContain('--dangerously-skip-permissions');
   });
 
   it('omits --dangerously-skip-permissions when bypassPermissions is false', () => {
-    const provider = new ClaudeCliProvider('target', { ...mockClaudeConfig, bypassPermissions: false });
+    const provider = new ClaudeCliProvider('target', {
+      ...mockClaudeConfig,
+      bypassPermissions: false,
+    });
     // biome-ignore lint/suspicious/noExplicitAny: testing private method
     const args: string[] = (provider as any).buildArgs();
     expect(args).not.toContain('--dangerously-skip-permissions');
