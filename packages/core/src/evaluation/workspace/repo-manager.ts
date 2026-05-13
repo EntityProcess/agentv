@@ -39,6 +39,10 @@ function getSourceUrl(source: RepoSource): string {
   return source.type === 'git' ? source.url : source.path;
 }
 
+function isFullCommitSha(ref: string | undefined): boolean {
+  return typeof ref === 'string' && /^[0-9a-f]{40}$/i.test(ref);
+}
+
 async function git(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd: opts?.cwd,
@@ -169,9 +173,12 @@ export class RepoManager {
     // Resolve ref
     const ref = getRepoCheckoutRef(repo.checkout);
     const resolve = repo.checkout?.resolve ?? 'remote';
+    const baseCommit = repo.checkout?.base_commit;
+    const shouldResolveLocally =
+      resolve === 'local' || (repo.source.type === 'git' && isFullCommitSha(baseCommit));
 
     let resolvedSha: string;
-    if (resolve === 'remote' && repo.source.type === 'git') {
+    if (!shouldResolveLocally && repo.source.type === 'git') {
       // Resolve via ls-remote for remote refs
       const url = getSourceUrl(repo.source);
       try {
