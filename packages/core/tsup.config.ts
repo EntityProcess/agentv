@@ -20,8 +20,8 @@ export default defineConfig({
     '@opentelemetry/resources',
     '@opentelemetry/sdk-trace-node',
     '@opentelemetry/semantic-conventions',
-    '@mariozechner/pi-coding-agent',
-    '@mariozechner/pi-ai',
+    '@earendil-works/pi-coding-agent',
+    '@earendil-works/pi-ai',
   ],
   outExtension({ format }) {
     return {

@@ -3,11 +3,11 @@
 // target). It is not always installed, so we declare a minimal type stub
 // here to keep TypeScript happy in the common path.
 //
-// Do NOT add a parallel `declare module '@mariozechner/pi-ai'` block —
+// Do NOT add a parallel `declare module '@earendil-works/pi-ai'` block —
 // pi-ai is a regular dependency with proper published types, and a stub
 // here would shadow them and break named imports.
 
-declare module '@mariozechner/pi-coding-agent' {
+declare module '@earendil-works/pi-coding-agent' {
   interface PiEvent {
     type: string;
     toolCallId: string;

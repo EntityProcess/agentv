@@ -32,7 +32,7 @@ const piCompleteMock = vi.fn(async () => ({
   timestamp: Date.now(),
 }));
 
-vi.mock('@mariozechner/pi-ai', () => ({
+vi.mock('@earendil-works/pi-ai', () => ({
   complete: (...args: unknown[]) => piCompleteMock(...(args as [])),
   getModel: (provider: string, modelId: string) => piGetModelMock(provider, modelId),
   registerBuiltInApiProviders: () => undefined,

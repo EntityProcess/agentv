@@ -20,16 +20,16 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "4.25.1",
+      "version": "4.27.0",
       "bin": {
         "agentv": "./dist/cli.js",
       },
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.49",
+        "@earendil-works/pi-ai": "^0.74.0",
         "@github/copilot-sdk": "^0.1.25",
         "@hono/node-server": "^1.19.11",
         "@inquirer/prompts": "^8.2.1",
-        "@mariozechner/pi-ai": "^0.72.1",
         "@openai/codex-sdk": "^0.104.0",
         "cmd-ts": "^0.14.3",
         "dotenv": "^16.4.5",
@@ -46,10 +46,10 @@
         "execa": "^9.3.0",
       },
       "peerDependencies": {
-        "@mariozechner/pi-coding-agent": "^0.62.0",
+        "@earendil-works/pi-coding-agent": "^0.74.0",
       },
       "optionalPeers": [
-        "@mariozechner/pi-coding-agent",
+        "@earendil-works/pi-coding-agent",
       ],
     },
     "apps/studio": {
@@ -84,12 +84,12 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "4.25.1",
+      "version": "4.27.0",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@agentv/eval": "workspace:*",
+        "@earendil-works/pi-ai": "^0.74.0",
         "@github/copilot-sdk": "^0.1.25",
-        "@mariozechner/pi-ai": "^0.72.1",
         "@openai/codex-sdk": "^0.104.0",
         "fast-glob": "^3.3.3",
         "json5": "^2.2.3",
@@ -111,16 +111,16 @@
       },
       "peerDependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.88",
-        "@mariozechner/pi-coding-agent": "^0.62.0",
+        "@earendil-works/pi-coding-agent": "^0.74.0",
       },
       "optionalPeers": [
         "@anthropic-ai/claude-agent-sdk",
-        "@mariozechner/pi-coding-agent",
+        "@earendil-works/pi-coding-agent",
       ],
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "4.25.1",
+      "version": "4.27.0",
       "dependencies": {
         "zod": "^3.23.8",
       },
@@ -294,6 +294,8 @@
     "@capsizecss/unpack": ["@capsizecss/unpack@4.0.0", "", { "dependencies": { "fontkitten": "^1.0.0" } }, "sha512-VERIM64vtTP1C4mxQ5thVT9fK0apjPFobqybMtA1UdUujWka24ERHbRHFGmpbbhp73MhV+KSsHQH9C6uOTdEQA=="],
 
     "@ctrl/tinycolor": ["@ctrl/tinycolor@4.2.0", "", {}, "sha512-kzyuwOAQnXJNLS9PSyrk0CWk35nWJW/zl/6KvnTBMFK65gm7U1/Z5BqjxeapjZCIhQcM/DsrEmcbRwDyXyXK4A=="],
+
+    "@earendil-works/pi-ai": ["@earendil-works/pi-ai@0.74.0", "", { "dependencies": { "@anthropic-ai/sdk": "^0.91.1", "@aws-sdk/client-bedrock-runtime": "^3.1030.0", "@google/genai": "^1.40.0", "@mistralai/mistralai": "^2.2.0", "chalk": "^5.6.2", "openai": "6.26.0", "partial-json": "^0.1.7", "proxy-agent": "^6.5.0", "typebox": "^1.1.24", "undici": "^7.19.1", "zod-to-json-schema": "^3.24.6" }, "bin": { "pi-ai": "dist/cli.js" } }, "sha512-7M7qcrZY/KEkH4wFkX3eqzvmKru4O88wezNKoN0KD2m4aAOmp9tdW2xCmUgSTSWlKB7b2Xw9QtAgrzHtg6t6iw=="],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.8.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-mehfKSMWjjNol8659Z8KxEMrdSJDDot5SXMq00dM8BN4o+CLNXQ0xH2V7EchNHV4RmbZLmmPdEaXZc5H2FXmDg=="],
 
@@ -474,8 +476,6 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
-
-    "@mariozechner/pi-ai": ["@mariozechner/pi-ai@0.72.1", "", { "dependencies": { "@anthropic-ai/sdk": "^0.91.1", "@aws-sdk/client-bedrock-runtime": "^3.1030.0", "@google/genai": "^1.40.0", "@mistralai/mistralai": "^2.2.0", "chalk": "^5.6.2", "openai": "6.26.0", "partial-json": "^0.1.7", "proxy-agent": "^6.5.0", "typebox": "^1.1.24", "undici": "^7.19.1", "zod-to-json-schema": "^3.24.6" }, "bin": { "pi-ai": "dist/cli.js" } }, "sha512-mOq71Pjnu72xxzwrh52VIiNwt+/a+Wpa11k5segi01/zTZJt8eMDc5Q2z6GhczYMr5+6EpZ8T+BaeHqq0jk5ag=="],
 
     "@mdx-js/mdx": ["@mdx-js/mdx@3.1.1", "", { "dependencies": { "@types/estree": "^1.0.0", "@types/estree-jsx": "^1.0.0", "@types/hast": "^3.0.0", "@types/mdx": "^2.0.0", "acorn": "^8.0.0", "collapse-white-space": "^2.0.0", "devlop": "^1.0.0", "estree-util-is-identifier-name": "^3.0.0", "estree-util-scope": "^1.0.0", "estree-walker": "^3.0.0", "hast-util-to-jsx-runtime": "^2.0.0", "markdown-extensions": "^2.0.0", "recma-build-jsx": "^1.0.0", "recma-jsx": "^1.0.0", "recma-stringify": "^1.0.0", "rehype-recma": "^1.0.0", "remark-mdx": "^3.0.0", "remark-parse": "^11.0.0", "remark-rehype": "^11.0.0", "source-map": "^0.7.0", "unified": "^11.0.0", "unist-util-position-from-estree": "^2.0.0", "unist-util-stringify-position": "^4.0.0", "unist-util-visit": "^5.0.0", "vfile": "^6.0.0" } }, "sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ=="],
 
