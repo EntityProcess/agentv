@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -141,7 +141,7 @@ describe('benchmarks registry', () => {
       const registry = loadBenchmarkRegistry();
       expect(registry.benchmarks[0].source?.url).toBe('https://github.com/example/bench-repo');
     } finally {
-      if (origUrl === undefined) delete process.env.BENCH_URL;
+      if (origUrl === undefined) process.env.BENCH_URL = undefined;
       else process.env.BENCH_URL = origUrl;
     }
   });

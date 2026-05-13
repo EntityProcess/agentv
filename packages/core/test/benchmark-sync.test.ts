@@ -45,7 +45,16 @@ describe('syncBenchmark', () => {
     await syncBenchmark(entry);
     expect(spy).toHaveBeenCalledWith(
       'git',
-      ['clone', '--depth', '1', '--filter=blob:none', '--branch', 'main', 'https://github.com/example/repo', dest],
+      [
+        'clone',
+        '--depth',
+        '1',
+        '--filter=blob:none',
+        '--branch',
+        'main',
+        'https://github.com/example/repo',
+        dest,
+      ],
       expect.objectContaining({ stdio: 'inherit' }),
     );
   });

@@ -54,7 +54,7 @@ export const doctorCommand = command({
   args: {},
   handler: () => {
     const binDir = path.join(getAgentvConfigDir(), 'bin');
-    console.log(`agentv doctor\n`);
+    console.log('agentv doctor\n');
     console.log(`Local bin dir: ${binDir}\n`);
 
     let allPresent = true;
