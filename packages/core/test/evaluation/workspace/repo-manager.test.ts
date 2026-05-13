@@ -99,6 +99,34 @@ describe('RepoManager', () => {
       expect(existsSync(path.join(targetDir, 'third.txt'))).toBe(false);
     }, 30_000);
 
+    it('checks out raw base_commit SHAs from git sources without resolve: local', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+      writeFileSync(path.join(repoDir, 'second.txt'), 'second');
+      execSync('git add -A && git commit -m "second"', { cwd: repoDir, ...EXEC_OPTS });
+      const secondSha = gitExec('git rev-parse HEAD', repoDir);
+      writeFileSync(path.join(repoDir, 'third.txt'), 'third');
+      execSync('git add -A && git commit -m "third"', { cwd: repoDir, ...EXEC_OPTS });
+
+      const remoteDir = path.join(tmpDir, 'remote.git');
+      execSync(`git clone --bare "${repoDir}" "${remoteDir}"`, { env: cleanGitEnv() });
+
+      await manager.materialize(
+        {
+          path: './my-repo',
+          source: { type: 'git', url: remoteDir },
+          checkout: { base_commit: secondSha },
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'my-repo');
+      const headSha = gitExec('git rev-parse HEAD', targetDir);
+      expect(headSha).toBe(secondSha);
+      expect(existsSync(path.join(targetDir, 'second.txt'))).toBe(true);
+      expect(existsSync(path.join(targetDir, 'third.txt'))).toBe(false);
+    }, 30_000);
+
     it('walks ancestor commits', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       const firstSha = createTestRepo(repoDir);
