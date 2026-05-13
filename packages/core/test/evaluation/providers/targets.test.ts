@@ -31,7 +31,7 @@ const piGetModelMock = mock((provider: string, modelId: string) => ({
 }));
 const piRegisterMock = mock(() => {});
 
-mock.module('@mariozechner/pi-ai', () => ({
+mock.module('@earendil-works/pi-ai', () => ({
   complete: (...args: unknown[]) => piCompleteMock(...(args as [{ provider: string }])),
   getModel: (provider: string, modelId: string) => piGetModelMock(provider, modelId),
   registerBuiltInApiProviders: () => piRegisterMock(),

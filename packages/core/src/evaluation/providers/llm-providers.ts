@@ -2,7 +2,7 @@
  * LLM provider classes for the five direct-API providers AgentV supports:
  * OpenAI, Azure OpenAI, OpenRouter, Anthropic, Google (Gemini).
  *
- * All five route through @mariozechner/pi-ai. Each provider class:
+ * All five route through @earendil-works/pi-ai. Each provider class:
  *   1. Resolves a pi-ai Model in its constructor (registry lookup + field
  *      merges; one-time work).
  *   2. Implements invoke() by delegating to invokePiAi(), which runs the
@@ -29,7 +29,7 @@ import {
   complete as piComplete,
   getModel as piGetModel,
   registerBuiltInApiProviders,
-} from '@mariozechner/pi-ai';
+} from '@earendil-works/pi-ai';
 
 // Pi-ai's `Model<TApi>` is generic over the api id. Every site that passes a
 // model around treats it as `Model<Api>` (the runtime-string variant), so

@@ -15,9 +15,9 @@ export default defineConfig({
   noExternal: [/^@agentv\//, 'cmd-ts'],
   external: [
     'micromatch',
-    '@mariozechner/pi-agent-core',
-    '@mariozechner/pi-ai',
-    '@mariozechner/pi-coding-agent',
+    '@earendil-works/pi-agent-core',
+    '@earendil-works/pi-ai',
+    '@earendil-works/pi-coding-agent',
     '@github/copilot-sdk',
     '@openai/codex-sdk',
     '@anthropic-ai/claude-agent-sdk',

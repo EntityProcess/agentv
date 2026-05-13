@@ -43,7 +43,7 @@
     "@agentclientprotocol/sdk": "^0.14.1",
     "@agentv/eval": "workspace:*",
     "@github/copilot-sdk": "^0.1.25",
-    "@mariozechner/pi-ai": "^0.72.1",
+    "@earendil-works/pi-ai": "^0.74.0",
     "@openai/codex-sdk": "^0.104.0",
     "fast-glob": "^3.3.3",
     "json5": "^2.2.3",
@@ -61,13 +61,13 @@
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.88",
-    "@mariozechner/pi-coding-agent": "^0.62.0"
+    "@earendil-works/pi-coding-agent": "^0.74.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
       "optional": true
     },
-    "@mariozechner/pi-coding-agent": {
+    "@earendil-works/pi-coding-agent": {
       "optional": true
     }
   },
