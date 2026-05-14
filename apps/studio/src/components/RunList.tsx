@@ -4,6 +4,12 @@
  * Displays all available runs with a pass/fail status dot, human-readable name,
  * source badge, date, test count, and coloured pass-rate pill.
  * Clicking a row navigates to the run detail view.
+ *
+ * In-progress runs (status `starting` / `running`, surfaced by the backend
+ * via the RunMeta `status` field while a Studio-launched run is still
+ * tracked in-memory) render a pulsing cyan dot instead of the pass/fail
+ * dot — otherwise a 0% pass rate during the warm-up window would show as
+ * a misleading red ✗.
  */
 
 import type React from 'react';
@@ -82,18 +88,27 @@ export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
           {runs.map((run) => {
             const ts = formatDate(run.timestamp);
             const passing = run.pass_rate >= passThreshold;
+            const isActive = run.status === 'starting' || run.status === 'running';
             const label = formatRunLabel(run);
             const passedCount = Math.round(run.pass_rate * run.test_count);
             const failedCount = run.test_count - passedCount;
             return (
               <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
-                {/* Status dot */}
+                {/* Status dot — spinner for active runs, otherwise pass/fail */}
                 <td className="px-4 py-3 text-center">
-                  <span
-                    className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
-                  >
-                    {passing ? '✓' : '✗'}
-                  </span>
+                  {isActive ? (
+                    <span
+                      className="inline-block h-2 w-2 animate-pulse rounded-full bg-cyan-400"
+                      title={run.status === 'starting' ? 'Starting…' : 'Running…'}
+                      aria-label={run.status === 'starting' ? 'Starting' : 'Running'}
+                    />
+                  ) : (
+                    <span
+                      className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
+                    >
+                      {passing ? '✓' : '✗'}
+                    </span>
+                  )}
                 </td>
 
                 {/* Run name */}

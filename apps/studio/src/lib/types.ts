@@ -21,6 +21,13 @@ export interface RunMeta {
   benchmark_name?: string;
   /** Optional user-assigned tags from the run's sidecar tags.json. */
   tags?: string[];
+  /**
+   * Live execution status. Only present for Studio-launched runs that are
+   * still being tracked in-memory — used to render a spinner in RunList
+   * instead of the pass/fail dot when pass_rate is 0 simply because no
+   * results have been written yet.
+   */
+  status?: 'starting' | 'running' | 'finished' | 'failed';
 }
 
 export interface RunListResponse {

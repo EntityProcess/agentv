@@ -42,6 +42,21 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * Fetch a text/plain endpoint. Treats 404 as `null` so callers can model
+ * "log not yet captured" without throwing — used by the RunDetail console log
+ * viewer for runs that finished before this feature shipped (no console.log
+ * on disk) and for remote runs.
+ */
+async function fetchText(url: string): Promise<string | null> {
+  const res = await fetch(url);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.text();
+}
+
 // ── Query option factories ──────────────────────────────────────────────
 
 export const runListOptions = queryOptions({
@@ -56,6 +71,23 @@ export function runDetailOptions(filename: string) {
     queryFn: () => fetchJson<RunDetailResponse>(`/api/runs/${encodeURIComponent(filename)}`),
     enabled: !!filename,
   });
+}
+
+export function runLogOptions(filename: string, benchmarkId?: string) {
+  const url = benchmarkId
+    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(filename)}/log`
+    : `/api/runs/${encodeURIComponent(filename)}/log`;
+  return queryOptions({
+    queryKey: ['runs', filename, 'log', benchmarkId ?? ''],
+    queryFn: () => fetchText(url),
+    enabled: !!filename,
+    // Re-fetch while a run is still capturing output so the viewer streams in.
+    refetchInterval: 3_000,
+  });
+}
+
+export function useRunLog(filename: string, benchmarkId?: string) {
+  return useQuery(runLogOptions(filename, benchmarkId));
 }
 
 export function runSuitesOptions(runId: string) {
