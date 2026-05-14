@@ -40,12 +40,12 @@ import { command, flag, number, option, optional, positional, string } from 'cmd
 import {
   DEFAULT_CATEGORY,
   type EvaluationResult,
-  addBenchmark,
-  getBenchmark,
-  loadBenchmarkRegistry,
+  addProject,
+  getProject,
   loadConfig,
-  removeBenchmark,
-  syncBenchmarks,
+  loadProjectRegistry,
+  removeProject,
+  syncProjects,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -989,13 +989,13 @@ export function createApp(
     c: C,
     handler: (c: C, ctx: DataContext) => Response | Promise<Response>,
   ): Response | Promise<Response> {
-    const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
-    if (!benchmark || !existsSync(benchmark.path)) {
+    const project = getProject(c.req.param('benchmarkId') ?? '');
+    if (!project || !existsSync(project.path)) {
       return c.json({ error: 'Benchmark not found' }, 404);
     }
     return handler(c, {
-      searchDir: benchmark.path,
-      agentvDir: path.join(benchmark.path, '.agentv'),
+      searchDir: project.path,
+      agentvDir: path.join(project.path, '.agentv'),
     });
   }
 
@@ -1021,7 +1021,7 @@ export function createApp(
 
   // ── Benchmark management endpoints ───────────────────────────────────
 
-  /** Convert a BenchmarkEntry to snake_case wire format. */
+  /** Convert a ProjectEntry to snake_case wire format. */
   function benchmarkEntryToWire(entry: {
     id: string;
     name: string;
@@ -1039,9 +1039,9 @@ export function createApp(
   }
 
   app.get('/api/benchmarks', async (c) => {
-    const registry = loadBenchmarkRegistry();
+    const registry = loadProjectRegistry();
     const benchmarks = await Promise.all(
-      registry.benchmarks.map(async (p) => {
+      registry.projects.map(async (p) => {
         let runCount = 0;
         let passRate = 0;
         let lastRun: string | null = null;
@@ -1074,7 +1074,7 @@ export function createApp(
     try {
       const body = await c.req.json<{ path: string }>();
       if (!body.path) return c.json({ error: 'Missing path' }, 400);
-      const entry = addBenchmark(body.path);
+      const entry = addProject(body.path);
       return c.json(benchmarkEntryToWire(entry), 201);
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
@@ -1082,17 +1082,17 @@ export function createApp(
   });
 
   app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
-    const benchmark = getBenchmark(c.req.param('benchmarkId') ?? '');
-    if (!benchmark) return c.json({ error: 'Benchmark not found' }, 404);
+    const project = getProject(c.req.param('benchmarkId') ?? '');
+    if (!project) return c.json({ error: 'Benchmark not found' }, 404);
     try {
-      const { runs: metas } = await listMergedResultFiles(benchmark.path);
+      const { runs: metas } = await listMergedResultFiles(project.path);
       const runCount = metas.length;
       const passRate = runCount > 0 ? metas.reduce((s, m) => s + m.passRate, 0) / runCount : 0;
       const lastRun = metas.length > 0 ? metas[0].timestamp : null;
       return c.json({
-        id: benchmark.id,
-        name: benchmark.name,
-        path: benchmark.path,
+        id: project.id,
+        name: project.name,
+        path: project.path,
         run_count: runCount,
         pass_rate: passRate,
         last_run: lastRun,
@@ -1104,7 +1104,7 @@ export function createApp(
 
   /** Aggregate runs from all registered benchmarks, sorted by timestamp descending. */
   app.get('/api/benchmarks/all-runs', async (c) => {
-    const registry = loadBenchmarkRegistry();
+    const registry = loadProjectRegistry();
     const allRuns: Array<{
       filename: string;
       display_name: string;
@@ -1121,7 +1121,7 @@ export function createApp(
       benchmark_name: string;
     }> = [];
 
-    for (const p of registry.benchmarks) {
+    for (const p of registry.projects) {
       try {
         const { runs: metas } = await listMergedResultFiles(p.path);
         for (const m of metas) {
@@ -1165,7 +1165,7 @@ export function createApp(
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    const removed = removeBenchmark(c.req.param('benchmarkId') ?? '');
+    const removed = removeProject(c.req.param('benchmarkId') ?? '');
     if (!removed) return c.json({ error: 'Benchmark not found' }, 404);
     return c.json({ ok: true });
   });
@@ -1351,8 +1351,8 @@ export function createApp(
       // For benchmark-scoped routes, resolve to benchmark path; otherwise use searchDir
       const benchmarkId = c.req.param('benchmarkId');
       if (benchmarkId) {
-        const benchmark = getBenchmark(benchmarkId);
-        if (benchmark) return benchmark.path;
+        const project = getProject(benchmarkId);
+        if (project) return project.path;
       }
       return searchDir;
     },
@@ -1492,7 +1492,7 @@ export const resultsServeCommand = command({
     // ── Benchmark management commands (non-server) ───────────────────
     if (add) {
       try {
-        const entry = addBenchmark(add);
+        const entry = addProject(add);
         console.log(`Registered benchmark: ${entry.name} (${entry.id}) at ${entry.path}`);
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
@@ -1502,7 +1502,7 @@ export const resultsServeCommand = command({
     }
 
     if (remove) {
-      const removed = removeBenchmark(remove);
+      const removed = removeProject(remove);
       if (removed) {
         console.log(`Unregistered benchmark: ${remove}`);
       } else {
@@ -1525,15 +1525,15 @@ export const resultsServeCommand = command({
     }
 
     // ── Determine multi-benchmark mode ───────────────────────────────
-    const registry = loadBenchmarkRegistry();
-    const { isMultiBenchmark, showMultiWarning } = resolveDashboardMode(
-      registry.benchmarks.length,
-      { multi, single },
-    );
+    const registry = loadProjectRegistry();
+    const { isMultiBenchmark, showMultiWarning } = resolveDashboardMode(registry.projects.length, {
+      multi,
+      single,
+    });
 
     // ── Benchmark sync preflight ─────────────────────────────────────
     // Clone or pull any benchmark entries that declare a source.
-    await syncBenchmarks(registry.benchmarks);
+    await syncProjects(registry.projects);
 
     try {
       let results: EvaluationResult[] = [];
@@ -1575,7 +1575,7 @@ export const resultsServeCommand = command({
       }
 
       if (isMultiBenchmark) {
-        console.log(`Multi-benchmark mode: ${registry.benchmarks.length} benchmark(s) registered`);
+        console.log(`Multi-benchmark mode: ${registry.projects.length} benchmark(s) registered`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {

@@ -88,20 +88,20 @@ export {
   getWorkspacePoolRoot,
 } from './paths.js';
 export {
-  type BenchmarkEntry,
-  type BenchmarkSource,
-  type BenchmarkRegistry,
-  loadBenchmarkRegistry,
-  saveBenchmarkRegistry,
-  addBenchmark,
-  removeBenchmark,
-  getBenchmark,
-  touchBenchmark,
-  discoverBenchmarks,
-  deriveBenchmarkId,
-  getBenchmarksRegistryPath,
-} from './benchmarks.js';
-export { syncBenchmark, syncBenchmarks } from './benchmark-sync.js';
+  type ProjectEntry,
+  type ProjectSource,
+  type ProjectRegistry,
+  loadProjectRegistry,
+  saveProjectRegistry,
+  addProject,
+  removeProject,
+  getProject,
+  touchProject,
+  discoverProjects,
+  deriveProjectId,
+  getProjectsRegistryPath,
+} from './projects.js';
+export { syncProject, syncProjects } from './project-sync.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';
 export * from './observability/index.js';

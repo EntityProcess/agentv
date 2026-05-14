@@ -1,32 +1,32 @@
 /**
- * Benchmark sync — pulls remote git repos to the local path declared in the
- * benchmark registry before Studio/eval startup.
+ * Project sync — pulls remote git repos to the local path declared in the
+ * project registry before Studio/eval startup.
  *
  * Sync is oneshot only, triggered by the Studio UI "Sync" button or the
- * `agentv benchmark sync` CLI command. There is no daemon or continuous mode.
+ * `agentv project sync` CLI command. There is no daemon or continuous mode.
  *
  *   First run  — git clone --depth 1 --filter=blob:none --branch <ref> <url> <path>
  *   Subsequent — git pull --ff-only (when <path>/.git already exists)
  *
  * Usage:
- *   import { syncBenchmarks } from './benchmark-sync.js';
- *   await syncBenchmarks(registry.benchmarks);
+ *   import { syncProjects } from './project-sync.js';
+ *   await syncProjects(registry.projects);
  */
 
 import * as childProcess from 'node:child_process';
 import { existsSync } from 'node:fs';
 
-import type { BenchmarkEntry } from './benchmarks.js';
+import type { ProjectEntry } from './projects.js';
 
 /**
- * Clone or pull a single benchmark entry from its declared source.
+ * Clone or pull a single project entry from its declared source.
  * - No .git present: shallow clone into entry.path.
  * - .git present: git pull --ff-only to update in place.
  * Throws on git error or missing source.
  */
-export async function syncBenchmark(entry: BenchmarkEntry): Promise<void> {
+export async function syncProject(entry: ProjectEntry): Promise<void> {
   if (!entry.source) {
-    throw new Error(`Benchmark '${entry.id}' has no source defined`);
+    throw new Error(`Project '${entry.id}' has no source defined`);
   }
   const { url, ref } = entry.source;
   const dest = entry.path;
@@ -43,14 +43,14 @@ export async function syncBenchmark(entry: BenchmarkEntry): Promise<void> {
 }
 
 /**
- * Iterate benchmark entries and sync any that have a source declared.
+ * Iterate project entries and sync any that have a source declared.
  * Entries without source are skipped silently.
  */
-export async function syncBenchmarks(entries: BenchmarkEntry[]): Promise<void> {
+export async function syncProjects(entries: ProjectEntry[]): Promise<void> {
   for (const entry of entries) {
     if (!entry.source) continue;
-    console.log(`Syncing benchmark '${entry.id}' from ${entry.source.url}...`);
-    await syncBenchmark(entry);
-    console.log(`Benchmark '${entry.id}' synced.`);
+    console.log(`Syncing project '${entry.id}' from ${entry.source.url}...`);
+    await syncProject(entry);
+    console.log(`Project '${entry.id}' synced.`);
   }
 }

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { addBenchmark } from '@agentv/core';
+import { addProject } from '@agentv/core';
 
 import {
   createApp,
@@ -577,7 +577,7 @@ describe('serve app', () => {
         );
         mkdirSync(runDir, { recursive: true });
         writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-        const benchmark = addBenchmark(benchmarkDir);
+        const project = addProject(benchmarkDir);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/benchmarks/all-runs');
@@ -588,7 +588,7 @@ describe('serve app', () => {
         };
         expect(data.runs).toHaveLength(1);
         expect(data.runs[0]).toMatchObject({
-          benchmark_id: benchmark.id,
+          benchmark_id: project.id,
           experiment: 'issue-1198-benchmark',
           target: 'gpt-4o',
         });
