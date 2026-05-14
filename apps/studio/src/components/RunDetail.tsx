@@ -25,7 +25,7 @@ import { StatsCards } from './StatsCards';
 interface RunDetailProps {
   results: EvalResult[];
   runId: string;
-  benchmarkId?: string;
+  projectId?: string;
 }
 
 interface SuiteStats {
@@ -92,7 +92,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function RunDetail({ results, runId, benchmarkId }: RunDetailProps) {
+export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const { data: config } = useStudioConfig();
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
@@ -198,10 +198,10 @@ export function RunDetail({ results, runId, benchmarkId }: RunDetailProps) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {benchmarkId ? (
+                      {projectId ? (
                         <Link
-                          to="/benchmarks/$benchmarkId/evals/$runId/$evalId"
-                          params={{ benchmarkId, runId, evalId: result.testId }}
+                          to="/projects/$projectId/evals/$runId/$evalId"
+                          params={{ projectId, runId, evalId: result.testId }}
                           className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         >
                           {result.testId}
@@ -242,14 +242,14 @@ export function RunDetail({ results, runId, benchmarkId }: RunDetailProps) {
         </div>
       </div>
 
-      <ConsoleLogSection runId={runId} benchmarkId={benchmarkId} />
+      <ConsoleLogSection runId={runId} projectId={projectId} />
     </div>
   );
 }
 
-function ConsoleLogSection({ runId, benchmarkId }: { runId: string; benchmarkId?: string }) {
+function ConsoleLogSection({ runId, projectId }: { runId: string; projectId?: string }) {
   const [open, setOpen] = useState(false);
-  const { data: log, isLoading, error } = useRunLog(runId, benchmarkId);
+  const { data: log, isLoading, error } = useRunLog(runId, projectId);
 
   // Hide the section entirely when no log was captured (remote runs, or
   // local runs from before this feature shipped). The 404 path resolves

@@ -11,9 +11,9 @@ import { useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import {
-  benchmarkEvalFileContentOptions,
-  benchmarkEvalFilesOptions,
   isPassing,
+  projectEvalFileContentOptions,
+  projectEvalFilesOptions,
   useEvalFileContent,
   useEvalFiles,
   useStudioConfig,
@@ -29,7 +29,7 @@ import { ScoreBar } from './ScoreBar';
 interface EvalDetailProps {
   eval: EvalResult;
   runId: string;
-  benchmarkId?: string;
+  projectId?: string;
 }
 
 type Tab = 'checks' | 'files' | 'feedback';
@@ -46,7 +46,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
   return null;
 }
 
-export function EvalDetail({ eval: result, runId, benchmarkId }: EvalDetailProps) {
+export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('checks');
   const { data: config } = useStudioConfig();
   const isReadOnly = config?.read_only === true;
@@ -88,7 +88,7 @@ export function EvalDetail({ eval: result, runId, benchmarkId }: EvalDetailProps
         )}
         {activeTab === 'files' && (
           <div className="h-full p-4">
-            <FilesTab result={result} runId={runId} benchmarkId={benchmarkId} />
+            <FilesTab result={result} runId={runId} projectId={projectId} />
           </div>
         )}
         {!isReadOnly && activeTab === 'feedback' && (
@@ -253,13 +253,13 @@ function ChecksTab({ result }: { result: EvalResult }) {
 function FilesTab({
   result,
   runId,
-  benchmarkId,
-}: { result: EvalResult; runId: string; benchmarkId?: string }) {
+  projectId,
+}: { result: EvalResult; runId: string; projectId?: string }) {
   const evalId = result.testId;
 
-  // Use benchmark-scoped API hooks when benchmarkId is present
-  const { data: filesData } = benchmarkId
-    ? useQuery(benchmarkEvalFilesOptions(benchmarkId, runId, evalId))
+  // Use project-scoped API hooks when projectId is present
+  const { data: filesData } = projectId
+    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId))
     : useEvalFiles(runId, evalId);
   const files = filesData?.files ?? [];
 
@@ -267,8 +267,8 @@ function FilesTab({
 
   const effectivePath = selectedPath ?? (files.length > 0 ? findFirstFile(files) : null);
 
-  const { data: fileContentData, isLoading: isLoadingContent } = benchmarkId
-    ? useQuery(benchmarkEvalFileContentOptions(benchmarkId, runId, evalId, effectivePath ?? ''))
+  const { data: fileContentData, isLoading: isLoadingContent } = projectId
+    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? ''))
     : useEvalFileContent(runId, evalId, effectivePath ?? '');
 
   if (files.length === 0) {

@@ -8,8 +8,6 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import type {
-  BenchmarkEntry,
-  BenchmarkListResponse,
   CategoriesResponse,
   CompareResponse,
   EvalDetailResponse,
@@ -24,6 +22,8 @@ import type {
   FileContentResponse,
   FileTreeResponse,
   IndexResponse,
+  ProjectEntry,
+  ProjectListResponse,
   RemoteStatusResponse,
   RunDetailResponse,
   RunEvalRequest,
@@ -73,12 +73,12 @@ export function runDetailOptions(filename: string) {
   });
 }
 
-export function runLogOptions(filename: string, benchmarkId?: string) {
-  const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(filename)}/log`
+export function runLogOptions(filename: string, projectId?: string) {
+  const url = projectId
+    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(filename)}/log`
     : `/api/runs/${encodeURIComponent(filename)}/log`;
   return queryOptions({
-    queryKey: ['runs', filename, 'log', benchmarkId ?? ''],
+    queryKey: ['runs', filename, 'log', projectId ?? ''],
     queryFn: () => fetchText(url),
     enabled: !!filename,
     // Re-fetch while a run is still capturing output so the viewer streams in.
@@ -86,8 +86,8 @@ export function runLogOptions(filename: string, benchmarkId?: string) {
   });
 }
 
-export function useRunLog(filename: string, benchmarkId?: string) {
-  return useQuery(runLogOptions(filename, benchmarkId));
+export function useRunLog(filename: string, projectId?: string) {
+  return useQuery(runLogOptions(filename, projectId));
 }
 
 export function runSuitesOptions(runId: string) {
@@ -191,10 +191,10 @@ export const studioConfigOptions = queryOptions({
   staleTime: 5_000,
 });
 
-export function remoteStatusOptions(benchmarkId?: string) {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/remote/status` : '/api/remote/status';
+export function remoteStatusOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/remote/status` : '/api/remote/status';
   return queryOptions({
-    queryKey: ['remote-status', benchmarkId ?? ''],
+    queryKey: ['remote-status', projectId ?? ''],
     queryFn: () => fetchJson<RemoteStatusResponse>(url),
     staleTime: 5_000,
   });
@@ -254,12 +254,12 @@ export function useCategorySuites(runId: string, category: string) {
   return useQuery(categorySuitesOptions(runId, category));
 }
 
-export function useStudioConfig(benchmarkId?: string) {
-  return useQuery(benchmarkId ? benchmarkConfigOptions(benchmarkId) : studioConfigOptions);
+export function useStudioConfig(projectId?: string) {
+  return useQuery(projectId ? projectConfigOptions(projectId) : studioConfigOptions);
 }
 
-export function useRemoteStatus(benchmarkId?: string) {
-  return useQuery(remoteStatusOptions(benchmarkId));
+export function useRemoteStatus(projectId?: string) {
+  return useQuery(remoteStatusOptions(projectId));
 }
 
 /** Default pass threshold matching @agentv/core DEFAULT_THRESHOLD */
@@ -269,201 +269,197 @@ export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_TH
   return score >= passThreshold;
 }
 
-// ── Benchmark API ────────────────────────────────────────────────────────
+// ── Project API ────────────────────────────────────────────────────────
 
-export const benchmarkListOptions = queryOptions({
-  queryKey: ['benchmarks'],
-  queryFn: () => fetchJson<BenchmarkListResponse>('/api/benchmarks'),
+export const projectListOptions = queryOptions({
+  queryKey: ['projects'],
+  queryFn: () => fetchJson<ProjectListResponse>('/api/projects'),
   refetchInterval: 10_000,
 });
 
-export function useBenchmarkList() {
-  return useQuery(benchmarkListOptions);
+export function useProjectList() {
+  return useQuery(projectListOptions);
 }
 
-export const allBenchmarkRunsOptions = queryOptions({
-  queryKey: ['benchmarks', 'all-runs'],
-  queryFn: () => fetchJson<RunListResponse>('/api/benchmarks/all-runs'),
+export const allProjectRunsOptions = queryOptions({
+  queryKey: ['projects', 'all-runs'],
+  queryFn: () => fetchJson<RunListResponse>('/api/projects/all-runs'),
   refetchInterval: 5_000,
 });
 
-export function useAllBenchmarkRuns() {
-  return useQuery(allBenchmarkRunsOptions);
+export function useAllProjectRuns() {
+  return useQuery(allProjectRunsOptions);
 }
 
-export async function addBenchmarkApi(benchmarkPath: string): Promise<BenchmarkEntry> {
-  const res = await fetch('/api/benchmarks', {
+export async function addProjectApi(projectPath: string): Promise<ProjectEntry> {
+  const res = await fetch('/api/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: benchmarkPath }),
+    body: JSON.stringify({ path: projectPath }),
   });
   if (!res.ok) {
     const err = (await res.json()) as { error: string };
-    throw new Error(err.error || `Failed to add benchmark: ${res.status}`);
+    throw new Error(err.error || `Failed to add project: ${res.status}`);
   }
-  return res.json() as Promise<BenchmarkEntry>;
+  return res.json() as Promise<ProjectEntry>;
 }
 
-export async function removeBenchmarkApi(benchmarkId: string): Promise<void> {
-  const res = await fetch(`/api/benchmarks/${encodeURIComponent(benchmarkId)}`, {
+export async function removeProjectApi(projectId: string): Promise<void> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(`Failed to remove benchmark: ${res.status}`);
+    throw new Error(`Failed to remove project: ${res.status}`);
   }
 }
 
-/** Build the API base URL for a benchmark-scoped request. */
-function benchmarkApiBase(benchmarkId: string): string {
-  return `/api/benchmarks/${encodeURIComponent(benchmarkId)}`;
+/** Build the API base URL for a project-scoped request. */
+function projectApiBase(projectId: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}`;
 }
 
-export function benchmarkRunListOptions(benchmarkId: string) {
+export function projectRunListOptions(projectId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs'],
-    queryFn: () => fetchJson<RunListResponse>(`${benchmarkApiBase(benchmarkId)}/runs`),
-    enabled: !!benchmarkId,
+    queryKey: ['projects', projectId, 'runs'],
+    queryFn: () => fetchJson<RunListResponse>(`${projectApiBase(projectId)}/runs`),
+    enabled: !!projectId,
     refetchInterval: 5_000,
   });
 }
 
-export function useBenchmarkRunList(benchmarkId: string) {
-  return useQuery(benchmarkRunListOptions(benchmarkId));
+export function useProjectRunList(projectId: string) {
+  return useQuery(projectRunListOptions(projectId));
 }
 
-export function benchmarkRunDetailOptions(benchmarkId: string, filename: string) {
+export function projectRunDetailOptions(projectId: string, filename: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', filename],
+    queryKey: ['projects', projectId, 'runs', filename],
     queryFn: () =>
       fetchJson<RunDetailResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(filename)}`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(filename)}`,
       ),
-    enabled: !!benchmarkId && !!filename,
+    enabled: !!projectId && !!filename,
   });
 }
 
-export function useBenchmarkRunDetail(benchmarkId: string, filename: string) {
-  return useQuery(benchmarkRunDetailOptions(benchmarkId, filename));
+export function useProjectRunDetail(projectId: string, filename: string) {
+  return useQuery(projectRunDetailOptions(projectId, filename));
 }
 
-export function benchmarkRunSuitesOptions(benchmarkId: string, runId: string) {
+export function projectRunSuitesOptions(projectId: string, runId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'suites'],
+    queryKey: ['projects', projectId, 'runs', runId, 'suites'],
     queryFn: () =>
       fetchJson<SuitesResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/suites`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/suites`,
       ),
-    enabled: !!benchmarkId && !!runId,
+    enabled: !!projectId && !!runId,
   });
 }
 
-export function benchmarkRunCategoriesOptions(benchmarkId: string, runId: string) {
+export function projectRunCategoriesOptions(projectId: string, runId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'categories'],
+    queryKey: ['projects', projectId, 'runs', runId, 'categories'],
     queryFn: () =>
       fetchJson<CategoriesResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/categories`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories`,
       ),
-    enabled: !!benchmarkId && !!runId,
+    enabled: !!projectId && !!runId,
   });
 }
 
-export function benchmarkCategorySuitesOptions(
-  benchmarkId: string,
-  runId: string,
-  category: string,
-) {
+export function projectCategorySuitesOptions(projectId: string, runId: string, category: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'categories', category, 'suites'],
+    queryKey: ['projects', projectId, 'runs', runId, 'categories', category, 'suites'],
     queryFn: () =>
       fetchJson<SuitesResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/suites`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/categories/${encodeURIComponent(category)}/suites`,
       ),
-    enabled: !!benchmarkId && !!runId && !!category,
+    enabled: !!projectId && !!runId && !!category,
   });
 }
 
-export function benchmarkEvalDetailOptions(benchmarkId: string, runId: string, evalId: string) {
+export function projectEvalDetailOptions(projectId: string, runId: string, evalId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'evals', evalId],
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId],
     queryFn: () =>
       fetchJson<EvalDetailResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`,
       ),
-    enabled: !!benchmarkId && !!runId && !!evalId,
+    enabled: !!projectId && !!runId && !!evalId,
   });
 }
 
-export function benchmarkEvalFilesOptions(benchmarkId: string, runId: string, evalId: string) {
+export function projectEvalFilesOptions(projectId: string, runId: string, evalId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'evals', evalId, 'files'],
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files'],
     queryFn: () =>
       fetchJson<FileTreeResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`,
       ),
-    enabled: !!benchmarkId && !!runId && !!evalId,
+    enabled: !!projectId && !!runId && !!evalId,
   });
 }
 
-export function benchmarkEvalFileContentOptions(
-  benchmarkId: string,
+export function projectEvalFileContentOptions(
+  projectId: string,
   runId: string,
   evalId: string,
   filePath: string,
 ) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'runs', runId, 'evals', evalId, 'files', filePath],
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files', filePath],
     queryFn: () =>
       fetchJson<FileContentResponse>(
-        `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
       ),
-    enabled: !!benchmarkId && !!runId && !!evalId && !!filePath,
+    enabled: !!projectId && !!runId && !!evalId && !!filePath,
   });
 }
 
-export function benchmarkExperimentsOptions(benchmarkId: string) {
+export function projectExperimentsOptions(projectId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'experiments'],
-    queryFn: () => fetchJson<ExperimentsResponse>(`${benchmarkApiBase(benchmarkId)}/experiments`),
-    enabled: !!benchmarkId,
+    queryKey: ['projects', projectId, 'experiments'],
+    queryFn: () => fetchJson<ExperimentsResponse>(`${projectApiBase(projectId)}/experiments`),
+    enabled: !!projectId,
   });
 }
 
-export function benchmarkCompareOptions(benchmarkId: string, baseline?: string) {
-  const base = `${benchmarkApiBase(benchmarkId)}/compare`;
+export function projectCompareOptions(projectId: string, baseline?: string) {
+  const base = `${projectApiBase(projectId)}/compare`;
   if (baseline) {
     return queryOptions({
-      queryKey: ['benchmarks', benchmarkId, 'compare', 'baseline', baseline],
+      queryKey: ['projects', projectId, 'compare', 'baseline', baseline],
       queryFn: () => fetchJson<CompareResponse>(`${base}?baseline=${encodeURIComponent(baseline)}`),
-      enabled: !!benchmarkId,
+      enabled: !!projectId,
     });
   }
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'compare'],
+    queryKey: ['projects', projectId, 'compare'],
     queryFn: () => fetchJson<CompareResponse>(base),
-    enabled: !!benchmarkId,
+    enabled: !!projectId,
   });
 }
 
-export function benchmarkTargetsOptions(benchmarkId: string) {
+export function projectTargetsOptions(projectId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'targets'],
-    queryFn: () => fetchJson<TargetsResponse>(`${benchmarkApiBase(benchmarkId)}/targets`),
-    enabled: !!benchmarkId,
+    queryKey: ['projects', projectId, 'targets'],
+    queryFn: () => fetchJson<TargetsResponse>(`${projectApiBase(projectId)}/targets`),
+    enabled: !!projectId,
   });
 }
 
-export function benchmarkConfigOptions(benchmarkId: string) {
+export function projectConfigOptions(projectId: string) {
   return queryOptions({
-    queryKey: ['benchmarks', benchmarkId, 'config'],
-    queryFn: () => fetchJson<StudioConfigResponse>(`${benchmarkApiBase(benchmarkId)}/config`),
-    enabled: !!benchmarkId,
+    queryKey: ['projects', projectId, 'config'],
+    queryFn: () => fetchJson<StudioConfigResponse>(`${projectApiBase(projectId)}/config`),
+    enabled: !!projectId,
     staleTime: 5_000,
   });
 }
 
-export async function syncRemoteResultsApi(benchmarkId?: string): Promise<RemoteStatusResponse> {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/remote/sync` : '/api/remote/sync';
+export async function syncRemoteResultsApi(projectId?: string): Promise<RemoteStatusResponse> {
+  const url = projectId ? `${projectApiBase(projectId)}/remote/sync` : '/api/remote/sync';
   const res = await fetch(url, {
     method: 'POST',
   });
@@ -483,10 +479,10 @@ export async function syncRemoteResultsApi(benchmarkId?: string): Promise<Remote
 export async function saveRunTagsApi(
   runId: string,
   tags: string[],
-  benchmarkId?: string,
+  projectId?: string,
 ): Promise<RunTagsResponse> {
-  const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/tags`
+  const url = projectId
+    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`
     : `/api/runs/${encodeURIComponent(runId)}/tags`;
   const res = await fetch(url, {
     method: 'PUT',
@@ -501,9 +497,9 @@ export async function saveRunTagsApi(
 }
 
 /** Remove the tags sidecar for a run. */
-export async function deleteRunTagsApi(runId: string, benchmarkId?: string): Promise<void> {
-  const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/runs/${encodeURIComponent(runId)}/tags`
+export async function deleteRunTagsApi(runId: string, projectId?: string): Promise<void> {
+  const url = projectId
+    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`
     : `/api/runs/${encodeURIComponent(runId)}/tags`;
   const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok) {
@@ -528,37 +524,37 @@ export async function saveStudioConfig(
 
 // ── Eval runner queries & mutations ──────────────────────────────────────
 
-export function evalDiscoverOptions(benchmarkId?: string) {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/discover` : '/api/eval/discover';
+export function evalDiscoverOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/discover` : '/api/eval/discover';
   return queryOptions({
-    queryKey: ['eval-discover', benchmarkId ?? ''],
+    queryKey: ['eval-discover', projectId ?? ''],
     queryFn: () => fetchJson<EvalDiscoverResponse>(url),
     staleTime: 30_000,
   });
 }
 
-export function useEvalDiscover(benchmarkId?: string) {
-  return useQuery(evalDiscoverOptions(benchmarkId));
+export function useEvalDiscover(projectId?: string) {
+  return useQuery(evalDiscoverOptions(projectId));
 }
 
-export function evalTargetsOptions(benchmarkId?: string) {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/targets` : '/api/eval/targets';
+export function evalTargetsOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/targets` : '/api/eval/targets';
   return queryOptions({
-    queryKey: ['eval-targets', benchmarkId ?? ''],
+    queryKey: ['eval-targets', projectId ?? ''],
     queryFn: () => fetchJson<EvalTargetsResponse>(url),
     staleTime: 30_000,
   });
 }
 
-export function useEvalTargets(benchmarkId?: string) {
-  return useQuery(evalTargetsOptions(benchmarkId));
+export function useEvalTargets(projectId?: string) {
+  return useQuery(evalTargetsOptions(projectId));
 }
 
 export async function launchEvalRun(
   body: RunEvalRequest,
-  benchmarkId?: string,
+  projectId?: string,
 ): Promise<EvalRunResponse> {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/run` : '/api/eval/run';
+  const url = projectId ? `${projectApiBase(projectId)}/eval/run` : '/api/eval/run';
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -573,10 +569,10 @@ export async function launchEvalRun(
 
 export async function stopEvalRun(
   runId: string,
-  benchmarkId?: string,
+  projectId?: string,
 ): Promise<{ stopped: boolean; reason?: string; status?: string }> {
-  const url = benchmarkId
-    ? `${benchmarkApiBase(benchmarkId)}/eval/run/${runId}/stop`
+  const url = projectId
+    ? `${projectApiBase(projectId)}/eval/run/${runId}/stop`
     : `/api/eval/run/${runId}/stop`;
   const res = await fetch(url, { method: 'POST' });
   if (!res.ok) {
@@ -603,24 +599,24 @@ export function useEvalRunStatus(runId: string | null) {
   return useQuery(evalRunStatusOptions(runId));
 }
 
-export function evalRunsOptions(benchmarkId?: string) {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/runs` : '/api/eval/runs';
+export function evalRunsOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/eval/runs` : '/api/eval/runs';
   return queryOptions({
-    queryKey: ['eval-runs', benchmarkId ?? ''],
+    queryKey: ['eval-runs', projectId ?? ''],
     queryFn: () => fetchJson<EvalRunListResponse>(url),
     refetchInterval: 3_000,
   });
 }
 
-export function useEvalRuns(benchmarkId?: string) {
-  return useQuery(evalRunsOptions(benchmarkId));
+export function useEvalRuns(projectId?: string) {
+  return useQuery(evalRunsOptions(projectId));
 }
 
 export async function previewEvalCommand(
   body: RunEvalRequest,
-  benchmarkId?: string,
+  projectId?: string,
 ): Promise<EvalPreviewResponse> {
-  const url = benchmarkId ? `${benchmarkApiBase(benchmarkId)}/eval/preview` : '/api/eval/preview';
+  const url = projectId ? `${projectApiBase(projectId)}/eval/preview` : '/api/eval/preview';
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

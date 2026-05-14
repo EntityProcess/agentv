@@ -1,5 +1,5 @@
 /**
- * Benchmark-scoped eval detail route.
+ * Project-scoped eval detail route.
  */
 
 import { createFileRoute } from '@tanstack/react-router';
@@ -7,15 +7,15 @@ import { useState } from 'react';
 
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { isPassing, useBenchmarkRunDetail, useStudioConfig } from '~/lib/api';
+import { isPassing, useProjectRunDetail, useStudioConfig } from '~/lib/api';
 
-export const Route = createFileRoute('/benchmarks/$benchmarkId_/evals/$runId/$evalId')({
-  component: BenchmarkEvalDetailPage,
+export const Route = createFileRoute('/projects/$projectId_/evals/$runId/$evalId')({
+  component: ProjectEvalDetailPage,
 });
 
-function BenchmarkEvalDetailPage() {
-  const { benchmarkId, runId, evalId } = Route.useParams();
-  const { data, isLoading, error } = useBenchmarkRunDetail(benchmarkId, runId);
+function ProjectEvalDetailPage() {
+  const { projectId, runId, evalId } = Route.useParams();
+  const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
   const isReadOnly = config?.read_only === true;
@@ -82,12 +82,12 @@ function BenchmarkEvalDetailPage() {
           </button>
         )}
       </div>
-      <EvalDetail eval={result} runId={runId} benchmarkId={benchmarkId} />
+      <EvalDetail eval={result} runId={runId} projectId={projectId} />
       {!isReadOnly && (
         <RunEvalModal
           open={showRunEval}
           onClose={() => setShowRunEval(false)}
-          benchmarkId={benchmarkId}
+          projectId={projectId}
           prefill={{
             testIds: [evalId],
             target: result.target,

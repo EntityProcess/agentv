@@ -1,7 +1,7 @@
 /**
- * Benchmark home route: tabbed view (Runs, Experiments, Analytics, Targets) scoped to a benchmark.
+ * Project home route: tabbed view (Runs, Experiments, Analytics, Targets) scoped to a project.
  *
- * Mirrors the single-benchmark home page but fetches from benchmark-scoped API endpoints.
+ * Mirrors the single-project home page but fetches from project-scoped API endpoints.
  */
 
 import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
@@ -14,10 +14,10 @@ import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
-  benchmarkCompareOptions,
-  benchmarkExperimentsOptions,
+  projectCompareOptions,
+  projectExperimentsOptions,
   syncRemoteResultsApi,
-  useBenchmarkRunList,
+  useProjectRunList,
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
@@ -32,12 +32,12 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'targets', label: 'Targets' },
 ];
 
-export const Route = createFileRoute('/benchmarks/$benchmarkId')({
-  component: BenchmarkHomePage,
+export const Route = createFileRoute('/projects/$projectId')({
+  component: ProjectHomePage,
 });
 
-function BenchmarkHomePage() {
-  const { benchmarkId } = Route.useParams();
+function ProjectHomePage() {
+  const { projectId } = Route.useParams();
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
@@ -51,7 +51,7 @@ function BenchmarkHomePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">{benchmarkId}</h1>
+        <h1 className="text-2xl font-semibold text-white">{projectId}</h1>
         {!isReadOnly && (
           <button
             type="button"
@@ -72,8 +72,8 @@ function BenchmarkHomePage() {
               key={t.id}
               onClick={() =>
                 navigate({
-                  to: '/benchmarks/$benchmarkId',
-                  params: { benchmarkId },
+                  to: '/projects/$projectId',
+                  params: { projectId },
                   search: { tab: t.id } as Record<string, string>,
                 })
               }
@@ -89,28 +89,28 @@ function BenchmarkHomePage() {
         </div>
       </div>
 
-      {activeTab === 'runs' && <BenchmarkRunsTab benchmarkId={benchmarkId} />}
-      {activeTab === 'experiments' && <BenchmarkExperimentsTab benchmarkId={benchmarkId} />}
+      {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} />}
+      {activeTab === 'experiments' && <ProjectExperimentsTab projectId={projectId} />}
       {activeTab === 'analytics' && (
-        <BenchmarkAnalyticsTab benchmarkId={benchmarkId} readOnly={isReadOnly} />
+        <ProjectAnalyticsTab projectId={projectId} readOnly={isReadOnly} />
       )}
-      {activeTab === 'targets' && <TargetsTab benchmarkId={benchmarkId} />}
+      {activeTab === 'targets' && <TargetsTab projectId={projectId} />}
 
       {!isReadOnly && (
         <RunEvalModal
           open={showRunEval}
           onClose={() => setShowRunEval(false)}
-          benchmarkId={benchmarkId}
+          projectId={projectId}
         />
       )}
     </div>
   );
 }
 
-function BenchmarkRunsTab({ benchmarkId }: { benchmarkId: string }) {
+function ProjectRunsTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useBenchmarkRunList(benchmarkId);
-  const { data: remoteStatus } = useRemoteStatus(benchmarkId);
+  const { data, isLoading, error } = useProjectRunList(projectId);
+  const { data: remoteStatus } = useRemoteStatus(projectId);
   const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
   const [syncInFlight, setSyncInFlight] = useState(false);
 
@@ -122,13 +122,13 @@ function BenchmarkRunsTab({ benchmarkId }: { benchmarkId: string }) {
   async function handleSyncRemote() {
     setSyncInFlight(true);
     try {
-      await syncRemoteResultsApi(benchmarkId);
+      await syncRemoteResultsApi(projectId);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'experiments'] }),
-        queryClient.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'compare'] }),
-        queryClient.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'targets'] }),
-        queryClient.invalidateQueries({ queryKey: ['remote-status', benchmarkId] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
+        queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
       ]);
     } finally {
       setSyncInFlight(false);
@@ -162,13 +162,13 @@ function BenchmarkRunsTab({ benchmarkId }: { benchmarkId: string }) {
         syncInFlight={syncInFlight}
         onSync={handleSyncRemote}
       />
-      <RunList runs={filteredRuns} benchmarkId={benchmarkId} />
+      <RunList runs={filteredRuns} projectId={projectId} />
     </div>
   );
 }
 
-function BenchmarkExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
-  const { data, isLoading } = useQuery(benchmarkExperimentsOptions(benchmarkId));
+function ProjectExperimentsTab({ projectId }: { projectId: string }) {
+  const { data, isLoading } = useQuery(projectExperimentsOptions(projectId));
   const experiments = (data as ExperimentsResponse | undefined)?.experiments ?? [];
 
   if (isLoading) {
@@ -211,21 +211,21 @@ function BenchmarkExperimentsTab({ benchmarkId }: { benchmarkId: string }) {
   );
 }
 
-function BenchmarkAnalyticsTab({
-  benchmarkId,
+function ProjectAnalyticsTab({
+  projectId,
   readOnly,
 }: {
-  benchmarkId: string;
+  projectId: string;
   readOnly: boolean;
 }) {
-  const { data, isLoading, isError, error } = useQuery(benchmarkCompareOptions(benchmarkId));
+  const { data, isLoading, isError, error } = useQuery(projectCompareOptions(projectId));
   return (
     <AnalyticsTab
       data={data}
       isLoading={isLoading}
       isError={isError}
       error={error}
-      benchmarkId={benchmarkId}
+      projectId={projectId}
       readOnly={readOnly}
     />
   );

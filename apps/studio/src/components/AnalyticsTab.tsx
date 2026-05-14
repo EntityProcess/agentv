@@ -37,8 +37,8 @@ interface AnalyticsTabProps {
   isLoading: boolean;
   isError?: boolean;
   error?: Error | null;
-  /** Benchmark scope. Undefined for the unscoped (root) compare view. */
-  benchmarkId?: string;
+  /** Project scope. Undefined for the unscoped (root) compare view. */
+  projectId?: string;
   /** Read-only mode disables tag editing. */
   readOnly?: boolean;
 }
@@ -52,7 +52,7 @@ export function AnalyticsTab({
   isLoading,
   isError,
   error,
-  benchmarkId,
+  projectId,
   readOnly,
 }: AnalyticsTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
@@ -180,12 +180,12 @@ export function AnalyticsTab({
             filteredData && (
               <>
                 {mode === 'aggregated' && (
-                  <AggregatedView data={filteredData} benchmarkId={benchmarkId} />
+                  <AggregatedView data={filteredData} projectId={projectId} />
                 )}
                 {mode === 'per-run' && (
                   <PerRunView
                     data={filteredData}
-                    benchmarkId={benchmarkId}
+                    projectId={projectId}
                     readOnly={readOnly ?? false}
                   />
                 )}
@@ -358,7 +358,7 @@ function ModeButton({
 
 // ── Aggregated (matrix) view ────────────────────────────────────────────
 
-function AggregatedView({ data, benchmarkId }: { data: CompareResponse; benchmarkId?: string }) {
+function AggregatedView({ data, projectId }: { data: CompareResponse; projectId?: string }) {
   const { experiments, targets, cells } = data;
 
   // Hooks must run on every render regardless of the early-return below,
@@ -410,7 +410,7 @@ function AggregatedView({ data, benchmarkId }: { data: CompareResponse; benchmar
           </tbody>
         </table>
       </div>
-      <AnalyticsCharts data={data} benchmarkId={benchmarkId} />
+      <AnalyticsCharts data={data} projectId={projectId} />
     </div>
   );
 }
@@ -500,11 +500,11 @@ function TestBreakdown({ tests }: { tests: CompareTestResult[] }) {
 
 function PerRunView({
   data,
-  benchmarkId,
+  projectId,
   readOnly,
 }: {
   data: CompareResponse;
-  benchmarkId?: string;
+  projectId?: string;
   readOnly: boolean;
 }) {
   const runs = data.runs ?? [];
@@ -566,7 +566,7 @@ function PerRunView({
                 editing={editingRunId === run.run_id}
                 onStartEdit={() => setEditingRunId(run.run_id)}
                 onEndEdit={() => setEditingRunId(null)}
-                benchmarkId={benchmarkId}
+                projectId={projectId}
                 readOnly={readOnly}
               />
             ))}
@@ -615,7 +615,7 @@ function PerRunRow({
   editing,
   onStartEdit,
   onEndEdit,
-  benchmarkId,
+  projectId,
   readOnly,
 }: {
   run: CompareRunEntry;
@@ -624,7 +624,7 @@ function PerRunRow({
   editing: boolean;
   onStartEdit: () => void;
   onEndEdit: () => void;
-  benchmarkId?: string;
+  projectId?: string;
   readOnly: boolean;
 }) {
   const avgPct = Math.round(run.avg_score * 100);
@@ -726,7 +726,7 @@ function PerRunRow({
             <TagsEditor
               runId={run.run_id}
               currentTags={tags}
-              benchmarkId={benchmarkId}
+              projectId={projectId}
               onClose={onEndEdit}
             />
           </td>
@@ -751,12 +751,12 @@ function PerRunRow({
 function TagsEditor({
   runId,
   currentTags,
-  benchmarkId,
+  projectId,
   onClose,
 }: {
   runId: string;
   currentTags: string[];
-  benchmarkId?: string;
+  projectId?: string;
   onClose: () => void;
 }) {
   const [tags, setTags] = useState<string[]>(currentTags);
@@ -770,13 +770,13 @@ function TagsEditor({
   }, []);
 
   const saveMut = useMutation({
-    mutationFn: () => saveRunTagsApi(runId, tags, benchmarkId),
+    mutationFn: () => saveRunTagsApi(runId, tags, projectId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
-      if (benchmarkId) {
-        qc.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'compare'] });
-        qc.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'runs'] });
+      if (projectId) {
+        qc.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] });
+        qc.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] });
       }
       onClose();
     },
@@ -784,13 +784,13 @@ function TagsEditor({
   });
 
   const clearMut = useMutation({
-    mutationFn: () => deleteRunTagsApi(runId, benchmarkId),
+    mutationFn: () => deleteRunTagsApi(runId, projectId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
-      if (benchmarkId) {
-        qc.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'compare'] });
-        qc.invalidateQueries({ queryKey: ['benchmarks', benchmarkId, 'runs'] });
+      if (projectId) {
+        qc.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] });
+        qc.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] });
       }
       onClose();
     },

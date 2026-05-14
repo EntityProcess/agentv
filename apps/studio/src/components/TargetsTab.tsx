@@ -10,8 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-  benchmarkRunListOptions,
-  benchmarkTargetsOptions,
+  projectRunListOptions,
+  projectTargetsOptions,
   runListOptions,
   targetsOptions,
 } from '~/lib/api';
@@ -21,7 +21,7 @@ import { PassRatePill } from './PassRatePill';
 import { RunList } from './RunList';
 
 interface TargetsTabProps {
-  benchmarkId?: string;
+  projectId?: string;
 }
 
 interface ExperimentRunGroup {
@@ -33,12 +33,10 @@ interface ExperimentRunGroup {
   passRate: number;
 }
 
-export function TargetsTab({ benchmarkId }: TargetsTabProps = {}) {
+export function TargetsTab({ projectId }: TargetsTabProps = {}) {
   const [selectedTargetName, setSelectedTargetName] = useState<string | null>(null);
-  const targetsQuery = useQuery(
-    benchmarkId ? benchmarkTargetsOptions(benchmarkId) : targetsOptions,
-  );
-  const runsQuery = useQuery(benchmarkId ? benchmarkRunListOptions(benchmarkId) : runListOptions);
+  const targetsQuery = useQuery(projectId ? projectTargetsOptions(projectId) : targetsOptions);
+  const runsQuery = useQuery(projectId ? projectRunListOptions(projectId) : runListOptions);
   const targets = (targetsQuery.data as TargetsResponse | undefined)?.targets ?? [];
   const runs = runsQuery.data?.runs ?? [];
   const error = targetsQuery.error ?? runsQuery.error;
@@ -213,7 +211,7 @@ export function TargetsTab({ benchmarkId }: TargetsTabProps = {}) {
                   <PassRatePill rate={group.passRate} />
                 </div>
               </div>
-              <RunList runs={group.runs} benchmarkId={benchmarkId} />
+              <RunList runs={group.runs} projectId={projectId} />
             </section>
           ))}
         </div>

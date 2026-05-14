@@ -33,7 +33,7 @@ import {
   YAxis,
 } from 'recharts';
 
-import { benchmarkCompareOptions, compareOptionsWithBaseline } from '~/lib/api';
+import { compareOptionsWithBaseline, projectCompareOptions } from '~/lib/api';
 import type { CompareResponse, CompareRunEntry } from '~/lib/types';
 
 // ── Color palette matching Studio DESIGN.md ────────────────────────────
@@ -71,21 +71,21 @@ function targetColor(idx: number): string {
 interface AnalyticsChartsProps {
   /** Unfiltered compare response (no baseline). Used for tag heatmap, histogram, etc. */
   data: CompareResponse;
-  /** Benchmark scope. Undefined for unscoped root view. */
-  benchmarkId?: string;
+  /** Project scope. Undefined for unscoped root view. */
+  projectId?: string;
 }
 
 // ── Main component ─────────────────────────────────────────────────────
 
-export function AnalyticsCharts({ data, benchmarkId }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ data, projectId }: AnalyticsChartsProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [baseline, setBaseline] = useState<string>('');
   const targets = data.targets;
 
   // Fetch compare data with baseline param when a baseline is selected
   const baselineQuery = useQuery(
-    benchmarkId
-      ? benchmarkCompareOptions(benchmarkId, baseline || undefined)
+    projectId
+      ? projectCompareOptions(projectId, baseline || undefined)
       : compareOptionsWithBaseline(baseline || undefined),
   );
   const baselineData = baseline ? baselineQuery.data : undefined;
