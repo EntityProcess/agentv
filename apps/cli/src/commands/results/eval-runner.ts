@@ -12,10 +12,15 @@
  * All handlers accept a `cwd` (project root) to resolve paths against.
  * The module spawns `bun apps/cli/src/cli.ts eval run ...` and tracks
  * process state in memory.
+ *
+ * Stdout/stderr are also persisted to `<outputDir>/console.log` so that
+ * RunDetail can show the full captured log after the in-memory buffers are
+ * pruned. The static log file is served by the run-log routes registered in
+ * `serve.ts` via `getActiveRunStatus`/`getActiveRunTarget` cross-referencing.
  */
 
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { type WriteStream, createWriteStream, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { listTargetNames, readTargetDefinitions } from '@agentv/core';
@@ -75,6 +80,21 @@ export function getActiveRunTarget(indexJsonlPath: string): string | undefined {
   for (const run of activeRuns.values()) {
     if (run.outputDir && path.join(run.outputDir, 'index.jsonl') === indexJsonlPath) {
       return run.target;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Look up the in-memory status for a Studio-launched run by its index.jsonl path.
+ * Returns 'starting' | 'running' | 'finished' | 'failed' if the run is tracked,
+ * else undefined. Used by handleRuns to render a spinner for active runs in the
+ * RunList instead of a misleading red ✗ derived from a 0 pass-rate.
+ */
+export function getActiveRunStatus(indexJsonlPath: string): StudioRun['status'] | undefined {
+  for (const run of activeRuns.values()) {
+    if (run.outputDir && path.join(run.outputDir, 'index.jsonl') === indexJsonlPath) {
+      return run.status;
     }
   }
   return undefined;
@@ -259,6 +279,33 @@ function isCommandAvailable(cmd: string): boolean {
   }
 }
 
+/**
+ * Open a writable stream to `<outputDir>/console.log` for persisting the
+ * spawned eval process's combined stdout/stderr. Returns `undefined` when the
+ * directory cannot be created or the file cannot be opened — callers fall back
+ * to the in-memory buffer in that case.
+ *
+ * The log file is the source of truth shown by the RunDetail "Console Log"
+ * section after the run completes. The in-memory `stdout`/`stderr` buffers on
+ * `StudioRun` remain capped for live status polling.
+ *
+ * Stream `error` events (e.g. the output dir was removed underneath us by a
+ * test teardown) are swallowed so they don't surface as unhandled errors and
+ * fail unrelated tests.
+ */
+function openConsoleLogStream(outputDir: string): WriteStream | undefined {
+  try {
+    mkdirSync(outputDir, { recursive: true });
+    const stream = createWriteStream(path.join(outputDir, 'console.log'), { flags: 'w' });
+    stream.on('error', () => {
+      /* best-effort log capture; ignore filesystem errors */
+    });
+    return stream;
+  } catch {
+    return undefined;
+  }
+}
+
 // ── Route registration ───────────────────────────────────────────────────
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -366,7 +413,10 @@ export function registerEvalRoutes(
       run.process = child;
       run.status = 'running';
 
+      const logStream = openConsoleLogStream(outputDir);
+
       child.stdout?.on('data', (chunk: Buffer) => {
+        logStream?.write(chunk);
         run.stdout += chunk.toString();
         // Cap buffer at 100KB
         if (run.stdout.length > 100_000) {
@@ -375,6 +425,7 @@ export function registerEvalRoutes(
       });
 
       child.stderr?.on('data', (chunk: Buffer) => {
+        logStream?.write(chunk);
         run.stderr += chunk.toString();
         if (run.stderr.length > 100_000) {
           run.stderr = run.stderr.slice(-80_000);
@@ -386,6 +437,7 @@ export function registerEvalRoutes(
         run.status = code === 0 ? 'finished' : 'failed';
         run.finishedAt = new Date().toISOString();
         run.process = undefined;
+        logStream?.end();
         pruneFinishedRuns();
       });
 
@@ -394,6 +446,8 @@ export function registerEvalRoutes(
         run.stderr += `\nProcess error: ${err.message}`;
         run.finishedAt = new Date().toISOString();
         run.process = undefined;
+        logStream?.write(`\nProcess error: ${err.message}\n`);
+        logStream?.end();
       });
 
       return c.json(
@@ -574,11 +628,15 @@ export function registerEvalRoutes(
       run.process = child;
       run.status = 'running';
 
+      const logStream = openConsoleLogStream(outputDir);
+
       child.stdout?.on('data', (chunk: Buffer) => {
+        logStream?.write(chunk);
         run.stdout += chunk.toString();
         if (run.stdout.length > 100_000) run.stdout = run.stdout.slice(-80_000);
       });
       child.stderr?.on('data', (chunk: Buffer) => {
+        logStream?.write(chunk);
         run.stderr += chunk.toString();
         if (run.stderr.length > 100_000) run.stderr = run.stderr.slice(-80_000);
       });
@@ -587,6 +645,7 @@ export function registerEvalRoutes(
         run.status = code === 0 ? 'finished' : 'failed';
         run.finishedAt = new Date().toISOString();
         run.process = undefined;
+        logStream?.end();
         pruneFinishedRuns();
       });
       child.on('error', (err) => {
@@ -594,6 +653,8 @@ export function registerEvalRoutes(
         run.stderr += `\nProcess error: ${err.message}`;
         run.finishedAt = new Date().toISOString();
         run.process = undefined;
+        logStream?.write(`\nProcess error: ${err.message}\n`);
+        logStream?.end();
       });
 
       return c.json({ id: runId, status: run.status, command }, 202);

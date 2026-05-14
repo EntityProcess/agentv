@@ -4,13 +4,20 @@
  * Groups results by category, then by suite within each category.
  * Category Breakdown is shown as a clean table with coloured pass-rate pills.
  * The All Evals table shows ERR badge instead of 0% for execution errors.
+ *
+ * Also renders a collapsible "Console Log" section sourced from the run's
+ * captured `console.log` file (served by `/api/runs/:id/log`). Hidden when no
+ * log is available — e.g. for remote runs or local runs that completed before
+ * the console-log capture feature shipped.
  */
+
+import { useState } from 'react';
 
 import { Link } from '@tanstack/react-router';
 
 import type { EvalResult } from '~/lib/types';
 
-import { isPassing, useStudioConfig } from '~/lib/api';
+import { isPassing, useRunLog, useStudioConfig } from '~/lib/api';
 
 import { PassRatePill } from './PassRatePill';
 import { StatsCards } from './StatsCards';
@@ -234,6 +241,50 @@ export function RunDetail({ results, runId, benchmarkId }: RunDetailProps) {
           </table>
         </div>
       </div>
+
+      <ConsoleLogSection runId={runId} benchmarkId={benchmarkId} />
+    </div>
+  );
+}
+
+function ConsoleLogSection({ runId, benchmarkId }: { runId: string; benchmarkId?: string }) {
+  const [open, setOpen] = useState(false);
+  const { data: log, isLoading, error } = useRunLog(runId, benchmarkId);
+
+  // Hide the section entirely when no log was captured (remote runs, or
+  // local runs from before this feature shipped). The 404 path resolves
+  // to `null` in fetchText, distinct from `undefined` (loading).
+  if (!isLoading && !error && log == null) return null;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2 text-left text-sm font-medium text-gray-300 transition-colors hover:bg-gray-900"
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2">
+          <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+          Console Log
+        </span>
+        <span className="text-xs text-gray-500">
+          {isLoading ? 'Loading…' : error ? 'Failed to load' : log ? `${log.length} chars` : ''}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 overflow-hidden rounded-lg border border-gray-800 bg-black">
+          {error ? (
+            <div className="p-4 text-sm text-red-400">
+              Failed to load console log: {(error as Error).message}
+            </div>
+          ) : (
+            <pre className="max-h-[480px] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-relaxed text-gray-200">
+              {log ?? ''}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }

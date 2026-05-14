@@ -9,6 +9,7 @@
  *   - GET /           — Studio SPA (React app)
  *   - GET /api/runs   — list available run workspaces with metadata
  *   - GET /api/runs/:filename — load results from a specific run workspace
+ *   - GET /api/runs/:filename/log — stream the captured console.log for a run
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
  *   - GET /api/benchmarks  — list registered benchmarks
@@ -55,7 +56,7 @@ import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { listResultFiles } from '../inspect/utils.js';
-import { getActiveRunTarget, registerEvalRoutes } from './eval-runner.js';
+import { getActiveRunStatus, getActiveRunTarget, registerEvalRoutes } from './eval-runner.js';
 import {
   loadLightweightResults,
   loadManifestResults,
@@ -299,6 +300,10 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
       } catch {
         // ignore enrichment errors
       }
+      // Surface live status for Studio-launched runs that are still starting
+      // or running so the RunList can render a spinner instead of the
+      // pass/fail dot derived from a 0% pass rate.
+      const liveStatus = getActiveRunStatus(m.path);
       const tagsEntry = readRunTags(m.path);
       return {
         filename: m.filename,
@@ -313,9 +318,29 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
         ...(target && { target }),
         ...(experiment && { experiment }),
         ...(tagsEntry && { tags: tagsEntry.tags }),
+        ...(liveStatus && { status: liveStatus }),
       };
     }),
   });
+}
+
+async function handleRunLog(c: C, { searchDir }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+  if (meta.source === 'remote') {
+    return c.json({ error: 'Console log is not available for remote runs' }, 404);
+  }
+  const logPath = path.join(path.dirname(meta.path), 'console.log');
+  if (!existsSync(logPath)) {
+    return c.json({ error: 'Console log not found for this run' }, 404);
+  }
+  try {
+    const content = readFileSync(logPath, 'utf8');
+    return c.text(content);
+  } catch {
+    return c.json({ error: 'Failed to read console log' }, 500);
+  }
 }
 
 async function handleRunDetail(c: C, { searchDir }: DataContext) {
@@ -1169,6 +1194,7 @@ export function createApp(
     return handleRunTagsDelete(c, defaultCtx);
   });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
+  app.get('/api/runs/:filename/log', (c) => handleRunLog(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
   app.get('/api/runs/:filename/categories', (c) => handleRunCategories(c, defaultCtx));
   app.get('/api/runs/:filename/categories/:category/suites', (c) =>
@@ -1293,6 +1319,7 @@ export function createApp(
     return withBenchmark(c, handleRunTagsDelete);
   });
   app.get('/api/benchmarks/:benchmarkId/runs/:filename', (c) => withBenchmark(c, handleRunDetail));
+  app.get('/api/benchmarks/:benchmarkId/runs/:filename/log', (c) => withBenchmark(c, handleRunLog));
   app.get('/api/benchmarks/:benchmarkId/runs/:filename/suites', (c) =>
     withBenchmark(c, handleRunSuites),
   );
