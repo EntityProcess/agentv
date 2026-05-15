@@ -154,6 +154,17 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Prefer named exports
 - Keep modules cohesive
 
+## Naming Convention: "Project" vs "Benchmark"
+
+These two words have distinct, non-interchangeable meanings in this codebase. Get them right when adding new symbols, docs, or example dirs:
+
+- **Project** — the top-level container Studio organises around: a registered workspace directory (`.agentv/` + run artifacts + traces + experiments). Lives in `~/.agentv/projects.yaml`. Modelled by `ProjectEntry` / `ProjectRegistry` in `packages/core/src/projects.ts`. Matches the terminology used by Phoenix, Langfuse, Braintrust, W&B Weave, and LangSmith.
+- **Benchmark** — a curated *eval suite* designed to measure something specific (academic ML sense: MMLU, HumanEval, SWE-bench). Example dirs use this sense: `examples/showcase/multi-model-benchmark/`, `examples/showcase/offline-grader-benchmark/`, `examples/features/benchmark-tooling/`. Do not rename these — they are correctly named.
+
+The legacy registry file `~/.agentv/benchmarks.yaml` is auto-migrated to `projects.yaml` on first load by `migrateLegacyBenchmarksFile()`. The unrelated per-run `benchmark.json` artifact (Agent Skills compatibility output) is a third, separate concept — also keep that name.
+
+When in doubt: if the thing holds runs / traces / experiments, it's a **project**. If it's a curated set of eval cases meant to measure capability, it's a **benchmark**.
+
 ## Wire Format Convention
 
 **Everything that crosses a process boundary uses `snake_case` keys. Internal TypeScript uses `camelCase`. Translate at the boundary — never in the middle.**
@@ -161,10 +172,10 @@ cd ../agentv.worktrees/<type>-<short-desc>
 The rule is blanket: if the key is going to disk, to a user's editor, into a JSON response, or onto a CLI, it's snake_case. There is no "well this file is internal-ish" carve-out. If in doubt, snake_case.
 
 ### snake_case surfaces
-- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `benchmarks.yaml`, `studio/config.yaml`, any future YAML we add.
+- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `projects.yaml`, `studio/config.yaml`, any future YAML we add.
 - JSONL result files (`test_id`, `token_usage`, `duration_ms`).
 - Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
-- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `benchmark_id`).
+- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `project_id`).
 - CLI JSON output (`agentv results summary`, `results failures`, `results show`).
 - Anything consumed by non-TS tooling (Python, jq pipelines, external dashboards).
 
@@ -177,7 +188,7 @@ Define a second interface for the wire shape and convert in one place — don't 
 
 ```typescript
 // Wire shape — snake_case, matches what hits disk / the network
-interface BenchmarkEntryYaml {
+interface ProjectEntryYaml {
   id: string;
   name: string;
   path: string;
@@ -186,7 +197,7 @@ interface BenchmarkEntryYaml {
 }
 
 // Internal shape — camelCase, what every TS call site sees
-interface BenchmarkEntry {
+interface ProjectEntry {
   id: string;
   name: string;
   path: string;
@@ -194,11 +205,11 @@ interface BenchmarkEntry {
   lastOpenedAt: string;
 }
 
-function fromYaml(e: BenchmarkEntryYaml): BenchmarkEntry {
+function fromYaml(e: ProjectEntryYaml): ProjectEntry {
   return { id: e.id, name: e.name, path: e.path, addedAt: e.added_at, lastOpenedAt: e.last_opened_at };
 }
 
-function toYaml(e: BenchmarkEntry): BenchmarkEntryYaml {
+function toYaml(e: ProjectEntry): ProjectEntryYaml {
   return { id: e.id, name: e.name, path: e.path, added_at: e.addedAt, last_opened_at: e.lastOpenedAt };
 }
 ```
@@ -213,7 +224,7 @@ Yes, this is two interfaces and two functions per entity. That's the price of ke
 ### Existing divergences
 If you spot a camelCase key already on disk or in a response (e.g. a legacy endpoint), treat it as a bug: migrate it to snake_case in the same PR where you touch that code path. Don't grandfather it in.
 
-**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript. `fromYaml` / `toYaml` in `packages/core/src/benchmarks.ts` is the model for YAML boundaries.
+**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript. `fromYaml` / `toYaml` in `packages/core/src/projects.ts` is the model for YAML boundaries.
 
 **Why:** Aligns with skill-creator (claude-plugins-official) and broader Python/JSON ecosystem conventions where snake_case is the standard wire format.
 
