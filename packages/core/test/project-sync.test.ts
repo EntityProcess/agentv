@@ -4,21 +4,21 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { syncBenchmark, syncBenchmarks } from '../src/benchmark-sync.js';
-import type { BenchmarkEntry } from '../src/benchmarks.js';
+import { syncProject, syncProjects } from '../src/project-sync.js';
+import type { ProjectEntry } from '../src/projects.js';
 
-function makeEntry(overrides: Partial<BenchmarkEntry> = {}): BenchmarkEntry {
+function makeEntry(overrides: Partial<ProjectEntry> = {}): ProjectEntry {
   return {
-    id: 'test-bench',
-    name: 'Test Bench',
-    path: '/tmp/fake-bench',
+    id: 'test-project',
+    name: 'Test Project',
+    path: '/tmp/fake-project',
     addedAt: '',
     lastOpenedAt: '',
     ...overrides,
   };
 }
 
-describe('syncBenchmark', () => {
+describe('syncProject', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('syncBenchmark', () => {
 
   it('throws when entry has no source', async () => {
     const entry = makeEntry({ path: tmpDir });
-    await expect(syncBenchmark(entry)).rejects.toThrow(/no source defined/);
+    await expect(syncProject(entry)).rejects.toThrow(/no source defined/);
   });
 
   it('runs git clone when .git does not exist', async () => {
@@ -42,7 +42,7 @@ describe('syncBenchmark', () => {
       path: dest,
       source: { url: 'https://github.com/example/repo', ref: 'main' },
     });
-    await syncBenchmark(entry);
+    await syncProject(entry);
     expect(spy).toHaveBeenCalledWith(
       'git',
       [
@@ -66,7 +66,7 @@ describe('syncBenchmark', () => {
       path: tmpDir,
       source: { url: 'https://github.com/example/repo', ref: 'main' },
     });
-    await syncBenchmark(entry);
+    await syncProject(entry);
     expect(spy).toHaveBeenCalledWith(
       'git',
       ['-C', tmpDir, 'pull', '--ff-only'],
@@ -75,14 +75,14 @@ describe('syncBenchmark', () => {
   });
 });
 
-describe('syncBenchmarks', () => {
+describe('syncProjects', () => {
   afterEach(() => {
     mock.restore();
   });
 
   it('skips entries with no source', async () => {
     const spy = spyOn(childProcess, 'execFileSync').mockReturnValue(Buffer.from(''));
-    await syncBenchmarks([makeEntry()]);
+    await syncProjects([makeEntry()]);
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -91,7 +91,7 @@ describe('syncBenchmarks', () => {
     const entries = [
       makeEntry({ source: { url: 'https://github.com/example/repo', ref: 'main' } }),
     ];
-    await syncBenchmarks(entries);
+    await syncProjects(entries);
     expect(spy).toHaveBeenCalled();
   });
 });
