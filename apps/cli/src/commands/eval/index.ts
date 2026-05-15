@@ -6,7 +6,8 @@ import { evalRunCommand } from './commands/run.js';
 
 export const evalCommand = subcommands({
   name: 'eval',
-  description: 'Evaluation commands',
+  description:
+    'Evaluation commands. Shorthand: `agentv eval <eval-paths...>` aliases `agentv eval run <eval-paths...>`.',
   cmds: {
     run: evalRunCommand,
     assert: evalAssertCommand,

@@ -201,6 +201,22 @@ async function readDiagnostics(fixture: EvalFixture): Promise<Record<string, unk
 }
 
 describe('agentv eval CLI', () => {
+  it('documents the bare `eval` shorthand in eval help', async () => {
+    const fixture = await createFixture();
+    try {
+      const { stdout } = await runCli(fixture, ['eval', '--help']);
+
+      expect(stdout).toContain('Evaluation commands.');
+      expect(stdout).toContain('agentv eval <eval-paths...>');
+      expect(stdout).toContain('agentv eval run <eval-paths...>');
+      expect(stdout).toContain('- run');
+      expect(stdout).toContain('- assert');
+      expect(stdout).toContain('- aggregate');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  });
+
   it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
     try {
