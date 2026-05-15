@@ -12,18 +12,18 @@
  *   - GET /api/runs/:filename/log — stream the captured console.log for a run
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
- *   - GET /api/benchmarks  — list registered benchmarks
- *   - POST /api/benchmarks — register a benchmark by path
- *   - DELETE /api/benchmarks/:benchmarkId — unregister a benchmark
- *   - GET /api/benchmarks/:benchmarkId/runs — benchmark-scoped run list
+ *   - GET /api/projects  — list registered projects
+ *   - POST /api/projects — register a project by path
+ *   - DELETE /api/projects/:projectId — unregister a project
+ *   - GET /api/projects/:projectId/runs — project-scoped run list
  *
  * All data routes (runs, suites, categories, evals, experiments, targets)
- * exist in both unscoped (/api/...) and benchmark-scoped (/api/benchmarks/:benchmarkId/...)
+ * exist in both unscoped (/api/...) and project-scoped (/api/projects/:projectId/...)
  * variants. They share handler functions via DataContext, differing only in
  * how searchDir is resolved.
  *
  * Before starting the server, the command enforces `required_version` from
- * the cwd's `.agentv/config.yaml` (single-benchmark scope) via
+ * the cwd's `.agentv/config.yaml` (single-project scope) via
  * `enforceRequiredVersion()`, matching the behavior of `agentv eval`.
  *
  * Exported functions (for testing):
@@ -126,18 +126,18 @@ export function loadResults(content: string): EvaluationResult[] {
 }
 
 export function resolveDashboardMode(
-  benchmarkCount: number,
+  projectCount: number,
   options: { multi?: boolean; single?: boolean },
-): { isMultiBenchmark: boolean; showMultiWarning: boolean } {
+): { isMultiProject: boolean; showMultiWarning: boolean } {
   if (options.single === true) {
-    return { isMultiBenchmark: false, showMultiWarning: options.multi === true };
+    return { isMultiProject: false, showMultiWarning: options.multi === true };
   }
 
   if (options.multi === true) {
-    return { isMultiBenchmark: true, showMultiWarning: true };
+    return { isMultiProject: true, showMultiWarning: true };
   }
 
-  return { isMultiBenchmark: benchmarkCount > 1, showMultiWarning: false };
+  return { isMultiProject: projectCount > 1, showMultiWarning: false };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -255,7 +255,7 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
 // ── Shared data-route handlers ───────────────────────────────────────────
 //
 // Each handler takes a Hono Context and a DataContext (resolved directories).
-// Both unscoped and benchmark-scoped routes call the same handler, differing
+// Both unscoped and project-scoped routes call the same handler, differing
 // only in how the DataContext is constructed.
 
 interface DataContext {
@@ -901,13 +901,13 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 function handleConfig(
   c: C,
   { agentvDir, searchDir }: DataContext,
-  options?: { readOnly?: boolean; multiBenchmarkDashboard?: boolean },
+  options?: { readOnly?: boolean; multiProjectDashboard?: boolean },
 ) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
-    benchmark_name: path.basename(searchDir),
-    multi_benchmark_dashboard: options?.multiBenchmarkDashboard === true,
+    project_name: path.basename(searchDir),
+    multi_project_dashboard: options?.multiProjectDashboard === true,
   });
 }
 
@@ -973,7 +973,7 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string; readOnly?: boolean; multiBenchmarkDashboard?: boolean },
+  options?: { studioDir?: string; readOnly?: boolean; multiProjectDashboard?: boolean },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
@@ -982,16 +982,16 @@ export function createApp(
   const app = new Hono();
 
   // ── Benchmark resolution wrapper ──────────────────────────────────────
-  // Resolves benchmarkId → DataContext, returning 404 if not found. The
-  // registry is re-read on every request, so edits to benchmarks.yaml (or
-  // POST /api/benchmarks) take effect without restarting the server.
-  function withBenchmark(
+  // Resolves projectId → DataContext, returning 404 if not found. The
+  // registry is re-read on every request, so edits to projects.yaml (or
+  // POST /api/projects) take effect without restarting the server.
+  function withProject(
     c: C,
     handler: (c: C, ctx: DataContext) => Response | Promise<Response>,
   ): Response | Promise<Response> {
-    const project = getProject(c.req.param('benchmarkId') ?? '');
+    const project = getProject(c.req.param('projectId') ?? '');
     if (!project || !existsSync(project.path)) {
-      return c.json({ error: 'Benchmark not found' }, 404);
+      return c.json({ error: 'Project not found' }, 404);
     }
     return handler(c, {
       searchDir: project.path,
@@ -1022,7 +1022,7 @@ export function createApp(
   // ── Benchmark management endpoints ───────────────────────────────────
 
   /** Convert a ProjectEntry to snake_case wire format. */
-  function benchmarkEntryToWire(entry: {
+  function projectEntryToWire(entry: {
     id: string;
     name: string;
     path: string;
@@ -1038,9 +1038,9 @@ export function createApp(
     };
   }
 
-  app.get('/api/benchmarks', async (c) => {
+  app.get('/api/projects', async (c) => {
     const registry = loadProjectRegistry();
-    const benchmarks = await Promise.all(
+    const projects = await Promise.all(
       registry.projects.map(async (p) => {
         let runCount = 0;
         let passRate = 0;
@@ -1054,20 +1054,20 @@ export function createApp(
             lastRun = metas[0].timestamp;
           }
         } catch {
-          // Benchmark path may be missing or inaccessible
+          // Project path may be missing or inaccessible
         }
         return {
-          ...benchmarkEntryToWire(p),
+          ...projectEntryToWire(p),
           run_count: runCount,
           pass_rate: passRate,
           last_run: lastRun,
         };
       }),
     );
-    return c.json({ benchmarks });
+    return c.json({ projects });
   });
 
-  app.post('/api/benchmarks', async (c) => {
+  app.post('/api/projects', async (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -1075,15 +1075,15 @@ export function createApp(
       const body = await c.req.json<{ path: string }>();
       if (!body.path) return c.json({ error: 'Missing path' }, 400);
       const entry = addProject(body.path);
-      return c.json(benchmarkEntryToWire(entry), 201);
+      return c.json(projectEntryToWire(entry), 201);
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
   });
 
-  app.get('/api/benchmarks/:benchmarkId/summary', async (c) => {
-    const project = getProject(c.req.param('benchmarkId') ?? '');
-    if (!project) return c.json({ error: 'Benchmark not found' }, 404);
+  app.get('/api/projects/:projectId/summary', async (c) => {
+    const project = getProject(c.req.param('projectId') ?? '');
+    if (!project) return c.json({ error: 'Project not found' }, 404);
     try {
       const { runs: metas } = await listMergedResultFiles(project.path);
       const runCount = metas.length;
@@ -1098,12 +1098,12 @@ export function createApp(
         last_run: lastRun,
       });
     } catch {
-      return c.json({ error: 'Failed to read benchmark' }, 500);
+      return c.json({ error: 'Failed to read project' }, 500);
     }
   });
 
-  /** Aggregate runs from all registered benchmarks, sorted by timestamp descending. */
-  app.get('/api/benchmarks/all-runs', async (c) => {
+  /** Aggregate runs from all registered projects, sorted by timestamp descending. */
+  app.get('/api/projects/all-runs', async (c) => {
     const registry = loadProjectRegistry();
     const allRuns: Array<{
       filename: string;
@@ -1117,8 +1117,8 @@ export function createApp(
       target?: string;
       experiment?: string;
       source: 'local' | 'remote';
-      benchmark_id: string;
-      benchmark_name: string;
+      project_id: string;
+      project_name: string;
     }> = [];
 
     for (const p of registry.projects) {
@@ -1148,12 +1148,12 @@ export function createApp(
             source: m.source,
             ...(target && { target }),
             ...(experiment && { experiment }),
-            benchmark_id: p.id,
-            benchmark_name: p.name,
+            project_id: p.id,
+            project_name: p.name,
           });
         }
       } catch {
-        // skip inaccessible benchmarks
+        // skip inaccessible projects
       }
     }
 
@@ -1161,12 +1161,12 @@ export function createApp(
     return c.json({ runs: allRuns });
   });
 
-  app.delete('/api/benchmarks/:benchmarkId', (c) => {
+  app.delete('/api/projects/:projectId', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    const removed = removeProject(c.req.param('benchmarkId') ?? '');
-    if (!removed) return c.json({ error: 'Benchmark not found' }, 404);
+    const removed = removeProject(c.req.param('projectId') ?? '');
+    if (!removed) return c.json({ error: 'Project not found' }, 404);
     return c.json({ ok: true });
   });
 
@@ -1175,7 +1175,7 @@ export function createApp(
   app.get('/api/config', (c) =>
     handleConfig(c, defaultCtx, {
       readOnly,
-      multiBenchmarkDashboard: options?.multiBenchmarkDashboard,
+      multiProjectDashboard: options?.multiProjectDashboard,
     }),
   );
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
@@ -1286,72 +1286,70 @@ export function createApp(
     return c.json({ entries });
   });
 
-  // ── Data routes (benchmark-scoped) ───────────────────────────────────
-  // Same handlers as above, with benchmark-resolved DataContext via withBenchmark.
+  // ── Data routes (project-scoped) ───────────────────────────────────
+  // Same handlers as above, with project-resolved DataContext via withProject.
 
-  app.get('/api/benchmarks/:benchmarkId/config', (c) =>
-    withBenchmark(c, (ctx, dataCtx) =>
+  app.get('/api/projects/:projectId/config', (c) =>
+    withProject(c, (ctx, dataCtx) =>
       handleConfig(ctx, dataCtx, {
         readOnly,
-        multiBenchmarkDashboard: options?.multiBenchmarkDashboard,
+        multiProjectDashboard: options?.multiProjectDashboard,
       }),
     ),
   );
-  app.get('/api/benchmarks/:benchmarkId/remote/status', (c) =>
-    withBenchmark(c, async (ctx, dataCtx) =>
+  app.get('/api/projects/:projectId/remote/status', (c) =>
+    withProject(c, async (ctx, dataCtx) =>
       ctx.json(await getRemoteResultsStatus(dataCtx.searchDir)),
     ),
   );
-  app.post('/api/benchmarks/:benchmarkId/remote/sync', (c) =>
-    withBenchmark(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
+  app.post('/api/projects/:projectId/remote/sync', (c) =>
+    withProject(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
   );
-  app.get('/api/benchmarks/:benchmarkId/runs', (c) => withBenchmark(c, handleRuns));
-  app.put('/api/benchmarks/:benchmarkId/runs/:filename/tags', (c) => {
+  app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
+  app.put('/api/projects/:projectId/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    return withBenchmark(c, handleRunTagsPut);
+    return withProject(c, handleRunTagsPut);
   });
-  app.delete('/api/benchmarks/:benchmarkId/runs/:filename/tags', (c) => {
+  app.delete('/api/projects/:projectId/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
-    return withBenchmark(c, handleRunTagsDelete);
+    return withProject(c, handleRunTagsDelete);
   });
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename', (c) => withBenchmark(c, handleRunDetail));
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/log', (c) => withBenchmark(c, handleRunLog));
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/suites', (c) =>
-    withBenchmark(c, handleRunSuites),
+  app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
+  app.get('/api/projects/:projectId/runs/:filename/log', (c) => withProject(c, handleRunLog));
+  app.get('/api/projects/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
+  app.get('/api/projects/:projectId/runs/:filename/categories', (c) =>
+    withProject(c, handleRunCategories),
   );
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/categories', (c) =>
-    withBenchmark(c, handleRunCategories),
+  app.get('/api/projects/:projectId/runs/:filename/categories/:category/suites', (c) =>
+    withProject(c, handleCategorySuites),
   );
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/categories/:category/suites', (c) =>
-    withBenchmark(c, handleCategorySuites),
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) =>
+    withProject(c, handleEvalDetail),
   );
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/evals/:evalId', (c) =>
-    withBenchmark(c, handleEvalDetail),
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files', (c) =>
+    withProject(c, handleEvalFiles),
   );
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/evals/:evalId/files', (c) =>
-    withBenchmark(c, handleEvalFiles),
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files/*', (c) =>
+    withProject(c, handleEvalFileContent),
   );
-  app.get('/api/benchmarks/:benchmarkId/runs/:filename/evals/:evalId/files/*', (c) =>
-    withBenchmark(c, handleEvalFileContent),
-  );
-  app.get('/api/benchmarks/:benchmarkId/experiments', (c) => withBenchmark(c, handleExperiments));
-  app.get('/api/benchmarks/:benchmarkId/compare', (c) => withBenchmark(c, handleCompare));
-  app.get('/api/benchmarks/:benchmarkId/targets', (c) => withBenchmark(c, handleTargets));
-  app.get('/api/benchmarks/:benchmarkId/feedback', (c) => withBenchmark(c, handleFeedbackRead));
+  app.get('/api/projects/:projectId/experiments', (c) => withProject(c, handleExperiments));
+  app.get('/api/projects/:projectId/compare', (c) => withProject(c, handleCompare));
+  app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
+  app.get('/api/projects/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
 
   // ── Eval runner routes (discovery, launch, status) ────────────────────
 
   registerEvalRoutes(
     app,
     (c) => {
-      // For benchmark-scoped routes, resolve to benchmark path; otherwise use searchDir
-      const benchmarkId = c.req.param('benchmarkId');
-      if (benchmarkId) {
-        const project = getProject(benchmarkId);
+      // For project-scoped routes, resolve to project path; otherwise use searchDir
+      const projectId = c.req.param('projectId');
+      if (projectId) {
+        const project = getProject(projectId);
         if (project) return project.path;
       }
       return searchDir;
@@ -1464,21 +1462,21 @@ export const resultsServeCommand = command({
     multi: flag({
       long: 'multi',
       description:
-        'Launch in multi-benchmark dashboard mode (deprecated; use auto-detect or --single)',
+        'Launch in multi-project dashboard mode (deprecated; use auto-detect or --single)',
     }),
     single: flag({
       long: 'single',
-      description: 'Force single-benchmark dashboard mode',
+      description: 'Force single-project dashboard mode',
     }),
     add: option({
       type: optional(string),
       long: 'add',
-      description: 'Register a benchmark by path',
+      description: 'Register a project by path',
     }),
     remove: option({
       type: optional(string),
       long: 'remove',
-      description: 'Unregister a benchmark by ID',
+      description: 'Unregister a project by ID',
     }),
     readOnly: flag({
       long: 'read-only',
@@ -1493,7 +1491,7 @@ export const resultsServeCommand = command({
     if (add) {
       try {
         const entry = addProject(add);
-        console.log(`Registered benchmark: ${entry.name} (${entry.id}) at ${entry.path}`);
+        console.log(`Registered project: ${entry.name} (${entry.id}) at ${entry.path}`);
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);
@@ -1504,9 +1502,9 @@ export const resultsServeCommand = command({
     if (remove) {
       const removed = removeProject(remove);
       if (removed) {
-        console.log(`Unregistered benchmark: ${remove}`);
+        console.log(`Unregistered project: ${remove}`);
       } else {
-        console.error(`Benchmark not found: ${remove}`);
+        console.error(`Project not found: ${remove}`);
         process.exit(1);
       }
       return;
@@ -1515,24 +1513,24 @@ export const resultsServeCommand = command({
     // ── Version check ────────────────────────────────────────────────
     // Enforce `required_version` from .agentv/config.yaml so Studio/serve
     // match `agentv eval` behavior. Same prompt in TTY, warn+continue
-    // otherwise. Single-benchmark scope only — when one agentv instance
+    // otherwise. Single-project scope only — when one agentv instance
     // serves multiple repos with differing version requirements, a
-    // per-benchmark local install is required instead.
+    // per-project local install is required instead.
     const repoRoot = await findRepoRoot(cwd);
     const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
     if (yamlConfig?.required_version) {
       await enforceRequiredVersion(yamlConfig.required_version);
     }
 
-    // ── Determine multi-benchmark mode ───────────────────────────────
+    // ── Determine multi-project mode ─────────────────────────────────
     const registry = loadProjectRegistry();
-    const { isMultiBenchmark, showMultiWarning } = resolveDashboardMode(registry.projects.length, {
+    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.projects.length, {
       multi,
       single,
     });
 
     // ── Benchmark sync preflight ─────────────────────────────────────
-    // Clone or pull any benchmark entries that declare a source.
+    // Clone or pull any project entries that declare a source.
     await syncProjects(registry.projects);
 
     try {
@@ -1565,17 +1563,17 @@ export const resultsServeCommand = command({
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
       const app = createApp(results, resultDir, cwd, sourceFile, {
         readOnly,
-        multiBenchmarkDashboard: isMultiBenchmark,
+        multiProjectDashboard: isMultiProject,
       });
 
       if (showMultiWarning) {
         console.warn(
-          'Warning: --multi is deprecated. Studio now auto-detects multi-benchmark mode when multiple benchmarks are registered. Use --single to force the single-benchmark view.',
+          'Warning: --multi is deprecated. Studio now auto-detects multi-project mode when multiple projects are registered. Use --single to force the single-project view.',
         );
       }
 
-      if (isMultiBenchmark) {
-        console.log(`Multi-benchmark mode: ${registry.projects.length} benchmark(s) registered`);
+      if (isMultiProject) {
+        console.log(`Multi-project mode: ${registry.projects.length} project(s) registered`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {
@@ -1583,7 +1581,7 @@ export const resultsServeCommand = command({
         console.log('Run an evaluation to see results: agentv eval <eval-file>');
       }
       console.log(`Dashboard: http://localhost:${listenPort}`);
-      console.log(`Benchmarks API: http://localhost:${listenPort}/api/benchmarks`);
+      console.log(`Benchmarks API: http://localhost:${listenPort}/api/projects`);
       console.log('Press Ctrl+C to stop');
 
       const { serve: startServer } = await import('@hono/node-server');

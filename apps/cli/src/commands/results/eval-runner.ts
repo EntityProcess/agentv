@@ -542,7 +542,7 @@ export function registerEvalRoutes(
   });
 
   // ── Project-scoped variants ────────────────────────────────────────────
-  app.get('/api/benchmarks/:benchmarkId/eval/discover', async (c) => {
+  app.get('/api/projects/:projectId/eval/discover', async (c) => {
     const cwd = getCwd(c);
     try {
       const files = await discoverEvalFiles(cwd);
@@ -558,7 +558,7 @@ export function registerEvalRoutes(
     }
   });
 
-  app.get('/api/benchmarks/:benchmarkId/eval/targets', async (c) => {
+  app.get('/api/projects/:projectId/eval/targets', async (c) => {
     const cwd = getCwd(c);
     try {
       const names = await discoverTargetsInProject(cwd);
@@ -568,7 +568,7 @@ export function registerEvalRoutes(
     }
   });
 
-  app.post('/api/benchmarks/:benchmarkId/eval/run', async (c) => {
+  app.post('/api/projects/:projectId/eval/run', async (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -666,7 +666,7 @@ export function registerEvalRoutes(
     }
   });
 
-  app.post('/api/benchmarks/:benchmarkId/eval/run/:id/stop', (c) => {
+  app.post('/api/projects/:projectId/eval/run/:id/stop', (c) => {
     if (readOnly) {
       return c.json({ error: 'Studio is running in read-only mode' }, 403);
     }
@@ -684,7 +684,7 @@ export function registerEvalRoutes(
     return c.json({ stopped: true, status: run.status });
   });
 
-  app.get('/api/benchmarks/:benchmarkId/eval/status/:id', (c) => {
+  app.get('/api/projects/:projectId/eval/status/:id', (c) => {
     const id = c.req.param('id');
     const run = activeRuns.get(id ?? '');
     if (!run) return c.json({ error: 'Run not found' }, 404);
@@ -700,7 +700,7 @@ export function registerEvalRoutes(
     });
   });
 
-  app.get('/api/benchmarks/:benchmarkId/eval/runs', (c) => {
+  app.get('/api/projects/:projectId/eval/runs', (c) => {
     const runs = [...activeRuns.values()].map((r) => ({
       id: r.id,
       status: r.status,
@@ -714,7 +714,7 @@ export function registerEvalRoutes(
     return c.json({ runs });
   });
 
-  app.post('/api/benchmarks/:benchmarkId/eval/preview', async (c) => {
+  app.post('/api/projects/:projectId/eval/preview', async (c) => {
     let body: RunEvalRequest;
     try {
       body = await c.req.json<RunEvalRequest>();

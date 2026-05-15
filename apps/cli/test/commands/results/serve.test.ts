@@ -106,42 +106,42 @@ describe('loadResults', () => {
 describe('resolveDashboardMode', () => {
   it('defaults to single-benchmark mode when no benchmarks are registered', () => {
     expect(resolveDashboardMode(0, {})).toEqual({
-      isMultiBenchmark: false,
+      isMultiProject: false,
       showMultiWarning: false,
     });
   });
 
   it('defaults to single-benchmark mode when exactly one benchmark is registered', () => {
     expect(resolveDashboardMode(1, {})).toEqual({
-      isMultiBenchmark: false,
+      isMultiProject: false,
       showMultiWarning: false,
     });
   });
 
   it('defaults to multi-benchmark mode when multiple benchmarks are registered', () => {
     expect(resolveDashboardMode(2, {})).toEqual({
-      isMultiBenchmark: true,
+      isMultiProject: true,
       showMultiWarning: false,
     });
   });
 
   it('forces multi-benchmark mode with a deprecation warning when --multi is used', () => {
     expect(resolveDashboardMode(1, { multi: true })).toEqual({
-      isMultiBenchmark: true,
+      isMultiProject: true,
       showMultiWarning: true,
     });
   });
 
   it('forces single-benchmark mode when --single is used', () => {
     expect(resolveDashboardMode(3, { single: true })).toEqual({
-      isMultiBenchmark: false,
+      isMultiProject: false,
       showMultiWarning: false,
     });
   });
 
   it('lets --single override --multi', () => {
     expect(resolveDashboardMode(3, { multi: true, single: true })).toEqual({
-      isMultiBenchmark: false,
+      isMultiProject: false,
       showMultiWarning: true,
     });
   });
@@ -372,17 +372,17 @@ describe('serve app', () => {
       const app = createApp(results, tempDir, undefined, undefined, {
         studioDir,
         readOnly: true,
-        multiBenchmarkDashboard: true,
+        multiProjectDashboard: true,
       });
 
       const res = await app.request('/api/config');
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
         read_only?: boolean;
-        multi_benchmark_dashboard?: boolean;
+        multi_project_dashboard?: boolean;
       };
       expect(data.read_only).toBe(true);
-      expect(data.multi_benchmark_dashboard).toBe(true);
+      expect(data.multi_project_dashboard).toBe(true);
     });
   });
 
@@ -560,7 +560,7 @@ describe('serve app', () => {
     });
   });
 
-  describe('GET /api/benchmarks/all-runs', () => {
+  describe('GET /api/projects/all-runs', () => {
     it('infers experiment names for live benchmark runs before records persist them', async () => {
       const previousHome = process.env.AGENTV_HOME;
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
@@ -580,15 +580,15 @@ describe('serve app', () => {
         const project = addProject(benchmarkDir);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-        const res = await app.request('/api/benchmarks/all-runs');
+        const res = await app.request('/api/projects/all-runs');
 
         expect(res.status).toBe(200);
         const data = (await res.json()) as {
-          runs: Array<{ benchmark_id: string; experiment?: string; target?: string }>;
+          runs: Array<{ project_id: string; experiment?: string; target?: string }>;
         };
         expect(data.runs).toHaveLength(1);
         expect(data.runs[0]).toMatchObject({
-          benchmark_id: project.id,
+          project_id: project.id,
           experiment: 'issue-1198-benchmark',
           target: 'gpt-4o',
         });
@@ -988,9 +988,9 @@ describe('serve app', () => {
       expect(res.status).toBe(403);
     });
 
-    it('returns 403 in read-only mode for benchmark-scoped /api/benchmarks/:id/eval/run', async () => {
+    it('returns 403 in read-only mode for project-scoped /api/projects/:id/eval/run', async () => {
       const app = makeAppForRun({ readOnly: true });
-      const res = await app.request('/api/benchmarks/some-id/eval/run', {
+      const res = await app.request('/api/projects/some-id/eval/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1034,7 +1034,7 @@ describe('serve app', () => {
 
     it('returns 404 for benchmark-scoped stop with unknown run id', async () => {
       const app = makeAppForStop();
-      const res = await app.request('/api/benchmarks/some-id/eval/run/no-such-id/stop', {
+      const res = await app.request('/api/projects/some-id/eval/run/no-such-id/stop', {
         method: 'POST',
       });
       expect(res.status).toBe(404);
@@ -1042,7 +1042,7 @@ describe('serve app', () => {
 
     it('returns 403 in read-only mode for benchmark-scoped stop', async () => {
       const app = makeAppForStop({ readOnly: true });
-      const res = await app.request('/api/benchmarks/some-id/eval/run/anything/stop', {
+      const res = await app.request('/api/projects/some-id/eval/run/anything/stop', {
         method: 'POST',
       });
       expect(res.status).toBe(403);
