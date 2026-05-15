@@ -127,17 +127,13 @@ export function loadResults(content: string): EvaluationResult[] {
 
 export function resolveDashboardMode(
   projectCount: number,
-  options: { multi?: boolean; single?: boolean },
-): { isMultiProject: boolean; showMultiWarning: boolean } {
+  options: { single?: boolean },
+): { projectDashboard: boolean } {
   if (options.single === true) {
-    return { isMultiProject: false, showMultiWarning: options.multi === true };
+    return { projectDashboard: false };
   }
 
-  if (options.multi === true) {
-    return { isMultiProject: true, showMultiWarning: true };
-  }
-
-  return { isMultiProject: projectCount > 1, showMultiWarning: false };
+  return { projectDashboard: projectCount > 1 };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -901,13 +897,13 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 function handleConfig(
   c: C,
   { agentvDir, searchDir }: DataContext,
-  options?: { readOnly?: boolean; multiProjectDashboard?: boolean },
+  options?: { readOnly?: boolean; projectDashboard?: boolean },
 ) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
     project_name: path.basename(searchDir),
-    multi_project_dashboard: options?.multiProjectDashboard === true,
+    project_dashboard: options?.projectDashboard === true,
   });
 }
 
@@ -973,7 +969,7 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string; readOnly?: boolean; multiProjectDashboard?: boolean },
+  options?: { studioDir?: string; readOnly?: boolean; projectDashboard?: boolean },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
@@ -1175,7 +1171,7 @@ export function createApp(
   app.get('/api/config', (c) =>
     handleConfig(c, defaultCtx, {
       readOnly,
-      multiProjectDashboard: options?.multiProjectDashboard,
+      projectDashboard: options?.projectDashboard,
     }),
   );
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
@@ -1293,7 +1289,7 @@ export function createApp(
     withProject(c, (ctx, dataCtx) =>
       handleConfig(ctx, dataCtx, {
         readOnly,
-        multiProjectDashboard: options?.multiProjectDashboard,
+        projectDashboard: options?.projectDashboard,
       }),
     ),
   );
@@ -1459,11 +1455,6 @@ export const resultsServeCommand = command({
       short: 'd',
       description: 'Working directory (default: current directory)',
     }),
-    multi: flag({
-      long: 'multi',
-      description:
-        'Launch in multi-project dashboard mode (deprecated; use auto-detect or --single)',
-    }),
     single: flag({
       long: 'single',
       description: 'Force single-project dashboard mode',
@@ -1483,7 +1474,7 @@ export const resultsServeCommand = command({
       description: 'Disable write operations and launch Studio in read-only leaderboard mode',
     }),
   },
-  handler: async ({ source, port, dir, multi, single, add, remove, readOnly }) => {
+  handler: async ({ source, port, dir, single, add, remove, readOnly }) => {
     const cwd = dir ?? process.cwd();
     const listenPort = port ?? (process.env.PORT ? Number(process.env.PORT) : 3117);
 
@@ -1522,14 +1513,11 @@ export const resultsServeCommand = command({
       await enforceRequiredVersion(yamlConfig.required_version);
     }
 
-    // ── Determine multi-project mode ─────────────────────────────────
+    // ── Determine dashboard mode ─────────────────────────────────────
     const registry = loadProjectRegistry();
-    const { isMultiProject, showMultiWarning } = resolveDashboardMode(registry.projects.length, {
-      multi,
-      single,
-    });
+    const { projectDashboard } = resolveDashboardMode(registry.projects.length, { single });
 
-    // ── Benchmark sync preflight ─────────────────────────────────────
+    // ── Project sync preflight ───────────────────────────────────────
     // Clone or pull any project entries that declare a source.
     await syncProjects(registry.projects);
 
@@ -1563,17 +1551,11 @@ export const resultsServeCommand = command({
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
       const app = createApp(results, resultDir, cwd, sourceFile, {
         readOnly,
-        multiProjectDashboard: isMultiProject,
+        projectDashboard,
       });
 
-      if (showMultiWarning) {
-        console.warn(
-          'Warning: --multi is deprecated. Studio now auto-detects multi-project mode when multiple projects are registered. Use --single to force the single-project view.',
-        );
-      }
-
-      if (isMultiProject) {
-        console.log(`Multi-project mode: ${registry.projects.length} project(s) registered`);
+      if (projectDashboard) {
+        console.log(`Project dashboard: ${registry.projects.length} project(s) registered`);
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {
@@ -1581,7 +1563,7 @@ export const resultsServeCommand = command({
         console.log('Run an evaluation to see results: agentv eval <eval-file>');
       }
       console.log(`Dashboard: http://localhost:${listenPort}`);
-      console.log(`Benchmarks API: http://localhost:${listenPort}/api/projects`);
+      console.log(`Projects API: http://localhost:${listenPort}/api/projects`);
       console.log('Press Ctrl+C to stop');
 
       const { serve: startServer } = await import('@hono/node-server');

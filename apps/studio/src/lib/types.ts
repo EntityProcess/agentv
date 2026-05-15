@@ -250,7 +250,7 @@ export interface StudioConfigResponse {
   pass_threshold?: number;
   read_only?: boolean;
   project_name?: string;
-  multi_project_dashboard?: boolean;
+  project_dashboard?: boolean;
 }
 
 export interface RemoteStatusResponse {
