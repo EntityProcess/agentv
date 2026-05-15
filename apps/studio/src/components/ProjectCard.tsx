@@ -1,5 +1,5 @@
 /**
- * Project card for the multi-project dashboard.
+ * Project card for the projects dashboard.
  *
  * Shows project name, path, run count, pass rate, and last run time.
  * Click navigates to the project's run list.

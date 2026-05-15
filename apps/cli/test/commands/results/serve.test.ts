@@ -104,45 +104,27 @@ describe('loadResults', () => {
 // ── resolveDashboardMode ───────────────────────────────────────────────
 
 describe('resolveDashboardMode', () => {
-  it('defaults to single-benchmark mode when no benchmarks are registered', () => {
+  it('defaults to single-project mode when no projects are registered', () => {
     expect(resolveDashboardMode(0, {})).toEqual({
-      isMultiProject: false,
-      showMultiWarning: false,
+      projectDashboard: false,
     });
   });
 
-  it('defaults to single-benchmark mode when exactly one benchmark is registered', () => {
+  it('defaults to single-project mode when exactly one project is registered', () => {
     expect(resolveDashboardMode(1, {})).toEqual({
-      isMultiProject: false,
-      showMultiWarning: false,
+      projectDashboard: false,
     });
   });
 
-  it('defaults to multi-benchmark mode when multiple benchmarks are registered', () => {
+  it('defaults to the projects dashboard when multiple projects are registered', () => {
     expect(resolveDashboardMode(2, {})).toEqual({
-      isMultiProject: true,
-      showMultiWarning: false,
+      projectDashboard: true,
     });
   });
 
-  it('forces multi-benchmark mode with a deprecation warning when --multi is used', () => {
-    expect(resolveDashboardMode(1, { multi: true })).toEqual({
-      isMultiProject: true,
-      showMultiWarning: true,
-    });
-  });
-
-  it('forces single-benchmark mode when --single is used', () => {
+  it('forces single-project mode when --single is used', () => {
     expect(resolveDashboardMode(3, { single: true })).toEqual({
-      isMultiProject: false,
-      showMultiWarning: false,
-    });
-  });
-
-  it('lets --single override --multi', () => {
-    expect(resolveDashboardMode(3, { multi: true, single: true })).toEqual({
-      isMultiProject: false,
-      showMultiWarning: true,
+      projectDashboard: false,
     });
   });
 });
@@ -366,23 +348,23 @@ describe('serve app', () => {
   });
 
   describe('GET /api/config', () => {
-    it('includes read_only mode in the config payload', async () => {
+    it('includes read_only mode and dashboard mode in the config payload', async () => {
       const content = toJsonl(RESULT_A, RESULT_B);
       const results = loadResults(content);
       const app = createApp(results, tempDir, undefined, undefined, {
         studioDir,
         readOnly: true,
-        multiProjectDashboard: true,
+        projectDashboard: true,
       });
 
       const res = await app.request('/api/config');
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
         read_only?: boolean;
-        multi_project_dashboard?: boolean;
+        project_dashboard?: boolean;
       };
       expect(data.read_only).toBe(true);
-      expect(data.multi_project_dashboard).toBe(true);
+      expect(data.project_dashboard).toBe(true);
     });
   });
 
