@@ -24,7 +24,7 @@ import { PassRatePill } from './PassRatePill';
 
 interface RunListProps {
   runs: RunMeta[];
-  benchmarkId?: string;
+  projectId?: string;
   emptyMessage?: React.ReactNode;
 }
 
@@ -48,7 +48,7 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
   }
 }
 
-export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
+export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
   const { data: config } = useStudioConfig();
   const passThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
 
@@ -113,10 +113,10 @@ export function RunList({ runs, benchmarkId, emptyMessage }: RunListProps) {
 
                 {/* Run name */}
                 <td className="px-4 py-3">
-                  {benchmarkId ? (
+                  {projectId ? (
                     <Link
-                      to="/benchmarks/$benchmarkId/runs/$runId"
-                      params={{ benchmarkId, runId: run.filename }}
+                      to="/projects/$projectId/runs/$runId"
+                      params={{ projectId, runId: run.filename }}
                       className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                     >
                       {label}

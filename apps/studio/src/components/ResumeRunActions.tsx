@@ -33,7 +33,7 @@ export interface ResumeRunActionsProps {
   runDir?: string;
   suiteFilter?: string;
   target?: string;
-  benchmarkId?: string;
+  projectId?: string;
   isReadOnly: boolean;
   plannedTestCount?: number;
 }
@@ -43,7 +43,7 @@ export function ResumeRunActions({
   runDir,
   suiteFilter,
   target,
-  benchmarkId,
+  projectId,
   isReadOnly,
   plannedTestCount,
 }: ResumeRunActionsProps) {
@@ -70,7 +70,7 @@ export function ResumeRunActions({
     setError(null);
     try {
       const body = buildResumeRequestBody({ mode, runDir, suiteFilter, target });
-      const response = await launchEvalRun(body, benchmarkId);
+      const response = await launchEvalRun(body, projectId);
       navigate({ to: '/jobs/$runId', params: { runId: response.id } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to launch resume');

@@ -4,7 +4,7 @@
  * workflow, not a destructive cancel: the partial index.jsonl is
  * preserved and can be resumed in one click from the run-detail page.
  *
- * Calls POST /api/eval/run/:id/stop (or the benchmark-scoped variant).
+ * Calls POST /api/eval/run/:id/stop (or the project-scoped variant).
  * Optimistically flips the local label to "Stopping…" until the next
  * poll of /api/eval/status/:id observes a terminal state — at which
  * point the button hides via `shouldShowStopButton`.
@@ -23,10 +23,10 @@ export interface StopRunButtonProps {
   runId: string;
   status: RunStatus | undefined;
   isReadOnly: boolean;
-  benchmarkId?: string;
+  projectId?: string;
 }
 
-export function StopRunButton({ runId, status, isReadOnly, benchmarkId }: StopRunButtonProps) {
+export function StopRunButton({ runId, status, isReadOnly, projectId }: StopRunButtonProps) {
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,7 @@ export function StopRunButton({ runId, status, isReadOnly, benchmarkId }: StopRu
     setStopping(true);
     setError(null);
     try {
-      await stopEvalRun(runId, benchmarkId);
+      await stopEvalRun(runId, projectId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop run');
       setStopping(false);

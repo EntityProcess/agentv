@@ -18,13 +18,13 @@ import { Link, useLocation, useMatchRoute } from '@tanstack/react-router';
 
 import {
   isPassing,
-  useAllBenchmarkRuns,
-  useBenchmarkList,
-  useBenchmarkRunDetail,
-  useBenchmarkRunList,
+  useAllProjectRuns,
   useCategorySuites,
   useEvalRuns,
   useExperiments,
+  useProjectList,
+  useProjectRunDetail,
+  useProjectRunList,
   useRunDetail,
   useRunList,
   useStudioConfig,
@@ -71,48 +71,40 @@ function SidebarShell({ children }: { children: ReactNode }) {
 export function Sidebar() {
   const matchRoute = useMatchRoute();
 
-  // ── Benchmark-scoped route matching ──────────────────────────────────
-  const benchmarkEvalMatch = matchRoute({
-    to: '/benchmarks/$benchmarkId/evals/$runId/$evalId',
+  // ── Project-scoped route matching ──────────────────────────────────
+  const projectEvalMatch = matchRoute({
+    to: '/projects/$projectId/evals/$runId/$evalId',
     fuzzy: true,
   });
-  const benchmarkRunMatch = matchRoute({
-    to: '/benchmarks/$benchmarkId/runs/$runId',
+  const projectRunMatch = matchRoute({
+    to: '/projects/$projectId/runs/$runId',
     fuzzy: true,
   });
-  const benchmarkMatch = matchRoute({
-    to: '/benchmarks/$benchmarkId',
+  const projectMatch = matchRoute({
+    to: '/projects/$projectId',
     fuzzy: true,
   });
 
-  // Benchmark-scoped eval detail
-  if (
-    benchmarkEvalMatch &&
-    typeof benchmarkEvalMatch === 'object' &&
-    'benchmarkId' in benchmarkEvalMatch
-  ) {
-    const { benchmarkId, runId, evalId } = benchmarkEvalMatch as {
-      benchmarkId: string;
+  // Project-scoped eval detail
+  if (projectEvalMatch && typeof projectEvalMatch === 'object' && 'projectId' in projectEvalMatch) {
+    const { projectId, runId, evalId } = projectEvalMatch as {
+      projectId: string;
       runId: string;
       evalId: string;
     };
-    return <BenchmarkEvalSidebar benchmarkId={benchmarkId} runId={runId} currentEvalId={evalId} />;
+    return <ProjectEvalSidebar projectId={projectId} runId={runId} currentEvalId={evalId} />;
   }
 
-  // Benchmark-scoped run detail
-  if (
-    benchmarkRunMatch &&
-    typeof benchmarkRunMatch === 'object' &&
-    'benchmarkId' in benchmarkRunMatch
-  ) {
-    const { benchmarkId, runId } = benchmarkRunMatch as { benchmarkId: string; runId: string };
-    return <BenchmarkRunDetailSidebar benchmarkId={benchmarkId} currentRunId={runId} />;
+  // Project-scoped run detail
+  if (projectRunMatch && typeof projectRunMatch === 'object' && 'projectId' in projectRunMatch) {
+    const { projectId, runId } = projectRunMatch as { projectId: string; runId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} currentRunId={runId} />;
   }
 
-  // Benchmark home (runs/experiments/targets)
-  if (benchmarkMatch && typeof benchmarkMatch === 'object' && 'benchmarkId' in benchmarkMatch) {
-    const { benchmarkId } = benchmarkMatch as { benchmarkId: string };
-    return <BenchmarkRunDetailSidebar benchmarkId={benchmarkId} />;
+  // Project home (runs/experiments/targets)
+  if (projectMatch && typeof projectMatch === 'object' && 'projectId' in projectMatch) {
+    const { projectId } = projectMatch as { projectId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} />;
   }
 
   // ── Unscoped route matching ──────────────────────────────────────────
@@ -159,17 +151,17 @@ export function Sidebar() {
 
 function RunSidebar() {
   const matchRoute = useMatchRoute();
-  const { data: benchmarkData } = useBenchmarkList();
-  const hasBenchmarks = (benchmarkData?.benchmarks.length ?? 0) > 0;
+  const { data: projectData } = useProjectList();
+  const hasProjects = (projectData?.projects.length ?? 0) > 0;
 
   const isHome = matchRoute({ to: '/' });
   const runMatch = matchRoute({ to: '/runs/$runId', fuzzy: true });
 
-  // On the benchmarks landing page, show aggregated runs from all benchmarks
-  const useAggregated = hasBenchmarks && isHome !== false;
+  // On the projects landing page, show aggregated runs from all projects
+  const useAggregated = hasProjects && isHome !== false;
 
   const { data: localData } = useRunList();
-  const { data: aggregatedData } = useAllBenchmarkRuns();
+  const { data: aggregatedData } = useAllProjectRuns();
   const data = useAggregated ? aggregatedData : localData;
 
   const { data: evalRunsData } = useEvalRuns();
@@ -204,15 +196,15 @@ function RunSidebar() {
             'runId' in runMatch &&
             (runMatch as { runId: string }).runId === run.filename;
 
-          // Aggregated runs link to their benchmark's run detail
-          if (run.benchmark_id) {
+          // Aggregated runs link to their project's run detail
+          if (run.project_id) {
             return (
               <Link
-                key={`${run.benchmark_id}/${run.filename}`}
-                to="/benchmarks/$benchmarkId/runs/$runId"
-                params={{ benchmarkId: run.benchmark_id, runId: run.filename }}
+                key={`${run.project_id}/${run.filename}`}
+                to="/projects/$projectId/runs/$runId"
+                params={{ projectId: run.project_id, runId: run.filename }}
                 className="mb-0.5 block rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
-                title={run.benchmark_name}
+                title={run.project_name}
               >
                 <span className="block truncate">{formatRunLabel(run)}</span>
                 <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
@@ -411,16 +403,16 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
   );
 }
 
-// ── Benchmark-scoped sidebars ────────────────────────────────────────────
+// ── Project-scoped sidebars ────────────────────────────────────────────
 
-function BenchmarkRunDetailSidebar({
-  benchmarkId,
+function ProjectRunDetailSidebar({
+  projectId,
   currentRunId,
 }: {
-  benchmarkId: string;
+  projectId: string;
   currentRunId?: string;
 }) {
-  const { data } = useBenchmarkRunList(benchmarkId);
+  const { data } = useProjectRunList(projectId);
 
   return (
     <SidebarShell>
@@ -432,9 +424,9 @@ function BenchmarkRunDetailSidebar({
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link to="/" className="text-xs text-gray-400 hover:text-cyan-400">
-          &larr; All Benchmarks
+          &larr; All Projects
         </Link>
-        <p className="mt-1 truncate text-sm font-medium text-gray-300">{benchmarkId}</p>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{projectId}</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -446,8 +438,8 @@ function BenchmarkRunDetailSidebar({
           return (
             <Link
               key={run.filename}
-              to="/benchmarks/$benchmarkId/runs/$runId"
-              params={{ benchmarkId, runId: run.filename }}
+              to="/projects/$projectId/runs/$runId"
+              params={{ projectId, runId: run.filename }}
               className={`mb-0.5 block rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
@@ -464,16 +456,16 @@ function BenchmarkRunDetailSidebar({
   );
 }
 
-function BenchmarkEvalSidebar({
-  benchmarkId,
+function ProjectEvalSidebar({
+  projectId,
   runId,
   currentEvalId,
 }: {
-  benchmarkId: string;
+  projectId: string;
   runId: string;
   currentEvalId: string;
 }) {
-  const { data } = useBenchmarkRunDetail(benchmarkId, runId);
+  const { data } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig();
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
@@ -487,8 +479,8 @@ function BenchmarkEvalSidebar({
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
-          to="/benchmarks/$benchmarkId/runs/$runId"
-          params={{ benchmarkId, runId }}
+          to="/projects/$projectId/runs/$runId"
+          params={{ projectId, runId }}
           className="text-xs text-gray-400 hover:text-cyan-400"
         >
           &larr; Back to run
@@ -506,8 +498,8 @@ function BenchmarkEvalSidebar({
           return (
             <Link
               key={result.testId}
-              to="/benchmarks/$benchmarkId/evals/$runId/$evalId"
-              params={{ benchmarkId, runId, evalId: result.testId }}
+              to="/projects/$projectId/evals/$runId/$evalId"
+              params={{ projectId, runId, evalId: result.testId }}
               className={`mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'

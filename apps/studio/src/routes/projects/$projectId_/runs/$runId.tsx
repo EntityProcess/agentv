@@ -1,5 +1,5 @@
 /**
- * Benchmark-scoped run detail route.
+ * Project-scoped run detail route.
  */
 
 import { createFileRoute } from '@tanstack/react-router';
@@ -8,15 +8,15 @@ import { useState } from 'react';
 import { ResumeRunActions } from '~/components/ResumeRunActions';
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
-import { useBenchmarkRunDetail, useStudioConfig } from '~/lib/api';
+import { useProjectRunDetail, useStudioConfig } from '~/lib/api';
 
-export const Route = createFileRoute('/benchmarks/$benchmarkId_/runs/$runId')({
-  component: BenchmarkRunDetailPage,
+export const Route = createFileRoute('/projects/$projectId_/runs/$runId')({
+  component: ProjectRunDetailPage,
 });
 
-function BenchmarkRunDetailPage() {
-  const { benchmarkId, runId } = Route.useParams();
-  const { data, isLoading, error } = useBenchmarkRunDetail(benchmarkId, runId);
+function ProjectRunDetailPage() {
+  const { projectId, runId } = Route.useParams();
+  const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
   const isReadOnly = config?.read_only === true;
@@ -75,7 +75,7 @@ function BenchmarkRunDetailPage() {
             runDir={data?.run_dir}
             suiteFilter={data?.suite_filter}
             target={target ?? undefined}
-            benchmarkId={benchmarkId}
+            projectId={projectId}
             isReadOnly={isReadOnly}
             plannedTestCount={data?.planned_test_count}
           />
@@ -90,12 +90,12 @@ function BenchmarkRunDetailPage() {
           )}
         </div>
       </div>
-      <RunDetail results={data?.results ?? []} runId={runId} benchmarkId={benchmarkId} />
+      <RunDetail results={data?.results ?? []} runId={runId} projectId={projectId} />
       {!isReadOnly && (
         <RunEvalModal
           open={showRunEval}
           onClose={() => setShowRunEval(false)}
-          benchmarkId={benchmarkId}
+          projectId={projectId}
           prefill={prefill}
         />
       )}

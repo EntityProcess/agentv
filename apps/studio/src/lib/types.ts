@@ -17,8 +17,8 @@ export interface RunMeta {
   target?: string;
   experiment?: string;
   source: 'local' | 'remote';
-  benchmark_id?: string;
-  benchmark_name?: string;
+  project_id?: string;
+  project_name?: string;
   /** Optional user-assigned tags from the run's sidecar tags.json. */
   tags?: string[];
   /**
@@ -249,8 +249,8 @@ export interface StudioConfigResponse {
   /** @deprecated Use threshold */
   pass_threshold?: number;
   read_only?: boolean;
-  benchmark_name?: string;
-  multi_benchmark_dashboard?: boolean;
+  project_name?: string;
+  multi_project_dashboard?: boolean;
 }
 
 export interface RemoteStatusResponse {
@@ -266,9 +266,9 @@ export interface RemoteStatusResponse {
   last_error?: string;
 }
 
-// ── Benchmark types ──────────────────────────────────────────────────────
+// ── Project types ──────────────────────────────────────────────────────
 
-export interface BenchmarkSummary {
+export interface ProjectSummary {
   id: string;
   name: string;
   path: string;
@@ -279,11 +279,11 @@ export interface BenchmarkSummary {
   last_run: string | null;
 }
 
-export interface BenchmarkListResponse {
-  benchmarks: BenchmarkSummary[];
+export interface ProjectListResponse {
+  projects: ProjectSummary[];
 }
 
-export interface BenchmarkEntry {
+export interface ProjectEntry {
   id: string;
   name: string;
   path: string;

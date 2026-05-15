@@ -12,14 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RunsRunIdRouteImport } from './routes/runs/$runId'
+import { Route as ProjectsProjectIdRouteImport } from './routes/projects/$projectId'
 import { Route as JobsRunIdRouteImport } from './routes/jobs/$runId'
 import { Route as ExperimentsExperimentNameRouteImport } from './routes/experiments/$experimentName'
-import { Route as BenchmarksBenchmarkIdRouteImport } from './routes/benchmarks/$benchmarkId'
 import { Route as EvalsRunIdEvalIdRouteImport } from './routes/evals/$runId.$evalId'
 import { Route as RunsRunIdSuiteSuiteRouteImport } from './routes/runs/$runId_.suite.$suite'
 import { Route as RunsRunIdCategoryCategoryRouteImport } from './routes/runs/$runId_.category.$category'
-import { Route as BenchmarksBenchmarkIdRunsRunIdRouteImport } from './routes/benchmarks/$benchmarkId_/runs/$runId'
-import { Route as BenchmarksBenchmarkIdEvalsRunIdEvalIdRouteImport } from './routes/benchmarks/$benchmarkId_/evals/$runId.$evalId'
+import { Route as ProjectsProjectIdRunsRunIdRouteImport } from './routes/projects/$projectId_/runs/$runId'
+import { Route as ProjectsProjectIdEvalsRunIdEvalIdRouteImport } from './routes/projects/$projectId_/evals/$runId.$evalId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -36,6 +36,11 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
   path: '/runs/$runId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
+  id: '/projects/$projectId',
+  path: '/projects/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JobsRunIdRoute = JobsRunIdRouteImport.update({
   id: '/jobs/$runId',
   path: '/jobs/$runId',
@@ -47,11 +52,6 @@ const ExperimentsExperimentNameRoute =
     path: '/experiments/$experimentName',
     getParentRoute: () => rootRouteImport,
   } as any)
-const BenchmarksBenchmarkIdRoute = BenchmarksBenchmarkIdRouteImport.update({
-  id: '/benchmarks/$benchmarkId',
-  path: '/benchmarks/$benchmarkId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EvalsRunIdEvalIdRoute = EvalsRunIdEvalIdRouteImport.update({
   id: '/evals/$runId/$evalId',
   path: '/evals/$runId/$evalId',
@@ -68,113 +68,113 @@ const RunsRunIdCategoryCategoryRoute =
     path: '/runs/$runId/category/$category',
     getParentRoute: () => rootRouteImport,
   } as any)
-const BenchmarksBenchmarkIdRunsRunIdRoute =
-  BenchmarksBenchmarkIdRunsRunIdRouteImport.update({
-    id: '/benchmarks/$benchmarkId_/runs/$runId',
-    path: '/benchmarks/$benchmarkId/runs/$runId',
+const ProjectsProjectIdRunsRunIdRoute =
+  ProjectsProjectIdRunsRunIdRouteImport.update({
+    id: '/projects/$projectId_/runs/$runId',
+    path: '/projects/$projectId/runs/$runId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute =
-  BenchmarksBenchmarkIdEvalsRunIdEvalIdRouteImport.update({
-    id: '/benchmarks/$benchmarkId_/evals/$runId/$evalId',
-    path: '/benchmarks/$benchmarkId/evals/$runId/$evalId',
+const ProjectsProjectIdEvalsRunIdEvalIdRoute =
+  ProjectsProjectIdEvalsRunIdEvalIdRouteImport.update({
+    id: '/projects/$projectId_/evals/$runId/$evalId',
+    path: '/projects/$projectId/evals/$runId/$evalId',
     getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/benchmarks/$benchmarkId': typeof BenchmarksBenchmarkIdRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/jobs/$runId': typeof JobsRunIdRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
-  '/benchmarks/$benchmarkId/runs/$runId': typeof BenchmarksBenchmarkIdRunsRunIdRoute
+  '/projects/$projectId/runs/$runId': typeof ProjectsProjectIdRunsRunIdRoute
   '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId/suite/$suite': typeof RunsRunIdSuiteSuiteRoute
-  '/benchmarks/$benchmarkId/evals/$runId/$evalId': typeof BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute
+  '/projects/$projectId/evals/$runId/$evalId': typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/benchmarks/$benchmarkId': typeof BenchmarksBenchmarkIdRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/jobs/$runId': typeof JobsRunIdRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
-  '/benchmarks/$benchmarkId/runs/$runId': typeof BenchmarksBenchmarkIdRunsRunIdRoute
+  '/projects/$projectId/runs/$runId': typeof ProjectsProjectIdRunsRunIdRoute
   '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId/suite/$suite': typeof RunsRunIdSuiteSuiteRoute
-  '/benchmarks/$benchmarkId/evals/$runId/$evalId': typeof BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute
+  '/projects/$projectId/evals/$runId/$evalId': typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/benchmarks/$benchmarkId': typeof BenchmarksBenchmarkIdRoute
   '/experiments/$experimentName': typeof ExperimentsExperimentNameRoute
   '/jobs/$runId': typeof JobsRunIdRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
-  '/benchmarks/$benchmarkId_/runs/$runId': typeof BenchmarksBenchmarkIdRunsRunIdRoute
+  '/projects/$projectId_/runs/$runId': typeof ProjectsProjectIdRunsRunIdRoute
   '/runs/$runId_/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId_/suite/$suite': typeof RunsRunIdSuiteSuiteRoute
-  '/benchmarks/$benchmarkId_/evals/$runId/$evalId': typeof BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute
+  '/projects/$projectId_/evals/$runId/$evalId': typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/settings'
-    | '/benchmarks/$benchmarkId'
     | '/experiments/$experimentName'
     | '/jobs/$runId'
+    | '/projects/$projectId'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
-    | '/benchmarks/$benchmarkId/runs/$runId'
+    | '/projects/$projectId/runs/$runId'
     | '/runs/$runId/category/$category'
     | '/runs/$runId/suite/$suite'
-    | '/benchmarks/$benchmarkId/evals/$runId/$evalId'
+    | '/projects/$projectId/evals/$runId/$evalId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/settings'
-    | '/benchmarks/$benchmarkId'
     | '/experiments/$experimentName'
     | '/jobs/$runId'
+    | '/projects/$projectId'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
-    | '/benchmarks/$benchmarkId/runs/$runId'
+    | '/projects/$projectId/runs/$runId'
     | '/runs/$runId/category/$category'
     | '/runs/$runId/suite/$suite'
-    | '/benchmarks/$benchmarkId/evals/$runId/$evalId'
+    | '/projects/$projectId/evals/$runId/$evalId'
   id:
     | '__root__'
     | '/'
     | '/settings'
-    | '/benchmarks/$benchmarkId'
     | '/experiments/$experimentName'
     | '/jobs/$runId'
+    | '/projects/$projectId'
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
-    | '/benchmarks/$benchmarkId_/runs/$runId'
+    | '/projects/$projectId_/runs/$runId'
     | '/runs/$runId_/category/$category'
     | '/runs/$runId_/suite/$suite'
-    | '/benchmarks/$benchmarkId_/evals/$runId/$evalId'
+    | '/projects/$projectId_/evals/$runId/$evalId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
-  BenchmarksBenchmarkIdRoute: typeof BenchmarksBenchmarkIdRoute
   ExperimentsExperimentNameRoute: typeof ExperimentsExperimentNameRoute
   JobsRunIdRoute: typeof JobsRunIdRoute
+  ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   RunsRunIdRoute: typeof RunsRunIdRoute
   EvalsRunIdEvalIdRoute: typeof EvalsRunIdEvalIdRoute
-  BenchmarksBenchmarkIdRunsRunIdRoute: typeof BenchmarksBenchmarkIdRunsRunIdRoute
+  ProjectsProjectIdRunsRunIdRoute: typeof ProjectsProjectIdRunsRunIdRoute
   RunsRunIdCategoryCategoryRoute: typeof RunsRunIdCategoryCategoryRoute
   RunsRunIdSuiteSuiteRoute: typeof RunsRunIdSuiteSuiteRoute
-  BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute: typeof BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute
+  ProjectsProjectIdEvalsRunIdEvalIdRoute: typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -200,6 +200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/$projectId': {
+      id: '/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ProjectsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/jobs/$runId': {
       id: '/jobs/$runId'
       path: '/jobs/$runId'
@@ -212,13 +219,6 @@ declare module '@tanstack/react-router' {
       path: '/experiments/$experimentName'
       fullPath: '/experiments/$experimentName'
       preLoaderRoute: typeof ExperimentsExperimentNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/benchmarks/$benchmarkId': {
-      id: '/benchmarks/$benchmarkId'
-      path: '/benchmarks/$benchmarkId'
-      fullPath: '/benchmarks/$benchmarkId'
-      preLoaderRoute: typeof BenchmarksBenchmarkIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/evals/$runId/$evalId': {
@@ -242,18 +242,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsRunIdCategoryCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/benchmarks/$benchmarkId_/runs/$runId': {
-      id: '/benchmarks/$benchmarkId_/runs/$runId'
-      path: '/benchmarks/$benchmarkId/runs/$runId'
-      fullPath: '/benchmarks/$benchmarkId/runs/$runId'
-      preLoaderRoute: typeof BenchmarksBenchmarkIdRunsRunIdRouteImport
+    '/projects/$projectId_/runs/$runId': {
+      id: '/projects/$projectId_/runs/$runId'
+      path: '/projects/$projectId/runs/$runId'
+      fullPath: '/projects/$projectId/runs/$runId'
+      preLoaderRoute: typeof ProjectsProjectIdRunsRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/benchmarks/$benchmarkId_/evals/$runId/$evalId': {
-      id: '/benchmarks/$benchmarkId_/evals/$runId/$evalId'
-      path: '/benchmarks/$benchmarkId/evals/$runId/$evalId'
-      fullPath: '/benchmarks/$benchmarkId/evals/$runId/$evalId'
-      preLoaderRoute: typeof BenchmarksBenchmarkIdEvalsRunIdEvalIdRouteImport
+    '/projects/$projectId_/evals/$runId/$evalId': {
+      id: '/projects/$projectId_/evals/$runId/$evalId'
+      path: '/projects/$projectId/evals/$runId/$evalId'
+      fullPath: '/projects/$projectId/evals/$runId/$evalId'
+      preLoaderRoute: typeof ProjectsProjectIdEvalsRunIdEvalIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -262,16 +262,16 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
-  BenchmarksBenchmarkIdRoute: BenchmarksBenchmarkIdRoute,
   ExperimentsExperimentNameRoute: ExperimentsExperimentNameRoute,
   JobsRunIdRoute: JobsRunIdRoute,
+  ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   RunsRunIdRoute: RunsRunIdRoute,
   EvalsRunIdEvalIdRoute: EvalsRunIdEvalIdRoute,
-  BenchmarksBenchmarkIdRunsRunIdRoute: BenchmarksBenchmarkIdRunsRunIdRoute,
+  ProjectsProjectIdRunsRunIdRoute: ProjectsProjectIdRunsRunIdRoute,
   RunsRunIdCategoryCategoryRoute: RunsRunIdCategoryCategoryRoute,
   RunsRunIdSuiteSuiteRoute: RunsRunIdSuiteSuiteRoute,
-  BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute:
-    BenchmarksBenchmarkIdEvalsRunIdEvalIdRoute,
+  ProjectsProjectIdEvalsRunIdEvalIdRoute:
+    ProjectsProjectIdEvalsRunIdEvalIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

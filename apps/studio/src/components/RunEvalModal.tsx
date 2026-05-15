@@ -35,7 +35,7 @@ import {
 export interface RunEvalModalProps {
   open: boolean;
   onClose: () => void;
-  benchmarkId?: string;
+  projectId?: string;
   prefill?: {
     suiteFilter?: string;
     testIds?: string[];
@@ -45,7 +45,7 @@ export interface RunEvalModalProps {
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalModalProps) {
+export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModalProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -67,10 +67,10 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
   const [cliPreview, setCliPreview] = useState<string | null>(null);
 
   // Data
-  const { data: discoverData } = useEvalDiscover(benchmarkId);
-  const { data: targetsData } = useEvalTargets(benchmarkId);
+  const { data: discoverData } = useEvalDiscover(projectId);
+  const { data: targetsData } = useEvalTargets(projectId);
   const { data: runStatus } = useEvalRunStatus(activeRunId);
-  const { data: studioConfig } = useStudioConfig(benchmarkId);
+  const { data: studioConfig } = useStudioConfig(projectId);
 
   const evalFiles = useMemo(() => discoverData?.eval_files ?? [], [discoverData]);
   const targetNames = useMemo(() => targetsData?.targets ?? [], [targetsData]);
@@ -106,7 +106,7 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
   useEffect(() => {
     if (runStatus?.status === 'finished' || runStatus?.status === 'failed') {
       queryClient.invalidateQueries({ queryKey: ['runs'] });
-      queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     }
   }, [runStatus?.status, queryClient]);
 
@@ -130,10 +130,10 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
       setCliPreview(null);
       return;
     }
-    previewEvalCommand(req, benchmarkId)
+    previewEvalCommand(req, projectId)
       .then((r) => setCliPreview(r.command))
       .catch(() => setCliPreview(null));
-  }, [buildRequest, benchmarkId]);
+  }, [buildRequest, projectId]);
 
   // Add a test ID pill
   function addTestId() {
@@ -154,7 +154,7 @@ export function RunEvalModal({ open, onClose, benchmarkId, prefill }: RunEvalMod
     setLaunching(true);
     try {
       const req = buildRequest();
-      const result = await launchEvalRun(req, benchmarkId);
+      const result = await launchEvalRun(req, projectId);
       setActiveRunId(result.id);
     } catch (err) {
       setError((err as Error).message);

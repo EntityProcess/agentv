@@ -1,7 +1,7 @@
 /**
- * Home route: shows the multi-benchmark dashboard when the server enables it,
+ * Home route: shows the multi-project dashboard when the server enables it,
  * or the existing tabbed landing page (Runs, Experiments, Analytics, Targets)
- * in single-benchmark mode.
+ * in single-project mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
@@ -11,18 +11,18 @@ import { useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
-import { BenchmarkCard } from '~/components/BenchmarkCard';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
+import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
-  addBenchmarkApi,
+  addProjectApi,
   syncRemoteResultsApi,
-  useBenchmarkList,
   useCompare,
   useEvalRuns,
+  useProjectList,
   useRemoteStatus,
   useRunList,
   useStudioConfig,
@@ -42,29 +42,26 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
-  const { data: benchmarkData, isLoading: benchmarksLoading } = useBenchmarkList();
+  const { data: projectData, isLoading: projectsLoading } = useProjectList();
   const { data: config, isLoading: configLoading } = useStudioConfig();
-  const hasBenchmarks = (benchmarkData?.benchmarks.length ?? 0) > 0;
-  const multiBenchmarkDashboard = config?.multi_benchmark_dashboard;
+  const hasProjects = (projectData?.projects.length ?? 0) > 0;
+  const multiProjectDashboard = config?.multi_project_dashboard;
 
-  if (benchmarksLoading || configLoading) {
+  if (projectsLoading || configLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (
-    multiBenchmarkDashboard === true ||
-    (multiBenchmarkDashboard === undefined && hasBenchmarks)
-  ) {
-    return <BenchmarksDashboard />;
+  if (multiProjectDashboard === true || (multiProjectDashboard === undefined && hasProjects)) {
+    return <ProjectsDashboard />;
   }
 
-  return <SingleBenchmarkHome />;
+  return <SingleProjectHome />;
 }
 
-// ── Benchmarks Dashboard ────────────────────────────────────────────────
+// ── Projects Dashboard ────────────────────────────────────────────────
 
-function BenchmarksDashboard() {
-  const { data } = useBenchmarkList();
+function ProjectsDashboard() {
+  const { data } = useProjectList();
   const { data: config } = useStudioConfig();
   const queryClient = useQueryClient();
   const [addPath, setAddPath] = useState('');
@@ -72,18 +69,18 @@ function BenchmarksDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showRunEval, setShowRunEval] = useState(false);
 
-  const benchmarks = data?.benchmarks ?? [];
+  const projects = data?.projects ?? [];
   const isReadOnly = config?.read_only === true;
 
-  async function handleAddBenchmark(e: React.FormEvent) {
+  async function handleAddProject(e: React.FormEvent) {
     e.preventDefault();
     if (!addPath.trim()) return;
     setError(null);
     try {
-      await addBenchmarkApi(addPath.trim());
+      await addProjectApi(addPath.trim());
       setAddPath('');
       setShowAddForm(false);
-      queryClient.invalidateQueries({ queryKey: ['benchmarks'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -92,7 +89,7 @@ function BenchmarksDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Benchmarks</h1>
+        <h1 className="text-2xl font-semibold text-white">Projects</h1>
         <div className="flex gap-2">
           {!isReadOnly && (
             <>
@@ -108,7 +105,7 @@ function BenchmarksDashboard() {
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
               >
-                {showAddForm ? 'Cancel' : 'Add Benchmark'}
+                {showAddForm ? 'Cancel' : 'Add Project'}
               </button>
             </>
           )}
@@ -123,12 +120,12 @@ function BenchmarksDashboard() {
 
       {!isReadOnly && showAddForm && (
         <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-          <form onSubmit={handleAddBenchmark} className="flex gap-2">
+          <form onSubmit={handleAddProject} className="flex gap-2">
             <input
               type="text"
               value={addPath}
               onChange={(e) => setAddPath(e.target.value)}
-              placeholder="Benchmark path (e.g., /home/user/projects/my-evals)"
+              placeholder="Project path (e.g., /home/user/projects/my-evals)"
               className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
             />
             <button
@@ -142,8 +139,8 @@ function BenchmarksDashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {benchmarks.map((benchmark) => (
-          <BenchmarkCard key={benchmark.id} benchmark={benchmark} />
+        {projects.map((project) => (
+          <ProjectCard key={project.id} project={project} />
         ))}
       </div>
 
@@ -152,9 +149,9 @@ function BenchmarksDashboard() {
   );
 }
 
-// ── Single-benchmark home (existing behavior) ───────────────────────────
+// ── Single-project home (existing behavior) ───────────────────────────
 
-function SingleBenchmarkHome() {
+function SingleProjectHome() {
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
@@ -195,8 +192,8 @@ function SingleBenchmarkHome() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Evaluation Runs</h1>
-          {config?.benchmark_name && (
-            <p className="mt-0.5 text-sm text-gray-500">{config.benchmark_name}</p>
+          {config?.project_name && (
+            <p className="mt-0.5 text-sm text-gray-500">{config.project_name}</p>
           )}
         </div>
         {!isReadOnly && (
