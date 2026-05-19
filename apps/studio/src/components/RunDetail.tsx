@@ -93,7 +93,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
 }
 
 export function RunDetail({ results, runId, projectId }: RunDetailProps) {
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   const total = results.length;
@@ -143,7 +143,25 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
             <tbody className="divide-y divide-gray-800/50">
               {categories.map((cat) => (
                 <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
-                  <td className="px-4 py-2.5 font-medium text-gray-200">{cat.name}</td>
+                  <td className="px-4 py-2.5 font-medium text-gray-200">
+                    {projectId ? (
+                      <Link
+                        to="/projects/$projectId/runs/$runId/category/$category"
+                        params={{ projectId, runId, category: cat.name }}
+                        className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                      >
+                        {cat.name}
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/runs/$runId/category/$category"
+                        params={{ runId, category: cat.name }}
+                        className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                      >
+                        {cat.name}
+                      </Link>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5">
                     <PassRatePill rate={cat.total > 0 ? cat.passed / cat.total : 0} />
                   </td>

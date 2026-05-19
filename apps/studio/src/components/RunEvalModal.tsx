@@ -23,6 +23,7 @@ import {
   useEvalTargets,
   useStudioConfig,
 } from '~/lib/api';
+import { runsHomePath } from '~/lib/navigation';
 import type { RunEvalRequest } from '~/lib/types';
 import {
   buildRunEvalRequest,
@@ -69,7 +70,7 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   // Data
   const { data: discoverData } = useEvalDiscover(projectId);
   const { data: targetsData } = useEvalTargets(projectId);
-  const { data: runStatus } = useEvalRunStatus(activeRunId);
+  const { data: runStatus } = useEvalRunStatus(activeRunId, projectId);
   const { data: studioConfig } = useStudioConfig(projectId);
 
   const evalFiles = useMemo(() => discoverData?.eval_files ?? [], [discoverData]);
@@ -170,7 +171,7 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   if (activeRunId && runStatus) {
     function handleRunInBackground() {
       onClose();
-      navigate({ to: '/', search: { tab: 'runs' } as Record<string, string> });
+      navigate({ to: runsHomePath(projectId) });
     }
     return (
       <ModalShell onClose={onClose} title="Eval Run">

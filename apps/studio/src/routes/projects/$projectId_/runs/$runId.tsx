@@ -17,7 +17,7 @@ export const Route = createFileRoute('/projects/$projectId_/runs/$runId')({
 function ProjectRunDetailPage() {
   const { projectId, runId } = Route.useParams();
   const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const [showRunEval, setShowRunEval] = useState(false);
   const isReadOnly = config?.read_only === true;
 

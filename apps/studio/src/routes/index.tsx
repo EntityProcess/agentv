@@ -1,13 +1,13 @@
 /**
- * Home route: shows the projects dashboard by default when multiple projects
- * are registered, or the existing tabbed landing page (Runs, Experiments,
- * Analytics, Targets) in single-project mode.
+ * Home route: thin entry layer that either redirects to the only registered
+ * project, shows the projects dashboard, or falls back to the legacy
+ * single-project home when Studio is explicitly running in single mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
 
 import { Link, createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
@@ -27,8 +27,8 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
-
-type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
+import { type StudioTabId, resolveIndexRoute } from '~/lib/navigation';
+type TabId = StudioTabId;
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: '🏃 Recent Runs' },
@@ -42,16 +42,34 @@ export const Route = createFileRoute('/')({
 });
 
 function HomePage() {
+  const navigate = useNavigate();
+  const routerState = useRouterState();
+  const searchParams = routerState.location.search as Record<string, string>;
+  const tab = searchParams.tab as TabId | undefined;
   const { data: projectData, isLoading: projectsLoading } = useProjectList();
   const { data: config, isLoading: configLoading } = useStudioConfig();
-  const hasProjects = (projectData?.projects.length ?? 0) > 0;
-  const projectDashboard = config?.project_dashboard;
+  const projects = projectData?.projects ?? [];
+  const decision = resolveIndexRoute(
+    projects.map((project) => project.id),
+    config?.project_dashboard,
+    tab,
+  );
+
+  useEffect(() => {
+    if (decision.kind === 'redirect' && decision.redirectPath) {
+      navigate({ to: decision.redirectPath, replace: true });
+    }
+  }, [decision, navigate]);
 
   if (projectsLoading || configLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (projectDashboard === true || (projectDashboard === undefined && hasProjects)) {
+  if (decision.kind === 'redirect') {
+    return <LoadingSkeleton />;
+  }
+
+  if (decision.kind === 'dashboard') {
     return <ProjectsDashboard />;
   }
 
@@ -138,11 +156,20 @@ function ProjectsDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((project) => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
-      </div>
+      {projects.length === 0 ? (
+        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-8 text-center">
+          <p className="text-lg text-gray-300">No projects registered yet.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Add a project path to start browsing runs, experiments, analytics, and targets.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {projects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
+      )}
 
       {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
     </div>

@@ -16,7 +16,7 @@ export const Route = createFileRoute('/projects/$projectId_/evals/$runId/$evalId
 function ProjectEvalDetailPage() {
   const { projectId, runId, evalId } = Route.useParams();
   const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const [showRunEval, setShowRunEval] = useState(false);
   const isReadOnly = config?.read_only === true;
 

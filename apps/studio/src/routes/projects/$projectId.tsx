@@ -43,7 +43,7 @@ function ProjectHomePage() {
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
   const [showRunEval, setShowRunEval] = useState(false);
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const isReadOnly = config?.read_only === true;
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
@@ -177,8 +177,8 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
                   </span>
                 </div>
                 <Link
-                  to="/jobs/$runId"
-                  params={{ runId: run.id }}
+                  to="/projects/$projectId/jobs/$runId"
+                  params={{ projectId, runId: run.id }}
                   className="flex-shrink-0 text-xs text-cyan-400 hover:text-cyan-300"
                 >
                   View Log →

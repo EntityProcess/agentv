@@ -7,6 +7,16 @@
 
 import { Link, useMatches } from '@tanstack/react-router';
 
+import {
+  categoryPath,
+  evalPath,
+  experimentPath,
+  jobPath,
+  projectHomePath,
+  runPath,
+  suitePath,
+} from '~/lib/navigation';
+
 interface BreadcrumbSegment {
   label: string;
   to?: string;
@@ -35,7 +45,7 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
       if (!segments.some((s) => s.label === params.projectId)) {
         segments.push({
           label: params.projectId,
-          to: `/projects/${encodeURIComponent(params.projectId)}`,
+          to: projectHomePath(params.projectId),
         });
       }
       if (routeId === '/projects/$projectId') {
@@ -43,43 +53,104 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
       }
     }
 
-    if (routeId.includes('/runs/$runId/category/$category')) {
-      if (!segments.some((s) => s.label === params.runId)) {
+    if (routeId.includes('/projects/$projectId_/jobs/$runId')) {
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
         segments.push({
           label: formatRunLabel(params.runId),
-          to: `/runs/${encodeURIComponent(params.runId)}`,
+          to: jobPath(params.runId, params.projectId),
+        });
+      }
+    } else if (routeId.includes('/projects/$projectId_/runs/$runId/category/$category')) {
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
+        segments.push({
+          label: formatRunLabel(params.runId),
+          to: runPath(params.runId, params.projectId),
         });
       }
       segments.push({
         label: params.category ?? 'Category',
-        to: match.pathname,
+        to: categoryPath(params.runId, params.category ?? 'Category', params.projectId),
       });
-    } else if (routeId.includes('/runs/$runId/suite/$suite')) {
-      segments.push({
-        label: params.suite ?? 'Suite',
-        to: match.pathname,
-      });
-    } else if (routeId.includes('/runs/$runId')) {
-      segments.push({
-        label: formatRunLabel(params.runId),
-        to: match.pathname,
-      });
-    } else if (routeId.includes('/evals/$runId/$evalId')) {
-      // For eval pages, show the run as a parent segment too
-      if (!segments.some((s) => s.label === params.runId)) {
+    } else if (routeId.includes('/projects/$projectId_/runs/$runId/suite/$suite')) {
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
         segments.push({
           label: formatRunLabel(params.runId),
-          to: `/runs/${encodeURIComponent(params.runId)}`,
+          to: runPath(params.runId, params.projectId),
+        });
+      }
+      segments.push({
+        label: params.suite ?? 'Suite',
+        to: suitePath(params.runId, params.suite ?? 'Suite', params.projectId),
+      });
+    } else if (routeId.includes('/projects/$projectId_/runs/$runId')) {
+      segments.push({
+        label: formatRunLabel(params.runId),
+        to: runPath(params.runId, params.projectId),
+      });
+    } else if (routeId.includes('/projects/$projectId_/evals/$runId/$evalId')) {
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
+        segments.push({
+          label: formatRunLabel(params.runId),
+          to: runPath(params.runId, params.projectId),
         });
       }
       segments.push({
         label: params.evalId ?? 'Eval',
-        to: match.pathname,
+        to: evalPath(params.runId, params.evalId ?? 'Eval', params.projectId),
+      });
+    } else if (routeId.includes('/projects/$projectId_/experiments/$experimentName')) {
+      segments.push({
+        label: params.experimentName ?? 'Experiment',
+        to: experimentPath(params.experimentName ?? 'Experiment', params.projectId),
+      });
+    } else if (routeId.includes('/runs/$runId/category/$category')) {
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
+        segments.push({
+          label: formatRunLabel(params.runId),
+          to: runPath(params.runId),
+        });
+      }
+      segments.push({
+        label: params.category ?? 'Category',
+        to: categoryPath(params.runId, params.category ?? 'Category'),
+      });
+    } else if (routeId.includes('/runs/$runId/suite/$suite')) {
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
+        segments.push({
+          label: formatRunLabel(params.runId),
+          to: runPath(params.runId),
+        });
+      }
+      segments.push({
+        label: params.suite ?? 'Suite',
+        to: suitePath(params.runId, params.suite ?? 'Suite'),
+      });
+    } else if (routeId.includes('/jobs/$runId')) {
+      segments.push({
+        label: formatRunLabel(params.runId),
+        to: jobPath(params.runId),
+      });
+    } else if (routeId.includes('/runs/$runId')) {
+      segments.push({
+        label: formatRunLabel(params.runId),
+        to: runPath(params.runId),
+      });
+    } else if (routeId.includes('/evals/$runId/$evalId')) {
+      // For eval pages, show the run as a parent segment too
+      if (!segments.some((s) => s.label === formatRunLabel(params.runId))) {
+        segments.push({
+          label: formatRunLabel(params.runId),
+          to: runPath(params.runId),
+        });
+      }
+      segments.push({
+        label: params.evalId ?? 'Eval',
+        to: evalPath(params.runId, params.evalId ?? 'Eval'),
       });
     } else if (routeId.includes('/experiments/$experimentName')) {
       segments.push({
         label: params.experimentName ?? 'Experiment',
-        to: match.pathname,
+        to: experimentPath(params.experimentName ?? 'Experiment'),
       });
     } else if (routeId === '/index' || routeId === '/') {
       segments.push({ label: 'Home', to: '/' });
