@@ -191,4 +191,78 @@ tests:
     expect(tests[0].input[2]).toEqual({ role: 'assistant', content: 'I understand.' });
     expect(tests[0].input[3]).toEqual({ role: 'user', content: 'Follow-up question' });
   });
+
+  it('applies per-test vars to suite and test input templates', async () => {
+    await writeFile(
+      path.join(tempDir, 'templated-input.eval.yaml'),
+      `input: "Answer clearly: {{question}}"
+tests:
+  - id: templated
+    vars:
+      question: "What is the capital of France?"
+    criteria: "Answers {{question}} correctly"
+    input:
+      - role: user
+        content: "Question: {{question}}"
+      - role: assistant
+        content: "Thinking about {{question}}"
+      - role: user
+        content: "Final answer only."
+    expected_output: "{{expected_answer}}"
+    metadata:
+      untouched: "{{question}}"
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'templated-input.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].criteria).toBe('Answers What is the capital of France? correctly');
+    expect(tests[0].question).toContain('Answer clearly: What is the capital of France?');
+    expect(tests[0].input[0]).toEqual({
+      role: 'user',
+      content: 'Answer clearly: What is the capital of France?',
+    });
+    expect(tests[0].input[1]).toEqual({
+      role: 'user',
+      content: 'Question: What is the capital of France?',
+    });
+    expect(tests[0].input[2]).toEqual({
+      role: 'assistant',
+      content: 'Thinking about What is the capital of France?',
+    });
+    expect(tests[0].expected_output).toEqual([
+      { role: 'assistant', content: '{{expected_answer}}' },
+    ]);
+    expect(tests[0].metadata).toEqual({ untouched: '{{question}}' });
+  });
+
+  it('applies per-test vars inside conversation turns', async () => {
+    await writeFile(
+      path.join(tempDir, 'templated-turns.eval.yaml'),
+      `tests:
+  - id: conversation
+    vars:
+      bug: parser null check
+    mode: conversation
+    input: "Fix {{bug}}"
+    turns:
+      - input: "Fix {{bug}}"
+        expected_output: "Fixed {{bug}}"
+        assertions:
+          - "Mentions {{bug}}"
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'templated-turns.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].turns).toEqual([
+      {
+        input: 'Fix parser null check',
+        expected_output: 'Fixed parser null check',
+        assertions: ['Mentions {{bug}}'],
+      },
+    ]);
+  });
 });

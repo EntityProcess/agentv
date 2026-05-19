@@ -46,6 +46,7 @@ Default output: `EVAL.yaml` beside the promptfoo config file.
 - inline tests and external YAML / JSON / JSONL / CSV test files
 - `defaultTest.assert` promoted to suite-level `assertions`
 - per-test `vars`, `description`, `threshold`, `metadata`, prompt filters, and provider filters
+- simple prompt templates are preserved as AgentV `{{var}}` input templates instead of being eagerly flattened
 - deterministic assertions that map directly to AgentV: `equals`, `contains`, `icontains`, `regex`, `starts-with`, `ends-with`, `contains-any`, `contains-all`, `icontains-any`, `icontains-all`, `is-json`, `latency`, `cost`
 - rubric-style assertions mapped to `llm-grader`: `llm-rubric`, `g-eval`, `factuality`, `context-faithfulness`, `context-recall`
 

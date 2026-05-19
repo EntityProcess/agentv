@@ -51,7 +51,8 @@ tests:
     expect(suite.tests[0]).toMatchObject({
       id: 'capital',
       criteria: 'Capital answer stays deterministic',
-      input: 'Answer clearly: What is the capital of France?',
+      input: 'Answer clearly: {{question}}',
+      vars: { question: 'What is the capital of France?' },
       assertions: [{ type: 'equals', value: 'Paris' }],
       metadata: {
         promptfoo: {
@@ -95,7 +96,8 @@ tests: file://./tests.jsonl
     const yaml = await convertPromptfooToAgentvYaml(configPath);
     expect(yaml).toContain('# Converted from promptfoo config:');
     expect(yaml).toContain('id: math');
-    expect(yaml).toContain('input: "Please answer: What is 2 + 2?"');
+    expect(yaml).toContain('input: "Please answer: {{question}}"');
+    expect(yaml).toContain('vars:');
     expect(yaml).toContain('type: equals');
   });
 
@@ -129,7 +131,10 @@ tests: file://./tests.csv
     expect(suite.tests[0]).toMatchObject({
       id: 'capital-question',
       criteria: 'Capital question',
-      input: 'Question: What is the capital of France?',
+      input: 'Question: {{question}}',
+      vars: {
+        question: 'What is the capital of France?',
+      },
       assertions: [
         { type: 'equals', value: 'Paris' },
         { type: 'contains', value: 'Paris' },

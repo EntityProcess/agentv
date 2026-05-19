@@ -74,6 +74,7 @@ interface AgentvAssertion {
 interface AgentvTest {
   readonly id: string;
   readonly input: AgentvInput;
+  readonly vars?: Record<string, JsonValue>;
   readonly assertions?: readonly AgentvAssertion[];
   readonly [key: string]: unknown;
 }
@@ -825,7 +826,8 @@ async function buildAgentvTests(options: {
     }
 
     for (const prompt of promptSelection) {
-      const renderedInput = renderPrompt(prompt, effectiveVars, testOptions);
+      const importedVars = testOptions.disableVarExpansion ? undefined : effectiveVars;
+      const templatedInput = buildPromptTemplate(prompt, testOptions);
       const promptSuffix =
         promptSelection.length > 1 ? `--${sanitizeName(prompt.key || prompt.label)}` : '';
       const metadata = buildPromptfooMetadata(rawTest, effectiveVars, prompt, effectiveTargets);
@@ -838,7 +840,8 @@ async function buildAgentvTests(options: {
       const test: AgentvTest = {
         id: `${explicitId ?? baseId}${promptSuffix}`,
         ...(typeof rawTest.description === 'string' ? { criteria: rawTest.description } : {}),
-        input: renderedInput,
+        input: templatedInput,
+        ...(importedVars && Object.keys(importedVars).length > 0 ? { vars: importedVars } : {}),
         ...(convertedCaseAssertions.length > 0 ? { assertions: convertedCaseAssertions } : {}),
         ...(metadata ? { metadata } : {}),
         ...(execution ? { execution } : {}),
@@ -970,52 +973,30 @@ function filterProviders(
   return matched.map((provider) => provider.targetName);
 }
 
-function renderPrompt(
+function buildPromptTemplate(
   prompt: PromptfooPrompt,
-  vars: Record<string, JsonValue>,
   testOptions: PromptfooTestOptions,
 ): AgentvInput {
   const prefix = testOptions.prefix ?? '';
   const suffix = testOptions.suffix ?? '';
 
   if (typeof prompt.content === 'string') {
-    return `${prefix}${renderTemplate(prompt.content, vars)}${suffix}`;
+    return `${prefix}${preserveTemplate(prompt.content)}${suffix}`;
   }
 
   return prompt.content.map((message, index, allMessages) => ({
     role: message.role,
-    content: `${index === 0 ? prefix : ''}${renderTemplate(message.content, vars)}${index === allMessages.length - 1 ? suffix : ''}`,
+    content: `${index === 0 ? prefix : ''}${preserveTemplate(message.content)}${index === allMessages.length - 1 ? suffix : ''}`,
   }));
 }
 
-function renderTemplate(template: string, vars: Record<string, JsonValue>) {
+function preserveTemplate(template: string) {
   if (template.includes('{%') || template.includes('{#') || /\{\{[^}]*\|/.test(template)) {
     throw new Error(
       `Unsupported Nunjucks syntax in prompt '${template.slice(0, 80)}'. Use simple {{var}} templates or migrate manually`,
     );
   }
-
-  return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, expression: string) => {
-    const value = lookupPath(vars, expression.trim());
-    if (value === undefined) {
-      return '';
-    }
-    if (typeof value === 'string') return value;
-    return JSON.stringify(value);
-  });
-}
-
-function lookupPath(
-  value: JsonValue | Record<string, JsonValue>,
-  expression: string,
-): JsonValue | undefined {
-  if (!expression) return undefined;
-  return expression.split('.').reduce<JsonValue | undefined>((current, part) => {
-    if (!current || typeof current !== 'object' || Array.isArray(current)) {
-      return undefined;
-    }
-    return (current as Record<string, JsonValue>)[part];
-  }, value as JsonValue);
+  return template;
 }
 
 function buildPromptfooMetadata(

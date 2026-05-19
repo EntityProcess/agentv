@@ -264,6 +264,34 @@ For local sources, omit `checkout.resolve`. If you need to pin the local clone t
 MY_REPO_LOCAL_PATH=/home/dev/repos/my-repo
 ```
 
+## Per-Test Template Variables
+
+Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{name}}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
+
+```yaml
+input: "Answer clearly: {{question}}"
+
+tests:
+  - id: capital
+    vars:
+      question: What is the capital of France?
+      expected_answer: Paris
+    criteria: "Answers {{question}} correctly"
+    input:
+      - role: user
+        content: "Question: {{question}}"
+    expected_output: "{{expected_answer}}"
+```
+
+### Behavior
+
+- `vars` is defined per test as an object
+- `{{name}}` and dotted paths like `{{ user.name }}` are supported
+- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, and conversation turn `input` / `expected_output`
+- When the whole string is a single placeholder, the original JSON value is preserved
+- Missing variables are left unchanged, so unrelated template syntax is not silently blanked out
+- `vars` interpolation is separate from environment interpolation: `{{question}}` uses test data, `${{ PROJECT_NAME }}` uses environment variables
+
 ## JSONL Format
 
 For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each line is a single test:
