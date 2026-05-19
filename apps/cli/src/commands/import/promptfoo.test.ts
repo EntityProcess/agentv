@@ -99,6 +99,55 @@ tests: file://./tests.jsonl
     expect(yaml).toContain('type: equals');
   });
 
+  it('imports promptfoo CSV datasets with __expected columns', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-promptfoo-'));
+    tempDirs.push(dir);
+
+    const testsPath = path.join(dir, 'tests.csv');
+    const configPath = path.join(dir, 'promptfooconfig.yaml');
+
+    await writeFile(
+      testsPath,
+      [
+        '__description,question,__expected,__expected2,__threshold,__metadata:category',
+        '"Capital question","What is the capital of France?","equals: Paris","contains: Paris",0.8,geography',
+      ].join('\n'),
+      'utf8',
+    );
+    await writeFile(
+      configPath,
+      `
+prompts:
+  - "Question: {{question}}"
+tests: file://./tests.csv
+`,
+      'utf8',
+    );
+
+    const suite = await convertPromptfooToAgentvSuite({ inputPath: configPath });
+    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests[0]).toMatchObject({
+      id: 'capital-question',
+      criteria: 'Capital question',
+      input: 'Question: What is the capital of France?',
+      assertions: [
+        { type: 'equals', value: 'Paris' },
+        { type: 'contains', value: 'Paris' },
+      ],
+      execution: {
+        threshold: 0.8,
+      },
+      metadata: {
+        category: 'geography',
+        promptfoo: {
+          vars: {
+            question: 'What is the capital of France?',
+          },
+        },
+      },
+    });
+  });
+
   it('fails clearly on unsupported promptfoo javascript assertions', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-promptfoo-'));
     tempDirs.push(dir);

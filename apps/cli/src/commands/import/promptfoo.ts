@@ -454,13 +454,17 @@ async function loadPromptfooTestsFromReference(reference: string, baseDir: strin
 
   for (const filePath of files) {
     const ext = path.extname(stripSheetSuffix(filePath)).toLowerCase();
-    if (ext === '.csv' || ext === '.xlsx' || ext === '.xls') {
+    if (ext === '.xlsx' || ext === '.xls') {
       throw new Error(
-        `Unsupported test dataset '${path.basename(filePath)}': CSV/XLSX promptfoo datasets are not imported yet`,
+        `Unsupported test dataset '${path.basename(filePath)}': XLSX promptfoo datasets are not imported yet`,
       );
     }
 
     const content = await readFile(filePath, 'utf8');
+    if (ext === '.csv') {
+      tests.push(...parseCsvPromptfooTests(content, filePath));
+      continue;
+    }
     if (ext === '.jsonl') {
       for (const [index, line] of content.split('\n').entries()) {
         const trimmed = line.trim();
@@ -494,6 +498,282 @@ async function loadPromptfooTestsFromReference(reference: string, baseDir: strin
   return tests;
 }
 
+function parseCsvPromptfooTests(content: string, filePath: string): PromptfooTestCase[] {
+  const rows = parseCsvRows(content, filePath);
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const [header, ...dataRows] = rows;
+  if (!header || header.length === 0) {
+    throw new Error(`CSV test file '${filePath}' is missing a header row`);
+  }
+
+  const tests: PromptfooTestCase[] = [];
+  for (const [rowIndex, row] of dataRows.entries()) {
+    if (row.every((value) => value.trim().length === 0)) {
+      continue;
+    }
+
+    const record = Object.fromEntries(
+      header.map((column, columnIndex) => [column, row[columnIndex] ?? '']),
+    );
+    tests.push(promptfooTestCaseFromCsvRow(record, filePath, rowIndex + 2));
+  }
+
+  return tests;
+}
+
+function parseCsvRows(content: string, filePath: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index++) {
+    const char = content[index];
+    const next = content[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        currentCell += '"';
+        index += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (!inQuotes && char === ',') {
+      currentRow.push(currentCell);
+      currentCell = '';
+      continue;
+    }
+
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && next === '\n') {
+        index += 1;
+      }
+      currentRow.push(currentCell);
+      rows.push(currentRow);
+      currentRow = [];
+      currentCell = '';
+      continue;
+    }
+
+    currentCell += char;
+  }
+
+  if (inQuotes) {
+    throw new Error(`Malformed CSV in '${filePath}': unterminated quoted field`);
+  }
+
+  if (currentCell.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentCell);
+    rows.push(currentRow);
+  }
+
+  return rows;
+}
+
+function promptfooTestCaseFromCsvRow(
+  row: Record<string, string>,
+  filePath: string,
+  rowNumber: number,
+): PromptfooTestCase {
+  const vars: Record<string, JsonValue> = {};
+  const metadata: Record<string, JsonValue> = {};
+  const options: Record<string, JsonValue> = {};
+  const assertions: JsonObject[] = [];
+  const assertionConfigs = new Map<string, Record<string, JsonValue>>();
+  let description: string | undefined;
+  let threshold: number | undefined;
+
+  for (const [column, rawValue] of Object.entries(row)) {
+    const value = rawValue.trim();
+    if (column.startsWith('__expected')) {
+      if (!value) continue;
+      const assertionKey = column;
+      const assertion = parseCsvExpectedAssertion(value, filePath, rowNumber);
+      const config = assertionConfigs.get(assertionKey);
+      if (config) {
+        Object.assign(assertion, config);
+      }
+      assertions.push(assertion);
+      continue;
+    }
+
+    if (column === '__description') {
+      description = value || undefined;
+      continue;
+    }
+
+    if (column === '__prefix') {
+      if (value) options.prefix = value;
+      continue;
+    }
+
+    if (column === '__suffix') {
+      if (value) options.suffix = value;
+      continue;
+    }
+
+    if (column === '__threshold') {
+      if (!value) continue;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        throw new Error(`Invalid __threshold value '${value}' in ${filePath}:${rowNumber}`);
+      }
+      threshold = parsed;
+      continue;
+    }
+
+    if (column.startsWith('__metadata:')) {
+      const key = column.slice('__metadata:'.length);
+      if (!key) continue;
+      metadata[key] = parseCsvScalarValue(value);
+      continue;
+    }
+
+    if (column.startsWith('__config:')) {
+      const remainder = column.slice('__config:'.length);
+      const [target, ...configKeyParts] = remainder.split(':');
+      const configKey = configKeyParts.join(':');
+      if (!target || !configKey) {
+        continue;
+      }
+      const config = assertionConfigs.get(target) ?? {};
+      config[configKey] = parseCsvScalarValue(value);
+      assertionConfigs.set(target, config);
+      continue;
+    }
+
+    if (column === '__metric') {
+      if (assertions.length === 0 || !value) continue;
+      assertions[assertions.length - 1].metric = value;
+      continue;
+    }
+
+    if (!column.startsWith('__')) {
+      vars[column] = parseCsvScalarValue(rawValue);
+    }
+  }
+
+  for (const [assertionKey, config] of assertionConfigs.entries()) {
+    if (assertionKey === '__expected') {
+      if (assertions[0]) Object.assign(assertions[0], config);
+      continue;
+    }
+    const index = Number(assertionKey.replace('__expected', '')) - 1;
+    if (Number.isInteger(index) && index >= 0 && assertions[index]) {
+      Object.assign(assertions[index], config);
+    }
+  }
+
+  return {
+    ...(description ? { description } : {}),
+    ...(Object.keys(vars).length > 0 ? { vars } : {}),
+    ...(assertions.length > 0 ? { assert: assertions } : {}),
+    ...(threshold !== undefined ? { threshold } : {}),
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+    ...(Object.keys(options).length > 0 ? { options } : {}),
+  };
+}
+
+function parseCsvExpectedAssertion(value: string, filePath: string, rowNumber: number): JsonObject {
+  const thresholdMatch = value.match(/^([a-z0-9:-]+)\(([^)]+)\):(.*)$/i);
+  if (thresholdMatch) {
+    const [, type, thresholdText, remainder] = thresholdMatch;
+    const threshold = Number(thresholdText.trim());
+    if (!Number.isFinite(threshold)) {
+      throw new Error(`Invalid assertion threshold '${thresholdText}' in ${filePath}:${rowNumber}`);
+    }
+    return {
+      type,
+      value: parseCsvAssertionValue(type, remainder.trim()),
+      threshold,
+    };
+  }
+
+  const separator = value.indexOf(':');
+  if (separator === -1) {
+    return { type: 'equals', value };
+  }
+
+  const type = value.slice(0, separator).trim();
+  const remainder = value.slice(separator + 1).trim();
+  if (!type) {
+    throw new Error(`Invalid CSV assertion '${value}' in ${filePath}:${rowNumber}`);
+  }
+
+  return {
+    type,
+    ...(remainder ? { value: parseCsvAssertionValue(type, remainder) } : {}),
+  };
+}
+
+function parseCsvAssertionValue(type: string, value: string): JsonValue {
+  if (
+    type === 'contains-any' ||
+    type === 'contains-all' ||
+    type === 'icontains-any' ||
+    type === 'icontains-all'
+  ) {
+    return splitCsvAssertionList(value);
+  }
+  return parseCsvScalarValue(value);
+}
+
+function splitCsvAssertionList(value: string): JsonValue[] {
+  const items: string[] = [];
+  let current = '';
+  let escaping = false;
+
+  for (const char of value) {
+    if (escaping) {
+      current += char;
+      escaping = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaping = true;
+      continue;
+    }
+    if (char === ',') {
+      items.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+
+  items.push(current.trim());
+  return items.filter((item) => item.length > 0);
+}
+
+function parseCsvScalarValue(value: string): JsonValue {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return '';
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (trimmed === 'null') return null;
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      const parsed = JSON5.parse(trimmed);
+      return isJsonValue(parsed) ? parsed : trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+  return value;
+}
+
 async function buildAgentvTests(options: {
   readonly inputPath: string;
   readonly prompts: readonly PromptfooPrompt[];
@@ -506,10 +786,10 @@ async function buildAgentvTests(options: {
 
   for (let index = 0; index < rawTests.length; index++) {
     const rawTest = rawTests[index];
+    const descriptionId =
+      typeof rawTest.description === 'string' ? sanitizeName(rawTest.description) : undefined;
     const baseId =
-      asString(rawTest.id) ??
-      (typeof rawTest.description === 'string' ? sanitizeName(rawTest.description) : '') ??
-      `test-${index + 1}`;
+      asString(rawTest.id) ?? (descriptionId ? descriptionId : undefined) ?? `test-${index + 1}`;
     const testOptions = resolveTestOptions(defaultTest, rawTest);
 
     ensureSupportedTestOptions(testOptions, rawTest, inputPath);
