@@ -19,8 +19,11 @@ import { Route as EvalsRunIdEvalIdRouteImport } from './routes/evals/$runId.$eva
 import { Route as RunsRunIdSuiteSuiteRouteImport } from './routes/runs/$runId_.suite.$suite'
 import { Route as RunsRunIdCategoryCategoryRouteImport } from './routes/runs/$runId_.category.$category'
 import { Route as ProjectsProjectIdRunsRunIdRouteImport } from './routes/projects/$projectId_/runs/$runId'
+import { Route as ProjectsProjectIdJobsRunIdRouteImport } from './routes/projects/$projectId_/jobs/$runId'
 import { Route as ProjectsProjectIdExperimentsExperimentNameRouteImport } from './routes/projects/$projectId_/experiments/$experimentName'
 import { Route as ProjectsProjectIdEvalsRunIdEvalIdRouteImport } from './routes/projects/$projectId_/evals/$runId.$evalId'
+import { Route as ProjectsProjectIdRunsRunIdSuiteSuiteRouteImport } from './routes/projects/$projectId_/runs/$runId_.suite.$suite'
+import { Route as ProjectsProjectIdRunsRunIdCategoryCategoryRouteImport } from './routes/projects/$projectId_/runs/$runId_.category.$category'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -75,6 +78,12 @@ const ProjectsProjectIdRunsRunIdRoute =
     path: '/projects/$projectId/runs/$runId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ProjectsProjectIdJobsRunIdRoute =
+  ProjectsProjectIdJobsRunIdRouteImport.update({
+    id: '/projects/$projectId_/jobs/$runId',
+    path: '/projects/$projectId/jobs/$runId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ProjectsProjectIdExperimentsExperimentNameRoute =
   ProjectsProjectIdExperimentsExperimentNameRouteImport.update({
     id: '/projects/$projectId_/experiments/$experimentName',
@@ -87,6 +96,18 @@ const ProjectsProjectIdEvalsRunIdEvalIdRoute =
     path: '/projects/$projectId/evals/$runId/$evalId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ProjectsProjectIdRunsRunIdSuiteSuiteRoute =
+  ProjectsProjectIdRunsRunIdSuiteSuiteRouteImport.update({
+    id: '/projects/$projectId_/runs/$runId_/suite/$suite',
+    path: '/projects/$projectId/runs/$runId/suite/$suite',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ProjectsProjectIdRunsRunIdCategoryCategoryRoute =
+  ProjectsProjectIdRunsRunIdCategoryCategoryRouteImport.update({
+    id: '/projects/$projectId_/runs/$runId_/category/$category',
+    path: '/projects/$projectId/runs/$runId/category/$category',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -97,10 +118,13 @@ export interface FileRoutesByFullPath {
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
   '/projects/$projectId/experiments/$experimentName': typeof ProjectsProjectIdExperimentsExperimentNameRoute
+  '/projects/$projectId/jobs/$runId': typeof ProjectsProjectIdJobsRunIdRoute
   '/projects/$projectId/runs/$runId': typeof ProjectsProjectIdRunsRunIdRoute
   '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId/suite/$suite': typeof RunsRunIdSuiteSuiteRoute
   '/projects/$projectId/evals/$runId/$evalId': typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
+  '/projects/$projectId/runs/$runId/category/$category': typeof ProjectsProjectIdRunsRunIdCategoryCategoryRoute
+  '/projects/$projectId/runs/$runId/suite/$suite': typeof ProjectsProjectIdRunsRunIdSuiteSuiteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -111,10 +135,13 @@ export interface FileRoutesByTo {
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
   '/projects/$projectId/experiments/$experimentName': typeof ProjectsProjectIdExperimentsExperimentNameRoute
+  '/projects/$projectId/jobs/$runId': typeof ProjectsProjectIdJobsRunIdRoute
   '/projects/$projectId/runs/$runId': typeof ProjectsProjectIdRunsRunIdRoute
   '/runs/$runId/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId/suite/$suite': typeof RunsRunIdSuiteSuiteRoute
   '/projects/$projectId/evals/$runId/$evalId': typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
+  '/projects/$projectId/runs/$runId/category/$category': typeof ProjectsProjectIdRunsRunIdCategoryCategoryRoute
+  '/projects/$projectId/runs/$runId/suite/$suite': typeof ProjectsProjectIdRunsRunIdSuiteSuiteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,10 +153,13 @@ export interface FileRoutesById {
   '/runs/$runId': typeof RunsRunIdRoute
   '/evals/$runId/$evalId': typeof EvalsRunIdEvalIdRoute
   '/projects/$projectId_/experiments/$experimentName': typeof ProjectsProjectIdExperimentsExperimentNameRoute
+  '/projects/$projectId_/jobs/$runId': typeof ProjectsProjectIdJobsRunIdRoute
   '/projects/$projectId_/runs/$runId': typeof ProjectsProjectIdRunsRunIdRoute
   '/runs/$runId_/category/$category': typeof RunsRunIdCategoryCategoryRoute
   '/runs/$runId_/suite/$suite': typeof RunsRunIdSuiteSuiteRoute
   '/projects/$projectId_/evals/$runId/$evalId': typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
+  '/projects/$projectId_/runs/$runId_/category/$category': typeof ProjectsProjectIdRunsRunIdCategoryCategoryRoute
+  '/projects/$projectId_/runs/$runId_/suite/$suite': typeof ProjectsProjectIdRunsRunIdSuiteSuiteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -142,10 +172,13 @@ export interface FileRouteTypes {
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
     | '/projects/$projectId/experiments/$experimentName'
+    | '/projects/$projectId/jobs/$runId'
     | '/projects/$projectId/runs/$runId'
     | '/runs/$runId/category/$category'
     | '/runs/$runId/suite/$suite'
     | '/projects/$projectId/evals/$runId/$evalId'
+    | '/projects/$projectId/runs/$runId/category/$category'
+    | '/projects/$projectId/runs/$runId/suite/$suite'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -156,10 +189,13 @@ export interface FileRouteTypes {
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
     | '/projects/$projectId/experiments/$experimentName'
+    | '/projects/$projectId/jobs/$runId'
     | '/projects/$projectId/runs/$runId'
     | '/runs/$runId/category/$category'
     | '/runs/$runId/suite/$suite'
     | '/projects/$projectId/evals/$runId/$evalId'
+    | '/projects/$projectId/runs/$runId/category/$category'
+    | '/projects/$projectId/runs/$runId/suite/$suite'
   id:
     | '__root__'
     | '/'
@@ -170,10 +206,13 @@ export interface FileRouteTypes {
     | '/runs/$runId'
     | '/evals/$runId/$evalId'
     | '/projects/$projectId_/experiments/$experimentName'
+    | '/projects/$projectId_/jobs/$runId'
     | '/projects/$projectId_/runs/$runId'
     | '/runs/$runId_/category/$category'
     | '/runs/$runId_/suite/$suite'
     | '/projects/$projectId_/evals/$runId/$evalId'
+    | '/projects/$projectId_/runs/$runId_/category/$category'
+    | '/projects/$projectId_/runs/$runId_/suite/$suite'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -185,10 +224,13 @@ export interface RootRouteChildren {
   RunsRunIdRoute: typeof RunsRunIdRoute
   EvalsRunIdEvalIdRoute: typeof EvalsRunIdEvalIdRoute
   ProjectsProjectIdExperimentsExperimentNameRoute: typeof ProjectsProjectIdExperimentsExperimentNameRoute
+  ProjectsProjectIdJobsRunIdRoute: typeof ProjectsProjectIdJobsRunIdRoute
   ProjectsProjectIdRunsRunIdRoute: typeof ProjectsProjectIdRunsRunIdRoute
   RunsRunIdCategoryCategoryRoute: typeof RunsRunIdCategoryCategoryRoute
   RunsRunIdSuiteSuiteRoute: typeof RunsRunIdSuiteSuiteRoute
   ProjectsProjectIdEvalsRunIdEvalIdRoute: typeof ProjectsProjectIdEvalsRunIdEvalIdRoute
+  ProjectsProjectIdRunsRunIdCategoryCategoryRoute: typeof ProjectsProjectIdRunsRunIdCategoryCategoryRoute
+  ProjectsProjectIdRunsRunIdSuiteSuiteRoute: typeof ProjectsProjectIdRunsRunIdSuiteSuiteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -263,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdRunsRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/$projectId_/jobs/$runId': {
+      id: '/projects/$projectId_/jobs/$runId'
+      path: '/projects/$projectId/jobs/$runId'
+      fullPath: '/projects/$projectId/jobs/$runId'
+      preLoaderRoute: typeof ProjectsProjectIdJobsRunIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/$projectId_/experiments/$experimentName': {
       id: '/projects/$projectId_/experiments/$experimentName'
       path: '/projects/$projectId/experiments/$experimentName'
@@ -275,6 +324,20 @@ declare module '@tanstack/react-router' {
       path: '/projects/$projectId/evals/$runId/$evalId'
       fullPath: '/projects/$projectId/evals/$runId/$evalId'
       preLoaderRoute: typeof ProjectsProjectIdEvalsRunIdEvalIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId_/runs/$runId_/suite/$suite': {
+      id: '/projects/$projectId_/runs/$runId_/suite/$suite'
+      path: '/projects/$projectId/runs/$runId/suite/$suite'
+      fullPath: '/projects/$projectId/runs/$runId/suite/$suite'
+      preLoaderRoute: typeof ProjectsProjectIdRunsRunIdSuiteSuiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId_/runs/$runId_/category/$category': {
+      id: '/projects/$projectId_/runs/$runId_/category/$category'
+      path: '/projects/$projectId/runs/$runId/category/$category'
+      fullPath: '/projects/$projectId/runs/$runId/category/$category'
+      preLoaderRoute: typeof ProjectsProjectIdRunsRunIdCategoryCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -290,11 +353,16 @@ const rootRouteChildren: RootRouteChildren = {
   EvalsRunIdEvalIdRoute: EvalsRunIdEvalIdRoute,
   ProjectsProjectIdExperimentsExperimentNameRoute:
     ProjectsProjectIdExperimentsExperimentNameRoute,
+  ProjectsProjectIdJobsRunIdRoute: ProjectsProjectIdJobsRunIdRoute,
   ProjectsProjectIdRunsRunIdRoute: ProjectsProjectIdRunsRunIdRoute,
   RunsRunIdCategoryCategoryRoute: RunsRunIdCategoryCategoryRoute,
   RunsRunIdSuiteSuiteRoute: RunsRunIdSuiteSuiteRoute,
   ProjectsProjectIdEvalsRunIdEvalIdRoute:
     ProjectsProjectIdEvalsRunIdEvalIdRoute,
+  ProjectsProjectIdRunsRunIdCategoryCategoryRoute:
+    ProjectsProjectIdRunsRunIdCategoryCategoryRoute,
+  ProjectsProjectIdRunsRunIdSuiteSuiteRoute:
+    ProjectsProjectIdRunsRunIdSuiteSuiteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

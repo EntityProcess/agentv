@@ -71,7 +71,14 @@ export function ResumeRunActions({
     try {
       const body = buildResumeRequestBody({ mode, runDir, suiteFilter, target });
       const response = await launchEvalRun(body, projectId);
-      navigate({ to: '/jobs/$runId', params: { runId: response.id } });
+      if (projectId) {
+        navigate({
+          to: '/projects/$projectId/jobs/$runId',
+          params: { projectId, runId: response.id },
+        });
+      } else {
+        navigate({ to: '/jobs/$runId', params: { runId: response.id } });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to launch resume');
       setBusy(null);

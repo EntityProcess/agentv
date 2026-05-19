@@ -111,9 +111,9 @@ describe('resolveDashboardMode', () => {
     });
   });
 
-  it('defaults to single-project mode when exactly one project is registered', () => {
+  it('uses the project dashboard flow when exactly one project is registered', () => {
     expect(resolveDashboardMode(1, {})).toEqual({
-      projectDashboard: false,
+      projectDashboard: true,
     });
   });
 

@@ -582,10 +582,13 @@ export async function stopEvalRun(
   return res.json() as Promise<{ stopped: boolean; reason?: string; status?: string }>;
 }
 
-export function evalRunStatusOptions(runId: string | null) {
+export function evalRunStatusOptions(runId: string | null, projectId?: string) {
+  const url = projectId
+    ? `${projectApiBase(projectId)}/eval/status/${runId}`
+    : `/api/eval/status/${runId}`;
   return queryOptions({
-    queryKey: ['eval-status', runId],
-    queryFn: () => fetchJson<EvalRunStatus>(`/api/eval/status/${runId}`),
+    queryKey: ['eval-status', projectId ?? '', runId],
+    queryFn: () => fetchJson<EvalRunStatus>(url),
     enabled: !!runId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -595,8 +598,8 @@ export function evalRunStatusOptions(runId: string | null) {
   });
 }
 
-export function useEvalRunStatus(runId: string | null) {
-  return useQuery(evalRunStatusOptions(runId));
+export function useEvalRunStatus(runId: string | null, projectId?: string) {
+  return useQuery(evalRunStatusOptions(runId, projectId));
 }
 
 export function evalRunsOptions(projectId?: string) {

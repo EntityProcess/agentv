@@ -48,7 +48,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
 
 export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('checks');
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const isReadOnly = config?.read_only === true;
 
   const tabs: { id: Tab; label: string }[] = [
@@ -83,7 +83,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
       <div className="min-h-0 flex-1">
         {activeTab === 'checks' && (
           <div className="overflow-auto p-4">
-            <ChecksTab result={result} />
+            <ChecksTab result={result} projectId={projectId} />
           </div>
         )}
         {activeTab === 'files' && (
@@ -133,8 +133,8 @@ function AssertionCard({ assertion }: { assertion: AssertionEntry }) {
  * Checks tab: overall score → per-grader scores → assertions → failure reasons.
  * Assertions are grouped by evaluator when per-score assertion data is available.
  */
-function ChecksTab({ result }: { result: EvalResult }) {
-  const { data: config } = useStudioConfig();
+function ChecksTab({ result, projectId }: { result: EvalResult; projectId?: string }) {
+  const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   const hasFailed =

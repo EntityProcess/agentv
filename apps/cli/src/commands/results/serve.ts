@@ -133,7 +133,7 @@ export function resolveDashboardMode(
     return { projectDashboard: false };
   }
 
-  return { projectDashboard: projectCount > 1 };
+  return { projectDashboard: projectCount > 0 };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────

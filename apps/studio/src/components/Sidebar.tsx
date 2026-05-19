@@ -19,6 +19,7 @@ import { Link, useLocation, useMatchRoute } from '@tanstack/react-router';
 
 import {
   isPassing,
+  projectCategorySuitesOptions,
   projectExperimentsOptions,
   useAllProjectRuns,
   useCategorySuites,
@@ -86,6 +87,18 @@ export function Sidebar() {
     to: '/projects/$projectId/experiments/$experimentName',
     fuzzy: true,
   });
+  const projectCategoryMatch = matchRoute({
+    to: '/projects/$projectId/runs/$runId/category/$category',
+    fuzzy: true,
+  });
+  const projectSuiteMatch = matchRoute({
+    to: '/projects/$projectId/runs/$runId/suite/$suite',
+    fuzzy: true,
+  });
+  const projectJobMatch = matchRoute({
+    to: '/projects/$projectId/jobs/$runId',
+    fuzzy: true,
+  });
   const projectMatch = matchRoute({
     to: '/projects/$projectId',
     fuzzy: true,
@@ -105,6 +118,37 @@ export function Sidebar() {
   if (projectRunMatch && typeof projectRunMatch === 'object' && 'projectId' in projectRunMatch) {
     const { projectId, runId } = projectRunMatch as { projectId: string; runId: string };
     return <ProjectRunDetailSidebar projectId={projectId} currentRunId={runId} />;
+  }
+
+  if (projectJobMatch && typeof projectJobMatch === 'object' && 'projectId' in projectJobMatch) {
+    const { projectId } = projectJobMatch as { projectId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} />;
+  }
+
+  if (
+    projectCategoryMatch &&
+    typeof projectCategoryMatch === 'object' &&
+    'projectId' in projectCategoryMatch
+  ) {
+    const { projectId, runId, category } = projectCategoryMatch as {
+      projectId: string;
+      runId: string;
+      category: string;
+    };
+    return <ProjectCategorySidebar projectId={projectId} runId={runId} category={category} />;
+  }
+
+  if (
+    projectSuiteMatch &&
+    typeof projectSuiteMatch === 'object' &&
+    'projectId' in projectSuiteMatch
+  ) {
+    const { projectId, runId, suite } = projectSuiteMatch as {
+      projectId: string;
+      runId: string;
+      suite: string;
+    };
+    return <ProjectSuiteSidebar projectId={projectId} runId={runId} suite={suite} />;
   }
 
   if (
@@ -484,7 +528,7 @@ function ProjectEvalSidebar({
   currentEvalId: string;
 }) {
   const { data } = useProjectRunDetail(projectId, runId);
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   return (
@@ -531,6 +575,122 @@ function ProjectEvalSidebar({
             </Link>
           );
         })}
+      </nav>
+    </SidebarShell>
+  );
+}
+
+function ProjectSuiteSidebar({
+  projectId,
+  runId,
+  suite,
+}: {
+  projectId: string;
+  runId: string;
+  suite: string;
+}) {
+  const { data } = useProjectRunDetail(projectId, runId);
+  const { data: config } = useStudioConfig(projectId);
+  const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
+  const suiteResults = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
+
+  return (
+    <SidebarShell>
+      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
+          AgentV Studio
+        </Link>
+      </div>
+
+      <div className="border-b border-gray-800 px-4 py-2">
+        <Link
+          to="/projects/$projectId/runs/$runId"
+          params={{ projectId, runId }}
+          className="text-xs text-gray-400 hover:text-cyan-400"
+        >
+          &larr; Back to run
+        </Link>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
+        <p className="truncate text-xs text-gray-500">{suite}</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          Evaluations
+        </div>
+        {suiteResults.map((result) => {
+          const passed = isPassing(result.score, passThreshold);
+          return (
+            <Link
+              key={result.testId}
+              to="/projects/$projectId/evals/$runId/$evalId"
+              params={{ projectId, runId, evalId: result.testId }}
+              className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
+            >
+              <span className={`text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                {passed ? '\u2713' : '\u2717'}
+              </span>
+              <span className="truncate">{result.testId}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </SidebarShell>
+  );
+}
+
+function ProjectCategorySidebar({
+  projectId,
+  runId,
+  category,
+}: {
+  projectId: string;
+  runId: string;
+  category: string;
+}) {
+  const { data } = useQuery(projectCategorySuitesOptions(projectId, runId, category));
+  const suites = data?.suites ?? [];
+
+  return (
+    <SidebarShell>
+      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
+          AgentV Studio
+        </Link>
+      </div>
+
+      <div className="border-b border-gray-800 px-4 py-2">
+        <Link
+          to="/projects/$projectId/runs/$runId"
+          params={{ projectId, runId }}
+          className="text-xs text-gray-400 hover:text-cyan-400"
+        >
+          &larr; Back to run
+        </Link>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
+        <p className="truncate text-xs text-gray-500">{category}</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          Suites
+        </div>
+
+        {suites.map((ds) => (
+          <Link
+            key={ds.name}
+            to="/projects/$projectId/runs/$runId/suite/$suite"
+            params={{ projectId, runId, suite: ds.name }}
+            className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
+          >
+            <span
+              className={`text-xs ${ds.passed === ds.total ? 'text-emerald-400' : 'text-red-400'}`}
+            >
+              {ds.passed === ds.total ? '\u2713' : '\u2717'}
+            </span>
+            <span className="truncate">{ds.name}</span>
+          </Link>
+        ))}
       </nav>
     </SidebarShell>
   );

@@ -49,7 +49,7 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
 }
 
 export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
-  const { data: config } = useStudioConfig();
+  const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
 
   if (runs.length === 0) {
