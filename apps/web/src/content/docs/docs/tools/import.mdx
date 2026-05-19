@@ -1,11 +1,11 @@
 ---
 title: Import
-description: Import agent session transcripts for offline grading
+description: Import transcripts and external eval configs into AgentV
 sidebar:
   order: 3
 ---
 
-The `import` command converts agent session transcripts into AgentV's `Message[]` format for offline grading — no re-running the agent, no API keys needed.
+The `import` command converts agent session transcripts and external eval configs into AgentV formats. Transcript imports let you grade past runs offline without re-running the agent. Config imports help migrate existing suites into AgentV YAML.
 
 ## Supported Providers
 
@@ -14,6 +14,50 @@ The `import` command converts agent session transcripts into AgentV's `Message[]
 | Claude Code | `agentv import claude` | `~/.claude/projects/<path>/<uuid>.jsonl` |
 | Codex CLI | `agentv import codex` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl` |
 | Copilot CLI | `agentv import copilot` | `~/.copilot/session-state/<uuid>/events.jsonl` |
+| promptfoo | `agentv import promptfoo` | `promptfooconfig.yaml`, `.json`, `.json5` |
+
+## `import promptfoo`
+
+Convert a promptfoo config into an AgentV `EVAL.yaml`.
+
+```bash
+agentv import promptfoo ./promptfooconfig.yaml
+```
+
+### Dry run
+
+Print the generated AgentV YAML without writing a file:
+
+```bash
+agentv import promptfoo ./promptfooconfig.yaml --dry-run
+```
+
+### Custom output path
+
+```bash
+agentv import promptfoo ./promptfooconfig.yaml -o ./evals/EVAL.yaml
+```
+
+Default output: `EVAL.yaml` beside the promptfoo config file.
+
+### What v1 converts cleanly
+
+- inline prompts and file-backed text / chat JSON prompts
+- inline tests and external YAML / JSON / JSONL / CSV test files
+- `defaultTest.assert` promoted to suite-level `assertions`
+- per-test `vars`, `description`, `threshold`, `metadata`, prompt filters, and provider filters
+- deterministic assertions that map directly to AgentV: `equals`, `contains`, `icontains`, `regex`, `starts-with`, `ends-with`, `contains-any`, `contains-all`, `icontains-any`, `icontains-all`, `is-json`, `latency`, `cost`
+- rubric-style assertions mapped to `llm-grader`: `llm-rubric`, `g-eval`, `factuality`, `context-faithfulness`, `context-recall`
+
+### What still needs manual migration
+
+The importer fails explicitly instead of doing a lossy conversion when it sees promptfoo features that need a runtime translation layer or AgentV-specific redesign. Current examples:
+
+- `javascript`, `python`, `similar`, `assert-set`, `contains-json`, trajectory assertions, and other non-direct assertion types
+- CSV/XLSX features beyond common `__expected*` / `__description` / `__threshold` / `__metadata:*` columns
+- prompt or test generators, executable prompts, `options.transform`, `options.transformVars`, file-backed vars, and `providerOutput`
+
+If the import stops on one of these, keep the generated config for the supported parts and migrate the flagged feature manually.
 
 ## `import claude`
 

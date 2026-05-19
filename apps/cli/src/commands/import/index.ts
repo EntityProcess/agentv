@@ -4,6 +4,7 @@ import { importClaudeCommand } from './claude.js';
 import { importCodexCommand } from './codex.js';
 import { importCopilotCommand } from './copilot.js';
 import { importHuggingFaceCommand } from './huggingface.js';
+import { importPromptfooCommand } from './promptfoo.js';
 
 export const importCommand = subcommands({
   name: 'import',
@@ -13,5 +14,6 @@ export const importCommand = subcommands({
     codex: importCodexCommand,
     copilot: importCopilotCommand,
     huggingface: importHuggingFaceCommand,
+    promptfoo: importPromptfooCommand,
   },
 });
