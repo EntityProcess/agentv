@@ -31,6 +31,18 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
 
     if (routeId === '/' || routeId === '/_layout') continue;
 
+    if (routeId.includes('/projects/$projectId') && params.projectId) {
+      if (!segments.some((s) => s.label === params.projectId)) {
+        segments.push({
+          label: params.projectId,
+          to: `/projects/${encodeURIComponent(params.projectId)}`,
+        });
+      }
+      if (routeId === '/projects/$projectId') {
+        continue;
+      }
+    }
+
     if (routeId.includes('/runs/$runId/category/$category')) {
       if (!segments.some((s) => s.label === params.runId)) {
         segments.push({
