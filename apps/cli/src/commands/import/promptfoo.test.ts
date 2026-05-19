@@ -172,4 +172,29 @@ tests:
       "Unsupported promptfoo assertion 'javascript'",
     );
   });
+
+  it('preserves explicit promptfoo test ids verbatim', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-promptfoo-'));
+    tempDirs.push(dir);
+
+    const configPath = path.join(dir, 'promptfooconfig.yaml');
+    await writeFile(
+      configPath,
+      `
+prompts:
+  - "Hello {{name}}"
+tests:
+  - id: "---special/id---"
+    vars:
+      name: Chris
+    assert:
+      - type: contains
+        value: Chris
+`,
+      'utf8',
+    );
+
+    const suite = await convertPromptfooToAgentvSuite({ inputPath: configPath });
+    expect(suite.tests[0]?.id).toBe('---special/id---');
+  });
 });

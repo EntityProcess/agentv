@@ -786,10 +786,10 @@ async function buildAgentvTests(options: {
 
   for (let index = 0; index < rawTests.length; index++) {
     const rawTest = rawTests[index];
+    const explicitId = asString(rawTest.id);
     const descriptionId =
       typeof rawTest.description === 'string' ? sanitizeName(rawTest.description) : undefined;
-    const baseId =
-      asString(rawTest.id) ?? (descriptionId ? descriptionId : undefined) ?? `test-${index + 1}`;
+    const baseId = explicitId ?? (descriptionId ? descriptionId : undefined) ?? `test-${index + 1}`;
     const testOptions = resolveTestOptions(defaultTest, rawTest);
 
     ensureSupportedTestOptions(testOptions, rawTest, inputPath);
@@ -836,7 +836,7 @@ async function buildAgentvTests(options: {
       });
 
       const test: AgentvTest = {
-        id: `${sanitizeName(baseId)}${promptSuffix}`,
+        id: `${explicitId ?? baseId}${promptSuffix}`,
         ...(typeof rawTest.description === 'string' ? { criteria: rawTest.description } : {}),
         input: renderedInput,
         ...(convertedCaseAssertions.length > 0 ? { assertions: convertedCaseAssertions } : {}),
