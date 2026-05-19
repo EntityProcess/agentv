@@ -138,6 +138,7 @@ type RawEvalCase = JsonObject & {
   /** Shorthand: list of file paths to prepend as type:file content blocks in the user message. */
   readonly input_files?: JsonValue;
   readonly expected_output?: JsonValue;
+  readonly evaluator?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
@@ -146,6 +147,13 @@ type RawEvalCase = JsonObject & {
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
+  readonly depends_on?: JsonValue;
+  readonly on_dependency_failure?: JsonValue;
+  readonly mode?: JsonValue;
+  readonly turns?: JsonValue;
+  readonly aggregation?: JsonValue;
+  readonly on_turn_failure?: JsonValue;
+  readonly window_size?: JsonValue;
 };
 
 function resolveTests(suite: RawTestSuite): JsonValue | undefined {
@@ -190,6 +198,28 @@ function interpolateCaseTurns(
       expected_output: interpolateCaseField(rawTurn.expected_output, vars),
     } satisfies JsonObject;
   });
+}
+
+function interpolateRawEvalCase(raw: RawEvalCase, vars: JsonObject | undefined): RawEvalCase {
+  if (!vars) {
+    return raw;
+  }
+
+  return {
+    ...raw,
+    ...(raw.criteria !== undefined ? { criteria: interpolateCaseField(raw.criteria, vars) } : {}),
+    ...(raw.expected_outcome !== undefined
+      ? { expected_outcome: interpolateCaseField(raw.expected_outcome, vars) }
+      : {}),
+    ...(raw.input !== undefined ? { input: interpolateCaseField(raw.input, vars) } : {}),
+    ...(raw.input_files !== undefined
+      ? { input_files: interpolateCaseField(raw.input_files, vars) }
+      : {}),
+    ...(raw.expected_output !== undefined
+      ? { expected_output: interpolateCaseField(raw.expected_output, vars) }
+      : {}),
+    ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars) } : {}),
+  };
 }
 
 /**
@@ -433,15 +463,7 @@ async function loadTestsFromYaml(
     }
 
     const caseVars = isJsonObject(testCaseConfig.vars) ? testCaseConfig.vars : undefined;
-    const renderedCase = {
-      ...testCaseConfig,
-      criteria: interpolateCaseField(testCaseConfig.criteria, caseVars),
-      expected_outcome: interpolateCaseField(testCaseConfig.expected_outcome, caseVars),
-      input: interpolateCaseField(testCaseConfig.input, caseVars),
-      input_files: interpolateCaseField(testCaseConfig.input_files, caseVars),
-      expected_output: interpolateCaseField(testCaseConfig.expected_output, caseVars),
-      turns: interpolateCaseTurns(testCaseConfig.turns, caseVars),
-    } satisfies RawEvalCase;
+    const renderedCase = interpolateRawEvalCase(testCaseConfig, caseVars);
 
     const conversationId = asString(renderedCase.conversation_id);
     let outcome = asString(renderedCase.criteria);
