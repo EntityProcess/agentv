@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -544,8 +545,7 @@ describe('serve app', () => {
 
   describe('GET /api/projects/all-runs', () => {
     it('infers experiment names for live benchmark runs before records persist them', async () => {
-      const previousHome = process.env.AGENTV_HOME;
-      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+      const homedirSpy = spyOn(os, 'homedir').mockReturnValue(path.join(tempDir, 'home'));
 
       try {
         const benchmarkDir = path.join(tempDir, 'bench-one');
@@ -575,11 +575,7 @@ describe('serve app', () => {
           target: 'gpt-4o',
         });
       } finally {
-        if (previousHome === undefined) {
-          process.env.AGENTV_HOME = undefined;
-        } else {
-          process.env.AGENTV_HOME = previousHome;
-        }
+        homedirSpy.mockRestore();
       }
     });
   });
