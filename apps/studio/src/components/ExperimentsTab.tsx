@@ -56,13 +56,23 @@ export function ExperimentsTab({ projectId }: ExperimentsTabProps) {
           {experiments.map((exp: ExperimentSummary) => (
             <tr key={exp.name} className="transition-colors hover:bg-gray-900/30">
               <td className="px-4 py-3">
-                <Link
-                  to="/experiments/$experimentName"
-                  params={{ experimentName: exp.name }}
-                  className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                >
-                  {exp.name}
-                </Link>
+                {projectId ? (
+                  <Link
+                    to="/projects/$projectId/experiments/$experimentName"
+                    params={{ projectId, experimentName: exp.name }}
+                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                  >
+                    {exp.name}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/experiments/$experimentName"
+                    params={{ experimentName: exp.name }}
+                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                  >
+                    {exp.name}
+                  </Link>
+                )}
               </td>
               <td className="px-4 py-3 text-right tabular-nums text-gray-400">{exp.run_count}</td>
               <td className="px-4 py-3 text-right tabular-nums text-gray-400">

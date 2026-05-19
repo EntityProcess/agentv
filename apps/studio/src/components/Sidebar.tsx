@@ -14,10 +14,12 @@
 
 import { type ReactNode, useEffect } from 'react';
 
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useMatchRoute } from '@tanstack/react-router';
 
 import {
   isPassing,
+  projectExperimentsOptions,
   useAllProjectRuns,
   useCategorySuites,
   useEvalRuns,
@@ -80,6 +82,10 @@ export function Sidebar() {
     to: '/projects/$projectId/runs/$runId',
     fuzzy: true,
   });
+  const projectExperimentMatch = matchRoute({
+    to: '/projects/$projectId/experiments/$experimentName',
+    fuzzy: true,
+  });
   const projectMatch = matchRoute({
     to: '/projects/$projectId',
     fuzzy: true,
@@ -99,6 +105,18 @@ export function Sidebar() {
   if (projectRunMatch && typeof projectRunMatch === 'object' && 'projectId' in projectRunMatch) {
     const { projectId, runId } = projectRunMatch as { projectId: string; runId: string };
     return <ProjectRunDetailSidebar projectId={projectId} currentRunId={runId} />;
+  }
+
+  if (
+    projectExperimentMatch &&
+    typeof projectExperimentMatch === 'object' &&
+    'projectId' in projectExperimentMatch
+  ) {
+    const { projectId, experimentName } = projectExperimentMatch as {
+      projectId: string;
+      experimentName: string;
+    };
+    return <ProjectExperimentSidebar projectId={projectId} currentExperiment={experimentName} />;
   }
 
   // Project home (runs/experiments/targets)
@@ -510,6 +528,64 @@ function ProjectEvalSidebar({
                 {passed ? '\u2713' : '\u2717'}
               </span>
               <span className="truncate">{result.testId}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </SidebarShell>
+  );
+}
+
+function ProjectExperimentSidebar({
+  projectId,
+  currentExperiment,
+}: {
+  projectId: string;
+  currentExperiment: string;
+}) {
+  const { data } = useQuery(projectExperimentsOptions(projectId));
+  const experiments = data?.experiments ?? [];
+
+  return (
+    <SidebarShell>
+      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
+          AgentV Studio
+        </Link>
+      </div>
+
+      <div className="border-b border-gray-800 px-4 py-2">
+        <Link
+          to="/projects/$projectId"
+          params={{ projectId }}
+          search={{ tab: 'experiments' } as Record<string, string>}
+          className="text-xs text-gray-400 hover:text-cyan-400"
+        >
+          &larr; All experiments
+        </Link>
+        <p className="mt-1 truncate text-sm font-medium text-gray-300">{projectId}</p>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          Experiments
+        </div>
+
+        {experiments.map((exp) => {
+          const isActive = exp.name === currentExperiment;
+
+          return (
+            <Link
+              key={exp.name}
+              to="/projects/$projectId/experiments/$experimentName"
+              params={{ projectId, experimentName: exp.name }}
+              className={`mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
+                isActive
+                  ? 'bg-gray-800 text-cyan-400'
+                  : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+              }`}
+            >
+              {exp.name}
             </Link>
           );
         })}
