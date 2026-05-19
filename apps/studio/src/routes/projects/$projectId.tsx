@@ -4,32 +4,32 @@
  * Mirrors the single-project home page but fetches from project-scoped API endpoints.
  */
 
-import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
+import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   projectCompareOptions,
-  projectExperimentsOptions,
   syncRemoteResultsApi,
+  useEvalRuns,
   useProjectRunList,
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
-import type { ExperimentsResponse } from '~/lib/types';
 
 type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
 
 const tabs: { id: TabId; label: string }[] = [
-  { id: 'runs', label: 'Recent Runs' },
-  { id: 'experiments', label: 'Experiments' },
-  { id: 'analytics', label: 'Analytics' },
-  { id: 'targets', label: 'Targets' },
+  { id: 'runs', label: '🏃 Recent Runs' },
+  { id: 'experiments', label: '🧪 Experiments' },
+  { id: 'analytics', label: '📊 Analytics' },
+  { id: 'targets', label: '🤖 Targets' },
 ];
 
 export const Route = createFileRoute('/projects/$projectId')({
@@ -90,7 +90,7 @@ function ProjectHomePage() {
       </div>
 
       {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} />}
-      {activeTab === 'experiments' && <ProjectExperimentsTab projectId={projectId} />}
+      {activeTab === 'experiments' && <ExperimentsTab projectId={projectId} />}
       {activeTab === 'analytics' && (
         <ProjectAnalyticsTab projectId={projectId} readOnly={isReadOnly} />
       )}
@@ -110,9 +110,13 @@ function ProjectHomePage() {
 function ProjectRunsTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useProjectRunList(projectId);
+  const { data: activeRunsData } = useEvalRuns(projectId);
   const { data: remoteStatus } = useRemoteStatus(projectId);
   const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
   const [syncInFlight, setSyncInFlight] = useState(false);
+  const activeRuns = (activeRunsData?.runs ?? []).filter(
+    (run) => run.status === 'starting' || run.status === 'running',
+  );
 
   const filteredRuns =
     sourceFilter === 'all'
@@ -155,6 +159,35 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-4">
+      {activeRuns.length > 0 && (
+        <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/10">
+          <div className="border-b border-cyan-900/30 px-4 py-2.5">
+            <span className="text-xs font-medium uppercase tracking-wider text-cyan-400">
+              Active
+            </span>
+          </div>
+          <ul className="divide-y divide-gray-800/50">
+            {activeRuns.map((run) => (
+              <li key={run.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0 flex items-center gap-3">
+                  <span className="inline-block h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-cyan-400" />
+                  <span className="truncate font-mono text-sm text-gray-300">{run.id}</span>
+                  <span className="flex-shrink-0 text-xs text-gray-500">
+                    {new Date(run.started_at).toLocaleTimeString()}
+                  </span>
+                </div>
+                <Link
+                  to="/jobs/$runId"
+                  params={{ runId: run.id }}
+                  className="flex-shrink-0 text-xs text-cyan-400 hover:text-cyan-300"
+                >
+                  View Log →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <RunSourceToolbar
         filter={sourceFilter}
         onFilterChange={setSourceFilter}
@@ -163,50 +196,6 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
         onSync={handleSyncRemote}
       />
       <RunList runs={filteredRuns} projectId={projectId} />
-    </div>
-  );
-}
-
-function ProjectExperimentsTab({ projectId }: { projectId: string }) {
-  const { data, isLoading } = useQuery(projectExperimentsOptions(projectId));
-  const experiments = (data as ExperimentsResponse | undefined)?.experiments ?? [];
-
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {['s1', 's2', 's3'].map((id) => (
-          <div key={id} className="h-12 animate-pulse rounded-lg bg-gray-900" />
-        ))}
-      </div>
-    );
-  }
-
-  if (experiments.length === 0) {
-    return (
-      <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-        <p className="text-lg text-gray-400">No experiments found</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {experiments.map((exp) => (
-        <div
-          key={exp.name}
-          className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 p-4"
-        >
-          <div>
-            <p className="font-medium text-white">{exp.name}</p>
-            <p className="text-sm text-gray-400">
-              {exp.run_count} run{exp.run_count !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <span className="text-lg font-semibold tabular-nums text-cyan-400">
-            {Math.round(exp.pass_rate * 100)}%
-          </span>
-        </div>
-      ))}
     </div>
   );
 }

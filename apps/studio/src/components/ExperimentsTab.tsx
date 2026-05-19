@@ -5,15 +5,22 @@
  * last run timestamp. Each row links to the experiment detail page.
  */
 
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
-import { useExperiments } from '~/lib/api';
+import { projectExperimentsOptions, useExperiments } from '~/lib/api';
 import type { ExperimentSummary } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
 
-export function ExperimentsTab() {
-  const { data, isLoading } = useExperiments();
+interface ExperimentsTabProps {
+  projectId?: string;
+}
+
+export function ExperimentsTab({ projectId }: ExperimentsTabProps) {
+  const { data, isLoading } = projectId
+    ? useQuery(projectExperimentsOptions(projectId))
+    : useExperiments();
 
   if (isLoading) {
     return <LoadingSkeleton />;
