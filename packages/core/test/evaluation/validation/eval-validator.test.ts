@@ -145,6 +145,29 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts vars without unknown-field warnings', async () => {
+    const filePath = path.join(tempDir, 'test-vars.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    vars:
+      question: "What is 2+2?"
+      expected:
+        answer: "4"
+    criteria: "Answers {{question}} correctly"
+    input: "Question: {{question}}"
+    expected_output: "{{expected.answer}}"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    const warnings = result.errors.filter((e) => e.severity === 'warning');
+    expect(warnings).toHaveLength(0);
+  });
+
   describe('assert field validation', () => {
     it('validates assert array items have type field', async () => {
       const filePath = path.join(tempDir, 'assert-missing-type.yaml');

@@ -73,6 +73,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [suite-level-input](suite-level-input/) | Prepend a shared system prompt to every test in the suite |
 | [suite-level-input-files](suite-level-input-files/) | Share file attachments across every test in the suite |
 | [env-interpolation](env-interpolation/) | Inject environment variables into eval config with `${{ VAR }}` |
+| [test-vars-templating](test-vars-templating/) | Inject per-test `vars` into `{{name}}` templates in eval fields |
 
 ---
 
@@ -169,6 +170,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [sdk-programmatic-api](sdk-programmatic-api/) | TypeScript SDK |
 | [suite-level-input](suite-level-input/) | Dataset & input |
 | [suite-level-input-files](suite-level-input-files/) | Dataset & input |
+| [test-vars-templating](test-vars-templating/) | Dataset & input |
 | [threshold-grader](threshold-grader/) | LLM grading |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool & agent evaluation |
 | [tool-trajectory-advanced](tool-trajectory-advanced/) | Tool & agent evaluation |
