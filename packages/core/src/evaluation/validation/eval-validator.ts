@@ -69,6 +69,7 @@ const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
 /** Known fields at the test level. */
 const KNOWN_TEST_FIELDS = new Set([
   'id',
+  'vars',
   'criteria',
   'input',
   'input_files',
