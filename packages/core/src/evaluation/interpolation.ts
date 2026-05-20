@@ -1,6 +1,8 @@
 import type { EnvLookup } from './providers/types.js';
 
 const ENV_VAR_PATTERN = /\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+const TEMPLATE_VAR_PATTERN = /\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/g;
+const WHOLE_TEMPLATE_VAR_PATTERN = /^\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}$/;
 
 /**
  * Regex that matches a string consisting of exactly one `${{ VAR }}` reference
@@ -27,6 +29,42 @@ function coercePrimitive(value: string): unknown {
   if (value === 'false') return false;
   if (PLAIN_NUMBER_PATTERN.test(value)) return Number(value);
   return value;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cloneTemplateValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneTemplateValue(item));
+  }
+  if (isPlainObject(value)) {
+    const result: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      result[key] = cloneTemplateValue(nested);
+    }
+    return result;
+  }
+  return value;
+}
+
+function stringifyTemplateValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+function lookupTemplateVar(
+  vars: Readonly<Record<string, unknown>>,
+  expression: string,
+): unknown | undefined {
+  if (!expression) return undefined;
+  return expression.split('.').reduce<unknown>((current, segment) => {
+    if (!isPlainObject(current)) {
+      return undefined;
+    }
+    return current[segment];
+  }, vars);
 }
 
 /**
@@ -69,5 +107,42 @@ export function interpolateEnv(value: unknown, env: EnvLookup): unknown {
     }
     return result;
   }
+  return value;
+}
+
+/**
+ * Recursively interpolate `{{ var }}` references in string values using per-test vars.
+ * Missing variables are left unchanged so unrelated template syntaxes remain intact.
+ * When the whole string is a single variable reference, the original JSON value is preserved.
+ */
+export function interpolateTemplateVars(
+  value: unknown,
+  vars: Readonly<Record<string, unknown>>,
+): unknown {
+  if (typeof value === 'string') {
+    const wholeMatch = WHOLE_TEMPLATE_VAR_PATTERN.exec(value);
+    if (wholeMatch) {
+      const resolved = lookupTemplateVar(vars, wholeMatch[1] as string);
+      return resolved === undefined ? value : cloneTemplateValue(resolved);
+    }
+
+    return value.replace(TEMPLATE_VAR_PATTERN, (match, expression: string) => {
+      const resolved = lookupTemplateVar(vars, expression);
+      return resolved === undefined ? match : stringifyTemplateValue(resolved);
+    });
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => interpolateTemplateVars(item, vars));
+  }
+
+  if (isPlainObject(value)) {
+    const result: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      result[key] = interpolateTemplateVars(nested, vars);
+    }
+    return result;
+  }
+
   return value;
 }

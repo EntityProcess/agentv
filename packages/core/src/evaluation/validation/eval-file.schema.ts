@@ -25,11 +25,13 @@ const MessageSchema = z.object({
   content: MessageContentSchema,
 });
 
+const JsonObjectSchema = z.object({}).catchall(z.unknown());
+
 /** Input: string shorthand or message array */
 const InputSchema = z.union([z.string(), z.array(MessageSchema)]);
 
 /** Expected output: string, object, or message array */
-const ExpectedOutputSchema = z.union([z.string(), z.record(z.unknown()), z.array(MessageSchema)]);
+const ExpectedOutputSchema = z.union([z.string(), JsonObjectSchema, z.array(MessageSchema)]);
 
 // ---------------------------------------------------------------------------
 // Grader schemas (YAML input format)
@@ -389,6 +391,7 @@ const ConversationTurnSchema = z.object({
 
 const EvalTestSchema = z.object({
   id: z.string().min(1),
+  vars: JsonObjectSchema.optional(),
   criteria: z.string().optional(),
   input: InputSchema.optional(),
   input_files: z.array(z.string()).optional(),

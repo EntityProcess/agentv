@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { interpolateEnv } from '../../src/evaluation/interpolation.js';
+import { interpolateEnv, interpolateTemplateVars } from '../../src/evaluation/interpolation.js';
 
 describe('interpolateEnv', () => {
   const env = { HOME: '/home/user', PROJECT: 'agentv', EMPTY: '' };
@@ -133,5 +133,33 @@ describe('interpolateEnv', () => {
   it('handles variables with underscores and digits', () => {
     const envWithSpecial = { MY_VAR_2: 'value' };
     expect(interpolateEnv('${{ MY_VAR_2 }}', envWithSpecial)).toBe('value');
+  });
+});
+
+describe('interpolateTemplateVars', () => {
+  const vars = {
+    question: 'What is 2 + 2?',
+    nested: { topic: 'math' },
+    expected: { answer: '4' },
+  };
+
+  it('replaces {{ var }} in strings', () => {
+    expect(interpolateTemplateVars('Answer clearly: {{question}}', vars)).toBe(
+      'Answer clearly: What is 2 + 2?',
+    );
+  });
+
+  it('supports dotted paths', () => {
+    expect(interpolateTemplateVars('Topic: {{ nested.topic }}', vars)).toBe('Topic: math');
+  });
+
+  it('preserves missing variables instead of blanking them out', () => {
+    expect(interpolateTemplateVars('Answer clearly: {{missing}}', vars)).toBe(
+      'Answer clearly: {{missing}}',
+    );
+  });
+
+  it('returns the original JSON value for whole-value substitutions', () => {
+    expect(interpolateTemplateVars('{{expected}}', vars)).toEqual({ answer: '4' });
   });
 });

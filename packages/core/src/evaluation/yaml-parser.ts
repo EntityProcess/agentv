@@ -3,7 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
-import { interpolateEnv } from './interpolation.js';
+import { interpolateEnv, interpolateTemplateVars } from './interpolation.js';
 import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
 import {
   expandFileReferences,
@@ -129,6 +129,7 @@ type RawTestSuite = JsonObject & {
 
 type RawEvalCase = JsonObject & {
   readonly id?: JsonValue;
+  readonly vars?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly criteria?: JsonValue;
   /** @deprecated Use `criteria` instead */
@@ -137,6 +138,7 @@ type RawEvalCase = JsonObject & {
   /** Shorthand: list of file paths to prepend as type:file content blocks in the user message. */
   readonly input_files?: JsonValue;
   readonly expected_output?: JsonValue;
+  readonly evaluator?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
@@ -145,6 +147,13 @@ type RawEvalCase = JsonObject & {
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
+  readonly depends_on?: JsonValue;
+  readonly on_dependency_failure?: JsonValue;
+  readonly mode?: JsonValue;
+  readonly turns?: JsonValue;
+  readonly aggregation?: JsonValue;
+  readonly on_turn_failure?: JsonValue;
+  readonly window_size?: JsonValue;
 };
 
 function resolveTests(suite: RawTestSuite): JsonValue | undefined {
@@ -158,6 +167,59 @@ function resolveTests(suite: RawTestSuite): JsonValue | undefined {
     return suite.evalcases;
   }
   return undefined;
+}
+
+function interpolateCaseField<T extends JsonValue | undefined>(
+  value: T,
+  vars: JsonObject | undefined,
+): T {
+  if (!vars || value === undefined) {
+    return value;
+  }
+  return interpolateTemplateVars(value, vars as Record<string, unknown>) as T;
+}
+
+function interpolateCaseTurns(
+  turns: JsonValue | undefined,
+  vars: JsonObject | undefined,
+): JsonValue | undefined {
+  if (!vars || !Array.isArray(turns)) {
+    return turns;
+  }
+
+  return turns.map((rawTurn) => {
+    if (!isJsonObject(rawTurn)) {
+      return rawTurn;
+    }
+
+    return {
+      ...rawTurn,
+      input: interpolateCaseField(rawTurn.input, vars),
+      expected_output: interpolateCaseField(rawTurn.expected_output, vars),
+    } satisfies JsonObject;
+  });
+}
+
+function interpolateRawEvalCase(raw: RawEvalCase, vars: JsonObject | undefined): RawEvalCase {
+  if (!vars) {
+    return raw;
+  }
+
+  return {
+    ...raw,
+    ...(raw.criteria !== undefined ? { criteria: interpolateCaseField(raw.criteria, vars) } : {}),
+    ...(raw.expected_outcome !== undefined
+      ? { expected_outcome: interpolateCaseField(raw.expected_outcome, vars) }
+      : {}),
+    ...(raw.input !== undefined ? { input: interpolateCaseField(raw.input, vars) } : {}),
+    ...(raw.input_files !== undefined
+      ? { input_files: interpolateCaseField(raw.input_files, vars) }
+      : {}),
+    ...(raw.expected_output !== undefined
+      ? { expected_output: interpolateCaseField(raw.expected_output, vars) }
+      : {}),
+    ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars) } : {}),
+  };
 }
 
 /**
@@ -366,11 +428,8 @@ async function loadTestsFromYaml(
   // Merged into each case's `metadata.governance` via mergeSuiteMetadataPayload.
   const suiteGovernance = extractSuiteGovernance(suite);
 
-  // Resolve suite-level input (prepended to each test's input messages)
-  const suiteInputMessages = expandInputShorthand(suite.input);
-
-  // Suite-level input_files: passed to resolveInputMessages for each test
-  const suiteInputFiles = suite.input_files;
+  const rawSuiteInput = suite.input;
+  const rawSuiteInputFiles = suite.input_files;
 
   // Extract global target from execution.target (or legacy root-level target)
   const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
@@ -403,21 +462,22 @@ async function loadTestsFromYaml(
       continue;
     }
 
-    const conversationId = asString(testCaseConfig.conversation_id);
-    let outcome = asString(testCaseConfig.criteria);
-    if (!outcome && testCaseConfig.expected_outcome !== undefined) {
-      outcome = asString(testCaseConfig.expected_outcome);
+    const caseVars = isJsonObject(testCaseConfig.vars) ? testCaseConfig.vars : undefined;
+    const renderedCase = interpolateRawEvalCase(testCaseConfig, caseVars);
+
+    const conversationId = asString(renderedCase.conversation_id);
+    let outcome = asString(renderedCase.criteria);
+    if (!outcome && renderedCase.expected_outcome !== undefined) {
+      outcome = asString(renderedCase.expected_outcome);
       if (outcome) {
         logWarning(
-          `Test '${asString(testCaseConfig.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          `Test '${asString(renderedCase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
         );
       }
     }
 
     // Extract per-case execution config early (reused below for skip_defaults)
-    const caseExecution = isJsonObject(testCaseConfig.execution)
-      ? testCaseConfig.execution
-      : undefined;
+    const caseExecution = isJsonObject(renderedCase.execution) ? renderedCase.execution : undefined;
     const skipDefaults = caseExecution?.skip_defaults === true;
     const caseThreshold =
       typeof caseExecution?.threshold === 'number' &&
@@ -427,18 +487,21 @@ async function loadTestsFromYaml(
         : undefined;
 
     // Resolve input with shorthand support (pass suite-level input_files for merge)
-    const effectiveSuiteInputFiles = suiteInputFiles && !skipDefaults ? suiteInputFiles : undefined;
-    const testInputMessages = resolveInputMessages(testCaseConfig, effectiveSuiteInputFiles);
+    const effectiveSuiteInputFiles =
+      rawSuiteInputFiles && !skipDefaults
+        ? interpolateCaseField(rawSuiteInputFiles, caseVars)
+        : undefined;
+    const testInputMessages = resolveInputMessages(renderedCase, effectiveSuiteInputFiles);
     // Resolve expected_output with shorthand support
-    const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
+    const expectedMessages = resolveExpectedMessages(renderedCase) ?? [];
 
     // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
     const hasEvaluationSpec =
       !!outcome ||
       expectedMessages.length > 0 ||
-      testCaseConfig.assertions !== undefined ||
-      testCaseConfig.assert !== undefined ||
-      (Array.isArray(testCaseConfig.turns) && testCaseConfig.turns.length > 0);
+      renderedCase.assertions !== undefined ||
+      renderedCase.assert !== undefined ||
+      (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
         `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions/turns`,
@@ -447,8 +510,9 @@ async function loadTestsFromYaml(
     }
 
     // Prepend suite-level input to test input (respecting skip_defaults)
-    const effectiveSuiteInputMessages =
-      suiteInputMessages && !skipDefaults ? suiteInputMessages : undefined;
+    const effectiveSuiteInputValue =
+      rawSuiteInput && !skipDefaults ? interpolateCaseField(rawSuiteInput, caseVars) : undefined;
+    const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
     // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
@@ -513,11 +577,11 @@ async function loadTestsFromYaml(
       .filter((part) => part.length > 0)
       .join(' ');
 
-    const testCaseEvaluatorKind = coerceEvaluator(testCaseConfig.evaluator, id) ?? globalEvaluator;
+    const testCaseEvaluatorKind = coerceEvaluator(renderedCase.evaluator, id) ?? globalEvaluator;
     let evaluators: Awaited<ReturnType<typeof parseGraders>>;
     try {
       evaluators = await parseGraders(
-        testCaseConfig,
+        renderedCase,
         globalExecution,
         searchRoots,
         id ?? 'unknown',
@@ -531,7 +595,7 @@ async function loadTestsFromYaml(
     }
 
     // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-    const inlineRubrics = testCaseConfig.rubrics;
+    const inlineRubrics = renderedCase.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
       const rubricEvaluator = parseInlineRubrics(inlineRubrics);
       if (rubricEvaluator) {
@@ -545,28 +609,28 @@ async function loadTestsFromYaml(
     const userFilePaths = collectResolvedInputFilePaths(inputMessages);
 
     // Parse per-case workspace config and merge with suite-level
-    const caseWorkspace = await resolveWorkspaceConfig(testCaseConfig.workspace, evalFileDir);
+    const caseWorkspace = await resolveWorkspaceConfig(renderedCase.workspace, evalFileDir);
     const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
 
     // Parse per-case metadata, then merge suite-level metadata payload.
     // Arrays concatenate (suite-first, deduplicated), scalars on the case win.
-    const rawCaseMetadata = isJsonObject(testCaseConfig.metadata)
-      ? (testCaseConfig.metadata as Record<string, unknown>)
+    const rawCaseMetadata = isJsonObject(renderedCase.metadata)
+      ? (renderedCase.metadata as Record<string, unknown>)
       : undefined;
     const suitePayload =
       suiteGovernance !== undefined ? { governance: suiteGovernance } : undefined;
     const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suitePayload);
 
     // Extract per-test targets override (matrix evaluation)
-    const caseTargets = extractTargetsFromTestCase(testCaseConfig as JsonObject);
+    const caseTargets = extractTargetsFromTestCase(renderedCase as JsonObject);
 
     // Extract dependency fields
-    const dependsOn = Array.isArray(testCaseConfig.depends_on)
-      ? (testCaseConfig.depends_on as readonly string[]).filter(
+    const dependsOn = Array.isArray(renderedCase.depends_on)
+      ? (renderedCase.depends_on as readonly string[]).filter(
           (v): v is string => typeof v === 'string',
         )
       : undefined;
-    const onDependencyFailureRaw = asString(testCaseConfig.on_dependency_failure);
+    const onDependencyFailureRaw = asString(renderedCase.on_dependency_failure);
     const onDependencyFailure =
       onDependencyFailureRaw === 'skip' ||
       onDependencyFailureRaw === 'fail' ||
@@ -575,23 +639,23 @@ async function loadTestsFromYaml(
         : undefined;
 
     // Extract conversation mode fields
-    const modeRaw = asString(testCaseConfig.mode);
+    const modeRaw = asString(renderedCase.mode);
     const mode: ConversationMode | undefined =
       modeRaw === 'conversation' ? 'conversation' : undefined;
-    const turns = Array.isArray(testCaseConfig.turns)
-      ? parseTurns(testCaseConfig.turns as readonly unknown[])
+    const turns = Array.isArray(renderedCase.turns)
+      ? parseTurns(renderedCase.turns as readonly unknown[])
       : undefined;
-    const aggregationRaw = asString(testCaseConfig.aggregation);
+    const aggregationRaw = asString(renderedCase.aggregation);
     const aggregation: ConversationAggregation | undefined =
       aggregationRaw === 'mean' || aggregationRaw === 'min' || aggregationRaw === 'max'
         ? aggregationRaw
         : undefined;
-    const onTurnFailureRaw = asString(testCaseConfig.on_turn_failure);
+    const onTurnFailureRaw = asString(renderedCase.on_turn_failure);
     const onTurnFailure: TurnFailurePolicy | undefined =
       onTurnFailureRaw === 'continue' || onTurnFailureRaw === 'stop' ? onTurnFailureRaw : undefined;
     const windowSize =
-      typeof testCaseConfig.window_size === 'number' && testCaseConfig.window_size >= 1
-        ? (testCaseConfig.window_size as number)
+      typeof renderedCase.window_size === 'number' && renderedCase.window_size >= 1
+        ? (renderedCase.window_size as number)
         : undefined;
 
     const testCase: EvalTest = {
