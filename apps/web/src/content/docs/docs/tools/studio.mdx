@@ -210,14 +210,13 @@ Studio can display runs pushed to a remote git repository by other machines or C
 
 ### Configuration
 
-Add a `results.export` block to `.agentv/config.yaml`:
+Add a `results` block to `.agentv/config.yaml`:
 
 ```yaml
 results:
-  export:
-    repo: EntityProcess/agentv-evals   # GitHub repo (owner/repo or full URL)
-    path: runs                          # Directory within the repo
-    auto_push: true                     # Push directly to base branch after every eval run
+  repo: EntityProcess/agentv-evals   # GitHub repo (owner/repo or full URL)
+  path: runs                         # Directory within the repo
+  auto_push: true                    # Push directly to base branch after every eval run
 ```
 
 With `auto_push: true`, every `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Studio without requiring PR merges.

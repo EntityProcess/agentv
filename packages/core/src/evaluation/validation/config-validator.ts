@@ -77,61 +77,42 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
           message: "Field 'results' must be an object",
         });
       } else {
-        const exportConfig = (results as Record<string, unknown>).export;
-        if (exportConfig !== undefined) {
-          if (
-            typeof exportConfig !== 'object' ||
-            exportConfig === null ||
-            Array.isArray(exportConfig)
-          ) {
-            errors.push({
-              severity: 'error',
-              filePath,
-              location: 'results.export',
-              message: "Field 'results.export' must be an object",
-            });
-          } else {
-            const exportRecord = exportConfig as Record<string, unknown>;
-            if (typeof exportRecord.repo !== 'string' || exportRecord.repo.trim().length === 0) {
-              errors.push({
-                severity: 'error',
-                filePath,
-                location: 'results.export.repo',
-                message: "Field 'results.export.repo' must be a non-empty string",
-              });
-            }
-            if (typeof exportRecord.path !== 'string' || exportRecord.path.trim().length === 0) {
-              errors.push({
-                severity: 'error',
-                filePath,
-                location: 'results.export.path',
-                message: "Field 'results.export.path' must be a non-empty string",
-              });
-            }
-            if (
-              exportRecord.auto_push !== undefined &&
-              typeof exportRecord.auto_push !== 'boolean'
-            ) {
-              errors.push({
-                severity: 'error',
-                filePath,
-                location: 'results.export.auto_push',
-                message: "Field 'results.export.auto_push' must be a boolean",
-              });
-            }
-            if (
-              exportRecord.branch_prefix !== undefined &&
-              (typeof exportRecord.branch_prefix !== 'string' ||
-                exportRecord.branch_prefix.trim().length === 0)
-            ) {
-              errors.push({
-                severity: 'error',
-                filePath,
-                location: 'results.export.branch_prefix',
-                message: "Field 'results.export.branch_prefix' must be a non-empty string",
-              });
-            }
-          }
+        const resultsRecord = results as Record<string, unknown>;
+        if (typeof resultsRecord.repo !== 'string' || resultsRecord.repo.trim().length === 0) {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: 'results.repo',
+            message: "Field 'results.repo' must be a non-empty string",
+          });
+        }
+        if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: 'results.path',
+            message: "Field 'results.path' must be a non-empty string",
+          });
+        }
+        if (resultsRecord.auto_push !== undefined && typeof resultsRecord.auto_push !== 'boolean') {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: 'results.auto_push',
+            message: "Field 'results.auto_push' must be a boolean",
+          });
+        }
+        if (
+          resultsRecord.branch_prefix !== undefined &&
+          (typeof resultsRecord.branch_prefix !== 'string' ||
+            resultsRecord.branch_prefix.trim().length === 0)
+        ) {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: 'results.branch_prefix',
+            message: "Field 'results.branch_prefix' must be a non-empty string",
+          });
         }
       }
     }

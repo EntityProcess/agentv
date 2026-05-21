@@ -3,7 +3,7 @@ import path from 'node:path';
 import {
   DEFAULT_THRESHOLD,
   type EvaluationResult,
-  type ResultsExportConfig,
+  type ResultsConfig,
   type ResultsRepoStatus,
   directPushResults,
   directorySizeBytes,
@@ -59,7 +59,7 @@ function getStatusMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function normalizeResultsExportConfig(config: ResultsExportConfig): Required<ResultsExportConfig> {
+function normalizeResultsConfig(config: ResultsConfig): Required<ResultsConfig> {
   return {
     repo: config.repo,
     path: config.path,
@@ -107,13 +107,13 @@ async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
 
 async function loadNormalizedResultsConfig(
   cwd: string,
-): Promise<Required<ResultsExportConfig> | undefined> {
+): Promise<Required<ResultsConfig> | undefined> {
   const repoRoot = (await findRepoRoot(cwd)) ?? cwd;
   const config = await loadConfig(path.join(cwd, '_'), repoRoot);
-  if (!config?.results?.export) {
+  if (!config?.results) {
     return undefined;
   }
-  return normalizeResultsExportConfig(config.results.export);
+  return normalizeResultsConfig(config.results);
 }
 
 export function encodeRemoteRunId(filename: string): string {

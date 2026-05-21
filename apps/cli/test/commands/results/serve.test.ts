@@ -501,9 +501,8 @@ describe('serve app', () => {
         writeFileSync(
           path.join(tempDir, '.agentv', 'config.yaml'),
           `results:
-  export:
-    repo: EntityProcess/agentv-evals
-    path: autopilot-dev/runs
+  repo: EntityProcess/agentv-evals
+  path: autopilot-dev/runs
 `,
         );
 
@@ -586,9 +585,8 @@ describe('serve app', () => {
       writeFileSync(
         path.join(tempDir, '.agentv', 'config.yaml'),
         `results:
-  export:
-    repo: EntityProcess/agentv-evals
-    path: autopilot-dev/runs
+  repo: EntityProcess/agentv-evals
+  path: autopilot-dev/runs
 `,
       );
 
