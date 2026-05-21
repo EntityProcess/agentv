@@ -8,7 +8,6 @@ import { promisify } from 'node:util';
 import { getAgentvHome } from '../paths.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
 
-const execFileAsync = promisify(execFile);
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -519,7 +518,6 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 
-const execFileAsync = promisify(execFile);
 
 export interface GitListedRun {
   run_id: string;
