@@ -285,7 +285,7 @@ function isCommandAvailable(cmd: string): boolean {
  * directory cannot be created or the file cannot be opened — callers fall back
  * to the in-memory buffer in that case.
  *
- * The log file is the source of truth shown by the RunDetail "Console Log"
+ * The log file is the source of truth shown by the RunDetail "Run Log"
  * section after the run completes. The in-memory `stdout`/`stderr` buffers on
  * `StudioRun` remain capped for live status polling.
  *

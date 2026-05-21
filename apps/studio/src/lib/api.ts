@@ -44,7 +44,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 /**
  * Fetch a text/plain endpoint. Treats 404 as `null` so callers can model
- * "log not yet captured" without throwing — used by the RunDetail console log
+ * "log not yet captured" without throwing — used by the RunDetail run log
  * viewer for runs that finished before this feature shipped (no console.log
  * on disk) and for remote runs.
  */
