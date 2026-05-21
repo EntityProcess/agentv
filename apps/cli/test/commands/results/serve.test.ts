@@ -501,18 +501,15 @@ describe('serve app', () => {
         writeFileSync(
           path.join(tempDir, '.agentv', 'config.yaml'),
           `results:
+  mode: github
   repo: EntityProcess/agentv-evals
-  path: autopilot-dev/runs
 `,
         );
 
         const remoteRunDir = path.join(
           process.env.AGENTV_HOME,
-          'cache',
-          'results-repo',
+          'results',
           'EntityProcess-agentv-evals',
-          'repo',
-          'autopilot-dev',
           'runs',
           'default',
           '2026-03-26T10-00-00-000Z',
@@ -581,29 +578,42 @@ describe('serve app', () => {
 
   describe('GET /api/remote/status', () => {
     it('reports configured remote status with graceful local-only fallback', async () => {
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home-status');
+
+      try {
+        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+        writeFileSync(
+          path.join(tempDir, '.agentv', 'config.yaml'),
+          `results:
+  mode: github
   repo: EntityProcess/agentv-evals
-  path: autopilot-dev/runs
 `,
-      );
+        );
 
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const res = await app.request('/api/remote/status');
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/remote/status');
 
-      expect(res.status).toBe(200);
-      const data = (await res.json()) as {
-        configured: boolean;
-        available: boolean;
-        repo: string;
-        path: string;
-      };
-      expect(data.configured).toBe(true);
-      expect(data.available).toBe(false);
-      expect(data.repo).toBe('EntityProcess/agentv-evals');
-      expect(data.path).toBe('autopilot-dev/runs');
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          configured: boolean;
+          available: boolean;
+          repo: string;
+          path: string;
+        };
+        expect(data.configured).toBe(true);
+        expect(data.available).toBe(false);
+        expect(data.repo).toBe('EntityProcess/agentv-evals');
+        expect(data.path).toBe(
+          path.join(tempDir, 'agentv-home-status', 'results', 'EntityProcess-agentv-evals'),
+        );
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
     });
   });
 

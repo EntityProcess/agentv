@@ -229,17 +229,17 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
   }
 
   const normalized = normalizeResultsConfig(config);
-  const cachePaths = getResultsRepoLocalPaths(normalized.repo);
-  const persisted = readPersistedStatus(cachePaths.statusFile);
+  const localPaths = getResultsRepoLocalPaths(normalized.repo);
+  const persisted = readPersistedStatus(localPaths.statusFile);
 
   return {
     configured: true,
-    available: existsSync(cachePaths.repoDir),
+    available: existsSync(normalized.path),
     repo: normalized.repo,
     path: normalized.path,
     auto_push: normalized.auto_push,
     branch_prefix: normalized.branch_prefix,
-    local_dir: cachePaths.repoDir,
+    local_dir: normalized.path,
     last_synced_at: persisted.last_synced_at,
     last_error: persisted.last_error,
   };
@@ -324,10 +324,7 @@ export async function stageResultsArtifacts(params: {
 
 export function resolveResultsRepoRunsDir(config: ResultsConfig): string {
   const normalized = normalizeResultsConfig(config);
-  return path.join(
-    getResultsRepoLocalPaths(normalized.repo).repoDir,
-    ...normalized.path.split('/'),
-  );
+  return path.join(normalized.path, 'runs');
 }
 
 export async function directorySizeBytes(targetPath: string): Promise<number> {

@@ -601,9 +601,7 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     const trimmedPath = obj.path.trim();
     if (!isFilesystemPath(trimmedPath)) {
       logWarning(
-        `Invalid results.path in ${configPath}: '${trimmedPath}' looks like a repo subdirectory. ` +
-          `results.path now specifies the local filesystem directory for the clone ` +
-          `(e.g., ~/data/agentv-results). Remove 'path' to use the default or set an absolute/home-relative path.`,
+        `Invalid results.path in ${configPath}: '${trimmedPath}' looks like a repo subdirectory. results.path now specifies the local filesystem directory for the clone (e.g., ~/data/agentv-results). Remove 'path' to use the default or set an absolute/home-relative path.`,
       );
       return undefined;
     }
