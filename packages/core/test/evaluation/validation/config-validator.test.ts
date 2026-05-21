@@ -51,8 +51,8 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `results:
+  mode: github
   repo: EntityProcess/agentv-evals
-  path: autopilot-dev/runs
   auto_push: true
   branch_prefix: eval-results
 `,
@@ -62,6 +62,42 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('errors on missing results.mode', async () => {
+    const filePath = path.join(tempDir, 'config-results-no-mode.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  repo: EntityProcess/agentv-evals
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    const fieldErrors = result.errors.filter(
+      (e) => e.severity === 'error' && e.location === 'results.mode',
+    );
+    expect(fieldErrors).toHaveLength(1);
+  });
+
+  it('errors on old-style subdirectory path', async () => {
+    const filePath = path.join(tempDir, 'config-results-old-path.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  mode: github
+  repo: EntityProcess/agentv-evals
+  path: autopilot-dev/runs
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    const fieldErrors = result.errors.filter(
+      (e) => e.severity === 'error' && e.location === 'results.path',
+    );
+    expect(fieldErrors).toHaveLength(1);
   });
 
   it('errors on invalid required_version type', async () => {

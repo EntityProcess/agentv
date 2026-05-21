@@ -61,7 +61,7 @@ export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.j
 export {
   ensureResultsRepoClone,
   syncResultsRepo,
-  getResultsRepoCachePaths,
+  getResultsRepoLocalPaths,
   getResultsRepoStatus,
   normalizeResultsConfig,
   resolveResultsRepoRunsDir,
@@ -76,7 +76,7 @@ export {
   directPushResults,
   type CheckedOutResultsRepoBranch,
   type PreparedResultsRepoBranch,
-  type ResultsRepoCachePaths,
+  type ResultsRepoLocalPaths,
   type ResultsRepoStatus,
 } from './evaluation/results-repo.js';
 export {

@@ -10,7 +10,7 @@ import type { ResultsConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
 
-export interface ResultsRepoCachePaths {
+export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
   readonly repoDir: string;
   readonly statusFile: string;
@@ -23,7 +23,7 @@ export interface ResultsRepoStatus {
   readonly path?: string;
   readonly auto_push?: boolean;
   readonly branch_prefix?: string;
-  readonly cache_dir?: string;
+  readonly local_dir?: string;
   readonly last_synced_at?: string;
   readonly last_error?: string;
 }
@@ -61,10 +61,22 @@ function withFriendlyGitHubAuthError(error: unknown): Error {
   return new Error(message);
 }
 
+function expandHome(p: string): string {
+  if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) {
+    return path.join(os.homedir(), p.slice(1));
+  }
+  return p;
+}
+
 export function normalizeResultsConfig(config: ResultsConfig): Required<ResultsConfig> {
+  const repo = config.repo.trim();
+  const resolvedPath = config.path
+    ? expandHome(config.path.trim())
+    : path.join(getAgentvHome(), 'results', sanitizeRepoSlug(repo));
   return {
-    repo: config.repo.trim(),
-    path: config.path.trim().replace(/^\/+|\/+$/g, ''),
+    mode: 'github',
+    repo,
+    path: resolvedPath,
     auto_push: config.auto_push === true,
     branch_prefix: config.branch_prefix?.trim() || 'eval-results',
   };
@@ -77,7 +89,7 @@ export function resolveResultsRepoUrl(repo: string): string {
   return `https://github.com/${repo}.git`;
 }
 
-export function getResultsRepoCachePaths(repo: string): ResultsRepoCachePaths {
+export function getResultsRepoLocalPaths(repo: string): ResultsRepoLocalPaths {
   const rootDir = path.join(getAgentvHome(), 'cache', 'results-repo', sanitizeRepoSlug(repo));
   return {
     rootDir,
@@ -171,7 +183,7 @@ async function updateCacheRepo(repoDir: string, baseBranch: string): Promise<voi
 }
 
 function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
-  const cachePaths = getResultsRepoCachePaths(config.repo);
+  const cachePaths = getResultsRepoLocalPaths(config.repo);
   const current = readPersistedStatus(cachePaths.statusFile);
   writePersistedStatus(cachePaths.statusFile, {
     ...current,
@@ -181,7 +193,7 @@ function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
 
 export async function ensureResultsRepoClone(config: ResultsConfig): Promise<string> {
   const normalized = normalizeResultsConfig(config);
-  const cachePaths = getResultsRepoCachePaths(normalized.repo);
+  const cachePaths = getResultsRepoLocalPaths(normalized.repo);
   mkdirSync(cachePaths.rootDir, { recursive: true });
 
   if (!existsSync(cachePaths.repoDir)) {
@@ -212,12 +224,12 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
       configured: false,
       available: false,
       repo: '',
-      cache_dir: '',
+      local_dir: '',
     };
   }
 
   const normalized = normalizeResultsConfig(config);
-  const cachePaths = getResultsRepoCachePaths(normalized.repo);
+  const cachePaths = getResultsRepoLocalPaths(normalized.repo);
   const persisted = readPersistedStatus(cachePaths.statusFile);
 
   return {
@@ -227,7 +239,7 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
     path: normalized.path,
     auto_push: normalized.auto_push,
     branch_prefix: normalized.branch_prefix,
-    cache_dir: cachePaths.repoDir,
+    local_dir: cachePaths.repoDir,
     last_synced_at: persisted.last_synced_at,
     last_error: persisted.last_error,
   };
@@ -313,7 +325,7 @@ export async function stageResultsArtifacts(params: {
 export function resolveResultsRepoRunsDir(config: ResultsConfig): string {
   const normalized = normalizeResultsConfig(config);
   return path.join(
-    getResultsRepoCachePaths(normalized.repo).repoDir,
+    getResultsRepoLocalPaths(normalized.repo).repoDir,
     ...normalized.path.split('/'),
   );
 }
@@ -358,7 +370,7 @@ export async function pushResultsRepoBranch(
 ): Promise<void> {
   const normalized = normalizeResultsConfig(config);
   await runGit(['push', '-u', 'origin', branchName], {
-    cwd: cwd ?? getResultsRepoCachePaths(normalized.repo).repoDir,
+    cwd: cwd ?? getResultsRepoLocalPaths(normalized.repo).repoDir,
   });
   updateStatusFile(normalized, {
     last_synced_at: new Date().toISOString(),

@@ -9,6 +9,7 @@ import {
   directorySizeBytes,
   getResultsRepoStatus,
   loadConfig,
+  normalizeResultsConfig,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
 } from '@agentv/core';
@@ -57,15 +58,6 @@ const SIZE_WARNING_BYTES = 10 * 1024 * 1024;
 
 function getStatusMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function normalizeResultsConfig(config: ResultsConfig): Required<ResultsConfig> {
-  return {
-    repo: config.repo,
-    path: config.path,
-    auto_push: config.auto_push === true,
-    branch_prefix: config.branch_prefix?.trim() || 'eval-results',
-  };
 }
 
 function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {

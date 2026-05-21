@@ -37,8 +37,10 @@ export type ExecutionDefaults = {
 };
 
 export type ResultsConfig = {
+  readonly mode: 'github';
   readonly repo: string;
-  readonly path: string;
+  /** Local filesystem path for the results clone. Optional; defaults to ~/.agentv/results/<slug>/. */
+  readonly path?: string;
   readonly auto_push?: boolean;
   readonly branch_prefix?: string;
 };
@@ -558,6 +560,16 @@ export function parseExecutionDefaults(
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
 }
 
+function isFilesystemPath(p: string): boolean {
+  return (
+    p.startsWith('/') ||
+    p.startsWith('~/') ||
+    p.startsWith('~\\') ||
+    p === '~' ||
+    /^[A-Za-z]:[/\\]/.test(p)
+  );
+}
+
 export function parseResultsConfig(raw: unknown, configPath: string): ResultsConfig | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
@@ -568,17 +580,34 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   }
 
   const obj = raw as Record<string, unknown>;
-  const repo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
-  const resultsPath = typeof obj.path === 'string' ? obj.path.trim() : '';
 
+  if (obj.mode !== 'github') {
+    logWarning(`Invalid results.mode in ${configPath}, expected 'github'`);
+    return undefined;
+  }
+
+  const repo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
   if (!repo) {
     logWarning(`Invalid results.repo in ${configPath}, expected non-empty string`);
     return undefined;
   }
 
-  if (!resultsPath) {
-    logWarning(`Invalid results.path in ${configPath}, expected non-empty string`);
-    return undefined;
+  let resultsPath: string | undefined;
+  if (obj.path !== undefined) {
+    if (typeof obj.path !== 'string' || obj.path.trim().length === 0) {
+      logWarning(`Invalid results.path in ${configPath}, expected non-empty string`);
+      return undefined;
+    }
+    const trimmedPath = obj.path.trim();
+    if (!isFilesystemPath(trimmedPath)) {
+      logWarning(
+        `Invalid results.path in ${configPath}: '${trimmedPath}' looks like a repo subdirectory. ` +
+          `results.path now specifies the local filesystem directory for the clone ` +
+          `(e.g., ~/data/agentv-results). Remove 'path' to use the default or set an absolute/home-relative path.`,
+      );
+      return undefined;
+    }
+    resultsPath = trimmedPath;
   }
 
   if (obj.auto_push !== undefined && typeof obj.auto_push !== 'boolean') {
@@ -596,8 +625,9 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   }
 
   return {
+    mode: 'github',
     repo,
-    path: resultsPath,
+    ...(resultsPath !== undefined && { path: resultsPath }),
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
     ...(branchPrefix && { branch_prefix: branchPrefix }),
   };
