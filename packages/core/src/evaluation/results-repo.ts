@@ -1,5 +1,12 @@
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { cp, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -318,6 +325,64 @@ export function resolveResultsRepoRunsDir(config: ResultsConfig): string {
   );
 }
 
+// ── Run index ─────────────────────────────────────────────────────────────
+
+/**
+ * Wire format for a single run index entry.
+ * Stored as one JSON line in index/runs.jsonl inside the results repo.
+ * snake_case (wire format convention: everything crossing a process boundary uses snake_case).
+ */
+export interface RunIndexEntry {
+  run_id: string;
+  timestamp: string;
+  experiment: string;
+  target: string;
+  test_count: number;
+  passed: number;
+  pass_rate: number;
+  avg_score: number;
+  size_bytes: number;
+  tags: string[];
+  sha?: string;
+}
+
+/** Append one entry to the run index. Creates the file and parent dirs if absent. */
+export function appendToRunIndex(indexFile: string, entry: RunIndexEntry): void {
+  mkdirSync(path.dirname(indexFile), { recursive: true });
+  appendFileSync(indexFile, `${JSON.stringify(entry)}\n`, 'utf8');
+}
+
+/** Read all entries from a run index file. Returns [] if the file doesn't exist. */
+export function readRunIndex(indexFile: string): RunIndexEntry[] {
+  if (!existsSync(indexFile)) return [];
+  const content = readFileSync(indexFile, 'utf8');
+  const entries: RunIndexEntry[] = [];
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      entries.push(JSON.parse(trimmed) as RunIndexEntry);
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return entries;
+}
+
+function updateLastRunIndexEntrySha(indexFile: string, sha: string): void {
+  const content = readFileSync(indexFile, 'utf8');
+  const lines = content.trimEnd().split('\n');
+  const lastLine = lines.at(-1);
+  if (!lastLine) return;
+  try {
+    const entry = JSON.parse(lastLine) as RunIndexEntry;
+    lines[lines.length - 1] = JSON.stringify({ ...entry, sha });
+    writeFileSync(indexFile, `${lines.join('\n')}\n`, 'utf8');
+  } catch {
+    // skip on parse error
+  }
+}
+
 export async function directorySizeBytes(targetPath: string): Promise<number> {
   const entry = await stat(targetPath);
   if (entry.isFile()) {
@@ -400,6 +465,8 @@ const DIRECT_PUSH_MAX_RETRIES = 3;
 /**
  * Push results directly to the base branch of the results repo.
  * Handles non-fast-forward conflicts by pulling with rebase and retrying.
+ * If indexEntry is provided, appends a row to index/runs.jsonl and backfills
+ * the commit sha via an amend after the initial commit.
  * Returns true if artifacts were pushed, false if no changes were detected.
  */
 export async function directPushResults(params: {
@@ -407,6 +474,7 @@ export async function directPushResults(params: {
   readonly sourceDir: string;
   readonly destinationPath: string;
   readonly commitMessage: string;
+  readonly indexEntry?: Omit<RunIndexEntry, 'sha'>;
 }): Promise<boolean> {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
@@ -420,6 +488,11 @@ export async function directPushResults(params: {
     destinationDir,
   });
 
+  if (params.indexEntry) {
+    const indexFile = path.join(repoDir, 'index', 'runs.jsonl');
+    appendToRunIndex(indexFile, params.indexEntry);
+  }
+
   await runGit(['add', '--all'], { cwd: repoDir });
   const { stdout: status } = await runGit(['status', '--porcelain'], {
     cwd: repoDir,
@@ -430,6 +503,14 @@ export async function directPushResults(params: {
   }
 
   await runGit(['commit', '-m', params.commitMessage], { cwd: repoDir });
+
+  if (params.indexEntry) {
+    const { stdout: sha } = await runGit(['rev-parse', 'HEAD'], { cwd: repoDir });
+    const indexFile = path.join(repoDir, 'index', 'runs.jsonl');
+    updateLastRunIndexEntrySha(indexFile, sha.trim());
+    await runGit(['add', 'index/runs.jsonl'], { cwd: repoDir });
+    await runGit(['commit', '--amend', '--no-edit'], { cwd: repoDir });
+  }
 
   for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
     try {
@@ -450,4 +531,58 @@ export async function directPushResults(params: {
   }
 
   return false;
+}
+
+/**
+ * Rebuild index/runs.jsonl from the provided entries and push to the results repo.
+ * Used by `agentv results reindex` to backfill the index for existing repos.
+ * Returns the number of entries written, or 0 if the index was already up to date.
+ */
+export async function reindexResultsRepo(params: {
+  readonly config: ResultsConfig;
+  readonly entries: readonly RunIndexEntry[];
+}): Promise<number> {
+  const normalized = normalizeResultsConfig(params.config);
+  const repoDir = await ensureResultsRepoClone(normalized);
+  const baseBranch = await resolveDefaultBranch(repoDir);
+  await updateCacheRepo(repoDir, baseBranch);
+
+  const indexFile = path.join(repoDir, 'index', 'runs.jsonl');
+  mkdirSync(path.dirname(indexFile), { recursive: true });
+  const content =
+    params.entries.length > 0 ? `${params.entries.map((e) => JSON.stringify(e)).join('\n')}\n` : '';
+  writeFileSync(indexFile, content, 'utf8');
+
+  await runGit(['add', 'index/runs.jsonl'], { cwd: repoDir });
+  const { stdout: statusOut } = await runGit(['status', '--porcelain'], {
+    cwd: repoDir,
+    check: false,
+  });
+  if (statusOut.trim().length === 0) {
+    return 0;
+  }
+
+  await runGit(['commit', '-m', `chore(index): reindex ${params.entries.length} runs`], {
+    cwd: repoDir,
+  });
+
+  for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
+    try {
+      await runGit(['push', 'origin', baseBranch], { cwd: repoDir });
+      updateStatusFile(normalized, {
+        last_synced_at: new Date().toISOString(),
+        last_error: undefined,
+      });
+      return params.entries.length;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
+        await runGit(['pull', '--rebase', 'origin', baseBranch], { cwd: repoDir });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return params.entries.length;
 }

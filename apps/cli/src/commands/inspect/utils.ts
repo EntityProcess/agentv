@@ -531,7 +531,7 @@ export interface ResultFileMeta {
   sizeBytes: number;
 }
 
-function buildRunId(relativeRunPath: string): string {
+export function buildRunId(relativeRunPath: string): string {
   const normalized = relativeRunPath.split(path.sep).join('/');
   const segments = normalized.split('/').filter(Boolean);
   if (segments.length >= 2) {

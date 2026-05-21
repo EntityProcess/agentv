@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -5,17 +6,22 @@ import {
   type EvaluationResult,
   type ResultsConfig,
   type ResultsRepoStatus,
+  type RunIndexEntry,
   directPushResults,
   directorySizeBytes,
+  getResultsRepoCachePaths,
   getResultsRepoStatus,
   loadConfig,
+  readRunIndex,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
 } from '@agentv/core';
 
+import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import {
   type ResultFileMeta,
+  buildRunId,
   listResultFiles,
   listResultFilesFromRunsDir,
 } from '../inspect/utils.js';
@@ -128,6 +134,49 @@ export function decodeRemoteRunId(filename: string): string {
   return filename.replace(REMOTE_RUN_PREFIX, '');
 }
 
+/**
+ * Reconstruct the filesystem manifest path from a run_id and the runs directory.
+ * Inverse of buildRunId: "experiment::timestamp" → runsDir/experiment/timestamp/index.jsonl
+ * Default experiment: "timestamp" → runsDir/default/timestamp/index.jsonl
+ */
+function runIdToManifestPath(runId: string, runsDir: string): string {
+  const sepIdx = runId.indexOf('::');
+  const relPath =
+    sepIdx === -1
+      ? path.join('default', runId)
+      : path.join(runId.slice(0, sepIdx), runId.slice(sepIdx + 2));
+  return path.join(runsDir, relPath, RESULT_INDEX_FILENAME);
+}
+
+/**
+ * Read remote runs from the index file. Returns null if index doesn't exist (triggers fallback).
+ */
+function listRemoteRunsFromIndex(
+  repoDir: string,
+  config: Required<ResultsConfig>,
+): SourcedResultFileMeta[] | null {
+  const indexFile = path.join(repoDir, 'index', 'runs.jsonl');
+  if (!existsSync(indexFile)) return null;
+
+  const runsDir = resolveResultsRepoRunsDir(config);
+  const entries = readRunIndex(indexFile);
+
+  return entries.map((entry) => ({
+    path: runIdToManifestPath(entry.run_id, runsDir),
+    filename: encodeRemoteRunId(entry.run_id),
+    raw_filename: entry.run_id,
+    displayName: entry.run_id.includes('::')
+      ? (entry.run_id.split('::').at(-1) ?? entry.run_id)
+      : entry.run_id,
+    timestamp: entry.timestamp,
+    testCount: entry.test_count,
+    passRate: entry.pass_rate,
+    avgScore: entry.avg_score,
+    sizeBytes: entry.size_bytes,
+    source: 'remote' as const,
+  }));
+}
+
 export async function getRemoteResultsStatus(cwd: string): Promise<RemoteResultsStatus> {
   const config = await loadNormalizedResultsConfig(cwd);
   const status = getResultsRepoStatus(config);
@@ -185,15 +234,20 @@ export async function listMergedResultFiles(
     };
   }
 
-  const remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
-    (meta) =>
-      ({
-        ...meta,
-        filename: encodeRemoteRunId(meta.filename),
-        raw_filename: meta.filename,
-        source: 'remote' as const,
-      }) satisfies SourcedResultFileMeta,
-  );
+  const repoDir = getResultsRepoCachePaths(config.repo).repoDir;
+
+  // Prefer index for O(1) listing; fall back to directory walk for repos without an index.
+  const remoteRuns =
+    listRemoteRunsFromIndex(repoDir, config) ??
+    listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
+      (meta) =>
+        ({
+          ...meta,
+          filename: encodeRemoteRunId(meta.filename),
+          raw_filename: meta.filename,
+          source: 'remote' as const,
+        }) satisfies SourcedResultFileMeta,
+    );
 
   const merged = [...localRuns, ...remoteRuns].sort((a, b) =>
     b.timestamp.localeCompare(a.timestamp),
@@ -223,12 +277,35 @@ export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload):
 
     const relativeRunPath = getRelativeRunPath(payload.cwd, payload.run_dir);
     const commitTitle = buildCommitTitle(payload);
+    const runId = buildRunId(relativeRunPath);
+    const results = payload.results;
+    const passed = results.filter((r) => r.score >= DEFAULT_THRESHOLD).length;
+    const testCount = results.length;
+    const avgScore = testCount > 0 ? results.reduce((sum, r) => sum + r.score, 0) / testCount : 0;
+    const passRate = testCount > 0 ? passed / testCount : 0;
+    const experiment = payload.experiment ?? 'default';
+    const target = results[0]?.target ?? '';
+    const sizeBytes = await directorySizeBytes(payload.run_dir);
+
+    const indexEntry: Omit<RunIndexEntry, 'sha'> = {
+      run_id: runId,
+      timestamp: results[0]?.timestamp ?? new Date().toISOString(),
+      experiment,
+      target,
+      test_count: testCount,
+      passed,
+      pass_rate: passRate,
+      avg_score: avgScore,
+      size_bytes: sizeBytes,
+      tags: [],
+    };
 
     const pushed = await directPushResults({
       config,
       sourceDir: payload.run_dir,
       destinationPath: relativeRunPath,
       commitMessage: commitTitle,
+      indexEntry,
     });
 
     if (!pushed) {

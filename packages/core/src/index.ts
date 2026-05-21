@@ -74,10 +74,14 @@ export {
   pushResultsRepoBranch,
   createDraftResultsPr,
   directPushResults,
+  appendToRunIndex,
+  readRunIndex,
+  reindexResultsRepo,
   type CheckedOutResultsRepoBranch,
   type PreparedResultsRepoBranch,
   type ResultsRepoCachePaths,
   type ResultsRepoStatus,
+  type RunIndexEntry,
 } from './evaluation/results-repo.js';
 export {
   getAgentvConfigDir,

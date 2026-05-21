@@ -2,6 +2,7 @@ import { subcommands } from 'cmd-ts';
 
 import { resultsExportCommand } from './export.js';
 import { resultsFailuresCommand } from './failures.js';
+import { resultsReindexCommand } from './reindex.js';
 import { resultsReportCommand } from './report.js';
 import { resultsShowCommand } from './show.js';
 import { resultsSummaryCommand } from './summary.js';
@@ -17,5 +18,6 @@ export const resultsCommand = subcommands({
     failures: resultsFailuresCommand,
     show: resultsShowCommand,
     validate: resultsValidateCommand,
+    reindex: resultsReindexCommand,
   },
 });
