@@ -82,7 +82,7 @@ export function RunSourceToolbar({
       ) : filter === 'all' ? (
         <p className="text-sm text-gray-500">
           Remote results are not configured. Add{' '}
-          <code className="rounded bg-gray-800 px-1 text-gray-400">results.export</code> to{' '}
+          <code className="rounded bg-gray-800 px-1 text-gray-400">results</code> to{' '}
           <code className="rounded bg-gray-800 px-1 text-gray-400">.agentv/config.yaml</code> to
           enable.
         </p>

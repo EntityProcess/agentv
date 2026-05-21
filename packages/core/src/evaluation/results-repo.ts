@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { getAgentvHome } from '../paths.js';
-import type { ResultsExportConfig } from './loaders/config-loader.js';
+import type { ResultsConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -61,9 +61,7 @@ function withFriendlyGitHubAuthError(error: unknown): Error {
   return new Error(message);
 }
 
-export function normalizeResultsExportConfig(
-  config: ResultsExportConfig,
-): Required<ResultsExportConfig> {
+export function normalizeResultsConfig(config: ResultsConfig): Required<ResultsConfig> {
   return {
     repo: config.repo.trim(),
     path: config.path.trim().replace(/^\/+|\/+$/g, ''),
@@ -172,7 +170,7 @@ async function updateCacheRepo(repoDir: string, baseBranch: string): Promise<voi
   await runGit(['pull', '--ff-only', 'origin', baseBranch], { cwd: repoDir });
 }
 
-function updateStatusFile(config: ResultsExportConfig, patch: PersistedStatus): void {
+function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
   const cachePaths = getResultsRepoCachePaths(config.repo);
   const current = readPersistedStatus(cachePaths.statusFile);
   writePersistedStatus(cachePaths.statusFile, {
@@ -181,8 +179,8 @@ function updateStatusFile(config: ResultsExportConfig, patch: PersistedStatus): 
   });
 }
 
-export async function ensureResultsRepoClone(config: ResultsExportConfig): Promise<string> {
-  const normalized = normalizeResultsExportConfig(config);
+export async function ensureResultsRepoClone(config: ResultsConfig): Promise<string> {
+  const normalized = normalizeResultsConfig(config);
   const cachePaths = getResultsRepoCachePaths(normalized.repo);
   mkdirSync(cachePaths.rootDir, { recursive: true });
 
@@ -208,7 +206,7 @@ export async function ensureResultsRepoClone(config: ResultsExportConfig): Promi
   return cachePaths.repoDir;
 }
 
-export function getResultsRepoStatus(config?: ResultsExportConfig): ResultsRepoStatus {
+export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus {
   if (!config) {
     return {
       configured: false,
@@ -218,7 +216,7 @@ export function getResultsRepoStatus(config?: ResultsExportConfig): ResultsRepoS
     };
   }
 
-  const normalized = normalizeResultsExportConfig(config);
+  const normalized = normalizeResultsConfig(config);
   const cachePaths = getResultsRepoCachePaths(normalized.repo);
   const persisted = readPersistedStatus(cachePaths.statusFile);
 
@@ -235,8 +233,8 @@ export function getResultsRepoStatus(config?: ResultsExportConfig): ResultsRepoS
   };
 }
 
-export async function syncResultsRepo(config: ResultsExportConfig): Promise<ResultsRepoStatus> {
-  const normalized = normalizeResultsExportConfig(config);
+export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRepoStatus> {
+  const normalized = normalizeResultsConfig(config);
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
@@ -257,10 +255,10 @@ export async function syncResultsRepo(config: ResultsExportConfig): Promise<Resu
 }
 
 export async function checkoutResultsRepoBranch(
-  config: ResultsExportConfig,
+  config: ResultsConfig,
   branchName: string,
 ): Promise<CheckedOutResultsRepoBranch> {
-  const normalized = normalizeResultsExportConfig(config);
+  const normalized = normalizeResultsConfig(config);
   const repoDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(repoDir);
   await updateCacheRepo(repoDir, baseBranch);
@@ -274,10 +272,10 @@ export async function checkoutResultsRepoBranch(
 }
 
 export async function prepareResultsRepoBranch(
-  config: ResultsExportConfig,
+  config: ResultsConfig,
   branchName: string,
 ): Promise<PreparedResultsRepoBranch> {
-  const normalized = normalizeResultsExportConfig(config);
+  const normalized = normalizeResultsConfig(config);
   const cloneDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(cloneDir);
   await updateCacheRepo(cloneDir, baseBranch);
@@ -312,8 +310,8 @@ export async function stageResultsArtifacts(params: {
   await cp(params.sourceDir, params.destinationDir, { recursive: true });
 }
 
-export function resolveResultsRepoRunsDir(config: ResultsExportConfig): string {
-  const normalized = normalizeResultsExportConfig(config);
+export function resolveResultsRepoRunsDir(config: ResultsConfig): string {
+  const normalized = normalizeResultsConfig(config);
   return path.join(
     getResultsRepoCachePaths(normalized.repo).repoDir,
     ...normalized.path.split('/'),
@@ -354,11 +352,11 @@ export async function commitAndPushResultsBranch(params: {
 }
 
 export async function pushResultsRepoBranch(
-  config: ResultsExportConfig,
+  config: ResultsConfig,
   branchName: string,
   cwd?: string,
 ): Promise<void> {
-  const normalized = normalizeResultsExportConfig(config);
+  const normalized = normalizeResultsConfig(config);
   await runGit(['push', '-u', 'origin', branchName], {
     cwd: cwd ?? getResultsRepoCachePaths(normalized.repo).repoDir,
   });
@@ -405,12 +403,12 @@ const DIRECT_PUSH_MAX_RETRIES = 3;
  * Returns true if artifacts were pushed, false if no changes were detected.
  */
 export async function directPushResults(params: {
-  readonly config: ResultsExportConfig;
+  readonly config: ResultsConfig;
   readonly sourceDir: string;
   readonly destinationPath: string;
   readonly commitMessage: string;
 }): Promise<boolean> {
-  const normalized = normalizeResultsExportConfig(params.config);
+  const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(repoDir);
   await updateCacheRepo(repoDir, baseBranch);

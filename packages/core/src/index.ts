@@ -10,7 +10,7 @@ export {
 export {
   loadConfig,
   type AgentVConfig as AgentVYamlConfig,
-  type ResultsExportConfig,
+  type ResultsConfig,
 } from './evaluation/loaders/config-loader.js';
 export {
   loadTsEvalFile,
@@ -63,7 +63,7 @@ export {
   syncResultsRepo,
   getResultsRepoCachePaths,
   getResultsRepoStatus,
-  normalizeResultsExportConfig,
+  normalizeResultsConfig,
   resolveResultsRepoRunsDir,
   resolveResultsRepoUrl,
   prepareResultsRepoBranch,

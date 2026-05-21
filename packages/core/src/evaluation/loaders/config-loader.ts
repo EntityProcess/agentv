@@ -36,7 +36,7 @@ export type ExecutionDefaults = {
   readonly pool_slots?: number;
 };
 
-export type ResultsExportConfig = {
+export type ResultsConfig = {
   readonly repo: string;
   readonly path: string;
   readonly auto_push?: boolean;
@@ -52,9 +52,7 @@ export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
   readonly execution?: ExecutionDefaults;
-  readonly results?: {
-    readonly export?: ResultsExportConfig;
-  };
+  readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
 };
 
@@ -560,10 +558,7 @@ export function parseExecutionDefaults(
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
 }
 
-export function parseResultsConfig(
-  raw: unknown,
-  configPath: string,
-): AgentVConfig['results'] | undefined {
+export function parseResultsConfig(raw: unknown, configPath: string): ResultsConfig | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
   }
@@ -573,51 +568,28 @@ export function parseResultsConfig(
   }
 
   const obj = raw as Record<string, unknown>;
-  const exportConfig = parseResultsExportConfig(obj.export, configPath);
-  if (!exportConfig) {
-    return undefined;
-  }
-
-  return { export: exportConfig };
-}
-
-export function parseResultsExportConfig(
-  raw: unknown,
-  configPath: string,
-): ResultsExportConfig | undefined {
-  if (raw === undefined || raw === null) {
-    return undefined;
-  }
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
-    logWarning(`Invalid results.export in ${configPath}, expected object`);
-    return undefined;
-  }
-
-  const obj = raw as Record<string, unknown>;
   const repo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
-  const exportPath = typeof obj.path === 'string' ? obj.path.trim() : '';
+  const resultsPath = typeof obj.path === 'string' ? obj.path.trim() : '';
 
   if (!repo) {
-    logWarning(`Invalid results.export.repo in ${configPath}, expected non-empty string`);
+    logWarning(`Invalid results.repo in ${configPath}, expected non-empty string`);
     return undefined;
   }
 
-  if (!exportPath) {
-    logWarning(`Invalid results.export.path in ${configPath}, expected non-empty string`);
+  if (!resultsPath) {
+    logWarning(`Invalid results.path in ${configPath}, expected non-empty string`);
     return undefined;
   }
 
   if (obj.auto_push !== undefined && typeof obj.auto_push !== 'boolean') {
-    logWarning(`Invalid results.export.auto_push in ${configPath}, expected boolean`);
+    logWarning(`Invalid results.auto_push in ${configPath}, expected boolean`);
     return undefined;
   }
 
   let branchPrefix: string | undefined;
   if (obj.branch_prefix !== undefined) {
     if (typeof obj.branch_prefix !== 'string' || obj.branch_prefix.trim().length === 0) {
-      logWarning(
-        `Invalid results.export.branch_prefix in ${configPath}, expected non-empty string`,
-      );
+      logWarning(`Invalid results.branch_prefix in ${configPath}, expected non-empty string`);
       return undefined;
     }
     branchPrefix = obj.branch_prefix.trim();
@@ -625,7 +597,7 @@ export function parseResultsExportConfig(
 
   return {
     repo,
-    path: exportPath,
+    path: resultsPath,
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
     ...(branchPrefix && { branch_prefix: branchPrefix }),
   };

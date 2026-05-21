@@ -349,10 +349,7 @@ function RunsTabContent({
               <>
                 <p className="text-lg text-gray-400">Remote results are not configured.</p>
                 <p className="mt-2 text-sm text-gray-500">
-                  Add{' '}
-                  <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
-                    results.export
-                  </code>{' '}
+                  Add <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">results</code>{' '}
                   to{' '}
                   <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
                     .agentv/config.yaml
