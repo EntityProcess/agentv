@@ -12,6 +12,7 @@ import {
   normalizeResultsConfig,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
+  listGitRuns,
 } from '@agentv/core';
 
 import { findRepoRoot } from '../eval/shared.js';
@@ -177,15 +178,36 @@ export async function listMergedResultFiles(
     };
   }
 
-  const remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
-    (meta) =>
-      ({
-        ...meta,
-        filename: encodeRemoteRunId(meta.filename),
-        raw_filename: meta.filename,
-        source: 'remote' as const,
-      }) satisfies SourcedResultFileMeta,
-  );
+  let remoteRuns: SourcedResultFileMeta[] = [];
+  if ((config as any).mode === "github") {
+    try {
+      const gitRuns = await listGitRuns(resolveResultsRepoRunsDir(config));
+      remoteRuns = gitRuns.map((r: any) => ({
+        filename: encodeRemoteRunId(r.run_id),
+        raw_filename: r.run_id,
+        source: "remote" as const,
+        path: r.benchmark_path,
+        displayName: r.display_name,
+        timestamp: r.timestamp,
+        testCount: r.test_count,
+        passRate: r.pass_rate || 0,
+        avgScore: r.avg_score || 0,
+        sizeBytes: r.size_bytes || 0,
+      }));
+    } catch (e) {
+      console.error("git-native listing failed, falling back", e);
+    }
+  } else {
+    remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
+      (meta) =>
+        ({
+          ...meta,
+          filename: encodeRemoteRunId(meta.filename),
+          raw_filename: meta.filename,
+          source: "remote" as const,
+        }) satisfies SourcedResultFileMeta,
+    );
+  }
 
   const merged = [...localRuns, ...remoteRuns].sort((a, b) =>
     b.timestamp.localeCompare(a.timestamp),

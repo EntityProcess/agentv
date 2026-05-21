@@ -519,6 +519,34 @@ import { promisify } from "node:util";
 import path from "node:path";
 
 
+          const timestamp = parts[parts.length - 2];
+          const experiment = parts[parts.length - 3];
+
+          runs.push({
+            run_id: `${experiment}/${timestamp}`,
+            experiment,
+            timestamp,
+            pass_rate: benchmark.pass_rate,
+            target: benchmark.target,
+            benchmark_path: fullPath,
+            display_name: benchmark.target || experiment,
+            test_count: benchmark.test_count || 0,
+            avg_score: benchmark.avg_score || 0,
+            size_bytes: 0,
+          });
+        } catch {
+          // skip malformed
+        }
+        currentPathIndex++;
+        i++; // skip the JSON line
+      }
+    }
+  }
+
+  // Sort newest first
+  runs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return runs;
+}
 export interface GitListedRun {
   run_id: string;
   experiment: string;
@@ -526,17 +554,21 @@ export interface GitListedRun {
   pass_rate?: number;
   target?: string;
   benchmark_path: string;
+  display_name: string;
+  test_count: number;
+  avg_score: number;
+  size_bytes: number;
 }
 
 /**
- * Lists all runs from a git results repo using only git ls-tree + cat-file.
- * This is the core of the new git-native read path.
+ * Lists all runs from a git results repo using git ls-tree + cat-file --batch.
+ * This is the core of the new git-native read path (replaces filesystem walking).
  */
 export async function listGitRuns(
   repoDir: string,
   ref = "origin/main"
 ): Promise<GitListedRun[]> {
-  // Step 1: List all benchmark.json paths
+  // 1. Get all benchmark.json paths via ls-tree
   const { stdout: treeOut } = await execFileAsync(
     "git",
     ["ls-tree", "-r", "--name-only", ref, "runs/"],
@@ -550,33 +582,30 @@ export async function listGitRuns(
 
   if (benchmarkPaths.length === 0) return [];
 
-  // Step 2: Bulk read all benchmark.json blobs using cat-file --batch
-  const batchSpec = benchmarkPaths.map((p) => `${ref}:${p}`).join("\n");
+  // 2. Bulk read using cat-file --batch
+  const batchInput = benchmarkPaths.map((p) => `${ref}:${p}`).join("\n") + "\n";
 
   const { stdout: batchOut } = await execFileAsync(
     "git",
     ["cat-file", "--batch"],
-    {
-      cwd: repoDir,
-      input: batchSpec + "\n",
-    }
+    { cwd: repoDir, input: batchInput }
   );
 
   const runs: GitListedRun[] = [];
   const lines = batchOut.split("\n");
-  let currentPathIndex = 0;
+  let pathIdx = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line) continue;
 
-    // cat-file --batch format: <sha> <type> <size>
-    if (line.match(/^[0-9a-f]{40} blob \d+$/)) {
+    // Match: <sha> blob <size>
+    if (/^[0-9a-f]{40} blob \d+$/.test(line)) {
       const jsonLine = lines[i + 1];
-      if (jsonLine && jsonLine.startsWith("{")) {
+      if (jsonLine && jsonLine[0] === "{") {
         try {
           const benchmark = JSON.parse(jsonLine);
-          const fullPath = benchmarkPaths[currentPathIndex];
+          const fullPath = benchmarkPaths[pathIdx];
           const parts = fullPath.split("/");
           const timestamp = parts[parts.length - 2];
           const experiment = parts[parts.length - 3];
@@ -588,17 +617,21 @@ export async function listGitRuns(
             pass_rate: benchmark.pass_rate,
             target: benchmark.target,
             benchmark_path: fullPath,
+            display_name: benchmark.target || experiment,
+            test_count: benchmark.test_count || 0,
+            avg_score: benchmark.avg_score || 0,
+            size_bytes: 0,
           });
         } catch {
-          // skip malformed
+          // skip bad JSON
         }
-        currentPathIndex++;
-        i++; // skip the JSON line
+        pathIdx++;
+        i++; // skip the JSON line we just consumed
       }
     }
   }
 
-  // Sort newest first
+  // Newest first
   runs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return runs;
 }
