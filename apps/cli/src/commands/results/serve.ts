@@ -325,17 +325,17 @@ async function handleRunLog(c: C, { searchDir }: DataContext) {
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   if (meta.source === 'remote') {
-    return c.json({ error: 'Console log is not available for remote runs' }, 404);
+    return c.json({ error: 'Run log is not available for remote runs' }, 404);
   }
   const logPath = path.join(path.dirname(meta.path), 'console.log');
   if (!existsSync(logPath)) {
-    return c.json({ error: 'Console log not found for this run' }, 404);
+    return c.json({ error: 'Run log not found for this run' }, 404);
   }
   try {
     const content = readFileSync(logPath, 'utf8');
     return c.text(content);
   } catch {
-    return c.json({ error: 'Failed to read console log' }, 500);
+    return c.json({ error: 'Failed to read run log' }, 500);
   }
 }
 

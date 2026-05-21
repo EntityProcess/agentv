@@ -5,7 +5,7 @@
  * Category Breakdown is shown as a clean table with coloured pass-rate pills.
  * The All Evals table shows ERR badge instead of 0% for execution errors.
  *
- * Also renders a collapsible "Console Log" section sourced from the run's
+ * Also renders a collapsible "Run Log" section sourced from the run's
  * captured `console.log` file (served by `/api/runs/:id/log`). Hidden when no
  * log is available — e.g. for remote runs or local runs that completed before
  * the console-log capture feature shipped.
@@ -284,7 +284,7 @@ function ConsoleLogSection({ runId, projectId }: { runId: string; projectId?: st
       >
         <span className="flex items-center gap-2">
           <span aria-hidden="true">{open ? '▾' : '▸'}</span>
-          Console Log
+          Run Log
         </span>
         <span className="text-xs text-gray-500">
           {isLoading ? 'Loading…' : error ? 'Failed to load' : log ? `${log.length} chars` : ''}
@@ -294,7 +294,7 @@ function ConsoleLogSection({ runId, projectId }: { runId: string; projectId?: st
         <div className="mt-2 overflow-hidden rounded-lg border border-gray-800 bg-black">
           {error ? (
             <div className="p-4 text-sm text-red-400">
-              Failed to load console log: {(error as Error).message}
+              Failed to load run log: {(error as Error).message}
             </div>
           ) : (
             <pre className="max-h-[480px] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-relaxed text-gray-200">
