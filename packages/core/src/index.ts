@@ -75,6 +75,7 @@ export {
   createDraftResultsPr,
   directPushResults,
   listGitRuns,
+  materializeGitRun,
   type CheckedOutResultsRepoBranch,
   type GitListedRun,
   type PreparedResultsRepoBranch,

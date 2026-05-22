@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -10,6 +11,7 @@ import {
   getResultsRepoStatus,
   listGitRuns,
   loadConfig,
+  materializeGitRun,
   normalizeResultsConfig,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
@@ -124,10 +126,14 @@ export function decodeRemoteRunId(filename: string): string {
 export async function getRemoteResultsStatus(cwd: string): Promise<RemoteResultsStatus> {
   const config = await loadNormalizedResultsConfig(cwd);
   const status = getResultsRepoStatus(config);
-  const runCount =
-    config && status.available
-      ? listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length
-      : 0;
+  let runCount = 0;
+  if (config && status.available) {
+    try {
+      runCount = (await listGitRuns(config.path)).length;
+    } catch {
+      runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
+    }
+  }
   return {
     ...status,
     run_count: runCount,
@@ -233,6 +239,32 @@ export async function findRunById(
 ): Promise<SourcedResultFileMeta | undefined> {
   const { runs } = await listMergedResultFiles(cwd);
   return runs.find((run) => run.filename === runId);
+}
+
+export async function ensureRemoteRunAvailable(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+): Promise<void> {
+  if (meta.source !== 'remote' || existsSync(meta.path)) {
+    return;
+  }
+
+  const config = await loadNormalizedResultsConfig(cwd);
+  if (!config) {
+    throw new Error('Remote results are not configured');
+  }
+
+  const relativeManifestPath = path.relative(config.path, meta.path).split(path.sep).join('/');
+  if (
+    relativeManifestPath.length === 0 ||
+    relativeManifestPath === meta.path ||
+    relativeManifestPath.startsWith('../')
+  ) {
+    throw new Error(`Remote manifest path is outside the results repo clone: ${meta.path}`);
+  }
+
+  const relativeRunPath = path.posix.relative('runs', path.posix.dirname(relativeManifestPath));
+  await materializeGitRun(config.path, relativeRunPath);
 }
 
 export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload): Promise<void> {

@@ -697,3 +697,37 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
   runs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return runs;
 }
+
+export async function materializeGitRun(
+  repoDir: string,
+  relativeRunPath: string,
+  ref = 'origin/main',
+): Promise<void> {
+  const normalizedRunPath = relativeRunPath.split(path.sep).join('/');
+  const runTreePath = path.posix.join('runs', normalizedRunPath);
+  const { stdout: treeOut } = await runGit(['ls-tree', '-r', '--name-only', ref, runTreePath], {
+    cwd: repoDir,
+  });
+
+  const filePaths = treeOut
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (filePaths.length === 0) {
+    return;
+  }
+
+  const batchInput = `${filePaths.map((filePath) => `${ref}:${filePath}`).join('\n')}\n`;
+  const blobs = parseGitBatchBlobs(await runGitBatch(repoDir, batchInput));
+  if (blobs.length !== filePaths.length) {
+    throw new Error(
+      `Expected ${filePaths.length} git blobs but received ${blobs.length} while materializing results run`,
+    );
+  }
+
+  for (const [index, filePath] of filePaths.entries()) {
+    const absolutePath = path.join(repoDir, ...filePath.split('/'));
+    mkdirSync(path.dirname(absolutePath), { recursive: true });
+    writeFileSync(absolutePath, blobs[index].content);
+  }
+}

@@ -73,7 +73,11 @@ function git(command: string, cwd: string): string {
   return execSync(command, { cwd, encoding: 'utf8', env: cleanGitEnv() }).trim();
 }
 
-function initializeRemoteRepo(rootDir: string): { remoteDir: string; cloneDir: string } {
+function initializeRemoteRepo(rootDir: string): {
+  remoteDir: string;
+  cloneDir: string;
+  seedDir: string;
+} {
   const remoteDir = path.join(rootDir, 'results-remote.git');
   git(`git init --bare --initial-branch=main --quiet "${remoteDir}"`, rootDir);
 
@@ -90,7 +94,7 @@ function initializeRemoteRepo(rootDir: string): { remoteDir: string; cloneDir: s
   git('git config user.email "test@example.com"', cloneDir);
   git('git config user.name "Test User"', cloneDir);
 
-  return { remoteDir, cloneDir };
+  return { remoteDir, cloneDir, seedDir };
 }
 
 function writeRemoteRunArtifact(
@@ -722,6 +726,57 @@ describe('serve app', () => {
       expect(detailData.source).toBe('remote');
       expect(detailData.results).toHaveLength(1);
       expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
+    }, 15000);
+
+    it('loads externally pushed remote runs after sync even when the clone has not checked out the files', async () => {
+      const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        seedDir,
+        'external-sync',
+        '2026-03-26T11-00-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const runManifestPath = path.join(
+        cloneDir,
+        'runs',
+        'external-sync',
+        '2026-03-26T11-00-00-000Z',
+        'index.jsonl',
+      );
+      expect(existsSync(runManifestPath)).toBe(false);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const syncRes = await app.request('/api/remote/sync', { method: 'POST' });
+      expect(syncRes.status).toBe(200);
+      const syncData = (await syncRes.json()) as { run_count: number };
+      expect(syncData.run_count).toBe(1);
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: `remote::${runId}`,
+        source: 'remote',
+      });
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(`remote::${runId}`)}`);
+      expect(detailRes.status).toBe(200);
+      expect(existsSync(runManifestPath)).toBe(true);
     }, 15000);
   });
 
