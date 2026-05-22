@@ -560,7 +560,11 @@ async function runGitBatch(repoDir: string, input: string): Promise<Buffer> {
       }
 
       const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-      reject(withFriendlyGitHubAuthError(stderr.length > 0 ? new Error(stderr) : new Error('git cat-file failed')));
+      reject(
+        withFriendlyGitHubAuthError(
+          stderr.length > 0 ? new Error(stderr) : new Error('git cat-file failed'),
+        ),
+      );
     });
 
     child.stdin.end(input);

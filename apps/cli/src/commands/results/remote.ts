@@ -8,11 +8,11 @@ import {
   directPushResults,
   directorySizeBytes,
   getResultsRepoStatus,
+  listGitRuns,
   loadConfig,
   normalizeResultsConfig,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
-  listGitRuns,
 } from '@agentv/core';
 
 import { findRepoRoot } from '../eval/shared.js';
