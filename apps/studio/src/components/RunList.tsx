@@ -13,6 +13,7 @@
  */
 
 import type React from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Link } from '@tanstack/react-router';
 
@@ -26,6 +27,9 @@ interface RunListProps {
   runs: RunMeta[];
   projectId?: string;
   emptyMessage?: React.ReactNode;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
 }
 
 function formatDate(ts: string | undefined | null): { date: string; full: string } {
@@ -48,9 +52,50 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
   }
 }
 
-export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
+export function RunList({
+  runs,
+  projectId,
+  emptyMessage,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore,
+}: RunListProps) {
   const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
+  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
+  const requestingNextPageRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFetchingNextPage) {
+      requestingNextPageRef.current = false;
+    }
+  }, [isFetchingNextPage]);
+
+  useEffect(() => {
+    if (!hasNextPage || !onLoadMore) {
+      return;
+    }
+    const node = sentinelRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries.some((entry) => entry.isIntersecting) &&
+          !isFetchingNextPage &&
+          !requestingNextPageRef.current
+        ) {
+          requestingNextPageRef.current = true;
+          onLoadMore();
+        }
+      },
+      { rootMargin: '200px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, onLoadMore]);
 
   if (runs.length === 0) {
     return (
@@ -155,6 +200,13 @@ export function RunList({ runs, projectId, emptyMessage }: RunListProps) {
               </tr>
             );
           })}
+          {(hasNextPage || isFetchingNextPage) && (
+            <tr ref={sentinelRef}>
+              <td colSpan={7} className="px-4 py-3 text-center text-xs text-gray-500">
+                {isFetchingNextPage ? 'Loading more runs…' : 'Scroll to load more…'}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

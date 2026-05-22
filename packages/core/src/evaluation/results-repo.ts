@@ -186,10 +186,8 @@ async function resolveDefaultBranch(repoDir: string): Promise<string> {
   return 'main';
 }
 
-async function updateCacheRepo(repoDir: string, baseBranch: string): Promise<void> {
+async function fetchResultsRepo(repoDir: string): Promise<void> {
   await runGit(['fetch', 'origin', '--prune'], { cwd: repoDir });
-  await runGit(['checkout', baseBranch], { cwd: repoDir });
-  await runGit(['pull', '--ff-only', 'origin', baseBranch], { cwd: repoDir });
 }
 
 function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
@@ -204,28 +202,34 @@ function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
 export async function ensureResultsRepoClone(config: ResultsConfig): Promise<string> {
   const normalized = normalizeResultsConfig(config);
   const cachePaths = getResultsRepoLocalPaths(normalized.repo);
+  const cloneDir = normalized.path;
   mkdirSync(cachePaths.rootDir, { recursive: true });
+  mkdirSync(path.dirname(cloneDir), { recursive: true });
 
-  if (!existsSync(cachePaths.repoDir)) {
+  const cloneMissing = !existsSync(cloneDir);
+  const gitDir = path.join(cloneDir, '.git');
+  const cloneEmpty = !cloneMissing && !existsSync(gitDir) && (await readdir(cloneDir)).length === 0;
+
+  if (cloneMissing || cloneEmpty) {
     try {
       await runGit([
         'clone',
         '--filter=blob:none',
         resolveResultsRepoUrl(normalized.repo),
-        cachePaths.repoDir,
+        cloneDir,
       ]);
-      return cachePaths.repoDir;
+      return cloneDir;
     } catch (error) {
       updateStatusFile(normalized, { last_error: withFriendlyGitHubAuthError(error).message });
       throw withFriendlyGitHubAuthError(error);
     }
   }
 
-  if (!existsSync(path.join(cachePaths.repoDir, '.git'))) {
-    throw new Error(`Results repo cache is not a git repository: ${cachePaths.repoDir}`);
+  if (!existsSync(gitDir)) {
+    throw new Error(`Results repo clone path is not a git repository: ${cloneDir}`);
   }
 
-  return cachePaths.repoDir;
+  return cloneDir;
 }
 
 export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus {
@@ -260,8 +264,7 @@ export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRep
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
-    const baseBranch = await resolveDefaultBranch(repoDir);
-    await updateCacheRepo(repoDir, baseBranch);
+    await fetchResultsRepo(repoDir);
     updateStatusFile(normalized, {
       last_synced_at: new Date().toISOString(),
       last_error: undefined,
@@ -283,7 +286,7 @@ export async function checkoutResultsRepoBranch(
   const normalized = normalizeResultsConfig(config);
   const repoDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(repoDir);
-  await updateCacheRepo(repoDir, baseBranch);
+  await fetchResultsRepo(repoDir);
   await runGit(['checkout', '-B', branchName, `origin/${baseBranch}`], { cwd: repoDir });
   updateStatusFile(normalized, { last_error: undefined });
   return {
@@ -300,7 +303,7 @@ export async function prepareResultsRepoBranch(
   const normalized = normalizeResultsConfig(config);
   const cloneDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(cloneDir);
-  await updateCacheRepo(cloneDir, baseBranch);
+  await fetchResultsRepo(cloneDir);
 
   const worktreeRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-repo-'));
   const worktreeDir = path.join(worktreeRoot, 'repo');
@@ -377,7 +380,7 @@ export async function pushResultsRepoBranch(
 ): Promise<void> {
   const normalized = normalizeResultsConfig(config);
   await runGit(['push', '-u', 'origin', branchName], {
-    cwd: cwd ?? getResultsRepoLocalPaths(normalized.repo).repoDir,
+    cwd: cwd ?? normalized.path,
   });
   updateStatusFile(normalized, {
     last_synced_at: new Date().toISOString(),
@@ -418,7 +421,7 @@ const DIRECT_PUSH_MAX_RETRIES = 3;
 
 /**
  * Push results directly to the base branch of the results repo.
- * Handles non-fast-forward conflicts by pulling with rebase and retrying.
+ * Handles non-fast-forward conflicts by fetching, rebasing, and retrying.
  * Returns true if artifacts were pushed, false if no changes were detected.
  */
 export async function directPushResults(params: {
@@ -430,9 +433,9 @@ export async function directPushResults(params: {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(repoDir);
-  await updateCacheRepo(repoDir, baseBranch);
+  await fetchResultsRepo(repoDir);
 
-  const destinationDir = path.join(repoDir, normalized.path, params.destinationPath);
+  const destinationDir = path.join(repoDir, 'runs', params.destinationPath);
   await stageResultsArtifacts({
     repoDir,
     sourceDir: params.sourceDir,
@@ -448,11 +451,20 @@ export async function directPushResults(params: {
     return false;
   }
 
-  await runGit(['commit', '-m', params.commitMessage], { cwd: repoDir });
+  await runGit(
+    [
+      'commit',
+      '-m',
+      params.commitMessage,
+      '-m',
+      `Agentv-Run: ${buildGitRunId(params.destinationPath)}`,
+    ],
+    { cwd: repoDir },
+  );
 
   for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
     try {
-      await runGit(['push', 'origin', baseBranch], { cwd: repoDir });
+      await runGit(['push', 'origin', `HEAD:${baseBranch}`], { cwd: repoDir });
       updateStatusFile(normalized, {
         last_synced_at: new Date().toISOString(),
         last_error: undefined,
@@ -461,7 +473,8 @@ export async function directPushResults(params: {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
-        await runGit(['pull', '--rebase', 'origin', baseBranch], { cwd: repoDir });
+        await fetchResultsRepo(repoDir);
+        await runGit(['rebase', `origin/${baseBranch}`], { cwd: repoDir });
       } else {
         throw error;
       }

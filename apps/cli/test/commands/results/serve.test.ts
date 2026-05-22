@@ -392,12 +392,77 @@ describe('serve app', () => {
   // ── GET /api/runs ───────────────────────────────────────────────────
 
   describe('GET /api/runs', () => {
+    function createLocalRun(baseDir: string, filename: string, ...records: object[]) {
+      const runDir = path.join(baseDir, '.agentv', 'results', 'runs', filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
+    }
+
     it('returns empty runs list for temp directory', async () => {
       const app = createApp([], tempDir, undefined, undefined, { studioDir });
       const res = await app.request('/api/runs');
       expect(res.status).toBe(200);
       const data = (await res.json()) as { runs: unknown[] };
       expect(data.runs).toEqual([]);
+    });
+
+    it('supports cursor pagination when limit is provided', async () => {
+      createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
+      createLocalRun(tempDir, '2026-03-25T11-00-00-000Z', RESULT_A);
+      createLocalRun(tempDir, '2026-03-25T12-00-00-000Z', RESULT_A);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const firstRes = await app.request('/api/runs?limit=2');
+      expect(firstRes.status).toBe(200);
+      const firstPage = (await firstRes.json()) as {
+        runs: Array<{ filename: string }>;
+        next_cursor?: string;
+      };
+      expect(firstPage.runs.map((run) => run.filename)).toEqual([
+        '2026-03-25T12-00-00-000Z',
+        '2026-03-25T11-00-00-000Z',
+      ]);
+      expect(firstPage.next_cursor).toBe('2026-03-25T11-00-00-000Z');
+
+      const secondRes = await app.request(
+        `/api/runs?limit=2&cursor=${encodeURIComponent(firstPage.next_cursor ?? '')}`,
+      );
+      expect(secondRes.status).toBe(200);
+      const secondPage = (await secondRes.json()) as {
+        runs: Array<{ filename: string }>;
+        next_cursor?: string;
+      };
+      expect(secondPage.runs.map((run) => run.filename)).toEqual(['2026-03-25T10-00-00-000Z']);
+      expect(secondPage.next_cursor).toBeUndefined();
+    });
+
+    it('returns an empty page for unknown cursors', async () => {
+      createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
+      createLocalRun(tempDir, '2026-03-25T11-00-00-000Z', RESULT_A);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs?limit=1&cursor=missing-run');
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        runs: Array<{ filename: string }>;
+        next_cursor?: string;
+      };
+      expect(data.runs).toEqual([]);
+      expect(data.next_cursor).toBeUndefined();
+    });
+
+    it('rejects invalid pagination limits', async () => {
+      createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs?limit=0');
+
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toEqual({
+        error: 'limit must be a positive integer',
+      });
     });
 
     it('tags local runs with source metadata', async () => {

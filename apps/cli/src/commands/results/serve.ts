@@ -274,49 +274,103 @@ function inferExperimentFromRunId(runId: string): string | undefined {
   return experiment;
 }
 
+const DEFAULT_RUN_PAGE_LIMIT = 50;
+
+function parseRunPageLimit(limitParam: string | undefined): number | undefined | null {
+  if (limitParam === undefined) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(limitParam)) {
+    return null;
+  }
+  const limit = Number.parseInt(limitParam, 10);
+  return limit > 0 ? limit : null;
+}
+
+function paginateRuns<T extends { filename: string }>(
+  runs: T[],
+  cursor: string | undefined,
+  limit: number | undefined,
+): { runs: T[]; nextCursor?: string } {
+  if (limit === undefined) {
+    return { runs };
+  }
+
+  if (!cursor) {
+    const page = runs.slice(0, limit);
+    return {
+      runs: page,
+      ...(limit < runs.length && page.length > 0 ? { nextCursor: page.at(-1)?.filename } : {}),
+    };
+  }
+
+  const cursorIndex = runs.findIndex((run) => run.filename === cursor);
+  if (cursorIndex === -1) {
+    return { runs: [] };
+  }
+
+  const page = runs.slice(cursorIndex + 1, cursorIndex + 1 + limit);
+  return {
+    runs: page,
+    ...(cursorIndex + 1 + limit < runs.length && page.length > 0
+      ? { nextCursor: page.at(-1)?.filename }
+      : {}),
+  };
+}
+
 async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: passThreshold } = loadStudioConfig(agentvDir);
-  return c.json({
-    runs: metas.map((m) => {
-      let target: string | undefined;
-      let experiment = inferExperimentFromRunId(m.raw_filename);
-      let passRate = m.passRate;
-      try {
-        const records = loadLightweightResults(m.path);
-        if (records.length > 0) {
-          target = records[0].target;
-          experiment = records[0].experiment ?? experiment;
-          passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
-        } else {
-          // Run is in-progress with 0 results written yet — fall back to the
-          // in-memory target stored when the Studio launched this run.
-          target = getActiveRunTarget(m.path);
-        }
-      } catch {
-        // ignore enrichment errors
+  const parsedLimit = parseRunPageLimit(c.req.query('limit'));
+  if (parsedLimit === null) {
+    return c.json({ error: 'limit must be a positive integer' }, 400);
+  }
+
+  const cursor = c.req.query('cursor');
+  const limit = parsedLimit ?? (cursor ? DEFAULT_RUN_PAGE_LIMIT : undefined);
+  const runs = metas.map((m) => {
+    let target: string | undefined;
+    let experiment = inferExperimentFromRunId(m.raw_filename);
+    let passRate = m.passRate;
+    try {
+      const records = loadLightweightResults(m.path);
+      if (records.length > 0) {
+        target = records[0].target;
+        experiment = records[0].experiment ?? experiment;
+        passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
+      } else {
+        // Run is in-progress with 0 results written yet — fall back to the
+        // in-memory target stored when the Studio launched this run.
+        target = getActiveRunTarget(m.path);
       }
-      // Surface live status for Studio-launched runs that are still starting
-      // or running so the RunList can render a spinner instead of the
-      // pass/fail dot derived from a 0% pass rate.
-      const liveStatus = getActiveRunStatus(m.path);
-      const tagsEntry = readRunTags(m.path);
-      return {
-        filename: m.filename,
-        display_name: m.displayName,
-        path: m.path,
-        timestamp: m.timestamp,
-        test_count: m.testCount,
-        pass_rate: passRate,
-        avg_score: m.avgScore,
-        size_bytes: m.sizeBytes,
-        source: m.source,
-        ...(target && { target }),
-        ...(experiment && { experiment }),
-        ...(tagsEntry && { tags: tagsEntry.tags }),
-        ...(liveStatus && { status: liveStatus }),
-      };
-    }),
+    } catch {
+      // ignore enrichment errors
+    }
+    // Surface live status for Studio-launched runs that are still starting
+    // or running so the RunList can render a spinner instead of the
+    // pass/fail dot derived from a 0% pass rate.
+    const liveStatus = getActiveRunStatus(m.path);
+    const tagsEntry = readRunTags(m.path);
+    return {
+      filename: m.filename,
+      display_name: m.displayName,
+      path: m.path,
+      timestamp: m.timestamp,
+      test_count: m.testCount,
+      pass_rate: passRate,
+      avg_score: m.avgScore,
+      size_bytes: m.sizeBytes,
+      source: m.source,
+      ...(target && { target }),
+      ...(experiment && { experiment }),
+      ...(tagsEntry && { tags: tagsEntry.tags }),
+      ...(liveStatus && { status: liveStatus }),
+    };
+  });
+  const page = paginateRuns(runs, cursor, limit);
+  return c.json({
+    runs: page.runs,
+    ...(page.nextCursor ? { next_cursor: page.nextCursor } : {}),
   });
 }
 

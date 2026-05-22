@@ -32,6 +32,7 @@ export interface RunMeta {
 
 export interface RunListResponse {
   runs: RunMeta[];
+  next_cursor?: string;
 }
 
 export interface TokenUsage {
