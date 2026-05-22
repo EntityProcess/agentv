@@ -59,8 +59,18 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
+function cleanGitEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && !(key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND')) {
+      env[key] = value;
+    }
+  }
+  return env;
+}
+
 function git(command: string, cwd: string): string {
-  return execSync(command, { cwd, encoding: 'utf8' }).trim();
+  return execSync(command, { cwd, encoding: 'utf8', env: cleanGitEnv() }).trim();
 }
 
 function initializeRemoteRepo(rootDir: string): { remoteDir: string; cloneDir: string } {
