@@ -118,12 +118,12 @@ function writePersistedStatus(statusFile: string, status: PersistedStatus): void
 async function runCommand(
   executable: string,
   args: readonly string[],
-  options?: { cwd?: string; check?: boolean },
+  options?: { cwd?: string; check?: boolean; env?: NodeJS.ProcessEnv },
 ): Promise<{ stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(executable, [...args], {
       cwd: options?.cwd,
-      env: process.env,
+      env: options?.env ?? process.env,
     });
     return { stdout, stderr };
   } catch (error) {
@@ -138,11 +138,21 @@ async function runCommand(
   }
 }
 
+function getGitEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && !(key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND')) {
+      env[key] = value;
+    }
+  }
+  return env;
+}
+
 async function runGit(
   args: readonly string[],
   options?: { cwd?: string; check?: boolean },
 ): Promise<{ stdout: string; stderr: string }> {
-  return runCommand('git', args, options);
+  return runCommand('git', args, { ...options, env: getGitEnv() });
 }
 
 async function runGh(
@@ -539,7 +549,7 @@ async function runGitBatch(repoDir: string, input: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = spawn('git', ['cat-file', '--batch'], {
       cwd: repoDir,
-      env: process.env,
+      env: getGitEnv(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

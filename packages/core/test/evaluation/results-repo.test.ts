@@ -126,4 +126,52 @@ describe('listGitRuns', () => {
 
     await expect(listGitRuns(repoDir, 'HEAD')).resolves.toEqual([]);
   });
+
+  it('ignores inherited git hook environment variables', async () => {
+    const runDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
+    mkdirSync(runDir, { recursive: true });
+    writeFileSync(
+      path.join(runDir, 'benchmark.json'),
+      JSON.stringify(
+        {
+          metadata: {
+            timestamp: '2026-05-20T10:00:00.000Z',
+            targets: ['gpt-4o'],
+            tests_run: ['alpha'],
+          },
+          run_summary: {
+            'gpt-4o': {
+              pass_rate: { mean: 1 },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    git('git add runs && git commit -m "seed run"', repoDir);
+
+    const previousGitDir = process.env.GIT_DIR;
+    const previousGitWorkTree = process.env.GIT_WORK_TREE;
+    process.env.GIT_DIR = '/tmp/not-the-test-repo';
+    process.env.GIT_WORK_TREE = '/tmp/not-the-test-repo';
+
+    try {
+      const runs = await listGitRuns(repoDir, 'HEAD');
+      expect(runs).toHaveLength(1);
+      expect(runs[0].run_id).toBe('2026-05-20T10-00-00-000Z');
+    } finally {
+      if (previousGitDir === undefined) {
+        delete process.env.GIT_DIR;
+      } else {
+        process.env.GIT_DIR = previousGitDir;
+      }
+
+      if (previousGitWorkTree === undefined) {
+        delete process.env.GIT_WORK_TREE;
+      } else {
+        process.env.GIT_WORK_TREE = previousGitWorkTree;
+      }
+    }
+  });
 });
