@@ -1,5 +1,13 @@
 import { execFile, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { cp, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -705,6 +713,7 @@ export async function materializeGitRun(
 ): Promise<void> {
   const normalizedRunPath = relativeRunPath.split(path.sep).join('/');
   const runTreePath = path.posix.join('runs', normalizedRunPath);
+  const targetRunDir = path.join(repoDir, ...runTreePath.split('/'));
   const { stdout: treeOut } = await runGit(['ls-tree', '-r', '--name-only', ref, runTreePath], {
     cwd: repoDir,
   });
@@ -725,9 +734,29 @@ export async function materializeGitRun(
     );
   }
 
-  for (const [index, filePath] of filePaths.entries()) {
-    const absolutePath = path.join(repoDir, ...filePath.split('/'));
-    mkdirSync(path.dirname(absolutePath), { recursive: true });
-    writeFileSync(absolutePath, blobs[index].content);
+  const tempRoot = mkdtempSync(path.join(repoDir, '.agentv-run-'));
+  const tempRunDir = path.join(tempRoot, 'run');
+
+  try {
+    for (const [index, filePath] of filePaths.entries()) {
+      const relativeFilePath = path.posix.relative(runTreePath, filePath);
+      const absolutePath = path.join(tempRunDir, ...relativeFilePath.split('/'));
+      mkdirSync(path.dirname(absolutePath), { recursive: true });
+      writeFileSync(absolutePath, blobs[index].content);
+    }
+
+    mkdirSync(path.dirname(targetRunDir), { recursive: true });
+    try {
+      renameSync(tempRunDir, targetRunDir);
+    } catch (error) {
+      const code =
+        typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+      if ((code === 'EEXIST' || code === 'ENOTEMPTY') && existsSync(targetRunDir)) {
+        return;
+      }
+      throw error;
+    }
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
   }
 }

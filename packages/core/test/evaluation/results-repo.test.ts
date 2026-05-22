@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -10,6 +10,7 @@ import {
   directPushResults,
   ensureResultsRepoClone,
   listGitRuns,
+  materializeGitRun,
   syncResultsRepo,
 } from '../../src/evaluation/results-repo.js';
 
@@ -228,6 +229,39 @@ describe('listGitRuns', () => {
         process.env.GIT_WORK_TREE = previousGitWorkTree;
       }
     }
+  });
+
+  it('materializes an entire run subtree atomically from git objects', async () => {
+    const runDir = path.join(repoDir, 'runs', 'with-files', '2026-05-22T10-00-00-000Z');
+    mkdirSync(path.join(runDir, 'attachments'), { recursive: true });
+    writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
+    writeFileSync(
+      path.join(runDir, 'benchmark.json'),
+      JSON.stringify({
+        metadata: {
+          timestamp: '2026-05-22T10:00:00.000Z',
+          experiment: 'with-files',
+          targets: ['gpt-4o'],
+          tests_run: ['alpha'],
+        },
+        run_summary: {
+          'gpt-4o': {
+            pass_rate: { mean: 1 },
+          },
+        },
+      }),
+    );
+    writeFileSync(path.join(runDir, 'attachments', 'response.md'), 'hello from git\n');
+    git('git add runs && git commit -m "seed run with files"', repoDir);
+
+    rmSync(runDir, { recursive: true, force: true });
+
+    await materializeGitRun(repoDir, 'with-files/2026-05-22T10-00-00-000Z', 'HEAD');
+
+    expect(readFileSync(path.join(runDir, 'index.jsonl'), 'utf8')).toContain('"test_id":"alpha"');
+    expect(readFileSync(path.join(runDir, 'attachments', 'response.md'), 'utf8')).toBe(
+      'hello from git\n',
+    );
   });
 });
 
