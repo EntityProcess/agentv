@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cp, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
@@ -459,4 +459,214 @@ export async function directPushResults(params: {
   }
 
   return false;
+}
+
+export interface GitListedRun {
+  run_id: string;
+  experiment: string;
+  timestamp: string;
+  pass_rate?: number;
+  target?: string;
+  manifest_path: string;
+  benchmark_path: string;
+  display_name: string;
+  test_count: number;
+  avg_score: number;
+  size_bytes: number;
+}
+
+type GitBatchBlob = {
+  readonly size: number;
+  readonly content: Buffer;
+};
+
+type GitRunBenchmark = {
+  readonly metadata?: {
+    readonly timestamp?: string;
+    readonly experiment?: string;
+    readonly targets?: readonly string[];
+    readonly tests_run?: readonly string[];
+  };
+  readonly run_summary?: Record<
+    string,
+    {
+      readonly pass_rate?: { readonly mean?: number };
+    }
+  >;
+};
+
+function buildGitRunId(relativeRunPath: string): string {
+  const normalized = relativeRunPath.split(path.sep).join('/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (segments.length >= 2) {
+    const experiment = segments.slice(0, -1).join('/');
+    const timestamp = segments.at(-1);
+    if (experiment === 'default') {
+      return timestamp ?? normalized;
+    }
+    return `${experiment}::${timestamp}`;
+  }
+  return segments[0] ?? relativeRunPath;
+}
+
+function getRunExperiment(runId: string, benchmark: GitRunBenchmark): string {
+  const experiment = benchmark.metadata?.experiment?.trim();
+  if (experiment) {
+    return experiment;
+  }
+
+  const separatorIndex = runId.lastIndexOf('::');
+  return separatorIndex === -1 ? 'default' : runId.slice(0, separatorIndex);
+}
+
+function computeAveragePassRate(runSummary: GitRunBenchmark['run_summary']): number | undefined {
+  if (!runSummary) {
+    return undefined;
+  }
+
+  const passRates = Object.values(runSummary)
+    .map((summary) => summary.pass_rate?.mean)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+
+  if (passRates.length === 0) {
+    return undefined;
+  }
+
+  return passRates.reduce((sum, value) => sum + value, 0) / passRates.length;
+}
+
+async function runGitBatch(repoDir: string, input: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', ['cat-file', '--batch'], {
+      cwd: repoDir,
+      env: process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+
+    child.stdout.on('data', (chunk: Buffer | string) => {
+      stdoutChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    child.stderr.on('data', (chunk: Buffer | string) => {
+      stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    child.on('error', (error) => reject(withFriendlyGitHubAuthError(error)));
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve(Buffer.concat(stdoutChunks));
+        return;
+      }
+
+      const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+      reject(withFriendlyGitHubAuthError(stderr.length > 0 ? new Error(stderr) : new Error('git cat-file failed')));
+    });
+
+    child.stdin.end(input);
+  });
+}
+
+function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
+  const blobs: GitBatchBlob[] = [];
+  let offset = 0;
+
+  while (offset < output.length) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    if (headerEnd === -1) {
+      throw new Error('Malformed git cat-file output: missing header terminator');
+    }
+
+    const header = output.subarray(offset, headerEnd).toString('utf8');
+    offset = headerEnd + 1;
+
+    if (header.length === 0) {
+      continue;
+    }
+
+    const missingMatch = /^(.*) missing$/.exec(header);
+    if (missingMatch) {
+      continue;
+    }
+
+    const headerMatch = /^(.*) (\w+) (\d+)$/.exec(header);
+    if (!headerMatch) {
+      throw new Error(`Malformed git cat-file header: ${header}`);
+    }
+
+    const [, objectRef, objectType, sizeText] = headerMatch;
+    if (objectType !== 'blob') {
+      throw new Error(`Unsupported git object type for ${objectRef}: ${objectType}`);
+    }
+
+    const size = Number.parseInt(sizeText, 10);
+    const contentEnd = offset + size;
+    if (contentEnd > output.length) {
+      throw new Error(`Malformed git cat-file output for ${objectRef}: truncated blob content`);
+    }
+
+    blobs.push({
+      size,
+      content: output.subarray(offset, contentEnd),
+    });
+    offset = contentEnd;
+
+    if (offset < output.length && output[offset] === 0x0a) {
+      offset += 1;
+    }
+  }
+
+  return blobs;
+}
+
+export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {
+  const { stdout: treeOut } = await runGit(['ls-tree', '-r', '--name-only', ref, 'runs'], {
+    cwd: repoDir,
+  });
+
+  const benchmarkPaths = treeOut
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith('/benchmark.json'));
+  if (benchmarkPaths.length === 0) {
+    return [];
+  }
+
+  const batchInput = `${benchmarkPaths.map((benchmarkPath) => `${ref}:${benchmarkPath}`).join('\n')}\n`;
+  const blobs = parseGitBatchBlobs(await runGitBatch(repoDir, batchInput));
+  if (blobs.length !== benchmarkPaths.length) {
+    throw new Error(
+      `Expected ${benchmarkPaths.length} git blobs but received ${blobs.length} while listing results runs`,
+    );
+  }
+
+  const runs = blobs.flatMap((blob, index): GitListedRun[] => {
+    const benchmarkPath = benchmarkPaths[index];
+    const benchmark = JSON.parse(blob.content.toString('utf8')) as GitRunBenchmark;
+    const runDir = path.posix.dirname(benchmarkPath);
+    const relativeRunPath = path.posix.relative('runs', runDir);
+    const runId = buildGitRunId(relativeRunPath);
+    const timestamp = benchmark.metadata?.timestamp?.trim() || path.posix.basename(runDir);
+    const targets = benchmark.metadata?.targets ?? [];
+    const passRate = computeAveragePassRate(benchmark.run_summary);
+
+    return [
+      {
+        run_id: runId,
+        experiment: getRunExperiment(runId, benchmark),
+        timestamp,
+        ...(passRate !== undefined && { pass_rate: passRate }),
+        ...(targets.length === 1 && targets[0] ? { target: targets[0] } : {}),
+        manifest_path: path.posix.join(runDir, 'index.jsonl'),
+        benchmark_path: benchmarkPath,
+        display_name: path.posix.basename(runDir),
+        test_count: benchmark.metadata?.tests_run?.length ?? 0,
+        avg_score: 0,
+        size_bytes: blob.size,
+      },
+    ];
+  });
+
+  runs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return runs;
 }

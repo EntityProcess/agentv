@@ -179,14 +179,14 @@ export async function listMergedResultFiles(
   }
 
   let remoteRuns: SourcedResultFileMeta[] = [];
-  if ((config as any).mode === "github") {
+  if (config.mode === 'github') {
     try {
       const gitRuns = await listGitRuns(resolveResultsRepoRunsDir(config));
-      remoteRuns = gitRuns.map((r: any) => ({
+      remoteRuns = gitRuns.map((r) => ({
         filename: encodeRemoteRunId(r.run_id),
         raw_filename: r.run_id,
-        source: "remote" as const,
-        path: r.benchmark_path,
+        source: 'remote' as const,
+        path: r.manifest_path,
         displayName: r.display_name,
         timestamp: r.timestamp,
         testCount: r.test_count,
@@ -194,8 +194,17 @@ export async function listMergedResultFiles(
         avgScore: r.avg_score || 0,
         sizeBytes: r.size_bytes || 0,
       }));
-    } catch (e) {
-      console.error("git-native listing failed, falling back", e);
+    } catch (error) {
+      console.error('git-native listing failed, falling back', error);
+      remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
+        (meta) =>
+          ({
+            ...meta,
+            filename: encodeRemoteRunId(meta.filename),
+            raw_filename: meta.filename,
+            source: 'remote' as const,
+          }) satisfies SourcedResultFileMeta,
+      );
     }
   } else {
     remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
@@ -204,7 +213,7 @@ export async function listMergedResultFiles(
           ...meta,
           filename: encodeRemoteRunId(meta.filename),
           raw_filename: meta.filename,
-          source: "remote" as const,
+          source: 'remote' as const,
         }) satisfies SourcedResultFileMeta,
     );
   }
