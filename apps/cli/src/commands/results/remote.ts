@@ -181,12 +181,12 @@ export async function listMergedResultFiles(
   let remoteRuns: SourcedResultFileMeta[] = [];
   if (config.mode === 'github') {
     try {
-      const gitRuns = await listGitRuns(resolveResultsRepoRunsDir(config));
+      const gitRuns = await listGitRuns(config.path);
       remoteRuns = gitRuns.map((r) => ({
         filename: encodeRemoteRunId(r.run_id),
         raw_filename: r.run_id,
         source: 'remote' as const,
-        path: r.manifest_path,
+        path: path.join(config.path, r.manifest_path),
         displayName: r.display_name,
         timestamp: r.timestamp,
         testCount: r.test_count,

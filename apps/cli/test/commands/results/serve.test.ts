@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
+import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { tmpdir } from 'node:os';
@@ -56,6 +57,69 @@ const RESULT_B = {
 
 function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
+}
+
+function git(command: string, cwd: string): string {
+  return execSync(command, { cwd, encoding: 'utf8' }).trim();
+}
+
+function initializeRemoteRepo(rootDir: string): { remoteDir: string; cloneDir: string } {
+  const remoteDir = path.join(rootDir, 'results-remote.git');
+  git(`git init --bare --initial-branch=main --quiet "${remoteDir}"`, rootDir);
+
+  const seedDir = path.join(rootDir, 'results-seed');
+  git(`git clone --quiet "${remoteDir}" "${seedDir}"`, rootDir);
+  git('git config user.email "test@example.com"', seedDir);
+  git('git config user.name "Test User"', seedDir);
+  writeFileSync(path.join(seedDir, 'README.md'), '# results repo\n');
+  git('git add README.md && git commit --quiet -m "seed repo"', seedDir);
+  git('git push --quiet origin main', seedDir);
+
+  const cloneDir = path.join(rootDir, 'results-clone');
+  git(`git clone --quiet "${remoteDir}" "${cloneDir}"`, rootDir);
+  git('git config user.email "test@example.com"', cloneDir);
+  git('git config user.name "Test User"', cloneDir);
+
+  return { remoteDir, cloneDir };
+}
+
+function writeRemoteRunArtifact(
+  cloneDir: string,
+  experiment: string,
+  timestamp: string,
+  resultRecord: object,
+): string {
+  const isoTimestamp = timestamp.replace(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
+    '$1T$2:$3:$4.$5Z',
+  );
+  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
+  mkdirSync(runDir, { recursive: true });
+  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
+  writeFileSync(
+    path.join(runDir, 'benchmark.json'),
+    JSON.stringify(
+      {
+        metadata: {
+          timestamp: isoTimestamp,
+          experiment,
+          targets: ['gpt-4o'],
+          tests_run: ['test-greeting'],
+        },
+        run_summary: {
+          'gpt-4o': {
+            pass_rate: { mean: 1 },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  git(`git add "${runDir}" && git commit --quiet -m "add ${experiment}"`, cloneDir);
+  git('git push --quiet origin main', cloneDir);
+  git('git fetch --quiet origin --prune', cloneDir);
+  return `${experiment}::${timestamp}`;
 }
 
 // ── resolveSourceFile ────────────────────────────────────────────────────
@@ -602,6 +666,53 @@ describe('serve app', () => {
         }
       }
     });
+
+    it('lists and loads git-native remote runs from the configured clone path', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'green-uat',
+        '2026-03-26T10-00-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string; experiment?: string; pass_rate?: number }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: `remote::${runId}`,
+        source: 'remote',
+        experiment: 'green-uat',
+        pass_rate: 1,
+      });
+
+      const detailRes = await app.request(
+        `/api/runs/${encodeURIComponent(listData.runs[0].filename)}`,
+      );
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        source: string;
+        results: Array<{ test_id?: string; testId?: string }>;
+      };
+      expect(detailData.source).toBe('remote');
+      expect(detailData.results).toHaveLength(1);
+      expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
+    }, 15000);
   });
 
   describe('GET /api/projects/all-runs', () => {
