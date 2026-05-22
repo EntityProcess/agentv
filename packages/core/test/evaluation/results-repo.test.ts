@@ -162,13 +162,13 @@ describe('listGitRuns', () => {
       expect(runs[0].run_id).toBe('2026-05-20T10-00-00-000Z');
     } finally {
       if (previousGitDir === undefined) {
-        delete process.env.GIT_DIR;
+        process.env.GIT_DIR = undefined;
       } else {
         process.env.GIT_DIR = previousGitDir;
       }
 
       if (previousGitWorkTree === undefined) {
-        delete process.env.GIT_WORK_TREE;
+        process.env.GIT_WORK_TREE = undefined;
       } else {
         process.env.GIT_WORK_TREE = previousGitWorkTree;
       }
