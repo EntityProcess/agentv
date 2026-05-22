@@ -31,3 +31,12 @@ Implement the git-native results storage architecture and land PR #1261 as a cle
 4. Lint + typecheck clean
 
 Owner: Agent + Chris T
+
+## Latest Progress (2026-05-21)
+
+- Docker ownership fix implemented in docker-compose.yml (`user: "${UID}:${GID}"`)
+- Write path (`commitAndPushRun`) largely complete via parallel work
+- Read path functional but needs hardening
+- Bun dependencies reinstalled in worktree
+- GitHub Actions currently failing on dependency resolution in CI
+- Next focus: Fix CI, add tests, implement pagination
