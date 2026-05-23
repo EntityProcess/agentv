@@ -264,6 +264,7 @@ function FilesTab({
   const files = filesData?.files ?? [];
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [mobileShowTree, setMobileShowTree] = useState(false);
 
   const effectivePath = selectedPath ?? (files.length > 0 ? findFirstFile(files) : null);
 
@@ -284,11 +285,52 @@ function FilesTab({
   const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'plaintext';
 
   return (
-    <div className="flex h-full min-h-[400px] gap-4">
-      <FileTree files={files} selectedPath={effectivePath} onSelect={setSelectedPath} />
-      <div className="flex-1">
+    <div className="relative flex h-full min-h-[400px] gap-4">
+      {/* FileTree panel — desktop: side-by-side, mobile: full-width slide-over */}
+      <div
+        className={`${
+          mobileShowTree ? 'block' : 'hidden'
+        } md:block w-full md:w-auto`}
+      >
+        <FileTree
+          files={files}
+          selectedPath={effectivePath}
+          onSelect={(path) => {
+            setSelectedPath(path);
+            // On mobile, auto-switch to content viewer after selecting a file
+            setMobileShowTree(false);
+          }}
+        />
+      </div>
+
+      {/* MonacoViewer panel — desktop: side-by-side, mobile: full-width */}
+      <div
+        className={`${
+          !mobileShowTree ? 'block' : 'hidden'
+        } md:block flex-1 h-full`}
+      >
         <MonacoViewer value={displayValue} language={displayLanguage} height="100%" />
       </div>
+
+      {/* Mobile toggle button — floating bottom-right */}
+      <button
+        type="button"
+        onClick={() => setMobileShowTree(!mobileShowTree)}
+        className="md:hidden fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-200 shadow-lg border border-gray-700 hover:bg-gray-700 active:bg-gray-600 transition-colors"
+        aria-label={mobileShowTree ? 'Switch to file content viewer' : 'Switch to file tree'}
+      >
+        {mobileShowTree ? (
+          <>
+            <span>📄</span>
+            <span>Content</span>
+          </>
+        ) : (
+          <>
+            <span>📁</span>
+            <span>Files</span>
+          </>
+        )}
+      </button>
     </div>
   );
 }
