@@ -3082,9 +3082,13 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
       responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
     });
 
-    // Use YAML workspace.path (not CLI --workspace) with type: git repos.
-    // repo-a exists → should be reused. repo-b is missing but uses a fake URL → should fail clone.
-    // Since repo-a is reused (skipped) and repo-b clone fails, this proves per-repo logic works.
+    const missingRepoBSource = path.join(testDir, 'missing-repo-b-source');
+
+    // Use YAML workspace.path (not CLI --workspace) with mixed repo states.
+    // repo-a exists → should be reused. repo-b is missing and points to a missing local source
+    // → should fail immediately. Since repo-a is reused (skipped) and repo-b materialization
+    // fails fast, this proves the per-repo existence check works without depending on network
+    // timeouts from cloning fake remotes.
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
@@ -3098,15 +3102,14 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
           },
           {
             path: 'repo-b',
-            source: { type: 'git', url: 'https://github.com/example/repo-b.git' },
-            checkout: { ref: 'main' },
+            source: { type: 'local', path: missingRepoBSource },
           },
         ],
       },
     };
 
-    // repo-b clone will fail (fake URL), which proves repo-a was skipped (per-repo check)
-    // and only repo-b was attempted
+    // repo-b materialization fails immediately, which proves repo-a was skipped
+    // and only repo-b was attempted.
     await expect(
       runEvaluation({
         testFilePath: 'in-memory.yaml',
@@ -3117,7 +3120,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
         evalCases: [evalCase],
         keepWorkspaces: true,
       }),
-    ).rejects.toThrow('Failed to materialize repos');
+    ).rejects.toThrow('Local repo path validation failed');
 
     // repo-a marker should still exist (not deleted by static workspace cleanup)
     await fsAccess(path.join(repoADir, 'marker.txt'));

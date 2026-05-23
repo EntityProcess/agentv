@@ -64,6 +64,8 @@ import {
   resolveResultSourcePath,
 } from './manifest.js';
 import {
+  type SourcedResultFileMeta,
+  ensureRemoteRunAvailable,
   findRunById,
   getRemoteResultsStatus,
   listMergedResultFiles,
@@ -274,16 +276,95 @@ function inferExperimentFromRunId(runId: string): string | undefined {
   return experiment;
 }
 
+async function ensureRunReadable(searchDir: string, meta: SourcedResultFileMeta): Promise<void> {
+  await ensureRemoteRunAvailable(searchDir, meta);
+}
+
+async function loadManifestResultsForMeta(
+  searchDir: string,
+  meta: SourcedResultFileMeta,
+): Promise<EvaluationResult[]> {
+  await ensureRunReadable(searchDir, meta);
+  return loadManifestResults(meta.path);
+}
+
+async function loadLightweightResultsForMeta(
+  searchDir: string,
+  meta: SourcedResultFileMeta,
+): Promise<ReturnType<typeof loadLightweightResults>> {
+  await ensureRunReadable(searchDir, meta);
+  return loadLightweightResults(meta.path);
+}
+
+async function parseManifestForMeta(
+  searchDir: string,
+  meta: SourcedResultFileMeta,
+): Promise<ReturnType<typeof parseResultManifest>> {
+  await ensureRunReadable(searchDir, meta);
+  return parseResultManifest(readFileSync(meta.path, 'utf8'));
+}
+
+const DEFAULT_RUN_PAGE_LIMIT = 50;
+
+function parseRunPageLimit(limitParam: string | undefined): number | undefined | null {
+  if (limitParam === undefined) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(limitParam)) {
+    return null;
+  }
+  const limit = Number.parseInt(limitParam, 10);
+  return limit > 0 ? limit : null;
+}
+
+function paginateRuns<T extends { filename: string }>(
+  runs: T[],
+  cursor: string | undefined,
+  limit: number | undefined,
+): { runs: T[]; nextCursor?: string } {
+  if (limit === undefined) {
+    return { runs };
+  }
+
+  if (!cursor) {
+    const page = runs.slice(0, limit);
+    return {
+      runs: page,
+      ...(limit < runs.length && page.length > 0 ? { nextCursor: page.at(-1)?.filename } : {}),
+    };
+  }
+
+  const cursorIndex = runs.findIndex((run) => run.filename === cursor);
+  if (cursorIndex === -1) {
+    return { runs: [] };
+  }
+
+  const page = runs.slice(cursorIndex + 1, cursorIndex + 1 + limit);
+  return {
+    runs: page,
+    ...(cursorIndex + 1 + limit < runs.length && page.length > 0
+      ? { nextCursor: page.at(-1)?.filename }
+      : {}),
+  };
+}
+
 async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir);
   const { threshold: passThreshold } = loadStudioConfig(agentvDir);
-  return c.json({
-    runs: metas.map((m) => {
+  const parsedLimit = parseRunPageLimit(c.req.query('limit'));
+  if (parsedLimit === null) {
+    return c.json({ error: 'limit must be a positive integer' }, 400);
+  }
+
+  const cursor = c.req.query('cursor');
+  const limit = parsedLimit ?? (cursor ? DEFAULT_RUN_PAGE_LIMIT : undefined);
+  const runs = await Promise.all(
+    metas.map(async (m) => {
       let target: string | undefined;
       let experiment = inferExperimentFromRunId(m.raw_filename);
       let passRate = m.passRate;
       try {
-        const records = loadLightweightResults(m.path);
+        const records = await loadLightweightResultsForMeta(searchDir, m);
         if (records.length > 0) {
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
@@ -317,6 +398,11 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
         ...(liveStatus && { status: liveStatus }),
       };
     }),
+  );
+  const page = paginateRuns(runs, cursor, limit);
+  return c.json({
+    runs: page.runs,
+    ...(page.nextCursor ? { next_cursor: page.nextCursor } : {}),
   });
 }
 
@@ -344,7 +430,7 @@ async function handleRunDetail(c: C, { searchDir }: DataContext) {
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = loadManifestResults(meta.path);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta);
     // Surface run_dir + suite_filter for local runs so the UI can launch a
     // Studio-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
@@ -403,7 +489,7 @@ async function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = loadManifestResults(meta.path);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of loaded) {
@@ -432,7 +518,7 @@ async function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) 
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = loadManifestResults(meta.path);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const categoryMap = new Map<
       string,
@@ -472,7 +558,7 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext)
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = loadManifestResults(meta.path);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
     const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
@@ -503,7 +589,7 @@ async function handleEvalDetail(c: C, { searchDir }: DataContext) {
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = loadManifestResults(meta.path);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta);
     const result = loaded.find((r) => r.testId === evalId);
     if (!result) return c.json({ error: 'Eval not found' }, 404);
     return c.json({ eval: result });
@@ -518,8 +604,7 @@ async function handleEvalFiles(c: C, { searchDir }: DataContext) {
   const meta = await findRunById(searchDir, filename);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const content = readFileSync(meta.path, 'utf8');
-    const records = parseResultManifest(content);
+    const records = await parseManifestForMeta(searchDir, meta);
     const record = records.find((r) => r.test_id === evalId);
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
@@ -562,6 +647,7 @@ async function handleEvalFileContent(c: C, { searchDir }: DataContext) {
 
   if (!filePath) return c.json({ error: 'No file path specified' }, 400);
 
+  await ensureRunReadable(searchDir, meta);
   const baseDir = path.dirname(meta.path);
   const absolutePath = path.resolve(baseDir, filePath);
 
@@ -602,7 +688,7 @@ async function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
 
   for (const m of metas) {
     try {
-      const records = loadLightweightResults(m.path);
+      const records = await loadLightweightResultsForMeta(searchDir, m);
       for (const r of records) {
         const experiment = r.experiment ?? 'default';
         const entry = experimentMap.get(experiment) ?? {
@@ -709,7 +795,7 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
         if (!runTags.some((t) => filterTags.has(t))) continue;
       }
 
-      const records = loadLightweightResults(m.path);
+      const records = await loadLightweightResultsForMeta(searchDir, m);
       const runTestMap = new Map<
         string,
         { test_id: string; score: number; passed: boolean; execution_status?: string }
@@ -862,7 +948,7 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 
   for (const m of metas) {
     try {
-      const records = loadLightweightResults(m.path);
+      const records = await loadLightweightResultsForMeta(searchDir, m);
       for (const r of records) {
         const target = r.target ?? 'default';
         const entry = targetMap.get(target) ?? {
@@ -1124,7 +1210,7 @@ export function createApp(
           let target: string | undefined;
           let experiment = inferExperimentFromRunId(m.raw_filename);
           try {
-            const records = loadLightweightResults(m.path);
+            const records = await loadLightweightResultsForMeta(p.path, m);
             if (records.length > 0) {
               target = records[0].target;
               experiment = records[0].experiment ?? experiment;
@@ -1261,24 +1347,26 @@ export function createApp(
   // Aggregated index (unscoped only)
   app.get('/api/index', async (c) => {
     const { runs: metas } = await listMergedResultFiles(searchDir);
-    const entries = metas.map((m) => {
-      let totalCostUsd = 0;
-      try {
-        const loaded = loadManifestResults(m.path);
-        totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
-      } catch {
-        // ignore load errors for aggregate
-      }
-      return {
-        run_filename: m.filename,
-        display_name: m.displayName,
-        test_count: m.testCount,
-        pass_rate: m.passRate,
-        avg_score: m.avgScore,
-        total_cost_usd: totalCostUsd,
-        timestamp: m.timestamp,
-      };
-    });
+    const entries = await Promise.all(
+      metas.map(async (m) => {
+        let totalCostUsd = 0;
+        try {
+          const loaded = await loadManifestResultsForMeta(searchDir, m);
+          totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
+        } catch {
+          // ignore load errors for aggregate
+        }
+        return {
+          run_filename: m.filename,
+          display_name: m.displayName,
+          test_count: m.testCount,
+          pass_rate: m.passRate,
+          avg_score: m.avgScore,
+          total_cost_usd: totalCostUsd,
+          timestamp: m.timestamp,
+        };
+      }),
+    );
     return c.json({ entries });
   });
 

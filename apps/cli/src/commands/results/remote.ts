@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -8,7 +9,10 @@ import {
   directPushResults,
   directorySizeBytes,
   getResultsRepoStatus,
+  listGitRuns,
   loadConfig,
+  materializeGitRun,
+  normalizeResultsConfig,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
 } from '@agentv/core';
@@ -57,15 +61,6 @@ const SIZE_WARNING_BYTES = 10 * 1024 * 1024;
 
 function getStatusMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function normalizeResultsConfig(config: ResultsConfig): Required<ResultsConfig> {
-  return {
-    repo: config.repo,
-    path: config.path,
-    auto_push: config.auto_push === true,
-    branch_prefix: config.branch_prefix?.trim() || 'eval-results',
-  };
 }
 
 function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {
@@ -131,10 +126,14 @@ export function decodeRemoteRunId(filename: string): string {
 export async function getRemoteResultsStatus(cwd: string): Promise<RemoteResultsStatus> {
   const config = await loadNormalizedResultsConfig(cwd);
   const status = getResultsRepoStatus(config);
-  const runCount =
-    config && status.available
-      ? listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length
-      : 0;
+  let runCount = 0;
+  if (config && status.available) {
+    try {
+      runCount = (await listGitRuns(config.path)).length;
+    } catch {
+      runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
+    }
+  }
   return {
     ...status,
     run_count: runCount,
@@ -185,15 +184,45 @@ export async function listMergedResultFiles(
     };
   }
 
-  const remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
-    (meta) =>
-      ({
-        ...meta,
-        filename: encodeRemoteRunId(meta.filename),
-        raw_filename: meta.filename,
+  let remoteRuns: SourcedResultFileMeta[] = [];
+  if (config.mode === 'github') {
+    try {
+      const gitRuns = await listGitRuns(config.path);
+      remoteRuns = gitRuns.map((r) => ({
+        filename: encodeRemoteRunId(r.run_id),
+        raw_filename: r.run_id,
         source: 'remote' as const,
-      }) satisfies SourcedResultFileMeta,
-  );
+        path: path.join(config.path, r.manifest_path),
+        displayName: r.display_name,
+        timestamp: r.timestamp,
+        testCount: r.test_count,
+        passRate: r.pass_rate || 0,
+        avgScore: r.avg_score || 0,
+        sizeBytes: r.size_bytes || 0,
+      }));
+    } catch (error) {
+      console.error('git-native listing failed, falling back', error);
+      remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
+        (meta) =>
+          ({
+            ...meta,
+            filename: encodeRemoteRunId(meta.filename),
+            raw_filename: meta.filename,
+            source: 'remote' as const,
+          }) satisfies SourcedResultFileMeta,
+      );
+    }
+  } else {
+    remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
+      (meta) =>
+        ({
+          ...meta,
+          filename: encodeRemoteRunId(meta.filename),
+          raw_filename: meta.filename,
+          source: 'remote' as const,
+        }) satisfies SourcedResultFileMeta,
+    );
+  }
 
   const merged = [...localRuns, ...remoteRuns].sort((a, b) =>
     b.timestamp.localeCompare(a.timestamp),
@@ -210,6 +239,32 @@ export async function findRunById(
 ): Promise<SourcedResultFileMeta | undefined> {
   const { runs } = await listMergedResultFiles(cwd);
   return runs.find((run) => run.filename === runId);
+}
+
+export async function ensureRemoteRunAvailable(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+): Promise<void> {
+  if (meta.source !== 'remote' || existsSync(meta.path)) {
+    return;
+  }
+
+  const config = await loadNormalizedResultsConfig(cwd);
+  if (!config) {
+    throw new Error('Remote results are not configured');
+  }
+
+  const relativeManifestPath = path.relative(config.path, meta.path).split(path.sep).join('/');
+  if (
+    relativeManifestPath.length === 0 ||
+    relativeManifestPath === meta.path ||
+    relativeManifestPath.startsWith('../')
+  ) {
+    throw new Error(`Remote manifest path is outside the results repo clone: ${meta.path}`);
+  }
+
+  const relativeRunPath = path.posix.relative('runs', path.posix.dirname(relativeManifestPath));
+  await materializeGitRun(config.path, relativeRunPath);
 }
 
 export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload): Promise<void> {

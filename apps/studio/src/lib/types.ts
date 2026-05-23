@@ -32,6 +32,7 @@ export interface RunMeta {
 
 export interface RunListResponse {
   runs: RunMeta[];
+  next_cursor?: string;
 }
 
 export interface TokenUsage {
@@ -257,7 +258,7 @@ export interface RemoteStatusResponse {
   configured: boolean;
   available: boolean;
   repo?: string;
-  cache_dir?: string;
+  local_dir?: string;
   path?: string;
   auto_push?: boolean;
   branch_prefix?: string;

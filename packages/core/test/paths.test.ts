@@ -62,7 +62,7 @@ describe('paths', () => {
 
   it('logs once when AGENTV_HOME is set', () => {
     process.env.AGENTV_HOME = '/custom/agentv';
-    const spy = spyOn(console, 'warn').mockImplementation(() => {});
+    const spy = spyOn(console, 'log').mockImplementation(() => {});
     getAgentvHome();
     getAgentvHome();
     expect(spy).toHaveBeenCalledTimes(1);
@@ -71,7 +71,7 @@ describe('paths', () => {
   });
 
   it('does not log when AGENTV_HOME is not set', () => {
-    const spy = spyOn(console, 'warn').mockImplementation(() => {});
+    const spy = spyOn(console, 'log').mockImplementation(() => {});
     getAgentvHome();
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();

@@ -22,12 +22,13 @@ import {
   syncRemoteResultsApi,
   useCompare,
   useEvalRuns,
+  useInfiniteRunList,
   useProjectList,
   useRemoteStatus,
-  useRunList,
   useStudioConfig,
 } from '~/lib/api';
 import { type StudioTabId, resolveIndexRoute } from '~/lib/navigation';
+import type { RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
 
 const tabs: { id: TabId; label: string }[] = [
@@ -184,7 +185,8 @@ function SingleProjectHome() {
   const tab = searchParams.tab as TabId | undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useRunList();
+  const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteRunList();
   const { data: remoteStatus } = useRemoteStatus();
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
@@ -265,6 +267,9 @@ function SingleProjectHome() {
           remoteStatus={remoteStatus}
           syncInFlight={syncInFlight}
           onSyncRemote={handleSyncRemote}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={() => void fetchNextPage()}
         />
       )}
       {activeTab === 'experiments' && <ExperimentsTab />}
@@ -298,8 +303,11 @@ function RunsTabContent({
   remoteStatus,
   syncInFlight,
   onSyncRemote,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
 }: {
-  runs: NonNullable<ReturnType<typeof useRunList>['data']>['runs'];
+  runs: RunMeta[];
   isLoading: boolean;
   error: Error | null;
   sourceFilter: RunSourceFilter;
@@ -307,6 +315,9 @@ function RunsTabContent({
   remoteStatus: ReturnType<typeof useRemoteStatus>['data'];
   syncInFlight: boolean;
   onSyncRemote: () => void;
+  hasNextPage: boolean | undefined;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
 }) {
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -332,6 +343,9 @@ function RunsTabContent({
       />
       <RunList
         runs={runs}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={onLoadMore}
         emptyMessage={
           sourceFilter === 'remote' ? (
             remoteStatus?.configured ? (

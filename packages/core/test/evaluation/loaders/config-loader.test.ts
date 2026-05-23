@@ -137,11 +137,12 @@ describe('extractTrialsConfig', () => {
 });
 
 describe('parseResultsConfig', () => {
-  it('parses valid results config', () => {
+  it('parses valid results config with explicit path', () => {
     const result = parseResultsConfig(
       {
+        mode: 'github',
         repo: 'EntityProcess/agentv-evals',
-        path: 'autopilot-dev/runs',
+        path: '~/data/agentv-results',
         auto_push: true,
         branch_prefix: 'eval-results',
       },
@@ -149,18 +150,83 @@ describe('parseResultsConfig', () => {
     );
 
     expect(result).toEqual({
+      mode: 'github',
       repo: 'EntityProcess/agentv-evals',
-      path: 'autopilot-dev/runs',
+      path: '~/data/agentv-results',
       auto_push: true,
       branch_prefix: 'eval-results',
     });
   });
 
+  it('parses valid results config without path (defaults omitted)', () => {
+    const result = parseResultsConfig(
+      {
+        mode: 'github',
+        repo: 'EntityProcess/agentv-evals',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      mode: 'github',
+      repo: 'EntityProcess/agentv-evals',
+    });
+  });
+
+  it('returns undefined when mode is missing', () => {
+    const result = parseResultsConfig(
+      {
+        repo: 'EntityProcess/agentv-evals',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when mode is not github', () => {
+    const result = parseResultsConfig(
+      {
+        mode: 'other',
+        repo: 'EntityProcess/agentv-evals',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when path looks like a repo subdirectory', () => {
+    const result = parseResultsConfig(
+      {
+        mode: 'github',
+        repo: 'EntityProcess/agentv-evals',
+        path: 'autopilot-dev/runs',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('accepts absolute path', () => {
+    const result = parseResultsConfig(
+      {
+        mode: 'github',
+        repo: 'EntityProcess/agentv-evals',
+        path: '/home/user/data/results',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result?.path).toBe('/home/user/data/results');
+  });
+
   it('returns undefined when repo is empty', () => {
     const result = parseResultsConfig(
       {
+        mode: 'github',
         repo: '',
-        path: 'autopilot-dev/runs',
       },
       '/tmp/.agentv/config.yaml',
     );
@@ -171,8 +237,8 @@ describe('parseResultsConfig', () => {
   it('returns undefined when repo is not a string', () => {
     const result = parseResultsConfig(
       {
+        mode: 'github',
         repo: 123,
-        path: 'autopilot-dev/runs',
       },
       '/tmp/.agentv/config.yaml',
     );

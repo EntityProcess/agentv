@@ -22,7 +22,7 @@ export function getAgentvHome(): string {
   if (envHome && envHome !== 'undefined') {
     if (!logged) {
       logged = true;
-      console.warn(`Using AGENTV_HOME: ${envHome}`);
+      console.log(`Using AGENTV_HOME: ${envHome}`);
     }
     return envHome;
   }

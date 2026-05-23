@@ -18,7 +18,7 @@ import {
   projectCompareOptions,
   syncRemoteResultsApi,
   useEvalRuns,
-  useProjectRunList,
+  useInfiniteProjectRunList,
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
@@ -109,7 +109,8 @@ function ProjectHomePage() {
 
 function ProjectRunsTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useProjectRunList(projectId);
+  const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteProjectRunList(projectId);
   const { data: activeRunsData } = useEvalRuns(projectId);
   const { data: remoteStatus } = useRemoteStatus(projectId);
   const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
@@ -195,7 +196,13 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
         syncInFlight={syncInFlight}
         onSync={handleSyncRemote}
       />
-      <RunList runs={filteredRuns} projectId={projectId} />
+      <RunList
+        runs={filteredRuns}
+        projectId={projectId}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={() => void fetchNextPage()}
+      />
     </div>
   );
 }

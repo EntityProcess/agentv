@@ -78,6 +78,14 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
         });
       } else {
         const resultsRecord = results as Record<string, unknown>;
+        if (resultsRecord.mode !== 'github') {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: 'results.mode',
+            message: "Field 'results.mode' must be 'github'",
+          });
+        }
         if (typeof resultsRecord.repo !== 'string' || resultsRecord.repo.trim().length === 0) {
           errors.push({
             severity: 'error',
@@ -86,13 +94,31 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
             message: "Field 'results.repo' must be a non-empty string",
           });
         }
-        if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
-          errors.push({
-            severity: 'error',
-            filePath,
-            location: 'results.path',
-            message: "Field 'results.path' must be a non-empty string",
-          });
+        if (resultsRecord.path !== undefined) {
+          if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
+            errors.push({
+              severity: 'error',
+              filePath,
+              location: 'results.path',
+              message: "Field 'results.path' must be a non-empty string",
+            });
+          } else {
+            const p = resultsRecord.path.trim();
+            const isFilesystemPath =
+              p.startsWith('/') ||
+              p.startsWith('~/') ||
+              p.startsWith('~\\') ||
+              p === '~' ||
+              /^[A-Za-z]:[/\\]/.test(p);
+            if (!isFilesystemPath) {
+              errors.push({
+                severity: 'error',
+                filePath,
+                location: 'results.path',
+                message: `'results.path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results). Found: '${p}'. Remove 'path' to use the default.`,
+              });
+            }
+          }
         }
         if (resultsRecord.auto_push !== undefined && typeof resultsRecord.auto_push !== 'boolean') {
           errors.push({

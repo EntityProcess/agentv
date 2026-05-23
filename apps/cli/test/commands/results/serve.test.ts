@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
+import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { tmpdir } from 'node:os';
@@ -56,6 +57,83 @@ const RESULT_B = {
 
 function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
+}
+
+function cleanGitEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && !(key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND')) {
+      env[key] = value;
+    }
+  }
+  return env;
+}
+
+function git(command: string, cwd: string): string {
+  return execSync(command, { cwd, encoding: 'utf8', env: cleanGitEnv() }).trim();
+}
+
+function initializeRemoteRepo(rootDir: string): {
+  remoteDir: string;
+  cloneDir: string;
+  seedDir: string;
+} {
+  const remoteDir = path.join(rootDir, 'results-remote.git');
+  git(`git init --bare --initial-branch=main --quiet "${remoteDir}"`, rootDir);
+
+  const seedDir = path.join(rootDir, 'results-seed');
+  git(`git clone --quiet "${remoteDir}" "${seedDir}"`, rootDir);
+  git('git config user.email "test@example.com"', seedDir);
+  git('git config user.name "Test User"', seedDir);
+  writeFileSync(path.join(seedDir, 'README.md'), '# results repo\n');
+  git('git add README.md && git commit --quiet -m "seed repo"', seedDir);
+  git('git push --quiet origin main', seedDir);
+
+  const cloneDir = path.join(rootDir, 'results-clone');
+  git(`git clone --quiet "${remoteDir}" "${cloneDir}"`, rootDir);
+  git('git config user.email "test@example.com"', cloneDir);
+  git('git config user.name "Test User"', cloneDir);
+
+  return { remoteDir, cloneDir, seedDir };
+}
+
+function writeRemoteRunArtifact(
+  cloneDir: string,
+  experiment: string,
+  timestamp: string,
+  resultRecord: object,
+): string {
+  const isoTimestamp = timestamp.replace(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
+    '$1T$2:$3:$4.$5Z',
+  );
+  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
+  mkdirSync(runDir, { recursive: true });
+  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
+  writeFileSync(
+    path.join(runDir, 'benchmark.json'),
+    JSON.stringify(
+      {
+        metadata: {
+          timestamp: isoTimestamp,
+          experiment,
+          targets: ['gpt-4o'],
+          tests_run: ['test-greeting'],
+        },
+        run_summary: {
+          'gpt-4o': {
+            pass_rate: { mean: 1 },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  git(`git add "${runDir}" && git commit --quiet -m "add ${experiment}"`, cloneDir);
+  git('git push --quiet origin main', cloneDir);
+  git('git fetch --quiet origin --prune', cloneDir);
+  return `${experiment}::${timestamp}`;
 }
 
 // ── resolveSourceFile ────────────────────────────────────────────────────
@@ -392,12 +470,77 @@ describe('serve app', () => {
   // ── GET /api/runs ───────────────────────────────────────────────────
 
   describe('GET /api/runs', () => {
+    function createLocalRun(baseDir: string, filename: string, ...records: object[]) {
+      const runDir = path.join(baseDir, '.agentv', 'results', 'runs', filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
+    }
+
     it('returns empty runs list for temp directory', async () => {
       const app = createApp([], tempDir, undefined, undefined, { studioDir });
       const res = await app.request('/api/runs');
       expect(res.status).toBe(200);
       const data = (await res.json()) as { runs: unknown[] };
       expect(data.runs).toEqual([]);
+    });
+
+    it('supports cursor pagination when limit is provided', async () => {
+      createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
+      createLocalRun(tempDir, '2026-03-25T11-00-00-000Z', RESULT_A);
+      createLocalRun(tempDir, '2026-03-25T12-00-00-000Z', RESULT_A);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const firstRes = await app.request('/api/runs?limit=2');
+      expect(firstRes.status).toBe(200);
+      const firstPage = (await firstRes.json()) as {
+        runs: Array<{ filename: string }>;
+        next_cursor?: string;
+      };
+      expect(firstPage.runs.map((run) => run.filename)).toEqual([
+        '2026-03-25T12-00-00-000Z',
+        '2026-03-25T11-00-00-000Z',
+      ]);
+      expect(firstPage.next_cursor).toBe('2026-03-25T11-00-00-000Z');
+
+      const secondRes = await app.request(
+        `/api/runs?limit=2&cursor=${encodeURIComponent(firstPage.next_cursor ?? '')}`,
+      );
+      expect(secondRes.status).toBe(200);
+      const secondPage = (await secondRes.json()) as {
+        runs: Array<{ filename: string }>;
+        next_cursor?: string;
+      };
+      expect(secondPage.runs.map((run) => run.filename)).toEqual(['2026-03-25T10-00-00-000Z']);
+      expect(secondPage.next_cursor).toBeUndefined();
+    });
+
+    it('returns an empty page for unknown cursors', async () => {
+      createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
+      createLocalRun(tempDir, '2026-03-25T11-00-00-000Z', RESULT_A);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs?limit=1&cursor=missing-run');
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        runs: Array<{ filename: string }>;
+        next_cursor?: string;
+      };
+      expect(data.runs).toEqual([]);
+      expect(data.next_cursor).toBeUndefined();
+    });
+
+    it('rejects invalid pagination limits', async () => {
+      createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs?limit=0');
+
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toEqual({
+        error: 'limit must be a positive integer',
+      });
     });
 
     it('tags local runs with source metadata', async () => {
@@ -501,18 +644,15 @@ describe('serve app', () => {
         writeFileSync(
           path.join(tempDir, '.agentv', 'config.yaml'),
           `results:
+  mode: github
   repo: EntityProcess/agentv-evals
-  path: autopilot-dev/runs
 `,
         );
 
         const remoteRunDir = path.join(
           process.env.AGENTV_HOME,
-          'cache',
-          'results-repo',
+          'results',
           'EntityProcess-agentv-evals',
-          'repo',
-          'autopilot-dev',
           'runs',
           'default',
           '2026-03-26T10-00-00-000Z',
@@ -540,6 +680,104 @@ describe('serve app', () => {
         }
       }
     });
+
+    it('lists and loads git-native remote runs from the configured clone path', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'green-uat',
+        '2026-03-26T10-00-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string; experiment?: string; pass_rate?: number }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: `remote::${runId}`,
+        source: 'remote',
+        experiment: 'green-uat',
+        pass_rate: 1,
+      });
+
+      const detailRes = await app.request(
+        `/api/runs/${encodeURIComponent(listData.runs[0].filename)}`,
+      );
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        source: string;
+        results: Array<{ test_id?: string; testId?: string }>;
+      };
+      expect(detailData.source).toBe('remote');
+      expect(detailData.results).toHaveLength(1);
+      expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
+    }, 15000);
+
+    it('loads externally pushed remote runs after sync even when the clone has not checked out the files', async () => {
+      const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        seedDir,
+        'external-sync',
+        '2026-03-26T11-00-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const runManifestPath = path.join(
+        cloneDir,
+        'runs',
+        'external-sync',
+        '2026-03-26T11-00-00-000Z',
+        'index.jsonl',
+      );
+      expect(existsSync(runManifestPath)).toBe(false);
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const syncRes = await app.request('/api/remote/sync', { method: 'POST' });
+      expect(syncRes.status).toBe(200);
+      const syncData = (await syncRes.json()) as { run_count: number };
+      expect(syncData.run_count).toBe(1);
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: `remote::${runId}`,
+        source: 'remote',
+      });
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(`remote::${runId}`)}`);
+      expect(detailRes.status).toBe(200);
+      expect(existsSync(runManifestPath)).toBe(true);
+    }, 15000);
   });
 
   describe('GET /api/projects/all-runs', () => {
@@ -581,29 +819,42 @@ describe('serve app', () => {
 
   describe('GET /api/remote/status', () => {
     it('reports configured remote status with graceful local-only fallback', async () => {
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home-status');
+
+      try {
+        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+        writeFileSync(
+          path.join(tempDir, '.agentv', 'config.yaml'),
+          `results:
+  mode: github
   repo: EntityProcess/agentv-evals
-  path: autopilot-dev/runs
 `,
-      );
+        );
 
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const res = await app.request('/api/remote/status');
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/remote/status');
 
-      expect(res.status).toBe(200);
-      const data = (await res.json()) as {
-        configured: boolean;
-        available: boolean;
-        repo: string;
-        path: string;
-      };
-      expect(data.configured).toBe(true);
-      expect(data.available).toBe(false);
-      expect(data.repo).toBe('EntityProcess/agentv-evals');
-      expect(data.path).toBe('autopilot-dev/runs');
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          configured: boolean;
+          available: boolean;
+          repo: string;
+          path: string;
+        };
+        expect(data.configured).toBe(true);
+        expect(data.available).toBe(false);
+        expect(data.repo).toBe('EntityProcess/agentv-evals');
+        expect(data.path).toBe(
+          path.join(tempDir, 'agentv-home-status', 'results', 'EntityProcess-agentv-evals'),
+        );
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
     });
   });
 

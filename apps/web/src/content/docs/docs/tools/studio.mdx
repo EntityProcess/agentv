@@ -18,6 +18,8 @@ import studioRunsBench from '../../../../assets/screenshots/studio-runs-bench.pn
 import studioAnalyticsAggregated from '../../../../assets/screenshots/studio-analytics-aggregated.png';
 import studioAnalyticsCharts from '../../../../assets/screenshots/studio-analytics-charts.png';
 import studioAnalyticsTrend from '../../../../assets/screenshots/studio-analytics-trend.png';
+import studioRemoteResultsBeforeSync from '../../../../assets/screenshots/studio-remote-results-before-sync.png';
+import studioRemoteResultsAfterSync from '../../../../assets/screenshots/studio-remote-results-after-sync.png';
 
 The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
@@ -214,14 +216,25 @@ Add a `results` block to `.agentv/config.yaml`:
 
 ```yaml
 results:
-  repo: EntityProcess/agentv-evals   # GitHub repo (owner/repo or full URL)
-  path: runs                         # Directory within the repo
-  auto_push: true                    # Push directly to base branch after every eval run
+  mode: github
+  repo: EntityProcess/agentv-evals     # GitHub repo (owner/repo or full URL)
+  path: ~/data/agentv-results          # Local clone path on this machine
+  auto_push: true                      # Push directly to base branch after every eval run
 ```
 
-With `auto_push: true`, every `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Studio without requiring PR merges.
+`results.path` is the filesystem location of the local clone AgentV manages for the results repo. It is **not** a subdirectory inside the remote repo.
+
+With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Studio without requiring PR merges.
 
 Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
+
+### What happens to existing local runs?
+
+Existing runs already present under `.agentv/results/runs/` stay exactly where they are and continue to appear in Studio as **local** runs.
+
+Adding a `results` block does **not** backfill those historical runs into the remote repo automatically. Auto-push only affects runs created after the remote results repo is configured.
+
+If you want older local-only runs in the remote repo, rerun them or copy the run directories into the managed clone manually before committing them there.
 
 ### Authentication
 
@@ -229,6 +242,14 @@ Uses `gh` CLI and `git` credentials already configured on the machine. If authen
 
 ### Syncing in Studio
 
-Once configured, Studio fetches remote runs on load. Use the **Sync Remote Results** button in the source toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
+Once configured, Studio fetches remote runs on load. In the default multi-project flow, open a project card first, then use **Sync Remote Results** in that project's toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
 
 Use the **All Sources / Local Only / Remote Only** filter to narrow the run list by origin.
+
+<Image src={studioRemoteResultsBeforeSync} alt="AgentV Studio project view in multi-project mode before syncing, showing the Support Bot project with a populated run sidebar and remote results that have already been fetched" />
+
+Runs pushed from another machine or CI do not appear until you sync. Existing local-only runs remain visible in the sidebar and keep their **local** source badge.
+
+<Image src={studioRemoteResultsAfterSync} alt="AgentV Studio project view in multi-project mode after syncing, showing the newly fetched GitHub remote run alongside existing local and remote runs in the sidebar" />
+
+After sync, newly fetched remote runs appear in the list with a **remote** source badge, and Studio can open their details without checking out the remote branch locally.

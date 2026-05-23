@@ -5,7 +5,12 @@
  * and the same-origin Hono server serves in production.
  */
 
-import { queryOptions, useQuery } from '@tanstack/react-query';
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/react-query';
 
 import type {
   CategoriesResponse,
@@ -59,9 +64,37 @@ async function fetchText(url: string): Promise<string | null> {
 
 // ── Query option factories ──────────────────────────────────────────────
 
+const RUNS_PAGE_LIMIT = 50;
+
+function buildRunListUrl(baseUrl: string, cursor?: string): string {
+  const params = new URLSearchParams({ limit: String(RUNS_PAGE_LIMIT) });
+  if (cursor) {
+    params.set('cursor', cursor);
+  }
+  return `${baseUrl}?${params.toString()}`;
+}
+
+function flattenRunListPages(pages: RunListResponse[] | undefined): RunListResponse {
+  if (!pages || pages.length === 0) {
+    return { runs: [] };
+  }
+  return {
+    runs: pages.flatMap((page) => page.runs),
+    next_cursor: pages.at(-1)?.next_cursor,
+  };
+}
+
 export const runListOptions = queryOptions({
   queryKey: ['runs'],
   queryFn: () => fetchJson<RunListResponse>('/api/runs'),
+  refetchInterval: 5_000,
+});
+
+export const infiniteRunListOptions = infiniteQueryOptions({
+  queryKey: ['runs', 'infinite'],
+  initialPageParam: undefined as string | undefined,
+  queryFn: ({ pageParam }) => fetchJson<RunListResponse>(buildRunListUrl('/api/runs', pageParam)),
+  getNextPageParam: (lastPage) => lastPage.next_cursor,
   refetchInterval: 5_000,
 });
 
@@ -206,6 +239,14 @@ export function useRunList() {
   return useQuery(runListOptions);
 }
 
+export function useInfiniteRunList() {
+  const query = useInfiniteQuery(infiniteRunListOptions);
+  return {
+    ...query,
+    data: flattenRunListPages(query.data?.pages),
+  };
+}
+
 export function useRunDetail(filename: string) {
   return useQuery(runDetailOptions(filename));
 }
@@ -327,8 +368,28 @@ export function projectRunListOptions(projectId: string) {
   });
 }
 
+export function infiniteProjectRunListOptions(projectId: string) {
+  return infiniteQueryOptions({
+    queryKey: ['projects', projectId, 'runs', 'infinite'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      fetchJson<RunListResponse>(buildRunListUrl(`${projectApiBase(projectId)}/runs`, pageParam)),
+    getNextPageParam: (lastPage) => lastPage.next_cursor,
+    enabled: !!projectId,
+    refetchInterval: 5_000,
+  });
+}
+
 export function useProjectRunList(projectId: string) {
   return useQuery(projectRunListOptions(projectId));
+}
+
+export function useInfiniteProjectRunList(projectId: string) {
+  const query = useInfiniteQuery(infiniteProjectRunListOptions(projectId));
+  return {
+    ...query,
+    data: flattenRunListPages(query.data?.pages),
+  };
 }
 
 export function projectRunDetailOptions(projectId: string, filename: string) {
