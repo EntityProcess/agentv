@@ -242,14 +242,14 @@ Uses `gh` CLI and `git` credentials already configured on the machine. If authen
 
 ### Syncing in Studio
 
-Once configured, Studio fetches remote runs on load. Use the **Sync Remote Results** button in the source toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
+Once configured, Studio fetches remote runs on load. In the default multi-project flow, open a project card first, then use **Sync Remote Results** in that project's toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
 
 Use the **All Sources / Local Only / Remote Only** filter to narrow the run list by origin.
 
-<Image src={studioRemoteResultsBeforeSync} alt="AgentV Studio before syncing remote results, showing a local-only historical run, a previously pushed remote run, and the Sync Remote Results toolbar button" />
+<Image src={studioRemoteResultsBeforeSync} alt="AgentV Studio project view in multi-project mode before syncing, showing the Support Bot project with a populated run sidebar and remote results that have already been fetched" />
 
-Runs pushed from another machine or CI do not appear until you sync. Existing local-only runs remain visible and keep their **local** source badge.
+Runs pushed from another machine or CI do not appear until you sync. Existing local-only runs remain visible in the sidebar and keep their **local** source badge.
 
-<Image src={studioRemoteResultsAfterSync} alt="AgentV Studio after syncing remote results, showing the newly fetched remote run alongside existing local-only and remote runs" />
+<Image src={studioRemoteResultsAfterSync} alt="AgentV Studio project view in multi-project mode after syncing, showing the newly fetched GitHub remote run alongside existing local and remote runs in the sidebar" />
 
 After sync, newly fetched remote runs appear in the list with a **remote** source badge, and Studio can open their details without checking out the remote branch locally.
