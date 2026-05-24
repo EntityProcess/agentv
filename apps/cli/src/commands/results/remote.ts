@@ -24,6 +24,31 @@ import {
   listResultFilesFromRunsDir,
 } from '../inspect/utils.js';
 
+
+// ── In-memory TTL cache for listGitRuns ────────────────────────────
+// Avoids repeated expensive git ls-tree + git cat-file --batch operations
+// on every API request. Cache key is repoDir, TTL is 60 seconds.
+const gitRunsCache = new Map<string, { data: any; expiresAt: number }>();
+const GIT_RUNS_CACHE_TTL_MS = 60_000;
+
+function cachedListGitRuns(repoDir: string) {
+  const now = Date.now();
+  const cached = gitRunsCache.get(repoDir);
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+  const promise = listGitRuns(repoDir);
+  gitRunsCache.set(repoDir, { data: promise, expiresAt: now + GIT_RUNS_CACHE_TTL_MS });
+  // Evict stale entry once the promise settles so a fresh fetch replaces it
+  promise.catch(() => {}).finally(() => {
+    const entry = gitRunsCache.get(repoDir);
+    if (entry && entry.expiresAt <= Date.now()) {
+      gitRunsCache.delete(repoDir);
+    }
+  });
+  return promise;
+}
+
 export type RunSource = 'local' | 'remote';
 
 export interface SourcedResultFileMeta extends ResultFileMeta {
@@ -129,7 +154,7 @@ export async function getRemoteResultsStatus(cwd: string): Promise<RemoteResults
   let runCount = 0;
   if (config && status.available) {
     try {
-      runCount = (await listGitRuns(config.path)).length;
+      runCount = (await cachedListGitRuns(config.path)).length;
     } catch {
       runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
     }
@@ -187,7 +212,7 @@ export async function listMergedResultFiles(
   let remoteRuns: SourcedResultFileMeta[] = [];
   if (config.mode === 'github') {
     try {
-      const gitRuns = await listGitRuns(config.path);
+      const gitRuns = await cachedListGitRuns(config.path);
       remoteRuns = gitRuns.map((r) => ({
         filename: encodeRemoteRunId(r.run_id),
         raw_filename: r.run_id,

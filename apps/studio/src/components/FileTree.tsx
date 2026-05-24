@@ -131,7 +131,7 @@ export function FileTree({ files, selectedPath, onSelect }: FileTreeProps) {
   };
 
   return (
-    <div className="w-64 overflow-y-auto rounded-lg border border-gray-800 bg-gray-900 py-2">
+    <div className="w-full md:w-64 overflow-y-auto rounded-lg border border-gray-800 bg-gray-900 py-2">
       {files.length === 0 && <p className="px-4 py-2 text-sm text-gray-500">No files.</p>}
       {files.map((node) => (
         <TreeNode
