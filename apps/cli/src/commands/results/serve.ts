@@ -435,10 +435,12 @@ async function handleRunDetail(c: C, { searchDir }: DataContext) {
     // Studio-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
     const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
+    const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
     return c.json({
       results: stripHeavyFields(loaded),
       source: meta.source,
       source_label: meta.displayName,
+      ...(liveStatus && { status: liveStatus }),
       ...resumeMeta,
     });
   } catch {

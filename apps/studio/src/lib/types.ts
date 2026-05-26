@@ -84,6 +84,8 @@ export interface RunDetailResponse {
   results: EvalResult[];
   source: 'local' | 'remote';
   source_label?: string;
+  /** Live execution status when this run is still tracked in-memory by Studio. */
+  status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
   run_dir?: string;
   /** Eval file path the run was launched against, if recorded in benchmark.json. Local runs only. */

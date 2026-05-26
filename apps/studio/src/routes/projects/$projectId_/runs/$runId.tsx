@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { ResumeRunActions } from '~/components/ResumeRunActions';
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
+import { RunStatusIndicator } from '~/components/RunStatusIndicator';
+import { StopRunButton } from '~/components/StopRunButton';
 import { useProjectRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/projects/$projectId_/runs/$runId')({
@@ -47,6 +49,8 @@ function ProjectRunDetailPage() {
   const experiment = firstResult?.experiment;
   const timestamp = firstResult?.timestamp;
   const prefill = target ? { target } : undefined;
+  const runStatus = data?.status;
+  const isActiveRun = runStatus === 'starting' || runStatus === 'running';
 
   const heading = (() => {
     const parts = [experiment, target].filter((p) => p && p !== 'default');
@@ -70,16 +74,27 @@ function ProjectRunDetailPage() {
           <p className="mt-1 text-sm text-gray-500">{meta}</p>
         </div>
         <div className="flex items-center gap-3">
-          <ResumeRunActions
-            results={data?.results ?? []}
-            runDir={data?.run_dir}
-            suiteFilter={data?.suite_filter}
-            target={target ?? undefined}
-            projectId={projectId}
-            isReadOnly={isReadOnly}
-            plannedTestCount={data?.planned_test_count}
-          />
-          {!isReadOnly && (
+          {!isReadOnly && isActiveRun ? (
+            <StopRunButton
+              runId={runId}
+              status={runStatus}
+              isReadOnly={isReadOnly}
+              projectId={projectId}
+            />
+          ) : (
+            <ResumeRunActions
+              results={data?.results ?? []}
+              runDir={data?.run_dir}
+              suiteFilter={data?.suite_filter}
+              target={target ?? undefined}
+              projectId={projectId}
+              isReadOnly={isReadOnly}
+              plannedTestCount={data?.planned_test_count}
+              runStatus={runStatus}
+            />
+          )}
+          {runStatus && <RunStatusIndicator status={runStatus} />}
+          {!isReadOnly && !isActiveRun && (
             <button
               type="button"
               onClick={() => setShowRunEval(true)}

@@ -25,6 +25,16 @@ describe('shouldShowResumeActions', () => {
     expect(shouldShowResumeActions([ok('a'), errored('b')], false)).toBe(true);
   });
 
+  it('hides while the run is still active even if it looks incomplete', () => {
+    expect(shouldShowResumeActions([ok('a')], false, 5, 'running')).toBe(false);
+    expect(shouldShowResumeActions([errored('a')], false, undefined, 'starting')).toBe(false);
+  });
+
+  it('shows once the run is terminal and resumable', () => {
+    expect(shouldShowResumeActions([ok('a')], false, 5, 'failed')).toBe(true);
+    expect(shouldShowResumeActions([errored('a')], false, undefined, 'finished')).toBe(true);
+  });
+
   it('hides in read-only mode even when execution errors are present', () => {
     expect(shouldShowResumeActions([errored('a')], true)).toBe(false);
   });

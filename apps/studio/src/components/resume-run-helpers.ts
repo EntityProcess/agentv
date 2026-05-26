@@ -11,6 +11,8 @@
 
 import type { EvalResult, RunEvalRequest } from '~/lib/types';
 
+import { type RunStatus, isTerminalRunStatus } from './stop-run-helpers';
+
 export type ResumeMode = 'resume' | 'rerun';
 
 export interface BuildResumeRequestParams {
@@ -39,8 +41,10 @@ export function shouldShowResumeActions(
   results: EvalResult[],
   isReadOnly: boolean,
   plannedTestCount?: number,
+  runStatus?: RunStatus,
 ): boolean {
   if (isReadOnly) return false;
+  if (runStatus && !isTerminalRunStatus(runStatus)) return false;
   if (results.some((r) => r.executionStatus === 'execution_error')) return true;
   if (plannedTestCount !== undefined && results.length < plannedTestCount) return true;
   return false;

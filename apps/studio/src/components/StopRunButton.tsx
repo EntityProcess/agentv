@@ -1,8 +1,9 @@
 /**
- * StopRunButton — pause-style affordance on /jobs/:runId that interrupts
- * a Studio-launched eval. Stop is part of the stop → resume → complete
- * workflow, not a destructive cancel: the partial index.jsonl is
- * preserved and can be resumed in one click from the run-detail page.
+ * StopRunButton — stop affordance on /jobs/:runId and active run detail
+ * views that interrupts a Studio-launched eval. Stop is part of the
+ * stop → resume → complete workflow, not a destructive cancel: the
+ * partial index.jsonl is preserved and can be resumed in one click from
+ * the run-detail page.
  *
  * Calls POST /api/eval/run/:id/stop (or the project-scoped variant).
  * Optimistically flips the local label to "Stopping…" until the next
@@ -10,7 +11,7 @@
  * point the button hides via `shouldShowStopButton`.
  *
  * Styling is intentionally neutral (gray, not red) to signal that this
- * is a pause, not a kill.
+ * stops execution without deleting the partial run workspace.
  */
 
 import { useState } from 'react';
@@ -51,10 +52,17 @@ export function StopRunButton({ runId, status, isReadOnly, projectId }: StopRunB
         type="button"
         onClick={onClick}
         disabled={stopping}
-        className="rounded-md border border-gray-700 bg-transparent px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-md border border-gray-700 bg-transparent px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="stop-run-button"
       >
-        {stopping ? 'Stopping…' : '⏸ Stop'}
+        {stopping ? (
+          'Stopping…'
+        ) : (
+          <>
+            <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-[1px] bg-current" />
+            Stop
+          </>
+        )}
       </button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
