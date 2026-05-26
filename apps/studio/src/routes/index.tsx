@@ -1,7 +1,7 @@
 /**
- * Home route: thin entry layer that either redirects to the only registered
- * project, shows the projects dashboard, or falls back to the legacy
- * single-project home when Studio is explicitly running in single mode.
+ * Home route: thin entry layer that either auto-opens the cwd-backed project
+ * on the first visit, shows the projects dashboard, or falls back to the
+ * legacy single-project home when Studio is explicitly running in single mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */
@@ -27,7 +27,12 @@ import {
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
-import { type StudioTabId, resolveIndexRoute } from '~/lib/navigation';
+import {
+  initialProjectRedirectStorageKey,
+  resolveIndexRoute,
+  resolveInitialProjectRedirect,
+  type StudioTabId,
+} from '~/lib/navigation';
 import type { RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
 
@@ -50,9 +55,41 @@ function HomePage() {
   const { data: projectData, isLoading: projectsLoading } = useProjectList();
   const { data: config, isLoading: configLoading } = useStudioConfig();
   const projects = projectData?.projects ?? [];
+  const [preferredProjectId, setPreferredProjectId] = useState<string | null | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    if (projectsLoading || configLoading) {
+      return;
+    }
+
+    const projectId = config?.current_project_id;
+    if (!projectId) {
+      setPreferredProjectId(null);
+      return;
+    }
+
+    const storageKey = initialProjectRedirectStorageKey(projectId);
+    const alreadyRedirected =
+      typeof window !== 'undefined' && window.sessionStorage.getItem(storageKey) === '1';
+    const initialProjectId = resolveInitialProjectRedirect(
+      projects.map((project) => project.id),
+      projectId,
+      alreadyRedirected,
+    );
+
+    if (typeof window !== 'undefined' && initialProjectId) {
+      window.sessionStorage.setItem(storageKey, '1');
+    }
+
+    setPreferredProjectId(initialProjectId ?? null);
+  }, [config?.current_project_id, configLoading, projects, projectsLoading]);
+
   const decision = resolveIndexRoute(
     projects.map((project) => project.id),
     config?.project_dashboard,
+    preferredProjectId ?? undefined,
     tab,
   );
 
@@ -62,7 +99,7 @@ function HomePage() {
     }
   }, [decision, navigate]);
 
-  if (projectsLoading || configLoading) {
+  if (projectsLoading || configLoading || preferredProjectId === undefined) {
     return <LoadingSkeleton />;
   }
 
