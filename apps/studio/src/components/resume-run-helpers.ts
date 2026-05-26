@@ -11,7 +11,7 @@
 
 import type { EvalResult, RunEvalRequest } from '~/lib/types';
 
-import { isTerminalRunStatus, type RunStatus } from './stop-run-helpers';
+import { type RunStatus, isTerminalRunStatus } from './stop-run-helpers';
 
 export type ResumeMode = 'resume' | 'rerun';
 
