@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { ResumeRunActions } from '~/components/ResumeRunActions';
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
+import { StopRunButton } from '~/components/StopRunButton';
 import { useRunDetail, useStudioConfig } from '~/lib/api';
 
 export const Route = createFileRoute('/runs/$runId')({
@@ -48,6 +49,8 @@ function RunDetailPage() {
   const timestamp = firstResult?.timestamp;
 
   const prefill = target ? { target } : undefined;
+  const runStatus = data?.status;
+  const isActiveRun = runStatus === 'starting' || runStatus === 'running';
 
   const heading = (() => {
     const parts = [experiment, target].filter((p) => p && p !== 'default');
@@ -71,16 +74,20 @@ function RunDetailPage() {
           <p className="mt-1 text-sm text-gray-500">{meta}</p>
         </div>
         <div className="flex items-center gap-3">
-          <ResumeRunActions
-            results={data?.results ?? []}
-            runDir={data?.run_dir}
-            suiteFilter={data?.suite_filter}
-            target={target ?? undefined}
-            isReadOnly={isReadOnly}
-            plannedTestCount={data?.planned_test_count}
-            runStatus={data?.status}
-          />
-          {!isReadOnly && (
+          {!isReadOnly && isActiveRun ? (
+            <StopRunButton runId={runId} status={runStatus} isReadOnly={isReadOnly} />
+          ) : (
+            <ResumeRunActions
+              results={data?.results ?? []}
+              runDir={data?.run_dir}
+              suiteFilter={data?.suite_filter}
+              target={target ?? undefined}
+              isReadOnly={isReadOnly}
+              plannedTestCount={data?.planned_test_count}
+              runStatus={runStatus}
+            />
+          )}
+          {!isReadOnly && !isActiveRun && (
             <button
               type="button"
               onClick={() => setShowRunEval(true)}
