@@ -125,6 +125,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - If something goes sideways, STOP and re-plan immediately — don't keep pushing a broken approach.
 - For non-trivial changes, pause and ask: "Is there a more elegant solution?" before diving in.
 - Check in with the user before starting implementation on ambiguous tasks.
+- Prefer automation: execute the requested work without extra confirmation unless blocked by missing information, safety concerns, or an irreversible/destructive action the user has not approved.
 
 ### Subagent Strategy
 - Use subagents aggressively to keep the main context window clean.
@@ -146,6 +147,13 @@ cd ../agentv.worktrees/<type>-<short-desc>
 ### Progress Updates
 - Provide high-level status updates at natural milestones.
 - When scope changes mid-task, communicate the shift and adjust the plan.
+- Use parallel tool calls when applicable, especially for independent reads, checks, and validation steps.
+
+### PR & Commit Titles
+- Prefer conventional commit style for branch-facing titles: `type(scope): summary`.
+- Use the repository's normal types where they fit, such as `feat`, `fix`, `chore`, `refactor`, `docs`, and `test`.
+- Use the most relevant module or product area as `scope`, such as `studio`, `cli`, `results`, or `evals`.
+- Do not prefix PR titles with `[codex]` unless the user explicitly requests it.
 
 ## TypeScript Guidelines
 - Target ES2022 with Node 20+
@@ -604,4 +612,3 @@ The release script (`bun scripts/release.ts`) is what the Release workflow calls
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
-
