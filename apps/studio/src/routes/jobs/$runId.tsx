@@ -9,6 +9,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 
+import { RunStatusIndicator } from '~/components/RunStatusIndicator';
 import { StopRunButton } from '~/components/StopRunButton';
 import { useEvalRunStatus, useStudioConfig } from '~/lib/api';
 
@@ -45,15 +46,6 @@ function JobDetailPage() {
 
   const isTerminal = status.status === 'finished' || status.status === 'failed';
 
-  const statusColors: Record<string, string> = {
-    starting: 'text-yellow-400',
-    running: 'text-cyan-400',
-    finished: 'text-emerald-400',
-    failed: 'text-red-400',
-  };
-
-  const statusColor = statusColors[status.status] ?? 'text-gray-400';
-
   return (
     <div className="space-y-4">
       <BackLink />
@@ -79,12 +71,7 @@ function JobDetailPage() {
         </div>
         <div className="flex flex-shrink-0 items-center gap-3">
           <StopRunButton runId={runId} status={status.status} isReadOnly={isReadOnly} />
-          <span className={`text-sm font-medium ${statusColor}`}>
-            {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
-          </span>
-          {!isTerminal && (
-            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-          )}
+          <RunStatusIndicator status={status.status} />
         </div>
       </div>
 

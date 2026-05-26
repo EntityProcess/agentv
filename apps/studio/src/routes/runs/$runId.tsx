@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { ResumeRunActions } from '~/components/ResumeRunActions';
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
+import { RunStatusIndicator } from '~/components/RunStatusIndicator';
 import { StopRunButton } from '~/components/StopRunButton';
 import { useRunDetail, useStudioConfig } from '~/lib/api';
 
@@ -87,6 +88,7 @@ function RunDetailPage() {
               runStatus={runStatus}
             />
           )}
+          {runStatus && <RunStatusIndicator status={runStatus} />}
           {!isReadOnly && !isActiveRun && (
             <button
               type="button"
