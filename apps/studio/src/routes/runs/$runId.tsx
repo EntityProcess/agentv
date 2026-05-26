@@ -78,6 +78,7 @@ function RunDetailPage() {
             target={target ?? undefined}
             isReadOnly={isReadOnly}
             plannedTestCount={data?.planned_test_count}
+            runStatus={data?.status}
           />
           {!isReadOnly && (
             <button

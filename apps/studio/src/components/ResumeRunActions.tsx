@@ -27,6 +27,7 @@ import {
   buildResumeRequestBody,
   shouldShowResumeActions,
 } from './resume-run-helpers';
+import type { RunStatus } from './stop-run-helpers';
 
 export interface ResumeRunActionsProps {
   results: EvalResult[];
@@ -36,6 +37,7 @@ export interface ResumeRunActionsProps {
   projectId?: string;
   isReadOnly: boolean;
   plannedTestCount?: number;
+  runStatus?: RunStatus;
 }
 
 export function ResumeRunActions({
@@ -46,12 +48,13 @@ export function ResumeRunActions({
   projectId,
   isReadOnly,
   plannedTestCount,
+  runStatus,
 }: ResumeRunActionsProps) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState<ResumeMode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (!shouldShowResumeActions(results, isReadOnly, plannedTestCount)) return null;
+  if (!shouldShowResumeActions(results, isReadOnly, plannedTestCount, runStatus)) return null;
 
   // Both actions need the run dir + the original eval file. Without those
   // we can't target the existing run workspace, so we render the buttons

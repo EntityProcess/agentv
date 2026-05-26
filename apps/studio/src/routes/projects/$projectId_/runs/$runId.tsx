@@ -78,6 +78,7 @@ function ProjectRunDetailPage() {
             projectId={projectId}
             isReadOnly={isReadOnly}
             plannedTestCount={data?.planned_test_count}
+            runStatus={data?.status}
           />
           {!isReadOnly && (
             <button
