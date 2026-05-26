@@ -254,6 +254,7 @@ export interface StudioConfigResponse {
   read_only?: boolean;
   project_name?: string;
   project_dashboard?: boolean;
+  current_project_id?: string;
 }
 
 export interface RemoteStatusResponse {

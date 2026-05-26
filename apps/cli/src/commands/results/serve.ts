@@ -46,6 +46,7 @@ import {
   loadProjectRegistry,
   removeProject,
   syncProjects,
+  touchProject,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -128,14 +129,26 @@ export function loadResults(content: string): EvaluationResult[] {
 }
 
 export function resolveDashboardMode(
-  projectCount: number,
+  _projectCount: number,
   options: { single?: boolean },
 ): { projectDashboard: boolean } {
   if (options.single === true) {
     return { projectDashboard: false };
   }
 
-  return { projectDashboard: projectCount > 0 };
+  return { projectDashboard: true };
+}
+
+function bootstrapCurrentProject(
+  cwd: string,
+  options: { single?: boolean },
+): { currentProjectId?: string } {
+  if (options.single === true) return {};
+  if (!existsSync(path.join(cwd, '.agentv'))) return {};
+
+  const entry = addProject(cwd);
+  touchProject(entry.id);
+  return { currentProjectId: entry.id };
 }
 
 // ── Feedback persistence ─────────────────────────────────────────────────
@@ -985,13 +998,14 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 function handleConfig(
   c: C,
   { agentvDir, searchDir }: DataContext,
-  options?: { readOnly?: boolean; projectDashboard?: boolean },
+  options?: { readOnly?: boolean; projectDashboard?: boolean; currentProjectId?: string },
 ) {
   return c.json({
     ...loadStudioConfig(agentvDir),
     read_only: options?.readOnly === true,
     project_name: path.basename(searchDir),
     project_dashboard: options?.projectDashboard === true,
+    ...(options?.currentProjectId && { current_project_id: options.currentProjectId }),
   });
 }
 
@@ -1057,7 +1071,12 @@ export function createApp(
   resultDir: string,
   cwd?: string,
   sourceFile?: string,
-  options?: { studioDir?: string; readOnly?: boolean; projectDashboard?: boolean },
+  options?: {
+    studioDir?: string;
+    readOnly?: boolean;
+    projectDashboard?: boolean;
+    currentProjectId?: string;
+  },
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
@@ -1260,6 +1279,7 @@ export function createApp(
     handleConfig(c, defaultCtx, {
       readOnly,
       projectDashboard: options?.projectDashboard,
+      currentProjectId: options?.currentProjectId,
     }),
   );
   app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
@@ -1603,6 +1623,8 @@ export const resultsServeCommand = command({
       await enforceRequiredVersion(yamlConfig.required_version);
     }
 
+    const { currentProjectId } = bootstrapCurrentProject(cwd, { single });
+
     // ── Determine dashboard mode ─────────────────────────────────────
     const registry = loadProjectRegistry();
     const { projectDashboard } = resolveDashboardMode(registry.projects.length, { single });
@@ -1644,10 +1666,14 @@ export const resultsServeCommand = command({
       const app = createApp(results, resultDir, cwd, sourceFile, {
         readOnly,
         projectDashboard,
+        currentProjectId,
       });
 
       if (projectDashboard) {
         console.log(`Project dashboard: ${registry.projects.length} project(s) registered`);
+        if (currentProjectId) {
+          console.log(`Default project: ${currentProjectId}`);
+        }
       } else if (results.length > 0 && sourceFile) {
         console.log(`Serving ${results.length} result(s) from ${sourceFile}`);
       } else {

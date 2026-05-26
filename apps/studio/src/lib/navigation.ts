@@ -12,6 +12,10 @@ export interface IndexRouteDecision {
   redirectPath?: string;
 }
 
+export function initialProjectRedirectStorageKey(projectId: string): string {
+  return `agentv.studio.initial-project-redirect:${projectId}`;
+}
+
 export function projectHomePath(projectId: string, tab?: StudioTabId): string {
   const base = `/projects/${encodeURIComponent(projectId)}`;
   return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
@@ -61,19 +65,32 @@ export function experimentsHomePath(projectId?: string): string {
   return projectId ? projectHomePath(projectId, 'experiments') : '/?tab=experiments';
 }
 
+export function resolveInitialProjectRedirect(
+  projectIds: string[],
+  currentProjectId?: string,
+  alreadyRedirected = false,
+): string | undefined {
+  if (alreadyRedirected) {
+    return undefined;
+  }
+
+  return currentProjectId && projectIds.includes(currentProjectId) ? currentProjectId : undefined;
+}
+
 export function resolveIndexRoute(
   projectIds: string[],
   projectDashboard: boolean | undefined,
+  preferredProjectId?: string,
   tab?: StudioTabId,
 ): IndexRouteDecision {
   if (projectDashboard === false) {
     return { kind: 'single-project-home' };
   }
 
-  if (projectIds.length === 1) {
+  if (preferredProjectId && projectIds.includes(preferredProjectId)) {
     return {
       kind: 'redirect',
-      redirectPath: projectHomePath(projectIds[0], tab),
+      redirectPath: projectHomePath(preferredProjectId, tab),
     };
   }
 
