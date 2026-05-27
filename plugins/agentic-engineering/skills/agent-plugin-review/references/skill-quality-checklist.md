@@ -65,8 +65,6 @@ When a skill author wants to enforce that the agent doesn't skip rules, the temp
 - **Coverage contract pattern:** Keep one-line checklist items in SKILL.md naming each rule and citing the reference file (e.g., `"Lifecycle choice — apply large-table rule in references/schema-rules.md"`). Add one sentence: "Silence on any item is itself a review gap." Close the silent-skip loophole with: "If a reference file is unavailable, say so explicitly rather than skipping it."
 - **Anti-pattern:** Multi-paragraph items that restate rules and rationale already in `references/`. The fix is structural — the prose is in the wrong file, not the wrong shape. Move operational procedures (how to locate files, `find` syntax, what to record) and output-format meta (citation discipline worked examples) into `references/`. Mark that file as always-load.
 
-> **Observed case:** A routing SKILL.md grew from ~150 words to ~1168 words when a 5-item "Review Checklist" was inlined — each item restating a rule that also lived in `references/`, ending with "see `references/foo.md`." The reference already existed; the inline was pure duplication. Fix: one-sentence contract per item + a new `references/review-process.md` for the procedures. Result: SKILL.md back to ~388 words; all eval rubric items still satisfied.
-
 ### Structure
 
 - [ ] Overview: core principle in 1-2 sentences
