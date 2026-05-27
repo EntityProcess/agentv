@@ -183,9 +183,9 @@ describe('loadResults', () => {
 // ── resolveDashboardMode ───────────────────────────────────────────────
 
 describe('resolveDashboardMode', () => {
-  it('defaults to single-project mode when no projects are registered', () => {
+  it('defaults to project dashboard mode when no projects are registered', () => {
     expect(resolveDashboardMode(0, {})).toEqual({
-      projectDashboard: false,
+      projectDashboard: true,
     });
   });
 

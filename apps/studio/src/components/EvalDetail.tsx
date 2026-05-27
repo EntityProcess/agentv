@@ -287,11 +287,7 @@ function FilesTab({
   return (
     <div className="relative flex h-full min-h-[400px] gap-4">
       {/* FileTree panel — desktop: side-by-side, mobile: full-width slide-over */}
-      <div
-        className={`${
-          mobileShowTree ? 'block' : 'hidden'
-        } md:block w-full md:w-auto`}
-      >
+      <div className={`${mobileShowTree ? 'block' : 'hidden'} md:block w-full md:w-auto`}>
         <FileTree
           files={files}
           selectedPath={effectivePath}
@@ -304,11 +300,7 @@ function FilesTab({
       </div>
 
       {/* MonacoViewer panel — desktop: side-by-side, mobile: full-width */}
-      <div
-        className={`${
-          !mobileShowTree ? 'block' : 'hidden'
-        } md:block flex-1 h-full`}
-      >
+      <div className={`${!mobileShowTree ? 'block' : 'hidden'} md:block flex-1 h-full`}>
         <MonacoViewer value={displayValue} language={displayLanguage} height="100%" />
       </div>
 

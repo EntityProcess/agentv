@@ -13,8 +13,8 @@ import {
 } from '../../../studio/src/lib/navigation.ts';
 
 describe('studio navigation helpers', () => {
-  it('redirects the root entrypoint to the only registered project', () => {
-    expect(resolveIndexRoute(['demo-project'], undefined, 'analytics')).toEqual({
+  it('redirects when the preferred project id matches a registered project', () => {
+    expect(resolveIndexRoute(['demo-project'], undefined, 'demo-project', 'analytics')).toEqual({
       kind: 'redirect',
       redirectPath: '/projects/demo-project?tab=analytics',
     });

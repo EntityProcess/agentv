@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   DEFAULT_THRESHOLD,
   type EvaluationResult,
+  type GitListedRun,
   type ResultsConfig,
   type ResultsRepoStatus,
   directPushResults,
@@ -24,11 +25,10 @@ import {
   listResultFilesFromRunsDir,
 } from '../inspect/utils.js';
 
-
 // ── In-memory TTL cache for listGitRuns ────────────────────────────
 // Avoids repeated expensive git ls-tree + git cat-file --batch operations
 // on every API request. Cache key is repoDir, TTL is 60 seconds.
-const gitRunsCache = new Map<string, { data: any; expiresAt: number }>();
+const gitRunsCache = new Map<string, { data: Promise<GitListedRun[]>; expiresAt: number }>();
 const GIT_RUNS_CACHE_TTL_MS = 60_000;
 
 function cachedListGitRuns(repoDir: string) {
@@ -40,12 +40,14 @@ function cachedListGitRuns(repoDir: string) {
   const promise = listGitRuns(repoDir);
   gitRunsCache.set(repoDir, { data: promise, expiresAt: now + GIT_RUNS_CACHE_TTL_MS });
   // Evict stale entry once the promise settles so a fresh fetch replaces it
-  promise.catch(() => {}).finally(() => {
-    const entry = gitRunsCache.get(repoDir);
-    if (entry && entry.expiresAt <= Date.now()) {
-      gitRunsCache.delete(repoDir);
-    }
-  });
+  promise
+    .catch(() => {})
+    .finally(() => {
+      const entry = gitRunsCache.get(repoDir);
+      if (entry && entry.expiresAt <= Date.now()) {
+        gitRunsCache.delete(repoDir);
+      }
+    });
   return promise;
 }
 

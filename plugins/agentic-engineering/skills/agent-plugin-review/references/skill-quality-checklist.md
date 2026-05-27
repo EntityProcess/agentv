@@ -56,6 +56,14 @@ description: Use when tests have race conditions, timing dependencies, or pass/f
 - [ ] Move heavy reference (100+ lines) to separate files
 - [ ] Use cross-references instead of repeating content from other skills
 - [ ] Compress examples — one excellent example beats many mediocre ones
+- [ ] When SKILL.md exceeds ~500 words for a standard skill, the heaviest section is almost always inlined reference material — extract it
+
+### Coverage Contracts vs. Rule Restatement
+
+When a skill author wants to enforce that the agent doesn't skip rules, the temptation is to inline each rule with its full rationale. Don't.
+
+- **Coverage contract pattern:** Keep one-line checklist items in SKILL.md naming each rule and citing the reference file (e.g., `"Lifecycle choice — apply large-table rule in references/schema-rules.md"`). Add one sentence: "Silence on any item is itself a review gap." Close the silent-skip loophole with: "If a reference file is unavailable, say so explicitly rather than skipping it."
+- **Anti-pattern:** Multi-paragraph items that restate rules and rationale already in `references/`. The fix is structural — the prose is in the wrong file, not the wrong shape. Move operational procedures (how to locate files, `find` syntax, what to record) and output-format meta (citation discipline worked examples) into `references/`. Mark that file as always-load.
 
 ### Structure
 
@@ -115,6 +123,8 @@ Match specificity to the task's fragility:
 | Version printing instructions | Fragile, rely on git history |
 | Hardcoded local paths | Machine-specific, not portable |
 | Description summarizes workflow | the agent follows description, skips SKILL.md body |
+| SKILL.md inlines rule prose that also lives in `references/` | Two sources of truth — the inline copy drifts from the canonical reference; agent applies the SKILL.md version and ignores the more detailed reference |
+| SKILL.md embeds operational procedures or worked-example pairs | Procedures (how to locate files, `find` syntax, what to record) and output-format meta (citation discipline examples) belong in `references/` per progressive disclosure |
 
 ## Discipline-Enforcing Skills (Additional Checks)
 
@@ -125,3 +135,5 @@ For skills that enforce rules (TDD, verification, coding standards):
 - [ ] Red flags list for self-checking
 - [ ] "Spirit vs letter" addressed: "Violating the letter IS violating the spirit"
 - [ ] Hard gates at critical decision points
+- [ ] Discipline patterns (output-format meta, citation examples, verification procedures) live in `references/` — SKILL.md names them in one line and cites the file
+- [ ] Discipline reference file is marked as always-load so the agent cannot bypass it (don't inline to guarantee coverage — mark as unmissable instead)
