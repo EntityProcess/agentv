@@ -1633,7 +1633,9 @@ export const resultsServeCommand = command({
     // Clone or pull any project entries that declare a source.
     // Non-blocking: fire-and-forget so startup is instant even when some
     // project paths are missing or slow (e.g. /tmp paths that timeout).
-    syncProjects(registry.projects).catch((err) => console.error("Background project sync failed:", err));
+    syncProjects(registry.projects).catch((err) =>
+      console.error('Background project sync failed:', err),
+    );
 
     try {
       let results: EvaluationResult[] = [];

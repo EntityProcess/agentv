@@ -59,7 +59,10 @@ export function StopRunButton({ runId, status, isReadOnly, projectId }: StopRunB
           'Stopping…'
         ) : (
           <>
-            <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-[1px] bg-current" />
+            <span
+              aria-hidden="true"
+              className="inline-block h-2.5 w-2.5 rounded-[1px] bg-current"
+            />
             Stop
           </>
         )}

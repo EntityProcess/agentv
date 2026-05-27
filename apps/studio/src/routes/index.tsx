@@ -28,10 +28,10 @@ import {
   useStudioConfig,
 } from '~/lib/api';
 import {
+  type StudioTabId,
   initialProjectRedirectStorageKey,
   resolveIndexRoute,
   resolveInitialProjectRedirect,
-  type StudioTabId,
 } from '~/lib/navigation';
 import type { RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
