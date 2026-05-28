@@ -13,6 +13,7 @@ import {
   projectRunListOptions,
   runListOptions,
 } from '~/lib/api';
+import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
 import { RunList } from './RunList';
 
@@ -45,12 +46,12 @@ export function ExperimentDetail({ experimentName, projectId }: ExperimentDetail
   }
 
   const experiment = experimentsData?.experiments?.find((entry) => entry.name === experimentName);
-  const runs = (runListData?.runs ?? []).filter(
-    (run) => (run.experiment ?? 'default') === experimentName,
+  const runs = dedupeSyncedRuns(
+    (runListData?.runs ?? []).filter((run) => (run.experiment ?? 'default') === experimentName),
   );
 
   const passRate = experiment?.pass_rate ?? 0;
-  const runCount = experiment?.run_count ?? runs.length;
+  const runCount = runs.length;
   const targetCount = experiment?.target_count ?? 0;
 
   return (
