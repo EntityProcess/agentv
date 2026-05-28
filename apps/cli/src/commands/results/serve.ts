@@ -376,12 +376,14 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
       let target: string | undefined;
       let experiment = inferExperimentFromRunId(m.raw_filename);
       let passRate = m.passRate;
+      let avgScore = m.avgScore;
       try {
         const records = await loadLightweightResultsForMeta(searchDir, m);
         if (records.length > 0) {
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
           passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
+          avgScore = records.reduce((sum, r) => sum + r.score, 0) / records.length;
         } else {
           // Run is in-progress with 0 results written yet — fall back to the
           // in-memory target stored when the Studio launched this run.
@@ -402,7 +404,7 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
         timestamp: m.timestamp,
         test_count: m.testCount,
         pass_rate: passRate,
-        avg_score: m.avgScore,
+        avg_score: avgScore,
         size_bytes: m.sizeBytes,
         source: m.source,
         ...(target && { target }),

@@ -705,7 +705,13 @@ describe('serve app', () => {
       const listRes = await app.request('/api/runs');
       expect(listRes.status).toBe(200);
       const listData = (await listRes.json()) as {
-        runs: Array<{ filename: string; source: string; experiment?: string; pass_rate?: number }>;
+        runs: Array<{
+          filename: string;
+          source: string;
+          experiment?: string;
+          pass_rate?: number;
+          avg_score?: number;
+        }>;
       };
       expect(listData.runs).toHaveLength(1);
       expect(listData.runs[0]).toMatchObject({
@@ -713,6 +719,7 @@ describe('serve app', () => {
         source: 'remote',
         experiment: 'green-uat',
         pass_rate: 1,
+        avg_score: 1,
       });
 
       const detailRes = await app.request(
