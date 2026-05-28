@@ -33,6 +33,7 @@ import {
   resolveIndexRoute,
   resolveInitialProjectRedirect,
 } from '~/lib/navigation';
+import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 import type { RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
 
@@ -234,7 +235,7 @@ function SingleProjectHome() {
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
   const filteredRuns =
     sourceFilter === 'all'
-      ? (data?.runs ?? [])
+      ? dedupeSyncedRuns(data?.runs ?? [])
       : (data?.runs ?? []).filter((run) => run.source === sourceFilter);
 
   async function handleSyncRemote() {

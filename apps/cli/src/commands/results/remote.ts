@@ -290,7 +290,10 @@ export async function ensureRemoteRunAvailable(
     throw new Error(`Remote manifest path is outside the results repo clone: ${meta.path}`);
   }
 
-  const relativeRunPath = path.posix.relative('runs', path.posix.dirname(relativeManifestPath));
+  const relativeRunPath = path.posix.relative(
+    '.agentv/results/runs',
+    path.posix.dirname(relativeManifestPath),
+  );
   await materializeGitRun(config.path, relativeRunPath);
 }
 

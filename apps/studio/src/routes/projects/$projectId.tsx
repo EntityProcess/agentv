@@ -22,6 +22,7 @@ import {
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
+import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
 type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
 
@@ -121,7 +122,7 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
 
   const filteredRuns =
     sourceFilter === 'all'
-      ? (data?.runs ?? [])
+      ? dedupeSyncedRuns(data?.runs ?? [])
       : (data?.runs ?? []).filter((run) => run.source === sourceFilter);
 
   async function handleSyncRemote() {

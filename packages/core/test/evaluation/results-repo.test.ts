@@ -98,7 +98,14 @@ describe('listGitRuns', () => {
   });
 
   it('returns committed runs derived from benchmark.json blobs', async () => {
-    const defaultRunDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
+    const defaultRunDir = path.join(
+      repoDir,
+      '.agentv',
+      'results',
+      'runs',
+      'default',
+      '2026-05-20T10-00-00-000Z',
+    );
     mkdirSync(defaultRunDir, { recursive: true });
     writeFileSync(
       path.join(defaultRunDir, 'benchmark.json'),
@@ -120,7 +127,14 @@ describe('listGitRuns', () => {
       ),
     );
 
-    const experimentRunDir = path.join(repoDir, 'runs', 'with-skills', '2026-05-21T11-00-00-000Z');
+    const experimentRunDir = path.join(
+      repoDir,
+      '.agentv',
+      'results',
+      'runs',
+      'with-skills',
+      '2026-05-21T11-00-00-000Z',
+    );
     mkdirSync(experimentRunDir, { recursive: true });
     writeFileSync(
       path.join(experimentRunDir, 'benchmark.json'),
@@ -146,7 +160,7 @@ describe('listGitRuns', () => {
       ),
     );
 
-    git('git add runs && git commit -m "seed runs"', repoDir);
+    git('git add .agentv && git commit -m "seed runs"', repoDir);
 
     const runs = await listGitRuns(repoDir, 'HEAD');
 
@@ -159,8 +173,8 @@ describe('listGitRuns', () => {
       experiment: 'with-skills',
       timestamp: '2026-05-21T11:00:00.000Z',
       display_name: '2026-05-21T11-00-00-000Z',
-      manifest_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/index.jsonl',
-      benchmark_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/benchmark.json',
+      manifest_path: '.agentv/results/runs/with-skills/2026-05-21T11-00-00-000Z/index.jsonl',
+      benchmark_path: '.agentv/results/runs/with-skills/2026-05-21T11-00-00-000Z/benchmark.json',
       test_count: 3,
       pass_rate: 0.75,
       avg_score: 0,
@@ -169,7 +183,7 @@ describe('listGitRuns', () => {
     expect(runs[1]).toMatchObject({
       experiment: 'default',
       target: 'gpt-4o',
-      manifest_path: 'runs/default/2026-05-20T10-00-00-000Z/index.jsonl',
+      manifest_path: '.agentv/results/runs/default/2026-05-20T10-00-00-000Z/index.jsonl',
       test_count: 2,
       pass_rate: 0.5,
     });
@@ -184,7 +198,14 @@ describe('listGitRuns', () => {
   });
 
   it('ignores inherited git hook environment variables', async () => {
-    const runDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
+    const runDir = path.join(
+      repoDir,
+      '.agentv',
+      'results',
+      'runs',
+      'default',
+      '2026-05-20T10-00-00-000Z',
+    );
     mkdirSync(runDir, { recursive: true });
     writeFileSync(
       path.join(runDir, 'benchmark.json'),
@@ -205,7 +226,7 @@ describe('listGitRuns', () => {
         2,
       ),
     );
-    git('git add runs && git commit -m "seed run"', repoDir);
+    git('git add .agentv && git commit -m "seed run"', repoDir);
 
     const previousGitDir = process.env.GIT_DIR;
     const previousGitWorkTree = process.env.GIT_WORK_TREE;
@@ -232,7 +253,14 @@ describe('listGitRuns', () => {
   });
 
   it('materializes an entire run subtree atomically from git objects', async () => {
-    const runDir = path.join(repoDir, 'runs', 'with-files', '2026-05-22T10-00-00-000Z');
+    const runDir = path.join(
+      repoDir,
+      '.agentv',
+      'results',
+      'runs',
+      'with-files',
+      '2026-05-22T10-00-00-000Z',
+    );
     mkdirSync(path.join(runDir, 'attachments'), { recursive: true });
     writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
     writeFileSync(
@@ -252,7 +280,7 @@ describe('listGitRuns', () => {
       }),
     );
     writeFileSync(path.join(runDir, 'attachments', 'response.md'), 'hello from git\n');
-    git('git add runs && git commit -m "seed run with files"', repoDir);
+    git('git add .agentv && git commit -m "seed run with files"', repoDir);
 
     rmSync(runDir, { recursive: true, force: true });
 
@@ -299,6 +327,20 @@ describe('results repo write path', () => {
     expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
       `Agentv-Run: with-skills::${runTimestamp}`,
     );
+    expect(
+      readFileSync(
+        path.join(
+          cloneDir,
+          '.agentv',
+          'results',
+          'runs',
+          'with-skills',
+          runTimestamp,
+          'index.jsonl',
+        ),
+        'utf8',
+      ),
+    ).toContain('"test_id":"alpha"');
 
     const runs = await listGitRuns(cloneDir, 'HEAD');
     expect(runs).toHaveLength(1);

@@ -15,6 +15,7 @@ import {
   runListOptions,
   targetsOptions,
 } from '~/lib/api';
+import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 import type { RunMeta, TargetsResponse } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -68,7 +69,7 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
     }
 
     return [...groups.entries()]
-      .map(([name, experimentRuns]) => buildExperimentGroup(name, experimentRuns))
+      .map(([name, experimentRuns]) => buildExperimentGroup(name, dedupeSyncedRuns(experimentRuns)))
       .sort((a, b) => {
         if (a.latestTimestamp && b.latestTimestamp && a.latestTimestamp !== b.latestTimestamp) {
           return b.latestTimestamp.localeCompare(a.latestTimestamp);

@@ -107,7 +107,7 @@ function writeRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
+  const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
   writeFileSync(
@@ -653,6 +653,8 @@ describe('serve app', () => {
           process.env.AGENTV_HOME,
           'results',
           'EntityProcess-agentv-evals',
+          '.agentv',
+          'results',
           'runs',
           'default',
           '2026-03-26T10-00-00-000Z',
@@ -705,7 +707,13 @@ describe('serve app', () => {
       const listRes = await app.request('/api/runs');
       expect(listRes.status).toBe(200);
       const listData = (await listRes.json()) as {
-        runs: Array<{ filename: string; source: string; experiment?: string; pass_rate?: number }>;
+        runs: Array<{
+          filename: string;
+          source: string;
+          experiment?: string;
+          pass_rate?: number;
+          avg_score?: number;
+        }>;
       };
       expect(listData.runs).toHaveLength(1);
       expect(listData.runs[0]).toMatchObject({
@@ -713,6 +721,7 @@ describe('serve app', () => {
         source: 'remote',
         experiment: 'green-uat',
         pass_rate: 1,
+        avg_score: 1,
       });
 
       const detailRes = await app.request(
@@ -749,6 +758,8 @@ describe('serve app', () => {
 
       const runManifestPath = path.join(
         cloneDir,
+        '.agentv',
+        'results',
         'runs',
         'external-sync',
         '2026-03-26T11-00-00-000Z',

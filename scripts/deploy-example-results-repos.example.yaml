@@ -1,0 +1,19 @@
+# Example config for scripts/deploy-example-results-repos.ts.
+#
+# Run:
+#   bun scripts/deploy-example-results-repos.ts scripts/deploy-example-results-repos.example.yaml --dry-run
+#
+# Replace the repository names before running without --dry-run.
+defaults:
+  clone_root: ~/agentv-example-repos
+  results_clone_root: ~/data/agentv-results
+  visibility: private
+  auto_push: true
+  branch_prefix: eval-results
+  create_readmes: true
+
+repositories:
+  - eval_repo: EntityProcess/example-agentv-evals
+    eval_results_repo: EntityProcess/example-agentv-eval-results
+    eval_description: Example AgentV eval definitions
+    eval_results_description: Shared AgentV eval results
