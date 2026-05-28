@@ -17,6 +17,8 @@ import { getAgentvHome } from '../paths.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
+const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
+const RESULTS_REPO_RUNS_DIR = `${RESULTS_REPO_RESULTS_DIR}/runs`;
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -345,7 +347,7 @@ export async function stageResultsArtifacts(params: {
 
 export function resolveResultsRepoRunsDir(config: ResultsConfig): string {
   const normalized = normalizeResultsConfig(config);
-  return path.join(normalized.path, 'runs');
+  return path.join(normalized.path, RESULTS_REPO_RESULTS_DIR, 'runs');
 }
 
 export async function directorySizeBytes(targetPath: string): Promise<number> {
@@ -443,7 +445,12 @@ export async function directPushResults(params: {
   const baseBranch = await resolveDefaultBranch(repoDir);
   await fetchResultsRepo(repoDir);
 
-  const destinationDir = path.join(repoDir, 'runs', params.destinationPath);
+  const destinationDir = path.join(
+    repoDir,
+    RESULTS_REPO_RESULTS_DIR,
+    'runs',
+    params.destinationPath,
+  );
   await stageResultsArtifacts({
     repoDir,
     sourceDir: params.sourceDir,
@@ -655,9 +662,12 @@ function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
 }
 
 export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {
-  const { stdout: treeOut } = await runGit(['ls-tree', '-r', '--name-only', ref, 'runs'], {
-    cwd: repoDir,
-  });
+  const { stdout: treeOut } = await runGit(
+    ['ls-tree', '-r', '--name-only', ref, RESULTS_REPO_RUNS_DIR],
+    {
+      cwd: repoDir,
+    },
+  );
 
   const benchmarkPaths = treeOut
     .split(/\r?\n/)
@@ -679,7 +689,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
     const benchmarkPath = benchmarkPaths[index];
     const benchmark = JSON.parse(blob.content.toString('utf8')) as GitRunBenchmark;
     const runDir = path.posix.dirname(benchmarkPath);
-    const relativeRunPath = path.posix.relative('runs', runDir);
+    const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);
     const runId = buildGitRunId(relativeRunPath);
     const timestamp = benchmark.metadata?.timestamp?.trim() || path.posix.basename(runDir);
     const targets = benchmark.metadata?.targets ?? [];
@@ -712,7 +722,7 @@ export async function materializeGitRun(
   ref = 'origin/main',
 ): Promise<void> {
   const normalizedRunPath = relativeRunPath.split(path.sep).join('/');
-  const runTreePath = path.posix.join('runs', normalizedRunPath);
+  const runTreePath = path.posix.join(RESULTS_REPO_RUNS_DIR, normalizedRunPath);
   const targetRunDir = path.join(repoDir, ...runTreePath.split('/'));
   const { stdout: treeOut } = await runGit(['ls-tree', '-r', '--name-only', ref, runTreePath], {
     cwd: repoDir,
