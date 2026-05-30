@@ -1,5 +1,6 @@
 services:
   agentv:
+    user: "${UID:-1000}:${GID:-1000}"
     build: .
     ports:
       - "${PORT:-3117}:${PORT:-3117}"
