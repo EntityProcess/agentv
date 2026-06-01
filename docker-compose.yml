@@ -1,12 +1,22 @@
 services:
   agentv:
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "${AGENTV_UID:-1000}:${AGENTV_GID:-1000}"
     build: .
     ports:
       - "${PORT:-3117}:${PORT:-3117}"
     environment:
       - PORT=${PORT:-3117}
+      - HOME=/home/agentv
+      - AGENTV_HOME=/home/agentv/.agentv/data
       - ANTHROPIC_API_KEY
     volumes:
-      - ./results:/data/results
-    command: ["serve", "--dir", "/data/results"]
+      - ${AGENTV_HOME_DIR:-./.agentv-docker}:/home/agentv/.agentv
+      - ${AGENTV_PROJECTS_DIR:-./examples}:/data/projects/agentv-examples
+      - ${AGENTV_RESULTS_DIR:-./results}:/data/results/agentv-evalresults
+    command:
+      [
+        "dashboard",
+        "--dir",
+        "/data/projects/agentv-examples",
+        "--read-only",
+      ]

@@ -124,6 +124,20 @@ bun test
 
 See [AGENTS.md](AGENTS.md) for development guidelines.
 
+## Docker Dashboard Deployment
+
+To simulate a one-command production deployment of AgentV Dashboard with the
+AgentV examples project and a remote results repository:
+
+```bash
+AGENTV_RESULTS_REPO=EntityProcess/agentv-evalresults \
+  scripts/setup-dashboard-deployment.sh
+```
+
+The script clones AgentV examples into `~/agentv-dashboard`, clones the results
+repo, writes the Dashboard project registry, builds the Docker image, and starts
+Dashboard at `http://localhost:3117`.
+
 ## License
 
 MIT
