@@ -6,6 +6,7 @@ COPY package.json bun.lock ./
 COPY packages/core/package.json packages/core/
 COPY packages/eval/package.json packages/eval/
 COPY apps/cli/package.json apps/cli/
+COPY apps/studio/package.json apps/studio/
 COPY apps/web/package.json apps/web/
 RUN bun install --frozen-lockfile
 COPY . .
@@ -38,9 +39,9 @@ FROM oven/bun:1.3.3-slim
 WORKDIR /app
 
 # tini for proper PID 1 signal handling (graceful shutdown)
-# wget for health check (curl not available in slim image)
+# git for remote project/result sync; wget for health check (curl not available in slim image)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tini wget \
+    && apt-get install -y --no-install-recommends ca-certificates git tini wget \
     && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system agentv && adduser --system --ingroup agentv agentv
@@ -61,7 +62,7 @@ COPY --from=build /app/packages/eval/package.json ./packages/eval/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist
 COPY --from=build /app/apps/cli/package.json ./apps/cli/
 COPY --from=build /app/apps/cli/node_modules ./apps/cli/node_modules
-RUN chown -R agentv:agentv /app
+COPY --from=build /app/apps/studio/dist ./apps/studio/dist
 
 USER agentv
 ENV PORT=3117
