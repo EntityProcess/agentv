@@ -1,5 +1,5 @@
 /**
- * RunEvalModal — a compact wizard for launching eval runs from Studio.
+ * RunEvalModal — a compact wizard for launching eval runs from Dashboard.
  *
  * Two-step flow:
  *   Step 1: What to run (suite filter, test-id pills, target override)

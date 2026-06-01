@@ -1,5 +1,5 @@
 /**
- * Project registry for AgentV Studio multi-project support.
+ * Project registry for AgentV Dashboard multi-project support.
  *
  * A Project = any directory containing a `.agentv/` folder. Projects hold
  * eval runs, and (incrementally) traces, spans, and other telemetry —
@@ -7,7 +7,7 @@
  * Braintrust, W&B Weave, and LangSmith.
  *
  * The registry lives at `~/.agentv/projects.yaml` and is the single source
- * of truth for which projects Studio shows. Studio re-reads the file on every
+ * of truth for which projects Dashboard shows. Dashboard re-reads the file on every
  * `/api/projects` request, so edits (direct, via POST /api/projects, via
  * the CLI's --add/--remove, or via a Kubernetes ConfigMap mount) are reflected
  * without restarting `agentv serve`.
@@ -29,7 +29,7 @@
  *
  * Concurrency: the registry assumes a single writer. All mutating calls
  * (add/remove/touchProject) do read-modify-write on projects.yaml
- * without a lock. Studio's HTTP handlers are serialized by Node's
+ * without a lock. Dashboard's HTTP handlers are serialized by Node's
  * single-threaded event loop, which satisfies the 24/7 deployment case.
  * Run only one `agentv` process against a given home at a time.
  *
@@ -96,7 +96,7 @@ function getLegacyBenchmarksRegistryPath(): string {
 
 // ── Legacy file migration ───────────────────────────────────────────────
 // One-time, idempotent. Called at the top of loadProjectRegistry() so any
-// entry point (CLI, Studio server, tests) picks the new file up transparently.
+// entry point (CLI, Dashboard server, tests) picks the new file up transparently.
 //
 // Rules:
 //   - projects.yaml exists, benchmarks.yaml missing → no-op (already migrated).
@@ -355,7 +355,7 @@ export function touchProject(projectId: string): void {
  * Scan a directory tree (up to maxDepth levels) for directories containing `.agentv/`.
  * Returns absolute paths of discovered project directories, sorted for
  * deterministic iteration. This is a one-shot helper for bulk registration;
- * Studio does not scan at request time.
+ * Dashboard does not scan at request time.
  */
 export function discoverProjects(rootDir: string, maxDepth = 2): string[] {
   const absRoot = path.resolve(rootDir);

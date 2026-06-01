@@ -1,7 +1,7 @@
 /**
  * Home route: thin entry layer that either auto-opens the cwd-backed project
  * on the first visit, shows the projects dashboard, or falls back to the
- * legacy single-project home when Studio is explicitly running in single mode.
+ * legacy single-project home when Dashboard is explicitly running in single mode.
  *
  * Uses URL search param `?tab=` for tab persistence.
  */

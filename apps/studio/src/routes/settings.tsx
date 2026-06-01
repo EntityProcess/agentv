@@ -1,5 +1,5 @@
 /**
- * Settings page for configuring AgentV Studio behavior.
+ * Settings page for configuring AgentV Dashboard behavior.
  *
  * Reads and writes to .agentv/config.yaml via the /api/config endpoint.
  * Changes take effect immediately on page refresh.
@@ -61,7 +61,7 @@ function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Settings</h1>
-        <p className="mt-1 text-sm text-gray-400">Configure your AgentV Studio dashboard</p>
+        <p className="mt-1 text-sm text-gray-400">Configure AgentV Dashboard</p>
       </div>
 
       {/* Pass Threshold Card */}

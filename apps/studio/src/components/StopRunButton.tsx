@@ -1,6 +1,6 @@
 /**
  * StopRunButton — stop affordance on /jobs/:runId and active run detail
- * views that interrupts a Studio-launched eval. Stop is part of the
+ * views that interrupts a Dashboard-launched eval. Stop is part of the
  * stop → resume → complete workflow, not a destructive cancel: the
  * partial index.jsonl is preserved and can be resumed in one click from
  * the run-detail page.

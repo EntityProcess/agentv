@@ -1,19 +1,21 @@
 /**
- * Studio configuration loader.
+ * Dashboard configuration loader.
  *
- * Reads studio-specific settings from the `studio:` section of
- * `.agentv/config.yaml`. Preserves all other fields (required_version,
+ * Reads dashboard-specific settings from the `dashboard:` section of
+ * `.agentv/config.yaml`, falling back to the legacy `studio:` section for
+ * compatibility. Preserves all other fields (required_version,
  * eval_patterns, execution, etc.) when saving.
  *
  * Location: `.agentv/config.yaml`
  *
  * config.yaml format:
  *   required_version: ">=4.2.0"
- *   studio:
+ *   dashboard:
  *     threshold: 0.8   # score >= this value is considered "pass"
  *
- * Backward compat: reads `studio.pass_threshold` and root-level `pass_threshold`
- * as fallback. On save, always writes `threshold` under `studio:`.
+ * Backward compat: reads `studio.threshold`, `studio.pass_threshold`, and
+ * root-level `pass_threshold` as fallbacks. On save, always writes `threshold`
+ * under `dashboard:`.
  *
  * If no config.yaml exists, defaults are used.
  */
@@ -33,9 +35,10 @@ const DEFAULTS: StudioConfig = {
 };
 
 /**
- * Load studio config from `config.yaml` in the given `.agentv/` directory.
- * Reads from `studio.threshold`, falling back to `studio.pass_threshold` (legacy),
- * then root-level `pass_threshold` (legacy) for backward compatibility.
+ * Load dashboard config from `config.yaml` in the given `.agentv/` directory.
+ * Reads from `dashboard.threshold`, falling back to `dashboard.pass_threshold`,
+ * `studio.threshold`, `studio.pass_threshold`, then root-level `pass_threshold`
+ * for backward compatibility.
  * Returns defaults when the file does not exist or is empty.
  * Clamps `threshold` to [0, 1].
  */
@@ -53,30 +56,34 @@ export function loadStudioConfig(agentvDir: string): StudioConfig {
     return { ...DEFAULTS };
   }
 
-  // Prefer studio.threshold, fall back to studio.pass_threshold, then root-level pass_threshold
-  const studio = (parsed as Record<string, unknown>).studio;
-  let threshold = DEFAULTS.threshold;
-  if (studio && typeof studio === 'object' && !Array.isArray(studio)) {
-    const studioObj = studio as Record<string, unknown>;
-    if (typeof studioObj.threshold === 'number') {
-      threshold = studioObj.threshold;
-    } else if (typeof studioObj.pass_threshold === 'number') {
-      threshold = studioObj.pass_threshold;
-    }
-  } else if (typeof (parsed as Record<string, unknown>).pass_threshold === 'number') {
-    threshold = (parsed as Record<string, unknown>).pass_threshold as number;
-  }
+  // Prefer dashboard config, then legacy studio config, then root-level pass_threshold.
+  const config = parsed as Record<string, unknown>;
+  const threshold = [
+    readThreshold(config.dashboard),
+    readThreshold(config.studio),
+    typeof config.pass_threshold === 'number' ? config.pass_threshold : undefined,
+    DEFAULTS.threshold,
+  ].find((value) => value !== undefined) as number;
 
   return {
     threshold: Math.min(1, Math.max(0, threshold)),
   };
 }
 
+function readThreshold(section: unknown): number | undefined {
+  if (!section || typeof section !== 'object' || Array.isArray(section)) return undefined;
+  const values = section as Record<string, unknown>;
+  if (typeof values.threshold === 'number') return values.threshold;
+  if (typeof values.pass_threshold === 'number') return values.pass_threshold;
+  return undefined;
+}
+
 /**
- * Save studio config to `config.yaml` in the given `.agentv/` directory.
- * Merges into the existing file, preserving all non-studio fields
+ * Save dashboard config to `config.yaml` in the given `.agentv/` directory.
+ * Merges into the existing file, preserving all non-dashboard fields
  * (required_version, eval_patterns, execution, etc.).
- * Writes studio settings under the `studio:` key.
+ * Writes dashboard settings under the `dashboard:` key and removes the legacy
+ * `studio:` section after migrating any unknown legacy keys.
  * Creates the directory if it does not exist.
  */
 export function saveStudioConfig(agentvDir: string, config: StudioConfig): void {
@@ -85,7 +92,7 @@ export function saveStudioConfig(agentvDir: string, config: StudioConfig): void 
   }
   const configPath = path.join(agentvDir, 'config.yaml');
 
-  // Read existing config to preserve non-studio fields
+  // Read existing config to preserve non-dashboard fields.
   let existing: Record<string, unknown> = {};
   if (existsSync(configPath)) {
     const raw = readFileSync(configPath, 'utf-8');
@@ -99,14 +106,25 @@ export function saveStudioConfig(agentvDir: string, config: StudioConfig): void 
   const { pass_threshold: _, ...rest } = existing;
   existing = rest;
 
-  // Clean legacy pass_threshold from studio section if present
+  // Migrate legacy studio fields into dashboard while dropping legacy threshold spellings.
+  const existingDashboard = existing.dashboard;
   const existingStudio = existing.studio;
-  if (existingStudio && typeof existingStudio === 'object' && !Array.isArray(existingStudio)) {
-    const { pass_threshold: __, ...studioRest } = existingStudio as Record<string, unknown>;
-    existing.studio = { ...studioRest, ...config };
-  } else {
-    existing.studio = { ...config };
-  }
+  const dashboardRest =
+    existingDashboard && typeof existingDashboard === 'object' && !Array.isArray(existingDashboard)
+      ? (({ pass_threshold: _, ...rest }) => rest)(existingDashboard as Record<string, unknown>)
+      : {};
+  const studioRest =
+    existingStudio && typeof existingStudio === 'object' && !Array.isArray(existingStudio)
+      ? (({ threshold: _, pass_threshold: __, ...rest }) => rest)(
+          existingStudio as Record<string, unknown>,
+        )
+      : {};
+
+  const { studio: _legacyStudio, ...withoutStudio } = existing;
+  existing = {
+    ...withoutStudio,
+    dashboard: { ...studioRest, ...dashboardRest, ...config },
+  };
 
   const yamlStr = stringifyYaml(existing);
   writeFileSync(configPath, yamlStr, 'utf-8');

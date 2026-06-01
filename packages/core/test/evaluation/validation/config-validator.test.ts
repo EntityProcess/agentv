@@ -64,6 +64,36 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts dashboard field without warnings', async () => {
+    const filePath = path.join(tempDir, 'config-dashboard.yaml');
+    await writeFile(
+      filePath,
+      `dashboard:
+  threshold: 0.8
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('accepts legacy studio field without warnings', async () => {
+    const filePath = path.join(tempDir, 'config-studio.yaml');
+    await writeFile(
+      filePath,
+      `studio:
+  threshold: 0.8
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('errors on missing results.mode', async () => {
     const filePath = path.join(tempDir, 'config-results-no-mode.yaml');
     await writeFile(

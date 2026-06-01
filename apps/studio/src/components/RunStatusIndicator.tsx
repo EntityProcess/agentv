@@ -1,5 +1,5 @@
 /**
- * RunStatusIndicator — shared live/terminal status badge for Studio-launched
+ * RunStatusIndicator — shared live/terminal status badge for Dashboard-launched
  * eval runs. Used anywhere the UI needs the same colored status label and
  * active spinner so run/job views stay visually consistent.
  */

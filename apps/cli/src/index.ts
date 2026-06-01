@@ -29,6 +29,7 @@ export const app = subcommands({
   description: 'AgentV CLI',
   version: packageJson.version,
   cmds: {
+    dashboard: resultsServeCommand,
     eval: evalCommand,
     import: importCommand,
     compare: compareCommand,
@@ -41,7 +42,6 @@ export const app = subcommands({
     self: selfCommand,
     skills: skillsCommand,
     serve: resultsServeCommand,
-    studio: resultsServeCommand,
     inspect: inspectCommand,
     trend: trendCommand,
     transpile: transpileCommand,
@@ -67,6 +67,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'compare',
   'convert',
   'create',
+  'dashboard',
   'doctor',
   'init',
   'pipeline',
@@ -82,6 +83,10 @@ const TOP_LEVEL_COMMANDS = new Set([
   'workspace',
 ]);
 
+export function usesDeprecatedStudioAlias(argv: string[]): boolean {
+  return argv[2] === 'studio';
+}
+
 /**
  * Preprocess argv for convenience aliases:
  * - `--eval-id` → `--test-id`
@@ -90,6 +95,10 @@ const TOP_LEVEL_COMMANDS = new Set([
  */
 export function preprocessArgv(argv: string[]): string[] {
   const result = [...argv];
+
+  if (result[2] === 'studio') {
+    result[2] = 'dashboard';
+  }
 
   // Rewrite --eval-id → --test-id (convenience alias)
   for (let i = 0; i < result.length; i++) {
@@ -138,6 +147,11 @@ export async function runCli(argv: string[] = process.argv): Promise<void> {
   });
 
   const processedArgv = preprocessArgv(argv);
+  if (usesDeprecatedStudioAlias(argv)) {
+    process.stderr.write(
+      'Warning: `agentv studio` is deprecated and will be removed in a future release. Use `agentv dashboard` instead.\n',
+    );
+  }
 
   // Run before_session hook once at startup, before any command executes.
   // Uses cwd as the search root for .agentv/config.yaml.

@@ -1,13 +1,13 @@
 /**
- * Studio eval runner — discovery, launch, and status tracking for eval runs
- * initiated from the Studio UI.
+ * Dashboard eval runner — discovery, launch, and status tracking for eval runs
+ * initiated from the Dashboard UI.
  *
  * Provides Hono route handlers for:
  *   - GET  /api/eval/discover  — discover eval files in the project
  *   - GET  /api/eval/targets   — list available target names
  *   - POST /api/eval/run       — launch an eval run as a child process
  *   - GET  /api/eval/status/:id — poll running eval status
- *   - GET  /api/eval/runs      — list active and recent Studio-launched runs
+ *   - GET  /api/eval/runs      — list active and recent Dashboard-launched runs
  *
  * All handlers accept a `cwd` (project root) to resolve paths against.
  * The module spawns `bun apps/cli/src/cli.ts eval run ...` and tracks
@@ -34,7 +34,7 @@ import { findRepoRoot } from '../eval/shared.js';
 
 // ── In-memory run tracker ────────────────────────────────────────────────
 
-interface StudioRun {
+interface DashboardRun {
   id: string;
   status: 'starting' | 'running' | 'finished' | 'failed';
   command: string;
@@ -50,14 +50,14 @@ interface StudioRun {
   process?: ChildProcess;
 }
 
-const activeRuns = new Map<string, StudioRun>();
+const activeRuns = new Map<string, DashboardRun>();
 
 function generateRunId(): string {
   const now = new Date();
   const pad = (n: number, w = 2) => String(n).padStart(w, '0');
   const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
   const rand = Math.random().toString(36).slice(2, 6);
-  return `studio-${ts}-${rand}`;
+  return `dashboard-${ts}-${rand}`;
 }
 
 // Keep only last 20 finished runs to prevent unbounded memory growth
@@ -73,7 +73,7 @@ function pruneFinishedRuns() {
 }
 
 /**
- * Look up the target for a Studio-launched run by its index.jsonl path.
+ * Look up the target for a Dashboard-launched run by its index.jsonl path.
  * Called by handleRuns in serve.ts when the JSONL has 0 records (run just started).
  */
 export function getActiveRunTarget(indexJsonlPath: string): string | undefined {
@@ -86,12 +86,12 @@ export function getActiveRunTarget(indexJsonlPath: string): string | undefined {
 }
 
 /**
- * Look up the in-memory status for a Studio-launched run by its index.jsonl path.
+ * Look up the in-memory status for a Dashboard-launched run by its index.jsonl path.
  * Returns 'starting' | 'running' | 'finished' | 'failed' if the run is tracked,
  * else undefined. Used by handleRuns to render a spinner for active runs in the
  * RunList instead of a misleading red ✗ derived from a 0 pass-rate.
  */
-export function getActiveRunStatus(indexJsonlPath: string): StudioRun['status'] | undefined {
+export function getActiveRunStatus(indexJsonlPath: string): DashboardRun['status'] | undefined {
   for (const run of activeRuns.values()) {
     if (run.outputDir && path.join(run.outputDir, 'index.jsonl') === indexJsonlPath) {
       return run.status;
@@ -287,7 +287,7 @@ function isCommandAvailable(cmd: string): boolean {
  *
  * The log file is the source of truth shown by the RunDetail "Run Log"
  * section after the run completes. The in-memory `stdout`/`stderr` buffers on
- * `StudioRun` remain capped for live status polling.
+ * `DashboardRun` remain capped for live status polling.
  *
  * Stream `error` events (e.g. the output dir was removed underneath us by a
  * test teardown) are swallowed so they don't surface as unhandled errors and
@@ -348,7 +348,7 @@ export function registerEvalRoutes(
   // ── Launch eval run ────────────────────────────────────────────────────
   app.post('/api/eval/run', async (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     const cwd = getCwd(c);
 
@@ -378,7 +378,7 @@ export function registerEvalRoutes(
     // Determine the output directory for this run. When the caller provides
     // an explicit --output (resume/rerun), use that path. Otherwise generate
     // the default path now so we can pass it via --output and later correlate
-    // the filesystem run with this in-memory StudioRun (needed to show the
+    // the filesystem run with this in-memory DashboardRun (needed to show the
     // target in the sidebar before any results have been written).
     const outputDir = body.output?.trim()
       ? path.resolve(cwd, body.output.trim())
@@ -389,7 +389,7 @@ export function registerEvalRoutes(
     const command = buildCliPreview(args);
     const runId = generateRunId();
 
-    const run: StudioRun = {
+    const run: DashboardRun = {
       id: runId,
       status: 'starting',
       command,
@@ -479,7 +479,7 @@ export function registerEvalRoutes(
   // before exiting.
   app.post('/api/eval/run/:id/stop', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     const id = c.req.param('id');
     const run = activeRuns.get(id ?? '');
@@ -570,7 +570,7 @@ export function registerEvalRoutes(
 
   app.post('/api/projects/:projectId/eval/run', async (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     const cwd = getCwd(c);
 
@@ -605,7 +605,7 @@ export function registerEvalRoutes(
     const command = buildCliPreview(args);
     const runId = generateRunId();
 
-    const run: StudioRun = {
+    const run: DashboardRun = {
       id: runId,
       status: 'starting',
       command,
@@ -668,7 +668,7 @@ export function registerEvalRoutes(
 
   app.post('/api/projects/:projectId/eval/run/:id/stop', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     const id = c.req.param('id');
     const run = activeRuns.get(id ?? '');

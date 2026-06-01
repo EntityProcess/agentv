@@ -7,7 +7,7 @@
  *                              2+ runs to render a side-by-side comparison,
  *                              and may attach retroactive tags to any run.
  *
- * Styling matches the rest of AgentV Studio: dark gray surfaces
+ * Styling matches the rest of AgentV Dashboard: dark gray surfaces
  * (`bg-gray-900` / `border-gray-800`), cyan accents for interactive elements,
  * emerald/yellow/red tones for pass rates. Reuses `PassRatePill` for pass-rate
  * rendering and the same table patterns as `ExperimentsTab` / `TargetsTab`.

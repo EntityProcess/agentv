@@ -1,5 +1,5 @@
 /**
- * TanStack Query hooks for the AgentV Studio Hono API.
+ * TanStack Query hooks for the AgentV Dashboard Hono API.
  *
  * All fetches go to /api/* which Vite proxies to the Hono server in dev,
  * and the same-origin Hono server serves in production.

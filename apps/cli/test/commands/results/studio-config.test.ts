@@ -24,7 +24,19 @@ describe('loadStudioConfig', () => {
     expect(config.threshold).toBe(DEFAULT_THRESHOLD);
   });
 
-  it('reads threshold from studio section', () => {
+  it('reads threshold from dashboard section', () => {
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  threshold: 0.6\n');
+    const config = loadStudioConfig(tempDir);
+    expect(config.threshold).toBe(0.6);
+  });
+
+  it('reads pass_threshold from dashboard section as fallback', () => {
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  pass_threshold: 0.6\n');
+    const config = loadStudioConfig(tempDir);
+    expect(config.threshold).toBe(0.6);
+  });
+
+  it('reads threshold from studio section as fallback (legacy)', () => {
     writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  threshold: 0.6\n');
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(0.6);
@@ -36,13 +48,31 @@ describe('loadStudioConfig', () => {
     expect(config.threshold).toBe(0.6);
   });
 
-  it('prefers studio.threshold over studio.pass_threshold', () => {
+  it('prefers dashboard.threshold over dashboard.pass_threshold', () => {
     writeFileSync(
       path.join(tempDir, 'config.yaml'),
-      'studio:\n  threshold: 0.9\n  pass_threshold: 0.5\n',
+      'dashboard:\n  threshold: 0.9\n  pass_threshold: 0.5\n',
     );
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(0.9);
+  });
+
+  it('prefers dashboard section over legacy studio section', () => {
+    writeFileSync(
+      path.join(tempDir, 'config.yaml'),
+      'dashboard:\n  threshold: 0.9\nstudio:\n  threshold: 0.5\n',
+    );
+    const config = loadStudioConfig(tempDir);
+    expect(config.threshold).toBe(0.9);
+  });
+
+  it('falls back to legacy studio section when dashboard has no threshold', () => {
+    writeFileSync(
+      path.join(tempDir, 'config.yaml'),
+      'dashboard:\n  theme: dark\nstudio:\n  threshold: 0.5\n',
+    );
+    const config = loadStudioConfig(tempDir);
+    expect(config.threshold).toBe(0.5);
   });
 
   it('falls back to root-level pass_threshold (legacy)', () => {
@@ -51,23 +81,23 @@ describe('loadStudioConfig', () => {
     expect(config.threshold).toBe(0.7);
   });
 
-  it('prefers studio section over root-level pass_threshold', () => {
+  it('prefers dashboard section over root-level pass_threshold', () => {
     writeFileSync(
       path.join(tempDir, 'config.yaml'),
-      'pass_threshold: 0.5\nstudio:\n  threshold: 0.9\n',
+      'pass_threshold: 0.5\ndashboard:\n  threshold: 0.9\n',
     );
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(0.9);
   });
 
   it('clamps threshold to 0 when negative', () => {
-    writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  threshold: -0.5\n');
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  threshold: -0.5\n');
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(0);
   });
 
   it('clamps threshold to 1 when above 1', () => {
-    writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  threshold: 1.5\n');
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  threshold: 1.5\n');
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(1);
   });
@@ -79,7 +109,7 @@ describe('loadStudioConfig', () => {
   });
 
   it('returns defaults when threshold is not a number', () => {
-    writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  threshold: "high"\n');
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  threshold: "high"\n');
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(DEFAULT_THRESHOLD);
   });
@@ -107,7 +137,7 @@ describe('saveStudioConfig', () => {
     const parsed = parseYaml(raw) as Record<string, unknown>;
     expect(parsed.required_version).toBe('>=4.2.0');
     expect(parsed.eval_patterns).toEqual(['**/*.eval.yaml']);
-    expect((parsed.studio as Record<string, unknown>).threshold).toBe(0.9);
+    expect((parsed.dashboard as Record<string, unknown>).threshold).toBe(0.9);
   });
 
   it('removes legacy root-level pass_threshold on save', () => {
@@ -121,18 +151,30 @@ describe('saveStudioConfig', () => {
     const parsed = parseYaml(raw) as Record<string, unknown>;
     expect(parsed.required_version).toBe('>=4.2.0');
     expect(parsed.pass_threshold).toBeUndefined();
-    expect((parsed.studio as Record<string, unknown>).threshold).toBe(0.7);
+    expect((parsed.dashboard as Record<string, unknown>).threshold).toBe(0.7);
   });
 
-  it('removes legacy pass_threshold from studio section on save', () => {
+  it('removes legacy pass_threshold from dashboard section on save', () => {
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  pass_threshold: 0.8\n');
+    saveStudioConfig(tempDir, { threshold: 0.7 });
+
+    const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
+    const parsed = parseYaml(raw) as Record<string, unknown>;
+    const dashboard = parsed.dashboard as Record<string, unknown>;
+    expect(dashboard.pass_threshold).toBeUndefined();
+    expect(dashboard.threshold).toBe(0.7);
+  });
+
+  it('migrates legacy studio section to dashboard on save', () => {
     writeFileSync(path.join(tempDir, 'config.yaml'), 'studio:\n  pass_threshold: 0.8\n');
     saveStudioConfig(tempDir, { threshold: 0.7 });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
-    const studio = parsed.studio as Record<string, unknown>;
-    expect(studio.pass_threshold).toBeUndefined();
-    expect(studio.threshold).toBe(0.7);
+    const dashboard = parsed.dashboard as Record<string, unknown>;
+    expect(parsed.studio).toBeUndefined();
+    expect(dashboard.pass_threshold).toBeUndefined();
+    expect(dashboard.threshold).toBe(0.7);
   });
 
   it('creates config.yaml when it does not exist', () => {
@@ -140,7 +182,7 @@ describe('saveStudioConfig', () => {
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
-    expect((parsed.studio as Record<string, unknown>).threshold).toBe(0.6);
+    expect((parsed.dashboard as Record<string, unknown>).threshold).toBe(0.6);
   });
 
   it('creates directory if it does not exist', () => {
@@ -149,6 +191,6 @@ describe('saveStudioConfig', () => {
 
     const raw = readFileSync(path.join(nestedDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
-    expect((parsed.studio as Record<string, unknown>).threshold).toBe(0.5);
+    expect((parsed.dashboard as Record<string, unknown>).threshold).toBe(0.5);
   });
 });

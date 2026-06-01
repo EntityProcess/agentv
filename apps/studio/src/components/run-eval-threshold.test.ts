@@ -7,11 +7,11 @@ import {
 } from './run-eval-threshold';
 
 describe('getDefaultThresholdInputValue', () => {
-  it('uses the configured studio threshold when the modal threshold is blank', () => {
+  it('uses the configured dashboard threshold when the modal threshold is blank', () => {
     expect(getDefaultThresholdInputValue('', 0.75)).toBe('0.75');
   });
 
-  it('falls back to the CLI default when no studio threshold is configured', () => {
+  it('falls back to the CLI default when no dashboard threshold is configured', () => {
     expect(getDefaultThresholdInputValue('', undefined)).toBe('0.8');
   });
 
@@ -21,7 +21,7 @@ describe('getDefaultThresholdInputValue', () => {
 });
 
 describe('buildRunEvalRequest', () => {
-  it('submits the studio threshold when the modal threshold input is left blank', () => {
+  it('submits the dashboard threshold when the modal threshold input is left blank', () => {
     expect(
       buildRunEvalRequest({
         suiteFilter: 'evals/**/*.eval.yaml',

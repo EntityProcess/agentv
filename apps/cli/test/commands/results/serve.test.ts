@@ -212,7 +212,7 @@ describe('resolveDashboardMode', () => {
 
 const MOCK_STUDIO_HTML = `<!doctype html>
 <html lang="en" class="dark">
-<head><title>AgentV Studio</title></head>
+<head><title>AgentV Dashboard</title></head>
 <body class="bg-gray-950 text-gray-100"><div id="root"></div></body>
 </html>`;
 
@@ -223,7 +223,7 @@ function createMockStudioDir(baseDir: string): string {
   return studioDir;
 }
 
-// ── Hono app (Studio SPA + API) ─────────────────────────────────────────
+// ── Hono app (Dashboard SPA + API) ─────────────────────────────────────────
 
 describe('serve app', () => {
   let tempDir: string;
@@ -250,19 +250,19 @@ describe('serve app', () => {
     it('throws when studio dist is not found', () => {
       expect(() =>
         createApp([], tempDir, undefined, undefined, { studioDir: '/nonexistent/path' }),
-      ).toThrow('Studio dist not found');
+      ).toThrow('Dashboard dist not found');
     });
   });
 
   // ── GET / ──────────────────────────────────────────────────────────────
 
   describe('GET /', () => {
-    it('serves Studio SPA index.html', async () => {
+    it('serves Dashboard SPA index.html', async () => {
       const app = makeApp();
       const res = await app.request('/');
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain('AgentV Studio');
+      expect(html).toContain('AgentV Dashboard');
       expect(html).toContain('<div id="root">');
     });
   });
@@ -450,12 +450,12 @@ describe('serve app', () => {
   // ── Empty state (no results) ────────────────────────────────────────
 
   describe('empty state', () => {
-    it('serves Studio SPA with empty results', async () => {
+    it('serves Dashboard SPA with empty results', async () => {
       const app = createApp([], tempDir, undefined, undefined, { studioDir });
       const res = await app.request('/');
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain('AgentV Studio');
+      expect(html).toContain('AgentV Dashboard');
     });
 
     it('serves feedback API with empty results', async () => {
@@ -563,7 +563,7 @@ describe('serve app', () => {
       });
     });
 
-    it('computes pass_rate using the configured studio threshold (strict threshold yields lower rate)', async () => {
+    it('computes pass_rate using the configured dashboard threshold (strict threshold yields lower rate)', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-03-25T10-00-00-000Z';
@@ -577,7 +577,7 @@ describe('serve app', () => {
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultHigh, resultLow));
 
       mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(path.join(tempDir, '.agentv', 'config.yaml'), 'studio:\n  threshold: 0.9\n');
+      writeFileSync(path.join(tempDir, '.agentv', 'config.yaml'), 'dashboard:\n  threshold: 0.9\n');
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request('/api/runs');
@@ -588,7 +588,7 @@ describe('serve app', () => {
       expect(data.runs[0].pass_rate).toBe(0);
     });
 
-    it('computes pass_rate using the configured studio threshold (lenient threshold yields higher rate)', async () => {
+    it('computes pass_rate using the configured dashboard threshold (lenient threshold yields higher rate)', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-03-25T12-00-00-000Z';
@@ -602,7 +602,7 @@ describe('serve app', () => {
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultHigh, resultLow));
 
       mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(path.join(tempDir, '.agentv', 'config.yaml'), 'studio:\n  threshold: 0.5\n');
+      writeFileSync(path.join(tempDir, '.agentv', 'config.yaml'), 'dashboard:\n  threshold: 0.5\n');
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request('/api/runs');
@@ -1098,7 +1098,7 @@ describe('serve app', () => {
       const res = await app.request('/runs/some-run');
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain('AgentV Studio');
+      expect(html).toContain('AgentV Dashboard');
     });
 
     it('returns 404 JSON for unknown API routes', async () => {
@@ -1348,7 +1348,7 @@ describe('serve app', () => {
 
   // ── GET /api/runs/:filename — run_dir + suite_filter for resume UI ─────
   //
-  // The Studio "Resume run" / "Rerun failed cases" buttons need the run dir
+  // The Dashboard "Resume run" / "Rerun failed cases" buttons need the run dir
   // and the original eval file path to issue a launch request that targets
   // the same run workspace. handleRunDetail reads benchmark.json's
   // metadata.eval_file and reports the run dir relative to cwd.

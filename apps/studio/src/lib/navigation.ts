@@ -1,5 +1,5 @@
 /**
- * Pure Studio route helpers.
+ * Pure Dashboard route helpers.
  *
  * These keep project-aware path generation in one place so redirects,
  * breadcrumbs, and regression tests all agree on the canonical URLs.

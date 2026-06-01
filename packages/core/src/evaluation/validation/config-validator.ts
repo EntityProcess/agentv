@@ -149,6 +149,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
       'required_version',
       'execution',
       'results',
+      'dashboard',
       'studio',
     ]);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));

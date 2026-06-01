@@ -59,7 +59,7 @@ function LayoutInner() {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-white">AgentV Studio</span>
+          <span className="text-sm font-semibold text-white">AgentV Dashboard</span>
         </header>
 
         <Breadcrumbs />

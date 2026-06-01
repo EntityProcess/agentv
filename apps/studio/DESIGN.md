@@ -1,6 +1,6 @@
-# AgentV Studio Design System
+# AgentV Dashboard Design System
 
-> Studio is a dark, utility-driven dashboard for reviewing AI agent evaluation
+> Dashboard is a dark, utility-driven dashboard for reviewing AI agent evaluation
 > results. It favors dense tabular data, muted neutrals, and a single cyan
 > accent over ornamental styling. Think "terminal inspector", not "marketing
 > page". When in doubt, copy the pattern from `ExperimentsTab`, `TargetsTab`,
@@ -8,7 +8,7 @@
 
 ## 1. Visual Theme & Atmosphere
 
-AgentV Studio is a local evaluation dashboard for AI agent developers. The
+AgentV Dashboard is a local evaluation dashboard for AI agent developers. The
 design language is dense, dark, and data-first — this is a tool engineers
 keep open in a second monitor while they iterate on prompts, not a page
 they share on social. The canvas is near-black (`bg-gray-950`), elevated
@@ -103,7 +103,7 @@ reserved for **data tones** (pass/warn/fail), not for interactive UI.
 
 `PassRatePill` is the one place blue (not cyan) appears — a fixed
 `bg-gradient-to-r from-blue-400 to-blue-600` fill on a `bg-gray-800`
-rounded-full track. This is the recognizable "Studio pill" that ties
+rounded-full track. This is the recognizable "Dashboard pill" that ties
 the Runs, Experiments, Targets, and Compare tabs together. Reuse it
 verbatim (`<PassRatePill rate={0.75} />`) — do not recreate it with
 cyan or with a different gradient.
@@ -237,7 +237,7 @@ import { PassRatePill } from './PassRatePill';
 ```
 
 Never recreate this inline — import the shared component. Width is
-fixed at `w-20`, height at `h-5`, fill is the only Studio element that
+fixed at `w-20`, height at `h-5`, fill is the only Dashboard element that
 uses the blue gradient.
 
 ### Mode toggle / segmented control
@@ -292,11 +292,11 @@ pattern above for in-view mode switches.
 
 - Main content lives in `<main className="…">` inside `Layout.tsx`. Don't add your own page-level backgrounds — inherit `bg-gray-950` from `<body>`.
 - Sidebar is fixed-width (`w-56` / `w-64`), `border-r border-gray-800`.
-- No max-width container — Studio fills the viewport. Tables scroll horizontally with `overflow-x-auto` on their wrap.
+- No max-width container — Dashboard fills the viewport. Tables scroll horizontally with `overflow-x-auto` on their wrap.
 
 ### Whitespace philosophy
 
-- **Density over air.** Studio is an inspector, not a blog post. Use
+- **Density over air.** Dashboard is an inspector, not a blog post. Use
   `py-3` on table rows, not `py-6`. Use `space-y-4` between sections,
   not `space-y-10`.
 - **Borders, not margins.** Separate groups with `border-b border-gray-800`
@@ -315,7 +315,7 @@ pattern above for in-view mode switches.
 
 ## 6. Depth & Elevation
 
-Studio is flat. There are almost no shadows.
+Dashboard is flat. There are almost no shadows.
 
 | Level | Treatment | Use |
 |---|---|---|
@@ -342,7 +342,7 @@ modals, which can use `shadow-xl backdrop-blur` over a translucent
 - Use `font-medium` (500) for headings — 600 is a ceiling for section titles.
 - Align numbers right, identifiers left.
 - Honor `prefers-reduced-motion` if you add any animation.
-- Pass `readOnly` through when your surface writes data — some Studio deployments run in leaderboard mode.
+- Pass `readOnly` through when your surface writes data — some Dashboard deployments run in leaderboard mode.
 
 ### Don't
 
@@ -352,14 +352,14 @@ modals, which can use `shadow-xl backdrop-blur` over a translucent
 - Don't use `rounded-xl` or larger. 8px is the ceiling.
 - Don't use `font-bold` (700) for headings. 500–600 is the range.
 - Don't recreate `PassRatePill` inline. Import the component.
-- Don't nest `rounded-lg` containers inside each other more than one level deep. Studio is flat.
+- Don't nest `rounded-lg` containers inside each other more than one level deep. Dashboard is flat.
 - Don't use uppercase on normal table headers. `tracking-wider uppercase` is reserved for eyebrow labels only.
 - Don't put colored backgrounds on tables or main content areas. The canvas stays `bg-gray-950`.
 - Don't set your own `font-family` on a subtree. Inherit the global system stack.
 
 ## 8. Responsive Behavior
 
-Studio targets desktop primarily (developers with second monitors). Mobile
+Dashboard targets desktop primarily (developers with second monitors). Mobile
 layout is best-effort.
 
 ### Breakpoints (Tailwind defaults)
@@ -405,9 +405,9 @@ layout is best-effort.
 
 ### Iteration guide
 
-1. Start from an existing Studio component and copy its classNames verbatim. Only diverge when you need to.
+1. Start from an existing Dashboard component and copy its classNames verbatim. Only diverge when you need to.
 2. If you want to emphasize something, darken or lighten the surface — don't add a shadow, don't add an accent colour, don't scale the type.
 3. Use cyan-400 exclusively for interactive state. If you feel the urge to add a second accent, use a data tone (emerald/yellow/red) and only for data.
 4. Every number gets `tabular-nums`. Every rate gets `<PassRatePill />`.
-5. When you think "this needs more air", stop — Studio is dense by design. Tables are `py-3` rows, not `py-6`.
-6. When you think "this needs a hero headline", stop — Studio doesn't do heroes. Section titles are `text-xl font-semibold text-white` and nothing else.
+5. When you think "this needs more air", stop — Dashboard is dense by design. Tables are `py-3` rows, not `py-6`.
+6. When you think "this needs a hero headline", stop — Dashboard doesn't do heroes. Section titles are `text-xl font-semibold text-white` and nothing else.

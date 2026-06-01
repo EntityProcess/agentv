@@ -1,8 +1,8 @@
 /**
  * Project sync — pulls remote git repos to the local path declared in the
- * project registry before Studio/eval startup.
+ * project registry before Dashboard/eval startup.
  *
- * Sync is oneshot only, triggered by the Studio UI "Sync" button or the
+ * Sync is oneshot only, triggered by the Dashboard UI "Sync" button or the
  * `agentv project sync` CLI command. There is no daemon or continuous mode.
  *
  *   First run  — git clone --depth 1 --filter=blob:none --branch <ref> <url> <path>

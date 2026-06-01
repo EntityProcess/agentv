@@ -2,7 +2,7 @@
  * Tracks long-lived child processes spawned by AgentV providers so that a
  * top-level signal handler can kill them all on Ctrl+C / SIGTERM.
  *
- * Why this exists: when the CLI receives SIGTERM (e.g. from Studio's Stop
+ * Why this exists: when the CLI receives SIGTERM (e.g. from Dashboard's Stop
  * button), Node exits the parent process but does NOT propagate the signal
  * to grandchildren. Without tracking, the spawned `claude`, `codex`, `pi`,
  * `copilot` subprocesses linger as orphans. The CLI's signal handler walks

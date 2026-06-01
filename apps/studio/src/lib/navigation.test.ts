@@ -33,7 +33,7 @@ describe('resolveIndexRoute', () => {
     expect(resolveIndexRoute([], false)).toEqual({ kind: 'single-project-home' });
   });
 
-  it('redirects to the current project when Studio was launched from a registered project', () => {
+  it('redirects to the current project when Dashboard was launched from a registered project', () => {
     expect(resolveIndexRoute(['alpha', 'beta'], true, 'beta', 'runs')).toEqual({
       kind: 'redirect',
       redirectPath: '/projects/beta?tab=runs',

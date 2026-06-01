@@ -1,5 +1,5 @@
 /**
- * Job detail route: shows live stdout/stderr for a Studio-launched eval run.
+ * Job detail route: shows live stdout/stderr for a Dashboard-launched eval run.
  *
  * Accessible via /jobs/:runId. Polls /api/eval/status/:id until the run
  * reaches a terminal state (finished or failed), then stops polling.

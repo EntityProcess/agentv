@@ -1460,7 +1460,7 @@ export async function runEvalCommand(
 
   // Write a stub benchmark.json before dispatching tests, carrying the planned
   // execution count so an interrupted run can still surface as resumable in
-  // Studio (results.length < planned_test_count) even when every recorded row
+  // Dashboard (results.length < planned_test_count) even when every recorded row
   // has execution_status: ok. The end-of-run write preserves this value via
   // readPlannedTestCount inside aggregateRunDir / writeArtifactsFromResults.
   // Skip on resume — we want to preserve the *original* planned count.

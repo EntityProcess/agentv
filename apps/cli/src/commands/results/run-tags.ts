@@ -10,7 +10,7 @@
  * { "tags": ["baseline", "v2-prompt"], "updated_at": "2026-04-10T00:00:00.000Z" }
  * ```
  *
- * Used by the Studio compare API so users can retroactively tag runs
+ * Used by the Dashboard compare API so users can retroactively tag runs
  * without changing the eval YAML or the run manifest itself. This mirrors
  * the Langfuse / W&B / GitHub `tags` pattern — a mutable multi-valued
  * list of free-form labels that lives alongside the immutable run_id.

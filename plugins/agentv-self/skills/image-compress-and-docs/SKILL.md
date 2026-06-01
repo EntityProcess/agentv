@@ -28,8 +28,8 @@ which pngquant optipng
 Use `agent-browser` with a named session and 1440×860 viewport for docs-quality screenshots. Always use `--session` to isolate, never `--headed`.
 
 ```bash
-# Start the target server first (e.g., Studio)
-bun apps/cli/src/cli.ts studio --port 14800 &
+# Start the target server first (e.g., Dashboard)
+bun apps/cli/src/cli.ts dashboard --port 14800 &
 sleep 3
 
 # Open, set viewport, navigate, screenshot
@@ -46,7 +46,7 @@ agent-browser --session docs-shots close
 kill $(lsof -ti:14800) 2>/dev/null
 ```
 
-**Screenshots with realistic data:** Studio screenshots must have populated data — multiple runs with varying pass rates and real targets. If results are sparse, create synthetic JSONL files in `.agentv/results/runs/<experiment>/<timestamp>/index.jsonl` with realistic fields before launching Studio.
+**Screenshots with realistic data:** Dashboard screenshots must have populated data — multiple runs with varying pass rates and real targets. If results are sparse, create synthetic JSONL files in `.agentv/results/runs/<experiment>/<timestamp>/index.jsonl` with realistic fields before launching Dashboard.
 
 Synthetic JSONL record format:
 ```json

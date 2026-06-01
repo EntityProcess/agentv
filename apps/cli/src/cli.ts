@@ -4,7 +4,7 @@ import { killAllTrackedChildren } from '@agentv/core';
 import { runCli } from './index.js';
 
 // Forward SIGINT/SIGTERM to spawned provider subprocesses before exiting.
-// Without this, Studio's `child.kill('SIGTERM')` against the CLI orphans
+// Without this, Dashboard's `child.kill('SIGTERM')` against the CLI orphans
 // any in-flight `claude`/`codex`/`pi`/`copilot` subprocess. The partial
 // `index.jsonl` is already row-by-row durable, so finished tests survive.
 //

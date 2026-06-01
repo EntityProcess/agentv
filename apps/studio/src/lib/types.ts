@@ -1,5 +1,5 @@
 /**
- * TypeScript types for the AgentV Studio API responses.
+ * TypeScript types for the AgentV Dashboard API responses.
  *
  * These mirror the wire-format types served by the Hono API in apps/cli/.
  * All JSON keys use snake_case per the agentv wire-format convention.
@@ -22,7 +22,7 @@ export interface RunMeta {
   /** Optional user-assigned tags from the run's sidecar tags.json. */
   tags?: string[];
   /**
-   * Live execution status. Only present for Studio-launched runs that are
+   * Live execution status. Only present for Dashboard-launched runs that are
    * still being tracked in-memory — used to render a spinner in RunList
    * instead of the pass/fail dot when pass_rate is 0 simply because no
    * results have been written yet.
@@ -84,7 +84,7 @@ export interface RunDetailResponse {
   results: EvalResult[];
   source: 'local' | 'remote';
   source_label?: string;
-  /** Live execution status when this run is still tracked in-memory by Studio. */
+  /** Live execution status when this run is still tracked in-memory by Dashboard. */
   status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
   run_dir?: string;

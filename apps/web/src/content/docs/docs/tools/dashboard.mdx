@@ -1,5 +1,5 @@
 ---
-title: Studio
+title: Dashboard
 description: Visual dashboard for reviewing evaluation results
 sidebar:
   order: 6
@@ -21,24 +21,24 @@ import studioAnalyticsTrend from '../../../../assets/screenshots/studio-analytic
 import studioRemoteResultsBeforeSync from '../../../../assets/screenshots/studio-remote-results-before-sync.png';
 import studioRemoteResultsAfterSync from '../../../../assets/screenshots/studio-remote-results-after-sync.png';
 
-The `studio` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
+The `dashboard` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
 
-<Image src={studioRunsBench} alt="AgentV Studio showing evaluation runs with pass rates, targets, and experiment names" />
+<Image src={studioRunsBench} alt="AgentV Dashboard showing evaluation runs with pass rates, targets, and experiment names" />
 
 ## Usage
 
 ```bash
-agentv studio
+agentv dashboard
 ```
 
-Studio auto-discovers run workspaces from `.agentv/results/runs/` in the current directory and opens at `http://localhost:3117`.
+Dashboard auto-discovers run workspaces from `.agentv/results/runs/` in the current directory and opens at `http://localhost:3117`.
 
 You can also point it at a specific run workspace or `index.jsonl` manifest:
 
 ```bash
-agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z/index.jsonl
+agentv dashboard .agentv/results/runs/2026-03-30T11-45-56-989Z/index.jsonl
 # or
-agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
+agentv dashboard .agentv/results/runs/2026-03-30T11-45-56-989Z
 ```
 
 ## Options
@@ -66,25 +66,25 @@ agentv studio .agentv/results/runs/2026-03-30T11-45-56-989Z
 
 Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from.
 
-<Image src={studioRunDetail} alt="AgentV Studio run detail showing 100% pass rate across 5 tests with scores and duration" />
+<Image src={studioRunDetail} alt="AgentV Dashboard run detail showing 100% pass rate across 5 tests with scores and duration" />
 
 ## Experiments
 
 The Experiments tab groups runs by experiment name so you can compare the impact of changes — for example, `with_skills` vs `without_skills`.
 
-<Image src={studioExperiments} alt="AgentV Studio experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
+<Image src={studioExperiments} alt="AgentV Dashboard experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
 
 ## Analytics
 
 The **Analytics** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
 
-<Image src={studioCompareSideBySide} alt="AgentV Studio side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
+<Image src={studioCompareSideBySide} alt="AgentV Dashboard side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
 
 ### Aggregated matrix
 
 The default view shows a cross-experiment, cross-target performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
 
-<Image src={studioAnalyticsAggregated} alt="AgentV Studio Analytics tab showing aggregated experiment × target matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
+<Image src={studioAnalyticsAggregated} alt="AgentV Dashboard Analytics tab showing aggregated experiment × target matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
 
 Run the same eval against multiple providers or experiment variants, then open the Analytics tab:
 
@@ -93,14 +93,14 @@ agentv eval my.EVAL.yaml --target azure --experiment baseline
 agentv eval my.EVAL.yaml --target azure --experiment with-caching
 agentv eval my.EVAL.yaml --target gemini --experiment baseline
 agentv eval my.EVAL.yaml --target gemini --experiment with-caching
-agentv studio  # Analytics tab shows 2x2 matrix
+agentv dashboard  # Analytics tab shows 2x2 matrix
 ```
 
 ### Per-run comparison
 
 Running the same `(experiment, target)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
 
-<Image src={studioComparePerRun} alt="AgentV Studio per-run compare mode with a filter-by-tag chip row and individual runs listing timestamp, tags, experiment, target, and pass rate; experiment-prefixed runs surface the experiment name under the timestamp" />
+<Image src={studioComparePerRun} alt="AgentV Dashboard per-run compare mode with a filter-by-tag chip row and individual runs listing timestamp, tags, experiment, target, and pass rate; experiment-prefixed runs surface the experiment name under the timestamp" />
 
 Use per-run mode when you want to:
 
@@ -126,7 +126,7 @@ The same filter is available to API consumers via `GET /api/compare?tags=baselin
 
 Below the aggregated matrix, a collapsible **Analytics** section provides visual charts for deeper comparison. Select a **baseline target** from the dropdown to compute deltas and normalized gain metrics against that target.
 
-<Image src={studioAnalyticsCharts} alt="AgentV Studio analytics charts showing normalized gain bar chart with baseline selector and score distribution histogram" />
+<Image src={studioAnalyticsCharts} alt="AgentV Dashboard analytics charts showing normalized gain bar chart with baseline selector and score distribution histogram" />
 
 The section includes the following visualizations:
 
@@ -136,21 +136,21 @@ The section includes the following visualizations:
 - **Score Distribution** — histogram showing the variance of scores across all test cases, binned by 10% intervals.
 - **Score Trend Over Time** — line chart plotting mean score per target across runs over time, with a colour-coded legend for each target.
 
-<Image src={studioAnalyticsTrend} alt="AgentV Studio analytics showing score distribution histogram and score trend over time line chart with multi-target legend" />
+<Image src={studioAnalyticsTrend} alt="AgentV Dashboard analytics showing score distribution histogram and score trend over time line chart with multi-target legend" />
 
 The baseline comparison is also available via the API: `GET /api/compare?baseline=<target>` adds `delta` and `normalized_gain` fields to each non-baseline cell in the response.
 
 ## Projects Dashboard
 
-By default, Studio shows results for the current directory. Register multiple project repos to view them from a single dashboard.
+By default, Dashboard shows results for the current directory. Register multiple project repos to view them from a single dashboard.
 
 ### Registering Projects
 
 Register project repos one at a time:
 
 ```bash
-agentv studio --add /path/to/my-evals
-agentv studio --add /path/to/other-evals
+agentv dashboard --add /path/to/my-evals
+agentv dashboard --add /path/to/other-evals
 ```
 
 Each path must contain a `.agentv/` directory. Registered projects are stored in `~/.agentv/projects.yaml`.
@@ -167,48 +167,48 @@ projects:
       ref: main
 ```
 
-On each Studio startup, AgentV clones the repo if the path is empty (`git clone --depth 1`) or pulls the latest if a clone already exists (`git pull --ff-only`). You can also trigger a sync manually from the Studio UI's **Sync** button.
+On each Dashboard startup, AgentV clones the repo if the path is empty (`git clone --depth 1`) or pulls the latest if a clone already exists (`git pull --ff-only`). You can also trigger a sync manually from the Dashboard UI's **Sync** button.
 
 ### Runtime behavior: no restart needed
 
-`projects.yaml` is the single source of truth. Studio re-reads it on every `/api/projects` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
+`projects.yaml` is the single source of truth. Dashboard re-reads it on every `/api/projects` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
 
 - Adding via the UI's **Add Project** form or `POST /api/projects`.
 - Removing via the UI's **Remove** button or `DELETE /api/projects/:id`.
 - Editing `~/.agentv/projects.yaml` directly.
-- Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Studio reflects it within the next poll.
+- Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Dashboard reflects it within the next poll.
 
-This satisfies the 24/7-Studio use case: the server stays up; projects come and go through config edits or API calls.
+This satisfies the 24/7-Dashboard use case: the server stays up; projects come and go through config edits or API calls.
 
 ### Launching the Dashboard
 
-Studio auto-detects the mode based on how many projects are registered:
+Dashboard auto-detects the mode based on how many projects are registered:
 
 - `0` or `1` registered: single-project view
 - `2+` registered: Projects dashboard
 
 ```bash
-agentv studio          # auto-detects
-agentv studio --single # force single-project view
+agentv dashboard          # auto-detects
+agentv dashboard --single # force single-project view
 ```
 
 The landing page shows a card for each project with run count, pass rate, and last run time.
 
-<Image src={studioProjectsMulti} alt="AgentV Studio projects dashboard showing project cards with pass rates" />
+<Image src={studioProjectsMulti} alt="AgentV Dashboard projects dashboard showing project cards with pass rates" />
 
 ### Removing a Project
 
 Unregister by its ID:
 
 ```bash
-agentv studio --remove my-evals
+agentv dashboard --remove my-evals
 ```
 
 IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becomes `my-evals`).
 
 ## Remote Results
 
-Studio can display runs pushed to a remote git repository by other machines or CI — alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber).
+Dashboard can display runs pushed to a remote git repository by other machines or CI — alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber).
 
 ### Configuration
 
@@ -224,13 +224,13 @@ results:
 
 `results.path` is the filesystem location of the local clone AgentV manages for the results repo. It is **not** a subdirectory inside the remote repo.
 
-With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Studio without requiring PR merges.
+With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Dashboard without requiring PR merges.
 
 Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
 
 ### What happens to existing local runs?
 
-Existing runs already present under `.agentv/results/runs/` stay exactly where they are and continue to appear in Studio as **local** runs.
+Existing runs already present under `.agentv/results/runs/` stay exactly where they are and continue to appear in Dashboard as **local** runs.
 
 Adding a `results` block does **not** backfill those historical runs into the remote repo automatically. Auto-push only affects runs created after the remote results repo is configured.
 
@@ -240,16 +240,16 @@ If you want older local-only runs in the remote repo, rerun them or copy the run
 
 Uses `gh` CLI and `git` credentials already configured on the machine. If authentication is missing, AgentV warns and skips the export — the eval run itself is never blocked.
 
-### Syncing in Studio
+### Syncing in Dashboard
 
-Once configured, Studio fetches remote runs on load. In the default multi-project flow, open a project card first, then use **Sync Remote Results** in that project's toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
+Once configured, Dashboard fetches remote runs on load. In the default multi-project flow, open a project card first, then use **Sync Remote Results** in that project's toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
 
 Use the **All Sources / Local Only / Remote Only** filter to narrow the run list by origin.
 
-<Image src={studioRemoteResultsBeforeSync} alt="AgentV Studio project view in multi-project mode before syncing, showing the Support Bot project with a populated run sidebar and remote results that have already been fetched" />
+<Image src={studioRemoteResultsBeforeSync} alt="AgentV Dashboard project view in multi-project mode before syncing, showing the Support Bot project with a populated run sidebar and remote results that have already been fetched" />
 
 Runs pushed from another machine or CI do not appear until you sync. Existing local-only runs remain visible in the sidebar and keep their **local** source badge.
 
-<Image src={studioRemoteResultsAfterSync} alt="AgentV Studio project view in multi-project mode after syncing, showing the newly fetched GitHub remote run alongside existing local and remote runs in the sidebar" />
+<Image src={studioRemoteResultsAfterSync} alt="AgentV Dashboard project view in multi-project mode after syncing, showing the newly fetched GitHub remote run alongside existing local and remote runs in the sidebar" />
 
-After sync, newly fetched remote runs appear in the list with a **remote** source badge, and Studio can open their details without checking out the remote branch locally.
+After sync, newly fetched remote runs appear in the list with a **remote** source badge, and Dashboard can open their details without checking out the remote branch locally.

@@ -61,15 +61,15 @@ export default defineConfig({
       console.log('⚠ Skills source not found at', srcSkillsDir, '— skipping');
     }
 
-    // Copy studio dist if available (built by apps/studio)
+    // Copy dashboard SPA dist if available (built by apps/studio)
     const studioDistDir = path.resolve('..', 'studio', 'dist');
     const cliStudioDir = path.join('dist', 'studio');
     if (existsSync(studioDistDir)) {
       rmSync(cliStudioDir, { recursive: true, force: true });
       cpSync(studioDistDir, cliStudioDir, { recursive: true });
-      console.log('✓ Studio dist copied to dist/studio');
+      console.log('✓ Dashboard dist copied to dist/studio');
     } else {
-      console.log('⚠ Studio dist not found at', studioDistDir, '— skipping');
+      console.log('⚠ Dashboard dist not found at', studioDistDir, '— skipping');
     }
   },
 });

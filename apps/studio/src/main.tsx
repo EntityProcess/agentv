@@ -1,5 +1,5 @@
 /**
- * React entry point for AgentV Studio.
+ * React entry point for AgentV Dashboard.
  *
  * Sets up TanStack Router and TanStack Query providers, then renders
  * the app into the #root element.

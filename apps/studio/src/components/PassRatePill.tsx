@@ -1,6 +1,6 @@
 /**
  * Progress-bar pill: gradient blue fill proportional to rate, percentage text inside.
- * Used for pass rate and per-test score throughout Studio.
+ * Used for pass rate and per-test score throughout Dashboard.
  */
 
 interface PassRatePillProps {

@@ -13,7 +13,7 @@
  *   5. Trend-over-time line chart (mean score per target over time)
  *
  * All charts use recharts styled with Tailwind-matching colors to
- * respect the Studio dark theme (gray-950 canvas, cyan accents,
+ * respect the Dashboard dark theme (gray-950 canvas, cyan accents,
  * emerald/red data tones).
  */
 
@@ -36,7 +36,7 @@ import {
 import { compareOptionsWithBaseline, projectCompareOptions } from '~/lib/api';
 import type { CompareResponse, CompareRunEntry } from '~/lib/types';
 
-// ── Color palette matching Studio DESIGN.md ────────────────────────────
+// ── Color palette matching Dashboard DESIGN.md ────────────────────────────
 
 const COLORS = {
   green: '#34d399', // emerald-400

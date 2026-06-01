@@ -1,5 +1,5 @@
 /**
- * Project-scoped job detail route for Studio-launched eval runs.
+ * Project-scoped job detail route for Dashboard-launched eval runs.
  */
 
 import { Link, createFileRoute } from '@tanstack/react-router';

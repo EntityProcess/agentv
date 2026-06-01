@@ -235,7 +235,7 @@ function RunSidebar() {
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
         {activeRunCount > 0 && (
           <span className="flex items-center gap-1 rounded-full bg-cyan-900/40 px-2 py-0.5 text-xs text-cyan-400">
@@ -314,7 +314,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -372,7 +372,7 @@ function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -424,7 +424,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -480,7 +480,7 @@ function ProjectRunDetailSidebar({
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -535,7 +535,7 @@ function ProjectEvalSidebar({
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -598,7 +598,7 @@ function ProjectSuiteSidebar({
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -655,7 +655,7 @@ function ProjectCategorySidebar({
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -710,7 +710,7 @@ function ProjectExperimentSidebar({
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 
@@ -762,7 +762,7 @@ function ExperimentSidebar({ currentExperiment }: { currentExperiment: string })
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
         <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Studio
+          AgentV Dashboard
         </Link>
       </div>
 

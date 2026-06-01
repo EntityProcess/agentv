@@ -6,7 +6,7 @@
  * Clicking a row navigates to the run detail view.
  *
  * In-progress runs (status `starting` / `running`, surfaced by the backend
- * via the RunMeta `status` field while a Studio-launched run is still
+ * via the RunMeta `status` field while a Dashboard-launched run is still
  * tracked in-memory) render a pulsing cyan dot instead of the pass/fail
  * dot — otherwise a 0% pass rate during the warm-up window would show as
  * a misleading red ✗.

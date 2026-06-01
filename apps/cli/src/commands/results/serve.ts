@@ -1,12 +1,12 @@
 /**
- * `agentv studio` / `agentv serve` — starts the AgentV Studio server, a React SPA for
+ * `agentv dashboard` / `agentv serve` — starts the AgentV Dashboard server, a React SPA for
  * reviewing evaluation results.
  *
  * The server uses Hono for routing and @hono/node-server to listen.
- * The Studio SPA is served from a pre-built dist directory.
+ * The Dashboard SPA is served from a pre-built dist directory.
  *
  * API endpoints:
- *   - GET /           — Studio SPA (React app)
+ *   - GET /           — Dashboard SPA (React app)
  *   - GET /api/runs   — list available run workspaces with metadata
  *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/runs/:filename/log — stream the captured console.log for a run
@@ -386,13 +386,13 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
           avgScore = records.reduce((sum, r) => sum + r.score, 0) / records.length;
         } else {
           // Run is in-progress with 0 results written yet — fall back to the
-          // in-memory target stored when the Studio launched this run.
+          // in-memory target stored when the Dashboard launched this run.
           target = getActiveRunTarget(m.path);
         }
       } catch {
         // ignore enrichment errors
       }
-      // Surface live status for Studio-launched runs that are still starting
+      // Surface live status for Dashboard-launched runs that are still starting
       // or running so the RunList can render a spinner instead of the
       // pass/fail dot derived from a 0% pass rate.
       const liveStatus = getActiveRunStatus(m.path);
@@ -447,7 +447,7 @@ async function handleRunDetail(c: C, { searchDir }: DataContext) {
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta);
     // Surface run_dir + suite_filter for local runs so the UI can launch a
-    // Studio-side resume against this exact run. Remote runs live in the
+    // Dashboard-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
     const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
@@ -467,7 +467,7 @@ async function handleRunDetail(c: C, { searchDir }: DataContext) {
  * Compute `run_dir` (relative to cwd, snake_case) and `suite_filter` (the
  * eval file path stored in benchmark.json metadata) for a local run manifest.
  * Returns whatever fields could be resolved — both are best-effort and only
- * needed by the Studio "Resume run" / "Rerun failed" actions.
+ * needed by the Dashboard "Resume run" / "Rerun failed" actions.
  */
 function deriveResumeMeta(
   cwd: string,
@@ -1104,11 +1104,11 @@ export function createApp(
     });
   }
 
-  // ── Studio configuration ──────────────────────────────────────────────
+  // ── Dashboard configuration ──────────────────────────────────────────────
 
   app.post('/api/config', async (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     try {
       const body = await c.req.json<Partial<StudioConfig>>();
@@ -1174,7 +1174,7 @@ export function createApp(
 
   app.post('/api/projects', async (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     try {
       const body = await c.req.json<{ path: string }>();
@@ -1268,7 +1268,7 @@ export function createApp(
 
   app.delete('/api/projects/:projectId', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     const removed = removeProject(c.req.param('projectId') ?? '');
     if (!removed) return c.json({ error: 'Project not found' }, 404);
@@ -1289,13 +1289,13 @@ export function createApp(
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
   app.put('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return handleRunTagsPut(c, defaultCtx);
   });
   app.delete('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return handleRunTagsDelete(c, defaultCtx);
   });
@@ -1321,7 +1321,7 @@ export function createApp(
 
   app.post('/api/feedback', async (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     let body: unknown;
     try {
@@ -1416,13 +1416,13 @@ export function createApp(
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
   app.put('/api/projects/:projectId/runs/:filename/tags', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return withProject(c, handleRunTagsPut);
   });
   app.delete('/api/projects/:projectId/runs/:filename/tags', (c) => {
     if (readOnly) {
-      return c.json({ error: 'Studio is running in read-only mode' }, 403);
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return withProject(c, handleRunTagsDelete);
   });
@@ -1465,11 +1465,13 @@ export function createApp(
     { readOnly },
   );
 
-  // ── Static file serving for Studio SPA ────────────────────────────────
+  // ── Static file serving for Dashboard SPA ────────────────────────────────
 
   const studioDistPath = options?.studioDir ?? resolveStudioDistDir();
   if (!studioDistPath || !existsSync(path.join(studioDistPath, 'index.html'))) {
-    throw new Error('Studio dist not found. Run "bun run build" in apps/studio/ to build the SPA.');
+    throw new Error(
+      'Dashboard dist not found. Run "bun run build" in apps/studio/ to build the SPA.',
+    );
   }
 
   app.get('/', (c) => {
@@ -1546,8 +1548,8 @@ function resolveStudioDistDir(): string | undefined {
 // ── CLI command ──────────────────────────────────────────────────────────
 
 export const resultsServeCommand = command({
-  name: 'studio',
-  description: 'Start AgentV Studio — a local dashboard for reviewing evaluation results',
+  name: 'dashboard',
+  description: 'Start AgentV Dashboard — a local dashboard for reviewing evaluation results',
   args: {
     source: positional({
       type: optional(string),
@@ -1583,7 +1585,7 @@ export const resultsServeCommand = command({
     }),
     readOnly: flag({
       long: 'read-only',
-      description: 'Disable write operations and launch Studio in read-only leaderboard mode',
+      description: 'Disable write operations and launch Dashboard in read-only leaderboard mode',
     }),
   },
   handler: async ({ source, port, dir, single, add, remove, readOnly }) => {
@@ -1614,7 +1616,7 @@ export const resultsServeCommand = command({
     }
 
     // ── Version check ────────────────────────────────────────────────
-    // Enforce `required_version` from .agentv/config.yaml so Studio/serve
+    // Enforce `required_version` from .agentv/config.yaml so Dashboard/serve
     // match `agentv eval` behavior. Same prompt in TTY, warn+continue
     // otherwise. Single-project scope only — when one agentv instance
     // serves multiple repos with differing version requirements, a
