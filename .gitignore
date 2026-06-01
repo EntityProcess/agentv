@@ -29,3 +29,9 @@ agent-orchestrator.yaml
 .claude/
 .opencode/
 .ao/
+
+# Gas Town (added by gt)
+.beads/
+.runtime/
+.logs/
+state.json
