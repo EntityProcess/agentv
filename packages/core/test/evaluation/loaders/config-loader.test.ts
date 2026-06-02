@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import {
   extractBudgetUsd,
@@ -9,10 +12,86 @@ import {
   extractTargetsFromTestCase,
   extractThreshold,
   extractTrialsConfig,
+  loadConfig,
   parseExecutionDefaults,
   parseResultsConfig,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
+
+function withOptionalEnv(
+  name: string,
+  value: string | undefined,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const previous = process.env[name];
+  if (value === undefined) {
+    process.env[name] = undefined;
+  } else {
+    process.env[name] = value;
+  }
+
+  return fn().finally(() => {
+    if (previous === undefined) {
+      process.env[name] = undefined;
+    } else {
+      process.env[name] = previous;
+    }
+  });
+}
+
+describe('loadConfig', () => {
+  it('falls back to AGENTV_HOME/config.yaml when no project-local config exists', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-global-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const homeDir = path.join(tempDir, 'home');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        'eval_patterns:\n  - "**/*.global.eval.yaml"\nexecution:\n  verbose: true\n',
+      );
+
+      await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.eval_patterns).toEqual(['**/*.global.eval.yaml']);
+        expect(config?.execution).toEqual({ verbose: true });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('prefers project-local .agentv/config.yaml over AGENTV_HOME/config.yaml', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      const homeDir = path.join(tempDir, 'home');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        'eval_patterns:\n  - "**/*.global.eval.yaml"\nexecution:\n  verbose: true\n',
+      );
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        'eval_patterns:\n  - "**/*.local.eval.yaml"\nexecution:\n  keep_workspaces: true\n',
+      );
+
+      await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.eval_patterns).toEqual(['**/*.local.eval.yaml']);
+        expect(config?.execution).toEqual({ keep_workspaces: true });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('extractTrialsConfig', () => {
   it('returns undefined when no execution block', () => {

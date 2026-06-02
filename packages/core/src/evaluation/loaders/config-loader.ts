@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { getAgentvConfigDir } from '../../paths.js';
 import { interpolateEnv } from '../interpolation.js';
 import type {
   EvalTargetRef,
@@ -59,8 +60,12 @@ export type AgentVConfig = {
 };
 
 /**
- * Load optional .agentv/config.yaml configuration file.
- * Searches from eval file directory up to repo root.
+ * Load optional AgentV YAML configuration.
+ *
+ * Project-local `.agentv/config.yaml` files are searched from the eval file
+ * directory up to the repo root. If no project-local config is found, AgentV
+ * falls back to the home/global config at `${AGENTV_HOME:-~/.agentv}/config.yaml`.
+ * The first valid file wins; there is intentionally no cross-file merge.
  */
 export async function loadConfig(
   evalFilePath: string,
@@ -75,56 +80,61 @@ export async function loadConfig(
       continue;
     }
 
-    try {
-      const rawConfig = await readFile(configPath, 'utf8');
-      const parsed = interpolateEnv(parseYamlValue(rawConfig), process.env) as unknown;
-
-      if (!isJsonObject(parsed)) {
-        logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);
-        continue;
-      }
-
-      const config = parsed as AgentVConfig;
-
-      const requiredVersion = (parsed as Record<string, unknown>).required_version;
-      if (requiredVersion !== undefined && typeof requiredVersion !== 'string') {
-        logWarning(`Invalid required_version in ${configPath}, expected string`);
-        continue;
-      }
-
-      const evalPatterns = (config as Record<string, unknown>).eval_patterns;
-      if (evalPatterns !== undefined && !Array.isArray(evalPatterns)) {
-        logWarning(`Invalid eval_patterns in ${configPath}, expected array`);
-        continue;
-      }
-
-      if (Array.isArray(evalPatterns) && !evalPatterns.every((p) => typeof p === 'string')) {
-        logWarning(`Invalid eval_patterns in ${configPath}, all entries must be strings`);
-        continue;
-      }
-
-      const executionDefaults = parseExecutionDefaults(
-        (parsed as Record<string, unknown>).execution,
-        configPath,
-      );
-      const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
-      const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
-
-      return {
-        required_version: requiredVersion as string | undefined,
-        eval_patterns: evalPatterns as readonly string[] | undefined,
-        execution: executionDefaults,
-        results,
-        ...(hooks && { hooks }),
-      };
-    } catch (error) {
-      logWarning(
-        `Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`,
-      );
-    }
+    const config = await readConfigFile(configPath);
+    if (config) return config;
   }
 
-  return null;
+  const globalConfigPath = path.join(getAgentvConfigDir(), 'config.yaml');
+  return (await fileExists(globalConfigPath)) ? readConfigFile(globalConfigPath) : null;
+}
+
+async function readConfigFile(configPath: string): Promise<AgentVConfig | null> {
+  try {
+    const rawConfig = await readFile(configPath, 'utf8');
+    const parsed = interpolateEnv(parseYamlValue(rawConfig), process.env) as unknown;
+
+    if (!isJsonObject(parsed)) {
+      logWarning(`Invalid config.yaml format at ${configPath}`);
+      return null;
+    }
+
+    const config = parsed as AgentVConfig;
+
+    const requiredVersion = (parsed as Record<string, unknown>).required_version;
+    if (requiredVersion !== undefined && typeof requiredVersion !== 'string') {
+      logWarning(`Invalid required_version in ${configPath}, expected string`);
+      return null;
+    }
+
+    const evalPatterns = (config as Record<string, unknown>).eval_patterns;
+    if (evalPatterns !== undefined && !Array.isArray(evalPatterns)) {
+      logWarning(`Invalid eval_patterns in ${configPath}, expected array`);
+      return null;
+    }
+
+    if (Array.isArray(evalPatterns) && !evalPatterns.every((p) => typeof p === 'string')) {
+      logWarning(`Invalid eval_patterns in ${configPath}, all entries must be strings`);
+      return null;
+    }
+
+    const executionDefaults = parseExecutionDefaults(
+      (parsed as Record<string, unknown>).execution,
+      configPath,
+    );
+    const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
+    const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
+
+    return {
+      required_version: requiredVersion as string | undefined,
+      eval_patterns: evalPatterns as readonly string[] | undefined,
+      execution: executionDefaults,
+      results,
+      ...(hooks && { hooks }),
+    };
+  } catch (error) {
+    logWarning(`Could not read config.yaml at ${configPath}: ${(error as Error).message}`);
+    return null;
+  }
 }
 
 /**

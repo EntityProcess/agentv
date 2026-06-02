@@ -85,6 +85,7 @@ export {
 export {
   getAgentvConfigDir,
   getAgentvHome,
+  getAgentvDataDir,
   getWorkspacesRoot,
   getSubagentsRoot,
   getTraceStateRoot,

@@ -17,7 +17,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { getAgentvHome } from '../../paths.js';
+import { getAgentvDataDir } from '../../paths.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
   normalizeAzureSdkBaseUrl,
@@ -80,7 +80,7 @@ function findAgentvRoot(): string {
 }
 
 function findManagedSdkInstallRoot(): string {
-  return path.join(getAgentvHome(), 'deps', 'pi-sdk');
+  return path.join(getAgentvDataDir(), 'deps', 'pi-sdk');
 }
 
 function resolveGlobalNpmRoot(): string | undefined {
