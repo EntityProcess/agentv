@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { NormalizedSuite } from '../src/agentv/types.js';
 import { createPhoenixDatasetPayload } from '../src/phoenix/datasets.js';
+import { unwrapPhoenixExpectedOutput } from '../src/phoenix/run-experiment.js';
 
 test('creates deterministic Phoenix dataset payloads from normalized suites', () => {
   const suite: NormalizedSuite = {
@@ -32,4 +33,10 @@ test('creates deterministic Phoenix dataset payloads from normalized suites', ()
   expect(dataset.examples[0]?.input.messages[0]?.content).toBe('Say hello');
   expect(dataset.examples[0]?.metadata.agentv_test_id).toBe('contains-check');
   expect(dataset.examples[0]?.metadata.agentv_assertions).toEqual(['contains']);
+});
+
+test('unwraps Phoenix expected answer payloads for AgentV deterministic graders', () => {
+  expect(unwrapPhoenixExpectedOutput({ answer: 'done' })).toBe('done');
+  expect(unwrapPhoenixExpectedOutput({ answer: { ok: true } })).toEqual({ ok: true });
+  expect(unwrapPhoenixExpectedOutput({ other: 'shape' })).toEqual({ other: 'shape' });
 });

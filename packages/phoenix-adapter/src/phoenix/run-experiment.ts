@@ -78,10 +78,11 @@ export async function runPhoenixExperiment(
             };
           }
 
+          const expectedOutput = unwrapPhoenixExpectedOutput(expected);
           const results = configs.map((config) =>
             evaluateAssertion(config, {
               output,
-              expectedOutput: expected,
+              expectedOutput,
               metadata: safeMetadata,
             }),
           );
@@ -113,6 +114,13 @@ export async function runPhoenixExperiment(
     runCount: Object.keys(experiment.runs).length,
     evaluationRunCount: experiment.evaluationRuns?.length ?? 0,
   };
+}
+
+export function unwrapPhoenixExpectedOutput(expected: unknown): unknown {
+  if (expected && typeof expected === 'object' && 'answer' in expected) {
+    return (expected as { readonly answer?: unknown }).answer;
+  }
+  return expected;
 }
 
 function normalizeExpected(output: unknown): Record<string, unknown> {
