@@ -10,7 +10,9 @@ Before non-trivial work, load the relevant skill:
 
 - `agentv-core-development`: core design principles, TypeScript conventions, naming, snake_case wire formats, docs, examples, and repo structure.
 - `agentv-testing-verification`: CLI testing, Studio/browser verification, grader e2e checks, pre-push hooks, and PR readiness evidence.
-- `agentv-git-workflow`: Beads/GitHub workflow, worktrees, issue claiming, draft PRs, pushing, merging, and cleanup.
+- `agentv-git-workflow`: Beads-first decentralized orchestration, worktrees, PR handoff, pushing, merging, and cleanup.
+- `beads-execplan-issue-creator`: convert approved ExecPlans into dependency-aware bead epics/tasks.
+- `beads-epic-delivery-loop`: execute a bead epic by selecting, claiming, implementing, verifying, committing, and closing tasks in dependency order.
 - `agentv-grader-changes`: grader/evaluator type changes, score output, baselines, live eval verification, and score-range checks.
 - `agentv-release-publishing`: versioning, release automation, and package publishing.
 
@@ -25,7 +27,7 @@ Before non-trivial work, load the relevant skill:
 - For non-trivial repo changes, work in a fresh sibling worktree under `../agentv.worktrees/` based on latest `origin/main`. Keep the primary checkout clean; do not do feature work in the main folder.
 - Never push directly to `main`. Push feature branches and open/update draft PRs.
 - Use conventional commit and PR titles: `type(scope): summary`.
-- Do not create markdown TODO lists or memory files. Beads is the canonical task tracker and agent memory.
+- Do not create markdown TODO lists or memory files. Beads is the canonical decentralized task graph, coordination state, and agent memory.
 
 ## Key Paths
 
@@ -164,9 +166,9 @@ For more details, see README.md and docs/QUICKSTART.md.
 
 The Beads block above is managed by `bd setup codex`. For this repository, keep these local rules in addition to the generated Beads workflow:
 
-- Beads is the canonical task tracker and agent memory for this project: it is the working brain for task state, dependencies, discoveries, and durable project knowledge.
-- GitHub is the team collaboration surface: use it for draft PRs, reviews, CI, merge coordination, and communication with other parties.
-- Interpret the generated "do not use external issue trackers" rule as "do not create a second private task brain." It does not replace this repo's GitHub PR, review, CI, and team communication workflow.
+- Beads is AgentV's decentralized orchestration layer: the bead graph is the source of truth for task state, ownership, dependencies, discoveries, and durable project memory.
+- GitHub is the collaboration surface: use it for draft PRs, reviews, CI, merge coordination, and communication with other parties. It does not replace Beads as the local task graph.
+- Use `ep-spawn-agent` or the manual worktree flow in `agentv-git-workflow` to launch bead-scoped workers. Sessions are disposable; bead state is durable.
 - After the first meaningful commit for Beads-backed work, push the branch and open a draft PR. Continue pushing incremental commits to that draft PR so work is visible and recoverable before merge.
 - Before ending a work session, sync Beads with `bd dolt push`, push committed code with `git push`, and confirm the branch is up to date with its remote.
 - Do not create markdown TODO lists or separate memory files. Use `bd create` for follow-up work and `bd remember "insight"` for durable project memory.
