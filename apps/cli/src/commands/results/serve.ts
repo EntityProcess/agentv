@@ -1470,7 +1470,7 @@ export function createApp(
   const studioDistPath = options?.studioDir ?? resolveStudioDistDir();
   if (!studioDistPath || !existsSync(path.join(studioDistPath, 'index.html'))) {
     throw new Error(
-      'Dashboard dist not found. Run "bun run build" in apps/studio/ to build the SPA.',
+      'Dashboard dist not found. Run "bun run build" in apps/dashboard/ to build the SPA.',
     );
   }
 
@@ -1517,25 +1517,25 @@ export function createApp(
 }
 
 /**
- * Resolve the path to the studio dist directory.
+ * Resolve the path to the dashboard dist directory.
  *
  * Searches several candidate locations covering:
  *   - Running from TypeScript source (`bun apps/cli/src/cli.ts`)
  *   - Running from built dist (`bun apps/cli/dist/cli.js`)
- *   - Published npm package (studio bundled inside `dist/studio/`)
+ *   - Published npm package (dashboard bundled inside `dist/dashboard/`)
  */
 function resolveStudioDistDir(): string | undefined {
   const currentDir =
     typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
-    // From src/commands/results/ → sibling apps/studio/dist
-    path.resolve(currentDir, '../../../../studio/dist'),
-    // From dist/ → sibling apps/studio/dist (monorepo dev)
-    path.resolve(currentDir, '../../studio/dist'),
-    // Bundled inside CLI dist (published package: dist/studio/)
-    path.resolve(currentDir, 'studio'),
+    // From src/commands/results/ → sibling apps/dashboard/dist
+    path.resolve(currentDir, '../../../../dashboard/dist'),
+    // From dist/ → sibling apps/dashboard/dist (monorepo dev)
+    path.resolve(currentDir, '../../dashboard/dist'),
+    // Bundled inside CLI dist (published package: dist/dashboard/)
+    path.resolve(currentDir, 'dashboard'),
     // From dist/ in monorepo root context
-    path.resolve(currentDir, '../../../apps/studio/dist'),
+    path.resolve(currentDir, '../../../apps/dashboard/dist'),
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate) && existsSync(path.join(candidate, 'index.html'))) {

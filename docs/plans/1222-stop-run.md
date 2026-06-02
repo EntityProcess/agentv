@@ -50,15 +50,15 @@ AbortSignal threading.
   - No status mutation here; close handler does it.
 
 ### Studio Stop button
-- `apps/studio/src/components/StopRunButton.tsx` — *new*. Renders a
+- `apps/dashboard/src/components/StopRunButton.tsx` — *new*. Renders a
   neutral-styled (gray, not red) Stop button when `status` is
   non-terminal; calls POST with the benchmark-scoped path when
   `benchmarkId` is set; sets local `stopping=true` state to flip the
   label optimistically.
-- `apps/studio/src/components/stop-run-helpers.ts` — *new*. Pure
+- `apps/dashboard/src/components/stop-run-helpers.ts` — *new*. Pure
   `shouldShowStopButton(status, isReadOnly)` for unit testing.
-- `apps/studio/src/lib/api.ts` — add `stopEvalRun(id, benchmarkId?)`.
-- `apps/studio/src/routes/jobs/$runId.tsx` — wire `<StopRunButton />` into
+- `apps/dashboard/src/lib/api.ts` — add `stopEvalRun(id, benchmarkId?)`.
+- `apps/dashboard/src/routes/jobs/$runId.tsx` — wire `<StopRunButton />` into
   the header.
 
 ### Resume — planned_test_count
@@ -76,22 +76,22 @@ AbortSignal threading.
 - `apps/cli/src/commands/results/serve.ts` — `deriveResumeMeta` already
   reads `metadata.eval_file`; extend to also surface
   `planned_test_count`. Run-detail response gains `planned_test_count`.
-- `apps/studio/src/lib/types.ts` — add optional
+- `apps/dashboard/src/lib/types.ts` — add optional
   `planned_test_count?: number` to the run-detail response type.
-- `apps/studio/src/components/resume-run-helpers.ts` — extend
+- `apps/dashboard/src/components/resume-run-helpers.ts` — extend
   `shouldShowResumeActions` to also return true when
   `plannedTestCount && results.length < plannedTestCount`.
-- `apps/studio/src/components/ResumeRunActions.tsx` and the two run
+- `apps/dashboard/src/components/ResumeRunActions.tsx` and the two run
   detail routes — pass `plannedTestCount` through.
 
 ### Tests (narrow)
 - `apps/cli/test/commands/results/serve.test.ts` (or co-located) — stop
   endpoint: 404 unknown, 403 read-only, base + benchmark-scoped paths.
   Happy path SIGTERM is covered by manual UAT (race-prone in unit tests).
-- `apps/studio/src/components/resume-run-helpers.test.ts` — case where
+- `apps/dashboard/src/components/resume-run-helpers.test.ts` — case where
   every result is `ok` but `results.length < plannedTestCount` → button
   visible.
-- `apps/studio/src/components/stop-run-helpers.test.ts` — visibility
+- `apps/dashboard/src/components/stop-run-helpers.test.ts` — visibility
   matrix.
 - Skip: integration test that signals a real eval. Manual UAT is enough.
 

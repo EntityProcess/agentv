@@ -52,8 +52,8 @@
         "@earendil-works/pi-coding-agent",
       ],
     },
-    "apps/studio": {
-      "name": "@agentv/studio",
+    "apps/dashboard": {
+      "name": "@agentv/dashboard",
       "version": "0.0.1",
       "dependencies": {
         "@monaco-editor/react": "^4.7.0",
@@ -133,7 +133,7 @@
 
     "@agentv/eval": ["@agentv/eval@workspace:packages/eval"],
 
-    "@agentv/studio": ["@agentv/studio@workspace:apps/studio"],
+    "@agentv/dashboard": ["@agentv/dashboard@workspace:apps/dashboard"],
 
     "@agentv/web": ["@agentv/web@workspace:apps/web"],
 
