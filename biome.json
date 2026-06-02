@@ -38,6 +38,7 @@
       "**/test-output/**",
       "**/__tmp_*/**",
       "**/.agentv/**",
+      ".beads/**",
       ".claude/**",
       ".opencode/**",
       ".entire/**",

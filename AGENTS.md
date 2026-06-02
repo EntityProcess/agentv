@@ -1,614 +1,172 @@
 # AgentV Repository Guidelines
 
-This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
+This is a TypeScript monorepo for AgentV, an AI agent evaluation framework.
 
-## High-Level Goals
+## Load Skills First
 
-AgentV aims to provide a robust, declarative framework for evaluating AI agents.
-- **Declarative Definitions**: Define tasks, expected outcomes, and rubrics in simple YAML files.
-- **Structured Evaluation**: Use "Rubric as Object" (Google ADK style) for deterministic, type-safe grading.
-- **Multi-Objective Scoring**: Measure correctness, latency, cost, and safety in a single run.
-- **Optimization Ready**: Designed to support future automated hyperparameter tuning and candidate generation.
+Keep this file as bootstrap context. Detailed AgentV playbooks live in committed skills under `.agents/skills/`, following the Phoenix-style repo skill layout. `.claude/skills` is a symlink to the same directory for Claude compatibility.
 
-## Design Principles
+Before non-trivial work, load the relevant skill:
 
-These principles guide all feature decisions. **Follow these when proposing or implementing changes.**
+- `agentv-core-development`: core design principles, TypeScript conventions, naming, snake_case wire formats, docs, examples, and repo structure.
+- `agentv-testing-verification`: CLI testing, Studio/browser verification, grader e2e checks, pre-push hooks, and PR readiness evidence.
+- `agentv-git-workflow`: Beads/GitHub workflow, worktrees, issue claiming, draft PRs, pushing, merging, and cleanup.
+- `agentv-grader-changes`: grader/evaluator type changes, score output, baselines, live eval verification, and score-range checks.
+- `agentv-release-publishing`: versioning, release automation, and package publishing.
 
-### 1. Lightweight Core, Plugin Extensibility
-AgentV's core should remain minimal. Complex or domain-specific logic belongs in plugins, not built-in features.
+## Always-On Rules
 
-**Extension points (prefer these over adding built-ins):**
-- `code-grader` scripts for custom evaluation logic
-- `llm-grader` graders with custom prompt files for domain-specific LLM grading
-- CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
+- Use Bun for all package and script operations.
+- Run Python scripts with `uv run <script.py>`.
+- Internal TypeScript uses `camelCase`; anything crossing a process boundary uses `snake_case`. Translate at the boundary.
+- Keep AgentV core lightweight. Prefer existing primitives, plugins, examples, and docs over new built-ins.
+- Do not use global `agentv` for CLI testing. Use `bun apps/cli/src/cli.ts <args>`; rebuild first when `packages/core/` changes.
+- For Studio UI verification, rebuild `apps/studio/dist/` before UAT or screenshots.
+- For non-trivial repo changes, work in a fresh sibling worktree under `../agentv.worktrees/` based on latest `origin/main`. Keep the primary checkout clean; do not do feature work in the main folder.
+- Never push directly to `main`. Push feature branches and open/update draft PRs.
+- Use conventional commit and PR titles: `type(scope): summary`.
+- Do not create markdown TODO lists or memory files. Beads is the canonical task tracker and agent memory.
 
-**Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in. This includes adding config overrides to existing graders — if a niche provider needs custom tool-name matching, that's a code-grader, not a new config field.
+## Key Paths
 
-### 2. Built-ins for Primitives Only
-Built-in graders provide **universal primitives** that users compose. A primitive is:
-- Stateless and deterministic
-- Has a single, clear responsibility
-- Cannot be trivially composed from other primitives
-- Needed by the majority of users
+- `packages/core/`: evaluation engine, providers, grading, registry, programmatic API.
+- `packages/eval/`: lightweight assertion SDK.
+- `apps/cli/`: CLI published as `agentv`.
+- `apps/studio/`: Studio frontend.
+- `apps/web/`: documentation site.
+- `examples/`: documentation and integration coverage.
+- `.agents/skills/`: committed coding-agent skills.
 
-If a feature serves a niche use case or adds conditional logic, it belongs in a plugin.
+<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:f65d5d33 -->
+## Issue Tracking with bd (beads)
 
-### 3. Maximize Feature Surface Through Composition
-The goal is to achieve the **maximum feature surface with the minimum primitives** due to high reusability. Before proposing a new feature, enumerate which existing primitives could achieve the same outcome when composed:
+**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
 
-- **Oracle validation** is not a feature — it's a `cli` provider target that runs a reference solution through the same evaluators.
-- **Snapshot MCP for benchmarks** is not a feature — it's frozen data in the workspace template + `before_all`/`after_all` hooks to start/stop the server.
-- **Harness variant comparison** is not a feature — it's target hooks with different `before_each` setup scripts.
-- **Skill evaluation** is not a feature — it's `tool-trajectory` + `execution-metrics` + `rubric` composed via `composite`.
+### Why bd?
 
-**If existing primitives cover it, document the pattern instead of building a feature.** New primitives are justified only when the composition is impossible, not merely when it's undocumented.
+- Dependency-aware: Track blockers and relationships between issues
+- Git-friendly: Dolt-powered version control with native sync
+- Agent-optimized: JSON output, ready work detection, discovered-from links
+- Prevents duplicate tracking systems and confusion
 
-### 4. Align with Industry Standards
-Before adding features, research how peer frameworks solve the problem. Prefer the **lowest common denominator** that covers most use cases. Novel features without industry precedent require strong justification and should default to plugin implementation.
+### Quick Start
 
-### 5. YAGNI — You Aren't Gonna Need It
-Don't build features until there's a concrete need. Before adding a new capability, ask: "Is there real demand for this today, or am I anticipating future needs?" Numeric thresholds, extra tracking fields, and configurable knobs should be omitted until users actually request them. Start with the simplest version (e.g., boolean over numeric range) and extend later if needed.
-
-**YAGNI applies to *how* you meet a real request, not just *whether* to meet it.** The common failure mode is not "I built X and nobody wanted it." It's "someone asked for X and I built a bigger X than they asked for." Guard against that with these habits:
-
-1. **Audit existing primitives before adding new ones.** When an issue asks for capability Y, the first question is not "how do I build Y?" — it's **"what does the codebase already do that addresses Y?"** Grep for existing functions, endpoints, and config shapes. Many requests are satisfied by a behavior that already exists and just needs to be surfaced, configured, or exercised differently.
-2. **Treat issue language as a hint, not a spec.** Issues describe problems *and* implementations. "We need a discovery root" is one implementation of "we need the registry to update live." When an issue lists multiple acceptable approaches (or its acceptance criteria don't actually require the implementation it names), pick the one with the least code surface. Summarize the acceptance criteria in your own words, strip out implementation nouns ("discovery root," "watcher," "registry reload"), then match them against existing primitives before designing anything new.
-3. **Prefer data/config changes over new mechanisms.** If the observable effect is "this list should be editable at runtime," prefer "re-read the file per request" over "add a watcher + a new field + a precedence rule + a new endpoint." Config-driven beats code-driven when both are sufficient.
-4. **Stop when scope doubles.** If an implementation's surface area grows more than ~2× the starting estimate (extra types, extra endpoints, extra invariants), that's a red flag to re-plan, not a sign to push through. Pause and ask: "What would the smallest possible version look like? Does the issue actually require more than that?"
-5. **If you are about to add a second mode, two-layer precedence, or an invariant between two optional fields, stop.** `source: manual | discovered`, "pinned wins over discovered," `excluded_paths` filtering the discovered set — every one of these is a sign that you're in complexity territory that a simpler data model would have avoided.
-
-**Call out existing overengineering.** If, while working on a task, you notice a *current* feature in the repo that looks overengineered relative to what it's used for (multiple modes, optional precedence rules, dead-looking extensibility scaffolding), flag it — don't silently fix it. Open a tracking issue titled "cleanup: simplify X" that lists: the observable behavior today, the simpler model that would cover it, and the migration notes. Link to the code. Do not widen your current PR to absorb the cleanup unless the user asks.
-
-### 6. Non-Breaking Extensions
-New fields should be optional. Existing configurations must continue working unchanged.
-
-### 7. AI-First Design
-AI agents are the primary users of AgentV—not humans reading docs. Design for AI comprehension and composability.
-
-**Skills over rigid commands:**
-- Use Claude Code skills (or agent skill standards) to teach AI *how* to create evals, not step-by-step CLI instructions
-- Skills should cover most use cases; rigid commands trade off AI intelligence
-- Only prescribe exact steps where there's an established best practice
-
-**Intuitive primitives:**
-- Expose simple, single-purpose primitives that AI can combine flexibly
-- Avoid monolithic commands that do multiple things
-- SDK internals should be intuitive enough for AI to modify when needed
-
-**Self-documenting code:**
-- File headers should explain what the file does, how it works, and how to extend it — no need to read other files to understand this one
-- Don't reference external projects, PRs, or issues in code comments; make everything standalone
-- Prefer data-driven patterns (static mappings, config tables) over conditional chains — AI can extend a mapping by adding an entry, but has to trace logic to extend an if/else tree
-- No dead code or speculative infrastructure; if it's unused, delete it
-- When a module has an extension point, include a short recipe in the header (e.g., "To add a new provider: 1. Create a matcher, 2. Add it to the mapping")
-- When changing a module's behavior, update its file header to match. Stale headers are worse than no headers.
-
-**Scope:** Applies to skills, repo structure, documentation, SDK design, and source code — anything AI might need to reason about or extend.
-
-## Tech Stack & Tools
-- **Language:** TypeScript 5.x targeting ES2022
-- **Runtime:** Bun (use `bun` for all package and script operations)
-- **Monorepo:** Bun workspaces
-- **Bundler:** tsup (TypeScript bundler)
-- **Linter/Formatter:** Biome
-- **Testing:** Vitest
-- **LLM Framework:** Vercel AI SDK
-- **Validation:** Zod
-
-## Project Structure
-- `packages/core/` - Evaluation engine, providers, grading
-  - `src/evaluation/registry/` - Extensible grader registry (EvaluatorRegistry, assertion discovery)
-  - `src/evaluation/providers/provider-registry.ts` - Provider plugin registry
-  - `src/evaluation/evaluate.ts` - `evaluate()` programmatic API
-  - `src/evaluation/config.ts` - `defineConfig()` for typed agentv.config.ts
-- `packages/eval/` - Lightweight assertion SDK (`defineAssertion`, `defineCodeGrader`)
-- `apps/cli/` - Command-line interface (published as `agentv`)
-  - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
-- `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
-
-## Working Style
-
-### Worktree Setup
-- For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
-- Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
-- Do not implement from the primary checkout, from a stale local `main`, or from a branch created off an outdated base.
-- Default setup:
-```bash
-git fetch origin
-git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<issue-or-topic>-<short-desc> origin/main
-cd ../agentv.worktrees/<type>-<short-desc>
-```
-- If you discover you are not on a fresh worktree from the latest `origin/main`, stop and fix that first before changing code.
-
-### Planning
-- Use plan mode for any non-trivial task (5+ steps or architectural decisions).
-- If something goes sideways, STOP and re-plan immediately — don't keep pushing a broken approach.
-- For non-trivial changes, pause and ask: "Is there a more elegant solution?" before diving in.
-- Check in with the user before starting implementation on ambiguous tasks.
-- Prefer automation: execute the requested work without extra confirmation unless blocked by missing information, safety concerns, or an irreversible/destructive action the user has not approved.
-
-### Subagent Strategy
-- Use subagents aggressively to keep the main context window clean.
-- Subagents for: research, file exploration, running tests, code review.
-- For complex problems, throw more subagents at it — parallelize where possible.
-- Name subagents descriptively.
-- Before declaring a repo change complete or opening/finalizing a PR, complete manual e2e verification first (see E2E Checklist), **then** spawn a subagent for a final code review pass. E2E must pass before code review — if e2e fails, fix the issue before investing time in review. The user may explicitly skip the review step.
-
-### Autonomous Bug Fixes
-- When you spot a bug, just fix it. Don't ask for hand-holding.
-- Point at logs, errors, failing tests — then resolve them.
-- Only ask when there's genuine ambiguity about intent.
-- Fix failing CI tests without being told.
-
-### Simplicity
-- Every change should be as simple as possible. Import existing code; don't reinvent.
-- Find root causes and fix them directly. No shotgun debugging.
-
-### Progress Updates
-- Provide high-level status updates at natural milestones.
-- When scope changes mid-task, communicate the shift and adjust the plan.
-- Use parallel tool calls when applicable, especially for independent reads, checks, and validation steps.
-
-### PR & Commit Titles
-- Prefer conventional commit style for branch-facing titles: `type(scope): summary`.
-- Use the repository's normal types where they fit, such as `feat`, `fix`, `chore`, `refactor`, `docs`, and `test`.
-- Use the most relevant module or product area as `scope`, such as `studio`, `cli`, `results`, or `evals`.
-- Do not prefix PR titles with `[codex]` unless the user explicitly requests it.
-
-## TypeScript Guidelines
-- Target ES2022 with Node 20+
-- Prefer type inference over explicit types
-- Use `async/await` for async operations
-- Prefer named exports
-- Keep modules cohesive
-
-## Naming Convention: "Project" vs "Benchmark"
-
-These two words have distinct, non-interchangeable meanings in this codebase. Get them right when adding new symbols, docs, or example dirs:
-
-- **Project** — the top-level container Studio organises around: a registered workspace directory (`.agentv/` + run artifacts + traces + experiments). Lives in `~/.agentv/projects.yaml`. Modelled by `ProjectEntry` / `ProjectRegistry` in `packages/core/src/projects.ts`. Matches the terminology used by Phoenix, Langfuse, Braintrust, W&B Weave, and LangSmith.
-- **Benchmark** — a curated *eval suite* designed to measure something specific (academic ML sense: MMLU, HumanEval, SWE-bench). Example dirs use this sense: `examples/showcase/multi-model-benchmark/`, `examples/showcase/offline-grader-benchmark/`, `examples/features/benchmark-tooling/`. Do not rename these — they are correctly named.
-
-The legacy registry file `~/.agentv/benchmarks.yaml` is auto-migrated to `projects.yaml` on first load by `migrateLegacyBenchmarksFile()`. The unrelated per-run `benchmark.json` artifact (Agent Skills compatibility output) is a third, separate concept — also keep that name.
-
-When in doubt: if the thing holds runs / traces / experiments, it's a **project**. If it's a curated set of eval cases meant to measure capability, it's a **benchmark**.
-
-## Wire Format Convention
-
-**Everything that crosses a process boundary uses `snake_case` keys. Internal TypeScript uses `camelCase`. Translate at the boundary — never in the middle.**
-
-The rule is blanket: if the key is going to disk, to a user's editor, into a JSON response, or onto a CLI, it's snake_case. There is no "well this file is internal-ish" carve-out. If in doubt, snake_case.
-
-### snake_case surfaces
-- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `projects.yaml`, `studio/config.yaml`, any future YAML we add.
-- JSONL result files (`test_id`, `token_usage`, `duration_ms`).
-- Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
-- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `project_id`).
-- CLI JSON output (`agentv results summary`, `results failures`, `results show`).
-- Anything consumed by non-TS tooling (Python, jq pipelines, external dashboards).
-
-### camelCase surfaces
-- TypeScript source: all variables, parameters, fields, type members.
-- Internal in-memory shapes passed between TS modules.
-
-### Translate only at the boundary
-Define a second interface for the wire shape and convert in one place — don't smear snake_case through TS internals.
-
-```typescript
-// Wire shape — snake_case, matches what hits disk / the network
-interface ProjectEntryYaml {
-  id: string;
-  name: string;
-  path: string;
-  added_at: string;
-  last_opened_at: string;
-}
-
-// Internal shape — camelCase, what every TS call site sees
-interface ProjectEntry {
-  id: string;
-  name: string;
-  path: string;
-  addedAt: string;
-  lastOpenedAt: string;
-}
-
-function fromYaml(e: ProjectEntryYaml): ProjectEntry {
-  return { id: e.id, name: e.name, path: e.path, addedAt: e.added_at, lastOpenedAt: e.last_opened_at };
-}
-
-function toYaml(e: ProjectEntry): ProjectEntryYaml {
-  return { id: e.id, name: e.name, path: e.path, added_at: e.addedAt, last_opened_at: e.lastOpenedAt };
-}
-```
-
-Yes, this is two interfaces and two functions per entity. That's the price of keeping TS idiomatic while staying faithful to the wire contract. Don't skip it — dumping TS objects directly to YAML leaks `addedAt`-style camelCase onto disk and breaks jq/Python consumers.
-
-### Anti-patterns
-- `writeFileSync(path, stringifyYaml(tsObject))` — dumps TS field names verbatim. Wrong.
-- `interface Foo { testId: string; ... }` for a JSON response body — `test_id`, always.
-- Accepting both `testId` and `test_id` on input "for back-compat" when nothing is shipped yet. Just snake_case.
-
-### Existing divergences
-If you spot a camelCase key already on disk or in a response (e.g. a legacy endpoint), treat it as a bug: migrate it to snake_case in the same PR where you touch that code path. Don't grandfather it in.
-
-**Reading back:** `parseJsonlResults()` in `artifact-writer.ts` converts snake_case → camelCase when reading JSONL into TypeScript. `fromYaml` / `toYaml` in `packages/core/src/projects.ts` is the model for YAML boundaries.
-
-**Why:** Aligns with skill-creator (claude-plugins-official) and broader Python/JSON ecosystem conventions where snake_case is the standard wire format.
-
-## Testing & Verification
-
-### Pre-Push Hooks (Automated)
-
-The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks that automatically run build, typecheck, lint, and tests before pushing. **Do not manually run these checks before pushing** — just push to the feature branch and let the pre-push hook validate.
-
-**Setup (automatic):**
-The hooks are installed automatically when you run `bun install` via the `prepare` script. To manually install:
-```bash
-bunx prek install -t pre-push
-```
-
-**What runs on push:**
-- `bun run build` - Build all packages
-- `bun run typecheck` - TypeScript type checking
-- `bun run lint` - Biome linting
-- `bun run test` - All tests
-- `bun run validate:examples` - Validate example eval YAML files against the agentv schema
-
-If any check fails, the push is blocked until the issues are fixed.
-
-**Manual run (without pushing):**
-```bash
-bunx prek run --all-files --hook-stage pre-push
-```
-
-### Functional Testing (CLI)
-
-When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed version (bun or npm). Instead:
-
-- **From TypeScript source (preferred):** `bun apps/cli/src/cli.ts <args>` — always runs current CLI code, no build step needed. **Exception:** changes inside `packages/core/` require `bun run build` first, because the CLI imports `@agentv/core` from its compiled `dist/`, not from TypeScript source.
-- **From built dist:** `bun apps/cli/dist/cli.js <args>` — requires `bun run build` first, can be stale
-- **From repository root:** `bun agentv <args>` — runs the locally built version (also requires build)
-
-**Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes. After pulling changes that touch `packages/core/`, always run `bun run build` before CLI testing.
-
-**Studio frontend exception — rebuild `apps/dashboard/dist/` before UAT.** Running `agentv studio` from source (`bun apps/cli/src/cli.ts studio ...`) only reloads the CLI and backend routes from source. The Studio web UI (React/Tailwind bundle) is served as static assets from `apps/dashboard/dist/`, which is build output and does **not** recompile on change. If you are testing Studio UI changes — especially post-merge on `main` or after pulling — rebuild the frontend first:
+**Check for ready work:**
 
 ```bash
-cd apps/dashboard && bun run build
+bd ready --json
 ```
 
-Skipping this step silently serves the previous bundle, so you'll see the old UI even though your source edits and the backend API are live. This has burned at least one post-merge UAT; always rebuild before screenshotting or driving Studio with `agent-browser`.
-
-### Browser E2E Testing (Docs Site)
-
-Use `agent-browser` for visual verification of docs site changes. Environment-specific rules:
-
-- **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
-- **Never use `--headed`** — no display server available; headless (default) works correctly
-
-**Troubleshooting: `--session` hangs with EAGAIN on ARM64**
-
-If `agent-browser --session <name> open <url>` consistently fails with "Resource temporarily unavailable" or times out, Chrome is taking longer to start than the client's retry window. Workaround: pre-start Chrome manually and use `--cdp`:
+**Create new issues:**
 
 ```bash
-nohup chromium --headless=new --remote-debugging-port=9222 \
-  --no-first-run --disable-background-networking --disable-default-apps \
-  --disable-sync --ozone-platform=headless --window-size=1280,720 \
-  --user-data-dir=/tmp/ab-chrome > /tmp/chrome.log 2>&1 &
-curl -s http://localhost:9222/json/version  # verify ready
-
-agent-browser --cdp 9222 open <url>
-agent-browser --cdp 9222 screenshot output.png
+bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
+bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
 ```
 
-### Agent Provider Eval Concurrency
-
-When running evals against agent provider targets (claude, claude-sdk, codex, copilot, copilot-sdk, pi, pi-cli), **limit concurrency to 3 targets at a time**. Each agent provider spawns heavyweight subprocesses (CLI binaries, SDK sessions) that consume significant memory and CPU. Running more than 3 in parallel can exhaust system resources.
+**Claim and update:**
 
 ```bash
-# Good: batch targets in groups of 2-3
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target claude &
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target codex &
-wait
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target copilot &
-bun apps/cli/src/cli.ts eval my.EVAL.yaml --target pi &
-wait
+bd update <id> --claim --json
+bd update bd-42 --priority 1 --json
 ```
 
-This does not apply to lightweight LLM-only targets (azure, openai, gemini, openrouter) which can run with higher concurrency.
+**Complete work:**
 
-### Writing Tests
+```bash
+bd close bd-42 --reason "Completed" --json
+```
 
-Tests should be lean and focused on what matters. Follow these principles:
+### Issue Types
 
-- **Only test new or changed behavior.** Don't write tests for existing behavior that's already covered by the 1600+ core tests. If you fix a bug, test the fix and its edge cases — not the surrounding module.
-- **One test per distinct behavior.** Don't write separate tests for trivially different inputs that exercise the same code path.
-- **No tests for obvious code.** If a function returns `undefined` for missing input and that's a one-line null check, you don't need a test for it unless it's a regression risk.
-- **Regression tests > comprehensive tests.** A test that would have caught the bug is worth more than five tests that exercise happy paths.
-- **Tests are executable contracts.** When a module's behavioral contract changes, the tests must reflect the new contract — not just the happy path. If you change what a function promises, update its tests to assert the new promise.
+- `bug` - Something broken
+- `feature` - New functionality
+- `task` - Work item (tests, docs, refactoring)
+- `epic` - Large feature with subtasks
+- `chore` - Maintenance (dependencies, tooling)
 
-### Verifying Grader Changes
+### Priorities
 
-Unit tests alone are insufficient for grader changes. After implementing or modifying graders:
+- `0` - Critical (security, data loss, broken builds)
+- `1` - High (major features, important bugs)
+- `2` - Medium (default, nice-to-have)
+- `3` - Low (polish, optimization)
+- `4` - Backlog (future ideas)
 
-1. **Copy `.env` to the worktree** if running in a git worktree (e2e tests need environment variables):
+### Workflow for AI Agents
+
+1. **Check ready work**: `bd ready` shows unblocked issues
+2. **Claim your task atomically**: `bd update <id> --claim`
+3. **Work on it**: Implement, test, document
+4. **Discover new work?** Create linked issue:
+   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
+5. **Complete**: `bd close <id> --reason "Done"`
+
+### Quality
+- Use `--acceptance` and `--design` fields when creating issues
+- Use `--validate` to check description completeness
+
+### Lifecycle
+- `bd defer <id>` / `bd supersede <id>` for issue management
+- `bd stale` / `bd orphans` / `bd lint` for hygiene
+- `bd human <id>` to flag for human decisions
+- `bd formula list` / `bd mol pour <name>` for structured workflows
+
+### Auto-Sync
+
+bd automatically syncs via Dolt:
+
+- Each write auto-commits to Dolt history
+- Use `bd dolt push`/`bd dolt pull` for remote sync
+- No manual export/import needed!
+
+### Important Rules
+
+- ✅ Use bd for ALL task tracking
+- ✅ Always use `--json` flag for programmatic use
+- ✅ Link discovered work with `discovered-from` dependencies
+- ✅ Check `bd ready` before asking "what should I work on?"
+- ❌ Do NOT create markdown TODO lists
+- ❌ Do NOT use external issue trackers
+- ❌ Do NOT duplicate tracking systems
+
+For more details, see README.md and docs/QUICKSTART.md.
+
+## Session Completion
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
-   cp /path/to/main/.env .env
+   git pull --rebase
+   bd dolt push
+   git push
+   git status  # MUST show "up to date with origin"
    ```
-   ```powershell
-   Copy-Item D:/path/to/main/.env .env
-   ```
-   Do not claim e2e or grader verification results unless this preflight has passed.
-
-2. **Run an actual eval** with a real example file:
-   ```bash
-   bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
-   ```
-
-3. **Inspect the results JSONL** to verify:
-   - The correct grader type is invoked (check `scores[].type`)
-   - Scores are calculated as expected
-   - Assertions array reflects the evaluation logic (each entry has `text`, `passed`, optional `evidence`)
-
-4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
-
-5. **Note:** `--dry-run` returns schema-valid mock responses for both agent output and grader evaluation (score=1, empty assertions/checks). Built-in LLM graders run without parse errors but scores are meaningless. Use it for end-to-end harness testing including grader plumbing.
-
-### Checking Grader Score Ranges (manual e2e)
-
-`scripts/check-grader-scores.ts` is a post-processor that asserts each grader's score on each test case falls within an expected range. Run it manually after an eval to catch grader regressions (false positives / false negatives) before merging.
-
-**Workflow:**
-```bash
-# 1. Run the eval, writing results to a sibling *.results.jsonl file
-bun apps/cli/src/cli.ts eval examples/path/to/suite.eval.yaml --target azure \
-  --out examples/path/to/suite.results.jsonl
-
-# 2. Assert all expected score ranges pass
-bun scripts/check-grader-scores.ts
-```
-
-The script auto-discovers `examples/**/*.grader-scores.yaml`, locates the sibling `*.results.jsonl` (same stem), and exits non-zero if any score is out of range.
-
-**To add score checks for a new eval:**
-1. Create `<eval-stem>.grader-scores.yaml` next to the eval YAML.
-2. Add entries for each `(test_id, grader, range)` you care about — `grader` must match a `scores[].name` value in the JSONL output, and `range.min`/`range.max` default to 0/1 if omitted.
-3. Run the eval with `--out <eval-stem>.results.jsonl`, then run the script.
-
-See `examples/red-team/archetypes/coding-agent/suites/screenshot-pii-upload.grader-scores.yaml` for a concrete example.
-
-### Completing Work — E2E Checklist
-
-Before marking any branch as ready for review, complete this checklist:
-
-1. **Preflight:** If in a git worktree, ensure `.env` exists in the worktree root.
-   ```bash
-   cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
-   ```
-   Without this, any eval run or LLM-dependent test will fail with missing API key errors.
-
-2. **Run unit tests**: `bun run test` — all must pass.
-
-3. **⚠️ BLOCKING: Manual red/green UAT — must complete before steps 4-5:**
-   Unit tests passing is NOT sufficient. Every change must be manually verified from the end user's perspective. Do NOT skip this step or proceed to step 4 until red/green evidence is documented.
-
-   - **Red (before your changes):** Run the scenario on `main` (or the code state before your changes). Confirm the bug or missing feature is observable from the CLI / user-facing output. Capture the output.
-   - **Green (with your changes):** Run the identical scenario with your branch. Confirm the fix or feature works correctly from the end user's perspective. Capture the output.
-   - **Document both** red and green results in the PR description or comments so reviewers can see the before/after evidence.
-
-   For grader changes, this means running a real eval (not `--dry-run`) and inspecting the output JSONL. For CLI/UX changes, this means running the CLI command and verifying the console output.
-
-4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed grader parsing, run an eval that exercises different grader types).
-
-5. **Live eval verification**: For changes affecting scoring, thresholds, or grader behavior, run at least one real eval with a live provider (not `--dry-run`) and verify the output JSONL has correct scores, verdicts, and execution status.
-
-6. **Studio UX verification**: For changes affecting config, scoring display, or studio API, use `agent-browser` to verify the studio UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
-
-7. **Mark PR as ready** only after steps 1-6 have been completed AND red/green UAT evidence is included in the PR.
-
-## Documentation Updates
-
-When making changes to functionality:
-
-1. **Docs site** (`apps/web/src/content/docs/`): Update human-readable documentation on agentv.dev. This is the comprehensive reference.
-
-2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, grader types, or CLI commands. Keep concise — link to docs site for details.
-
-3. **Examples** (`examples/`): Update any example code, scripts, or eval YAML files that exercise the changed functionality. Examples are both documentation and integration tests.
-
-4. **README.md**: Keep minimal. Links point to agentv.dev.
-
-## Grader Type System
-
-Grader types use **kebab-case** everywhere (matching promptfoo convention):
-
-- **YAML config:** `type: llm-grader`, `type: is-json`, `type: execution-metrics`
-- **Internal TypeScript:** `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
-- **Output `scores[].type`:** `"llm-grader"`, `"is-json"`
-- **Registry keys:** `registry.register('llm-grader', ...)`
-
-**Source of truth:** `EVALUATOR_KIND_VALUES` array in `packages/core/src/evaluation/types.ts`
-
-**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-grader`) via `normalizeGraderType()` in `grader-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
-
-**Two type definitions exist:**
-- `EvaluatorKind` in `packages/core/src/evaluation/types.ts` — internal, canonical
-- `AssertionType` in `packages/eval/src/assertion.ts` — SDK-facing, must stay in sync
-
-## Git Workflow
-
-### Commit Convention
-
-Follow conventional commits: `type(scope): description`
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-### Issue Workflow
-
-When working on a GitHub issue, **ALWAYS** follow this workflow:
-
-1. **Claim the issue** — prevents other agents from duplicating work by stamping Agent ID and setting status on the project board:
-   ```bash
-   # Load AGENT_ID from .env; if not set, ask the user or default to <harness>-<model>
-   # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
-   # Model = the LLM (opus, sonnet, o3, etc.)
-   # Examples: "claude-code-opus", "opencode-sonnet", "cursor-o3", "codex-cli-o3"
-   # In this local dev environment, default to "devbox2-codex" unless the user specifies another AGENT_ID.
-   # Do NOT use hostname or machine name.
-   source .env 2>/dev/null
-   if [ -z "$AGENT_ID" ]; then
-     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to devbox2-codex in this environment (otherwise use <harness>-<model>)."
-   fi
-
-   # Check if already claimed via project board status
-   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .id')
-   CURRENT_STATUS=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .status')
-   [ "$CURRENT_STATUS" = "In Progress" ] && echo "SKIP — already claimed" && exit 1
-
-   # Update project roadmap: ensure the issue is on the AgentV OSS board,
-   # then set status to "In Progress" and stamp Agent ID
-   if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-     ITEM_ID=$(gh project item-add 1 --owner EntityProcess --url "https://github.com/EntityProcess/agentv/issues/<number>" --format json | jq -r '.id')
-   fi
-   if [ -n "$ITEM_ID" ]; then
-     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id c3991b20
-     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
-   fi
-   ```
-   If the issue has project board status "In Progress", **do not work on it** — pick a different issue.
-
-2. **Update local `main` to the latest `origin/main`** before branching:
-   ```bash
-   git checkout main
-   git pull --ff-only origin main
-   ```
-
-3. **Create a worktree** with a feature branch:
-   ```bash
-   git worktree add agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description>
-   cd agentv.worktrees/<branch-name>
-   bun install
-   cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
-   # Example: git worktree add agentv.worktrees/feat/42-add-new-embedder -b feat/42-add-new-embedder
-   ```
-
-   The feature branch must be based on the freshly updated `main`, not a stale local checkout.
-
-4. **After your first commit, push and open a draft PR immediately:**
-   ```bash
-   git push -u origin <branch-name>
-   gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue-number>"
-   ```
-   Do NOT wait until implementation is complete. The draft PR is a handoff artifact — if the session is interrupted, the user or another agent can pick up where you left off.
-
-5. **Implement the changes.** Commit and push incrementally as you work. Every meaningful checkpoint (feature compiles, tests pass, new behavior added) should be pushed to the draft PR so progress is visible and recoverable.
-
-6. **Complete E2E verification** (see "Completing Work — E2E Checklist") — this is BLOCKING. Do NOT mark the PR ready for review until every step of the E2E checklist has passed and evidence is documented in the PR body. Specifically:
-   1. Run unit tests.
-   2. Execute every test plan item from the issue/PR checklist, mark each `[x]`, and paste CLI output as evidence.
-   3. Manual red/green UAT with before/after evidence.
-   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings — **unless the change is focused** (single-responsibility, well-tested, no architectural impact), in which case this step may be skipped. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
-   5. CI pipeline passes (all checks green).
-   6. No merge conflicts with `main`.
-
-7. **Only after verification is complete**:
-   - Mark the draft PR ready for review, or
-   - Merge directly if the change is low risk and the repo policy allows it
-
-8. **After merge, clean up local state**:
-   - Delete the local feature branch
-   - Remove the local worktree created for the issue
-   - Confirm the primary checkout is back on an up-to-date `main`
-
-**IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
-
-### Tracker Conventions
-
-- The roadmap project is the source of truth for prioritization and claim status — use it, not labels.
-- Issues in the roadmap are prioritized; issues outside it are not.
-- `bug` marks defects.
-- Issues without `bug` are non-bug work by default.
-- `core`, `wui`, and `tui` are area labels.
-- Keep issue bodies focused on the handoff contract: objective, design latitude, acceptance signals, non-goals, and related links.
-- Do not put priority metadata in issue bodies.
-
-### Pull Requests
-
-**Always use squash merge** when merging PRs to main. This keeps the commit history clean with one commit per feature/fix.
-
-```bash
-# Using GitHub CLI to squash merge a PR
-gh pr merge <PR_NUMBER> --squash --delete-branch
-
-# Or with auto-merge enabled
-gh pr merge <PR_NUMBER> --squash --auto
-```
-
-Do NOT use regular merge or rebase merge, as these create noisy commit history with intermediate commits.
-
-### After Squash Merge
-
-Once a PR is squash-merged, its source branch diverges from main. **Do NOT** try to push additional commits from that branch—you will get merge conflicts.
-
-For follow-up fixes:
-```bash
-git checkout main
-git pull origin main
-git checkout -b fix/<short-description>
-# Apply fixes on the fresh branch
-```
-
-### Plans and Worktrees
-
-#### Plans
-
-Design documents and implementation plans are stored in `docs/plans/` inside the worktree (not the main repo). Save plans to the worktree so they are committed on the feature branch and visible in the draft PR.
-
-**Path warning:** When working in a worktree, use paths relative to the worktree root (e.g., `docs/plans/plan.md`). Do NOT prefix with the worktree directory from the main repo (e.g., `agentv.worktrees/feat/xxx/docs/plans/plan.md`) — this creates accidental nested directories inside the worktree.
-
-Plans are temporary working materials. **Before merging the PR**, delete the plan file and incorporate any user-relevant details into the official documentation.
-
-#### Git Worktrees
-
-Use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
-
-After creating a worktree, always run setup:
-```bash
-bun install                                    # worktrees do NOT share node_modules
-cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env    # required for e2e tests and LLM operations
-```
-Both steps are required before running builds, tests, or evals in the worktree.
-
-### After Checking Out an Existing Branch or PR
-
-Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` / `bun.lock`, run `bun install` before building, testing, or pushing. The pre-push hook builds all workspaces — if dependencies are stale, the push fails with errors like `Cannot find module 'recharts'` even though the source change is unrelated. `bun install` is cheap when already up-to-date, so run it by default after any ref switch.
-
-## Version Management
-
-This project uses a simple release script for version bumping. The git commit history serves as the changelog.
-
-### Releasing a new version
-
-Use the **GitHub Actions workflows** — do not publish manually from a local machine.
-
-**Standard flow (pre-release → stable):**
-1. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=next` (and desired bump: patch/minor/major). This bumps the version to `x.y.z-next.1`, commits, tags, and pushes.
-2. The [Publish workflow](https://github.com/EntityProcess/agentv/actions/workflows/publish.yml) triggers automatically and publishes to npm `next`.
-3. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=finalize`. This strips the `-next.N` suffix (e.g. `4.12.0-next.1` → `4.12.0`), commits, tags, and pushes.
-4. The Publish workflow triggers automatically and publishes to npm `latest`.
-
-**Direct stable release (skip pre-release):**
-1. Run the Release workflow with `channel=stable` (and bump).
-2. Publish workflow auto-publishes to npm `latest`.
-
-The release script (`bun scripts/release.ts`) is what the Release workflow calls; it can also be run locally for non-publishing tasks (e.g. inspecting version state), but **do not run `bun run publish` or `bun run publish:next` locally** — npm publish uses OIDC trusted publishing which only works in GitHub Actions.
-
-## Package Publishing
-- Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
-- CLI package (`apps/cli/`) is published as `agentv` on npm
-- Uses tsup with `noExternal: ["@agentv/core"]` to bundle workspace dependencies
-- Install command: `bun install -g agentv` (preferred) or `npm install -g agentv`
-
-## Python Scripts
-When running Python scripts, always use: `uv run <script.py>`
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
+
+<!-- END BEADS INTEGRATION -->
+
+## AgentV Beads Workflow Overrides
+
+The Beads block above is managed by `bd setup codex`. For this repository, keep these local rules in addition to the generated Beads workflow:
+
+- Beads is the canonical task tracker and agent memory for this project: it is the working brain for task state, dependencies, discoveries, and durable project knowledge.
+- GitHub is the team collaboration surface: use it for draft PRs, reviews, CI, merge coordination, and communication with other parties.
+- Interpret the generated "do not use external issue trackers" rule as "do not create a second private task brain." It does not replace this repo's GitHub PR, review, CI, and team communication workflow.
+- After the first meaningful commit for Beads-backed work, push the branch and open a draft PR. Continue pushing incremental commits to that draft PR so work is visible and recoverable before merge.
+- Before ending a work session, sync Beads with `bd dolt push`, push committed code with `git push`, and confirm the branch is up to date with its remote.
+- Do not create markdown TODO lists or separate memory files. Use `bd create` for follow-up work and `bd remember "insight"` for durable project memory.
