@@ -108,17 +108,27 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Working Style
 
+### AO-First Orchestration
+- AO (Composio Agent Orchestrator) is AgentV's live orchestration layer. In AO-managed sessions, treat AO as the source of truth for assignment, worker ownership, status, worktree lifecycle, PR claiming, and visualization.
+- Use the AO-provided worktree and branch. Do not create additional worktrees, spawn unmanaged agents, or open duplicate PRs unless the user/AO explicitly asks.
+- Report lifecycle status through AO (`ao acknowledge`, `ao report working`, `ao report fixing-ci`, `ao report addressing-reviews`, `ao report needs-input`, and PR milestone reports).
+- When taking over an existing PR in AO, run `ao session claim-pr <number-or-url>` before editing. If AO or git shows another session/worktree owns it, coordinate rather than forcing checkout.
+- GitHub remains the external collaboration surface for issues, PRs, reviews, CI, and human-visible handoff.
+- Do not use Beads or any other tracker as routine live execution tracking. If Beads artifacts or skills exist, use them only when explicitly assigned by the user/AO for durable planning/backlog work.
+- `ep-spawn-agent` is disabled for normal AO-managed AgentV work because it creates unmanaged agents/worktrees outside AO's lifecycle.
+
 ### Worktree Setup
-- For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
+- In AO-managed sessions, do not create a new worktree; verify the AO worktree is based on the intended base before editing.
+- Outside AO, for any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
 - Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
 - Do not implement from the primary checkout, from a stale local `main`, or from a branch created off an outdated base.
-- Default setup:
+- Manual setup outside AO:
 ```bash
 git fetch origin
 git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<issue-or-topic>-<short-desc> origin/main
 cd ../agentv.worktrees/<type>-<short-desc>
 ```
-- If you discover you are not on a fresh worktree from the latest `origin/main`, stop and fix that first before changing code.
+- If you discover you are not on a fresh worktree from the latest `origin/main` or the AO-provided base, stop and fix that first before changing code.
 
 ### Planning
 - Use plan mode for any non-trivial task (5+ steps or architectural decisions).
@@ -127,12 +137,10 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Check in with the user before starting implementation on ambiguous tasks.
 - Prefer automation: execute the requested work without extra confirmation unless blocked by missing information, safety concerns, or an irreversible/destructive action the user has not approved.
 
-### Subagent Strategy
-- Use subagents aggressively to keep the main context window clean.
-- Subagents for: research, file exploration, running tests, code review.
-- For complex problems, throw more subagents at it — parallelize where possible.
-- Name subagents descriptively.
-- Before declaring a repo change complete or opening/finalizing a PR, complete manual e2e verification first (see E2E Checklist), **then** spawn a subagent for a final code review pass. E2E must pass before code review — if e2e fails, fix the issue before investing time in review. The user may explicitly skip the review step.
+### Worker and Review Strategy
+- In AO-managed sessions, prefer AO-managed workers/harnesses for parallel work. Do not spawn unmanaged agents from inside a worker unless the user/AO explicitly delegates that orchestration.
+- For complex problems, keep this worker focused on its assigned scope and ask AO/user for coordination if additional workers are needed.
+- Before declaring a repo change complete or opening/finalizing a PR, complete manual e2e verification first (see E2E Checklist), **then** run a final review pass when warranted. E2E must pass before review — if e2e fails, fix the issue before investing time in review. The user may explicitly skip the review step.
 
 ### Autonomous Bug Fixes
 - When you spot a bug, just fix it. Don't ask for hand-holding.
@@ -152,7 +160,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 ### PR & Commit Titles
 - Prefer conventional commit style for branch-facing titles: `type(scope): summary`.
 - Use the repository's normal types where they fit, such as `feat`, `fix`, `chore`, `refactor`, `docs`, and `test`.
-- Use the most relevant module or product area as `scope`, such as `studio`, `cli`, `results`, or `evals`.
+- Use the most relevant module or product area as `scope`, such as `dashboard`, `cli`, `results`, or `evals`.
 - Do not prefix PR titles with `[codex]` unless the user explicitly requests it.
 
 ## TypeScript Guidelines
@@ -166,7 +174,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 
 These two words have distinct, non-interchangeable meanings in this codebase. Get them right when adding new symbols, docs, or example dirs:
 
-- **Project** — the top-level container Studio organises around: a registered workspace directory (`.agentv/` + run artifacts + traces + experiments). Lives in `~/.agentv/projects.yaml`. Modelled by `ProjectEntry` / `ProjectRegistry` in `packages/core/src/projects.ts`. Matches the terminology used by Phoenix, Langfuse, Braintrust, W&B Weave, and LangSmith.
+- **Project** — the top-level container Dashboard organises around: a registered workspace directory (`.agentv/` + run artifacts + traces + experiments). Lives in `~/.agentv/projects.yaml`. Modelled by `ProjectEntry` / `ProjectRegistry` in `packages/core/src/projects.ts`. Matches the terminology used by Phoenix, Langfuse, Braintrust, W&B Weave, and LangSmith.
 - **Benchmark** — a curated *eval suite* designed to measure something specific (academic ML sense: MMLU, HumanEval, SWE-bench). Example dirs use this sense: `examples/showcase/multi-model-benchmark/`, `examples/showcase/offline-grader-benchmark/`, `examples/features/benchmark-tooling/`. Do not rename these — they are correctly named.
 
 The legacy registry file `~/.agentv/benchmarks.yaml` is auto-migrated to `projects.yaml` on first load by `migrateLegacyBenchmarksFile()`. The unrelated per-run `benchmark.json` artifact (Agent Skills compatibility output) is a third, separate concept — also keep that name.
@@ -180,10 +188,10 @@ When in doubt: if the thing holds runs / traces / experiments, it's a **project*
 The rule is blanket: if the key is going to disk, to a user's editor, into a JSON response, or onto a CLI, it's snake_case. There is no "well this file is internal-ish" carve-out. If in doubt, snake_case.
 
 ### snake_case surfaces
-- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `projects.yaml`, `studio/config.yaml`, any future YAML we add.
+- All YAML files on disk: `*.eval.yaml`, `agentv.config.yaml`, `projects.yaml`, `dashboard/config.yaml`, any future YAML we add.
 - JSONL result files (`test_id`, `token_usage`, `duration_ms`).
 - Artifact-writer output (`pass_rate`, `tests_run`, `total_tool_calls`).
-- HTTP response bodies from `agentv serve` / Studio (`added_at`, `pass_rate`, `project_id`).
+- HTTP response bodies from `agentv serve` / Dashboard (`added_at`, `pass_rate`, `project_id`).
 - CLI JSON output (`agentv results summary`, `results failures`, `results show`).
 - Anything consumed by non-TS tooling (Python, jq pipelines, external dashboards).
 
@@ -272,17 +280,17 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 **Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes. After pulling changes that touch `packages/core/`, always run `bun run build` before CLI testing.
 
-**Studio frontend exception — rebuild `apps/dashboard/dist/` before UAT.** Running `agentv studio` from source (`bun apps/cli/src/cli.ts studio ...`) only reloads the CLI and backend routes from source. The Studio web UI (React/Tailwind bundle) is served as static assets from `apps/dashboard/dist/`, which is build output and does **not** recompile on change. If you are testing Studio UI changes — especially post-merge on `main` or after pulling — rebuild the frontend first:
+**Dashboard frontend exception — rebuild `apps/dashboard/dist/` before UAT.** Running `agentv dashboard` from source (`bun apps/cli/src/cli.ts dashboard ...`) only reloads the CLI and backend routes from source. The Dashboard web UI (React/Tailwind bundle) is served as static assets from `apps/dashboard/dist/`, which is build output and does **not** recompile on change. If you are testing Dashboard UI changes — especially post-merge on `main` or after pulling — rebuild the frontend first:
 
 ```bash
 cd apps/dashboard && bun run build
 ```
 
-Skipping this step silently serves the previous bundle, so you'll see the old UI even though your source edits and the backend API are live. This has burned at least one post-merge UAT; always rebuild before screenshotting or driving Studio with `agent-browser`.
+Skipping this step silently serves the previous bundle, so you'll see the old UI even though your source edits and the backend API are live. This has burned at least one post-merge UAT; always rebuild before screenshotting or driving Dashboard with `agent-browser`.
 
-### Browser E2E Testing (Docs Site)
+### Browser E2E Testing (Docs and Dashboard)
 
-Use `agent-browser` for visual verification of docs site changes. Environment-specific rules:
+Use `agent-browser` for visual verification of docs site and Dashboard changes. Environment-specific rules:
 
 - **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
 - **Never use `--headed`** — no display server available; headless (default) works correctly
@@ -403,7 +411,7 @@ Before marking any branch as ready for review, complete this checklist:
 
 5. **Live eval verification**: For changes affecting scoring, thresholds, or grader behavior, run at least one real eval with a live provider (not `--dry-run`) and verify the output JSONL has correct scores, verdicts, and execution status.
 
-6. **Studio UX verification**: For changes affecting config, scoring display, or studio API, use `agent-browser` to verify the studio UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
+6. **Dashboard UX verification**: For changes affecting config, scoring display, or dashboard API, use `agent-browser` to verify the Dashboard UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
 
 7. **Mark PR as ready** only after steps 1-6 have been completed AND red/green UAT evidence is included in the PR.
 
@@ -446,87 +454,39 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-When working on a GitHub issue, **ALWAYS** follow this workflow:
+Use AO for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker.
 
-1. **Claim the issue** — prevents other agents from duplicating work by stamping Agent ID and setting status on the project board:
-   ```bash
-   # Load AGENT_ID from .env; if not set, ask the user or default to <harness>-<model>
-   # Harness = the coding tool (claude-code, opencode, codex-cli, cursor, etc.)
-   # Model = the LLM (opus, sonnet, o3, etc.)
-   # Examples: "claude-code-opus", "opencode-sonnet", "cursor-o3", "codex-cli-o3"
-   # In this local dev environment, default to "devbox2-codex" unless the user specifies another AGENT_ID.
-   # Do NOT use hostname or machine name.
-   source .env 2>/dev/null
-   if [ -z "$AGENT_ID" ]; then
-     echo "AGENT_ID is not set. Ask the user for an agent identifier, or default to devbox2-codex in this environment (otherwise use <harness>-<model>)."
-   fi
+When working on a GitHub issue in an AO-managed session:
 
-   # Check if already claimed via project board status
-   ITEM_ID=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .id')
-   CURRENT_STATUS=$(gh project item-list 1 --owner EntityProcess --format json | jq -r '.items[] | select(.content.number == <number> and .content.repository == "EntityProcess/agentv") | .status')
-   [ "$CURRENT_STATUS" = "In Progress" ] && echo "SKIP — already claimed" && exit 1
+1. Trust the AO assignment. If the issue/PR appears owned by another AO session, coordinate instead of taking it over.
+2. Use the AO-provided worktree/branch and report status through AO.
+3. Keep the GitHub issue/PR updated with user-visible decisions, verification evidence, and review/CI state.
+4. Push focused commits to the assigned branch and open/update the PR requested by AO/user.
 
-   # Update project roadmap: ensure the issue is on the AgentV OSS board,
-   # then set status to "In Progress" and stamp Agent ID
-   if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-     ITEM_ID=$(gh project item-add 1 --owner EntityProcess --url "https://github.com/EntityProcess/agentv/issues/<number>" --format json | jq -r '.id')
-   fi
-   if [ -n "$ITEM_ID" ]; then
-     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTSSF_lADOAIbbRc4BSmjFzhAFomw --single-select-option-id c3991b20
-     gh project item-edit --project-id PVT_kwDOAIbbRc4BSmjF --id "$ITEM_ID" --field-id PVTF_lADOAIbbRc4BSmjFzhAHSnk --text "$AGENT_ID"
-   fi
-   ```
-   If the issue has project board status "In Progress", **do not work on it** — pick a different issue.
+Outside AO, use GitHub project state to avoid duplicate work before branching:
 
-2. **Update local `main` to the latest `origin/main`** before branching:
-   ```bash
-   git checkout main
-   git pull --ff-only origin main
-   ```
+```bash
+gh issue view <number> --repo EntityProcess/agentv --json number,title,state,projectItems,assignees,url
+git fetch origin
+git worktree add ../agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description> origin/main
+cd ../agentv.worktrees/<branch-name>
+bun install
+cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
+```
 
-3. **Create a worktree** with a feature branch:
-   ```bash
-   git worktree add agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description>
-   cd agentv.worktrees/<branch-name>
-   bun install
-   cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
-   # Example: git worktree add agentv.worktrees/feat/42-add-new-embedder -b feat/42-add-new-embedder
-   ```
+After the first meaningful commit, push and open a draft PR unless AO/user directs a different PR lifecycle:
 
-   The feature branch must be based on the freshly updated `main`, not a stale local checkout.
+```bash
+git push -u origin <branch-name>
+gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue-number>"
+```
 
-4. **After your first commit, push and open a draft PR immediately:**
-   ```bash
-   git push -u origin <branch-name>
-   gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue-number>"
-   ```
-   Do NOT wait until implementation is complete. The draft PR is a handoff artifact — if the session is interrupted, the user or another agent can pick up where you left off.
-
-5. **Implement the changes.** Commit and push incrementally as you work. Every meaningful checkpoint (feature compiles, tests pass, new behavior added) should be pushed to the draft PR so progress is visible and recoverable.
-
-6. **Complete E2E verification** (see "Completing Work — E2E Checklist") — this is BLOCKING. Do NOT mark the PR ready for review until every step of the E2E checklist has passed and evidence is documented in the PR body. Specifically:
-   1. Run unit tests.
-   2. Execute every test plan item from the issue/PR checklist, mark each `[x]`, and paste CLI output as evidence.
-   3. Manual red/green UAT with before/after evidence.
-   4. **After e2e passes**, spawn a final subagent code review pass and address or call out any findings — **unless the change is focused** (single-responsibility, well-tested, no architectural impact), in which case this step may be skipped. Do NOT run the code review before e2e — if e2e fails you'll need to fix it first, which invalidates the review.
-   5. CI pipeline passes (all checks green).
-   6. No merge conflicts with `main`.
-
-7. **Only after verification is complete**:
-   - Mark the draft PR ready for review, or
-   - Merge directly if the change is low risk and the repo policy allows it
-
-8. **After merge, clean up local state**:
-   - Delete the local feature branch
-   - Remove the local worktree created for the issue
-   - Confirm the primary checkout is back on an up-to-date `main`
-
-**IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
+Complete E2E verification before marking a PR ready for review. Never push directly to `main`; always use branches and PRs.
 
 ### Tracker Conventions
 
-- The roadmap project is the source of truth for prioritization and claim status — use it, not labels.
-- Issues in the roadmap are prioritized; issues outside it are not.
+- AO is the source of truth for live worker ownership and session status.
+- GitHub issues/projects are the source of truth for external prioritization, collaboration, and durable human-visible state.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
 - `core`, `wui`, and `tui` are area labels.
@@ -571,9 +531,9 @@ Plans are temporary working materials. **Before merging the PR**, delete the pla
 
 #### Git Worktrees
 
-Use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
+In AO-managed sessions, use the AO-provided worktree. Outside AO, use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
 
-After creating a worktree, always run setup:
+After creating a manual worktree, always run setup:
 ```bash
 bun install                                    # worktrees do NOT share node_modules
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env    # required for e2e tests and LLM operations
