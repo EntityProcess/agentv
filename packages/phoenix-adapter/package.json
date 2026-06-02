@@ -17,7 +17,7 @@
     "typecheck": "(cd ../core && bun run build) && tsc --noEmit",
     "test": "(cd ../core && bun run build) && bun test",
     "phoenix:dry-run": "bun src/cli.ts run --dry-run --agentv-root ../.. --out reports/dry-run.json",
-    "phoenix:assert-smoke": "bun src/cli.ts run --dry-run --agentv-root ../.. --filter examples/features/assert/evals/dataset.eval.yaml --out reports/assert-smoke.json"
+    "phoenix:assert-smoke": "bun src/cli.ts run --dry-run --agentv-root ../.. --filter examples/features/assert/evals/dataset.eval.yaml --out /tmp/agentv-phoenix-assert-smoke.json"
   },
   "files": ["dist", "README.md", "docs"],
   "dependencies": {
