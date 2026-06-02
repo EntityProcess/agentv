@@ -113,8 +113,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Use the AO-provided worktree and branch. Do not create additional worktrees, spawn unmanaged agents, or open duplicate PRs unless the user/AO explicitly asks.
 - Report lifecycle status through AO (`ao acknowledge`, `ao report working`, `ao report fixing-ci`, `ao report addressing-reviews`, `ao report needs-input`, and PR milestone reports).
 - When taking over an existing PR in AO, run `ao session claim-pr <number-or-url>` before editing. If AO or git shows another session/worktree owns it, coordinate rather than forcing checkout.
-- GitHub remains the external collaboration surface for issues, PRs, reviews, CI, and human-visible handoff.
-- Do not use Beads or any other tracker as routine live execution tracking. If Beads artifacts or skills exist, use them only when explicitly assigned by the user/AO for durable planning/backlog work.
+- GitHub Issues + Projects are the default AO task graph when GitHub is acceptable: use Issues for backlog, parent/sub-issue hierarchy, and explicit blocked-by/blocking dependencies; use Projects for shared views and progress. GitHub PRs/checks remain the review, CI, and merge surface.
 - `ep-spawn-agent` is disabled for normal AO-managed AgentV work because it creates unmanaged agents/worktrees outside AO's lifecycle.
 
 ### Worktree Setup
@@ -486,7 +485,7 @@ Complete E2E verification before marking a PR ready for review. Never push direc
 ### Tracker Conventions
 
 - AO is the source of truth for live worker ownership and session status.
-- GitHub issues/projects are the source of truth for external prioritization, collaboration, and durable human-visible state.
+- GitHub Issues + Projects are the default task graph for AO-managed work when acceptable, because they support durable backlog state, sub-issue hierarchy, and explicit blocked-by/blocking dependencies.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
 - `core`, `wui`, and `tui` are area labels.
