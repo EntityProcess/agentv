@@ -10,7 +10,7 @@ description: Use when starting, claiming, committing, pushing, opening, updating
 - Beads is the decentralized orchestration layer: task state, ownership, dependencies, discoveries, and durable project knowledge live in the bead graph.
 - GitHub is the collaboration surface: draft PRs, reviews, CI, merge coordination, and communication with other parties.
 - Interpret "do not use external issue trackers" as "do not create a second private task brain." GitHub PRs still handle code review and merge state.
-- Runtime stays lightweight: Beads tracks durable coordination state, `ep-spawn-agent` or manual worktree setup launches disposable workers, and git worktrees provide isolation.
+- Runtime stays lightweight: Beads tracks durable coordination state, the repo-standard bead launcher creates disposable worktree sessions, and git worktrees provide isolation. Use manual worktree setup only as a fallback when the launcher is unavailable or broken.
 
 Use Beads instead of markdown TODO lists:
 
@@ -27,11 +27,13 @@ bd dolt push
 
 ## Starting New Bead Work
 
-Prefer a bead-aware launcher when available:
+Use the repo-standard bead launcher:
 
 ```bash
 ep-spawn-agent <bead-id>
 ```
+
+Until a dedicated `bead-start` wrapper exists, `ep-spawn-agent <bead-id>` is the default launch path. Do not choose between multiple launch modes during normal work.
 
 The launcher should:
 
@@ -41,7 +43,7 @@ The launcher should:
 4. launch the agent with bead context;
 5. write the session/worktree/branch note back to the bead.
 
-Manual fallback:
+Manual fallback only when the launcher is unavailable or broken:
 
 ```bash
 bd show <id> --json

@@ -168,7 +168,7 @@ The Beads block above is managed by `bd setup codex`. For this repository, keep 
 
 - Beads is AgentV's decentralized orchestration layer: the bead graph is the source of truth for task state, ownership, dependencies, discoveries, and durable project memory.
 - GitHub is the collaboration surface: use it for draft PRs, reviews, CI, merge coordination, and communication with other parties. It does not replace Beads as the local task graph.
-- Use `ep-spawn-agent` or the manual worktree flow in `agentv-git-workflow` to launch bead-scoped workers. Sessions are disposable; bead state is durable.
+- Use the repo-standard bead launcher (`ep-spawn-agent <bead-id>` until a `bead-start` wrapper exists) to launch bead-scoped workers. The manual worktree flow in `agentv-git-workflow` is only a fallback when the launcher is unavailable or broken. Sessions are disposable; bead state is durable.
 - After the first meaningful commit for Beads-backed work, push the branch and open a draft PR. Continue pushing incremental commits to that draft PR so work is visible and recoverable before merge.
 - Before ending a work session, sync Beads with `bd dolt push`, push committed code with `git push`, and confirm the branch is up to date with its remote.
 - Do not create markdown TODO lists or separate memory files. Use `bd create` for follow-up work and `bd remember "insight"` for durable project memory.
