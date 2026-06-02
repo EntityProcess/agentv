@@ -68,6 +68,23 @@ tests:
     expect(suite.cases[1]?.assertions[0]?.type).toBe('contains');
   });
 
+  test('leaves assertion-only expected output absent for Phoenix synthesis', async () => {
+    const sourcePath = path.resolve('../../examples/features/assert/evals/dataset.eval.yaml');
+    const suite = await loadAgentVEvalSuite({
+      path: sourcePath,
+      relativePath: 'examples/features/assert/evals/dataset.eval.yaml',
+      kind: 'eval-yaml',
+    });
+
+    expect(suite.cases).toHaveLength(4);
+    expect(suite.cases.map((testCase) => testCase.expectedOutput)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
   test('normalizes Agent Skills evals.json', async () => {
     const root = fixtureRoot('skills');
     const evalPath = path.join(root, 'examples', 'features', 'agent-skills-evals', 'evals.json');

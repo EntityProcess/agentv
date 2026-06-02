@@ -39,10 +39,12 @@ function normalizeAssertion(assertion: unknown, index: number): NormalizedAssert
 
 function normalizeExpectedOutput(test: {
   readonly reference_answer?: string;
-  readonly expected_output?: unknown;
+  readonly expected_output?: readonly unknown[];
 }): unknown {
-  if (test.reference_answer !== undefined) return test.reference_answer;
-  return test.expected_output;
+  const hasExpectedOutput = (test.expected_output?.length ?? 0) > 0;
+  if (hasExpectedOutput) return test.reference_answer ?? test.expected_output;
+  if (test.reference_answer && test.reference_answer.length > 0) return test.reference_answer;
+  return undefined;
 }
 
 function deriveAgentVRoot(source: AgentVSource): string {
