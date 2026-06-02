@@ -6,7 +6,7 @@ COPY package.json bun.lock ./
 COPY packages/core/package.json packages/core/
 COPY packages/eval/package.json packages/eval/
 COPY apps/cli/package.json apps/cli/
-COPY apps/studio/package.json apps/studio/
+COPY apps/dashboard/package.json apps/dashboard/
 COPY apps/web/package.json apps/web/
 RUN bun install --frozen-lockfile
 COPY . .
@@ -62,7 +62,7 @@ COPY --from=build /app/packages/eval/package.json ./packages/eval/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist
 COPY --from=build /app/apps/cli/package.json ./apps/cli/
 COPY --from=build /app/apps/cli/node_modules ./apps/cli/node_modules
-COPY --from=build /app/apps/studio/dist ./apps/studio/dist
+COPY --from=build /app/apps/dashboard/dist ./apps/dashboard/dist
 
 USER agentv
 ENV PORT=3117

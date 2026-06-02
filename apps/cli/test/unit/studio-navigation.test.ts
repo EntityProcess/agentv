@@ -10,7 +10,7 @@ import {
   runPath,
   runsHomePath,
   suitePath,
-} from '../../../studio/src/lib/navigation.ts';
+} from '../../../dashboard/src/lib/navigation.ts';
 
 describe('studio navigation helpers', () => {
   it('redirects when the preferred project id matches a registered project', () => {

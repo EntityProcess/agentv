@@ -118,7 +118,7 @@ import myDetail from '../../../../assets/screenshots/my-detail.png';
 ```bash
 # Feature branch: UI changes
 cd /path/to/worktree
-git add apps/studio/...
+git add apps/dashboard/...
 git commit -m "fix(studio): ..."
 
 # Main repo: docs changes  
