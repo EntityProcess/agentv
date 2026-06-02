@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { getAgentvHome } from '../paths.js';
+import { getAgentvDataDir } from '../paths.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
@@ -82,7 +82,7 @@ export function normalizeResultsConfig(config: ResultsConfig): Required<ResultsC
   const repo = config.repo.trim();
   const resolvedPath = config.path
     ? expandHome(config.path.trim())
-    : path.join(getAgentvHome(), 'results', sanitizeRepoSlug(repo));
+    : path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repo));
   return {
     mode: 'github',
     repo,
@@ -100,7 +100,7 @@ export function resolveResultsRepoUrl(repo: string): string {
 }
 
 export function getResultsRepoLocalPaths(repo: string): ResultsRepoLocalPaths {
-  const rootDir = path.join(getAgentvHome(), 'cache', 'results-repo', sanitizeRepoSlug(repo));
+  const rootDir = path.join(getAgentvDataDir(), 'cache', 'results-repo', sanitizeRepoSlug(repo));
   return {
     rootDir,
     repoDir: path.join(rootDir, 'repo'),

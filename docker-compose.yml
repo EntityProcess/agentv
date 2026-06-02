@@ -7,10 +7,12 @@ services:
     environment:
       - PORT=${PORT:-3117}
       - HOME=/home/agentv
-      - AGENTV_HOME=/home/agentv/.agentv/data
+      - AGENTV_HOME=/home/agentv/.agentv
+      - AGENTV_DATA_DIR=/data/agentv
       - ANTHROPIC_API_KEY
     volumes:
       - ${AGENTV_HOME_DIR:-./.agentv-docker}:/home/agentv/.agentv
+      - ${AGENTV_DATA_DIR_HOST:-./.agentv-data-docker}:/data/agentv
       - ${AGENTV_PROJECTS_DIR:-./examples}:/data/projects/agentv-examples
       - ${AGENTV_RESULTS_DIR:-./results}:/data/results/agentv-evalresults
     command:

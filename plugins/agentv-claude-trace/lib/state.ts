@@ -5,7 +5,16 @@ import { join } from 'node:path';
 
 // Mirrors getTraceStateRoot() from packages/core/src/paths.ts — inlined to avoid
 // adding @agentv/core as a dependency for this lightweight plugin.
-const STATE_DIR = join(process.env.AGENTV_HOME ?? join(homedir(), '.agentv'), 'trace-state');
+function readEnvPath(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value || value === 'undefined') return undefined;
+  return value;
+}
+
+const STATE_DIR = join(
+  readEnvPath('AGENTV_DATA_DIR') ?? readEnvPath('AGENTV_HOME') ?? join(homedir(), '.agentv'),
+  'trace-state',
+);
 
 export interface SessionState {
   sessionId: string;

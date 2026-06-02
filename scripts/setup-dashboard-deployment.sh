@@ -166,11 +166,14 @@ write_project_config
 write_project_registry
 
 export AGENTV_HOME_DIR="$home_dir"
+export AGENTV_DATA_DIR_HOST="${AGENTV_DATA_DIR_HOST:-$home_dir/data}"
 export AGENTV_PROJECTS_DIR="$project_dir"
 export AGENTV_RESULTS_DIR="$results_dir"
 export AGENTV_UID="${AGENTV_UID:-$(id -u)}"
 export AGENTV_GID="${AGENTV_GID:-$(id -g)}"
 export PORT="$port"
+
+mkdir -p "$AGENTV_DATA_DIR_HOST"
 
 docker compose -f "$repo_root/docker-compose.yml" config >/dev/null
 
@@ -183,6 +186,7 @@ Deployment files are ready in $deploy_dir.
 
 Start later with:
   AGENTV_HOME_DIR=$home_dir \\
+  AGENTV_DATA_DIR_HOST=${AGENTV_DATA_DIR_HOST} \\
   AGENTV_PROJECTS_DIR=$project_dir \\
   AGENTV_RESULTS_DIR=$results_dir \\
   AGENTV_UID=${AGENTV_UID} \\

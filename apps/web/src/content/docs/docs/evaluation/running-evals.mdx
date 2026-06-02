@@ -390,9 +390,11 @@ agentv eval --strict evals/my-eval.yaml
 
 ## Config File Defaults
 
-Set default execution options so you don't have to pass them on every CLI invocation. Both `.agentv/config.yaml` and `agentv.config.ts` are supported.
+Set default execution options so you don't have to pass them on every CLI invocation. Project-local `.agentv/config.yaml`, home/global `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`), and `agentv.config.ts` are supported.
 
-### YAML config (`.agentv/config.yaml`)
+Project-local YAML config takes precedence over home/global YAML config. AgentV uses the first config file it finds; it does not merge project and global YAML files.
+
+### YAML config (`.agentv/config.yaml` or `$AGENTV_HOME/config.yaml`)
 
 ```yaml
 execution:
@@ -423,34 +425,69 @@ export default defineConfig({
 
 The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `2026-03-05T14-30-00-000Z`) at execution time.
 
-**Precedence:** CLI flags > `.agentv/config.yaml` > `agentv.config.ts` > built-in defaults.
+**Precedence:** CLI flags > project-local `.agentv/config.yaml` > home/global `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`) > `agentv.config.ts` > built-in defaults.
 
 ## Environment Variables
 
 ### AGENTV_HOME
 
-Override the data directory for heavy runtime artifacts — workspaces, workspace pool, subagents, trace state, git cache, and downloaded dependencies. Lightweight config and cache files (`version-check.json`, `last-config.json`, `projects.yaml`) always stay in `~/.agentv` regardless of this setting.
+Override AgentV's lightweight home/config directory. This directory stores files such as `config.yaml`, `projects.yaml`, `version-check.json`, `last-config.json`, and managed helper binaries.
 
 ```bash
 # Linux/macOS
-export AGENTV_HOME=/data/agentv
+export AGENTV_HOME=/config/agentv
 
 # Windows (PowerShell)
-$env:AGENTV_HOME = "D:\agentv"
+$env:AGENTV_HOME = "D:\agentv-config"
 
 # Windows (CMD)
-set AGENTV_HOME=D:\agentv
+set AGENTV_HOME=D:\agentv-config
 ```
 
-When set, AgentV logs `Using AGENTV_HOME: <path>` on startup to confirm the override is active.
+When unset, AgentV uses `~/.agentv`.
+
+### AGENTV_DATA_DIR
+
+Override the heavy runtime data directory for workspaces, workspace pool, subagents, trace state, git caches, downloaded dependencies, and results repository clones. If `AGENTV_DATA_DIR` is unset, AgentV stores heavy data in `AGENTV_HOME` (or `~/.agentv`) for backward compatibility.
+
+```bash
+# Linux/macOS
+export AGENTV_HOME=/config/agentv
+export AGENTV_DATA_DIR=/data/agentv
+
+# Windows (PowerShell)
+$env:AGENTV_HOME = "D:\agentv-config"
+$env:AGENTV_DATA_DIR = "E:\agentv-data"
+
+# Windows (CMD)
+set AGENTV_HOME=D:\agentv-config
+set AGENTV_DATA_DIR=E:\agentv-data
+```
 
 :::tip[Windows long paths]
-If you use a custom `AGENTV_HOME` on Windows for large monorepo workspaces, enable long path support:
+If you use a custom `AGENTV_DATA_DIR` on Windows for large monorepo workspaces, enable long path support:
 ```powershell
 git config --system core.longpaths true
 ```
 Or set the registry key: `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled = 1`
 :::
+
+### Docker directories
+
+Keep the container user's `HOME`, AgentV config home, and AgentV heavy data directory separate so config files and large runtime artifacts can be mounted independently:
+
+```bash
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/home/agentv \
+  -e AGENTV_HOME=/home/agentv/.agentv \
+  -e AGENTV_DATA_DIR=/data/agentv \
+  -v agentv-home:/home/agentv/.agentv \
+  -v agentv-data:/data/agentv \
+  -v "$PWD:/workspace" \
+  -w /workspace \
+  agentv
+```
 
 ## All Options
 
