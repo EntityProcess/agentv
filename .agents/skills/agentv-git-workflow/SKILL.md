@@ -57,6 +57,23 @@ cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
 codex-eng
 ```
 
+## Beads Viewer
+
+`bv` is optional graph/kanban visibility for the Beads graph. For agents, never run bare `bv` because it opens the interactive TUI and blocks the session. Use robot-mode commands only:
+
+```bash
+bv --robot-next
+bv --robot-triage
+bv --robot-plan
+bv --robot-graph
+```
+
+In worktrees where `.beads` is not present, point `bv` at the canonical project Beads directory:
+
+```bash
+bv --db /home/entity/projects/EntityProcess/agentv/.beads --robot-triage
+```
+
 ## Worktrees
 
 For feature, bug fix, or non-trivial repo changes, work from a dedicated sibling worktree based on latest `origin/main`. Keep the primary checkout clean; do not do feature work in the main folder.
@@ -102,7 +119,7 @@ gh pr create --draft --title "<type>(scope): summary" --body "Refs <bead-id>"
 bd note <bead-id> "Draft PR: <url>"
 ```
 
-Do not push directly to `main`.
+Do not push directly to `main`. The default branch is `main`; do not use or document `master` for AgentV workflows.
 
 ## PR Readiness
 

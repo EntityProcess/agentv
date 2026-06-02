@@ -47,6 +47,10 @@ Use `agent-browser` for docs site verification. Always pass `--session <name>` a
 
 If session launch hangs with EAGAIN on ARM64, pre-start Chrome with CDP and use `agent-browser --cdp 9222`.
 
+## Browser Safety In Tests
+
+Automated tests should not unexpectedly open a graphical browser. For browser-dependent behavior, prefer headless `agent-browser` verification or explicit opt-in test hooks. If adding code that can launch a browser, guard it behind environment checks or explicit user action.
+
 ## Agent Provider Evals
 
 Limit coding-agent provider eval concurrency to 3 targets at a time for `claude`, `claude-sdk`, `codex`, `copilot`, `copilot-sdk`, `pi`, and `pi-cli`. Lightweight LLM-only targets can use higher concurrency.
@@ -58,6 +62,8 @@ Limit coding-agent provider eval concurrency to 3 targets at a time for `claude`
 - Avoid tests for obvious one-line behavior unless it is a regression risk.
 - Regression tests matter more than broad happy-path duplication.
 - Tests are executable contracts; update them when behavior promises change.
+- Use table-driven tests when multiple cases exercise the same behavior.
+- Use temporary directories/helpers for filesystem tests; do not write persistent test artifacts into the repo.
 
 ## Completion Checklist
 

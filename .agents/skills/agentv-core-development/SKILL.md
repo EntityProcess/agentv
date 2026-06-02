@@ -41,6 +41,14 @@ If you notice existing overengineering while working, create a Beads issue title
 - `apps/web/`: documentation site.
 - `examples/`: documentation and integration coverage.
 
+## Code Editing Discipline
+
+- Revise existing files in place when the feature belongs there; avoid creating `*-v2`, `*-new`, `*-improved`, or similarly duplicative files.
+- New files are appropriate for genuinely new modules, skills, examples, or docs, but do not create throwaway variants as a substitute for understanding the existing code.
+- Avoid broad script-based rewrites of source code. For code changes, prefer targeted edits after reading enough context; scripts are acceptable for mechanical verification, generated outputs, or narrow non-code maintenance where risk is low.
+- Do not delete files or folders without explicit permission. If cleanup is needed, ask or use a reversible alternative.
+- If using a third-party library/API and you are not sure about current usage, consult current official docs before changing the integration.
+
 ## TypeScript
 
 - Prefer inference over explicit types when clear.

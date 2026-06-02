@@ -29,6 +29,14 @@ Before non-trivial work, load the relevant skill:
 - Use conventional commit and PR titles: `type(scope): summary`.
 - Do not create markdown TODO lists or memory files. Beads is the canonical decentralized task graph, coordination state, and agent memory.
 
+## Safety Guardrails
+
+- The user is in charge. If an explicit user instruction conflicts with repo habits, follow the user unless it would be unsafe or impossible.
+- Do not delete files or folders without explicit permission. This includes temporary files you created unless the user already approved that cleanup.
+- Never run destructive cleanup/reset commands such as `git reset --hard`, `git clean -fd`, or broad `rm -rf` unless the user gives the exact command and explicitly confirms the irreversible consequences.
+- Prefer non-destructive recovery: inspect with `git status` / `git diff`, move aside, stash, or ask before overwriting work.
+- Do not push directly to `main`; all code changes land through branches and PRs.
+
 ## Key Paths
 
 - `packages/core/`: evaluation engine, providers, grading, registry, programmatic API.
