@@ -68,6 +68,49 @@ tests:
     expect(suite.cases[1]?.assertions[0]?.type).toBe('contains');
   });
 
+  test('preserves present object and empty-string expected output values', async () => {
+    const root = fixtureRoot('expected-values');
+    const evalPath = path.join(
+      root,
+      'examples',
+      'features',
+      'expected-values',
+      'evals',
+      'dataset.eval.yaml',
+    );
+    mkdirSync(path.dirname(evalPath), { recursive: true });
+    writeFileSync(
+      evalPath,
+      `name: expected-values
+tests:
+  - id: object-output
+    input: hi
+    expected_output:
+      ok: true
+  - id: empty-string-output
+    input: hi
+    expected_output: ""
+  - id: assertion-only
+    input: hi
+    assertions:
+      - type: contains
+        value: ok
+`,
+    );
+
+    const suite = await loadAgentVEvalSuite({
+      path: evalPath,
+      relativePath: 'examples/features/expected-values/evals/dataset.eval.yaml',
+      kind: 'eval-yaml',
+    });
+
+    expect(suite.cases.map((testCase) => testCase.expectedOutput)).toEqual([
+      '{\n  "ok": true\n}',
+      '',
+      undefined,
+    ]);
+  });
+
   test('leaves assertion-only expected output absent for Phoenix synthesis', async () => {
     const sourcePath = path.resolve('../../examples/features/assert/evals/dataset.eval.yaml');
     const suite = await loadAgentVEvalSuite({
