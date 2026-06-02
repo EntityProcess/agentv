@@ -1,0 +1,32 @@
+{
+  "name": "@agentv/phoenix-adapter",
+  "version": "4.31.4-next.1",
+  "description": "Phoenix execution and observability adapter for AgentV eval YAML suites",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "(cd ../core && bun run build) && tsup",
+    "typecheck": "(cd ../core && bun run build) && tsc --noEmit",
+    "test": "(cd ../core && bun run build) && bun test",
+    "phoenix:dry-run": "bun src/cli.ts run --dry-run --agentv-root ../.. --out reports/dry-run.json",
+    "phoenix:assert-smoke": "bun src/cli.ts run --dry-run --agentv-root ../.. --filter examples/features/assert/evals/dataset.eval.yaml --out reports/assert-smoke.json"
+  },
+  "files": ["dist", "README.md", "docs"],
+  "dependencies": {
+    "@agentv/core": "workspace:*",
+    "@arizeai/phoenix-client": "6.10.0",
+    "@arizeai/phoenix-evals": "1.0.3"
+  },
+  "devDependencies": {
+    "tsup": "8.3.5",
+    "typescript": "5.8.3"
+  }
+}

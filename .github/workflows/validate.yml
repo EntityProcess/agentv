@@ -51,5 +51,8 @@ jobs:
       - name: Check evals directories have eval files
         run: bun scripts/validate-eval-dirs.ts
 
+      - name: Run Phoenix adapter dry-run smoke
+        run: bun run phoenix:assert-smoke
+
       - name: Validate eval schemas
         run: bun apps/cli/dist/cli.js validate 'examples/features/**/evals/**/*.eval.yaml' 'examples/features/**/*.EVAL.yaml'
