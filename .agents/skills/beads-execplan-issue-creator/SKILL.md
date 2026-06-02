@@ -1,9 +1,11 @@
 ---
 name: beads-execplan-issue-creator
-description: Use when converting an approved implementation plan or ExecPlan into dependency-aware Beads epics/issues for AgentV work. Creates a durable task graph with acceptance criteria, verification commands, invariants, and parallelization notes.
+description: Optional; use only when the user/AO explicitly asks to convert an approved implementation plan or ExecPlan into dependency-aware Beads epics/issues for AgentV work.
 ---
 
 # Beads ExecPlan Issue Creator
+
+This is an optional Beads planning playbook. In AO-managed sessions, do not use it unless the user or AO explicitly assigns Beads planning. AO remains the live orchestration layer; GitHub remains the external collaboration record.
 
 Convert one approved plan into high-quality Beads tracking in two passes:
 
@@ -19,9 +21,11 @@ If `ROOT_EPIC_ID` is omitted, create a root epic from the plan title and purpose
 
 ## Rules
 
-- Use `bd ... --json` for tracking operations.
+- Use `bd ... --json` for Beads operations only after explicit assignment.
+- Do not create Beads as a parallel live tracker for AO-managed work.
+- Do not invoke `ep-spawn-agent`, launch unmanaged agents, or create extra worktrees.
 - Use `--dry-run` before large `bd create` bursts when the command supports it.
-- Keep plan markdown as planning input; Beads becomes the execution source of truth.
+- Keep plan markdown as planning input; Beads can become durable backlog/planning context for the explicitly assigned Beads scope, but AO remains the live execution source of truth.
 - Prefer fewer high-confidence beads over many vague beads.
 - Ask for clarification when dependency edges or scope boundaries are ambiguous enough to risk incorrect work.
 - Do not serialize independent work. Use dependencies only for true blockers.

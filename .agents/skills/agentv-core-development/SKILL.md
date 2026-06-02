@@ -24,7 +24,7 @@ AgentV is a TypeScript monorepo for a declarative AI agent evaluation framework.
 - New fields must be optional and non-breaking.
 - Design for AI agents: intuitive primitives, self-documenting modules, concise extension recipes in file headers, and no dead speculative infrastructure.
 
-If you notice existing overengineering while working, create a Beads issue titled `cleanup: simplify X` with current behavior, simpler model, migration notes, and code links. Do not widen the current PR unless asked.
+If you notice existing overengineering while working, flag it through the active AO/GitHub workflow (for example, open a GitHub issue or report it in the PR) with current behavior, simpler model, migration notes, and code links. Do not widen the current PR unless asked.
 
 ## Stack
 

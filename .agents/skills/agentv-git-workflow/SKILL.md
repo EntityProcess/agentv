@@ -1,90 +1,46 @@
 ---
 name: agentv-git-workflow
-description: Use when starting, claiming, committing, pushing, opening, updating, reviewing, merging, or cleaning up AgentV work. Covers Beads as decentralized orchestration, GitHub as collaboration surface, worktrees, draft PRs, existing PR takeover, and merge cleanup.
+description: Use when starting, claiming, committing, pushing, opening, updating, reviewing, merging, or cleaning up AgentV work. Covers AO-first session/worktree/PR lifecycle, GitHub collaboration, manual fallback worktrees, existing PR takeover, and merge cleanup.
 ---
 
 # AgentV Git Workflow
 
 ## Tracking Model
 
-- Beads is the decentralized orchestration layer: task state, ownership, dependencies, discoveries, and durable project knowledge live in the bead graph.
-- GitHub is the collaboration surface: draft PRs, reviews, CI, merge coordination, and communication with other parties.
-- Interpret "do not use external issue trackers" as "do not create a second private task brain." GitHub PRs still handle code review and merge state.
-- Runtime stays lightweight: Beads tracks durable coordination state, the repo-standard bead launcher creates disposable worktree sessions, and git worktrees provide isolation. Use manual worktree setup only as a fallback when the launcher is unavailable or broken.
+- AO (Composio Agent Orchestrator) is the orchestration layer for live coding work: assignment, worker ownership, status, worktree lifecycle, PR claiming, and visualization.
+- GitHub is the external collaboration surface: PRs, reviews, CI, merge coordination, issues, and human-visible handoff.
+- Beads (`bd`) is optional durable planning/backlog context only when explicitly assigned by the user/AO. Do not use Beads as routine live execution tracking in AO-managed sessions.
+- Do not create competing task trackers, markdown TODO ledgers, unmanaged agent sessions, or duplicate PRs.
 
-Use Beads instead of markdown TODO lists:
+## AO-Managed Sessions
 
-```bash
-bd ready --json
-bd show <id> --json
-bd create "Issue title" --description="Detailed context" -t bug|feature|task|chore|epic -p 0-4 --json
-bd update <id> --claim --json
-bd update <id> --status in_progress --json
-bd close <id> --reason "Completed" --json
-bd remember "durable project insight"
-bd dolt push
-```
+When `AO_SESSION_ID` is present or the task says it is an AO worker session:
 
-## Starting New Bead Work
+1. Acknowledge and report status with AO commands (`ao acknowledge`, `ao report working`, `ao report fixing-ci`, `ao report addressing-reviews`, `ao report needs-input`).
+2. Use the AO-provided worktree and branch unless AO/user instructs otherwise.
+3. For an existing PR, run `ao session claim-pr <number-or-url>` before editing. If claim or checkout indicates another AO session/worktree owns the branch, coordinate instead of forcing checkout.
+4. Push focused commits to the claimed PR branch and report PR milestones with `ao report pr-created --pr-url <url>`, `draft-pr-created`, or `ready-for-review` as appropriate.
+5. Do not invoke `ep-spawn-agent`, launch sub-agents, create extra worktrees, or create Beads tasks for live tracking unless AO/user explicitly asks.
 
-Use the repo-standard bead launcher:
+## ep-spawn-agent Verdict
 
-```bash
-ep-spawn-agent <bead-id>
-```
+`ep-spawn-agent` is disabled for normal AgentV work under AO. It may only be used in a non-AO environment or with explicit AO/user instruction for a Beads experiment. In AO-managed sessions it conflicts with AO ownership, visualization, worktree, and PR lifecycle, so prefer AO workers/harnesses instead.
 
-Until a dedicated `bead-start` wrapper exists, `ep-spawn-agent <bead-id>` is the default launch path. Do not choose between multiple launch modes during normal work.
+## Manual Fallback Outside AO
 
-The launcher should:
-
-1. read the bead with `bd show <bead-id> --json`;
-2. claim or mark it in progress;
-3. create a fresh sibling worktree from latest `origin/main`;
-4. launch the agent with bead context;
-5. write the session/worktree/branch note back to the bead.
-
-Manual fallback only when the launcher is unavailable or broken:
+For feature, bug fix, or non-trivial repo changes outside AO, work from a dedicated sibling worktree based on latest `origin/main`:
 
 ```bash
-bd show <id> --json
-bd update <id> --claim --json
-bd update <id> --status in_progress --json
 git fetch origin
-git worktree add ../agentv.worktrees/<id> -b work/<id> origin/main
-cd ../agentv.worktrees/<id>
+git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<short-desc> origin/main
+cd ../agentv.worktrees/<type>-<short-desc>
 bun install
-cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
-codex-eng
+cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env 2>/dev/null || true
 ```
 
-## Beads Viewer
-
-`bv` is optional graph/kanban visibility for the Beads graph. For agents, never run bare `bv` because it opens the interactive TUI and blocks the session. Use robot-mode commands only:
-
-```bash
-bv --robot-next
-bv --robot-triage
-bv --robot-plan
-bv --robot-graph
-```
-
-In worktrees where `.beads` is not present, point `bv` at the canonical project Beads directory:
-
-```bash
-bv --db /home/entity/projects/EntityProcess/agentv/.beads --robot-triage
-```
-
-## Worktrees
-
-For feature, bug fix, or non-trivial repo changes, work from a dedicated sibling worktree based on latest `origin/main`. Keep the primary checkout clean; do not do feature work in the main folder.
-
-AgentV worktrees live in sibling `../agentv.worktrees/`, not `.worktrees/` inside the repo and not the primary checkout.
-
-After checking out a branch or PR, run `bun install` if `package.json` or `bun.lock` may have changed.
+Keep the primary checkout clean. Do not push directly to `main`.
 
 ## Existing PR Takeover
-
-When continuing an existing PR, keep the PR branch as the source of truth for code and use Beads for durable task state/handoff.
 
 1. Inspect the PR first:
 
@@ -93,33 +49,27 @@ When continuing an existing PR, keep the PR branch as the source of truth for co
    gh pr checks <number> --watch=false
    ```
 
-2. Check out the PR branch. If Git reports the branch is already used by another worktree, do not force it; `cd` into that existing worktree instead.
+2. In AO, claim with `ao session claim-pr <number-or-url>` and use the resulting worktree/branch. If the branch is already used by another worktree, do not force it; coordinate or `cd` into the existing worktree only when that is the safe continuation path.
+
+3. Outside AO, check out the PR branch manually:
 
    ```bash
    gh pr checkout <number>
    # or: cd /path/to/existing/worktree
    ```
 
-3. Make or update a bead for the continuation if one is not already provided. Reference the PR number in the bead description or notes.
-
-   ```bash
-   bd create "Continue PR <number>: <summary>" --description="Current state, requested changes, and handoff context" -t task -p 1 --json
-   bd note <id> "Working tree: <path>; PR: https://github.com/EntityProcess/agentv/pull/<number>"
-   ```
-
 4. Push focused commits to the existing PR branch. Do not create a second PR for the same work.
 
-## Draft PRs
+## PRs and Pushing
 
-After the first meaningful commit, push and open a draft PR. Continue pushing meaningful checkpoints.
+After the first meaningful commit, push and open or update a PR. In AO, prefer the PR lifecycle requested by the orchestrator; otherwise open a draft PR for in-progress work.
 
 ```bash
 git push -u origin HEAD
-gh pr create --draft --title "<type>(scope): summary" --body "Refs <bead-id>"
-bd note <bead-id> "Draft PR: <url>"
+gh pr create --draft --title "<type>(scope): summary" --body "<summary and verification plan>"
 ```
 
-Do not push directly to `main`. The default branch is `main`; do not use or document `master` for AgentV workflows.
+Use conventional commit and PR titles: `type(scope): summary`.
 
 ## PR Readiness
 
@@ -130,12 +80,11 @@ Before marking ready:
 ```bash
 gh pr checks <number> --watch=false
 gh pr view <number> --json isDraft,mergeStateStatus,reviewDecision,statusCheckRollup
-bd note <bead-id> "Verification complete: <summary>"
 ```
 
 ## Merge and Cleanup
 
-Use squash merge only:
+Use squash merge only when explicitly responsible for merging:
 
 ```bash
 gh pr merge <PR_NUMBER> --squash --delete-branch
@@ -143,13 +92,4 @@ gh pr merge <PR_NUMBER> --squash --delete-branch
 
 After squash merge, do not continue pushing to the old branch. Start follow-up fixes from fresh `main`.
 
-Before ending a session:
-
-```bash
-git status
-bd dolt push
-git push
-git status
-```
-
-Work is not complete until both Beads state and git commits are pushed.
+Before ending a session, ensure committed work is pushed and report the current state through AO when running under AO.

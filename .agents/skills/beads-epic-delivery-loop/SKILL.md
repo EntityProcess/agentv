@@ -1,9 +1,11 @@
 ---
 name: beads-epic-delivery-loop
-description: Use when executing a top-level Beads epic end-to-end for AgentV. Iterates unblocked tasks with claim, implement, test, review, commit, close, and repeat until completion or a hard stop condition.
+description: Optional; use only when the user/AO explicitly assigns a Beads epic for AgentV. Iterates unblocked tasks with claim, implement, test, review, commit, close, and repeat without spawning unmanaged agents.
 ---
 
 # Beads Epic Delivery Loop
+
+This is an optional Beads execution playbook. In AO-managed sessions, do not use it unless the user or AO explicitly assigns a Beads epic. AO remains the live orchestration layer for session ownership, worktrees, PR claiming, status, and visualization.
 
 Execute a top-level epic by repeatedly selecting unblocked work, implementing only the selected scope, verifying, reviewing, committing, and closing tasks.
 
@@ -14,7 +16,9 @@ Execute a top-level epic by repeatedly selecting unblocked work, implementing on
 
 ## Required Rules
 
-- Use `bd ... --json` for issue-tracking operations.
+- Use `bd ... --json` for Beads operations only after explicit assignment.
+- Do not invoke `ep-spawn-agent`, launch unmanaged agents, or create extra worktrees inside an AO-managed session.
+- Do not let Beads claims/status override AO session or PR ownership.
 - Keep statuses accurate: `open` -> `in_progress` -> `closed`, or `blocked` with a clear reason.
 - Do not work outside `EPIC_ID` and its descendants.
 - Do not close a bead until acceptance criteria and verification are satisfied.
