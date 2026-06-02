@@ -66,6 +66,22 @@ describe('deterministic evaluator adapters', () => {
     expect(result.score).toBe(1);
   });
 
+  test('equals preserves explicit null expected values', () => {
+    const pass = evaluateAssertion(
+      { type: 'equals', expected: null },
+      { output: null, expectedOutput: 'fallback' },
+    );
+    const fail = evaluateAssertion(
+      { type: 'equals', expected: null },
+      { output: 'fallback', expectedOutput: 'fallback' },
+    );
+
+    expect(pass.passed).toBe(true);
+    expect(pass.score).toBe(1);
+    expect(fail.passed).toBe(false);
+    expect(fail.score).toBe(0);
+  });
+
   test('equals can fall back to context expected output', () => {
     const result = evaluateAssertion(
       { type: 'equals' },

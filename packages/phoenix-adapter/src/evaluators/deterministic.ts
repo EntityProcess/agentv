@@ -83,7 +83,9 @@ function evaluateEquals(
   assertion: NormalizedAssertionConfig,
   context: EvaluationContext,
 ): EvaluatorResult {
-  const expected = assertionValue(assertion) ?? context.expectedOutput;
+  const expected = hasAssertionValue(assertion)
+    ? assertionValue(assertion)
+    : context.expectedOutput;
   const passed = stableValue(context.output) === stableValue(expected);
 
   return result(
@@ -101,6 +103,15 @@ function evaluateIsJson(
   const passed = parsed.ok;
 
   return result(assertion, passed, passed ? 'Output is valid JSON' : parsed.reason);
+}
+
+function hasAssertionValue(assertion: NormalizedAssertionConfig): boolean {
+  return (
+    'value' in assertion ||
+    'expected' in assertion ||
+    'text' in assertion ||
+    'substring' in assertion
+  );
 }
 
 function assertionValue(assertion: NormalizedAssertionConfig): unknown {

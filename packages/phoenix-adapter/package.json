@@ -23,7 +23,8 @@
   "dependencies": {
     "@agentv/core": "workspace:*",
     "@arizeai/phoenix-client": "6.10.0",
-    "@arizeai/phoenix-evals": "1.0.3"
+    "@arizeai/phoenix-evals": "1.0.3",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "tsup": "8.3.5",
