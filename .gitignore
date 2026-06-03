@@ -30,8 +30,12 @@ agent-orchestrator.yaml
 .opencode/
 .ao/
 
-# Gas Town (added by gt)
-.beads/
+# Gas Town / Beads shared state
+.beads/.br_history/
+.beads/.bv.lock
 .runtime/
 .logs/
 state.json
+
+# bv (beads viewer) local config and caches
+.bv/
