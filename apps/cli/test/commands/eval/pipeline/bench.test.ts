@@ -59,8 +59,7 @@ describe('pipeline bench', () => {
     await rm(OUT_DIR, { recursive: true, force: true });
   });
 
-  it('writes grading.json with merged scores and pass_rate', async () => {
-    // Write LLM grader result to disk (the default flow)
+  it('writes grading, index, and benchmark artifacts', async () => {
     await writeFile(
       join(OUT_DIR, 'test-01', 'llm_grader_results', 'relevance.json'),
       JSON.stringify({
@@ -76,19 +75,6 @@ describe('pipeline bench', () => {
     expect(grading.summary.pass_rate).toBeGreaterThan(0);
     expect(grading.assertions.length).toBeGreaterThan(0);
     expect(grading.graders).toHaveLength(2);
-  }, 30_000);
-
-  it('writes index.jsonl with one entry per test', async () => {
-    await writeFile(
-      join(OUT_DIR, 'test-01', 'llm_grader_results', 'relevance.json'),
-      JSON.stringify({
-        score: 0.8,
-        assertions: [{ text: 'Relevant', passed: true }],
-      }),
-    );
-
-    const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const lines = indexContent
@@ -98,19 +84,6 @@ describe('pipeline bench', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0].test_id).toBe('test-01');
     expect(lines[0].score).toBeGreaterThan(0);
-  }, 30_000);
-
-  it('writes benchmark.json with run_summary', async () => {
-    await writeFile(
-      join(OUT_DIR, 'test-01', 'llm_grader_results', 'relevance.json'),
-      JSON.stringify({
-        score: 0.8,
-        assertions: [{ text: 'ok', passed: true }],
-      }),
-    );
-
-    const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
     const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
     expect(benchmark.metadata.targets).toContain('test-target');

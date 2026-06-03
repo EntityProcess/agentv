@@ -62,6 +62,17 @@ agentv dashboard .agentv/results/runs/2026-03-30T11-45-56-989Z
 - **Analytics** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags. Includes a collapsible charts section with baseline comparison analytics
 - **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
 
+## Pass threshold
+
+Dashboard treats scores greater than or equal to the configured threshold as passing when it calculates pass rates. Configure this in `.agentv/config.yaml`:
+
+```yaml
+dashboard:
+  threshold: 0.8
+```
+
+Legacy `studio.threshold`, `studio.pass_threshold`, and root-level `pass_threshold` values are still read for existing projects. When Dashboard saves settings, it writes the canonical `dashboard.threshold` field and preserves unrelated config.
+
 ## Run Detail
 
 Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from.
@@ -182,14 +193,11 @@ This satisfies the 24/7-Dashboard use case: the server stays up; projects come a
 
 ### Launching the Dashboard
 
-Dashboard auto-detects the mode based on how many projects are registered:
-
-- `0` or `1` registered: single-project view
-- `2+` registered: Projects dashboard
+Dashboard opens the Projects dashboard by default, even when no projects or one project are registered. When launched from a registered project, the UI redirects to that project's runs tab on first load. Use `--single` only when you need the legacy single-project route layout.
 
 ```bash
-agentv dashboard          # auto-detects
-agentv dashboard --single # force single-project view
+agentv dashboard          # Projects dashboard
+agentv dashboard --single # legacy single-project route layout
 ```
 
 The landing page shows a card for each project with run count, pass rate, and last run time.
