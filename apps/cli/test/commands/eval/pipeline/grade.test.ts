@@ -46,7 +46,7 @@ describe('pipeline grade', () => {
     await rm(OUT_DIR, { recursive: true, force: true });
   });
 
-  it('writes code_grader_results/<name>.json with score', async () => {
+  it('writes code_grader_results/<name>.json with score and assertions', async () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
 
@@ -55,15 +55,6 @@ describe('pipeline grade', () => {
     );
     expect(result.score).toBe(1);
     expect(result.name).toBe('always_pass');
-  }, 30_000);
-
-  it('includes assertions from code grader output', async () => {
-    const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
-
-    const result = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'always_pass.json'), 'utf8'),
-    );
     expect(result.assertions).toHaveLength(1);
     expect(result.assertions[0].passed).toBe(true);
   }, 30_000);
@@ -83,7 +74,6 @@ describe('pipeline grade — builtin assertions', () => {
       JSON.stringify({ input: [{ role: 'user', content: 'say hello' }] }),
     );
 
-    // contains assertion — should pass
     await writeFile(
       join(builtinGradersDir, 'has_hello.json'),
       JSON.stringify({
@@ -95,7 +85,6 @@ describe('pipeline grade — builtin assertions', () => {
       }),
     );
 
-    // regex assertion — should pass
     await writeFile(
       join(builtinGradersDir, 'matches_pattern.json'),
       JSON.stringify({
@@ -107,7 +96,6 @@ describe('pipeline grade — builtin assertions', () => {
       }),
     );
 
-    // contains assertion — should fail
     await writeFile(
       join(builtinGradersDir, 'has_goodbye.json'),
       JSON.stringify({
@@ -134,48 +122,37 @@ describe('pipeline grade — builtin assertions', () => {
     await rm(BUILTIN_OUT, { recursive: true, force: true });
   });
 
-  it('evaluates contains assertion and writes result', async () => {
+  it('evaluates builtin assertions and writes results', async () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', BUILTIN_OUT]);
 
-    const result = JSON.parse(
+    const containsResult = JSON.parse(
       await readFile(join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'has_hello.json'), 'utf8'),
     );
-    expect(result.score).toBe(1);
-    expect(result.type).toBe('contains');
-    expect(result.assertions[0].passed).toBe(true);
-  }, 30_000);
+    expect(containsResult.score).toBe(1);
+    expect(containsResult.type).toBe('contains');
+    expect(containsResult.assertions[0].passed).toBe(true);
 
-  it('evaluates regex assertion and writes result', async () => {
-    const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', BUILTIN_OUT]);
-
-    const result = JSON.parse(
+    const regexResult = JSON.parse(
       await readFile(
         join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'matches_pattern.json'),
         'utf8',
       ),
     );
-    expect(result.score).toBe(1);
-    expect(result.type).toBe('regex');
-  }, 30_000);
+    expect(regexResult.score).toBe(1);
+    expect(regexResult.type).toBe('regex');
 
-  it('scores 0 when contains assertion does not match', async () => {
-    const { execa } = await import('execa');
-    await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', BUILTIN_OUT]);
-
-    const result = JSON.parse(
+    const failingContainsResult = JSON.parse(
       await readFile(
         join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'has_goodbye.json'),
         'utf8',
       ),
     );
-    expect(result.score).toBe(0);
-    expect(result.assertions[0].passed).toBe(false);
+    expect(failingContainsResult.score).toBe(0);
+    expect(failingContainsResult.assertions[0].passed).toBe(false);
   }, 30_000);
 
   it('applies negate to invert score', async () => {
-    // Overwrite has_goodbye with negate: true — "not contains goodbye" should pass
     await writeFile(
       join(BUILTIN_OUT, 'test-01', 'code_graders', 'has_goodbye.json'),
       JSON.stringify({
