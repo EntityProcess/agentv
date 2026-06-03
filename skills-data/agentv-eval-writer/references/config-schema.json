@@ -37,10 +37,31 @@
           "description": "Always keep temp workspaces after eval (equivalent to --keep-workspaces)",
           "default": false
         },
+        "export_otel": {
+          "type": "boolean",
+          "description": "Stream traces via OTLP/HTTP to the configured endpoint or backend preset (equivalent to --export-otel)",
+          "default": false
+        },
+        "otel_backend": {
+          "type": "string",
+          "description": "Use a known OTel backend preset (equivalent to --otel-backend).",
+          "enum": ["braintrust", "langfuse", "confident", "phoenix"],
+          "examples": ["phoenix"]
+        },
         "otel_file": {
           "type": "string",
           "description": "Write OTLP JSON trace to this path (equivalent to --otel-file). Supports {timestamp} placeholder.",
           "examples": [".agentv/results/otel-{timestamp}.json"]
+        },
+        "otel_capture_content": {
+          "type": "boolean",
+          "description": "Include message and tool content in exported OTel spans (equivalent to --otel-capture-content). Disabled by default for privacy.",
+          "default": false
+        },
+        "otel_group_turns": {
+          "type": "boolean",
+          "description": "Group multi-turn messages under agentv.turn.N spans (equivalent to --otel-group-turns).",
+          "default": false
         }
       },
       "additionalProperties": false

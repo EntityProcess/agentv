@@ -143,7 +143,7 @@ export const evalRunCommand = command({
     otelBackend: option({
       type: optional(string),
       long: 'otel-backend',
-      description: 'Use a backend preset (langfuse, braintrust, confident)',
+      description: 'Use a backend preset (langfuse, braintrust, confident, phoenix)',
     }),
     otelCaptureContent: flag({
       long: 'otel-capture-content',

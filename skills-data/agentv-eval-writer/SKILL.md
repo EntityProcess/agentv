@@ -543,6 +543,9 @@ agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run] [--thresh
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
+# Stream traces to an OTel backend preset
+agentv eval <file.yaml> --export-otel --otel-backend phoenix
+
 # Run a single assertion in isolation (no API keys needed)
 agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 

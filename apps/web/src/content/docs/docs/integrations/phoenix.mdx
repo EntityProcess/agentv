@@ -1,0 +1,127 @@
+---
+title: Phoenix
+description: Export AgentV traces to Phoenix and understand the repo-local Phoenix adapter
+sidebar:
+  order: 2
+---
+
+AgentV integrates with [Arize Phoenix](https://arize.com/docs/phoenix/) through two separate surfaces:
+
+- **OTLP trace export** from normal `agentv eval` runs. This is the primary supported path for observing AgentV executions in Phoenix.
+- **Repo-local dataset/experiment adapter** in `packages/phoenix-adapter`. This keeps AgentV eval YAML as the source of truth while converting suites into Phoenix dataset and experiment payloads. The adapter is private and intentionally limited while parity work continues.
+
+AgentV scoring remains authoritative for AgentV-authored evals. Phoenix receives traces, run metadata, and adapter experiment artifacts; it does not replace AgentV's YAML loader, target runner, workspace lifecycle, or grader semantics.
+
+## Quick Start: Trace Export
+
+Start Phoenix locally or point AgentV at a hosted Phoenix collector endpoint:
+
+```bash
+# Local Phoenix default: http://localhost:6006
+agentv eval evals/my-eval.yaml --export-otel --otel-backend phoenix
+
+# Hosted or remote Phoenix
+export PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/my-space
+export PHOENIX_API_KEY=px-...
+export PHOENIX_PROJECT_NAME=agentv-evals
+
+agentv eval evals/my-eval.yaml --export-otel --otel-backend phoenix
+```
+
+The `phoenix` preset sends standard OTLP/HTTP traces to `{PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`. If `PHOENIX_COLLECTOR_ENDPOINT` already ends in `/v1/traces`, AgentV uses it as-is. When unset, AgentV defaults to `http://localhost:6006/v1/traces`.
+
+## Environment Variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `PHOENIX_COLLECTOR_ENDPOINT` | no | Phoenix collector base URL or full OTLP traces URL. Defaults to `http://localhost:6006`. |
+| `PHOENIX_API_KEY` | hosted Phoenix | Adds `Authorization: Bearer ...` to OTLP exports. |
+| `PHOENIX_PROJECT_NAME` | no | Adds `x-project-name` for Phoenix project routing. |
+| `PHOENIX_PROJECT` | no | Fallback project name if `PHOENIX_PROJECT_NAME` is unset. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | no | Extra OTLP headers, merged after preset headers. |
+
+Phoenix project routing via `x-project-name` requires Phoenix's OTLP HTTP endpoint support for that header. See Phoenix's [project setup docs](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects) for the current behavior.
+
+## Config.yaml Alternative
+
+Set default Phoenix export in `.agentv/config.yaml`:
+
+```yaml
+execution:
+  export_otel: true
+  otel_backend: phoenix
+```
+
+Add content capture only when your Phoenix instance is approved to store prompts, outputs, and tool I/O:
+
+```yaml
+execution:
+  export_otel: true
+  otel_backend: phoenix
+  otel_capture_content: true
+```
+
+:::caution[Privacy]
+`--otel-capture-content` sends full message and tool content to Phoenix. Leave it disabled unless the data and Phoenix deployment meet your privacy requirements.
+:::
+
+## What Appears in Phoenix
+
+Each eval test case produces an `agentv.eval` trace with AgentV attributes such as test ID, suite, target, score, duration, token usage, and tool summary. With streaming providers, AgentV also emits model and tool spans. With `--otel-group-turns`, multi-turn eval messages are grouped under `agentv.turn.N` spans.
+
+```bash
+agentv eval evals/my-eval.yaml \
+  --export-otel \
+  --otel-backend phoenix \
+  --otel-group-turns
+```
+
+## Dataset/Experiment Adapter
+
+The repo-local `@agentv/phoenix-adapter` package converts AgentV eval YAML suites into Phoenix dataset payloads and can run Phoenix experiments for adapter verification:
+
+```bash
+bun --filter @agentv/phoenix-adapter phoenix:assert-smoke
+bun --filter @agentv/phoenix-adapter phoenix:dry-run
+```
+
+Use the adapter when you are developing or verifying Phoenix dataset/experiment parity. Use normal `agentv eval --export-otel --otel-backend phoenix` when you want to observe real AgentV eval runs.
+
+Current adapter support is intentionally small:
+
+| Family | Status |
+| --- | --- |
+| `contains`, `regex`, `equals`, `is-json` | Supported by the deterministic adapter |
+| Other deterministic string variants | Planned parity work |
+| `llm-grader`, `rubrics`, `code-grader`, trace and metric graders | Reported as unsupported |
+| Custom/plugin graders | Reported as unsupported by family name |
+
+Unsupported adapter entries stay visible in reports and do not block conversion unless `--fail-on-unsupported` is set. They should not be interpreted as passing scores.
+
+## Integration Contract
+
+- AgentV eval YAML remains the source of truth for test discovery, interpolation, assertion parsing, and metadata.
+- AgentV scoring remains authoritative unless a Phoenix-native evaluator is explicitly proven equivalent and documented.
+- Phoenix is optional observability and experiment infrastructure; it is not required for normal AgentV eval execution.
+- The adapter remains private until real AgentV target execution, deterministic parity, and release expectations are complete.
+
+## Troubleshooting
+
+### Traces do not appear
+
+Verify the collector endpoint and that Phoenix is listening:
+
+```bash
+echo "$PHOENIX_COLLECTOR_ENDPOINT"
+agentv eval evals/my-eval.yaml --export-otel --otel-backend phoenix
+```
+
+For local Phoenix, the preset expects Phoenix at `http://localhost:6006`.
+
+### Hosted Phoenix returns 401 or 403
+
+Check that `PHOENIX_API_KEY` is set and valid for the target Phoenix space.
+
+### Traces appear in the wrong project
+
+Set `PHOENIX_PROJECT_NAME` to the project that should receive the spans. Extra headers in `OTEL_EXPORTER_OTLP_HEADERS` are merged after preset headers, so they can override the preset if needed.

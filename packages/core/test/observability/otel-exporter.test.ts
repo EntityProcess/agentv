@@ -5,23 +5,33 @@
 
 import { afterEach, describe, expect, it } from 'bun:test';
 import { OTEL_BACKEND_PRESETS, OtelTraceExporter } from '../../src/observability/otel-exporter.js';
+import type { OtelBackendPreset } from '../../src/observability/types.js';
 
 // ---------------------------------------------------------------------------
 // Backend presets
 // ---------------------------------------------------------------------------
 
 describe('OTel backend presets', () => {
+  function resolveEndpoint(
+    preset: OtelBackendPreset,
+    env: Record<string, string | undefined> = {},
+  ): string {
+    return typeof preset.endpoint === 'function' ? preset.endpoint(env) : preset.endpoint;
+  }
+
   describe('OTEL_BACKEND_PRESETS registry', () => {
-    it('contains langfuse, braintrust, and confident entries', () => {
+    it('contains langfuse, braintrust, confident, and phoenix entries', () => {
       expect(OTEL_BACKEND_PRESETS).toHaveProperty('langfuse');
       expect(OTEL_BACKEND_PRESETS).toHaveProperty('braintrust');
       expect(OTEL_BACKEND_PRESETS).toHaveProperty('confident');
+      expect(OTEL_BACKEND_PRESETS).toHaveProperty('phoenix');
     });
 
     it('each preset has name, endpoint, and headers function', () => {
       for (const [key, preset] of Object.entries(OTEL_BACKEND_PRESETS)) {
         expect(preset.name).toBe(key);
-        expect(typeof preset.endpoint).toBe('string');
+        expect(['function', 'string']).toContain(typeof preset.endpoint);
+        expect(typeof resolveEndpoint(preset)).toBe('string');
         expect(typeof preset.headers).toBe('function');
       }
     });
@@ -88,6 +98,63 @@ describe('OTel backend presets', () => {
 
     it('uses otel.confident-ai.com endpoint', () => {
       expect(preset.endpoint).toBe('https://otel.confident-ai.com/v1/traces');
+    });
+  });
+
+  describe('phoenix preset', () => {
+    const preset = OTEL_BACKEND_PRESETS.phoenix;
+
+    it('uses the local Phoenix OTLP traces endpoint by default', () => {
+      expect(resolveEndpoint(preset)).toBe('http://localhost:6006/v1/traces');
+    });
+
+    it('appends the OTLP traces path to PHOENIX_COLLECTOR_ENDPOINT', () => {
+      expect(
+        resolveEndpoint(preset, {
+          PHOENIX_COLLECTOR_ENDPOINT: 'https://app.phoenix.arize.com/s/my-space',
+        }),
+      ).toBe('https://app.phoenix.arize.com/s/my-space/v1/traces');
+    });
+
+    it('does not append duplicate OTLP traces path segments', () => {
+      expect(
+        resolveEndpoint(preset, {
+          PHOENIX_COLLECTOR_ENDPOINT: 'https://phoenix.example.com/v1/traces',
+        }),
+      ).toBe('https://phoenix.example.com/v1/traces');
+      expect(
+        resolveEndpoint(preset, {
+          PHOENIX_COLLECTOR_ENDPOINT: 'https://phoenix.example.com/v1/',
+        }),
+      ).toBe('https://phoenix.example.com/v1/traces');
+    });
+
+    it('adds bearer auth only when PHOENIX_API_KEY is set', () => {
+      expect(preset.headers({})).toEqual({});
+      expect(preset.headers({ PHOENIX_API_KEY: 'px-key-123' })).toEqual({
+        Authorization: 'Bearer px-key-123',
+      });
+    });
+
+    it('adds x-project-name from Phoenix project env vars', () => {
+      expect(preset.headers({ PHOENIX_PROJECT_NAME: 'agentv-evals' })).toEqual({
+        'x-project-name': 'agentv-evals',
+      });
+      expect(preset.headers({ PHOENIX_PROJECT: 'fallback-project' })).toEqual({
+        'x-project-name': 'fallback-project',
+      });
+    });
+
+    it('combines auth and project headers', () => {
+      expect(
+        preset.headers({
+          PHOENIX_API_KEY: 'px-key-123',
+          PHOENIX_PROJECT_NAME: 'agentv-evals',
+        }),
+      ).toEqual({
+        Authorization: 'Bearer px-key-123',
+        'x-project-name': 'agentv-evals',
+      });
     });
   });
 });

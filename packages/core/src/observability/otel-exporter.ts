@@ -12,6 +12,13 @@ export type { OtelExportOptions, OtelBackendPreset };
 // Backend presets
 // ---------------------------------------------------------------------------
 
+function normalizePhoenixCollectorEndpoint(endpoint: string | undefined): string {
+  const base = (endpoint?.trim() || 'http://localhost:6006').replace(/\/+$/, '');
+  if (base.endsWith('/v1/traces')) return base;
+  if (base.endsWith('/v1')) return `${base}/traces`;
+  return `${base}/v1/traces`;
+}
+
 export const OTEL_BACKEND_PRESETS: Record<string, OtelBackendPreset> = {
   langfuse: {
     name: 'langfuse',
@@ -48,6 +55,22 @@ export const OTEL_BACKEND_PRESETS: Record<string, OtelBackendPreset> = {
     headers: (env) => ({
       'x-confident-api-key': env.CONFIDENT_API_KEY ?? '',
     }),
+  },
+  phoenix: {
+    name: 'phoenix',
+    endpoint: (env) => normalizePhoenixCollectorEndpoint(env.PHOENIX_COLLECTOR_ENDPOINT),
+    headers: (env) => {
+      const headers: Record<string, string> = {};
+      const apiKey = env.PHOENIX_API_KEY?.trim();
+      if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`;
+      }
+      const projectName = (env.PHOENIX_PROJECT_NAME ?? env.PHOENIX_PROJECT)?.trim();
+      if (projectName) {
+        headers['x-project-name'] = projectName;
+      }
+      return headers;
+    },
   },
 };
 

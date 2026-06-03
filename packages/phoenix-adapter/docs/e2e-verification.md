@@ -1,5 +1,17 @@
 # E2E Verification
 
+## Live OTel Export
+
+Normal AgentV eval runs can export traces to Phoenix without using the adapter package:
+
+```bash
+agentv eval examples/features/assert/evals/dataset.eval.yaml \
+  --export-otel \
+  --otel-backend phoenix
+```
+
+The `phoenix` OTel preset defaults to `http://localhost:6006/v1/traces`. For remote Phoenix, set `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and optionally `PHOENIX_PROJECT_NAME`.
+
 ## Dry-Run Conversion
 
 Dry-run mode discovers AgentV example evals, normalizes cases through `@agentv/core`, creates Phoenix dataset payloads in memory, and compares test IDs against AgentV baselines where present.

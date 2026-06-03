@@ -17,6 +17,6 @@ export interface OtelExportOptions {
 /** Preset configuration for a known observability backend. */
 export interface OtelBackendPreset {
   readonly name: string;
-  readonly endpoint: string;
+  readonly endpoint: string | ((env: Record<string, string | undefined>) => string);
   readonly headers: (env: Record<string, string | undefined>) => Record<string, string>;
 }

@@ -125,7 +125,7 @@ OpenTelemetry-compatible backend.
 Stream traces directly to an observability backend during evaluation using `--export-otel`:
 
 ```bash
-# Use a backend preset (braintrust, langfuse, confident)
+# Use a backend preset (braintrust, langfuse, confident, phoenix)
 agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust
 
 # Include message content and tool I/O in spans (disabled by default for privacy)
@@ -178,6 +178,22 @@ export LANGFUSE_SECRET_KEY=sk-...
 
 agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse --otel-capture-content
 ```
+
+#### Phoenix
+
+```bash
+# Local Phoenix defaults to http://localhost:6006/v1/traces
+agentv eval evals/my-eval.yaml --export-otel --otel-backend phoenix
+
+# Hosted or remote Phoenix
+export PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/my-space
+export PHOENIX_API_KEY=px-...
+export PHOENIX_PROJECT_NAME=agentv-evals
+
+agentv eval evals/my-eval.yaml --export-otel --otel-backend phoenix --otel-capture-content
+```
+
+See [Phoenix](/docs/integrations/phoenix/) for project routing, privacy notes, and the separate repo-local dataset/experiment adapter.
 
 #### Custom OTLP Endpoint
 
@@ -400,6 +416,8 @@ Project-local YAML config takes precedence over home/global YAML config. AgentV 
 execution:
   verbose: true
   keep_workspaces: false
+  export_otel: true
+  otel_backend: phoenix
   otel_file: .agentv/results/otel-{timestamp}.json
 ```
 
@@ -407,7 +425,11 @@ execution:
 |-------|---------------|------|---------|-------------|
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
+| `export_otel` | `--export-otel` | boolean | `false` | Stream traces via OTLP/HTTP |
+| `otel_backend` | `--otel-backend` | string | none | Backend preset: `braintrust`, `langfuse`, `confident`, or `phoenix` |
 | `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
+| `otel_capture_content` | `--otel-capture-content` | boolean | `false` | Include message and tool content in exported spans |
+| `otel_group_turns` | `--otel-group-turns` | boolean | `false` | Group multi-turn messages under `agentv.turn.N` spans |
 
 ### TypeScript config (`agentv.config.ts`)
 

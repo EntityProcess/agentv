@@ -1172,7 +1172,8 @@ export async function runEvalCommand(
       if (options.otelBackend) {
         const preset = OTEL_BACKEND_PRESETS[options.otelBackend];
         if (preset) {
-          endpoint = preset.endpoint;
+          endpoint =
+            typeof preset.endpoint === 'function' ? preset.endpoint(process.env) : preset.endpoint;
           headers = preset.headers(process.env);
         } else {
           console.warn(`Unknown OTel backend preset: ${options.otelBackend}`);
