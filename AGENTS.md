@@ -115,15 +115,11 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Use `ntm` for tmux session orchestration, monitoring, and dispatch when launching or tending worker sessions. NTM project names must resolve under `ntm config get projects_base`; set `AGENTV_NTM_SESSION` when the repo worktree is not directly under that base.
 - GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
 
-### Beads Workflow
-- Start with `br ready --json` to find actionable unblocked work.
-- Inspect scope with `br show <id> --json` before changing files.
-- Claim work with `br update <id> --claim --json` or `br update <id> --status in_progress --json`.
-- Create linked follow-up work with `br create --title "..." --type task --priority 2 --json` when you discover new scope.
-- Add dependencies with `br dep add <issue> <depends-on> --json` so ready work stays accurate.
-- Close completed work with `br close <id> --reason "Completed" --json`.
-- Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes.
-- Avoid bare `bv` in automated sessions because it opens an interactive UI. Use robot/non-interactive `bv` surfaces when graph triage is needed, then verify actionability with `br show <id> --json`.
+### Beads Ownership
+- Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
+- Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
+- Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
+- Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
 
 ### Worktree Setup
 - For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
@@ -468,15 +464,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker.
-
-When working from a bead:
-
-1. Inspect the bead with `br show <id> --json`.
-2. Claim it with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` when working manually.
-3. Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
-4. Push focused commits to the assigned branch and open/update the PR requested by the bead/user.
-5. Close the bead only after the scoped work is complete, pushed, and documented with verification evidence.
+Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker. Push focused commits to the assigned branch and open/update the PR requested by the bead/user. Close the bead only after the scoped work is complete, pushed, and documented with verification evidence.
 
 When working from a GitHub issue instead of a bead, use GitHub project state to avoid duplicate work before branching:
 
@@ -500,7 +488,6 @@ Complete E2E verification before marking a PR ready for review. Never push direc
 
 ### Tracker Conventions
 
-- Beads is the source of truth for live worker ownership and session status.
 - GitHub Issues + Projects are external collaboration surfaces, not the default internal task graph.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
@@ -587,3 +574,100 @@ The release script (`bun scripts/release.ts`) is what the Release workflow calls
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
+
+<!-- bv-agent-instructions-v2 -->
+
+---
+
+## Beads Workflow Integration
+
+This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking and [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) (`bv`) for graph-aware triage. Issues are stored in `.beads/` and tracked in git.
+
+### Using bv as an AI sidecar
+
+bv is a graph-aware triage engine for Beads projects (.beads/beads.jsonl). Instead of parsing JSONL or hallucinating graph traversal, use robot flags for deterministic, dependency-aware outputs with precomputed metrics (PageRank, betweenness, critical path, cycles, HITS, eigenvector, k-core).
+
+**Scope boundary:** bv handles *what to work on* (triage, priority, planning). `br` handles creating, modifying, and closing beads.
+
+**CRITICAL: Use ONLY --robot-* flags. Bare bv launches an interactive TUI that blocks your session.**
+
+#### The Workflow: Start With Triage
+
+**`bv --robot-triage` is your single entry point.** It returns everything you need in one call:
+- `quick_ref`: at-a-glance counts + top 3 picks
+- `recommendations`: ranked actionable items with scores, reasons, unblock info
+- `quick_wins`: low-effort high-impact items
+- `blockers_to_clear`: items that unblock the most downstream work
+- `project_health`: status/type/priority distributions, graph metrics
+- `commands`: copy-paste shell commands for next steps
+
+```bash
+bv --robot-triage        # THE MEGA-COMMAND: start here
+bv --robot-next          # Minimal: just the single top pick + claim command
+
+# Token-optimized output (TOON) for lower LLM context usage:
+bv --robot-triage --format toon
+```
+
+Before claiming, verify current state with `br show <id> --json` or `br ready --json`. `recommendations` can include graph-important blocked or assigned work; only `quick_ref.top_picks` and non-empty `claim_command` fields represent claimable work.
+
+#### Other bv Commands
+
+| Command | Returns |
+|---------|---------|
+| `--robot-plan` | Parallel execution tracks with unblocks lists |
+| `--robot-priority` | Priority misalignment detection with confidence |
+| `--robot-insights` | Full metrics: PageRank, betweenness, HITS, eigenvector, critical path, cycles, k-core |
+| `--robot-alerts` | Stale issues, blocking cascades, priority mismatches |
+| `--robot-suggest` | Hygiene: duplicates, missing deps, label suggestions, cycle breaks |
+| `--robot-diff --diff-since <ref>` | Changes since ref: new/closed/modified issues |
+| `--robot-graph [--graph-format=json\|dot\|mermaid]` | Dependency graph export |
+
+#### Scoping & Filtering
+
+```bash
+bv --robot-plan --label backend              # Scope to label's subgraph
+bv --robot-insights --as-of HEAD~30          # Historical point-in-time
+bv --recipe actionable --robot-plan          # Pre-filter: ready to work (no blockers)
+bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
+```
+
+### br Commands for Issue Management
+
+```bash
+br ready              # Show issues ready to work (no blockers)
+br list --status=open # All open issues
+br show <id>          # Full issue details with dependencies
+br create --title="..." --type=task --priority=2
+br update <id> --status=in_progress
+br close <id> --reason="Completed"
+br close <id1> <id2>  # Close multiple issues at once
+br sync --flush-only  # Export DB to JSONL
+```
+
+### Workflow Pattern
+
+1. **Triage**: Run `bv --robot-triage` to find the highest-impact actionable work
+2. **Claim**: Use `br update <id> --status=in_progress`
+3. **Work**: Implement the task
+4. **Complete**: Use `br close <id>`
+5. **Sync**: Always run `br sync --flush-only` at session end
+
+### Key Concepts
+
+- **Dependencies**: Issues can block other issues. `br ready` shows only unblocked work.
+- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers 0-4, not words)
+- **Types**: task, bug, feature, epic, chore, docs, question
+- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
+
+### Session Protocol
+
+```bash
+git status              # Check what changed
+git add <files>         # Stage code changes
+br sync --flush-only    # Export beads changes to JSONL
+git commit -m "..."     # Commit everything
+git push                # Push to remote
+```
+
+<!-- end-bv-agent-instructions -->
