@@ -292,13 +292,13 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 **Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes. After pulling changes that touch `packages/core/`, always run `bun run build` before CLI testing.
 
-**Dashboard frontend exception — rebuild `apps/dashboard/dist/` before UAT.** Running `agentv dashboard` from source (`bun apps/cli/src/cli.ts dashboard ...`) only reloads the CLI and backend routes from source. The Dashboard web UI (React/Tailwind bundle) is served as static assets from `apps/dashboard/dist/`, which is build output and does **not** recompile on change. If you are testing Dashboard UI changes — especially post-merge on `main` or after pulling — rebuild the frontend first:
+**Dashboard frontend exception — rebuild `apps/dashboard/dist/` before UAT.** Running `agentv dashboard` from source (`bun apps/cli/src/cli.ts dashboard ...`) only reloads the CLI and backend routes from source. The Dashboard web UI (React/Tailwind bundle) is served as static assets from `apps/dashboard/dist/`, which is build output and does **not** recompile on change. After pulling the latest `main`, and before any Dashboard E2E/UAT, rebuild the frontend bundle even if you did not personally edit Dashboard source:
 
 ```bash
 cd apps/dashboard && bun run build
 ```
 
-Skipping this step silently serves the previous bundle, so you'll see the old UI even though your source edits and the backend API are live. This has burned at least one post-merge UAT; always rebuild before screenshotting or driving Dashboard with `agent-browser`.
+Skipping this step silently serves the previous bundle, so you'll see the old UI even though the source tree and backend API are current. This has burned at least one post-merge UAT; always rebuild before screenshotting or driving Dashboard with `agent-browser`.
 
 ### Browser E2E Testing (Docs and Dashboard)
 
