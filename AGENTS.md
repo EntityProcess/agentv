@@ -108,13 +108,19 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Working Style
 
-### AO-First Orchestration
-- AO (Composio Agent Orchestrator) is AgentV's live orchestration layer. In AO-managed sessions, treat AO as the source of truth for assignment, worker ownership, status, worktree lifecycle, PR claiming, and visualization.
-- Use the AO-provided worktree and branch. Do not create additional worktrees, spawn unmanaged agents, or open duplicate PRs unless the user/AO explicitly asks.
-- Report lifecycle status through AO (`ao acknowledge`, `ao report working`, `ao report fixing-ci`, `ao report addressing-reviews`, `ao report needs-input`, and PR milestone reports).
+### Beads-First Orchestration
+- Beads is AgentV's normal durable task graph. Use it for assignment, status, dependencies, handoff notes, decomposition, and resumability. Agent sessions are disposable workers that read and write the bead graph.
+- Prefer `br` (beads_rust) for Beads operations when the repository has a `br`-compatible SQLite/JSONL `.beads` store. `br` is non-invasive and never commits or pushes; after `br sync --flush-only`, manually run `git add .beads/` and commit the exported state when the bead graph is part of the change.
+- Compatibility note: the current AgentV bead graph may still be the older `bd`/Dolt store. If `br ready --json` or `br show <id> --json` returns no issues while `bd` sees the graph, use `bd` for that workspace until the store is explicitly migrated. Do not assume `br` can read `bd` state just because it auto-discovers `.beads/dolt`.
+- For worker launch, prefer `scripts/bead-spawn-agent.sh <bead-id>`. The wrapper claims the bead, records a launch note, exports `EP_TASK_ID`/`BEAD_ID`/`AGENTV_BEAD_ID`, then delegates to `ep-spawn-agent` when available or to an explicit `ntm` fallback.
+- Use `ntm` for tmux session orchestration, monitoring, and dispatch when launching or tending worker sessions. NTM project names must resolve under `ntm config get projects_base`; set `AGENTV_NTM_SESSION` when the repo worktree is not directly under that base.
+- GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
+
+### AO Compatibility
+- AO is not the normal AgentV orchestration path. If a session is explicitly AO-managed, treat AO as the source of truth for that session's ownership, worktree lifecycle, PR claiming, and visualization.
+- In AO-managed sessions, use the AO-provided worktree and branch. Do not create additional worktrees, spawn unmanaged agents, or open duplicate PRs unless the user/AO explicitly asks.
+- Report lifecycle status through AO (`ao acknowledge`, `ao report working`, `ao report fixing-ci`, `ao report addressing-reviews`, `ao report needs-input`, and PR milestone reports) only for AO-managed sessions.
 - When taking over an existing PR in AO, run `ao session claim-pr <number-or-url>` before editing. If AO or git shows another session/worktree owns it, coordinate rather than forcing checkout.
-- GitHub Issues + Projects are the default AO task graph when GitHub is acceptable: use Issues for backlog, parent/sub-issue hierarchy, and explicit blocked-by/blocking dependencies; use Projects for shared views and progress. GitHub PRs/checks remain the review, CI, and merge surface.
-- `ep-spawn-agent` is disabled for normal AO-managed AgentV work because it creates unmanaged agents/worktrees outside AO's lifecycle.
 
 ### Worktree Setup
 - In AO-managed sessions, do not create a new worktree; verify the AO worktree is based on the intended base before editing.
@@ -453,9 +459,17 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-Use AO for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker.
+Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker.
 
-When working on a GitHub issue in an AO-managed session:
+When working from a bead:
+
+1. Inspect the bead with `br show <id> --json` or, for the current `bd`/Dolt compatibility store, `bd show <id> --json`.
+2. Claim it with `scripts/bead-spawn-agent.sh <id>` when launching a worker, or with `br update <id> --claim --json` / `bd update <id> --claim --json` when working manually.
+3. Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
+4. Push focused commits to the assigned branch and open/update the PR requested by the bead/user.
+5. Close the bead only after the scoped work is complete, pushed, and documented with verification evidence.
+
+When working on a GitHub issue in an explicitly AO-managed session:
 
 1. Trust the AO assignment. If the issue/PR appears owned by another AO session, coordinate instead of taking it over.
 2. Use the AO-provided worktree/branch and report status through AO.
@@ -484,8 +498,8 @@ Complete E2E verification before marking a PR ready for review. Never push direc
 
 ### Tracker Conventions
 
-- AO is the source of truth for live worker ownership and session status.
-- GitHub Issues + Projects are the default task graph for AO-managed work when acceptable, because they support durable backlog state, sub-issue hierarchy, and explicit blocked-by/blocking dependencies.
+- Beads is the source of truth for live worker ownership and session status.
+- GitHub Issues + Projects are external collaboration surfaces, not the default internal task graph.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
 - `core`, `wui`, and `tui` are area labels.
