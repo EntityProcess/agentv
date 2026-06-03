@@ -125,24 +125,17 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes.
 - Avoid bare `bv` in automated sessions because it opens an interactive UI. Use robot/non-interactive `bv` surfaces when graph triage is needed, then verify actionability with `br show <id> --json`.
 
-### AO Compatibility
-- AO is not the normal AgentV orchestration path. If a session is explicitly AO-managed, treat AO as the source of truth for that session's ownership, worktree lifecycle, PR claiming, and visualization.
-- In AO-managed sessions, use the AO-provided worktree and branch. Do not create additional worktrees, spawn unmanaged agents, or open duplicate PRs unless the user/AO explicitly asks.
-- Report lifecycle status through AO (`ao acknowledge`, `ao report working`, `ao report fixing-ci`, `ao report addressing-reviews`, `ao report needs-input`, and PR milestone reports) only for AO-managed sessions.
-- When taking over an existing PR in AO, run `ao session claim-pr <number-or-url>` before editing. If AO or git shows another session/worktree owns it, coordinate rather than forcing checkout.
-
 ### Worktree Setup
-- In AO-managed sessions, do not create a new worktree; verify the AO worktree is based on the intended base before editing.
-- Outside AO, for any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
+- For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
 - Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
 - Do not implement from the primary checkout, from a stale local `main`, or from a branch created off an outdated base.
-- Manual setup outside AO:
+- Manual setup:
 ```bash
 git fetch origin
 git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<issue-or-topic>-<short-desc> origin/main
 cd ../agentv.worktrees/<type>-<short-desc>
 ```
-- If you discover you are not on a fresh worktree from the latest `origin/main` or the AO-provided base, stop and fix that first before changing code.
+- If you discover you are not on a fresh worktree from the latest `origin/main`, stop and fix that first before changing code.
 
 ### Planning
 - Use plan mode for any non-trivial task (5+ steps or architectural decisions).
@@ -152,8 +145,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Prefer automation: execute the requested work without extra confirmation unless blocked by missing information, safety concerns, or an irreversible/destructive action the user has not approved.
 
 ### Worker and Review Strategy
-- In AO-managed sessions, prefer AO-managed workers/harnesses for parallel work. Do not spawn unmanaged agents from inside a worker unless the user/AO explicitly delegates that orchestration.
-- For complex problems, keep this worker focused on its assigned scope and ask AO/user for coordination if additional workers are needed.
+- For complex problems, keep this worker focused on its assigned scope and create or claim additional beads when more workers are needed.
 - Before declaring a repo change complete or opening/finalizing a PR, complete manual e2e verification first (see E2E Checklist), **then** run a final review pass when warranted. E2E must pass before review — if e2e fails, fix the issue before investing time in review. The user may explicitly skip the review step.
 
 ### Autonomous Bug Fixes
@@ -478,14 +470,7 @@ When working from a bead:
 4. Push focused commits to the assigned branch and open/update the PR requested by the bead/user.
 5. Close the bead only after the scoped work is complete, pushed, and documented with verification evidence.
 
-When working on a GitHub issue in an explicitly AO-managed session:
-
-1. Trust the AO assignment. If the issue/PR appears owned by another AO session, coordinate instead of taking it over.
-2. Use the AO-provided worktree/branch and report status through AO.
-3. Keep the GitHub issue/PR updated with user-visible decisions, verification evidence, and review/CI state.
-4. Push focused commits to the assigned branch and open/update the PR requested by AO/user.
-
-Outside AO, use GitHub project state to avoid duplicate work before branching:
+When working from a GitHub issue instead of a bead, use GitHub project state to avoid duplicate work before branching:
 
 ```bash
 gh issue view <number> --repo EntityProcess/agentv --json number,title,state,projectItems,assignees,url
@@ -496,7 +481,7 @@ bun install
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
 ```
 
-After the first meaningful commit, push and open a draft PR unless AO/user directs a different PR lifecycle:
+After the first meaningful commit, push and open a draft PR unless the user directs a different PR lifecycle:
 
 ```bash
 git push -u origin <branch-name>
@@ -553,7 +538,7 @@ Plans are temporary working materials. **Before merging the PR**, delete the pla
 
 #### Git Worktrees
 
-In AO-managed sessions, use the AO-provided worktree. Outside AO, use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
+Use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
 
 After creating a manual worktree, always run setup:
 ```bash
