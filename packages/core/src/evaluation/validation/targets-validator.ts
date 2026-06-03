@@ -106,8 +106,7 @@ const CODEX_SETTINGS = new Set([
   'timeout_seconds',
   'log_dir',
   'log_directory',
-  'log_format',
-  'log_output_format',
+  'stream_log',
   'system_prompt',
 ]);
 
@@ -257,6 +256,26 @@ function validateUnknownSettings(
           "AgentV always uses Azure's Responses API (`/openai/v1/responses`). " +
           "If your deployment only exposes /chat/completions, use 'provider: openai' " +
           "with a deployment-scoped 'base_url' instead.",
+      ],
+    ]),
+    codex: new Map([
+      [
+        'log_format',
+        "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
+      ],
+      [
+        'log_output_format',
+        "The 'log_output_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
+      ],
+    ]),
+    'codex-cli': new Map([
+      [
+        'log_format',
+        "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
+      ],
+      [
+        'log_output_format',
+        "The 'log_output_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
       ],
     ]),
   };

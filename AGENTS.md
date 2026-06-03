@@ -121,6 +121,14 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
 - Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
 
+### MCP Agent Mail
+- Agent Mail is available as `mcp-agent-mail` at `http://127.0.0.1:8765/api/` when the local server is running.
+- Start the server with `am` in a new shell, or run `/home/entity/.local/share/mcp_agent_mail/scripts/run_server_with_token.sh`.
+- At session start, call `ensure_project` for `/home/entity/projects/EntityProcess/agentv`, then `register_agent` if this session does not already have an Agent Mail identity.
+- Before editing shared files, create advisory reservations with `file_reservation_paths` for the intended paths/globs.
+- Use threads for coordination: `send_message` with a stable `thread_id`, `fetch_inbox` to check mail, and `acknowledge_message` after acting on a message.
+- Do not commit project-local Agent Mail config files; they contain bearer tokens and are ignored by `.gitignore`.
+
 ### Worktree Setup
 - For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
 - Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
