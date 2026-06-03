@@ -7,7 +7,7 @@ export function BrandName({ appName }: { appName: string }) {
 
   return (
     <span className="av-brand-name">
-      agent <span className="text-cyan-400">v</span>
+      agent<span className="text-cyan-400">v</span>
     </span>
   );
 }
