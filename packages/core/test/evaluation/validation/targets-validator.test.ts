@@ -50,6 +50,7 @@ describe('validateTargetsFile', () => {
     timeoutSeconds: 30
     logDir: ./logs
     systemPrompt: Be precise.
+    modelReasoningEffort: low
   - name: cli-target
     provider: cli
     command: echo {PROMPT}
@@ -90,10 +91,35 @@ describe('validateTargetsFile', () => {
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
+          error.location === 'targets[0].modelReasoningEffort' &&
+          error.message.includes("Use 'model_reasoning_effort' instead"),
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
           error.location === 'targets[1].healthcheck.timeoutSeconds' &&
           error.message.includes("Use 'timeout_seconds' instead"),
       ),
     ).toBe(true);
+  });
+
+  it('accepts codex model_reasoning_effort', async () => {
+    const filePath = path.join(tempDir, 'codex-reasoning-effort.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: codex-target
+    provider: codex
+    model: \${{ CODEX_MODEL }}
+    model_reasoning_effort: \${{ CODEX_REASONING_EFFORT }}
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
   });
 
   it('rejects azure api_format with a migration error', async () => {

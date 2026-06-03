@@ -128,7 +128,40 @@ describe('CodexProvider (SDK)', () => {
     await provider.invoke({ question: 'Test' });
 
     const constructorArgs = CodexMock.mock.calls[0][0];
+    expect(constructorArgs.codexPathOverride).toBe('codex');
     expect(constructorArgs.config.model).toBe('o4-mini');
+  });
+
+  it('passes executable config to Codex constructor as codexPathOverride', async () => {
+    const thread = createMockThread({
+      events: [
+        {
+          type: 'item.completed',
+          item: { id: 'msg-1', type: 'agent_message', text: 'response' },
+        },
+        {
+          type: 'turn.completed',
+          usage: { input_tokens: 10, output_tokens: 5, cached_input_tokens: 0 },
+        },
+      ],
+    });
+    const codexInstance = createMockCodex(thread);
+
+    const CodexMock = mock(function Codex() {
+      return codexInstance;
+    });
+    mock.module('@openai/codex-sdk', () => ({ Codex: CodexMock }));
+
+    const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
+
+    const provider = new CodexProvider('test-target', {
+      executable: 'codex-eng',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const constructorArgs = CodexMock.mock.calls[0][0];
+    expect(constructorArgs.codexPathOverride).toBe('codex-eng');
   });
 
   it('passes workingDirectory to startThread', async () => {
@@ -161,6 +194,37 @@ describe('CodexProvider (SDK)', () => {
     const threadOptions = codexInstance.startThread.mock.calls[0][0];
     expect(threadOptions.skipGitRepoCheck).toBe(true);
     expect(threadOptions.workingDirectory).toBe(path.resolve('/tmp/test-workspace'));
+  });
+
+  it('passes modelReasoningEffort to startThread', async () => {
+    const thread = createMockThread({
+      events: [
+        {
+          type: 'item.completed',
+          item: { id: 'msg-1', type: 'agent_message', text: 'response' },
+        },
+        {
+          type: 'turn.completed',
+          usage: { input_tokens: 10, output_tokens: 5, cached_input_tokens: 0 },
+        },
+      ],
+    });
+    const codexInstance = createMockCodex(thread);
+    const sdkMock = mockCodexSdk(codexInstance);
+
+    mock.module('@openai/codex-sdk', () => sdkMock);
+
+    const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
+
+    const provider = new CodexProvider('test-target', {
+      executable: 'codex',
+      modelReasoningEffort: 'low',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const threadOptions = codexInstance.startThread.mock.calls[0][0];
+    expect(threadOptions.modelReasoningEffort).toBe('low');
   });
 
   it('handles timeout', async () => {

@@ -112,6 +112,9 @@ targets:
 
   - name: codex
     provider: codex
+    executable: ${{ CODEX_EXECUTABLE }}
+    model: ${{ CODEX_MODEL }}
+    model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
     grader_target: grader
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}

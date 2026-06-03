@@ -391,6 +391,7 @@ export interface TargetDefinition {
   readonly binary?: string | unknown | undefined;
   readonly args?: unknown | undefined;
   readonly arguments?: unknown | undefined;
+  readonly model_reasoning_effort?: string | unknown | undefined;
   readonly cwd?: string | unknown | undefined;
   readonly timeout_seconds?: number | unknown | undefined;
   readonly log_dir?: string | unknown | undefined;
