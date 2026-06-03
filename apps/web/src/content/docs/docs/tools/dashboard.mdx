@@ -73,6 +73,17 @@ dashboard:
 
 Legacy `studio.threshold`, `studio.pass_threshold`, and root-level `pass_threshold` values are still read for existing projects. When Dashboard saves settings, it writes the canonical `dashboard.threshold` field and preserves unrelated config.
 
+## White label
+
+Dashboard shows `agentv` by default. Override the displayed name with `dashboard.app_name` in project-local `.agentv/config.yaml`:
+
+```yaml
+dashboard:
+  app_name: ai evals
+```
+
+You can also set the same field globally in `$AGENTV_HOME/config.yaml` or `~/.agentv/config.yaml`. Project-local config takes precedence over the global value.
+
 ## Run Detail
 
 Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from.

@@ -249,6 +249,7 @@ export interface CategoriesResponse {
 
 export interface StudioConfigResponse {
   threshold: number;
+  app_name: string;
   /** @deprecated Use threshold */
   pass_threshold?: number;
   read_only?: boolean;

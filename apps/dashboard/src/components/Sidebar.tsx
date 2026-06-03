@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useMatchRoute } from '@tanstack/react-router';
 
 import {
+  DEFAULT_APP_NAME,
   isPassing,
   projectCategorySuitesOptions,
   projectExperimentsOptions,
@@ -34,6 +35,8 @@ import {
 } from '~/lib/api';
 import { formatRunLabel, timeAgo } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
+
+import { BrandName } from './BrandName';
 
 /** Responsive <aside> wrapper. Handles mobile overlay and desktop static placement. */
 function SidebarShell({ children }: { children: ReactNode }) {
@@ -68,6 +71,19 @@ function SidebarShell({ children }: { children: ReactNode }) {
         {children}
       </aside>
     </>
+  );
+}
+
+function BrandHeader({ projectId }: { projectId?: string }) {
+  const { data: config } = useStudioConfig(projectId);
+  const appName = config?.app_name ?? DEFAULT_APP_NAME;
+
+  return (
+    <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
+      <Link to="/" className="truncate text-lg font-semibold text-white hover:text-cyan-400">
+        <BrandName appName={appName} />
+      </Link>
+    </div>
   );
 }
 
@@ -225,6 +241,7 @@ function RunSidebar() {
   const { data: localData } = useRunList();
   const { data: aggregatedData } = useAllProjectRuns();
   const data = useAggregated ? aggregatedData : localData;
+  const { data: config } = useStudioConfig();
 
   const { data: evalRunsData } = useEvalRuns();
   const activeRunCount = (evalRunsData?.runs ?? []).filter(
@@ -234,8 +251,8 @@ function RunSidebar() {
   return (
     <SidebarShell>
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
+        <Link to="/" className="truncate text-lg font-semibold text-white hover:text-cyan-400">
+          <BrandName appName={config?.app_name ?? DEFAULT_APP_NAME} />
         </Link>
         {activeRunCount > 0 && (
           <span className="flex items-center gap-1 rounded-full bg-cyan-900/40 px-2 py-0.5 text-xs text-cyan-400">
@@ -312,11 +329,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader />
 
       {/* Back to run link */}
       <div className="border-b border-gray-800 px-4 py-2">
@@ -370,11 +383,7 @@ function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader />
 
       {/* Back to run link */}
       <div className="border-b border-gray-800 px-4 py-2">
@@ -422,11 +431,7 @@ function CategorySidebar({ runId, category }: { runId: string; category: string 
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader />
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
@@ -478,11 +483,7 @@ function ProjectRunDetailSidebar({
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader projectId={projectId} />
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link to="/" className="text-xs text-gray-400 hover:text-cyan-400">
@@ -533,11 +534,7 @@ function ProjectEvalSidebar({
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader projectId={projectId} />
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
@@ -596,11 +593,7 @@ function ProjectSuiteSidebar({
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader projectId={projectId} />
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
@@ -653,11 +646,7 @@ function ProjectCategorySidebar({
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader projectId={projectId} />
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
@@ -708,11 +697,7 @@ function ProjectExperimentSidebar({
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader projectId={projectId} />
 
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
@@ -760,11 +745,7 @@ function ExperimentSidebar({ currentExperiment }: { currentExperiment: string })
 
   return (
     <SidebarShell>
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <Link to="/" className="text-lg font-semibold text-white hover:text-cyan-400">
-          AgentV Dashboard
-        </Link>
-      </div>
+      <BrandHeader />
 
       {/* Back to experiments tab */}
       <div className="border-b border-gray-800 px-4 py-2">

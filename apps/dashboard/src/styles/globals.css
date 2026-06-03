@@ -10,6 +10,11 @@ body {
     "Helvetica Neue", Arial, sans-serif;
 }
 
+.av-brand-name {
+  font-family: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  letter-spacing: 0;
+}
+
 /* Scrollbar styling for dark theme */
 ::-webkit-scrollbar {
   @apply w-2;
