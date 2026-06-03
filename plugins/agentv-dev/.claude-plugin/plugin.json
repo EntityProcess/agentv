@@ -1,0 +1,11 @@
+{
+  "name": "agentv-dev",
+  "description": "AgentV CLI skills for evaluating, optimizing, and governing AI agents.",
+  "author": {
+    "name": "AgentV",
+    "email": "support@agentv.dev"
+  },
+  "version": "1.0.0",
+  "category": "developer-tools",
+  "homepage": "https://github.com/EntityProcess/agentv/tree/main/plugins/agentv-dev"
+}
