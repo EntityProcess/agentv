@@ -1,37 +1,39 @@
 /**
  * Dashboard configuration loader.
  *
- * Reads dashboard-specific settings from the `dashboard:` section of
- * `.agentv/config.yaml`, falling back to the legacy `studio:` section for
- * compatibility. Preserves all other fields (required_version,
- * eval_patterns, execution, etc.) when saving.
- *
- * Location: `.agentv/config.yaml`
+ * Reads dashboard-specific settings from the `dashboard:` section of config.yaml.
+ * Project-local `.agentv/config.yaml` takes precedence over the global
+ * `${AGENTV_HOME:-~/.agentv}/config.yaml`, with legacy `studio:` and root-level
+ * threshold keys still accepted for compatibility. Saving writes only to the
+ * project-local file and preserves unrelated fields.
  *
  * config.yaml format:
  *   required_version: ">=4.2.0"
  *   dashboard:
+ *     app_name: agent v # displayed in the Dashboard shell
  *     threshold: 0.8   # score >= this value is considered "pass"
  *
  * Backward compat: reads `studio.threshold`, `studio.pass_threshold`, and
  * root-level `pass_threshold` as fallbacks. On save, always writes `threshold`
  * under `dashboard:`.
  *
- * If no config.yaml exists, defaults are used.
+ * If no config.yaml exists in either location, defaults are used.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_THRESHOLD, parseYamlValue } from '@agentv/core';
+import { DEFAULT_THRESHOLD, getAgentvConfigDir, parseYamlValue } from '@agentv/core';
 import { stringify as stringifyYaml } from 'yaml';
 
 export interface StudioConfig {
   threshold: number;
+  appName: string;
 }
 
 const DEFAULTS: StudioConfig = {
   threshold: DEFAULT_THRESHOLD,
+  appName: 'agent v',
 };
 
 /**
@@ -43,31 +45,40 @@ const DEFAULTS: StudioConfig = {
  * Clamps `threshold` to [0, 1].
  */
 export function loadStudioConfig(agentvDir: string): StudioConfig {
-  const configPath = path.join(agentvDir, 'config.yaml');
+  const localConfigPath = path.join(agentvDir, 'config.yaml');
+  const globalConfigPath = path.join(getAgentvConfigDir(), 'config.yaml');
+  const localConfig = loadParsedConfig(localConfigPath);
+  const globalConfig =
+    path.resolve(globalConfigPath) === path.resolve(localConfigPath)
+      ? undefined
+      : loadParsedConfig(globalConfigPath);
 
-  if (!existsSync(configPath)) {
-    return { ...DEFAULTS };
-  }
-
-  const raw = readFileSync(configPath, 'utf-8');
-  const parsed = parseYamlValue(raw);
-
-  if (!parsed || typeof parsed !== 'object') {
-    return { ...DEFAULTS };
-  }
-
-  // Prefer dashboard config, then legacy studio config, then root-level pass_threshold.
-  const config = parsed as Record<string, unknown>;
   const threshold = [
-    readThreshold(config.dashboard),
-    readThreshold(config.studio),
-    typeof config.pass_threshold === 'number' ? config.pass_threshold : undefined,
+    readThreshold(localConfig?.dashboard),
+    readThreshold(localConfig?.studio),
+    typeof localConfig?.pass_threshold === 'number' ? localConfig.pass_threshold : undefined,
+    readThreshold(globalConfig?.dashboard),
+    readThreshold(globalConfig?.studio),
+    typeof globalConfig?.pass_threshold === 'number' ? globalConfig.pass_threshold : undefined,
     DEFAULTS.threshold,
   ].find((value) => value !== undefined) as number;
 
   return {
     threshold: Math.min(1, Math.max(0, threshold)),
+    appName:
+      readAppName(localConfig?.dashboard) ??
+      readAppName(globalConfig?.dashboard) ??
+      DEFAULTS.appName,
   };
+}
+
+function loadParsedConfig(configPath: string): Record<string, unknown> | undefined {
+  if (!existsSync(configPath)) return undefined;
+
+  const raw = readFileSync(configPath, 'utf-8');
+  const parsed = parseYamlValue(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  return parsed as Record<string, unknown>;
 }
 
 function readThreshold(section: unknown): number | undefined {
@@ -76,6 +87,14 @@ function readThreshold(section: unknown): number | undefined {
   if (typeof values.threshold === 'number') return values.threshold;
   if (typeof values.pass_threshold === 'number') return values.pass_threshold;
   return undefined;
+}
+
+function readAppName(section: unknown): string | undefined {
+  if (!section || typeof section !== 'object' || Array.isArray(section)) return undefined;
+  const value = (section as Record<string, unknown>).app_name;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 /**
@@ -123,7 +142,12 @@ export function saveStudioConfig(agentvDir: string, config: StudioConfig): void 
   const { studio: _legacyStudio, ...withoutStudio } = existing;
   existing = {
     ...withoutStudio,
-    dashboard: { ...studioRest, ...dashboardRest, ...config },
+    dashboard: {
+      ...studioRest,
+      ...dashboardRest,
+      threshold: config.threshold,
+      app_name: config.appName,
+    },
   };
 
   const yamlStr = stringifyYaml(existing);

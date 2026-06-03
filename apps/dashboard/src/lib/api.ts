@@ -305,6 +305,7 @@ export function useRemoteStatus(projectId?: string) {
 
 /** Default pass threshold matching @agentv/core DEFAULT_THRESHOLD */
 export const DEFAULT_PASS_THRESHOLD = 0.8;
+export const DEFAULT_APP_NAME = 'agent v';
 
 export function isPassing(score: number, passThreshold: number = DEFAULT_PASS_THRESHOLD): boolean {
   return score >= passThreshold;

@@ -9,7 +9,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import { DEFAULT_PASS_THRESHOLD, saveStudioConfig, useStudioConfig } from '~/lib/api';
+import {
+  DEFAULT_APP_NAME,
+  DEFAULT_PASS_THRESHOLD,
+  saveStudioConfig,
+  useStudioConfig,
+} from '~/lib/api';
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -25,6 +30,7 @@ function SettingsPage() {
   const currentThreshold = config?.threshold ?? DEFAULT_PASS_THRESHOLD;
   const displayThreshold = threshold || String(currentThreshold);
   const isReadOnly = config?.read_only === true;
+  const appName = config?.app_name ?? DEFAULT_APP_NAME;
 
   const handleSave = async () => {
     const value = Number.parseFloat(threshold || String(currentThreshold));
@@ -61,7 +67,7 @@ function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Settings</h1>
-        <p className="mt-1 text-sm text-gray-400">Configure AgentV Dashboard</p>
+        <p className="mt-1 text-sm text-gray-400">Configure {appName}</p>
       </div>
 
       {/* Pass Threshold Card */}

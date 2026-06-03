@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -10,18 +10,27 @@ import { loadStudioConfig, saveStudioConfig } from '../../../src/commands/result
 
 describe('loadStudioConfig', () => {
   let tempDir: string;
+  let previousAgentvHome: string | undefined;
 
   beforeEach(() => {
     tempDir = mkdtempSync(path.join(tmpdir(), 'studio-config-'));
+    previousAgentvHome = process.env.AGENTV_HOME;
+    process.env.AGENTV_HOME = path.join(tempDir, 'home');
   });
 
   afterEach(() => {
+    if (previousAgentvHome === undefined) {
+      process.env.AGENTV_HOME = undefined;
+    } else {
+      process.env.AGENTV_HOME = previousAgentvHome;
+    }
     rmSync(tempDir, { recursive: true, force: true });
   });
 
   it('returns defaults when no config.yaml exists', () => {
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(DEFAULT_THRESHOLD);
+    expect(config.appName).toBe('agent v');
   });
 
   it.each([
@@ -50,6 +59,48 @@ describe('loadStudioConfig', () => {
       'dashboard:\n  threshold: 0.9\nstudio:\n  threshold: 0.5\n',
     );
     const config = loadStudioConfig(tempDir);
+    expect(config.threshold).toBe(0.9);
+  });
+
+  it('reads dashboard.app_name for white labelling', () => {
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  app_name: ai evals\n');
+    expect(loadStudioConfig(tempDir).appName).toBe('ai evals');
+  });
+
+  it('ignores blank dashboard.app_name', () => {
+    writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  app_name: "  "\n');
+    expect(loadStudioConfig(tempDir).appName).toBe('agent v');
+  });
+
+  it('falls back to global config.yaml for dashboard settings', () => {
+    const homeDir = process.env.AGENTV_HOME;
+    if (!homeDir) throw new Error('AGENTV_HOME test setup failed');
+    mkdirSync(homeDir, { recursive: true });
+    writeFileSync(
+      path.join(homeDir, 'config.yaml'),
+      'dashboard:\n  app_name: ai evals\n  threshold: 0.6\n',
+    );
+
+    const config = loadStudioConfig(tempDir);
+    expect(config.appName).toBe('ai evals');
+    expect(config.threshold).toBe(0.6);
+  });
+
+  it('prefers local config.yaml over global config.yaml', () => {
+    const homeDir = process.env.AGENTV_HOME;
+    if (!homeDir) throw new Error('AGENTV_HOME test setup failed');
+    mkdirSync(homeDir, { recursive: true });
+    writeFileSync(
+      path.join(homeDir, 'config.yaml'),
+      'dashboard:\n  app_name: ai evals\n  threshold: 0.6\n',
+    );
+    writeFileSync(
+      path.join(tempDir, 'config.yaml'),
+      'dashboard:\n  app_name: local evals\n  threshold: 0.9\n',
+    );
+
+    const config = loadStudioConfig(tempDir);
+    expect(config.appName).toBe('local evals');
     expect(config.threshold).toBe(0.9);
   });
 
@@ -94,12 +145,20 @@ describe('loadStudioConfig', () => {
 
 describe('saveStudioConfig', () => {
   let tempDir: string;
+  let previousAgentvHome: string | undefined;
 
   beforeEach(() => {
     tempDir = mkdtempSync(path.join(tmpdir(), 'studio-config-'));
+    previousAgentvHome = process.env.AGENTV_HOME;
+    process.env.AGENTV_HOME = path.join(tempDir, 'home');
   });
 
   afterEach(() => {
+    if (previousAgentvHome === undefined) {
+      process.env.AGENTV_HOME = undefined;
+    } else {
+      process.env.AGENTV_HOME = previousAgentvHome;
+    }
     rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -108,13 +167,15 @@ describe('saveStudioConfig', () => {
       path.join(tempDir, 'config.yaml'),
       'required_version: ">=4.2.0"\neval_patterns:\n  - "**/*.eval.yaml"\n',
     );
-    saveStudioConfig(tempDir, { threshold: 0.9 });
+    saveStudioConfig(tempDir, { threshold: 0.9, appName: 'ai evals' });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
     expect(parsed.required_version).toBe('>=4.2.0');
     expect(parsed.eval_patterns).toEqual(['**/*.eval.yaml']);
     expect((parsed.dashboard as Record<string, unknown>).threshold).toBe(0.9);
+    expect((parsed.dashboard as Record<string, unknown>).app_name).toBe('ai evals');
+    expect((parsed.dashboard as Record<string, unknown>).appName).toBeUndefined();
   });
 
   it('writes canonical dashboard.threshold and removes legacy threshold fields on save', () => {
@@ -122,7 +183,7 @@ describe('saveStudioConfig', () => {
       path.join(tempDir, 'config.yaml'),
       'required_version: ">=4.2.0"\npass_threshold: 0.8\ndashboard:\n  pass_threshold: 0.6\nstudio:\n  theme: dark\n  pass_threshold: 0.5\n',
     );
-    saveStudioConfig(tempDir, { threshold: 0.7 });
+    saveStudioConfig(tempDir, { threshold: 0.7, appName: 'agent v' });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
@@ -133,10 +194,12 @@ describe('saveStudioConfig', () => {
     expect(dashboard.theme).toBe('dark');
     expect(dashboard.pass_threshold).toBeUndefined();
     expect(dashboard.threshold).toBe(0.7);
+    expect(dashboard.app_name).toBe('agent v');
+    expect(dashboard.appName).toBeUndefined();
   });
 
   it('creates config.yaml when it does not exist', () => {
-    saveStudioConfig(tempDir, { threshold: 0.6 });
+    saveStudioConfig(tempDir, { threshold: 0.6, appName: 'agent v' });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
@@ -145,7 +208,7 @@ describe('saveStudioConfig', () => {
 
   it('creates directory if it does not exist', () => {
     const nestedDir = path.join(tempDir, 'nested', '.agentv');
-    saveStudioConfig(nestedDir, { threshold: 0.5 });
+    saveStudioConfig(nestedDir, { threshold: 0.5, appName: 'agent v' });
 
     const raw = readFileSync(path.join(nestedDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;

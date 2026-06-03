@@ -1002,8 +1002,10 @@ function handleConfig(
   { agentvDir, searchDir }: DataContext,
   options?: { readOnly?: boolean; projectDashboard?: boolean; currentProjectId?: string },
 ) {
+  const config = loadStudioConfig(agentvDir);
   return c.json({
-    ...loadStudioConfig(agentvDir),
+    threshold: config.threshold,
+    app_name: config.appName,
     read_only: options?.readOnly === true,
     project_name: path.basename(searchDir),
     project_dashboard: options?.projectDashboard === true,

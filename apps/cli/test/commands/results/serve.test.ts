@@ -212,7 +212,7 @@ describe('resolveDashboardMode', () => {
 
 const MOCK_STUDIO_HTML = `<!doctype html>
 <html lang="en" class="dark">
-<head><title>AgentV Dashboard</title></head>
+<head><title>agent v</title></head>
 <body class="bg-gray-950 text-gray-100"><div id="root"></div></body>
 </html>`;
 
@@ -262,7 +262,7 @@ describe('serve app', () => {
       const res = await app.request('/');
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain('AgentV Dashboard');
+      expect(html).toContain('agent v');
       expect(html).toContain('<div id="root">');
     });
   });
@@ -455,7 +455,7 @@ describe('serve app', () => {
       const res = await app.request('/');
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain('AgentV Dashboard');
+      expect(html).toContain('agent v');
     });
 
     it('serves feedback API with empty results', async () => {
@@ -1069,7 +1069,7 @@ describe('serve app', () => {
       const res = await app.request('/runs/some-run');
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain('AgentV Dashboard');
+      expect(html).toContain('agent v');
     });
 
     it('returns 404 JSON for unknown API routes', async () => {

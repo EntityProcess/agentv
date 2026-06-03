@@ -11,8 +11,10 @@
 
 import { Outlet } from '@tanstack/react-router';
 
+import { DEFAULT_APP_NAME, useStudioConfig } from '~/lib/api';
 import { SidebarProvider, useSidebarContext } from '~/lib/sidebar-context';
 
+import { BrandName } from './BrandName';
 import { Breadcrumbs } from './Breadcrumbs';
 import { Sidebar } from './Sidebar';
 
@@ -26,6 +28,8 @@ export function Layout() {
 
 function LayoutInner() {
   const { toggle } = useSidebarContext();
+  const { data: config } = useStudioConfig();
+  const appName = config?.app_name ?? DEFAULT_APP_NAME;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -59,7 +63,9 @@ function LayoutInner() {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-white">AgentV Dashboard</span>
+          <span className="text-sm font-semibold text-white">
+            <BrandName appName={appName} />
+          </span>
         </header>
 
         <Breadcrumbs />
