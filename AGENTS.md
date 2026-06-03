@@ -271,6 +271,12 @@ bunx prek install -t pre-push
 
 If any check fails, the push is blocked until the issues are fixed.
 
+**Docs-only exception:**
+For changes that only touch documentation, comments, or repository instructions and cannot affect runtime behavior, push with `--no-verify` to skip the full pre-push suite:
+```bash
+git push --no-verify
+```
+
 **Manual run (without pushing):**
 ```bash
 bunx prek run --all-files --hook-stage pre-push
@@ -337,9 +343,11 @@ This does not apply to lightweight LLM-only targets (azure, openai, gemini, open
 Tests should be lean and focused on what matters. Follow these principles:
 
 - **Only test new or changed behavior.** Don't write tests for existing behavior that's already covered by the 1600+ core tests. If you fix a bug, test the fix and its edge cases — not the surrounding module.
+- **Protect stable core contracts, not every new detail.** Tests should primarily prevent regressions in existing core behavior: data formats, scoring semantics, routing, persistence, provider contracts, and CLI/API outcomes users depend on. Experimental features, early UI flows, and behavior expected to churn do not need detailed test matrices until the contract stabilizes.
 - **One test per distinct behavior.** Don't write separate tests for trivially different inputs that exercise the same code path.
 - **No tests for obvious code.** If a function returns `undefined` for missing input and that's a one-line null check, you don't need a test for it unless it's a regression risk.
 - **Regression tests > comprehensive tests.** A test that would have caught the bug is worth more than five tests that exercise happy paths.
+- **Document churny end-user behavior instead of over-testing it.** When behavior matters to users but changes frequently, prefer updating the Astro docs in `apps/web/src/content/docs/` over locking presentation details, migration variants, or temporary workflows into brittle tests.
 - **Tests are executable contracts.** When a module's behavioral contract changes, the tests must reflect the new contract — not just the happy path. If you change what a function promises, update its tests to assert the new promise.
 
 ### Verifying Grader Changes
