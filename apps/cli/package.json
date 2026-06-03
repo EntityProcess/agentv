@@ -33,7 +33,7 @@
     "@hono/node-server": "^1.19.11",
     "@inquirer/prompts": "^8.2.1",
     "@earendil-works/pi-ai": "^0.74.0",
-    "@openai/codex-sdk": "^0.104.0",
+    "@openai/codex-sdk": "^0.136.0",
     "cmd-ts": "^0.14.3",
     "dotenv": "^16.4.5",
     "fast-glob": "^3.3.3",

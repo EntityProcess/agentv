@@ -70,6 +70,9 @@ export class CodexProvider implements Provider {
     // Build Codex SDK options
     // biome-ignore lint/suspicious/noExplicitAny: SDK constructor options are dynamic
     const codexOptions: any = {};
+    if (this.config.executable) {
+      codexOptions.codexPathOverride = this.config.executable;
+    }
     if (this.config.model) {
       codexOptions.config = { model: this.config.model };
     }
@@ -85,6 +88,9 @@ export class CodexProvider implements Provider {
     const cwd = this.resolveCwd(request.cwd);
     if (cwd) {
       threadOptions.workingDirectory = cwd;
+    }
+    if (this.config.modelReasoningEffort) {
+      threadOptions.modelReasoningEffort = this.config.modelReasoningEffort;
     }
 
     const thread = codex.startThread(threadOptions);

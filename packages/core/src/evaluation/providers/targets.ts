@@ -424,6 +424,7 @@ export interface GeminiResolvedConfig {
 
 export interface CodexResolvedConfig {
   readonly model?: string;
+  readonly modelReasoningEffort?: CodexModelReasoningEffort;
   readonly executable: string;
   readonly args?: readonly string[];
   readonly cwd?: string;
@@ -596,6 +597,17 @@ const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['retryMaxDelayMs', 'retry_max_delay_ms'],
   ['retryBackoffFactor', 'retry_backoff_factor'],
   ['retryStatusCodes', 'retry_status_codes'],
+  ['modelReasoningEffort', 'model_reasoning_effort'],
+]);
+
+export type CodexModelReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
+const CODEX_MODEL_REASONING_EFFORT_VALUES = new Set<CodexModelReasoningEffort>([
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
 ]);
 
 const DEPRECATED_HEALTHCHECK_CAMEL_CASE_FIELDS = new Map<string, string>([
@@ -1254,6 +1266,7 @@ function resolveCodexConfig(
   _evalFilePath?: string,
 ): CodexResolvedConfig {
   const modelSource = target.model;
+  const modelReasoningEffortSource = target.model_reasoning_effort;
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
@@ -1272,6 +1285,17 @@ function resolveCodexConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
+  const modelReasoningEffort = normalizeCodexModelReasoningEffort(
+    resolveOptionalString(
+      modelReasoningEffortSource,
+      env,
+      `${target.name} codex model reasoning effort`,
+      {
+        allowLiteral: true,
+        optionalEnv: true,
+      },
+    ),
+  );
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
@@ -1300,6 +1324,7 @@ function resolveCodexConfig(
 
   return {
     model,
+    modelReasoningEffort,
     executable,
     args,
     cwd,
@@ -1309,6 +1334,23 @@ function resolveCodexConfig(
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
+}
+
+function normalizeCodexModelReasoningEffort(
+  value: string | undefined,
+): CodexModelReasoningEffort | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (CODEX_MODEL_REASONING_EFFORT_VALUES.has(normalized as CodexModelReasoningEffort)) {
+    return normalized as CodexModelReasoningEffort;
+  }
+
+  throw new Error(
+    `codex model_reasoning_effort must be one of: ${[...CODEX_MODEL_REASONING_EFFORT_VALUES].join(', ')}`,
+  );
 }
 
 function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined {

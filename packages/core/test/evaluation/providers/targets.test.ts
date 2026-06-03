@@ -626,6 +626,42 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
   });
 
+  it('resolves codex model_reasoning_effort from env', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'codex',
+        provider: 'codex',
+        model: '${{ CODEX_MODEL }}',
+        model_reasoning_effort: '${{ CODEX_REASONING_EFFORT }}',
+      },
+      {
+        CODEX_MODEL: 'gpt-5.5',
+        CODEX_REASONING_EFFORT: 'low',
+      },
+    );
+
+    expect(target.kind).toBe('codex');
+    if (target.kind !== 'codex') {
+      throw new Error('expected codex target');
+    }
+
+    expect(target.config.model).toBe('gpt-5.5');
+    expect(target.config.modelReasoningEffort).toBe('low');
+  });
+
+  it('rejects unsupported codex model_reasoning_effort values', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'codex',
+          provider: 'codex',
+          model_reasoning_effort: 'tiny',
+        },
+        {},
+      ),
+    ).toThrow(/model_reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
+  });
+
   it('resolves copilot alias to copilot-cli', () => {
     const target = resolveTargetDefinition(
       {

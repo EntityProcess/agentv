@@ -44,7 +44,7 @@
     "@agentv/eval": "workspace:*",
     "@github/copilot-sdk": "^0.1.25",
     "@earendil-works/pi-ai": "^0.74.0",
-    "@openai/codex-sdk": "^0.104.0",
+    "@openai/codex-sdk": "^0.136.0",
     "fast-glob": "^3.3.3",
     "json5": "^2.2.3",
     "micromatch": "^4.0.8",

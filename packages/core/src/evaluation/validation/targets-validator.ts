@@ -96,6 +96,7 @@ const GEMINI_SETTINGS = new Set([
 const CODEX_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'model',
+  'model_reasoning_effort',
   'executable',
   'command',
   'binary',
