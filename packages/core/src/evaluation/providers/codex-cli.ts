@@ -204,7 +204,7 @@ export class CodexCliProvider implements Provider {
 
   private resolveLogDirectory(): string | undefined {
     const disabled = isCodexLogStreamingDisabled();
-    if (disabled) {
+    if (disabled || this.config.streamLog === false) {
       return undefined;
     }
     if (this.config.logDir) {
@@ -236,7 +236,7 @@ export class CodexCliProvider implements Provider {
         targetName: this.targetName,
         evalCaseId: request.evalCaseId,
         attempt: request.attempt,
-        format: this.config.logFormat ?? 'summary',
+        format: this.config.streamLog === 'raw' ? 'json' : 'summary',
       });
       recordCodexLogEntry({
         filePath,

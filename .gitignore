@@ -27,8 +27,18 @@ agent-orchestrator.yaml
 # Agent configuration and activity logs
 .agents/
 .claude/
+.codex/
+.factory/
+.vscode/mcp.json
 .opencode/
 .ao/
+
+# MCP Agent Mail local configs (contain bearer tokens)
+.mcp.json
+codex.mcp.json
+cline.mcp.json
+factory.mcp.json
+windsurf.mcp.json
 
 # Gas Town / Beads shared state
 .beads/.br_history/
@@ -39,3 +49,6 @@ state.json
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# Claude Code local settings (contains secrets)
+.claude/settings.local.json

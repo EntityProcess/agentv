@@ -118,7 +118,7 @@ targets:
     grader_target: grader
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
-    log_format: json
+    stream_log: raw
 
   # ── LLM targets (direct model access) ─────────────────────────────
   - name: gh-models

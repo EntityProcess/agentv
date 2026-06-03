@@ -202,7 +202,7 @@ describe('CodexCliProvider', () => {
     }
   });
 
-  it('supports JSON log format for detailed inspection', async () => {
+  it('supports raw stream logs for detailed inspection', async () => {
     const runner = mock(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
       const event = JSON.stringify({
         type: 'item.completed',
@@ -221,7 +221,7 @@ describe('CodexCliProvider', () => {
       {
         executable: process.execPath,
         logDir: fixturesRoot,
-        logFormat: 'json',
+        streamLog: 'raw',
       },
       runner,
     );

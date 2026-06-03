@@ -430,7 +430,6 @@ export interface CodexResolvedConfig {
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
-  readonly logFormat?: 'summary' | 'json';
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
@@ -1272,14 +1271,14 @@ function resolveCodexConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource =
-    target.log_format ?? target.log_output_format ?? env.AGENTV_CODEX_LOG_FORMAT;
   const systemPromptSource = target.system_prompt;
 
-  const streamLogResult = resolveStreamLog(target, env.AGENTV_CODEX_LOG_FORMAT);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
+  if (target.log_format !== undefined || target.log_output_format !== undefined) {
+    throw new Error(
+      `${target.name}: log_format is no longer supported for codex targets. Use stream_log instead.`,
+    );
   }
+  const streamLogResult = resolveStreamLog({ name: target.name, stream_log: target.stream_log });
 
   const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
     allowLiteral: true,
@@ -1315,7 +1314,6 @@ function resolveCodexConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
-  const logFormat = normalizeCodexLogFormat(logFormatSource);
 
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
@@ -1330,7 +1328,6 @@ function resolveCodexConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
@@ -1351,20 +1348,6 @@ function normalizeCodexModelReasoningEffort(
   throw new Error(
     `codex model_reasoning_effort must be one of: ${[...CODEX_MODEL_REASONING_EFFORT_VALUES].join(', ')}`,
   );
-}
-
-function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (typeof value !== 'string') {
-    throw new Error("codex log format must be 'summary' or 'json'");
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'json' || normalized === 'summary') {
-    return normalized;
-  }
-  throw new Error("codex log format must be 'summary' or 'json'");
 }
 
 /**
