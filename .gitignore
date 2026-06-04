@@ -41,14 +41,19 @@ factory.mcp.json
 windsurf.mcp.json
 
 # Gas Town / Beads shared state
+.beads/hooks/
 .beads/.br_history/
 .beads/.bv.lock
 .runtime/
 .logs/
 state.json
 
+# NTM local project config embeds machine-specific paths
+.ntm/config.toml
+
 # bv (beads viewer) local config and caches
 .bv/
 
 # Claude Code local settings (contains secrets)
 .claude/settings.local.json
+.grepai/

@@ -37,7 +37,7 @@ Also ensure:
 - PR explains what changed and why
 - tests/docs are updated when relevant
 - no unrelated refactors in the same PR
-- pre-push hooks pass (`build`, `typecheck`, `lint`, `test` run automatically on push)
+- prek hooks pass (`br sync --flush-only` runs before commit when available; `build`, `typecheck`, `lint`, `test` run automatically on push)
 
 ## Workflow
 

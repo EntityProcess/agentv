@@ -258,15 +258,20 @@ If you spot a camelCase key already on disk or in a response (e.g. a legacy endp
 
 ### Pre-Push Hooks (Automated)
 
-The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks that automatically run build, typecheck, lint, and tests before pushing. **Do not manually run these checks before pushing** — just push to the feature branch and let the pre-push hook validate.
+The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for Git hooks. Pre-commit hooks sync Beads JSONL before commits, and pre-push hooks automatically run build, typecheck, lint, tests, and example validation before pushing. **Do not manually run the pre-push checks before pushing** — just push to the feature branch and let the pre-push hook validate.
 
 **Setup (automatic):**
 The hooks are installed automatically when you run `bun install` via the `prepare` script. To manually install:
 ```bash
-bunx prek install -t pre-push
+bunx prek install -t pre-commit -t pre-push
 ```
 
+**What runs before commit:**
+- `br sync --flush-only` - Export Beads DB state to tracked JSONL when `br` is installed
+- `.beads/` cleanliness check - If sync changes `.beads/`, stage those changes and commit again
+
 **What runs on push:**
+- `.beads/` cleanliness check - Re-runs Beads sync when `br` is installed and blocks pushes with uncommitted Beads state
 - `bun run build` - Build all packages
 - `bun run typecheck` - TypeScript type checking
 - `bun run lint` - Biome linting
@@ -283,7 +288,15 @@ git push --no-verify
 
 **Manual run (without pushing):**
 ```bash
-bunx prek run --all-files --hook-stage pre-push
+bunx prek run --all-files --stage pre-push
+```
+
+NTM hooks are optional local coordination tooling. Do not commit generated `.beads/hooks/*` files or local `.ntm/config.toml`; they embed machine-specific paths and can bypass the repo's prek hooks when installed via `core.hooksPath`.
+
+If an existing checkout has NTM hooks installed, restore the repo-standard prek hook path before reinstalling:
+```bash
+git config --unset core.hooksPath
+bun install
 ```
 
 ### Functional Testing (CLI)
