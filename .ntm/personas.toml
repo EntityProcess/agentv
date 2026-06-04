@@ -1,0 +1,8 @@
+# Project personas for NTM
+# Define specialized agent roles and behaviors here.
+# Example:
+# [[personas]]
+# name = "architect"
+# agent = "claude"
+# description = "High-level design and architecture"
+# system_prompt = """You are the architecture specialist..."""
