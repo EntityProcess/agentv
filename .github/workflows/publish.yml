@@ -38,7 +38,13 @@ jobs:
       - name: Upgrade npm
         run: npm install -g npm@latest
 
-      - uses: ./.github/actions/setup-bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Detect channel
         id: channel

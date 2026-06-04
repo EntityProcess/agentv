@@ -310,10 +310,15 @@ describe('results repo write path', () => {
     const sourceDir = path.join(rootDir, 'source-run');
     const runTimestamp = '2026-05-22T10-00-00-000Z';
     const destinationPath = path.join('with-skills', runTimestamp);
+    const config = createResultsConfig(remoteDir, cloneDir);
     writeRunArtifacts(sourceDir, 'with-skills', '2026-05-22T10:00:00.000Z');
 
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
     const pushed = await directPushResults({
-      config: createResultsConfig(remoteDir, cloneDir),
+      config,
       sourceDir,
       destinationPath,
       commitMessage: 'feat(results): with-skills - 1/1 PASS (1.000)',

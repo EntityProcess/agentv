@@ -44,7 +44,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout main
 
-      - uses: ./.github/actions/setup-bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Bump version, commit, and tag
         run: |
