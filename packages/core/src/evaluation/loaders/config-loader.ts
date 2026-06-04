@@ -70,8 +70,10 @@ export type AgentVConfig = {
  * falls back to the home/global config at `${AGENTV_HOME:-~/.agentv}/config.yaml`.
  * The first valid project-local file wins for normal settings. Machine-local
  * `results_by_project` mappings from the global config are still attached when
- * the project-local file has no `results` block, so registered projects can use
- * per-machine results repos without editing source-controlled config.
+ * the project-local file has no project mapping of its own, so registered
+ * projects can use per-machine results repos without editing source-controlled
+ * config. `resolveResultsConfigForProject()` then lets a matching project
+ * mapping override the top-level project-local `results` fallback.
  */
 export async function loadConfig(
   evalFilePath: string,
@@ -89,8 +91,6 @@ export async function loadConfig(
 
     const config = await readConfigFile(configPath);
     if (config) {
-      if (config.results) return config;
-
       const globalConfig = (await fileExists(globalConfigPath))
         ? await readConfigFile(globalConfigPath)
         : null;

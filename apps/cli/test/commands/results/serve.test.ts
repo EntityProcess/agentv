@@ -850,7 +850,13 @@ describe('serve app', () => {
         mkdirSync(homeDir, { recursive: true });
         writeFileSync(
           path.join(projectDir, '.agentv', 'config.yaml'),
-          'execution:\n  verbose: true\n',
+          `execution:
+  verbose: true
+results:
+  mode: github
+  repo: EntityProcess/project-local-results
+  auto_push: false
+`,
         );
         writeFileSync(
           path.join(homeDir, 'config.yaml'),

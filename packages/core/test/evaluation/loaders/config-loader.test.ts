@@ -134,7 +134,7 @@ describe('loadConfig', () => {
     }
   });
 
-  it('keeps project-local results ahead of global results_by_project', async () => {
+  it('lets matching global results_by_project override project-local results', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-results-precedence-'));
     try {
       const projectDir = path.join(tempDir, 'project');
@@ -149,6 +149,7 @@ describe('loadConfig', () => {
         `results:
   mode: github
   repo: EntityProcess/local-results
+  auto_push: false
 `,
       );
       writeFileSync(
@@ -157,14 +158,61 @@ describe('loadConfig', () => {
   agentv:
     mode: github
     repo: EntityProcess/global-results
+    path: /tmp/agentv-global-results
+    auto_push: true
 `,
       );
 
       await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
         const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
-        expect(resolveResultsConfigForProject(config, 'agentv')?.repo).toBe(
-          'EntityProcess/local-results',
-        );
+        expect(resolveResultsConfigForProject(config, 'agentv')).toEqual({
+          mode: 'github',
+          repo: 'EntityProcess/global-results',
+          path: '/tmp/agentv-global-results',
+          auto_push: true,
+        });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps project-local results when no global results_by_project id matches', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-results-fallback-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      const homeDir = path.join(tempDir, 'home');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        `results:
+  mode: github
+  repo: EntityProcess/local-results
+  auto_push: false
+`,
+      );
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        `results_by_project:
+  other-project:
+    mode: github
+    repo: EntityProcess/global-results
+    path: /tmp/agentv-global-results
+    auto_push: true
+`,
+      );
+
+      await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(resolveResultsConfigForProject(config, 'agentv')).toEqual({
+          mode: 'github',
+          repo: 'EntityProcess/local-results',
+          auto_push: false,
+        });
       });
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

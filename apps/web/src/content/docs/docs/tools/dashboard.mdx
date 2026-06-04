@@ -271,7 +271,7 @@ results_by_project:
     auto_push: true
 ```
 
-The keys under `results_by_project` must match the project IDs in `$AGENTV_HOME/projects.yaml`. Project-local `.agentv/config.yaml` `results` blocks still take precedence. A top-level global `results` block remains the fallback for projects without a specific mapping.
+The keys under `results_by_project` must match the project IDs in `$AGENTV_HOME/projects.yaml`. For registered project flows, a matching machine-local `results_by_project` entry takes precedence over a project-local `.agentv/config.yaml` `results` block. Project-local `results` remains the fallback when no project-specific mapping matches, and a top-level global `results` block remains the final fallback.
 
 With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Dashboard without requiring PR merges.
 
