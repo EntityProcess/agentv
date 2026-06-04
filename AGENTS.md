@@ -117,6 +117,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ### Beads Ownership
 - Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
+- Create beads with short generated IDs. Do not pass `--slug`; the title carries the human-readable name, including `EPIC:` when useful.
 - Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
 - Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
 - Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
@@ -659,7 +660,7 @@ bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
 br ready              # Show issues ready to work (no blockers)
 br list --status=open # All open issues
 br show <id>          # Full issue details with dependencies
-br create --title="..." --type=task --priority=2
+br create --title="..." --type=task --priority=2  # No --slug for routine work
 br update <id> --status=in_progress
 br close <id> --reason="Completed"
 br close <id1> <id2>  # Close multiple issues at once
