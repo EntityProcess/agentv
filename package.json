@@ -25,7 +25,6 @@
     "examples:install": "bun scripts/install-examples.ts",
     "publish": "bun run build && bun scripts/publish.ts",
     "publish:next": "bun run build && bun scripts/publish.ts next",
-    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && bunx prek install -t pre-commit -t pre-push || true",
     "phoenix:dry-run": "bun --filter @agentv/phoenix-adapter phoenix:dry-run",
     "phoenix:assert-smoke": "bun --filter @agentv/phoenix-adapter phoenix:assert-smoke"
   },
@@ -34,7 +33,6 @@
     "@agentv/eval": "workspace:*",
     "@agentv/phoenix-adapter": "workspace:*",
     "@biomejs/biome": "^1.9.4",
-    "@j178/prek": "^0.3.0",
     "@types/bun": "latest",
     "@types/node": "24.1.0",
     "async-mutex": "^0.5.0",

@@ -37,7 +37,8 @@ Also ensure:
 - PR explains what changed and why
 - tests/docs are updated when relevant
 - no unrelated refactors in the same PR
-- prek hooks pass (`br sync --flush-only` runs before commit when available; `build`, `typecheck`, `lint`, `test` run automatically on push)
+- CI-relevant checks pass locally when needed (`bun run verify` and `bun run validate:examples`)
+- Beads changes are exported with `br sync --flush-only` and staged under `.beads/`
 
 ## Workflow
 

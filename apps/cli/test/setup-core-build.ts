@@ -6,8 +6,8 @@
  * is slow and hides staleness issues — we simply verify dist exists and
  * fail fast with a clear message if it doesn't.
  *
- * The pre-push hook runs `bun run build` before `bun run test`, so dist
- * is always available in the normal workflow. For ad-hoc runs, build first:
+ * CI runs `bun run build` before `bun run test`, so dist is available in
+ * the normal merge gate. For ad-hoc local runs, build first:
  *
  *   bun run --filter @agentv/core build && bun --filter agentv test
  */

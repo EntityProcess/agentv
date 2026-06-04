@@ -257,47 +257,23 @@ If you spot a camelCase key already on disk or in a response (e.g. a legacy endp
 
 ## Testing & Verification
 
-### Pre-Push Hooks (Automated)
+### CI Gates
 
-The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for Git hooks. Pre-commit hooks sync Beads JSONL before commits, and pre-push hooks automatically run build, typecheck, lint, tests, and example validation before pushing. **Do not manually run the pre-push checks before pushing** — just push to the feature branch and let the pre-push hook validate.
+GitHub Actions is the authoritative merge gate. The `CI` workflow runs build, typecheck, lint, tests, marketplace checks, docs link checks, and eval schema validation on pushes to `main`, pull requests to `main`, and manual dispatches.
 
-**Setup (automatic):**
-The hooks are installed automatically when you run `bun install` via the `prepare` script. To manually install:
+Run the same core checks locally when you need fast feedback:
 ```bash
-bunx prek install -t pre-commit -t pre-push
+bun run verify
+bun run validate:examples
 ```
 
-**What runs before commit:**
-- `br sync --flush-only` - Export Beads DB state to tracked JSONL when `br` is installed
-- `.beads/` cleanliness check - If sync changes `.beads/`, stage those changes and commit again
+Beads sync is explicit. If you change the Beads graph, run `br sync --flush-only`, stage `.beads/`, and include the exported JSONL in the commit. Hooks must not silently mutate or stash shared worktrees.
 
-**What runs on push:**
-- `.beads/` cleanliness check - Re-runs Beads sync when `br` is installed and blocks pushes with uncommitted Beads state
-- `bun run build` - Build all packages
-- `bun run typecheck` - TypeScript type checking
-- `bun run lint` - Biome linting
-- `bun run test` - All tests
-- `bun run validate:examples` - Validate example eval YAML files against the agentv schema
+NTM hooks are optional local coordination tooling. Do not commit generated `.beads/hooks/*` files or local `.ntm/config.toml`; they embed machine-specific paths and can bypass the repo's normal Git behavior when installed via `core.hooksPath`.
 
-If any check fails, the push is blocked until the issues are fixed.
-
-**Docs-only exception:**
-For changes that only touch documentation, comments, or repository instructions and cannot affect runtime behavior, push with `--no-verify` to skip the full pre-push suite:
-```bash
-git push --no-verify
-```
-
-**Manual run (without pushing):**
-```bash
-bunx prek run --all-files --stage pre-push
-```
-
-NTM hooks are optional local coordination tooling. Do not commit generated `.beads/hooks/*` files or local `.ntm/config.toml`; they embed machine-specific paths and can bypass the repo's prek hooks when installed via `core.hooksPath`.
-
-If an existing checkout has NTM hooks installed, restore the repo-standard prek hook path before reinstalling:
+If an existing checkout has NTM or prek hooks installed, restore Git's default hook path:
 ```bash
 git config --unset core.hooksPath
-bun install
 ```
 
 ### Functional Testing (CLI)
@@ -566,7 +542,7 @@ Both steps are required before running builds, tests, or evals in the worktree.
 
 ### After Checking Out an Existing Branch or PR
 
-Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` / `bun.lock`, run `bun install` before building, testing, or pushing. The pre-push hook builds all workspaces — if dependencies are stale, the push fails with errors like `Cannot find module 'recharts'` even though the source change is unrelated. `bun install` is cheap when already up-to-date, so run it by default after any ref switch.
+Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` / `bun.lock`, run `bun install` before building or testing. If dependencies are stale, CI/local checks can fail with errors like `Cannot find module 'recharts'` even though the source change is unrelated. `bun install` is cheap when already up-to-date, so run it by default after any ref switch.
 
 ## Version Management
 

@@ -4,7 +4,7 @@
  * Finds files matching examples/features/** /*.eval.yaml (and .EVAL.yaml)
  * and runs AgentV schema validation on each one.
  *
- * Used by the prek pre-push hook to catch invalid eval files before pushing.
+ * Used by CI and local verification to catch invalid eval files before merge.
  *
  * Exit codes:
  *   0 — all files valid

@@ -1,0 +1,60 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - package.json
+      - bun.lock
+      - .github/workflows/dependency-audit.yml
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - bun.lock
+      - .github/workflows/dependency-audit.yml
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lockfile:
+    name: Check Bun lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bun
+
+      - name: Verify lockfile is current
+        run: bun install --frozen-lockfile --dry-run
+
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bun
+
+      - name: Run Bun audit
+        run: |
+          set +e
+          bun audit --audit-level=moderate | tee audit.txt
+          status="${PIPESTATUS[0]}"
+          {
+            echo "## Bun Audit"
+            echo
+            echo '```text'
+            cat audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
