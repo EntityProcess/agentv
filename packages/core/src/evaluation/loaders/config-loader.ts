@@ -46,6 +46,8 @@ export type ResultsConfig = {
   readonly branch_prefix?: string;
 };
 
+export type ResultsByProjectConfig = Record<string, ResultsConfig>;
+
 export type HooksConfig = {
   /** Shell command to run once at agentv startup. stdout is parsed for env var exports. */
   readonly before_session?: string;
@@ -56,6 +58,7 @@ export type AgentVConfig = {
   readonly eval_patterns?: readonly string[];
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
+  readonly results_by_project?: ResultsByProjectConfig;
   readonly hooks?: HooksConfig;
 };
 
@@ -65,13 +68,17 @@ export type AgentVConfig = {
  * Project-local `.agentv/config.yaml` files are searched from the eval file
  * directory up to the repo root. If no project-local config is found, AgentV
  * falls back to the home/global config at `${AGENTV_HOME:-~/.agentv}/config.yaml`.
- * The first valid file wins; there is intentionally no cross-file merge.
+ * The first valid project-local file wins for normal settings. Machine-local
+ * `results_by_project` mappings from the global config are still attached when
+ * the project-local file has no `results` block, so registered projects can use
+ * per-machine results repos without editing source-controlled config.
  */
 export async function loadConfig(
   evalFilePath: string,
   repoRoot: string,
 ): Promise<AgentVConfig | null> {
   const directories = buildDirectoryChain(evalFilePath, repoRoot);
+  const globalConfigPath = path.join(getAgentvConfigDir(), 'config.yaml');
 
   for (const directory of directories) {
     const configPath = path.join(directory, '.agentv', 'config.yaml');
@@ -81,10 +88,21 @@ export async function loadConfig(
     }
 
     const config = await readConfigFile(configPath);
-    if (config) return config;
+    if (config) {
+      if (config.results) return config;
+
+      const globalConfig = (await fileExists(globalConfigPath))
+        ? await readConfigFile(globalConfigPath)
+        : null;
+      return {
+        ...config,
+        ...((config.results_by_project ?? globalConfig?.results_by_project)
+          ? { results_by_project: config.results_by_project ?? globalConfig?.results_by_project }
+          : {}),
+      };
+    }
   }
 
-  const globalConfigPath = path.join(getAgentvConfigDir(), 'config.yaml');
   return (await fileExists(globalConfigPath)) ? readConfigFile(globalConfigPath) : null;
 }
 
@@ -122,6 +140,10 @@ async function readConfigFile(configPath: string): Promise<AgentVConfig | null> 
       configPath,
     );
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
+    const resultsByProject = parseResultsByProjectConfig(
+      (parsed as Record<string, unknown>).results_by_project,
+      configPath,
+    );
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
 
     return {
@@ -129,6 +151,7 @@ async function readConfigFile(configPath: string): Promise<AgentVConfig | null> 
       eval_patterns: evalPatterns as readonly string[] | undefined,
       execution: executionDefaults,
       results,
+      ...(resultsByProject && { results_by_project: resultsByProject }),
       ...(hooks && { hooks }),
     };
   } catch (error) {
@@ -639,6 +662,46 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
     ...(branchPrefix && { branch_prefix: branchPrefix }),
   };
+}
+
+export function parseResultsByProjectConfig(
+  raw: unknown,
+  configPath: string,
+): ResultsByProjectConfig | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid results_by_project in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const entries: ResultsByProjectConfig = {};
+  for (const [projectId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!projectId.trim()) {
+      logWarning(`Invalid results_by_project key in ${configPath}, expected non-empty project id`);
+      continue;
+    }
+    const parsed = parseResultsConfig(value, `${configPath} results_by_project.${projectId}`);
+    if (parsed) {
+      entries[projectId] = parsed;
+    }
+  }
+
+  return Object.keys(entries).length > 0 ? entries : undefined;
+}
+
+export function resolveResultsConfigForProject(
+  config: AgentVConfig | null | undefined,
+  projectId?: string,
+): ResultsConfig | undefined {
+  if (!config) {
+    return undefined;
+  }
+
+  const projectResults =
+    projectId && projectId.trim().length > 0 ? config.results_by_project?.[projectId] : undefined;
+  return projectResults ?? config.results;
 }
 
 /**

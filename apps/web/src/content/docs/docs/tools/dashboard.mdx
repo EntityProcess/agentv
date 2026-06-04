@@ -175,9 +175,9 @@ agentv dashboard --add /path/to/my-evals
 agentv dashboard --add /path/to/other-evals
 ```
 
-Each path must contain a `.agentv/` directory. Registered projects are stored in `~/.agentv/projects.yaml`.
+Each path must contain a `.agentv/` directory. Registered projects are stored in `$AGENTV_HOME/projects.yaml`, or `~/.agentv/projects.yaml` when `AGENTV_HOME` is unset.
 
-To register a remote repo and keep it synced automatically, add a `source` block to the entry in `~/.agentv/projects.yaml`:
+To register a remote repo and keep it synced automatically, add a `source` block to the entry in `$AGENTV_HOME/projects.yaml`:
 
 ```yaml
 projects:
@@ -197,7 +197,7 @@ On each Dashboard startup, AgentV clones the repo if the path is empty (`git clo
 
 - Adding via the UI's **Add Project** form or `POST /api/projects`.
 - Removing via the UI's **Remove** button or `DELETE /api/projects/:id`.
-- Editing `~/.agentv/projects.yaml` directly.
+- Editing `$AGENTV_HOME/projects.yaml` directly.
 - Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Dashboard reflects it within the next poll.
 
 This satisfies the 24/7-Dashboard use case: the server stays up; projects come and go through config edits or API calls.
@@ -209,6 +209,13 @@ Dashboard opens the Projects dashboard by default, even when no projects or one 
 ```bash
 agentv dashboard          # Projects dashboard
 agentv dashboard --single # legacy single-project route layout
+```
+
+Use a different `AGENTV_HOME` and port per process when you want multiple non-Docker dashboard instances with separate project registries and global config:
+
+```bash
+AGENTV_HOME=/tmp/agentv-home-a agentv dashboard --port 3117
+AGENTV_HOME=/tmp/agentv-home-b agentv dashboard --port 3118
 ```
 
 The landing page shows a card for each project with run count, pass rate, and last run time.
@@ -242,6 +249,29 @@ results:
 ```
 
 `results.path` is the filesystem location of the local clone AgentV manages for the results repo. It is **not** a subdirectory inside the remote repo.
+
+For machine-local multi-project dashboards, put per-project results repos in `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`) instead of editing each source repo:
+
+```yaml
+results_by_project:
+  agentv:
+    mode: github
+    repo: EntityProcess/agentv-examples-eval-results
+    path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
+    auto_push: true
+  wtg-ai-prompts:
+    mode: github
+    repo: WiseTechGlobal/WTG.AI.Prompts.EvalResults
+    path: /home/entity/projects/WiseTechGlobal/WTG.AI.Prompts.EvalResults
+    auto_push: true
+  wisetechacademy-evals:
+    mode: github
+    repo: WiseTechGlobal/WiseTechAcademy.EvalResults
+    path: /home/entity/projects/WiseTechGlobal/WiseTechAcademy.EvalResults
+    auto_push: true
+```
+
+The keys under `results_by_project` must match the project IDs in `$AGENTV_HOME/projects.yaml`. Project-local `.agentv/config.yaml` `results` blocks still take precedence. A top-level global `results` block remains the fallback for projects without a specific mapping.
 
 With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Dashboard without requiring PR merges.
 

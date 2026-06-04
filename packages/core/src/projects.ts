@@ -338,6 +338,21 @@ export function getProject(projectId: string): ProjectEntry | undefined {
 }
 
 /**
+ * Look up the registered project containing a filesystem path.
+ * Exact path matches win; otherwise the deepest registered parent wins.
+ */
+export function getProjectForPath(fsPath: string): ProjectEntry | undefined {
+  const absPath = path.resolve(fsPath);
+  return loadProjectRegistry()
+    .projects.filter((p) => {
+      const projectPath = path.resolve(p.path);
+      const relative = path.relative(projectPath, absPath);
+      return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+    })
+    .sort((a, b) => path.resolve(b.path).length - path.resolve(a.path).length)[0];
+}
+
+/**
  * Update lastOpenedAt for a project.
  */
 export function touchProject(projectId: string): void {

@@ -9,6 +9,7 @@ export {
 } from './evaluation/loaders/agent-skills-parser.js';
 export {
   loadConfig,
+  resolveResultsConfigForProject,
   type AgentVConfig as AgentVYamlConfig,
   type ResultsConfig,
 } from './evaluation/loaders/config-loader.js';
@@ -100,6 +101,7 @@ export {
   addProject,
   removeProject,
   getProject,
+  getProjectForPath,
   touchProject,
   discoverProjects,
   deriveProjectId,
