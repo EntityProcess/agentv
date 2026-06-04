@@ -272,6 +272,7 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
 interface DataContext {
   searchDir: string;
   agentvDir: string;
+  projectId?: string;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -289,31 +290,38 @@ function inferExperimentFromRunId(runId: string): string | undefined {
   return experiment;
 }
 
-async function ensureRunReadable(searchDir: string, meta: SourcedResultFileMeta): Promise<void> {
-  await ensureRemoteRunAvailable(searchDir, meta);
+async function ensureRunReadable(
+  searchDir: string,
+  meta: SourcedResultFileMeta,
+  projectId?: string,
+): Promise<void> {
+  await ensureRemoteRunAvailable(searchDir, meta, projectId);
 }
 
 async function loadManifestResultsForMeta(
   searchDir: string,
   meta: SourcedResultFileMeta,
+  projectId?: string,
 ): Promise<EvaluationResult[]> {
-  await ensureRunReadable(searchDir, meta);
+  await ensureRunReadable(searchDir, meta, projectId);
   return loadManifestResults(meta.path);
 }
 
 async function loadLightweightResultsForMeta(
   searchDir: string,
   meta: SourcedResultFileMeta,
+  projectId?: string,
 ): Promise<ReturnType<typeof loadLightweightResults>> {
-  await ensureRunReadable(searchDir, meta);
+  await ensureRunReadable(searchDir, meta, projectId);
   return loadLightweightResults(meta.path);
 }
 
 async function parseManifestForMeta(
   searchDir: string,
   meta: SourcedResultFileMeta,
+  projectId?: string,
 ): Promise<ReturnType<typeof parseResultManifest>> {
-  await ensureRunReadable(searchDir, meta);
+  await ensureRunReadable(searchDir, meta, projectId);
   return parseResultManifest(readFileSync(meta.path, 'utf8'));
 }
 
@@ -361,8 +369,8 @@ function paginateRuns<T extends { filename: string }>(
   };
 }
 
-async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
-  const { runs: metas } = await listMergedResultFiles(searchDir);
+async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir, undefined, projectId);
   const { threshold: passThreshold } = loadStudioConfig(agentvDir);
   const parsedLimit = parseRunPageLimit(c.req.query('limit'));
   if (parsedLimit === null) {
@@ -378,7 +386,7 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
       let passRate = m.passRate;
       let avgScore = m.avgScore;
       try {
-        const records = await loadLightweightResultsForMeta(searchDir, m);
+        const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
         if (records.length > 0) {
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
@@ -421,9 +429,9 @@ async function handleRuns(c: C, { searchDir, agentvDir }: DataContext) {
   });
 }
 
-async function handleRunLog(c: C, { searchDir }: DataContext) {
+async function handleRunLog(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   if (meta.source === 'remote') {
     return c.json({ error: 'Run log is not available for remote runs' }, 404);
@@ -440,12 +448,12 @@ async function handleRunLog(c: C, { searchDir }: DataContext) {
   }
 }
 
-async function handleRunDetail(c: C, { searchDir }: DataContext) {
+async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = await loadManifestResultsForMeta(searchDir, meta);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     // Surface run_dir + suite_filter for local runs so the UI can launch a
     // Dashboard-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
@@ -501,12 +509,12 @@ function deriveResumeMeta(
   return out;
 }
 
-async function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
+async function handleRunSuites(c: C, { searchDir, agentvDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = await loadManifestResultsForMeta(searchDir, meta);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
     for (const r of loaded) {
@@ -530,12 +538,12 @@ async function handleRunSuites(c: C, { searchDir, agentvDir }: DataContext) {
   }
 }
 
-async function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) {
+async function handleRunCategories(c: C, { searchDir, agentvDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = await loadManifestResultsForMeta(searchDir, meta);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const categoryMap = new Map<
       string,
@@ -569,13 +577,13 @@ async function handleRunCategories(c: C, { searchDir, agentvDir }: DataContext) 
   }
 }
 
-async function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext) {
+async function handleCategorySuites(c: C, { searchDir, agentvDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const category = decodeURIComponent(c.req.param('category') ?? '');
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = await loadManifestResultsForMeta(searchDir, meta);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
     const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
@@ -600,13 +608,13 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir }: DataContext)
   }
 }
 
-async function handleEvalDetail(c: C, { searchDir }: DataContext) {
+async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const evalId = c.req.param('evalId');
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const loaded = await loadManifestResultsForMeta(searchDir, meta);
+    const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const result = loaded.find((r) => r.testId === evalId);
     if (!result) return c.json({ error: 'Eval not found' }, 404);
     return c.json({ eval: result });
@@ -615,13 +623,13 @@ async function handleEvalDetail(c: C, { searchDir }: DataContext) {
   }
 }
 
-async function handleEvalFiles(c: C, { searchDir }: DataContext) {
+async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const evalId = c.req.param('evalId');
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    const records = await parseManifestForMeta(searchDir, meta);
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
     const record = records.find((r) => r.test_id === evalId);
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
@@ -652,9 +660,9 @@ async function handleEvalFiles(c: C, { searchDir }: DataContext) {
   }
 }
 
-async function handleEvalFileContent(c: C, { searchDir }: DataContext) {
+async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
   // Extract the wildcard suffix without depending on decoded route params.
@@ -664,7 +672,7 @@ async function handleEvalFileContent(c: C, { searchDir }: DataContext) {
 
   if (!filePath) return c.json({ error: 'No file path specified' }, 400);
 
-  await ensureRunReadable(searchDir, meta);
+  await ensureRunReadable(searchDir, meta, projectId);
   const baseDir = path.dirname(meta.path);
   const absolutePath = path.resolve(baseDir, filePath);
 
@@ -689,8 +697,8 @@ async function handleEvalFileContent(c: C, { searchDir }: DataContext) {
   }
 }
 
-async function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
-  const { runs: metas } = await listMergedResultFiles(searchDir);
+async function handleExperiments(c: C, { searchDir, agentvDir, projectId }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir, undefined, projectId);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
   const experimentMap = new Map<
     string,
@@ -705,7 +713,7 @@ async function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
 
   for (const m of metas) {
     try {
-      const records = await loadLightweightResultsForMeta(searchDir, m);
+      const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
       for (const r of records) {
         const experiment = r.experiment ?? 'default';
         const entry = experimentMap.get(experiment) ?? {
@@ -742,8 +750,8 @@ async function handleExperiments(c: C, { searchDir, agentvDir }: DataContext) {
   return c.json({ experiments });
 }
 
-async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
-  const { runs: metas } = await listMergedResultFiles(searchDir);
+async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir, undefined, projectId);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
 
   // Optional tag filter: `?tags=baseline,v2-prompt` keeps only runs that
@@ -812,7 +820,7 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
         if (!runTags.some((t) => filterTags.has(t))) continue;
       }
 
-      const records = await loadLightweightResultsForMeta(searchDir, m);
+      const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
       const runTestMap = new Map<
         string,
         { test_id: string; score: number; passed: boolean; execution_status?: string }
@@ -950,8 +958,8 @@ async function handleCompare(c: C, { searchDir, agentvDir }: DataContext) {
   });
 }
 
-async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
-  const { runs: metas } = await listMergedResultFiles(searchDir);
+async function handleTargets(c: C, { searchDir, agentvDir, projectId }: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(searchDir, undefined, projectId);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
   const targetMap = new Map<
     string,
@@ -965,7 +973,7 @@ async function handleTargets(c: C, { searchDir, agentvDir }: DataContext) {
 
   for (const m of metas) {
     try {
-      const records = await loadLightweightResultsForMeta(searchDir, m);
+      const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
       for (const r of records) {
         const target = r.target ?? 'default';
         const entry = targetMap.get(target) ?? {
@@ -1018,9 +1026,9 @@ function handleFeedbackRead(c: C, { searchDir }: DataContext) {
   return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : searchDir));
 }
 
-async function handleRunTagsPut(c: C, { searchDir }: DataContext) {
+async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   if (meta.source === 'remote') {
     return c.json({ error: 'Tags can only be set on local runs' }, 400);
@@ -1049,9 +1057,9 @@ async function handleRunTagsPut(c: C, { searchDir }: DataContext) {
   }
 }
 
-async function handleRunTagsDelete(c: C, { searchDir }: DataContext) {
+async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename);
+  const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   if (meta.source === 'remote') {
     return c.json({ error: 'Tags can only be removed on local runs' }, 400);
@@ -1084,7 +1092,7 @@ export function createApp(
 ): Hono {
   const searchDir = cwd ?? resultDir;
   const agentvDir = path.join(searchDir, '.agentv');
-  const defaultCtx: DataContext = { searchDir, agentvDir };
+  const defaultCtx: DataContext = { searchDir, agentvDir, projectId: options?.currentProjectId };
   const readOnly = options?.readOnly === true;
   const app = new Hono();
 
@@ -1103,6 +1111,7 @@ export function createApp(
     return handler(c, {
       searchDir: project.path,
       agentvDir: path.join(project.path, '.agentv'),
+      projectId: project.id,
     });
   }
 
@@ -1153,7 +1162,7 @@ export function createApp(
         let passRate = 0;
         let lastRun: string | null = null;
         try {
-          const { runs: metas } = await listMergedResultFiles(p.path);
+          const { runs: metas } = await listMergedResultFiles(p.path, undefined, p.id);
           runCount = metas.length;
           if (metas.length > 0) {
             const totalPassRate = metas.reduce((sum, m) => sum + m.passRate, 0);
@@ -1192,7 +1201,7 @@ export function createApp(
     const project = getProject(c.req.param('projectId') ?? '');
     if (!project) return c.json({ error: 'Project not found' }, 404);
     try {
-      const { runs: metas } = await listMergedResultFiles(project.path);
+      const { runs: metas } = await listMergedResultFiles(project.path, undefined, project.id);
       const runCount = metas.length;
       const passRate = runCount > 0 ? metas.reduce((s, m) => s + m.passRate, 0) / runCount : 0;
       const lastRun = metas.length > 0 ? metas[0].timestamp : null;
@@ -1230,12 +1239,12 @@ export function createApp(
 
     for (const p of registry.projects) {
       try {
-        const { runs: metas } = await listMergedResultFiles(p.path);
+        const { runs: metas } = await listMergedResultFiles(p.path, undefined, p.id);
         for (const m of metas) {
           let target: string | undefined;
           let experiment = inferExperimentFromRunId(m.raw_filename);
           try {
-            const records = await loadLightweightResultsForMeta(p.path, m);
+            const records = await loadLightweightResultsForMeta(p.path, m, p.id);
             if (records.length > 0) {
               target = records[0].target;
               experiment = records[0].experiment ?? experiment;
@@ -1286,8 +1295,12 @@ export function createApp(
       currentProjectId: options?.currentProjectId,
     }),
   );
-  app.get('/api/remote/status', async (c) => c.json(await getRemoteResultsStatus(searchDir)));
-  app.post('/api/remote/sync', async (c) => c.json(await syncRemoteResults(searchDir)));
+  app.get('/api/remote/status', async (c) =>
+    c.json(await getRemoteResultsStatus(searchDir, defaultCtx.projectId)),
+  );
+  app.post('/api/remote/sync', async (c) =>
+    c.json(await syncRemoteResults(searchDir, defaultCtx.projectId)),
+  );
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
   app.put('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
@@ -1372,12 +1385,12 @@ export function createApp(
 
   // Aggregated index (unscoped only)
   app.get('/api/index', async (c) => {
-    const { runs: metas } = await listMergedResultFiles(searchDir);
+    const { runs: metas } = await listMergedResultFiles(searchDir, undefined, defaultCtx.projectId);
     const entries = await Promise.all(
       metas.map(async (m) => {
         let totalCostUsd = 0;
         try {
-          const loaded = await loadManifestResultsForMeta(searchDir, m);
+          const loaded = await loadManifestResultsForMeta(searchDir, m, defaultCtx.projectId);
           totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
         } catch {
           // ignore load errors for aggregate
@@ -1409,11 +1422,13 @@ export function createApp(
   );
   app.get('/api/projects/:projectId/remote/status', (c) =>
     withProject(c, async (ctx, dataCtx) =>
-      ctx.json(await getRemoteResultsStatus(dataCtx.searchDir)),
+      ctx.json(await getRemoteResultsStatus(dataCtx.searchDir, dataCtx.projectId)),
     ),
   );
   app.post('/api/projects/:projectId/remote/sync', (c) =>
-    withProject(c, async (ctx, dataCtx) => ctx.json(await syncRemoteResults(dataCtx.searchDir))),
+    withProject(c, async (ctx, dataCtx) =>
+      ctx.json(await syncRemoteResults(dataCtx.searchDir, dataCtx.projectId)),
+    ),
   );
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
   app.put('/api/projects/:projectId/runs/:filename/tags', (c) => {

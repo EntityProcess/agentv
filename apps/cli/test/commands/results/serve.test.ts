@@ -5,7 +5,7 @@ import os from 'node:os';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { addProject } from '@agentv/core';
+import { addProject, saveProjectRegistry } from '@agentv/core';
 
 import {
   createApp,
@@ -830,6 +830,67 @@ describe('serve app', () => {
         expect(data.path).toBe(
           path.join(tempDir, 'agentv-home-status', 'results', 'EntityProcess-agentv-evals'),
         );
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+
+    it('uses AGENTV_HOME results_by_project for project-scoped remote status', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      const homeDir = path.join(tempDir, 'agentv-home-project-status');
+      process.env.AGENTV_HOME = homeDir;
+
+      try {
+        const projectDir = path.join(tempDir, 'source-project');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(homeDir, { recursive: true });
+        writeFileSync(
+          path.join(projectDir, '.agentv', 'config.yaml'),
+          'execution:\n  verbose: true\n',
+        );
+        writeFileSync(
+          path.join(homeDir, 'config.yaml'),
+          `results_by_project:
+  agentv:
+    mode: github
+    repo: EntityProcess/agentv-examples-eval-results
+    path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
+    auto_push: true
+results:
+  mode: github
+  repo: EntityProcess/fallback-results
+`,
+        );
+        saveProjectRegistry({
+          projects: [
+            {
+              id: 'agentv',
+              name: 'AgentV',
+              path: projectDir,
+              addedAt: '2026-01-01T00:00:00.000Z',
+              lastOpenedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        });
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/projects/agentv/remote/status');
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          configured: boolean;
+          repo: string;
+          path: string;
+          auto_push: boolean;
+        };
+        expect(data.configured).toBe(true);
+        expect(data.repo).toBe('EntityProcess/agentv-examples-eval-results');
+        expect(data.path).toBe('/home/entity/projects/EntityProcess/agentv-examples-eval-results');
+        expect(data.auto_push).toBe(true);
       } finally {
         if (previousHome === undefined) {
           process.env.AGENTV_HOME = undefined;

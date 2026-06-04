@@ -9,11 +9,13 @@ import {
   type ResultsRepoStatus,
   directPushResults,
   directorySizeBytes,
+  getProjectForPath,
   getResultsRepoStatus,
   listGitRuns,
   loadConfig,
   materializeGitRun,
   normalizeResultsConfig,
+  resolveResultsConfigForProject,
   resolveResultsRepoRunsDir,
   syncResultsRepo,
 } from '@agentv/core';
@@ -129,13 +131,17 @@ async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
 
 async function loadNormalizedResultsConfig(
   cwd: string,
+  projectId?: string,
 ): Promise<Required<ResultsConfig> | undefined> {
   const repoRoot = (await findRepoRoot(cwd)) ?? cwd;
   const config = await loadConfig(path.join(cwd, '_'), repoRoot);
-  if (!config?.results) {
+  const resolvedProjectId =
+    projectId ?? getProjectForPath(repoRoot)?.id ?? getProjectForPath(cwd)?.id;
+  const resultsConfig = resolveResultsConfigForProject(config, resolvedProjectId);
+  if (!resultsConfig) {
     return undefined;
   }
-  return normalizeResultsConfig(config.results);
+  return normalizeResultsConfig(resultsConfig);
 }
 
 export function encodeRemoteRunId(filename: string): string {
@@ -150,8 +156,11 @@ export function decodeRemoteRunId(filename: string): string {
   return filename.replace(REMOTE_RUN_PREFIX, '');
 }
 
-export async function getRemoteResultsStatus(cwd: string): Promise<RemoteResultsStatus> {
-  const config = await loadNormalizedResultsConfig(cwd);
+export async function getRemoteResultsStatus(
+  cwd: string,
+  projectId?: string,
+): Promise<RemoteResultsStatus> {
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
   const status = getResultsRepoStatus(config);
   let runCount = 0;
   if (config && status.available) {
@@ -167,8 +176,11 @@ export async function getRemoteResultsStatus(cwd: string): Promise<RemoteResults
   };
 }
 
-export async function syncRemoteResults(cwd: string): Promise<RemoteResultsStatus> {
-  const config = await loadNormalizedResultsConfig(cwd);
+export async function syncRemoteResults(
+  cwd: string,
+  projectId?: string,
+): Promise<RemoteResultsStatus> {
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) {
     return {
       ...getResultsRepoStatus(),
@@ -186,12 +198,13 @@ export async function syncRemoteResults(cwd: string): Promise<RemoteResultsStatu
     };
   }
 
-  return getRemoteResultsStatus(cwd);
+  return getRemoteResultsStatus(cwd, projectId);
 }
 
 export async function listMergedResultFiles(
   cwd: string,
   limit?: number,
+  projectId?: string,
 ): Promise<{ runs: SourcedResultFileMeta[]; remote_status: RemoteResultsStatus }> {
   const localRuns = listResultFiles(cwd).map(
     (meta) =>
@@ -202,8 +215,8 @@ export async function listMergedResultFiles(
       }) satisfies SourcedResultFileMeta,
   );
 
-  const remoteStatus = await getRemoteResultsStatus(cwd);
-  const config = await loadNormalizedResultsConfig(cwd);
+  const remoteStatus = await getRemoteResultsStatus(cwd, projectId);
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config || !remoteStatus.available) {
     return {
       runs: limit !== undefined && limit > 0 ? localRuns.slice(0, limit) : localRuns,
@@ -263,20 +276,22 @@ export async function listMergedResultFiles(
 export async function findRunById(
   cwd: string,
   runId: string,
+  projectId?: string,
 ): Promise<SourcedResultFileMeta | undefined> {
-  const { runs } = await listMergedResultFiles(cwd);
+  const { runs } = await listMergedResultFiles(cwd, undefined, projectId);
   return runs.find((run) => run.filename === runId);
 }
 
 export async function ensureRemoteRunAvailable(
   cwd: string,
   meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  projectId?: string,
 ): Promise<void> {
   if (meta.source !== 'remote' || existsSync(meta.path)) {
     return;
   }
 
-  const config = await loadNormalizedResultsConfig(cwd);
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) {
     throw new Error('Remote results are not configured');
   }
