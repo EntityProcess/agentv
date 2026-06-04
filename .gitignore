@@ -52,3 +52,4 @@ state.json
 
 # Claude Code local settings (contains secrets)
 .claude/settings.local.json
+.grepai/

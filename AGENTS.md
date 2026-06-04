@@ -108,6 +108,13 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Working Style
 
+### User Direction and Safety
+- User instructions in the current conversation take precedence over repository conventions when they conflict, as long as they do not require unsafe, destructive, or policy-violating actions.
+- Do not delete files or directories without explicit user permission. This includes files you created during the session; ask first if cleanup would require deletion.
+- Do not run irreversible or broad destructive commands such as `git reset --hard`, `git clean -fd`, `rm -rf`, or commands that overwrite/delete code or data unless the user explicitly provides the exact command and confirms they understand the consequence.
+- When cleanup or rollback is needed, inspect with `git status` / `git diff` first and prefer non-destructive alternatives. If anything about the impact is unclear, stop and ask.
+- For automated sessions, avoid bare interactive commands that can block the terminal. Prefer `--json`, `--robot-*`, `--yes`, or other non-interactive modes when the tool provides them.
+
 ### Beads-First Orchestration
 - Beads is AgentV's normal durable task graph. Use it for assignment, status, dependencies, handoff notes, decomposition, and resumability. Agent sessions are disposable workers that read and write the bead graph.
 - Use `br` (beads_rust) for Beads operations. `br` is non-invasive and never commits or pushes; after `br sync --flush-only`, manually run `git add .beads/` and commit the exported state when the bead graph is part of the change.
@@ -119,6 +126,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
 - Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
 - Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
+- When multiple agents are implementing one epic, all agents must use the same `.beads/issues.jsonl` source of truth for bead mutations. Pick one coordination checkout for the epic, usually the main checkout or the shared integration checkout, and run `br` commands there. Treat per-task scratch worktree copies of `.beads/` as read-only unless that worktree is the chosen coordination checkout.
 - Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
 
 ### MCP Agent Mail
@@ -129,17 +137,20 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Use threads for coordination: `send_message` with a stable `thread_id`, `fetch_inbox` to check mail, and `acknowledge_message` after acting on a message.
 - Do not commit project-local Agent Mail config files; they contain bearer tokens and are ignored by `.gitignore`.
 
-### Worktree Setup
-- For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
-- Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
-- Do not implement from the primary checkout, from a stale local `main`, or from a branch created off an outdated base.
-- Manual setup:
+### Branch and Worktree Setup
+- Default to the current checkout for small and medium changes. Create or switch to a normal feature branch from an up-to-date base before committing.
+- Use a dedicated git worktree only when the task is large, risky, long-running, needs parallel subagents, requires comparing multiple branches at once, or the user explicitly asks for an isolated worktree.
+- If tasks are clearly independent and can proceed in parallel without file or sequencing conflicts, separate worktrees are fine.
+- If tasks have dependencies, shared files, or sequencing constraints, use the most appropriate checkout for the dependency chain. That may be an existing feature worktree, a downstream worker's worktree, or the main checkout when integration there is simplest.
+- Before starting implementation, run `git fetch origin` and verify the branch or worktree you are using is based on the current `origin/main` commit.
+- Do not implement from a stale local `main` or from a branch created off an outdated base.
+- Manual worktree setup, when isolation is warranted:
 ```bash
 git fetch origin
 git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<issue-or-topic>-<short-desc> origin/main
 cd ../agentv.worktrees/<type>-<short-desc>
 ```
-- If you discover you are not on a fresh worktree from the latest `origin/main`, stop and fix that first before changing code.
+- If you discover your branch or worktree is not based on the latest `origin/main`, stop and fix that first before changing code.
 
 ### Planning
 - Use plan mode for any non-trivial task (5+ steps or architectural decisions).
@@ -161,6 +172,8 @@ cd ../agentv.worktrees/<type>-<short-desc>
 ### Simplicity
 - Every change should be as simple as possible. Import existing code; don't reinvent.
 - Find root causes and fix them directly. No shotgun debugging.
+- Prefer revising existing files in place over creating parallel variants such as `foo-v2.ts`, `foo-new.ts`, or `foo-improved.ts`. Add new files only for genuinely new modules, tests, docs, or assets that do not belong in an existing file.
+- Avoid broad scripted code rewrites unless the transformation is mechanical, reviewed, and safer than manual edits. For subtle code changes, edit deliberately and verify the diff.
 
 ### Progress Updates
 - Provide high-level status updates at natural milestones.
@@ -479,10 +492,7 @@ When working from a GitHub issue instead of a bead, use GitHub project state to 
 ```bash
 gh issue view <number> --repo EntityProcess/agentv --json number,title,state,projectItems,assignees,url
 git fetch origin
-git worktree add ../agentv.worktrees/<branch-name> -b <type>/<issue-number>-<short-description> origin/main
-cd ../agentv.worktrees/<branch-name>
-bun install
-cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
+git switch -c <type>/<issue-number>-<short-description> origin/main
 ```
 
 After the first meaningful commit, push and open a draft PR unless the user directs a different PR lifecycle:
@@ -533,7 +543,7 @@ git checkout -b fix/<short-description>
 
 #### Plans
 
-Design documents and implementation plans are stored in `docs/plans/` inside the worktree (not the main repo). Save plans to the worktree so they are committed on the feature branch and visible in the draft PR.
+Design documents and implementation plans are stored in `docs/plans/` on the active branch. Save plans with the work so they are committed on the feature branch and visible in the draft PR.
 
 **Path warning:** When working in a worktree, use paths relative to the worktree root (e.g., `docs/plans/plan.md`). Do NOT prefix with the worktree directory from the main repo (e.g., `agentv.worktrees/feat/xxx/docs/plans/plan.md`) — this creates accidental nested directories inside the worktree.
 
@@ -541,7 +551,9 @@ Plans are temporary working materials. **Before merging the PR**, delete the pla
 
 #### Git Worktrees
 
-Use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
+Worktrees are optional isolation tools, not the default workflow. Use them for big tasks, parallel agent work, risky experiments, or branch comparisons.
+
+When you do use a worktree, use the sibling `../agentv.worktrees/` directory for all AgentV worktrees. This overrides any generic skill or default preference for `.worktrees/` or `worktrees/` inside the repository. Do not create new AgentV worktrees inside the repository root.
 
 After creating a manual worktree, always run setup:
 ```bash
