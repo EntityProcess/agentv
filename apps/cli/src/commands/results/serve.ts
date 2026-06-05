@@ -32,7 +32,15 @@
  *   - createApp(results, cwd) — Hono app factory
  */
 
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { command, flag, number, option, optional, positional, string } from 'cmd-ts';
@@ -52,7 +60,7 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 
 import { enforceRequiredVersion } from '../../version-check.js';
-import { parseJsonlResults } from '../eval/artifact-writer.js';
+import { buildBenchmarkArtifact, parseJsonlResults } from '../eval/artifact-writer.js';
 import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
@@ -1072,6 +1080,185 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
   }
 }
 
+function getLocalRunsRoot(searchDir: string): string {
+  return path.join(searchDir, '.agentv', 'results', 'runs');
+}
+
+function resolveSafeLocalRunDir(
+  searchDir: string,
+  meta: SourcedResultFileMeta,
+): { runDir: string } | { error: string; status: 400 | 409 } {
+  if (meta.source === 'remote') {
+    return { error: 'Run mutations are only available for local runs', status: 400 };
+  }
+  if (getActiveRunStatus(meta.path) === 'starting' || getActiveRunStatus(meta.path) === 'running') {
+    return { error: 'Run is still active', status: 409 };
+  }
+
+  const manifestPath = path.resolve(meta.path);
+  if (path.basename(manifestPath) !== 'index.jsonl') {
+    return { error: 'Run workspace is invalid', status: 400 };
+  }
+
+  const runDir = path.dirname(manifestPath);
+  const runsRoot = path.resolve(getLocalRunsRoot(searchDir));
+  if (runDir !== runsRoot && runDir.startsWith(`${runsRoot}${path.sep}`) && existsSync(runDir)) {
+    return { runDir };
+  }
+  return { error: 'Run workspace is outside the local results directory', status: 400 };
+}
+
+function slugifyRunDisplayName(displayName: string): string {
+  const slug = displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return slug || 'combined-run';
+}
+
+function createCombinedRunDir(
+  searchDir: string,
+  displayName: string,
+): { runDir: string; runId: string } {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const baseName = `${slugifyRunDisplayName(displayName)}-${timestamp}`;
+  const experiment = 'combined';
+  const runsRoot = getLocalRunsRoot(searchDir);
+  let dirName = baseName;
+  let runDir = path.join(runsRoot, experiment, dirName);
+  let suffix = 1;
+  while (existsSync(runDir)) {
+    dirName = `${baseName}-${suffix}`;
+    runDir = path.join(runsRoot, experiment, dirName);
+    suffix++;
+  }
+  return { runDir, runId: `${experiment}::${dirName}` };
+}
+
+function readManifestJsonlLines(manifestPath: string): string[] {
+  return readFileSync(manifestPath, 'utf8')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      JSON.parse(line);
+      return line;
+    });
+}
+
+async function handleRunDelete(c: C, { searchDir, projectId }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename, projectId);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+
+  const safe = resolveSafeLocalRunDir(searchDir, meta);
+  if ('error' in safe) return c.json({ error: safe.error }, safe.status);
+
+  try {
+    rmSync(safe.runDir, { recursive: true, force: false });
+    return c.json({ ok: true });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+}
+
+async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON' }, 400);
+  }
+  if (!body || typeof body !== 'object') {
+    return c.json({ error: 'Invalid payload' }, 400);
+  }
+
+  const payload = body as Record<string, unknown>;
+  const runIds = payload.run_ids;
+  if (!Array.isArray(runIds) || !runIds.every((id) => typeof id === 'string' && id.trim())) {
+    return c.json({ error: 'Missing run_ids array' }, 400);
+  }
+  if (runIds.length < 2) {
+    return c.json({ error: 'Select at least two runs to combine' }, 400);
+  }
+  const uniqueRunIds = new Set(runIds);
+  if (uniqueRunIds.size !== runIds.length) {
+    return c.json({ error: 'Duplicate run_ids are not allowed' }, 400);
+  }
+  const displayNameValue = payload.display_name;
+  if (displayNameValue !== undefined && typeof displayNameValue !== 'string') {
+    return c.json({ error: 'display_name must be a string' }, 400);
+  }
+
+  const displayName = displayNameValue?.trim() || `Combined run ${new Date().toISOString()}`;
+  const metas: SourcedResultFileMeta[] = [];
+  const manifestLines: string[] = [];
+  const allResults: EvaluationResult[] = [];
+  const tagSet = new Set<string>();
+
+  for (const runId of runIds) {
+    const meta = await findRunById(searchDir, runId, projectId);
+    if (!meta) return c.json({ error: `Run not found: ${runId}` }, 404);
+    const safe = resolveSafeLocalRunDir(searchDir, meta);
+    if ('error' in safe) return c.json({ error: safe.error }, safe.status);
+
+    try {
+      manifestLines.push(...readManifestJsonlLines(meta.path));
+      allResults.push(...(await loadManifestResultsForMeta(searchDir, meta, projectId)));
+    } catch {
+      return c.json({ error: `Failed to load run: ${runId}` }, 500);
+    }
+
+    const tagsEntry = readRunTags(meta.path);
+    for (const tag of tagsEntry?.tags ?? []) {
+      tagSet.add(tag);
+    }
+    metas.push(meta);
+  }
+
+  const { runDir, runId } = createCombinedRunDir(searchDir, displayName);
+  try {
+    mkdirSync(runDir, { recursive: true });
+    const manifestPath = path.join(runDir, 'index.jsonl');
+    writeFileSync(manifestPath, `${manifestLines.join('\n')}\n`, 'utf8');
+
+    const benchmark = buildBenchmarkArtifact(allResults, '', 'combined', allResults.length);
+    writeFileSync(
+      path.join(runDir, 'benchmark.json'),
+      `${JSON.stringify(
+        {
+          ...benchmark,
+          metadata: {
+            ...benchmark.metadata,
+            display_name: displayName,
+            combined_from_run_ids: runIds,
+            combined_from_display_names: metas.map((meta) => meta.displayName),
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      'utf8',
+    );
+
+    const tagEntry = tagSet.size > 0 ? writeRunTags(manifestPath, [...tagSet]) : undefined;
+    return c.json(
+      {
+        ok: true,
+        run_id: runId,
+        display_name: displayName,
+        combined_from_run_ids: runIds,
+        ...(tagEntry && { tags: tagEntry.tags }),
+      },
+      201,
+    );
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+}
+
 // ── Hono app factory ─────────────────────────────────────────────────────
 
 /**
@@ -1302,6 +1489,12 @@ export function createApp(
     c.json(await syncRemoteResults(searchDir, defaultCtx.projectId)),
   );
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
+  app.post('/api/runs/combine', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return handleRunsCombine(c, defaultCtx);
+  });
   app.put('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
@@ -1313,6 +1506,12 @@ export function createApp(
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return handleRunTagsDelete(c, defaultCtx);
+  });
+  app.delete('/api/runs/:filename', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return handleRunDelete(c, defaultCtx);
   });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
   app.get('/api/runs/:filename/log', (c) => handleRunLog(c, defaultCtx));
@@ -1431,6 +1630,12 @@ export function createApp(
     ),
   );
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));
+  app.post('/api/projects/:projectId/runs/combine', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return withProject(c, handleRunsCombine);
+  });
   app.put('/api/projects/:projectId/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
@@ -1442,6 +1647,12 @@ export function createApp(
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return withProject(c, handleRunTagsDelete);
+  });
+  app.delete('/api/projects/:projectId/runs/:filename', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return withProject(c, handleRunDelete);
   });
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
   app.get('/api/projects/:projectId/runs/:filename/log', (c) => withProject(c, handleRunLog));

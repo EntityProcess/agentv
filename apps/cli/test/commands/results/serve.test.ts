@@ -935,6 +935,301 @@ results:
     });
   });
 
+  describe('run mutation APIs', () => {
+    function seedRun(
+      name: string,
+      records: object[] = [RESULT_A],
+      opts?: { experiment?: string; tags?: string[]; baseDir?: string },
+    ): { runId: string; runDir: string; manifestPath: string } {
+      const runsDir = path.join(opts?.baseDir ?? tempDir, '.agentv', 'results', 'runs');
+      const runDir = opts?.experiment
+        ? path.join(runsDir, opts.experiment, name)
+        : path.join(runsDir, name);
+      mkdirSync(runDir, { recursive: true });
+      const manifestPath = path.join(runDir, 'index.jsonl');
+      writeFileSync(manifestPath, toJsonl(...records));
+      if (opts?.tags) {
+        writeFileSync(
+          path.join(runDir, 'tags.json'),
+          `${JSON.stringify({ tags: opts.tags, updated_at: '2026-04-10T00:00:00.000Z' }, null, 2)}\n`,
+        );
+      }
+      return {
+        runId: opts?.experiment ? `${opts.experiment}::${name}` : name,
+        runDir,
+        manifestPath,
+      };
+    }
+
+    it('deletes an existing local run workspace', async () => {
+      const run = seedRun('2026-06-01T10-00-00-000Z');
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request(`/api/runs/${run.runId}`, { method: 'DELETE' });
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+      expect(existsSync(run.runDir)).toBe(false);
+    });
+
+    it('returns 404 for missing delete without touching other runs', async () => {
+      const run = seedRun('2026-06-01T10-00-00-000Z');
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/runs/missing-run', { method: 'DELETE' });
+
+      expect(res.status).toBe(404);
+      expect(existsSync(run.manifestPath)).toBe(true);
+    });
+
+    it('rejects local run deletion in read-only mode', async () => {
+      const run = seedRun('2026-06-01T10-00-00-000Z');
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir, readOnly: true });
+
+      const res = await app.request(`/api/runs/${run.runId}`, { method: 'DELETE' });
+
+      expect(res.status).toBe(403);
+      expect(existsSync(run.manifestPath)).toBe(true);
+    });
+
+    it('rejects deleting remote runs and leaves cached artifacts intact', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+      try {
+        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+        writeFileSync(
+          path.join(tempDir, '.agentv', 'config.yaml'),
+          `results:
+  mode: github
+  repo: EntityProcess/agentv-evals
+`,
+        );
+        const remoteRunDir = path.join(
+          process.env.AGENTV_HOME,
+          'results',
+          'EntityProcess-agentv-evals',
+          '.agentv',
+          'results',
+          'runs',
+          'default',
+          '2026-06-01T10-00-00-000Z',
+        );
+        mkdirSync(remoteRunDir, { recursive: true });
+        writeFileSync(path.join(remoteRunDir, 'index.jsonl'), toJsonl(RESULT_A));
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+        const res = await app.request('/api/runs/remote%3A%3A2026-06-01T10-00-00-000Z', {
+          method: 'DELETE',
+        });
+
+        expect(res.status).toBe(400);
+        expect(existsSync(path.join(remoteRunDir, 'index.jsonl'))).toBe(true);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+
+    it('combines two local finished runs into a new run workspace with unioned tags', async () => {
+      const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A], {
+        tags: ['baseline', 'shared'],
+      });
+      const second = seedRun('2026-06-01T11-00-00-000Z', [RESULT_B], {
+        tags: ['shared', 'candidate'],
+      });
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          run_ids: [first.runId, second.runId],
+          display_name: 'Combined Smoke',
+        }),
+      });
+
+      expect(res.status).toBe(201);
+      const data = (await res.json()) as {
+        run_id: string;
+        display_name: string;
+        combined_from_run_ids: string[];
+      };
+      expect(data.display_name).toBe('Combined Smoke');
+      expect(data.combined_from_run_ids).toEqual([first.runId, second.runId]);
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(data.run_id)}`);
+      expect(detailRes.status).toBe(200);
+      const detail = (await detailRes.json()) as { results: Array<{ testId: string }> };
+      expect(detail.results.map((r) => r.testId).sort()).toEqual(['test-greeting', 'test-math']);
+
+      const combinedDir = path.dirname(
+        path.join(tempDir, '.agentv', 'results', 'runs', data.run_id.replace('::', path.sep), 'x'),
+      );
+      const tags = JSON.parse(readFileSync(path.join(combinedDir, 'tags.json'), 'utf8')) as {
+        tags: string[];
+      };
+      expect(tags.tags.sort()).toEqual(['baseline', 'candidate', 'shared']);
+      const benchmark = JSON.parse(
+        readFileSync(path.join(combinedDir, 'benchmark.json'), 'utf8'),
+      ) as {
+        metadata: { combined_from_run_ids?: string[]; display_name?: string };
+      };
+      expect(benchmark.metadata.combined_from_run_ids).toEqual([first.runId, second.runId]);
+      expect(benchmark.metadata.display_name).toBe('Combined Smoke');
+    });
+
+    it('generates a display name when combine omits display_name', async () => {
+      const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A]);
+      const second = seedRun('2026-06-01T11-00-00-000Z', [RESULT_B]);
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: [first.runId, second.runId] }),
+      });
+
+      expect(res.status).toBe(201);
+      const data = (await res.json()) as { display_name: string };
+      expect(data.display_name).toContain('Combined run');
+    });
+
+    it('rejects invalid combine payloads', async () => {
+      const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A]);
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const tooFew = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: [first.runId] }),
+      });
+      expect(tooFew.status).toBe(400);
+
+      const duplicate = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: [first.runId, first.runId] }),
+      });
+      expect(duplicate.status).toBe(400);
+
+      const missing = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: [first.runId, 'missing-run'] }),
+      });
+      expect(missing.status).toBe(404);
+
+      const invalidJson = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{',
+      });
+      expect(invalidJson.status).toBe(400);
+    });
+
+    it('rejects combining remote runs', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+      try {
+        const local = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A]);
+        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+        writeFileSync(
+          path.join(tempDir, '.agentv', 'config.yaml'),
+          `results:
+  mode: github
+  repo: EntityProcess/agentv-evals
+`,
+        );
+        const remoteRunDir = path.join(
+          process.env.AGENTV_HOME,
+          'results',
+          'EntityProcess-agentv-evals',
+          '.agentv',
+          'results',
+          'runs',
+          'default',
+          '2026-06-01T11-00-00-000Z',
+        );
+        mkdirSync(remoteRunDir, { recursive: true });
+        writeFileSync(path.join(remoteRunDir, 'index.jsonl'), toJsonl(RESULT_B));
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+        const res = await app.request('/api/runs/combine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            run_ids: [local.runId, 'remote::2026-06-01T11-00-00-000Z'],
+          }),
+        });
+
+        expect(res.status).toBe(400);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+
+    it('supports project-scoped delete and combine within the selected project', async () => {
+      const homedirSpy = spyOn(os, 'homedir').mockReturnValue(path.join(tempDir, 'home'));
+      try {
+        const projectDir = path.join(tempDir, 'project-one');
+        const otherProjectDir = path.join(tempDir, 'project-two');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(path.join(otherProjectDir, '.agentv'), { recursive: true });
+        const project = addProject(projectDir);
+        const otherProject = addProject(otherProjectDir);
+
+        const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A], { baseDir: projectDir });
+        const secondRunDir = path.join(
+          projectDir,
+          '.agentv',
+          'results',
+          'runs',
+          '2026-06-01T11-00-00-000Z',
+        );
+        mkdirSync(secondRunDir, { recursive: true });
+        writeFileSync(path.join(secondRunDir, 'index.jsonl'), toJsonl(RESULT_B));
+        const otherRunDir = path.join(
+          otherProjectDir,
+          '.agentv',
+          'results',
+          'runs',
+          '2026-06-01T10-00-00-000Z',
+        );
+        mkdirSync(otherRunDir, { recursive: true });
+        writeFileSync(path.join(otherRunDir, 'index.jsonl'), toJsonl(RESULT_A));
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const combine = await app.request(`/api/projects/${project.id}/runs/combine`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            run_ids: [first.runId, '2026-06-01T11-00-00-000Z'],
+          }),
+        });
+        expect(combine.status).toBe(201);
+
+        const otherDelete = await app.request(
+          `/api/projects/${otherProject.id}/runs/${first.runId}`,
+          { method: 'DELETE' },
+        );
+        expect(otherDelete.status).toBe(200);
+        expect(existsSync(otherRunDir)).toBe(false);
+        expect(existsSync(path.join(projectDir, '.agentv', 'results', 'runs', first.runId))).toBe(
+          true,
+        );
+      } finally {
+        homedirSpy.mockRestore();
+      }
+    });
+  });
+
   describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
     it('loads file content for experiment-scoped run ids', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-skills');
