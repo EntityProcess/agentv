@@ -38,7 +38,7 @@ Also ensure:
 - tests/docs are updated when relevant
 - no unrelated refactors in the same PR
 - CI-relevant checks pass locally when needed (`bun run verify` and `bun run validate:examples`)
-- Beads changes are exported with `br sync --flush-only` and staged under `.beads/`
+- Beads changes are exported with `bd export -o .beads/issues.jsonl` and staged under `.beads/`
 
 ## Workflow
 

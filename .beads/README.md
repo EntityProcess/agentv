@@ -2,17 +2,17 @@
 
 AgentV uses Beads for repo-local task tracking.
 
-Use `br` for all Beads operations in this repository:
+Use the original Beads CLI (`bd`, installed here as `beads`) for Beads operations in this repository:
 
 ```bash
-br ready --json
-br list --json
-br show <issue-id> --json
-br update <issue-id> --claim --json
-br close <issue-id> --reason "Completed" --json
-br sync --flush-only
+bd ready --json
+bd list --json
+bd show <issue-id> --json
+bd update <issue-id> --claim --json
+bd close <issue-id> --reason "Completed" --json
+bd export -o .beads/issues.jsonl
 ```
 
-The durable task graph is tracked as JSONL in `.beads/issues.jsonl`. Local SQLite
-databases, locks, history, and merge scratch files are ignored and should not be
+The durable task graph is tracked as JSONL in `.beads/issues.jsonl`. Local database
+files, locks, history, and merge scratch files are ignored and should not be
 committed.

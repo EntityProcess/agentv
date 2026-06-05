@@ -110,17 +110,23 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ### Beads-First Orchestration
 - Beads is AgentV's normal durable task graph. Use it for assignment, status, dependencies, handoff notes, decomposition, and resumability. Agent sessions are disposable workers that read and write the bead graph.
-- Use `br` (beads_rust) for Beads operations. `br` is non-invasive and never commits or pushes; after `br sync --flush-only`, manually run `git add .beads/` and commit the exported state when the bead graph is part of the change.
+- Use the original Beads CLI (`bd`, installed here as `beads`) for Beads operations. After mutating beads, explicitly run `bd export -o .beads/issues.jsonl`, then manually run `git add .beads/` and commit the exported state when the bead graph is part of the change. Do not rely on local auto-export behavior.
 - Use the upstream bead-aware launcher from the EntityProcess agent plugin tooling for worker launch. The launcher should claim the bead, record a launch note, export `EP_TASK_ID`/`BEAD_ID`/`AGENTV_BEAD_ID`, then delegate to the existing `ep-spawn-agent` workflow.
 - Use `ntm` for tmux session orchestration, monitoring, and dispatch when launching or tending worker sessions. NTM project names must resolve under `ntm config get projects_base`; set `AGENTV_NTM_SESSION` when the repo worktree is not directly under that base.
 - GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
 
 ### Beads Ownership
-- Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
+- Use `bd ready --json`, `bd list --json`, and `bd show <id> --json` for Beads triage and inspection.
+- `bv` may be used as an optional read-only viewer/triage sidecar, but only after refreshing the repo-local export:
+  ```bash
+  REPO="$(git rev-parse --show-toplevel)"
+  BEADS_DIR="$REPO/.beads" bd export -o "$REPO/.beads/issues.jsonl"
+  ```
+  Treat `.beads/issues.jsonl` as a read-only export for viewers. Do not use `bv` as the source of truth for mutations or claims.
 - Create beads with short generated IDs. Do not pass `--slug`; the title carries the human-readable name, including `EPIC:` when useful.
-- Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
+- Claim work with the upstream bead-aware launcher when launching a worker, or with `bd update <id> --claim --json` / `bd update <id> --status in_progress --json` when working manually.
 - Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
-- Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
+- Before handoff or commit, run `bd export -o .beads/issues.jsonl`, then stage `.beads/` along with the code changes when the bead graph is part of the change. If hooks are added for this, they should be check-only: fail when `.beads/issues.jsonl` is stale and tell the user to export, but never mutate, stage, stash, or commit files automatically.
 - Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately broadcast it through Agent Mail with the stash name, affected paths, reason, and recovery plan.
 
 ### MCP Agent Mail
@@ -268,7 +274,7 @@ bun run verify
 bun run validate:examples
 ```
 
-Beads sync is explicit. If you change the Beads graph, run `br sync --flush-only`, stage `.beads/`, and include the exported JSONL in the commit. Hooks must not silently mutate or stash shared worktrees.
+Beads export is explicit. If you change the Beads graph, run `bd export -o .beads/issues.jsonl`, stage `.beads/`, and include the exported JSONL in the commit. Do not rely on auto-export as the source of truth. Hooks may check that the export is current, but must not silently mutate, stage, commit, or stash shared worktrees.
 
 NTM hooks are optional local coordination tooling. Do not commit generated `.beads/hooks/*` files or local `.ntm/config.toml`; they embed machine-specific paths and can bypass the repo's normal Git behavior when installed via `core.hooksPath`.
 
@@ -574,99 +580,44 @@ The release script (`bun scripts/release.ts`) is what the Release workflow calls
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
 
-<!-- bv-agent-instructions-v2 -->
-
----
-
 ## Beads Workflow Integration
 
-This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking and [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) (`bv`) for graph-aware triage. Issues are stored in `.beads/` and tracked in git.
+This project uses the original Beads CLI (`bd`, installed here as `beads`) for issue tracking. Issues are stored in `.beads/` and tracked in git. Optional viewers such as `bv` read `.beads/issues.jsonl`; refresh that export with `bd` before viewing.
 
-### Using bv as an AI sidecar
-
-bv is a graph-aware triage engine for Beads projects (.beads/beads.jsonl). Instead of parsing JSONL or hallucinating graph traversal, use robot flags for deterministic, dependency-aware outputs with precomputed metrics (PageRank, betweenness, critical path, cycles, HITS, eigenvector, k-core).
-
-**Scope boundary:** bv handles *what to work on* (triage, priority, planning). `br` handles creating, modifying, and closing beads.
-
-**CRITICAL: Use ONLY --robot-* flags. Bare bv launches an interactive TUI that blocks your session.**
-
-#### The Workflow: Start With Triage
-
-**`bv --robot-triage` is your single entry point.** It returns everything you need in one call:
-- `quick_ref`: at-a-glance counts + top 3 picks
-- `recommendations`: ranked actionable items with scores, reasons, unblock info
-- `quick_wins`: low-effort high-impact items
-- `blockers_to_clear`: items that unblock the most downstream work
-- `project_health`: status/type/priority distributions, graph metrics
-- `commands`: copy-paste shell commands for next steps
+### bd Commands for Issue Management
 
 ```bash
-bv --robot-triage        # THE MEGA-COMMAND: start here
-bv --robot-next          # Minimal: just the single top pick + claim command
-
-# Token-optimized output (TOON) for lower LLM context usage:
-bv --robot-triage --format toon
-```
-
-Before claiming, verify current state with `br show <id> --json` or `br ready --json`. `recommendations` can include graph-important blocked or assigned work; only `quick_ref.top_picks` and non-empty `claim_command` fields represent claimable work.
-
-#### Other bv Commands
-
-| Command | Returns |
-|---------|---------|
-| `--robot-plan` | Parallel execution tracks with unblocks lists |
-| `--robot-priority` | Priority misalignment detection with confidence |
-| `--robot-insights` | Full metrics: PageRank, betweenness, HITS, eigenvector, critical path, cycles, k-core |
-| `--robot-alerts` | Stale issues, blocking cascades, priority mismatches |
-| `--robot-suggest` | Hygiene: duplicates, missing deps, label suggestions, cycle breaks |
-| `--robot-diff --diff-since <ref>` | Changes since ref: new/closed/modified issues |
-| `--robot-graph [--graph-format=json\|dot\|mermaid]` | Dependency graph export |
-
-#### Scoping & Filtering
-
-```bash
-bv --robot-plan --label backend              # Scope to label's subgraph
-bv --robot-insights --as-of HEAD~30          # Historical point-in-time
-bv --recipe actionable --robot-plan          # Pre-filter: ready to work (no blockers)
-bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
-```
-
-### br Commands for Issue Management
-
-```bash
-br ready              # Show issues ready to work (no blockers)
-br list --status=open # All open issues
-br show <id>          # Full issue details with dependencies
-br create --title="..." --type=task --priority=2  # No --slug for routine work
-br update <id> --status=in_progress
-br close <id> --reason="Completed"
-br close <id1> <id2>  # Close multiple issues at once
-br sync --flush-only  # Export DB to JSONL
+bd ready --json       # Show issues ready to work (no blockers)
+bd list --json        # All issues
+bd show <id> --json   # Full issue details with dependencies
+bd create "..." --type=task --priority=2
+bd update <id> --status=in_progress --json
+bd close <id> --reason="Completed" --json
+bd close <id1> <id2> --json  # Close multiple issues at once
+bd export -o .beads/issues.jsonl
 ```
 
 ### Workflow Pattern
 
-1. **Triage**: Run `bv --robot-triage` to find the highest-impact actionable work
-2. **Claim**: Use `br update <id> --status=in_progress`
+1. **Triage**: Run `bd ready --json` to find unblocked work and `bd show <id> --json` for details.
+2. **Claim**: Use `bd update <id> --claim --json` or `bd update <id> --status=in_progress --json`.
 3. **Work**: Implement the task
-4. **Complete**: Use `br close <id>`
-5. **Sync**: Always run `br sync --flush-only` at session end
+4. **Complete**: Use `bd close <id> --reason="Completed" --json`.
+5. **Export**: Run `bd export -o .beads/issues.jsonl` at session end when the bead graph changed.
 
 ### Key Concepts
 
-- **Dependencies**: Issues can block other issues. `br ready` shows only unblocked work.
+- **Dependencies**: Issues can block other issues. `bd ready` shows only unblocked work.
 - **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers 0-4, not words)
 - **Types**: task, bug, feature, epic, chore, docs, question
-- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
+- **Blocking**: `bd dep add <issue> <depends-on>` to add dependencies
 
 ### Session Protocol
 
 ```bash
 git status              # Check what changed
 git add <files>         # Stage code changes
-br sync --flush-only    # Export beads changes to JSONL
+bd export -o .beads/issues.jsonl  # Export beads changes to JSONL
 git commit -m "..."     # Commit everything
 git push                # Push to remote
 ```
-
-<!-- end-bv-agent-instructions -->
