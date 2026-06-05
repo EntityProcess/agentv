@@ -1092,6 +1092,10 @@ function normalizeOpenAIBaseUrl(value: string | undefined): string {
     return DEFAULT_OPENAI_BASE_URL;
   }
 
+  if (/\.openai\.azure\.com\/openai\/deployments\/[^/]+$/i.test(trimmed)) {
+    return trimmed;
+  }
+
   return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
 }
 

@@ -1016,6 +1016,32 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/baseUrl.*base_url/i);
   });
 
+  it('preserves Azure deployment-scoped OpenAI base URLs', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'azure-chat',
+        provider: 'openai',
+        base_url: 'https://resource.openai.azure.com/openai/deployments/gpt-4o',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        api_format: 'chat',
+      },
+      {
+        AZURE_OPENAI_API_KEY: 'test-key',
+        AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+      },
+    );
+
+    expect(target.kind).toBe('openai');
+    if (target.kind !== 'openai') {
+      throw new Error('expected openai target');
+    }
+
+    expect(target.config.baseURL).toBe(
+      'https://resource.openai.azure.com/openai/deployments/gpt-4o',
+    );
+  });
+
   it('resolves agentv target with model and default temperature', () => {
     const target = resolveTargetDefinition(
       {
