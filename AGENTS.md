@@ -465,6 +465,8 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker. Push focused commits to the assigned branch and open/update the PR requested by the bead/user. Close the bead only after the scoped work is complete, pushed, and documented with verification evidence.
 
+If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches, artifact/documentation branches, and private asset repos. It does not override the rule against pushing directly to `main` in this repository.
+
 When working from a GitHub issue instead of a bead, use GitHub project state to avoid duplicate work before branching:
 
 ```bash
