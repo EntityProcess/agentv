@@ -47,7 +47,7 @@ function ProjectHomePage() {
   const { data: config } = useStudioConfig(projectId);
   const isReadOnly = config?.read_only === true;
 
-  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
+  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
 
   return (
     <div className="space-y-6">
@@ -90,7 +90,7 @@ function ProjectHomePage() {
         </div>
       </div>
 
-      {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} />}
+      {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} readOnly={isReadOnly} />}
       {activeTab === 'experiments' && <ExperimentsTab projectId={projectId} />}
       {activeTab === 'analytics' && (
         <ProjectAnalyticsTab projectId={projectId} readOnly={isReadOnly} />
@@ -108,7 +108,7 @@ function ProjectHomePage() {
   );
 }
 
-function ProjectRunsTab({ projectId }: { projectId: string }) {
+function ProjectRunsTab({ projectId, readOnly }: { projectId: string; readOnly: boolean }) {
   const queryClient = useQueryClient();
   const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteProjectRunList(projectId);
@@ -200,6 +200,7 @@ function ProjectRunsTab({ projectId }: { projectId: string }) {
       <RunList
         runs={filteredRuns}
         projectId={projectId}
+        enableCombine={!readOnly}
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={() => void fetchNextPage()}

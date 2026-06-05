@@ -232,7 +232,7 @@ function SingleProjectHome() {
   const [syncInFlight, setSyncInFlight] = useState(false);
   const isReadOnly = config?.read_only === true;
 
-  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'experiments';
+  const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
   const filteredRuns =
     sourceFilter === 'all'
       ? dedupeSyncedRuns(data?.runs ?? [])
@@ -308,6 +308,7 @@ function SingleProjectHome() {
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           onLoadMore={() => void fetchNextPage()}
+          readOnly={isReadOnly}
         />
       )}
       {activeTab === 'experiments' && <ExperimentsTab />}
@@ -344,6 +345,7 @@ function RunsTabContent({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  readOnly,
 }: {
   runs: RunMeta[];
   isLoading: boolean;
@@ -356,6 +358,7 @@ function RunsTabContent({
   hasNextPage: boolean | undefined;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
+  readOnly: boolean;
 }) {
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -381,6 +384,7 @@ function RunsTabContent({
       />
       <RunList
         runs={runs}
+        enableCombine={!readOnly}
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={onLoadMore}

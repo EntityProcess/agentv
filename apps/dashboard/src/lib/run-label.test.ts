@@ -3,6 +3,18 @@ import { describe, expect, it } from 'bun:test';
 import { formatRunLabel } from './run-label';
 
 describe('formatRunLabel', () => {
+  it('starts with the run display name when available', () => {
+    expect(
+      formatRunLabel({
+        display_name: 'dogfood-run-a',
+        filename: 'dogfood-run-a',
+        target: 'codex',
+        timestamp: '2026-06-01T10:00:00.000Z',
+        pass_rate: 1,
+      }),
+    ).toBe('dogfood-run-a · 01/06 10:00 · codex · 100%');
+  });
+
   it('shows DD/MM HH:mm · target · experiment · score', () => {
     expect(
       formatRunLabel({

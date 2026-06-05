@@ -205,6 +205,26 @@ export interface RunTagsResponse {
   updated_at: string;
 }
 
+export interface CombineDuplicateConflict {
+  key: string;
+  test_id: string;
+  target: string;
+  kept_source_id: string;
+  incoming_source_id: string;
+  kept_timestamp?: string;
+  incoming_timestamp?: string;
+  latest_source_id: string;
+}
+
+export interface CombineRunsResponse {
+  ok: true;
+  run_id: string;
+  display_name: string;
+  combined_from_run_ids: string[];
+  duplicate_conflicts?: CombineDuplicateConflict[];
+  tags?: string[];
+}
+
 export interface TargetSummary {
   name: string;
   run_count: number;
