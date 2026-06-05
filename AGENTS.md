@@ -121,6 +121,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
 - Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
 - Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
+- Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately broadcast it through Agent Mail with the stash name, affected paths, reason, and recovery plan.
 
 ### MCP Agent Mail
 - Agent Mail is available as `mcp-agent-mail` at `http://127.0.0.1:8765/api/` when the local server is running.
