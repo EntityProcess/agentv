@@ -46,7 +46,6 @@ jobs:
     name: Audit dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Setup Bun
@@ -61,12 +60,21 @@ jobs:
         run: |
           set +e
           bun audit --audit-level=moderate | tee audit.txt
-          status="${PIPESTATUS[0]}"
+          audit_status="${PIPESTATUS[0]}"
+          set -e
           {
             echo "## Bun Audit"
             echo
+            if [ "$audit_status" -eq 0 ]; then
+              echo "No moderate-or-higher advisories found."
+            else
+              echo "> Advisory only: moderate-or-higher advisories were found. This job reports them without blocking CI."
+              echo
+            fi
             echo '```text'
             cat audit.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          exit "$status"
+          if [ "$audit_status" -ne 0 ]; then
+            echo "::warning::bun audit found moderate-or-higher advisories. See the job summary for details."
+          fi
