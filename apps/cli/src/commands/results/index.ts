@@ -1,5 +1,6 @@
 import { subcommands } from 'cmd-ts';
 
+import { resultsCombineCommand } from './combine.js';
 import { resultsExportCommand } from './export.js';
 import { resultsFailuresCommand } from './failures.js';
 import { resultsReportCommand } from './report.js';
@@ -11,6 +12,7 @@ export const resultsCommand = subcommands({
   name: 'results',
   description: 'Inspect, export, and manage evaluation results',
   cmds: {
+    combine: resultsCombineCommand,
     export: resultsExportCommand,
     report: resultsReportCommand,
     summary: resultsSummaryCommand,

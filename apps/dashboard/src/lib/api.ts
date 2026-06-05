@@ -14,6 +14,8 @@ import {
 
 import type {
   CategoriesResponse,
+  CombineDuplicateConflict,
+  CombineRunsResponse,
   CompareResponse,
   EvalDetailResponse,
   EvalDiscoverResponse,
@@ -529,6 +531,47 @@ export async function syncRemoteResultsApi(projectId?: string): Promise<RemoteSt
     throw new Error(`Failed to sync remote results: ${res.status}`);
   }
   return res.json() as Promise<RemoteStatusResponse>;
+}
+
+export class CombineRunsApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly duplicates: readonly CombineDuplicateConflict[] = [],
+  ) {
+    super(message);
+    this.name = 'CombineRunsApiError';
+  }
+}
+
+export async function combineRunsApi(
+  runIds: readonly string[],
+  duplicatePolicy: 'error' | 'latest',
+  projectId?: string,
+  displayName?: string,
+): Promise<CombineRunsResponse> {
+  const url = projectId ? `${projectApiBase(projectId)}/runs/combine` : '/api/runs/combine';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      run_ids: runIds,
+      duplicate_policy: duplicatePolicy,
+      ...(displayName?.trim() ? { display_name: displayName.trim() } : {}),
+    }),
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+      duplicates?: CombineDuplicateConflict[];
+    };
+    throw new CombineRunsApiError(
+      err.error ?? `Failed to combine runs: ${res.status}`,
+      res.status,
+      err.duplicates ?? [],
+    );
+  }
+  return res.json() as Promise<CombineRunsResponse>;
 }
 
 // ── Run tag mutations ────────────────────────────────────────────────────

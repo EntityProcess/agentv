@@ -1,6 +1,7 @@
 import type { RunMeta } from './types';
 
-type RunLabelInput = Pick<RunMeta, 'experiment' | 'target' | 'timestamp' | 'pass_rate'>;
+type RunLabelInput = Pick<RunMeta, 'experiment' | 'target' | 'timestamp' | 'pass_rate'> &
+  Partial<Pick<RunMeta, 'display_name' | 'filename'>>;
 
 /** DD/MM HH:mm — short human-readable slice of the run's timestamp. */
 function shortTimestamp(ts: string): string {
@@ -35,7 +36,10 @@ export function timeAgo(ts: string): string {
 
 /** Format a run label consistently across tables and nav surfaces. */
 export function formatRunLabel(run: RunLabelInput): string {
-  const parts: string[] = [shortTimestamp(run.timestamp)];
+  const primaryName = run.display_name || run.filename;
+  const parts: string[] = primaryName
+    ? [primaryName, shortTimestamp(run.timestamp)]
+    : [shortTimestamp(run.timestamp)];
 
   if (run.target) parts.push(run.target);
   if (run.experiment && run.experiment !== 'default' && run.experiment !== '-') {

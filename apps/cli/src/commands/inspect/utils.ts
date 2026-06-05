@@ -545,18 +545,32 @@ function buildRunId(relativeRunPath: string): string {
   return segments[0];
 }
 
+function readRunDisplayName(runDir: string): string | undefined {
+  try {
+    const benchmark = JSON.parse(readFileSync(path.join(runDir, 'benchmark.json'), 'utf8')) as {
+      metadata?: { display_name?: unknown };
+    };
+    const displayName = benchmark.metadata?.display_name;
+    return typeof displayName === 'string' && displayName.trim() ? displayName.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function collectRunManifestPaths(
   runsDir: string,
   currentDir: string,
-  files: { filePath: string; displayName: string; runId: string }[],
+  files: { filePath: string; displayName: string; runId: string; sortName: string }[],
 ): void {
   const primaryPath = resolveExistingRunPrimaryPath(currentDir);
   if (primaryPath) {
     const relativeRunPath = path.relative(runsDir, currentDir);
+    const sortName = path.basename(currentDir);
     files.push({
       filePath: primaryPath,
-      displayName: path.basename(currentDir),
+      displayName: readRunDisplayName(currentDir) ?? sortName,
       runId: buildRunId(relativeRunPath),
+      sortName,
     });
     return;
   }
@@ -570,7 +584,7 @@ function collectRunManifestPaths(
 }
 
 export function listResultFilesFromRunsDir(runsDir: string, limit?: number): ResultFileMeta[] {
-  const files: { filePath: string; displayName: string; runId: string }[] = [];
+  const files: { filePath: string; displayName: string; runId: string; sortName: string }[] = [];
 
   try {
     const entries = readdirSync(runsDir, { withFileTypes: true });
@@ -583,8 +597,8 @@ export function listResultFilesFromRunsDir(runsDir: string, limit?: number): Res
     // runs/ doesn't exist yet
   }
 
-  // Sort by display name descending (most recent first)
-  files.sort((a, b) => b.displayName.localeCompare(a.displayName));
+  // Sort by run directory name descending (most recent first for timestamped runs).
+  files.sort((a, b) => b.sortName.localeCompare(a.sortName));
 
   const limited = limit !== undefined && limit > 0 ? files.slice(0, limit) : files;
 
