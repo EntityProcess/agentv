@@ -2,6 +2,10 @@
 
 This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
+## Local Overrides
+
+If `AGENTS.md.local` exists in the repository root, read it after this file and follow it for machine-local workflow details. `AGENTS.md.local` is intentionally ignored by git; it is for local paths, private asset repositories, and environment-specific verification requirements.
+
 ## High-Level Goals
 
 AgentV aims to provide a robust, declarative framework for evaluating AI agents.
@@ -422,7 +426,9 @@ Before marking any branch as ready for review, complete this checklist:
 
 6. **Dashboard UX verification**: For changes affecting config, scoring display, or dashboard API, use `agent-browser` to verify the Dashboard UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
 
-7. **Mark PR as ready** only after steps 1-6 have been completed AND red/green UAT evidence is included in the PR.
+7. **Save visual evidence when required by local overrides:** If `AGENTS.md.local` specifies a private evidence repository or asset location, save Dashboard/docs/browser E2E screenshots there and include the resulting paths/commit in the handoff.
+
+8. **Mark PR as ready** only after steps 1-7 have been completed AND red/green UAT evidence is included in the PR.
 
 ## Documentation Updates
 
@@ -463,7 +469,9 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker. Push focused commits to the assigned branch and open/update the PR requested by the bead/user. Close the bead only after the scoped work is complete, pushed, and documented with verification evidence.
+Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker. Push focused commits to the assigned branch and open/update the PR requested by the bead/user. A branch, pushed commit, or draft PR is not done for ordinary scoped work. Close the bead only after the scoped work is complete, verified, merged to `main` through a PR, and documented with verification evidence.
+
+Exception: if the bead is part of an epic/worktree continuation and the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the epic bead or parent bead. In that case, keep the child/task bead open or in progress rather than closing it as completed until the PR is merged or the parent explicitly supersedes it.
 
 If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches, artifact/documentation branches, and private asset repos. It does not override the rule against pushing directly to `main` in this repository.
 
