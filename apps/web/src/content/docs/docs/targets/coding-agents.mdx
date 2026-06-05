@@ -148,13 +148,30 @@ targets:
 targets:
   - name: pi_target
     provider: pi-coding-agent
+    subprovider: openai-codex
+    model: gpt-5.5
+    thinking: medium
     grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
+| `subprovider` | No | Pi provider to use, such as `google`, `openai`, `openai-codex`, `azure`, `anthropic`, or `openrouter`. Defaults to Pi's default provider. |
+| `model` | No | Model to use. For OpenAI subscription auth through Pi, use `subprovider: openai-codex` with a subscription model such as `gpt-5.5`. |
+| `thinking` | No | Pi reasoning level: `off`, `minimal`, `low`, `medium`, `high`, or `xhigh`. Passed to the Pi SDK as `thinkingLevel`. |
+| `tools` | No | Comma-separated Pi tool allowlist, such as `read,bash,edit,write`. |
+| `api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. Omit for subscription auth handled by Pi. |
+| `base_url` | No | Provider base URL or Azure resource URL/name. |
 | `cwd` | No | Working directory |
+| `timeout_seconds` | No | Per-case timeout |
 | `grader_target` | Yes | LLM target for evaluation |
+
+Use `provider: pi-cli` instead when you want AgentV to spawn the `pi` binary directly. It accepts the same Pi fields above plus:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `executable` | No | Pi binary or shim to run. Defaults to `pi`. |
+| `args` | No | Extra arguments appended before the prompt. |
 
 ## VS Code
 
