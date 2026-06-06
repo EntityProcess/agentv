@@ -93,6 +93,27 @@ describe('shouldEnableCache', () => {
     expect(shouldEnableCache({ cliCache: false, cliNoCache: false, yamlCache: true })).toBe(true);
   });
 
+  it('should enable when TypeScript config cache.enabled is true', () => {
+    expect(shouldEnableCache({ cliCache: false, cliNoCache: false, tsConfigCache: true })).toBe(
+      true,
+    );
+  });
+
+  it('should let YAML cache false override TypeScript config cache.enabled', () => {
+    expect(
+      shouldEnableCache({
+        cliCache: false,
+        cliNoCache: false,
+        yamlCache: false,
+        tsConfigCache: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('should let --cache override YAML cache false', () => {
+    expect(shouldEnableCache({ cliCache: true, cliNoCache: false, yamlCache: false })).toBe(true);
+  });
+
   it('should disable when --no-cache overrides --cache', () => {
     expect(shouldEnableCache({ cliCache: true, cliNoCache: true })).toBe(false);
   });
@@ -103,6 +124,12 @@ describe('shouldEnableCache', () => {
 
   it('should disable when YAML cache is false', () => {
     expect(shouldEnableCache({ cliCache: false, cliNoCache: false, yamlCache: false })).toBe(false);
+  });
+
+  it('should disable when --no-cache overrides TypeScript config cache.enabled', () => {
+    expect(shouldEnableCache({ cliCache: false, cliNoCache: true, tsConfigCache: true })).toBe(
+      false,
+    );
   });
 });
 

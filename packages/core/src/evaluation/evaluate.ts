@@ -62,6 +62,11 @@ import micromatch from 'micromatch';
 import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
 import type { AssertFn } from './assertions.js';
+import {
+  ResponseCache,
+  shouldEnableCache,
+  shouldSkipCacheForTemperature,
+} from './cache/response-cache.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
 import type { EvalMetadata } from './metadata.js';
 import { runEvaluation } from './orchestrator.js';
@@ -185,6 +190,8 @@ export interface EvalConfig {
   readonly agentTimeoutMs?: number;
   /** Enable response caching */
   readonly cache?: boolean;
+  /** Response cache directory. Requires cache to be enabled. */
+  readonly cachePath?: string;
   /** Verbose logging */
   readonly verbose?: boolean;
   /** Callback for each completed result */
@@ -202,6 +209,7 @@ export interface MaterializedEvalConfig {
   readonly tests: readonly EvalTest[];
   readonly workers?: number;
   readonly cache?: boolean;
+  readonly cachePath?: string;
   readonly budgetUsd?: number;
   readonly threshold?: number;
   readonly metadata?: EvalMetadata;
@@ -322,6 +330,14 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   }
 
   const collectedResults: EvaluationResult[] = [];
+  const cacheEnabled = shouldEnableCache({
+    cliCache: config.cache === true,
+    cliNoCache: false,
+    yamlCache: config.cache === undefined ? materialized.cache : undefined,
+  });
+  const cache = cacheEnabled
+    ? new ResponseCache(materialized.cachePath ? path.resolve(materialized.cachePath) : undefined)
+    : undefined;
 
   const results = await runEvaluation({
     testFilePath,
@@ -335,6 +351,10 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     filter: config.filter,
     threshold: config.threshold,
     evalCases: materialized.tests,
+    cache,
+    useCache:
+      !!cache &&
+      !shouldSkipCacheForTemperature(resolvedTarget.config as unknown as Record<string, unknown>),
     ...(materialized.budgetUsd !== undefined && { budgetUsd: materialized.budgetUsd }),
     onResult: async (result) => {
       collectedResults.push(result);
@@ -379,6 +399,7 @@ export async function materializeEvalConfig(
       tests,
       workers: config.workers ?? suite.workers,
       cache: config.cache ?? suite.cacheConfig?.enabled,
+      cachePath: config.cachePath ?? suite.cacheConfig?.cachePath,
       budgetUsd: config.budgetUsd ?? suite.budgetUsd,
       threshold: config.threshold ?? suite.threshold,
       metadata: config.metadata ?? suite.metadata,
@@ -399,6 +420,7 @@ export async function materializeEvalConfig(
     tests,
     workers: config.workers,
     cache: config.cache,
+    cachePath: config.cachePath,
     budgetUsd: config.budgetUsd,
     threshold: config.threshold,
     metadata: config.metadata,

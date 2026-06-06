@@ -96,7 +96,10 @@ interface NormalizedOptions {
   readonly agentTimeoutSeconds?: number;
   readonly maxRetries: number;
   readonly cache: boolean;
+  readonly cachePath?: string;
   readonly noCache: boolean;
+  readonly tsConfigCache?: boolean;
+  readonly tsConfigCachePath?: string;
   readonly verbose: boolean;
   readonly otelFile?: string;
   readonly exportOtel: boolean;
@@ -313,13 +316,12 @@ function normalizeOptions(
   const cliMaxRetries = normalizeOptionalNumber(rawOptions.maxRetries);
   const configMaxRetries = config?.execution?.maxRetries;
 
-  // Cache: CLI flags take priority, then config file, then default (true via shouldEnableCache)
-  const cliCache = normalizeBoolean(rawOptions.cache);
+  // Response cache: CLI request/path, then eval YAML, then TypeScript config, then default off.
+  const cliCachePath = normalizeString(rawOptions.cachePath);
+  const cliCache = normalizeBoolean(rawOptions.cache) || cliCachePath !== undefined;
   const cliNoCache = normalizeBoolean(rawOptions.noCache);
   const configCacheEnabled = config?.cache?.enabled;
-  // If neither --cache nor --no-cache was passed, use config value
-  const resolvedCache = cliCache || (!cliNoCache && configCacheEnabled === true);
-  const resolvedNoCache = cliNoCache;
+  const configCachePath = normalizeString(config?.cache?.path);
 
   // Output dir: CLI --out > config output.dir > auto-generated
   const cliOut = normalizeString(rawOptions.out);
@@ -352,8 +354,11 @@ function normalizeOptions(
     dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
     agentTimeoutSeconds: cliAgentTimeout ?? configAgentTimeoutSeconds,
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
-    cache: resolvedCache,
-    noCache: resolvedNoCache,
+    cache: cliCache,
+    cachePath: cliCachePath,
+    noCache: cliNoCache,
+    tsConfigCache: configCacheEnabled,
+    tsConfigCachePath: configCachePath,
     // Boolean OR: config `true` cannot be overridden to `false` from CLI.
     // Intentional — there are no --no-verbose / --no-keep-workspaces flags.
     // Precedence: CLI > YAML config > TS config
@@ -1311,13 +1316,15 @@ export async function runEvalCommand(
     cliCache: options.cache,
     cliNoCache: options.noCache,
     yamlCache: yamlCacheEnabled,
+    tsConfigCache: options.tsConfigCache,
   });
+  const activeCachePath = options.cachePath ?? yamlCachePath ?? options.tsConfigCachePath;
   const cache = cacheEnabled
-    ? new ResponseCache(yamlCachePath ? path.resolve(yamlCachePath) : undefined)
+    ? new ResponseCache(activeCachePath ? path.resolve(activeCachePath) : undefined)
     : undefined;
 
-  if (cacheEnabled) {
-    console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
+  if (cache) {
+    console.log(`Response cache: enabled (${cache.cachePath})`);
   }
 
   // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold.

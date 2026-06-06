@@ -406,7 +406,11 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
     return undefined;
   }
 
-  const cachePath = executionObj.cache_path ?? executionObj.cachePath;
+  if (executionObj.cachePath !== undefined) {
+    logWarning('Invalid execution.cachePath: use snake_case execution.cache_path in YAML.');
+  }
+
+  const cachePath = executionObj.cache_path;
   const resolvedCachePath =
     typeof cachePath === 'string' && cachePath.trim().length > 0 ? cachePath.trim() : undefined;
 

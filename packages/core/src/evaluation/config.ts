@@ -64,7 +64,7 @@ const AgentVConfigSchema = z.object({
     .object({
       /** Enable response caching */
       enabled: z.boolean().optional(),
-      /** Cache file path */
+      /** Response cache directory */
       path: z.string().optional(),
     })
     .optional(),

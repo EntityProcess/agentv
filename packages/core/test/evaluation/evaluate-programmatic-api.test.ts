@@ -6,6 +6,8 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { evaluate } from '../../src/evaluation/evaluate.js';
 
@@ -31,6 +33,41 @@ describe('evaluate() — programmatic API extensions', () => {
         budgetUsd: 10.0,
       });
       expect(summary.passed).toBe(1);
+    },
+    PROGRAMMATIC_API_TIMEOUT_MS,
+  );
+
+  // ---------------------------------------------------------------------------
+  // response cache
+  // ---------------------------------------------------------------------------
+
+  it(
+    'writes response cache entries to a custom programmatic cachePath',
+    async () => {
+      const cachePath = mkdtempSync(path.join(tmpdir(), 'agentv-programmatic-cache-'));
+      try {
+        const { summary } = await evaluate({
+          tests: [
+            {
+              id: 'programmatic-cache-path',
+              input: 'hello',
+              assert: [{ type: 'contains', value: 'cached' }],
+            },
+          ],
+          target: { name: 'default', provider: 'mock', response: 'cached response' },
+          cache: true,
+          cachePath,
+        });
+
+        expect(summary.passed).toBe(1);
+        const shardDirs = readdirSync(cachePath);
+        expect(shardDirs.length).toBeGreaterThan(0);
+        const firstShard = path.join(cachePath, shardDirs[0]);
+        expect(existsSync(firstShard)).toBe(true);
+        expect(readdirSync(firstShard).some((entry) => entry.endsWith('.json'))).toBe(true);
+      } finally {
+        rmSync(cachePath, { recursive: true, force: true });
+      }
     },
     PROGRAMMATIC_API_TIMEOUT_MS,
   );
