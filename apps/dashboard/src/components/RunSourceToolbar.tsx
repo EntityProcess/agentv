@@ -1,6 +1,6 @@
 import {
-  formatLastSynced,
-  formatRemoteRunCount,
+  buildRemoteErrorAction,
+  buildRemoteStatusItems,
   getProjectSyncView,
 } from '~/lib/project-sync-status';
 import type { RemoteStatusResponse } from '~/lib/types';
@@ -44,6 +44,7 @@ export function RunSourceToolbar({
         : 'border-red-900/60 bg-red-950/20 text-red-300';
   const dirtyPathCount = remoteStatus?.dirty_paths?.length ?? 0;
   const conflictedPathCount = remoteStatus?.conflicted_paths?.length ?? 0;
+  const remoteStatusItems = buildRemoteStatusItems(remoteStatus, projectName);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
@@ -86,7 +87,7 @@ export function RunSourceToolbar({
                 title={!syncView.canSync ? syncView.nextAction : undefined}
                 className="rounded-md border border-cyan-800 bg-cyan-950/40 px-3 py-1.5 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {syncInFlight ? 'Syncing...' : 'Sync Project'}
+                {syncInFlight ? 'Syncing...' : 'Sync Remote Results'}
               </button>
             ) : null}
           </div>
@@ -96,10 +97,9 @@ export function RunSourceToolbar({
       {remoteConfigured ? (
         <div className="space-y-2 text-sm">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-gray-400">
-            {projectName ? <span>Project: {projectName}</span> : null}
-            <span>{formatRemoteRunCount(remoteStatus?.run_count)}</span>
-            <span>{formatLastSynced(remoteStatus?.last_synced_at)}</span>
-            {remoteStatus?.repo ? <span>Repo: {remoteStatus.repo}</span> : null}
+            {remoteStatusItems.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
           </div>
           <p className={syncView.tone === 'danger' ? 'text-red-300' : 'text-gray-400'}>
             {syncView.summary}
@@ -132,14 +132,22 @@ export function RunSourceToolbar({
       ) : null}
 
       {syncFeedback ? (
-        <div className={`rounded-md border px-3 py-2 text-sm ${feedbackClass}`}>
+        <div
+          className={`rounded-md border px-3 py-2 text-sm ${feedbackClass}`}
+          role={syncFeedback.kind === 'error' ? 'alert' : 'status'}
+        >
           {syncFeedback.message}
         </div>
       ) : null}
 
       {remoteStatus?.last_error ? (
-        <div className="rounded-md border border-yellow-900/50 bg-yellow-950/20 px-3 py-2 text-sm text-yellow-300">
-          {remoteStatus.last_error}
+        <div
+          className="rounded-md border border-red-900/60 bg-red-950/20 px-3 py-2 text-sm text-red-300"
+          role="alert"
+        >
+          <p className="font-medium">Remote sync error</p>
+          <p>{remoteStatus.last_error}</p>
+          <p className="mt-1 text-xs text-red-200/80">{buildRemoteErrorAction(remoteStatus)}</p>
         </div>
       ) : null}
 

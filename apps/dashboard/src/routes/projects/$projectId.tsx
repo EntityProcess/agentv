@@ -5,7 +5,7 @@
  */
 
 import { Link, createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
@@ -25,7 +25,7 @@ import {
   useStudioConfig,
 } from '~/lib/api';
 import { resolveProjectDisplayName } from '~/lib/project-display-name';
-import { buildProjectSyncFeedback } from '~/lib/project-sync-status';
+import { buildProjectSyncErrorFeedback, buildProjectSyncFeedback } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
 type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
@@ -160,15 +160,21 @@ function ProjectRunsTab({
         queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
       ]);
     } catch (err) {
-      setSyncFeedback({
-        kind: 'error',
-        message: (err as Error).message,
-      });
+      setSyncFeedback(buildProjectSyncErrorFeedback(err, remoteStatus));
       await queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] });
     } finally {
       setSyncInFlight(false);
     }
   }
+
+  useEffect(() => {
+    if (syncFeedback?.kind !== 'success') {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setSyncFeedback(null), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [syncFeedback]);
 
   if (isLoading) {
     return (

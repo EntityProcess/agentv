@@ -39,6 +39,7 @@
       "**/__tmp_*/**",
       "**/.agentv/**",
       ".claude/**",
+      ".ntm/**",
       ".opencode/**",
       ".beads/**",
       ".ntm/**",

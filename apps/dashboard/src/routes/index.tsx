@@ -33,7 +33,7 @@ import {
   resolveIndexRoute,
   resolveInitialProjectRedirect,
 } from '~/lib/navigation';
-import { buildProjectSyncFeedback } from '~/lib/project-sync-status';
+import { buildProjectSyncErrorFeedback, buildProjectSyncFeedback } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 import type { RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
@@ -257,15 +257,21 @@ function SingleProjectHome() {
         queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
       ]);
     } catch (err) {
-      setSyncFeedback({
-        kind: 'error',
-        message: (err as Error).message,
-      });
+      setSyncFeedback(buildProjectSyncErrorFeedback(err, remoteStatus));
       await queryClient.invalidateQueries({ queryKey: ['remote-status', ''] });
     } finally {
       setSyncInFlight(false);
     }
   }
+
+  useEffect(() => {
+    if (syncFeedback?.kind !== 'success') {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setSyncFeedback(null), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [syncFeedback]);
 
   return (
     <div className="space-y-6">
