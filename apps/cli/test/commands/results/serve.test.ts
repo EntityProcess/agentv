@@ -101,7 +101,7 @@ function writeRemoteRunArtifact(
   cloneDir: string,
   experiment: string,
   timestamp: string,
-  resultRecord: object,
+  resultRecords: object | object[],
 ): string {
   const isoTimestamp = timestamp.replace(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
@@ -109,7 +109,8 @@ function writeRemoteRunArtifact(
   );
   const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
-  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
+  const records = Array.isArray(resultRecords) ? resultRecords : [resultRecords];
+  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
   writeFileSync(
     path.join(runDir, 'benchmark.json'),
     JSON.stringify(
@@ -742,6 +743,64 @@ describe('serve app', () => {
       expect(detailData.source).toBe('remote');
       expect(detailData.results).toHaveLength(1);
       expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
+    }, 15000);
+
+    it('computes git-native remote run list totals from materialized index rows', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const secondPass = {
+        ...RESULT_A,
+        test_id: 'test-tool-use',
+        timestamp: '2026-03-18T10:00:02.000Z',
+        score: 0.95,
+      };
+      const failingResult = {
+        ...RESULT_B,
+        timestamp: '2026-03-18T10:00:03.000Z',
+        score: 0.4,
+      };
+      const runId = writeRemoteRunArtifact(cloneDir, 'green-uat', '2026-03-26T10-00-00-000Z', [
+        RESULT_A,
+        secondPass,
+        failingResult,
+      ]);
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{
+          filename: string;
+          test_count: number;
+          pass_rate: number;
+          avg_score: number;
+          experiment?: string;
+          timestamp: string;
+        }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0].filename).toBe(`remote::${runId}`);
+      expect(listData.runs[0].experiment).toBe('green-uat');
+      expect(listData.runs[0].timestamp).toBe('2026-03-26T10:00:00.000Z');
+      expect(listData.runs[0].test_count).toBe(3);
+      expect(Math.round(listData.runs[0].pass_rate * listData.runs[0].test_count)).toBe(2);
+      expect(listData.runs[0].pass_rate).toBeCloseTo(2 / 3, 5);
+      expect(listData.runs[0].avg_score).toBeCloseTo((1 + 0.95 + 0.4) / 3, 5);
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(`remote::${runId}`)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as { results: Array<{ testId: string }> };
+      expect(detailData.results).toHaveLength(3);
     }, 15000);
 
     it('loads externally pushed remote runs after sync even when the clone has not checked out the files', async () => {

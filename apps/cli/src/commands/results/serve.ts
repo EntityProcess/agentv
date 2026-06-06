@@ -410,6 +410,10 @@ function parseRunPageLimit(limitParam: string | undefined): number | undefined |
   return limit > 0 ? limit : null;
 }
 
+function hasUsableTimestamp(timestamp: string | undefined): boolean {
+  return !!timestamp && timestamp !== 'unknown' && !Number.isNaN(new Date(timestamp).getTime());
+}
+
 function paginateRuns<T extends { filename: string }>(
   runs: T[],
   cursor: string | undefined,
@@ -455,6 +459,8 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
     metas.map(async (m) => {
       let target: string | undefined;
       let experiment = inferExperimentFromRunId(m.raw_filename);
+      let timestamp = m.timestamp;
+      let testCount = m.testCount;
       let passRate = m.passRate;
       let avgScore = m.avgScore;
       try {
@@ -462,6 +468,11 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         if (records.length > 0) {
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
+          timestamp =
+            hasUsableTimestamp(timestamp) || !records[0].timestamp
+              ? timestamp
+              : records[0].timestamp;
+          testCount = records.length;
           passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
           avgScore = records.reduce((sum, r) => sum + r.score, 0) / records.length;
         } else {
@@ -481,8 +492,8 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         filename: m.filename,
         display_name: m.displayName,
         path: m.path,
-        timestamp: m.timestamp,
-        test_count: m.testCount,
+        timestamp,
+        test_count: testCount,
         pass_rate: passRate,
         avg_score: avgScore,
         size_bytes: m.sizeBytes,
