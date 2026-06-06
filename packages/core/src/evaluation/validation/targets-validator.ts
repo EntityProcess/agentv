@@ -19,6 +19,10 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 // Cross-provider settings derived from the schema source of truth in targets.ts.
 // Adding a field to COMMON_TARGET_SETTINGS automatically makes it valid here.
 const COMMON_SETTINGS = new Set<string>(COMMON_TARGET_SETTINGS);
@@ -320,9 +324,11 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   const absolutePath = path.resolve(filePath);
 
   let parsed: unknown;
+  let rawParsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = interpolateEnv(parseYamlValue(content), process.env);
+    rawParsed = parseYamlValue(content);
+    parsed = interpolateEnv(rawParsed, process.env);
   } catch (error) {
     errors.push({
       severity: 'error',
@@ -484,6 +490,8 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
   // Validate targets array
   const targets = parsed.targets;
+  const rawTargets =
+    isObject(rawParsed) && Array.isArray(rawParsed.targets) ? rawParsed.targets : [];
   if (!Array.isArray(targets)) {
     errors.push({
       severity: 'error',
@@ -542,8 +550,9 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
     // Required field: provider
     const provider = target.provider;
-    const hasUseTarget =
-      typeof target.use_target === 'string' && target.use_target.trim().length > 0;
+    const rawTarget = rawTargets[i];
+    const rawUseTarget = isObject(rawTarget) ? rawTarget.use_target : undefined;
+    const hasUseTarget = isNonEmptyString(target.use_target) || isNonEmptyString(rawUseTarget);
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
     const isTemplated = typeof provider === 'string' && /^\$\{\{.+\}\}$/.test(provider.trim());
     if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
