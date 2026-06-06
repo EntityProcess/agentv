@@ -199,6 +199,23 @@ async function readDiagnostics(fixture: EvalFixture): Promise<Record<string, unk
   throw new Error(`Missing diagnostics file: ${fixture.diagnosticsPath}`);
 }
 
+async function writeTsCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
+  await writeFile(
+    path.join(fixture.suiteDir, 'agentv.config.ts'),
+    `export default { cache: { enabled: true, path: ${JSON.stringify(cachePath)} } };\n`,
+    'utf8',
+  );
+}
+
+async function prependYamlCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
+  const original = await readFile(fixture.testFilePath, 'utf8');
+  await writeFile(
+    fixture.testFilePath,
+    `execution:\n  cache: true\n  cache_path: ${cachePath}\n\n${original}`,
+    'utf8',
+  );
+}
+
 describe('agentv eval CLI', () => {
   it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
@@ -284,5 +301,118 @@ describe('agentv eval CLI', () => {
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
+  }, 30_000);
+
+  it('honors agentv.config.ts cache.path when response cache is enabled there', async () => {
+    const fixture = await createFixture();
+    try {
+      const cachePath = '.agentv/ts-response-cache';
+      await writeTsCacheConfig(fixture, cachePath);
+
+      const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
+
+      const resolvedCachePath = path.resolve(fixture.suiteDir, cachePath);
+      expect(stdout).toContain(`Response cache: enabled (${resolvedCachePath})`);
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        hasCache: true,
+        cachePath: resolvedCachePath,
+        useCache: true,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('honors eval YAML execution.cache_path', async () => {
+    const fixture = await createFixture();
+    try {
+      const cachePath = '.agentv/yaml-response-cache';
+      await prependYamlCacheConfig(fixture, cachePath);
+
+      const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
+
+      const resolvedCachePath = path.resolve(fixture.suiteDir, cachePath);
+      expect(stdout).toContain(`Response cache: enabled (${resolvedCachePath})`);
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        hasCache: true,
+        cachePath: resolvedCachePath,
+        useCache: true,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('honors CLI --cache-path as an explicit response cache opt-in', async () => {
+    const fixture = await createFixture();
+    try {
+      const cachePath = '.agentv/cli-response-cache';
+
+      const { stdout } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--cache-path',
+        cachePath,
+      ]);
+
+      const resolvedCachePath = path.resolve(fixture.suiteDir, cachePath);
+      expect(stdout).toContain(`Response cache: enabled (${resolvedCachePath})`);
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        hasCache: true,
+        cachePath: resolvedCachePath,
+        useCache: true,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('lets --no-cache override config-driven response cache settings', async () => {
+    const fixture = await createFixture();
+    try {
+      await writeTsCacheConfig(fixture, '.agentv/disabled-response-cache');
+
+      const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--no-cache']);
+
+      expect(stdout).not.toContain('Response cache: enabled');
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        hasCache: false,
+        cachePath: null,
+        useCache: false,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('keeps response cache help separate from transcript replay terminology', async () => {
+    const result = await execa('bun', ['--no-env-file', CLI_ENTRY, 'eval', 'run', '--help'], {
+      cwd: projectRoot,
+      env: { ...process.env, CI: 'true' },
+      reject: false,
+    });
+    const helpText = `${result.stdout}\n${result.stderr}`;
+    expect(helpText).toContain('--cache');
+    expect(helpText).toContain('--cache-path');
+    expect(helpText).toContain('--transcript');
+
+    const cacheHelp = helpText
+      .split(/\r?\n/)
+      .filter((line) => line.includes('--cache'))
+      .join('\n')
+      .toLowerCase();
+    expect(cacheHelp).toContain('response cache');
+    expect(cacheHelp).not.toContain('replay');
+
+    const transcriptHelp = helpText
+      .split(/\r?\n/)
+      .filter((line) => line.includes('--transcript'))
+      .join('\n')
+      .toLowerCase();
+    expect(transcriptHelp).not.toContain('cache');
   }, 30_000);
 });

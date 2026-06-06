@@ -25,6 +25,14 @@ interface RunEvaluationOptionsLike {
   readonly onResult?: (result: EvaluationResultLike) => Promise<void> | void;
 }
 
+function getCachePath(cache: unknown): string | null {
+  if (!cache || typeof cache !== 'object') {
+    return null;
+  }
+  const maybeCachePath = (cache as { readonly cachePath?: unknown }).cachePath;
+  return typeof maybeCachePath === 'string' ? maybeCachePath : null;
+}
+
 interface EvaluationResultLike {
   readonly testId: string;
   readonly score: number;
@@ -82,6 +90,8 @@ async function maybeWriteDiagnostics(
     agentTimeoutMs: options.agentTimeoutMs ?? null,
     promptDumpDir: options.promptDumpDir,
     filter: options.filter ?? null,
+    hasCache: options.cache !== undefined,
+    cachePath: getCachePath(options.cache),
     useCache: options.useCache ?? false,
     envSample: process.env.CLI_ENV_SAMPLE ?? null,
     envRootOnly: process.env.CLI_ENV_ROOT_ONLY ?? null,

@@ -48,6 +48,7 @@ describe('loadTsEvalFile', () => {
     expect(suite.metadata?.tags).toEqual(['sdk', 'typescript']);
     expect(suite.workers).toBe(2);
     expect(suite.cacheConfig?.enabled).toBe(false);
+    expect(suite.cacheConfig?.cachePath).toBe('.agentv/ts-eval-cache');
     expect(suite.budgetUsd).toBe(1.5);
     expect(suite.threshold).toBe(0.9);
     expect(suite.inlineTarget?.name).toBe('inline-target');

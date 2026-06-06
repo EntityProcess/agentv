@@ -14,6 +14,7 @@ const config: EvalConfig = {
   ],
   workers: 2,
   cache: false,
+  cachePath: '.agentv/ts-eval-cache',
   budgetUsd: 1.5,
   threshold: 0.9,
   target: { name: 'inline-target', provider: 'mock', response: 'hello there' },

@@ -427,6 +427,40 @@ The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `202
 
 **Precedence:** CLI flags > project-local `.agentv/config.yaml` > home/global `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`) > `agentv.config.ts` > built-in defaults.
 
+## Response Cache
+
+AgentV's response cache stores exact provider responses on disk to reduce repeated live LLM calls while iterating on the same eval. It is disabled by default. Enable it from the CLI with `--cache`, or enable it with a custom directory using `--cache-path`:
+
+```bash
+agentv eval evals/dataset.eval.yaml --cache
+agentv eval evals/dataset.eval.yaml --cache-path .agentv/response-cache
+```
+
+Eval YAML can enable the same cache per suite:
+
+```yaml
+execution:
+  cache: true
+  cache_path: .agentv/response-cache
+```
+
+Project TypeScript config can set the project default:
+
+```typescript
+import { defineConfig } from '@agentv/core';
+
+export default defineConfig({
+  cache: {
+    enabled: true,
+    path: '.agentv/response-cache',
+  },
+});
+```
+
+`--no-cache` disables response caching regardless of CLI, eval YAML, or TypeScript config. Cache path precedence is `--cache-path` > eval YAML `execution.cache_path` > TypeScript config `cache.path` > `.agentv/cache`.
+
+Response cache and replay are separate concepts. The response cache is an iteration aid for repeated live provider calls. Transcript or fixture replay is target substitution from curated artifacts, and graders still run fresh against the replayed output.
+
 ## Environment Variables
 
 ### AGENTV_HOME

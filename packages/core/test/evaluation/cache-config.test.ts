@@ -32,10 +32,10 @@ describe('extractCacheConfig', () => {
     expect(result).toEqual({ enabled: true, cachePath: '.agentv/my-cache' });
   });
 
-  it('should accept camelCase cachePath', () => {
+  it('should ignore camelCase cachePath on the YAML wire surface', () => {
     const suite: JsonObject = { execution: { cache: true, cachePath: 'custom/cache' } };
     const result = extractCacheConfig(suite);
-    expect(result).toEqual({ enabled: true, cachePath: 'custom/cache' });
+    expect(result).toEqual({ enabled: true, cachePath: undefined });
   });
 
   it('should return undefined for invalid cache value', () => {

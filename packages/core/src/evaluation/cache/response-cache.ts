@@ -13,7 +13,7 @@ const DEFAULT_CACHE_PATH = '.agentv/cache';
  * Directory structure: <cache_path>/<first-2-chars>/<full-hash>.json
  */
 export class ResponseCache implements EvaluationCache {
-  private readonly cachePath: string;
+  readonly cachePath: string;
 
   constructor(cachePath?: string) {
     this.cachePath = cachePath ?? DEFAULT_CACHE_PATH;
@@ -47,16 +47,21 @@ export class ResponseCache implements EvaluationCache {
  *
  * Precedence:
  *   1. --no-cache CLI flag → always disabled
- *   2. --cache CLI flag OR execution.cache YAML → enabled
- *   3. Default → disabled (safe for variability testing)
+ *   2. --cache CLI flag → enabled
+ *   3. execution.cache YAML → enabled/disabled for that eval file
+ *   4. agentv.config.ts cache.enabled → project default
+ *   5. Default → disabled (safe for variability testing)
  */
 export function shouldEnableCache(params: {
   cliCache: boolean;
   cliNoCache: boolean;
   yamlCache?: boolean;
+  tsConfigCache?: boolean;
 }): boolean {
   if (params.cliNoCache) return false;
-  return params.cliCache || params.yamlCache === true;
+  if (params.cliCache) return true;
+  if (params.yamlCache !== undefined) return params.yamlCache;
+  return params.tsConfigCache === true;
 }
 
 /**

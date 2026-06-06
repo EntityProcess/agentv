@@ -108,9 +108,14 @@ export const evalRunCommand = command({
       long: 'cache',
       description: 'Enable provider response cache (persisted to disk)',
     }),
+    cachePath: option({
+      type: optional(string),
+      long: 'cache-path',
+      description: 'Enable provider response cache at the given directory',
+    }),
     noCache: flag({
       long: 'no-cache',
-      description: 'Disable caching (overrides YAML execution.cache)',
+      description: 'Disable response caching (overrides --cache, --cache-path, config, and YAML)',
     }),
     verbose: flag({
       long: 'verbose',
@@ -262,6 +267,7 @@ export const evalRunCommand = command({
       agentTimeout: args.agentTimeout,
       maxRetries: args.maxRetries,
       cache: args.cache,
+      cachePath: args.cachePath,
       noCache: args.noCache,
       verbose: args.verbose,
       workspaceMode: args.workspaceMode,
