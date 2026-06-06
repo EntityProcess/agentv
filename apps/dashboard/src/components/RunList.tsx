@@ -22,6 +22,7 @@ import {
   CombineRunsApiError,
   DEFAULT_PASS_THRESHOLD,
   combineRunsApi,
+  deleteRunApi,
   useStudioConfig,
 } from '~/lib/api';
 import { formatRunLabel } from '~/lib/run-label';
@@ -76,6 +77,7 @@ export function RunList({
   const [selectedRunIds, setSelectedRunIds] = useState<string[]>([]);
   const [combineError, setCombineError] = useState<string | null>(null);
   const [combineInFlight, setCombineInFlight] = useState(false);
+  const [deleteInFlight, setDeleteInFlight] = useState(false);
   const selectableRunIds = useMemo(
     () =>
       runs
@@ -173,6 +175,29 @@ export function RunList({
     }
   }
 
+  async function handleDelete() {
+    if (selectedRunIds.length === 0 || deleteInFlight) return;
+    const count = selectedRunIds.length;
+    const confirmed = window.confirm(
+      `Delete ${count} local run${count === 1 ? '' : 's'}? This removes the run workspace and artifacts from disk.`,
+    );
+    if (!confirmed) return;
+
+    setCombineError(null);
+    setDeleteInFlight(true);
+    try {
+      for (const runId of selectedRunIds) {
+        await deleteRunApi(runId, projectId);
+      }
+      setSelectedRunIds([]);
+      await invalidateRunQueries();
+    } catch (err) {
+      setCombineError((err as Error).message);
+    } finally {
+      setDeleteInFlight(false);
+    }
+  }
+
   function toggleRun(runId: string) {
     setSelectedRunIds((current) =>
       current.includes(runId) ? current.filter((id) => id !== runId) : [...current, runId],
@@ -207,14 +232,24 @@ export function RunList({
             </p>
             {combineError && <p className="mt-1 text-xs text-red-400">{combineError}</p>}
           </div>
-          <button
-            type="button"
-            onClick={() => void handleCombine()}
-            disabled={selectedRunIds.length < 2 || combineInFlight}
-            className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
-          >
-            {combineInFlight ? 'Combining...' : 'Combine'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={selectedRunIds.length === 0 || deleteInFlight || combineInFlight}
+              className="rounded-md border border-red-900/70 px-3 py-1.5 text-sm font-medium text-red-300 hover:border-red-700 hover:bg-red-950/40 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-500"
+            >
+              {deleteInFlight ? 'Deleting...' : 'Delete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCombine()}
+              disabled={selectedRunIds.length < 2 || combineInFlight || deleteInFlight}
+              className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
+            >
+              {combineInFlight ? 'Combining...' : 'Combine'}
+            </button>
+          </div>
         </div>
       )}
       <div className="overflow-hidden rounded-lg border border-gray-800">

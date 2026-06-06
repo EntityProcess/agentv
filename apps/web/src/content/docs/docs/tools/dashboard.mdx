@@ -90,6 +90,16 @@ Click any run to see a breakdown by suite, per-test scores, target, duration, an
 
 <Image src={studioRunDetail} alt="AgentV Dashboard run detail showing 100% pass rate across 5 tests with scores and duration" />
 
+## Run management
+
+In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
+
+The same deletion primitive is available from the CLI:
+
+```bash
+agentv results delete <run-id> --yes
+```
+
 ## Experiments
 
 The Experiments tab groups runs by experiment name so you can compare the impact of changes — for example, `with_skills` vs `without_skills`.

@@ -63,6 +63,7 @@ import {
   buildCombineRunSources,
   combineRunSources,
 } from './combine-run.js';
+import { deleteLocalRun } from './delete-run.js';
 import { getActiveRunStatus, getActiveRunTarget, registerEvalRoutes } from './eval-runner.js';
 import {
   loadLightweightResults,
@@ -1078,6 +1079,25 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
   }
 }
 
+async function handleRunDelete(c: C, { searchDir, projectId }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename, projectId);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+  if (meta.source === 'remote') {
+    return c.json({ error: 'Run deletion is only available for local runs' }, 400);
+  }
+  if (getActiveRunStatus(meta.path) === 'starting' || getActiveRunStatus(meta.path) === 'running') {
+    return c.json({ error: 'Run is still active' }, 409);
+  }
+
+  try {
+    const deleted = deleteLocalRun(searchDir, filename);
+    return c.json({ ok: true, run_id: deleted.runId });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 400);
+  }
+}
+
 function getLocalRunsRoot(searchDir: string): string {
   return path.join(searchDir, '.agentv', 'results', 'runs');
 }
@@ -1436,6 +1456,12 @@ export function createApp(
     }
     return handleRunTagsDelete(c, defaultCtx);
   });
+  app.delete('/api/runs/:filename', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return handleRunDelete(c, defaultCtx);
+  });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
   app.get('/api/runs/:filename/log', (c) => handleRunLog(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
@@ -1570,6 +1596,12 @@ export function createApp(
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return withProject(c, handleRunTagsDelete);
+  });
+  app.delete('/api/projects/:projectId/runs/:filename', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return withProject(c, handleRunDelete);
   });
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
   app.get('/api/projects/:projectId/runs/:filename/log', (c) => withProject(c, handleRunLog));

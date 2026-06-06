@@ -1213,6 +1213,113 @@ describe('serve app', () => {
     });
   });
 
+  describe('run delete API', () => {
+    function seedRun(
+      name: string,
+      records: object[] = [RESULT_A],
+      opts?: { experiment?: string; baseDir?: string },
+    ): { runId: string; runDir: string } {
+      const runsDir = path.join(opts?.baseDir ?? tempDir, '.agentv', 'results', 'runs');
+      const runDir = opts?.experiment
+        ? path.join(runsDir, opts.experiment, name)
+        : path.join(runsDir, name);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
+      writeFileSync(path.join(runDir, 'tags.json'), '{"tags":["stale"]}\n');
+      return {
+        runId: opts?.experiment ? `${opts.experiment}::${name}` : name,
+        runDir,
+      };
+    }
+
+    it('deletes a local run workspace and rejects missing runs', async () => {
+      const run = seedRun('2026-06-01T10-00-00-000Z');
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const deleted = await app.request(`/api/runs/${encodeURIComponent(run.runId)}`, {
+        method: 'DELETE',
+      });
+      expect(deleted.status).toBe(200);
+      expect(existsSync(run.runDir)).toBe(false);
+
+      const missing = await app.request(`/api/runs/${encodeURIComponent(run.runId)}`, {
+        method: 'DELETE',
+      });
+      expect(missing.status).toBe(404);
+    });
+
+    it('rejects deleting remote runs', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+      try {
+        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+        writeFileSync(
+          path.join(tempDir, '.agentv', 'config.yaml'),
+          `results:
+  mode: github
+  repo: EntityProcess/agentv-evals
+`,
+        );
+        const remoteRunDir = path.join(
+          process.env.AGENTV_HOME,
+          'results',
+          'EntityProcess-agentv-evals',
+          '.agentv',
+          'results',
+          'runs',
+          'default',
+          '2026-06-01T11-00-00-000Z',
+        );
+        mkdirSync(remoteRunDir, { recursive: true });
+        writeFileSync(path.join(remoteRunDir, 'index.jsonl'), toJsonl(RESULT_B));
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+        const res = await app.request(
+          `/api/runs/${encodeURIComponent('remote::2026-06-01T11-00-00-000Z')}`,
+          { method: 'DELETE' },
+        );
+
+        expect(res.status).toBe(400);
+        expect(existsSync(remoteRunDir)).toBe(true);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+
+    it('supports project-scoped run deletion within the selected project', async () => {
+      const homedirSpy = spyOn(os, 'homedir').mockReturnValue(path.join(tempDir, 'home'));
+      try {
+        const projectDir = path.join(tempDir, 'project-one');
+        const otherProjectDir = path.join(tempDir, 'project-two');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(path.join(otherProjectDir, '.agentv'), { recursive: true });
+        const project = addProject(projectDir);
+        addProject(otherProjectDir);
+
+        const run = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A], { baseDir: projectDir });
+        const otherRun = seedRun('2026-06-01T10-00-00-000Z', [RESULT_B], {
+          baseDir: otherProjectDir,
+        });
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+        const deleted = await app.request(
+          `/api/projects/${project.id}/runs/${encodeURIComponent(run.runId)}`,
+          { method: 'DELETE' },
+        );
+
+        expect(deleted.status).toBe(200);
+        expect(existsSync(run.runDir)).toBe(false);
+        expect(existsSync(otherRun.runDir)).toBe(true);
+      } finally {
+        homedirSpy.mockRestore();
+      }
+    });
+  });
+
   describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
     it('loads file content for experiment-scoped run ids', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-skills');

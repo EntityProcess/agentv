@@ -574,6 +574,17 @@ export async function combineRunsApi(
   return res.json() as Promise<CombineRunsResponse>;
 }
 
+export async function deleteRunApi(runId: string, projectId?: string): Promise<void> {
+  const url = projectId
+    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}`
+    : `/api/runs/${encodeURIComponent(runId)}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? `Failed to delete run: ${res.status}`);
+  }
+}
+
 // ── Run tag mutations ────────────────────────────────────────────────────
 
 /**
