@@ -7,6 +7,7 @@
 
 import { Link, useMatches } from '@tanstack/react-router';
 
+import { useProjectList } from '~/lib/api';
 import {
   categoryPath,
   evalPath,
@@ -30,7 +31,10 @@ function formatRunLabel(runId: string | undefined): string {
   return timestamp || runId;
 }
 
-function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegment[] {
+function deriveSegments(
+  matches: ReturnType<typeof useMatches>,
+  projectNames: ReadonlyMap<string, string> = new Map(),
+): BreadcrumbSegment[] {
   const segments: BreadcrumbSegment[] = [];
 
   // Skip the root match (index 0)
@@ -42,10 +46,12 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
     if (routeId === '/' || routeId === '/_layout') continue;
 
     if (routeId.includes('/projects/$projectId') && params.projectId) {
-      if (!segments.some((s) => s.label === params.projectId)) {
+      const label = projectNames.get(params.projectId) ?? params.projectId;
+      const to = projectHomePath(params.projectId);
+      if (!segments.some((s) => s.to === to)) {
         segments.push({
-          label: params.projectId,
-          to: projectHomePath(params.projectId),
+          label,
+          to,
         });
       }
       if (routeId === '/projects/$projectId') {
@@ -162,7 +168,11 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
 
 export function Breadcrumbs() {
   const matches = useMatches();
-  const segments = deriveSegments(matches);
+  const { data: projectData } = useProjectList();
+  const projectNames = new Map(
+    (projectData?.projects ?? []).map((project) => [project.id, project.name]),
+  );
+  const segments = deriveSegments(matches, projectNames);
 
   if (segments.length === 0) return null;
 

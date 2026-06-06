@@ -101,7 +101,7 @@ export function deleteRunTags(manifestPath: string): void {
  * Trim, validate, and deduplicate an incoming tag array. Throws on any
  * invalid entry so the caller can surface a user-friendly error.
  */
-function normalizeTags(tags: readonly string[]): string[] {
+export function normalizeTags(tags: readonly string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of tags) {

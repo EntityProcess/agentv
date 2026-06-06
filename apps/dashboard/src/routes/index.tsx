@@ -33,6 +33,7 @@ import {
   resolveIndexRoute,
   resolveInitialProjectRedirect,
 } from '~/lib/navigation';
+import { buildProjectSyncFeedback } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 import type { RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
@@ -230,6 +231,10 @@ function SingleProjectHome() {
   const [showRunEval, setShowRunEval] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
   const [syncInFlight, setSyncInFlight] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{
+    kind: 'success' | 'warning' | 'error';
+    message: string;
+  } | null>(null);
   const isReadOnly = config?.read_only === true;
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
@@ -240,8 +245,10 @@ function SingleProjectHome() {
 
   async function handleSyncRemote() {
     setSyncInFlight(true);
+    setSyncFeedback(null);
     try {
-      await syncRemoteResultsApi();
+      const result = await syncRemoteResultsApi();
+      setSyncFeedback(buildProjectSyncFeedback(result));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['runs'] }),
         queryClient.invalidateQueries({ queryKey: ['experiments'] }),
@@ -249,6 +256,12 @@ function SingleProjectHome() {
         queryClient.invalidateQueries({ queryKey: ['targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
       ]);
+    } catch (err) {
+      setSyncFeedback({
+        kind: 'error',
+        message: (err as Error).message,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['remote-status', ''] });
     } finally {
       setSyncInFlight(false);
     }
@@ -304,7 +317,9 @@ function SingleProjectHome() {
           onSourceFilterChange={setSourceFilter}
           remoteStatus={remoteStatus}
           syncInFlight={syncInFlight}
+          syncFeedback={syncFeedback}
           onSyncRemote={handleSyncRemote}
+          projectName={config?.project_name}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           onLoadMore={() => void fetchNextPage()}
@@ -341,7 +356,9 @@ function RunsTabContent({
   onSourceFilterChange,
   remoteStatus,
   syncInFlight,
+  syncFeedback,
   onSyncRemote,
+  projectName,
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
@@ -354,7 +371,9 @@ function RunsTabContent({
   onSourceFilterChange: (filter: RunSourceFilter) => void;
   remoteStatus: ReturnType<typeof useRemoteStatus>['data'];
   syncInFlight: boolean;
+  syncFeedback: { kind: 'success' | 'warning' | 'error'; message: string } | null;
   onSyncRemote: () => void;
+  projectName?: string;
   hasNextPage: boolean | undefined;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
@@ -381,6 +400,8 @@ function RunsTabContent({
         remoteStatus={remoteStatus}
         syncInFlight={syncInFlight}
         onSync={onSyncRemote}
+        projectName={projectName}
+        syncFeedback={syncFeedback}
       />
       <RunList
         runs={runs}

@@ -11,14 +11,14 @@ import {
   directorySizeBytes,
   getProject,
   getProjectForPath,
-  getResultsRepoStatus,
+  getResultsRepoSyncStatus,
   listGitRuns,
   loadConfig,
   materializeGitRun,
   normalizeResultsConfig,
   resolveResultsConfigForProject,
   resolveResultsRepoRunsDir,
-  syncResultsRepo,
+  syncResultsRepoForProject,
 } from '@agentv/core';
 
 import { findRepoRoot } from '../eval/shared.js';
@@ -27,6 +27,13 @@ import {
   listResultFiles,
   listResultFilesFromRunsDir,
 } from '../inspect/utils.js';
+import {
+  type RemoteRunTagState,
+  assertWritableResultsRepo,
+  deleteRemoteRunTags,
+  readRemoteRunTags,
+  writeRemoteRunTags,
+} from './remote-metadata.js';
 
 // ── In-memory TTL cache for listGitRuns ────────────────────────────
 // Avoids repeated expensive git ls-tree + git cat-file --batch operations
@@ -52,6 +59,10 @@ function cachedListGitRuns(repoDir: string) {
       }
     });
   return promise;
+}
+
+function invalidateGitRunsCache(repoDir: string): void {
+  gitRunsCache.delete(repoDir);
 }
 
 export type RunSource = 'local' | 'remote';
@@ -173,7 +184,18 @@ export async function getRemoteResultsStatus(
   projectId?: string,
 ): Promise<RemoteResultsStatus> {
   const config = await loadNormalizedResultsConfig(cwd, projectId);
-  const status = getResultsRepoStatus(config);
+  const status = await getResultsRepoSyncStatus(config);
+  const runCount = await getRemoteRunCount(config, status);
+  return {
+    ...status,
+    run_count: runCount,
+  };
+}
+
+async function getRemoteRunCount(
+  config: Required<ResultsConfig> | undefined,
+  status: ResultsRepoStatus,
+): Promise<number> {
   let runCount = 0;
   if (config && status.available) {
     try {
@@ -182,10 +204,7 @@ export async function getRemoteResultsStatus(
       runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
     }
   }
-  return {
-    ...status,
-    run_count: runCount,
-  };
+  return runCount;
 }
 
 export async function syncRemoteResults(
@@ -195,22 +214,28 @@ export async function syncRemoteResults(
   const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) {
     return {
-      ...getResultsRepoStatus(),
+      ...(await getResultsRepoSyncStatus()),
       run_count: 0,
     };
   }
 
   try {
-    await syncResultsRepo(config);
-  } catch (error) {
+    const status = await syncResultsRepoForProject(config);
+    invalidateGitRunsCache(config.path);
     return {
-      ...getResultsRepoStatus(config),
+      ...status,
+      run_count: await getRemoteRunCount(config, status),
+    };
+  } catch (error) {
+    const status = await getResultsRepoSyncStatus(config);
+    return {
+      ...status,
       run_count: 0,
       last_error: getStatusMessage(error),
+      blocked: true,
+      block_reason: getStatusMessage(error),
     };
   }
-
-  return getRemoteResultsStatus(cwd, projectId);
 }
 
 export async function listMergedResultFiles(
@@ -322,6 +347,55 @@ export async function ensureRemoteRunAvailable(
     path.posix.dirname(relativeManifestPath),
   );
   await materializeGitRun(config.path, relativeRunPath);
+}
+
+export async function readRemoteRunTagState(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  projectId?: string,
+): Promise<RemoteRunTagState | undefined> {
+  if (meta.source !== 'remote') return undefined;
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) return undefined;
+
+  try {
+    return readRemoteRunTags(config.path, meta.path);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function setRemoteRunTags(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  tags: readonly string[],
+  projectId?: string,
+): Promise<RemoteRunTagState> {
+  if (meta.source !== 'remote') {
+    throw new Error('Remote metadata can only be set on remote runs');
+  }
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) {
+    throw new Error('Writable results repo is not configured for remote metadata');
+  }
+  assertWritableResultsRepo(config.path);
+  return writeRemoteRunTags(config.path, meta.path, tags);
+}
+
+export async function clearRemoteRunTags(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  projectId?: string,
+): Promise<RemoteRunTagState> {
+  if (meta.source !== 'remote') {
+    throw new Error('Remote metadata can only be removed from remote runs');
+  }
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) {
+    throw new Error('Writable results repo is not configured for remote metadata');
+  }
+  assertWritableResultsRepo(config.path);
+  return deleteRemoteRunTags(config.path, meta.path);
 }
 
 export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload): Promise<void> {

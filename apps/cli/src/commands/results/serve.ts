@@ -73,10 +73,13 @@ import {
 } from './manifest.js';
 import {
   type SourcedResultFileMeta,
+  clearRemoteRunTags,
   ensureRemoteRunAvailable,
   findRunById,
   getRemoteResultsStatus,
   listMergedResultFiles,
+  readRemoteRunTagState,
+  setRemoteRunTags,
   syncRemoteResults,
 } from './remote.js';
 import { deleteRunTags, readRunTags, writeRunTags } from './run-tags.js';
@@ -282,6 +285,13 @@ interface DataContext {
   projectId?: string;
 }
 
+interface RunTagFields {
+  readonly tags?: string[];
+  readonly remote_tags?: string[];
+  readonly pending_tags?: string[];
+  readonly metadata_dirty?: boolean;
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
 type C = Context<any, any, any>;
 
@@ -295,6 +305,61 @@ function inferExperimentFromRunId(runId: string): string | undefined {
     return undefined;
   }
   return experiment;
+}
+
+async function readRunTagFields(
+  searchDir: string,
+  meta: SourcedResultFileMeta,
+  projectId?: string,
+): Promise<RunTagFields> {
+  if (meta.source === 'local') {
+    const tagsEntry = readRunTags(meta.path);
+    return tagsEntry ? { tags: tagsEntry.tags } : {};
+  }
+
+  const state = await readRemoteRunTagState(searchDir, meta, projectId);
+  if (!state) {
+    return {
+      tags: [],
+      remote_tags: [],
+      metadata_dirty: false,
+    };
+  }
+
+  return {
+    tags: state.tags,
+    remote_tags: state.remoteTags,
+    metadata_dirty: state.dirty,
+    ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+  };
+}
+
+function remoteTagMutationResponse(state: {
+  readonly tags: string[];
+  readonly remoteTags: string[];
+  readonly pendingTags?: string[];
+  readonly dirty: boolean;
+  readonly updatedAt?: string;
+}) {
+  return {
+    tags: state.tags,
+    remote_tags: state.remoteTags,
+    metadata_dirty: state.dirty,
+    ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+    updated_at: state.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
+  const message = error instanceof Error ? error.message : String(error);
+  if (
+    message.includes('not configured') ||
+    message.includes('not a writable git checkout') ||
+    message.includes('outside the results repo runs directory')
+  ) {
+    return 409;
+  }
+  return 400;
 }
 
 async function ensureRunReadable(
@@ -411,7 +476,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       // or running so the RunList can render a spinner instead of the
       // pass/fail dot derived from a 0% pass rate.
       const liveStatus = getActiveRunStatus(m.path);
-      const tagsEntry = readRunTags(m.path);
+      const tagFields = await readRunTagFields(searchDir, m, projectId);
       return {
         filename: m.filename,
         display_name: m.displayName,
@@ -424,7 +489,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         source: m.source,
         ...(target && { target }),
         ...(experiment && { experiment }),
-        ...(tagsEntry && { tags: tagsEntry.tags }),
+        ...tagFields,
         ...(liveStatus && { status: liveStatus }),
       };
     }),
@@ -466,10 +531,12 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     // results-repo cache and cannot be resumed in place, so omit both fields.
     const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
+    const tagFields = await readRunTagFields(searchDir, meta, projectId);
     return c.json({
       results: stripHeavyFields(loaded),
       source: meta.source,
       source_label: meta.displayName,
+      ...tagFields,
       ...(liveStatus && { status: liveStatus }),
       ...resumeMeta,
     });
@@ -800,6 +867,9 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     experiment: string;
     target: string;
     tags?: string[];
+    remote_tags?: string[];
+    pending_tags?: string[];
+    metadata_dirty?: boolean;
     source: 'local' | 'remote';
     eval_count: number;
     passed_count: number;
@@ -821,9 +891,9 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     try {
       // Read tags before any heavy work so the `?tags=` filter can skip
       // non-matching runs without loading their JSONL records.
-      const tagsEntry = readRunTags(m.path);
+      const tagFields = await readRunTagFields(searchDir, m, projectId);
       if (filterTags.size > 0) {
-        const runTags = tagsEntry?.tags ?? [];
+        const runTags = tagFields.tags ?? [];
         if (!runTags.some((t) => filterTags.has(t))) continue;
       }
 
@@ -889,7 +959,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         started_at: runStartedAt,
         experiment: runExperiment,
         target: runTarget,
-        ...(tagsEntry && { tags: tagsEntry.tags }),
+        ...tagFields,
         source: m.source,
         eval_count: runEvalCount,
         passed_count: runPassedCount,
@@ -1037,9 +1107,6 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
-  if (meta.source === 'remote') {
-    return c.json({ error: 'Tags can only be set on local runs' }, 400);
-  }
   let body: unknown;
   try {
     body = await c.req.json();
@@ -1054,13 +1121,18 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
     return c.json({ error: 'Missing tags array' }, 400);
   }
   try {
+    if (meta.source === 'remote') {
+      const state = await setRemoteRunTags(searchDir, meta, tags as string[], projectId);
+      return c.json(remoteTagMutationResponse(state));
+    }
+
     const entry = writeRunTags(meta.path, tags as string[]);
     return c.json({
       tags: entry?.tags ?? [],
       updated_at: entry?.updated_at ?? new Date().toISOString(),
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 400);
+    return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));
   }
 }
 
@@ -1068,14 +1140,19 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
-  if (meta.source === 'remote') {
-    return c.json({ error: 'Tags can only be removed on local runs' }, 400);
-  }
   try {
+    if (meta.source === 'remote') {
+      const state = await clearRemoteRunTags(searchDir, meta, projectId);
+      return c.json({
+        ok: true,
+        ...remoteTagMutationResponse(state),
+      });
+    }
+
     deleteRunTags(meta.path);
     return c.json({ ok: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));
   }
 }
 
@@ -1368,6 +1445,10 @@ export function createApp(
       size_bytes: number;
       target?: string;
       experiment?: string;
+      tags?: string[];
+      remote_tags?: string[];
+      pending_tags?: string[];
+      metadata_dirty?: boolean;
       source: 'local' | 'remote';
       project_id: string;
       project_name: string;
@@ -1388,6 +1469,7 @@ export function createApp(
           } catch {
             // ignore enrichment errors
           }
+          const tagFields = await readRunTagFields(p.path, m, p.id);
           allRuns.push({
             filename: m.filename,
             display_name: m.displayName,
@@ -1400,6 +1482,7 @@ export function createApp(
             source: m.source,
             ...(target && { target }),
             ...(experiment && { experiment }),
+            ...tagFields,
             project_id: p.id,
             project_name: p.name,
           });
