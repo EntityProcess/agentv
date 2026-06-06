@@ -1269,6 +1269,24 @@ describe('createProvider', () => {
     expect(resolved.config.tools).toBe('read,bash,edit,write');
   });
 
+  it('resolves pi-coding-agent thinking level from target config', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-openai-codex',
+        provider: 'pi-coding-agent',
+        subprovider: 'openai-codex',
+        model: 'gpt-5.5',
+        thinking: 'medium',
+      },
+      {},
+    );
+
+    expect(resolved.kind).toBe('pi-coding-agent');
+    if (resolved.kind !== 'pi-coding-agent') throw new Error('expected pi-coding-agent');
+    expect(resolved.config.model).toBe('gpt-5.5');
+    expect(resolved.config.thinking).toBe('medium');
+  });
+
   it('resolves pi-cli with azure subprovider and base_url', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://my-resource.openai.azure.com',
@@ -1294,5 +1312,23 @@ describe('createProvider', () => {
     expect(resolved.config.baseUrl).toBe('https://my-resource.openai.azure.com');
     expect(resolved.config.model).toBe('gpt-4o');
     expect(resolved.config.apiKey).toBe('azure-secret');
+  });
+
+  it('resolves pi-cli thinking level from env-backed config', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-cli-openai-codex',
+        provider: 'pi-cli',
+        subprovider: 'openai-codex',
+        model: 'gpt-5.5',
+        thinking: '${{ PI_THINKING }}',
+      },
+      { PI_THINKING: 'medium' },
+    );
+
+    expect(resolved.kind).toBe('pi-cli');
+    if (resolved.kind !== 'pi-cli') throw new Error('expected pi-cli');
+    expect(resolved.config.model).toBe('gpt-5.5');
+    expect(resolved.config.thinking).toBe('medium');
   });
 });
