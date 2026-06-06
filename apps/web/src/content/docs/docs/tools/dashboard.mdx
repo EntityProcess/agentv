@@ -144,7 +144,9 @@ Select 2+ rows with the checkboxes and click the sticky **Compare N** action to 
 
 ### Retroactive tags
 
-Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to remove every tag (deletes the sidecar). Remote runs are read-only.
+Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); local tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to remove every tag (deletes the sidecar).
+
+Remote run payloads stay immutable, but their tags are editable. Dashboard writes remote tag changes as metadata overlays under `.agentv/results/metadata/runs/.../tags.json` in the configured results repo clone. Until those overlays are synced, the run and project show a dirty state; **Sync Project** commits and pushes them when it is safe to do so.
 
 Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
 
@@ -244,11 +246,11 @@ IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becom
 
 ## Remote Results
 
-Dashboard can display runs pushed to a remote git repository by other machines or CI — alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber).
+Dashboard can display runs pushed to a remote git repository by other machines or CI alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber).
 
 ### Configuration
 
-For a registered project, put result repo settings on that project's entry in `$AGENTV_HOME/config.yaml`:
+For a registered project, put results repo settings on that project's entry in `$AGENTV_HOME/config.yaml`:
 
 ```yaml
 projects:
@@ -276,7 +278,12 @@ results:
 
 Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
 
-With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Dashboard without requiring PR merges.
+The `source` block and the `results` block sync different repositories:
+
+- `projects[].source` is the eval source project. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
+- `projects[].results` is the git-backed results store. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in that results repo clone.
+
+With `auto_push: true`, new `agentv eval` and `agentv pipeline bench` runs can push their run artifacts directly to the configured results repo. That run-level publish path is a convenience. The normal team workflow is project-level **Sync Project**, because it handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
 
 Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
 
@@ -294,7 +301,9 @@ Uses `gh` CLI and `git` credentials already configured on the machine. If authen
 
 ### Syncing in Dashboard
 
-Once configured, Dashboard fetches remote runs on load. In the default multi-project flow, open a project card first, then use **Sync Remote Results** in that project's toolbar to pull the latest. The toolbar also shows when results were last synced and the configured repo.
+Once configured, Dashboard reads local runs and the configured results repo clone for that project. The status endpoint does not fetch from the remote on every page load; use **Sync Project** when you want to exchange changes with the results repo remote.
+
+In the default multi-project flow, open a project card first, then use **Sync Project** in that project's toolbar. The toolbar shows the project display name, sync state, last synced time, configured repo, and remote run count. Statuses include clean, unavailable, behind, ahead, dirty, diverged, conflicted, and syncing.
 
 Use the **All Sources / Local Only / Remote Only** filter to narrow the run list by origin.
 
@@ -305,3 +314,12 @@ Runs pushed from another machine or CI do not appear until you sync. Existing lo
 <Image src={studioRemoteResultsAfterSync} alt="AgentV Dashboard project view in multi-project mode after syncing, showing the newly fetched GitHub remote run alongside existing local and remote runs in the sidebar" />
 
 After sync, newly fetched remote runs appear in the list with a **remote** source badge, and Dashboard can open their details without checking out the remote branch locally.
+
+**Sync Project** fetches the results repo and only changes the clone when Git says it is safe:
+
+- A clean clone that is behind the remote is fast-forwarded.
+- Safe uncommitted changes under `.agentv/results/**`, such as remote tag metadata overlays, are committed and pushed when `auto_push: true`.
+- A local results repo that is ahead is pushed when `auto_push: true` and the committed paths are all under `.agentv/results/**`.
+- Dirty non-results files, dirty metadata plus remote changes, diverged history, unresolved conflicts, missing upstream branches, non-results commits ahead, and rejected pushes are blocked instead of reset.
+
+When sync is blocked, Dashboard keeps the local clone intact and shows the `block_reason`, `dirty_paths` or `conflicted_paths`, `git_status`, and a compact `git_diff_summary` so you can resolve the results repo manually before syncing again.
