@@ -72,7 +72,25 @@ Clone or reuse local checkouts for peer frameworks and inspect current source, n
 - `Arize-ai/phoenix`
 - `WiseTechGlobal/WTG.AI.Prompts`
 
-For each peer, convert one or two existing AgentV eval examples into that framework's native shape or a wrapper/export script. These conversions should live in a private repo first because they are competitor-analysis artifacts and may include DX/friction notes that should not be published as AgentV marketing examples.
+For each peer, hand-port representative real eval corpuses into that framework's native shape or a wrapper/export script. These conversions should live in a private repo first because they are competitor-analysis artifacts and may include DX/friction notes that should not be published as AgentV marketing examples.
+
+Primary corpuses:
+
+- `WiseTechGlobal/WTG.AI.Prompts` evals, used as read-only source material only.
+- `EntityProcess/financial-research-agent/evals/financial-research-agent.eval.yaml`, generated from Dexter evals and useful for rubric/provenance/operator comparison.
+
+Do not start with a deterministic converter. The research question is native authoring DX: what would a normal developer write by hand in promptfoo, Braintrust, and Phoenix to express the same intent? Converter requirements can be extracted only after hand ports reveal a stable low-risk subset.
+
+Recommended first WTG ports:
+
+- `evals/vcs-workflow-skill/vcs-workflow.eval.yaml` as the low-ceremony LLM/rubric baseline.
+- `evals/cargowise/database/data-transformation.eval.yaml` as domain Q&A with attached reference files.
+- `evals/development/fast-code-search/cargowise.eval.yaml` as the agent/tool-use parity case because it depends on workspace setup plus a code grader that inspects provider logs.
+
+Recommended first finance rows:
+
+- Source rows 1, 2, 3, 4, and 6 from `financial-research-agent/evals/financial-research-agent.eval.yaml`: market analysis, numeric trend, beat/miss, multi-period guidance, and multi-company capex comparison.
+- This subset exercises Dexter provenance and the `correctness`/`contradiction` operator loss captured in `financial-research-agent/scripts/generate-eval-from-dexter.ts`.
 
 The output should answer:
 
@@ -89,6 +107,22 @@ Source-backed findings from the initial code analysis:
 - Braintrust TypeScript `Eval(name, { data, task, scores })` maps cleanly to AgentV's case/task/score model. The lossy point is that AgentV rich assertion arrays with evidence/verdict/type become Braintrust score metadata unless a deeper adapter is built.
 - Phoenix TypeScript is split across dataset creation, experiment running, evaluators, and OTel. It is strong for persisted datasets/experiments and traces, but less direct for local YAML wrapping because normal `runExperiment` flow expects a Phoenix dataset/server round trip.
 - AgentV already has a Phoenix adapter package, but its support matrix is intentionally narrow and deterministic. Private experiments should use that as evidence, not widen public scope prematurely.
+
+Workspace/container findings from Terminal-Bench, Harbor, and Margin:
+
+- Terminal-Bench legacy and Harbor current both use Docker Compose project isolation: each trial gets a fresh compose project/container identity, while images can be rebuilt, cached, or referenced as prebuilt images.
+- Harbor supports Dockerfile, prebuilt image, and task-provided Docker Compose overlays. It stages tests after agent execution and stores trial outputs under structured agent/verifier/artifact/result paths.
+- Margin uses case directories with `case.toml`, `prompt.md`, `tests/test.sh`, optional `oracle/solve.sh`, and either a digest-pinned image or `env/Dockerfile`. It starts a fresh container per instance, reuses explicit or built images through cache/digest resolution, and stores immutable run bundle/result artifacts.
+- AgentV should copy the principles, not the full schemas: fresh containers per test/trial, reusable/prebuilt images, digest/cache awareness, optional Compose for multi-service tasks, post-agent test staging, and explicit artifact capture.
+- AgentV should avoid core bloat: do not copy Harbor's broad task schema, do not adopt Margin's single-container-only limitation, and do not add image cleanup/prewarm knobs until private parity shows a repeated need.
+
+Architecture conclusion:
+
+- AgentV core should stay the eval execution primitive layer.
+- Near-term core schema addition: optional rubric criterion `operator`, initially enough to preserve Dexter `correctness` and `contradiction` semantics.
+- CLI templates should be static scaffolds that generate ordinary files, not a runtime plugin host.
+- Peer-framework adapters should remain private scripts/packages until hand ports prove stable non-lossy subsets.
+- Public docs should carry most DX improvement: benchmark provenance patterns, operational vs informational metadata, case directories, workspace pooling, Docker image reuse, and adapter limitations.
 
 ### 2. Add a small authoring-template layer, not a runtime plugin platform
 
@@ -218,11 +252,11 @@ framework-parity/
 
 This subtree should be clearly marked private/internal and should not be mirrored into public AgentV examples until findings are scrubbed.
 
-Initial AgentV evals to mirror:
+Initial reference evals to consider:
 
-- `examples/showcase/grader-conformance/` for promptfoo and Braintrust because it is fixture-driven and scorer-centric.
-- `examples/features/trace-evaluation/` for Phoenix because it exercises trace/span evaluation concepts.
-- `examples/features/tool-trajectory-simple/evals/dataset.eval.yaml` is a secondary candidate if the goal shifts toward tool-use parity.
+- Selected WTG.AI.Prompts evals that represent skill/prompt QA, workspace-sensitive coding-agent behavior, and regression checks.
+- `financial-research-agent/evals/financial-research-agent.eval.yaml` for Dexter-derived financial research rubric/provenance/operator semantics.
+- AgentV public examples such as `examples/features/rubric/`, `examples/showcase/grader-conformance/`, `examples/features/trace-evaluation/`, and `examples/features/tool-trajectory-simple/` are secondary reference material, not the main private parity corpus.
 
 Placement constraints:
 
@@ -231,7 +265,16 @@ Placement constraints:
 - Runtime outputs should stay under ignored `.agentv/results/framework-parity/...` or repo-local ignored `results/`.
 - Keep WTG snippets synthetic unless a specific private-code eval is needed.
 
-### Bead D: docs(evals): document reusable benchmark authoring patterns
+### Bead D: design(private): minimal AgentV workspace/container primitive
+
+Scope:
+
+- Use Terminal-Bench legacy, Harbor current, and Margin as references.
+- Produce a non-core-bloating AgentV design proposal for workspace/container declarations.
+- Cover Dockerfile vs prebuilt image vs Docker Compose, fresh container per test/trial, image cache/reuse/digest pinning, test/solution staging, artifact directories, and cleanup defaults.
+- Prefer docs/templates unless private parity proves a core schema gap.
+
+### Bead E: docs(evals): document reusable benchmark authoring patterns
 
 Scope:
 
@@ -244,7 +287,7 @@ Why first:
 - It addresses most av-r0s findings with zero runtime surface.
 - It gives eval repo authors an immediate path.
 
-### Bead E: feat(cli): add static eval authoring templates
+### Bead F: feat(cli): add static eval authoring templates
 
 Scope:
 
@@ -258,7 +301,7 @@ Files likely touched:
 - `apps/cli/src/templates/`
 - CLI tests for create output, if existing coverage pattern supports it.
 
-### Bead F: docs(examples): promote sanitized TypeScript SDK examples only after private proof
+### Bead G: docs(examples): promote sanitized TypeScript SDK examples only after private proof
 
 Scope:
 
@@ -271,7 +314,7 @@ Files likely touched:
 - `examples/features/sdk-*` or new sibling example directories.
 - `apps/web/src/content/docs/docs/integrations/` if an integrations section exists or is added.
 
-### Bead G: feat(schema): preserve rubric criterion operators
+### Bead H: feat(schema): preserve rubric criterion operators
 
 Scope:
 
@@ -288,7 +331,7 @@ Files likely touched:
 - `apps/web/src/content/docs/docs/evaluation/eval-files.mdx`
 - `plugins/agentv-dev/skills/agentv-eval-builder/` if schema guidance changes.
 
-### Bead H: cleanup(eval-repos): make generated benchmark packs auditable
+### Bead I: cleanup(eval-repos): make generated benchmark packs auditable
 
 Scope:
 
@@ -330,6 +373,7 @@ For schema operator work:
 
 For private conversion work:
 
+- Hand-write native peer-framework artifacts first; do not implement a deterministic converter before the hand ports.
 - Run each converted eval through the peer framework where local dependencies and credentials allow.
 - If a live run is not possible, run parser/typecheck/validation commands and document the blocker.
 - Capture command output in the private repo, not in public AgentV docs.
@@ -348,7 +392,12 @@ Proceed as a plan, not a brainstorm, because the product question is now concret
 ## Created Beads
 
 - `av-r0s.5` - EPIC: private framework parity experiments for AgentV eval DX
-- `av-r0s.5.4` - examples(private): mirror AgentV evals in wtg-ai-prompts-experiment
-- `av-r0s.5.1` - tooling(private): prototype promptfoo exporter for simple AgentV evals
+- `av-r0s.5.5` - examples(private): hand-port WTG.AI.Prompts evals to peer frameworks
+- `av-r0s.5.7` - examples(private): hand-port financial-research-agent Dexter evals to peer frameworks
+- `av-r0s.5.6` - analysis(private): compare peer native ports against AgentV
+- `av-r0s.5.8` - design(private): minimal AgentV workspace/container primitive
+- `av-r0s.5.1` - tooling(private): extract promptfoo exporter requirements after hand ports
 - `av-r0s.5.2` - tooling(private): prototype Braintrust and Phoenix replay adapters
 - `av-r0s.5.3` - docs(agentv): decide sanitized promotion path from private parity experiments
+- `av-r0s.5.4` - closed as superseded by source-specific hand-port beads
+- `av-w9p` - closed as superseded by `av-r0s.1`
