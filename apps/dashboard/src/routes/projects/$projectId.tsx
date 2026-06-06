@@ -19,9 +19,11 @@ import {
   syncRemoteResultsApi,
   useEvalRuns,
   useInfiniteProjectRunList,
+  useProjectList,
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
+import { buildProjectSyncFeedback } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
 type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
@@ -45,14 +47,24 @@ function ProjectHomePage() {
   const navigate = useNavigate();
   const [showRunEval, setShowRunEval] = useState(false);
   const { data: config } = useStudioConfig(projectId);
+  const { data: projectData } = useProjectList();
   const isReadOnly = config?.read_only === true;
+  const projectName =
+    projectData?.projects.find((project) => project.id === projectId)?.name ??
+    config?.project_name ??
+    projectId;
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">{projectId}</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-white">{projectName}</h1>
+          {projectName !== projectId ? (
+            <p className="mt-0.5 text-sm text-gray-500">{projectId}</p>
+          ) : null}
+        </div>
         {!isReadOnly && (
           <button
             type="button"
@@ -90,7 +102,9 @@ function ProjectHomePage() {
         </div>
       </div>
 
-      {activeTab === 'runs' && <ProjectRunsTab projectId={projectId} readOnly={isReadOnly} />}
+      {activeTab === 'runs' && (
+        <ProjectRunsTab projectId={projectId} projectName={projectName} readOnly={isReadOnly} />
+      )}
       {activeTab === 'experiments' && <ExperimentsTab projectId={projectId} />}
       {activeTab === 'analytics' && (
         <ProjectAnalyticsTab projectId={projectId} readOnly={isReadOnly} />
@@ -108,7 +122,15 @@ function ProjectHomePage() {
   );
 }
 
-function ProjectRunsTab({ projectId, readOnly }: { projectId: string; readOnly: boolean }) {
+function ProjectRunsTab({
+  projectId,
+  projectName,
+  readOnly,
+}: {
+  projectId: string;
+  projectName: string;
+  readOnly: boolean;
+}) {
   const queryClient = useQueryClient();
   const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteProjectRunList(projectId);
@@ -116,6 +138,10 @@ function ProjectRunsTab({ projectId, readOnly }: { projectId: string; readOnly: 
   const { data: remoteStatus } = useRemoteStatus(projectId);
   const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
   const [syncInFlight, setSyncInFlight] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{
+    kind: 'success' | 'warning' | 'error';
+    message: string;
+  } | null>(null);
   const activeRuns = (activeRunsData?.runs ?? []).filter(
     (run) => run.status === 'starting' || run.status === 'running',
   );
@@ -127,8 +153,11 @@ function ProjectRunsTab({ projectId, readOnly }: { projectId: string; readOnly: 
 
   async function handleSyncRemote() {
     setSyncInFlight(true);
+    setSyncFeedback(null);
     try {
-      await syncRemoteResultsApi(projectId);
+      const result = await syncRemoteResultsApi(projectId);
+      const feedback = buildProjectSyncFeedback(result);
+      setSyncFeedback(feedback);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
@@ -136,6 +165,12 @@ function ProjectRunsTab({ projectId, readOnly }: { projectId: string; readOnly: 
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
       ]);
+    } catch (err) {
+      setSyncFeedback({
+        kind: 'error',
+        message: (err as Error).message,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] });
     } finally {
       setSyncInFlight(false);
     }
@@ -196,6 +231,8 @@ function ProjectRunsTab({ projectId, readOnly }: { projectId: string; readOnly: 
         remoteStatus={remoteStatus}
         syncInFlight={syncInFlight}
         onSync={handleSyncRemote}
+        projectName={projectName}
+        syncFeedback={syncFeedback}
       />
       <RunList
         runs={filteredRuns}

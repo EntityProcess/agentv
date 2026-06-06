@@ -528,7 +528,10 @@ export async function syncRemoteResultsApi(projectId?: string): Promise<RemoteSt
     method: 'POST',
   });
   if (!res.ok) {
-    throw new Error(`Failed to sync remote results: ${res.status}`);
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(
+      (err as { error?: string }).error ?? `Failed to sync remote results: ${res.status}`,
+    );
   }
   return res.json() as Promise<RemoteStatusResponse>;
 }

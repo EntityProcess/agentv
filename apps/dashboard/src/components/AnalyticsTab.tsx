@@ -628,11 +628,18 @@ function PerRunRow({
   readOnly: boolean;
 }) {
   const avgPct = Math.round(run.avg_score * 100);
-  const canEdit = !readOnly && run.source !== 'remote';
+  const canEdit = !readOnly;
   const tagsBtnRef = useRef<HTMLButtonElement>(null);
   const tags = run.tags ?? [];
+  const metadataDirty = run.metadata_dirty === true;
   const runLabel = tags[0] ?? run.run_id;
   const subLabel = runSubLabel(run.run_id);
+  const tagsButtonClass =
+    tags.length > 0
+      ? 'inline-flex flex-wrap items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-gray-800/60'
+      : metadataDirty
+        ? 'rounded-md border border-yellow-900/60 bg-yellow-950/20 px-2 py-0.5 text-xs text-yellow-300 transition-colors hover:border-yellow-700'
+        : 'rounded-md border border-dashed border-gray-700 px-2 py-0.5 text-xs text-gray-500 transition-colors hover:border-cyan-800 hover:text-cyan-400';
 
   // Restore focus to the tags trigger button once the inline editor closes,
   // so keyboard users don't lose their place in the table.
@@ -675,39 +682,23 @@ function PerRunRow({
                 e.stopPropagation();
                 onStartEdit();
               }}
-              className={
-                tags.length > 0
-                  ? 'inline-flex flex-wrap items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-gray-800/60'
-                  : 'rounded-md border border-dashed border-gray-700 px-2 py-0.5 text-xs text-gray-500 transition-colors hover:border-cyan-800 hover:text-cyan-400'
-              }
+              className={tagsButtonClass}
               aria-label={tags.length > 0 ? 'Edit tags' : 'Add tags'}
             >
               {tags.length > 0 ? (
-                tags.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
-                  >
-                    {t}
-                  </span>
-                ))
+                <TagChips tags={tags} dirty={metadataDirty} />
+              ) : metadataDirty ? (
+                <>Pending clear</>
               ) : (
                 <>+ tags</>
               )}
             </button>
           ) : tags.length > 0 ? (
-            <div className="inline-flex flex-wrap items-center gap-1">
-              {tags.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
+            <TagChips tags={tags} dirty={metadataDirty} />
           ) : (
-            <span className="text-gray-600">—</span>
+            <span className={metadataDirty ? 'text-yellow-400' : 'text-gray-600'}>
+              {metadataDirty ? 'Pending clear' : '—'}
+            </span>
           )}
         </td>
         <td className="px-4 py-3 align-middle text-gray-300">{run.experiment}</td>
@@ -733,6 +724,26 @@ function PerRunRow({
         </tr>
       )}
     </>
+  );
+}
+
+function TagChips({ tags, dirty }: { tags: string[]; dirty: boolean }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {tags.map((t) => (
+        <span
+          key={t}
+          className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
+        >
+          {t}
+        </span>
+      ))}
+      {dirty ? (
+        <span className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-2 py-0.5 text-xs font-medium text-yellow-300">
+          Pending sync
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -774,6 +785,7 @@ function TagsEditor({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
+      qc.invalidateQueries({ queryKey: ['remote-status', projectId ?? ''] });
       if (projectId) {
         qc.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] });
         qc.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] });
@@ -788,6 +800,7 @@ function TagsEditor({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
+      qc.invalidateQueries({ queryKey: ['remote-status', projectId ?? ''] });
       if (projectId) {
         qc.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] });
         qc.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] });

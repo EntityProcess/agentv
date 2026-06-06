@@ -21,6 +21,12 @@ export interface RunMeta {
   project_name?: string;
   /** Optional user-assigned tags from the run's sidecar tags.json. */
   tags?: string[];
+  /** Tags currently present in the remote results repo before local metadata overlays. */
+  remote_tags?: string[];
+  /** Locally edited tags waiting to sync back to the remote results repo. */
+  pending_tags?: string[];
+  /** True when local editable metadata differs from the fetched remote metadata. */
+  metadata_dirty?: boolean;
   /**
    * Live execution status. Only present for Dashboard-launched runs that are
    * still being tracked in-memory — used to render a spinner in RunList
@@ -184,6 +190,9 @@ export interface CompareRunEntry {
   experiment: string;
   target: string;
   tags?: string[];
+  remote_tags?: string[];
+  pending_tags?: string[];
+  metadata_dirty?: boolean;
   source: 'local' | 'remote';
   eval_count: number;
   passed_count: number;
@@ -202,6 +211,9 @@ export interface CompareResponse {
 
 export interface RunTagsResponse {
   tags: string[];
+  remote_tags?: string[];
+  pending_tags?: string[];
+  metadata_dirty?: boolean;
   updated_at: string;
 }
 
@@ -289,6 +301,28 @@ export interface RemoteStatusResponse {
   run_count?: number;
   last_synced_at?: string;
   last_error?: string;
+  sync_status?:
+    | 'clean'
+    | 'unavailable'
+    | 'behind'
+    | 'ahead'
+    | 'diverged'
+    | 'dirty'
+    | 'conflicted'
+    | 'syncing';
+  branch?: string;
+  upstream?: string;
+  ahead?: number;
+  behind?: number;
+  dirty_paths?: string[];
+  conflicted_paths?: string[];
+  git_status?: string;
+  git_diff_summary?: string;
+  blocked?: boolean;
+  block_reason?: string;
+  pull_performed?: boolean;
+  push_performed?: boolean;
+  commit_created?: boolean;
 }
 
 // ── Project types ──────────────────────────────────────────────────────
