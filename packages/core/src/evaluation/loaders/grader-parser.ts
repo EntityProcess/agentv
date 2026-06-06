@@ -10,8 +10,9 @@ import type {
   GraderKind,
   JsonObject,
   JsonValue,
+  RubricOperator,
 } from '../types.js';
-import { isGraderKind } from '../types.js';
+import { RUBRIC_OPERATOR_VALUES, isGraderKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import { resolveFileReference } from './file-resolver.js';
@@ -1940,6 +1941,28 @@ function isValidFieldAggregationType(
   return typeof value === 'string' && VALID_FIELD_AGGREGATION_TYPES.has(value);
 }
 
+const VALID_RUBRIC_OPERATORS: ReadonlySet<string> = new Set(RUBRIC_OPERATOR_VALUES);
+
+function parseRubricOperator(
+  value: unknown,
+  rubricId: string,
+  evaluatorName: string,
+  evalId: string,
+): RubricOperator | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string' && VALID_RUBRIC_OPERATORS.has(value)) {
+    return value as RubricOperator;
+  }
+
+  logWarning(
+    `Ignoring invalid operator for rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': must be one of ${RUBRIC_OPERATOR_VALUES.join(', ')}`,
+  );
+  return undefined;
+}
+
 /**
  * Parse rubric items from raw YAML/JSON data.
  * Supports both checklist rubrics and score-range rubrics.
@@ -1961,6 +1984,7 @@ function parseRubricItems(
 
     const id = asString(rawRubric.id) ?? `rubric-${index + 1}`;
     const expectedOutcome = asString(rawRubric.outcome) ?? '';
+    const operator = parseRubricOperator(rawRubric.operator, id, evaluatorName, evalId);
     const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
 
     // Parse min_score (0-1 scale), required_min_score (deprecated 0-10 scale), and required
@@ -2018,6 +2042,7 @@ function parseRubricItems(
         id,
         weight,
         ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
+        ...(operator !== undefined ? { operator } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(minScore !== undefined ? { min_score: minScore } : {}),
         ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
@@ -2035,6 +2060,7 @@ function parseRubricItems(
       items.push({
         id,
         outcome: expectedOutcome,
+        ...(operator !== undefined ? { operator } : {}),
         weight,
         // Default to required: true if not specified (backward compatibility)
         required: required ?? true,
@@ -2237,6 +2263,8 @@ export function parseInlineRubrics(
       }
 
       const expectedOutcome = asString(rubric.outcome) ?? '';
+      const id = asString(rubric.id) ?? `rubric-${index + 1}`;
+      const operator = parseRubricOperator(rubric.operator, id, 'rubrics', '<inline>');
 
       // Parse score_ranges if present (supports shorthand map format)
       const rawScoreRanges = rubric.score_ranges;
@@ -2256,7 +2284,8 @@ export function parseInlineRubrics(
           : undefined;
 
       const baseRubric = {
-        id: asString(rubric.id) ?? `rubric-${index + 1}`,
+        id,
+        ...(operator !== undefined ? { operator } : {}),
         weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
       };
 

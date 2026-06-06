@@ -504,6 +504,7 @@ Binary check: is the output valid JSON?
       weight: 3.0
 ```
 LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
+Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
 ### rubrics (inline, deprecated)
 Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assertions` instead.

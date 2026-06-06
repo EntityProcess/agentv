@@ -72,6 +72,7 @@ const ScoreRangeSchema = z.object({
 const RubricItemSchema = z.object({
   id: z.string().optional(),
   outcome: z.string().optional(),
+  operator: z.enum(['correctness', 'contradiction']).optional(),
   weight: z.number().optional(),
   required: z.boolean().optional(),
   /** Minimum score (0-1) for this criterion to pass. */

@@ -467,6 +467,10 @@ export type ScoreRange = {
   readonly outcome: string;
 };
 
+export const RUBRIC_OPERATOR_VALUES = ['correctness', 'contradiction'] as const;
+
+export type RubricOperator = (typeof RUBRIC_OPERATOR_VALUES)[number];
+
 /**
  * Rubric item for LLM grader evaluation.
  * Supports two modes:
@@ -480,6 +484,11 @@ export type RubricItem = {
    * For score-range rubrics: optional overall criterion description.
    */
   readonly outcome?: string;
+  /**
+   * Optional grading intent. `correctness` requires positive support for the outcome.
+   * `contradiction` is a guard: omission is acceptable, but incompatible claims fail.
+   */
+  readonly operator?: RubricOperator;
   readonly weight: number;
   /**
    * Legacy boolean gating (treated as min_score: 1.0 for score-range rubrics).

@@ -9,6 +9,7 @@ import {
   buildScoreRangeOutputSchema,
   substituteVariables,
 } from './llm-grader.js';
+import { formatRubricOperatorGuidance, formatRubricOperatorLabel } from './rubric-operators.js';
 
 export interface LlmGraderPromptAssembly {
   systemPrompt: string;
@@ -144,10 +145,20 @@ function assembleChecklist(
 
   parts.push('[[ ## rubrics ## ]]');
 
+  const operatorGuidance = formatRubricOperatorGuidance(rubrics);
+  if (operatorGuidance.length > 0) {
+    parts.push('', 'Operator guidance:');
+    for (const guidance of operatorGuidance) {
+      parts.push(`- ${guidance}`);
+    }
+    parts.push('');
+  }
+
   for (const rubric of rubrics) {
     const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
     const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
-    parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.outcome}`);
+    const operatorLabel = formatRubricOperatorLabel(rubric.operator);
+    parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}${operatorLabel}: ${rubric.outcome}`);
   }
 
   parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');
@@ -213,6 +224,10 @@ function assembleScoreRange(
 
     parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 
+    if (rubric.operator) {
+      parts.push(`Operator: ${rubric.operator}`);
+    }
+
     if (rubric.outcome) {
       parts.push(`Description: ${rubric.outcome}`);
     }
@@ -225,6 +240,11 @@ function assembleScoreRange(
         parts.push(`  - Score ${rangeLabel}: ${range.outcome}`);
       }
     }
+  }
+
+  const operatorGuidance = formatRubricOperatorGuidance(rubrics);
+  if (operatorGuidance.length > 0) {
+    parts.push('', ...operatorGuidance);
   }
 
   parts.push(

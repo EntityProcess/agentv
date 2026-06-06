@@ -16,6 +16,7 @@ Rubrics are defined as `assertions` entries with `type: rubrics`. They support b
 |-------|------|---------|-------------|
 | `id` | string | auto-generated | Unique identifier |
 | `outcome` | string | required* | Criterion being evaluated (*optional if `score_ranges` used) |
+| `operator` | string | - | Optional intent: `correctness` or `contradiction` |
 | `weight` | number | 1.0 | Relative importance |
 | `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
 | `min_score` | number | - | Minimum score (0–1) to pass this criterion |
@@ -61,6 +62,25 @@ assertions:
         weight: 1.0
         required: false
 ```
+
+### Criterion Operators
+
+Use `operator` when outcome text should carry grading intent without embedding words like "must not contradict" in the outcome itself:
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: supported-fact
+        operator: correctness
+        outcome: States revenue increased to $10M
+      - id: no-conflicting-fact
+        operator: contradiction
+        outcome: Revenue increased to $10M
+```
+
+- `correctness`: answer must positively support or fulfill the outcome.
+- `contradiction`: answer may omit the outcome, but must not make an incompatible claim.
 
 ## Score-Range Mode
 

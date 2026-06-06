@@ -1611,6 +1611,66 @@ describe('parseGraders - type: rubrics with criteria', () => {
     expect((evaluators?.[0] as LlmGraderConfig).weight).toBe(4.0);
   });
 
+  it('preserves optional rubric criterion operators', async () => {
+    const evaluators = await parseGraders(
+      {
+        assertions: [
+          {
+            type: 'rubrics',
+            criteria: [
+              {
+                id: 'correct-fact',
+                operator: 'correctness',
+                outcome: 'Revenue increased to $10M',
+              },
+              {
+                id: 'no-conflict',
+                operator: 'contradiction',
+                outcome: 'Revenue increased to $10M',
+              },
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    const config = evaluators?.[0] as LlmGraderConfig;
+    expect(config.rubrics?.[0]?.operator).toBe('correctness');
+    expect(config.rubrics?.[1]?.operator).toBe('contradiction');
+  });
+
+  it('ignores invalid rubric criterion operators without dropping the criterion', async () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    const evaluators = await parseGraders(
+      {
+        assertions: [
+          {
+            type: 'rubrics',
+            criteria: [
+              {
+                id: 'fact',
+                operator: 'unsupported',
+                outcome: 'Revenue increased to $10M',
+              },
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    const config = evaluators?.[0] as LlmGraderConfig;
+    expect(config.rubrics).toHaveLength(1);
+    expect(config.rubrics?.[0]?.operator).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Ignoring invalid operator'));
+    warnSpy.mockRestore();
+  });
+
   it('auto-generates name for rubrics type', async () => {
     const evaluators = await parseGraders(
       {
