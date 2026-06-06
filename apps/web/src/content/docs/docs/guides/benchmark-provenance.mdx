@@ -1,0 +1,264 @@
+---
+title: Benchmark Provenance
+description: Patterns for source pins, task artifacts, hooks, and generated benchmark metadata.
+sidebar:
+  order: 5
+---
+
+Benchmark suites usually need more than a prompt and a score. They carry source
+pins, task patches, generated dataset rows, oracle data, setup scripts, and
+verification commands. AgentV represents that with existing primitives:
+
+- Put runtime behavior in `workspace`, `execution`, `input`, `expected_output`,
+  and `assertions`.
+- Put provenance and classification in per-case `metadata`.
+- Put bulky per-case artifacts in case directories and supporting files.
+
+These are documentation patterns, not special runtime schema keys. AgentV does
+not interpret keys such as `source_commit`, `test_patch`, or `question_type`
+unless your hook or custom assertion reads them.
+
+## Operational vs Informational Fields
+
+Use this split when deciding where a benchmark key belongs:
+
+| Field area | Operational? | What AgentV does |
+|------------|--------------|------------------|
+| `workspace.repos[]` | Yes | Clones or copies repositories and checks out the configured refs. |
+| `workspace.template` | Yes | Copies a workspace template into the run workspace. |
+| `workspace.hooks` | Yes | Runs lifecycle commands with workspace and case context on stdin. |
+| `workspace.isolation`, `workspace.mode`, `workspace.path` | Yes | Controls workspace reuse and materialization. |
+| `execution` | Yes | Selects targets, thresholds, dependencies, and default grader behavior. |
+| `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
+| `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
+| Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
+| `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and hook stdin; in-process custom assertions can also read it. |
+
+`metadata` can still become operational inside your own hook scripts. For
+example, a `before_each` hook can read `case_metadata.test_patch` and apply that
+patch before the agent starts. The distinction is that AgentV itself only passes
+the metadata along; the script owns the behavior.
+
+## Hook Payloads
+
+Lifecycle hooks receive JSON on stdin. Case-scoped hooks such as per-test
+`before_all`, `before_each`, and `after_each` receive the current test's
+metadata as `case_metadata`:
+
+```json
+{
+  "workspace_path": "/home/user/.agentv/workspaces/run-123/case-01",
+  "test_id": "case-01",
+  "eval_run_id": "run-123",
+  "case_input": "Fix the bug",
+  "case_metadata": {
+    "source_commit": "4f3e2d1",
+    "test_patch": "cases/case-01/test.patch"
+  }
+}
+```
+
+Suite-level `before_all` hooks run once for the workspace, before any one test is
+selected, so they should do suite setup only. Use `before_each` when setup depends
+on per-case metadata such as a patch path, source row, or selected test list.
+
+## Task Artifact Anatomy
+
+Benchmark task packs map cleanly onto AgentV fields:
+
+| Task artifact | AgentV pattern |
+|---------------|----------------|
+| Prompt or instruction | `input`, usually with `type: file` blocks for long prompts |
+| Source checkout | `workspace.repos[].source` and `workspace.repos[].checkout` |
+| Per-case setup | `workspace.hooks.before_each` reading `case_metadata` |
+| Gold answer | `expected_output` when the answer is passive reference data |
+| Active verification | `assertions`, especially `code-grader` for commands or artifact checks |
+| Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
+| Bulky task files | `tests: ./cases/` with per-case directories and supporting files |
+
+This mirrors the common task shape used by filesystem-native benchmark harnesses:
+Margin keeps each task's prompt, case metadata, tests, environment, and optional
+oracle in a case directory; Terminal-Bench and Harbor keep task instructions,
+container setup, run-test scripts, and result artifacts as separate files. In
+AgentV, keep the same separation but bind it with eval YAML instead of adding a
+large benchmark-specific schema.
+
+## SWE-Style Case
+
+A SWE-style benchmark usually needs a source repo, a commit pin, a patch that
+adds or selects tests, and a list of failing tests that should pass after the
+agent's fix. Keep the checkout operational under `workspace.repos`; keep the
+benchmark provenance and per-case test selectors in `metadata`.
+
+```yaml
+name: swe-style-regression
+description: Regression tasks against pinned source commits.
+
+workspace:
+  isolation: per_test
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/example/widget.git
+      checkout:
+        ref: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+      clone:
+        depth: 1
+  hooks:
+    before_each:
+      command: ["python", "./scripts/apply-test-patch.py"]
+      timeout_ms: 120000
+    after_each:
+      reset: strict
+
+assertions:
+  - name: focused-tests
+    type: code-grader
+    command: ["python", "./graders/run-focused-tests.py"]
+    required: true
+
+tests:
+  - id: widget-1234
+    criteria: Fix the widget parser regression without breaking existing behavior.
+    input: |
+      Work in repo/. Fix the parser regression described by the failing tests.
+      Do not change unrelated public APIs.
+    metadata:
+      repo_url: https://github.com/example/widget.git
+      source_commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+      test_patch: cases/widget-1234/test.patch
+      fail_to_pass_tests:
+        - tests/parser.test.ts::handles-empty-widget
+        - tests/parser.test.ts::preserves-widget-id
+```
+
+In this example, `workspace.repos[].checkout.ref` is the actual checkout. The
+matching `metadata.source_commit` is audit data that gets recorded with the case
+and is available to scripts. `apply-test-patch.py` can read
+`case_metadata.test_patch` and `case_metadata.fail_to_pass_tests`, then apply
+the patch and write the selected test list into the workspace. The code grader
+can read that workspace file through its `workspace_path` payload.
+
+## Finance-Style Generated Dataset
+
+Generated datasets often need stable row provenance more than workspace setup.
+Keep the generated row identity in metadata, use `expected_output` for the gold
+answer, and score with rubrics or an LLM/code grader.
+
+```yaml
+name: finance-research-generated
+description: Generated finance research cases with row-level provenance.
+
+assertions:
+  - name: answer-quality
+    type: llm-grader
+    prompt: ./graders/finance-answer.md
+    required: true
+
+tests:
+  - id: finance-agent-row-0042
+    criteria: Answer the finance question with the correct conclusion and evidence.
+    input: |
+      Research the company filing and answer:
+      What drove the year-over-year change in gross margin?
+    expected_output:
+      - role: assistant
+        content: |
+          Gross margin improved because product mix shifted toward higher-margin
+          software revenue while fulfillment costs declined.
+    metadata:
+      source_repo: https://github.com/example/finance-research-dataset.git
+      source_commit: 05b8b2e9f071e8d0a6f1c2b3d4e5f60718293abc
+      source_file: data/generated/finance_agent.csv
+      source_row: 42
+      question_type: margin_analysis
+```
+
+Here, `source_repo`, `source_commit`, `source_file`, `source_row`, and
+`question_type` are informational metadata. They support audits, slices, and
+regeneration checks. If a hook or grader needs the source file at runtime, clone
+it through `workspace.repos` or make the generator output available as a normal
+fixture file.
+
+## When to Split Into Case Directories
+
+Inline YAML is fine when a case has a short prompt, a short expected answer, and
+a few metadata fields. Move away from inline YAML when the benchmark starts
+accumulating task-local artifacts:
+
+- The case has patches, hidden tests, oracle JSON, screenshots, reports, or
+  fixture files.
+- The prompt or expected output is long enough that YAML diffs become hard to
+  review.
+- Each task needs a different workspace template or setup files.
+- A generator emits many rows and reviewers need to inspect individual cases.
+- Hook and grader scripts need stable file paths for per-case resources.
+
+Use an external YAML or JSONL file for many simple generated rows:
+
+```yaml
+name: generated-finance
+tests: ./cases.jsonl
+```
+
+Use case directories when each case needs supporting files:
+
+```text
+swe-benchmark/
+  EVAL.yaml
+  cases/
+    widget-1234/
+      case.yaml
+      prompt.md
+      test.patch
+      oracle.json
+      workspace/
+        README.md
+```
+
+```yaml
+# EVAL.yaml
+name: swe-benchmark
+workspace:
+  repos:
+    - path: ./repo
+      source: { type: git, url: https://github.com/example/widget.git }
+      checkout: { ref: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123 }
+tests: ./cases/
+```
+
+```yaml
+# cases/widget-1234/case.yaml
+criteria: Fix the widget parser regression.
+input:
+  - role: user
+    content:
+      - type: file
+        value: cases/widget-1234/prompt.md
+metadata:
+  repo_url: https://github.com/example/widget.git
+  source_commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+  test_patch: cases/widget-1234/test.patch
+  oracle_file: cases/widget-1234/oracle.json
+```
+
+When `tests` points to a directory, AgentV discovers each immediate
+subdirectory's `case.yaml`, uses the directory name as `id` if no `id` is set,
+and automatically uses a `workspace/` subdirectory as that case's
+`workspace.template`. File blocks still use the normal eval-file search roots,
+so include the case directory in paths such as `cases/widget-1234/prompt.md`.
+Metadata paths are not resolved by AgentV; resolve them in your hook or grader
+script.
+
+## Authoring Rules
+
+- Do not add benchmark-specific fields when `metadata` plus hooks or custom
+  assertions can express the need.
+- Do not duplicate operational checkout state only in metadata. Put the real
+  checkout under `workspace.repos`.
+- Keep `metadata` snake_case because it crosses process and result boundaries.
+- Prefer `expected_output` for passive gold answers and `code-grader` for active
+  commands, file checks, or generated artifact validation.
+- Prefer case directories over long inline YAML once task artifacts become part
+  of the benchmark contract.

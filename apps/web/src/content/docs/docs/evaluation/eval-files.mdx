@@ -217,6 +217,8 @@ input: Fix the null check bug in parser.ts
 - **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, and `execution` still apply to directory-discovered cases
 
 This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
+For guidance on keeping provenance metadata, patches, oracle files, and generated
+dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 
 ## Environment Variable Interpolation
 

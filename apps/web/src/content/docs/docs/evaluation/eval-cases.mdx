@@ -159,6 +159,8 @@ tests:
 
 The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
 Operational checkout state belongs under `workspace.repos[].checkout.base_commit`; `metadata.base_commit` is informational only.
+For benchmark task packs with source pins, patches, generated rows, and
+supporting files, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 
 ## Per-Test Assertions
 
@@ -389,7 +391,7 @@ tests:
 
 ## Metadata
 
-Pass additional context to graders via the `metadata` field:
+Pass additional context through the `metadata` field:
 
 ```yaml
 tests:
@@ -400,3 +402,8 @@ tests:
       difficulty: medium
     input: Write a function to sort a list
 ```
+
+`metadata` is passed to workspace lifecycle hooks as `case_metadata`, preserved
+in result records, and available to in-process custom assertions. AgentV does
+not interpret arbitrary metadata keys itself; use `workspace`, `execution`,
+`input`, `expected_output`, and `assertions` for operational behavior.
