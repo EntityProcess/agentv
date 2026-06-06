@@ -796,6 +796,145 @@ describe('serve app', () => {
       expect(detailRes.status).toBe(200);
       expect(existsSync(runManifestPath)).toBe(true);
     }, 15000);
+
+    it('edits remote run tags through metadata overlay and reloads effective tags', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'green-uat',
+        '2026-03-26T12-00-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const filename = `remote::${runId}`;
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const putRes = await app.request(`/api/runs/${encodeURIComponent(filename)}/tags`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: ['pending-review', 'shared'] }),
+      });
+
+      expect(putRes.status).toBe(200);
+      const putData = (await putRes.json()) as {
+        tags: string[];
+        remote_tags: string[];
+        pending_tags: string[];
+        metadata_dirty: boolean;
+      };
+      expect(putData).toMatchObject({
+        tags: ['pending-review', 'shared'],
+        remote_tags: [],
+        pending_tags: ['pending-review', 'shared'],
+        metadata_dirty: true,
+      });
+
+      const artifactTagsPath = path.join(
+        cloneDir,
+        '.agentv',
+        'results',
+        'runs',
+        'green-uat',
+        '2026-03-26T12-00-00-000Z',
+        'tags.json',
+      );
+      const overlayTagsPath = path.join(
+        cloneDir,
+        '.agentv',
+        'results',
+        'metadata',
+        'runs',
+        'green-uat',
+        '2026-03-26T12-00-00-000Z',
+        'tags.json',
+      );
+      expect(existsSync(artifactTagsPath)).toBe(false);
+      expect(existsSync(overlayTagsPath)).toBe(true);
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{
+          filename: string;
+          tags: string[];
+          pending_tags: string[];
+          metadata_dirty: boolean;
+        }>;
+      };
+      expect(listData.runs[0]).toMatchObject({
+        filename,
+        tags: ['pending-review', 'shared'],
+        pending_tags: ['pending-review', 'shared'],
+        metadata_dirty: true,
+      });
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        tags: string[];
+        pending_tags: string[];
+        metadata_dirty: boolean;
+      };
+      expect(detailData).toMatchObject({
+        tags: ['pending-review', 'shared'],
+        pending_tags: ['pending-review', 'shared'],
+        metadata_dirty: true,
+      });
+
+      const reloadedApp = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const reloadedRes = await reloadedApp.request('/api/runs');
+      expect(reloadedRes.status).toBe(200);
+      const reloadedData = (await reloadedRes.json()) as {
+        runs: Array<{ tags: string[]; pending_tags: string[]; metadata_dirty: boolean }>;
+      };
+      expect(reloadedData.runs[0]).toMatchObject({
+        tags: ['pending-review', 'shared'],
+        pending_tags: ['pending-review', 'shared'],
+        metadata_dirty: true,
+      });
+    }, 15000);
+
+    it('rejects remote tag edits when the configured results path is not writable', async () => {
+      const plainResultsDir = path.join(tempDir, 'plain-results');
+      const timestamp = '2026-03-26T13-00-00-000Z';
+      const runDir = path.join(plainResultsDir, '.agentv', 'results', 'runs', 'default', timestamp);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${path.join(tempDir, 'missing.git')}
+  path: ${plainResultsDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(`remote::${timestamp}`)}/tags`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: ['blocked'] }),
+        },
+      );
+
+      expect(res.status).toBe(409);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toContain('not a writable git checkout');
+      expect(existsSync(path.join(runDir, 'tags.json'))).toBe(false);
+    });
   });
 
   describe('GET /api/projects/all-runs', () => {

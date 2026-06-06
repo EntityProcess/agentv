@@ -27,6 +27,13 @@ import {
   listResultFiles,
   listResultFilesFromRunsDir,
 } from '../inspect/utils.js';
+import {
+  type RemoteRunTagState,
+  assertWritableResultsRepo,
+  deleteRemoteRunTags,
+  readRemoteRunTags,
+  writeRemoteRunTags,
+} from './remote-metadata.js';
 
 // ── In-memory TTL cache for listGitRuns ────────────────────────────
 // Avoids repeated expensive git ls-tree + git cat-file --batch operations
@@ -340,6 +347,55 @@ export async function ensureRemoteRunAvailable(
     path.posix.dirname(relativeManifestPath),
   );
   await materializeGitRun(config.path, relativeRunPath);
+}
+
+export async function readRemoteRunTagState(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  projectId?: string,
+): Promise<RemoteRunTagState | undefined> {
+  if (meta.source !== 'remote') return undefined;
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) return undefined;
+
+  try {
+    return readRemoteRunTags(config.path, meta.path);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function setRemoteRunTags(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  tags: readonly string[],
+  projectId?: string,
+): Promise<RemoteRunTagState> {
+  if (meta.source !== 'remote') {
+    throw new Error('Remote metadata can only be set on remote runs');
+  }
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) {
+    throw new Error('Writable results repo is not configured for remote metadata');
+  }
+  assertWritableResultsRepo(config.path);
+  return writeRemoteRunTags(config.path, meta.path, tags);
+}
+
+export async function clearRemoteRunTags(
+  cwd: string,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  projectId?: string,
+): Promise<RemoteRunTagState> {
+  if (meta.source !== 'remote') {
+    throw new Error('Remote metadata can only be removed from remote runs');
+  }
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) {
+    throw new Error('Writable results repo is not configured for remote metadata');
+  }
+  assertWritableResultsRepo(config.path);
+  return deleteRemoteRunTags(config.path, meta.path);
 }
 
 export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload): Promise<void> {
