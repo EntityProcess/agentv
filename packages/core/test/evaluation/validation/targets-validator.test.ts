@@ -122,6 +122,51 @@ describe('validateTargetsFile', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('accepts env-templated use_target values without resolving the env during validation', async () => {
+    const filePath = path.join(tempDir, 'templated-use-target.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: default
+    use_target: \${{ AGENT_TARGET }}
+  - name: grader
+    use_target: \${{ GRADER_TARGET }}
+  - name: codex-agent
+    provider: codex
+    grader_target: grader
+`,
+    );
+
+    const originalAgentTarget = process.env.AGENT_TARGET;
+    const originalGraderTarget = process.env.GRADER_TARGET;
+    Reflect.deleteProperty(process.env, 'AGENT_TARGET');
+    Reflect.deleteProperty(process.env, 'GRADER_TARGET');
+
+    try {
+      const result = await validateTargetsFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(
+        result.errors.some(
+          (error) =>
+            error.severity === 'error' &&
+            error.message.includes("Missing or invalid 'provider' field"),
+        ),
+      ).toBe(false);
+    } finally {
+      if (originalAgentTarget === undefined) {
+        Reflect.deleteProperty(process.env, 'AGENT_TARGET');
+      } else {
+        process.env.AGENT_TARGET = originalAgentTarget;
+      }
+      if (originalGraderTarget === undefined) {
+        Reflect.deleteProperty(process.env, 'GRADER_TARGET');
+      } else {
+        process.env.GRADER_TARGET = originalGraderTarget;
+      }
+    }
+  });
+
   it('rejects azure api_format with a migration error', async () => {
     const filePath = path.join(tempDir, 'azure-api-format.yaml');
     await writeFile(
