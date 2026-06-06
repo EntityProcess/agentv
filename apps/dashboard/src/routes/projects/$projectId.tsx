@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
+import { ProjectChromeTitle } from '~/components/ProjectChromeTitle';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
@@ -23,6 +24,7 @@ import {
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
+import { resolveProjectDisplayName } from '~/lib/project-display-name';
 import { buildProjectSyncFeedback } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
@@ -49,22 +51,14 @@ function ProjectHomePage() {
   const { data: config } = useStudioConfig(projectId);
   const { data: projectData } = useProjectList();
   const isReadOnly = config?.read_only === true;
-  const projectName =
-    projectData?.projects.find((project) => project.id === projectId)?.name ??
-    config?.project_name ??
-    projectId;
+  const projectName = resolveProjectDisplayName(projectId, projectData?.projects);
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">{projectName}</h1>
-          {projectName !== projectId ? (
-            <p className="mt-0.5 text-sm text-gray-500">{projectId}</p>
-          ) : null}
-        </div>
+        <ProjectChromeTitle projectId={projectId} displayName={projectName} />
         {!isReadOnly && (
           <button
             type="button"

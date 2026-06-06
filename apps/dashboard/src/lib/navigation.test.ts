@@ -68,6 +68,7 @@ describe('route path helpers', () => {
     expect(experimentPath('prod-baseline', 'demo project')).toBe(
       '/projects/demo%20project/experiments/prod-baseline',
     );
+    expect(runsHomePath('wtg-ai-prompts')).toBe('/projects/wtg-ai-prompts?tab=runs');
   });
 
   it('keeps unscoped paths for legacy single-project routes', () => {

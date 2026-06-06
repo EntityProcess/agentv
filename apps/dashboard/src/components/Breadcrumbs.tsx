@@ -17,6 +17,7 @@ import {
   runPath,
   suitePath,
 } from '~/lib/navigation';
+import { type ProjectDisplayEntry, resolveProjectDisplayName } from '~/lib/project-display-name';
 
 interface BreadcrumbSegment {
   label: string;
@@ -33,7 +34,7 @@ function formatRunLabel(runId: string | undefined): string {
 
 function deriveSegments(
   matches: ReturnType<typeof useMatches>,
-  projectNames: ReadonlyMap<string, string> = new Map(),
+  projects: readonly ProjectDisplayEntry[] = [],
 ): BreadcrumbSegment[] {
   const segments: BreadcrumbSegment[] = [];
 
@@ -46,7 +47,7 @@ function deriveSegments(
     if (routeId === '/' || routeId === '/_layout') continue;
 
     if (routeId.includes('/projects/$projectId') && params.projectId) {
-      const label = projectNames.get(params.projectId) ?? params.projectId;
+      const label = resolveProjectDisplayName(params.projectId, projects);
       const to = projectHomePath(params.projectId);
       if (!segments.some((s) => s.to === to)) {
         segments.push({
@@ -169,10 +170,7 @@ function deriveSegments(
 export function Breadcrumbs() {
   const matches = useMatches();
   const { data: projectData } = useProjectList();
-  const projectNames = new Map(
-    (projectData?.projects ?? []).map((project) => [project.id, project.name]),
-  );
-  const segments = deriveSegments(matches, projectNames);
+  const segments = deriveSegments(matches, projectData?.projects);
 
   if (segments.length === 0) return null;
 
