@@ -21,17 +21,22 @@ export interface ProjectSyncView {
   canSync: boolean;
 }
 
-export function formatLastSynced(timestamp?: string): string {
+function formatTimestamp(timestamp?: string): string | undefined {
   if (!timestamp) {
-    return 'Never synced';
+    return undefined;
   }
 
   const parsed = new Date(timestamp);
   if (Number.isNaN(parsed.getTime())) {
-    return 'Never synced';
+    return undefined;
   }
 
-  return `Last synced ${parsed.toLocaleString()}`;
+  return parsed.toLocaleString();
+}
+
+export function formatLastSynced(timestamp?: string): string {
+  const formatted = formatTimestamp(timestamp);
+  return formatted ? `Last synced ${formatted}` : 'Never synced';
 }
 
 export function formatRemoteRunCount(count?: number): string {
@@ -39,6 +44,22 @@ export function formatRemoteRunCount(count?: number): string {
     return 'Remote runs unknown';
   }
   return `${count} remote run${count === 1 ? '' : 's'}`;
+}
+
+export function buildRemoteStatusItems(
+  status: RemoteStatusResponse | undefined,
+  projectName?: string,
+): string[] {
+  if (status?.configured !== true) {
+    return [];
+  }
+
+  return [
+    projectName ? `Project: ${projectName}` : undefined,
+    formatRemoteRunCount(status.run_count),
+    formatLastSynced(status.last_synced_at),
+    status.repo ? `Repo: ${status.repo}` : undefined,
+  ].filter((item): item is string => item !== undefined);
 }
 
 export function getProjectSyncView(
@@ -140,14 +161,63 @@ export function getProjectSyncView(
   };
 }
 
+function formatSyncOutcomeRuns(count?: number): string {
+  if (typeof count !== 'number' || !Number.isFinite(count)) {
+    return 'remote results';
+  }
+  return formatRemoteRunCount(count);
+}
+
+function buildSyncOutcomeSentence(status: RemoteStatusResponse): string {
+  const parts = [`Synced ${formatSyncOutcomeRuns(status.run_count)}`];
+  if (status.repo) {
+    parts.push(`from ${status.repo}`);
+  }
+
+  const syncedAt = formatTimestamp(status.last_synced_at);
+  if (syncedAt) {
+    parts.push(`at ${syncedAt}`);
+  }
+
+  return `${parts.join(' ')}.`;
+}
+
+function buildCachedRemoteAvailability(
+  status: RemoteStatusResponse | undefined,
+): string | undefined {
+  if (status?.available !== true) {
+    return undefined;
+  }
+
+  const runCount = status.run_count;
+  if (typeof runCount === 'number' && Number.isFinite(runCount) && runCount > 0) {
+    return `Cached ${formatRemoteRunCount(runCount)} ${
+      runCount === 1 ? 'remains' : 'remain'
+    } available.`;
+  }
+
+  return 'The remote results cache remains available.';
+}
+
+export function buildRemoteErrorAction(status: RemoteStatusResponse | undefined): string {
+  return [
+    buildCachedRemoteAvailability(status),
+    'Resolve the results repo issue, then sync remote results again.',
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join(' ');
+}
+
 export function buildProjectSyncFeedback(status: RemoteStatusResponse): {
   kind: 'success' | 'warning';
   message: string;
 } {
   if (status.blocked || status.sync_status === 'conflicted' || status.sync_status === 'diverged') {
+    const repo = status.repo ? ` for ${status.repo}` : '';
+    const reason = status.block_reason ?? 'Sync stopped before changing the results repo.';
     return {
       kind: 'warning',
-      message: status.block_reason ?? 'Sync stopped before changing the results repo.',
+      message: `Sync stopped${repo}: ${reason}. ${buildRemoteErrorAction(status)}`,
     };
   }
 
@@ -161,7 +231,21 @@ export function buildProjectSyncFeedback(status: RemoteStatusResponse): {
     kind: 'success',
     message:
       actions.length > 0
-        ? `Sync complete: ${actions.join(', ')}.`
-        : 'Sync complete; project results are up to date.',
+        ? `${buildSyncOutcomeSentence(status)} Sync completed: ${actions.join(', ')}.`
+        : `${buildSyncOutcomeSentence(status)} Project results were already up to date.`,
+  };
+}
+
+export function buildProjectSyncErrorFeedback(
+  error: unknown,
+  status: RemoteStatusResponse | undefined,
+): {
+  kind: 'error';
+  message: string;
+} {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    kind: 'error',
+    message: `Sync failed: ${message}. ${buildRemoteErrorAction(status)}`,
   };
 }
