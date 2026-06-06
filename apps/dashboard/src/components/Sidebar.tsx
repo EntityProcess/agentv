@@ -33,6 +33,7 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
+import { resolveProjectDisplayName } from '~/lib/project-display-name';
 import { formatRunLabel, timeAgo } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
@@ -89,7 +90,7 @@ function BrandHeader({ projectId }: { projectId?: string }) {
 
 function useProjectDisplayName(projectId: string): string {
   const { data } = useProjectList();
-  return data?.projects.find((project) => project.id === projectId)?.name ?? projectId;
+  return resolveProjectDisplayName(projectId, data?.projects);
 }
 
 export function Sidebar() {
