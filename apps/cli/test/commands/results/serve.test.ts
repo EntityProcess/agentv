@@ -172,6 +172,30 @@ function writeDirtyRemoteRunArtifact(
   return `${experiment}::${timestamp}`;
 }
 
+function writeRemoteTagMetadataOverlay(
+  repoDir: string,
+  experiment: string,
+  timestamp: string,
+  tags: readonly string[],
+): string {
+  const metadataPath = path.join(
+    repoDir,
+    '.agentv',
+    'results',
+    'metadata',
+    'runs',
+    experiment,
+    timestamp,
+    'tags.json',
+  );
+  mkdirSync(path.dirname(metadataPath), { recursive: true });
+  writeFileSync(
+    metadataPath,
+    `${JSON.stringify({ tags, updated_at: '2026-06-06T12:00:00.000Z' }, null, 2)}\n`,
+  );
+  return metadataPath;
+}
+
 // ── resolveSourceFile ────────────────────────────────────────────────────
 
 describe('resolveSourceFile', () => {
@@ -1077,21 +1101,101 @@ describe('serve app', () => {
   });
 
   describe('POST /api/projects/:projectId/remote/sync', () => {
-    it('returns project-scoped sync action fields after pushing safe local result metadata', async () => {
+    it('fast-forwards a clean behind results repo through project sync', async () => {
       const previousHome = process.env.AGENTV_HOME;
-      const homeDir = path.join(tempDir, 'agentv-home-project-sync');
+      const homeDir = path.join(tempDir, 'agentv-home-project-sync-pull');
       process.env.AGENTV_HOME = homeDir;
 
       try {
-        const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
-        const projectDir = path.join(tempDir, 'source-project-sync');
+        const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+        const projectDir = path.join(tempDir, 'source-project-sync-pull');
         mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
         mkdirSync(homeDir, { recursive: true });
         saveProjectRegistry({
           projects: [
             {
-              id: 'project-sync',
-              name: 'Project Sync',
+              id: 'project-sync-pull',
+              name: 'Project Sync Pull',
+              path: projectDir,
+              results: {
+                mode: 'github',
+                repo: `file://${remoteDir}`,
+                path: cloneDir,
+                autoPush: false,
+              },
+              addedAt: '2026-01-01T00:00:00.000Z',
+              lastOpenedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        });
+        const runId = writeDirtyRemoteRunArtifact(
+          seedDir,
+          'project-sync-pull',
+          '2026-03-26T11-00-00-000Z',
+          RESULT_A,
+        );
+        git('git add .agentv && git commit --quiet -m "remote result"', seedDir);
+        git('git push --quiet origin main', seedDir);
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/projects/project-sync-pull/remote/sync', {
+          method: 'POST',
+        });
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          sync_status: string;
+          commit_created?: boolean;
+          push_performed?: boolean;
+          pull_performed?: boolean;
+          blocked?: boolean;
+          run_count: number;
+        };
+        expect(data).toMatchObject({
+          sync_status: 'clean',
+          commit_created: false,
+          push_performed: false,
+          pull_performed: true,
+          blocked: false,
+          run_count: 1,
+        });
+        expect(
+          existsSync(
+            path.join(
+              cloneDir,
+              '.agentv',
+              'results',
+              'runs',
+              'project-sync-pull',
+              runId.replace('project-sync-pull::', ''),
+              'index.jsonl',
+            ),
+          ),
+        ).toBe(true);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    }, 15000);
+
+    it('commits and pushes dirty remote tag metadata through project sync', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      const homeDir = path.join(tempDir, 'agentv-home-project-sync-push');
+      process.env.AGENTV_HOME = homeDir;
+
+      try {
+        const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+        const projectDir = path.join(tempDir, 'source-project-sync-push');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(homeDir, { recursive: true });
+        saveProjectRegistry({
+          projects: [
+            {
+              id: 'project-sync-push',
+              name: 'Project Sync Push',
               path: projectDir,
               results: {
                 mode: 'github',
@@ -1104,15 +1208,15 @@ describe('serve app', () => {
             },
           ],
         });
-        const runId = writeDirtyRemoteRunArtifact(
-          cloneDir,
-          'project-sync',
-          '2026-03-26T12-00-00-000Z',
-          RESULT_A,
-        );
+        const runTimestamp = '2026-03-26T12-00-00-000Z';
+        writeRemoteRunArtifact(cloneDir, 'project-sync-push', runTimestamp, RESULT_A);
+        writeRemoteTagMetadataOverlay(cloneDir, 'project-sync-push', runTimestamp, [
+          'pending-review',
+          'shared',
+        ]);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-        const res = await app.request('/api/projects/project-sync/remote/sync', {
+        const res = await app.request('/api/projects/project-sync-push/remote/sync', {
           method: 'POST',
         });
 
@@ -1134,7 +1238,7 @@ describe('serve app', () => {
           run_count: 1,
         });
         expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
-          `.agentv/results/runs/project-sync/${runId.replace('project-sync::', '')}/benchmark.json`,
+          `.agentv/results/metadata/runs/project-sync-push/${runTimestamp}/tags.json`,
         );
       } finally {
         if (previousHome === undefined) {
@@ -1144,6 +1248,95 @@ describe('serve app', () => {
         }
       }
     }, 15000);
+
+    it('returns a blocked conflict state without resetting the results repo', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      const homeDir = path.join(tempDir, 'agentv-home-project-sync-conflict');
+      process.env.AGENTV_HOME = homeDir;
+
+      try {
+        const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+        const projectDir = path.join(tempDir, 'source-project-sync-conflict');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(homeDir, { recursive: true });
+        saveProjectRegistry({
+          projects: [
+            {
+              id: 'project-sync-conflict',
+              name: 'Project Sync Conflict',
+              path: projectDir,
+              results: {
+                mode: 'github',
+                repo: `file://${remoteDir}`,
+                path: cloneDir,
+                autoPush: true,
+              },
+              addedAt: '2026-01-01T00:00:00.000Z',
+              lastOpenedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        });
+
+        const runTimestamp = '2026-03-26T13-00-00-000Z';
+        const relativeMetadataPath = path.posix.join(
+          '.agentv',
+          'results',
+          'metadata',
+          'runs',
+          'project-sync-conflict',
+          runTimestamp,
+          'tags.json',
+        );
+        writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['base']);
+        git('git add .agentv && git commit --quiet -m "seed tag metadata"', seedDir);
+        git('git push --quiet origin main', seedDir);
+        git('git pull --ff-only --quiet', cloneDir);
+
+        writeRemoteTagMetadataOverlay(cloneDir, 'project-sync-conflict', runTimestamp, ['local']);
+        git('git add .agentv && git commit --quiet -m "local tag metadata"', cloneDir);
+        writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['remote']);
+        git('git add .agentv && git commit --quiet -m "remote tag metadata"', seedDir);
+        git('git push --quiet origin main', seedDir);
+        git('git fetch --quiet origin --prune', cloneDir);
+        git('git merge origin/main || true', cloneDir);
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/projects/project-sync-conflict/remote/sync', {
+          method: 'POST',
+        });
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          sync_status: string;
+          blocked?: boolean;
+          block_reason?: string;
+          pull_performed?: boolean;
+          push_performed?: boolean;
+          commit_created?: boolean;
+          conflicted_paths?: string[];
+          git_status?: string;
+        };
+        expect(data).toMatchObject({
+          sync_status: 'conflicted',
+          blocked: true,
+          pull_performed: false,
+          push_performed: false,
+          commit_created: false,
+        });
+        expect(data.block_reason).toContain('unresolved git conflicts');
+        expect(data.conflicted_paths).toContain(relativeMetadataPath);
+        expect(data.git_status).toContain('UU');
+        expect(readFileSync(path.join(cloneDir, relativeMetadataPath), 'utf8')).toContain(
+          '<<<<<<< HEAD',
+        );
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    }, 20000);
   });
 
   // ── GET /api/runs/:filename ─────────────────────────────────────────
