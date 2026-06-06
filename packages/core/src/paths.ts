@@ -9,8 +9,8 @@ function readEnvPath(name: string): string | undefined {
 
 /**
  * AgentV's lightweight home/config directory. Stores machine-local config files
- * such as config.yaml, projects.yaml, version-check.json, last-config.json, and
- * managed helper binaries. AGENTV_HOME relocates only this config/home surface.
+ * such as config.yaml, version-check.json, last-config.json, and managed helper
+ * binaries. AGENTV_HOME relocates only this config/home surface.
  */
 export function getAgentvConfigDir(): string {
   return readEnvPath('AGENTV_HOME') ?? path.join(os.homedir(), '.agentv');

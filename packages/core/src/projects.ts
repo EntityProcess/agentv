@@ -6,11 +6,11 @@
  * matching the "project" terminology used by Arize Phoenix, Langfuse,
  * Braintrust, W&B Weave, and LangSmith.
  *
- * The registry lives at `~/.agentv/projects.yaml` and is the single source
- * of truth for which projects Dashboard shows. Dashboard re-reads the file on every
- * `/api/projects` request, so edits (direct, via POST /api/projects, via
- * the CLI's --add/--remove, or via a Kubernetes ConfigMap mount) are reflected
- * without restarting `agentv serve`.
+ * The registry lives under `projects:` in `~/.agentv/config.yaml` and is the
+ * single source of truth for which projects Dashboard shows. Dashboard re-reads
+ * the file on every `/api/projects` request, so edits (direct, via
+ * POST /api/projects, via the CLI's --add/--remove, or via a Kubernetes
+ * ConfigMap mount) are reflected without restarting `agentv serve`.
  *
  * YAML format (all keys snake_case per AGENTS.md §"Wire Format Convention"):
  *   projects:
@@ -20,6 +20,11 @@
  *       source:
  *         url: ${{ PROJECT_REPO_URL }}
  *         ref: ${{ PROJECT_REPO_REF:-main }}
+ *       results:
+ *         mode: github
+ *         repo: example/my-app-results
+ *         path: /srv/agentv/results/my-app
+ *         auto_push: true
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *
@@ -28,15 +33,11 @@
  *   subsequent runs — git pull --ff-only
  *
  * Concurrency: the registry assumes a single writer. All mutating calls
- * (add/remove/touchProject) do read-modify-write on projects.yaml
- * without a lock. Dashboard's HTTP handlers are serialized by Node's
+ * (add/remove/touchProject) do read-modify-write on config.yaml without a
+ * lock, preserving unrelated top-level config keys. Dashboard's HTTP handlers
+ * are serialized by Node's
  * single-threaded event loop, which satisfies the 24/7 deployment case.
  * Run only one `agentv` process against a given home at a time.
- *
- * Legacy registry filename: the registry used to be called `benchmarks.yaml`
- * with a top-level `benchmarks:` key. On first load, a one-time migration
- * detects the old file, rewrites the top-level key to `projects:`, and
- * atomically renames the file. See migrateLegacyBenchmarksFile() below.
  *
  * To extend:
  *   - CRUD: loadProjectRegistry() / saveProjectRegistry() + the
@@ -45,16 +46,7 @@
  *     registration; it does not run in the request path.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { stringify as stringifyYaml } from 'yaml';
@@ -64,6 +56,14 @@ import { parseYamlValue } from './evaluation/yaml-loader.js';
 import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
+
+export interface ProjectResultsConfig {
+  mode: 'github';
+  repo: string;
+  path?: string;
+  autoPush?: boolean;
+  branchPrefix?: string;
+}
 
 export interface ProjectSource {
   url: string;
@@ -77,6 +77,7 @@ export interface ProjectEntry {
   addedAt: string;
   lastOpenedAt: string;
   source?: ProjectSource;
+  results?: ProjectResultsConfig;
 }
 
 export interface ProjectRegistry {
@@ -86,89 +87,7 @@ export interface ProjectRegistry {
 // ── Registry path ───────────────────────────────────────────────────────
 
 export function getProjectsRegistryPath(): string {
-  return path.join(getAgentvConfigDir(), 'projects.yaml');
-}
-
-/** Legacy registry path, kept private — only the migration helper reads it. */
-function getLegacyBenchmarksRegistryPath(): string {
-  return path.join(getAgentvConfigDir(), 'benchmarks.yaml');
-}
-
-// ── Legacy file migration ───────────────────────────────────────────────
-// One-time, idempotent. Called at the top of loadProjectRegistry() so any
-// entry point (CLI, Dashboard server, tests) picks the new file up transparently.
-//
-// Rules:
-//   - projects.yaml exists, benchmarks.yaml missing → no-op (already migrated).
-//   - benchmarks.yaml exists, projects.yaml missing → migrate: read → rewrite
-//     top-level key benchmarks: → projects: → atomic rename temp → projects.yaml,
-//     then unlink benchmarks.yaml. Logs one line to stderr.
-//   - both exist → projects.yaml wins; benchmarks.yaml is left alone but a
-//     one-line warning goes to stderr so the operator can investigate.
-//   - neither exists → no-op (fresh install).
-//
-// The migration only rewrites the top-level key; entry shapes are unchanged.
-
-function migrateLegacyBenchmarksFile(): void {
-  const newPath = getProjectsRegistryPath();
-  const oldPath = getLegacyBenchmarksRegistryPath();
-  const newExists = existsSync(newPath);
-  const oldExists = existsSync(oldPath);
-
-  if (!oldExists) return;
-
-  if (newExists) {
-    console.warn(
-      `[agentv] Both ${oldPath} and ${newPath} exist. Using ${path.basename(newPath)}; ` +
-        `delete ${path.basename(oldPath)} when you've confirmed the new file is correct.`,
-    );
-    return;
-  }
-
-  let parsed: { benchmarks?: unknown } | null = null;
-  try {
-    const raw = readFileSync(oldPath, 'utf-8');
-    parsed = parseYamlValue(raw) as { benchmarks?: unknown } | null;
-  } catch (err) {
-    console.warn(
-      `[agentv] Failed to read legacy ${path.basename(oldPath)} for migration: ${(err as Error).message}. Leaving the file in place; you may need to migrate it manually.`,
-    );
-    return;
-  }
-
-  // Rewrite top-level key only; entries themselves stay snake_case on disk.
-  const entries =
-    parsed && typeof parsed === 'object' && Array.isArray(parsed.benchmarks)
-      ? (parsed.benchmarks as unknown[])
-      : [];
-  const newContent = stringifyYaml({ projects: entries });
-
-  // Atomic temp + rename so a crash mid-write never leaves a corrupted
-  // projects.yaml. Only after the rename succeeds do we unlink the old file.
-  const tempPath = `${newPath}.migrating`;
-  try {
-    mkdirSync(path.dirname(newPath), { recursive: true });
-    writeFileSync(tempPath, newContent, 'utf-8');
-    renameSync(tempPath, newPath);
-    unlinkSync(oldPath);
-  } catch (err) {
-    // Clean up the temp if rename failed.
-    try {
-      if (existsSync(tempPath)) unlinkSync(tempPath);
-    } catch {
-      /* best-effort */
-    }
-    console.warn(
-      `[agentv] Failed to migrate ${path.basename(oldPath)} → ${path.basename(newPath)}: ` +
-        `${(err as Error).message}. Legacy file left in place.`,
-    );
-    return;
-  }
-
-  console.log(
-    `[agentv] Migrated registry: ${path.basename(oldPath)} → ${path.basename(newPath)} ` +
-      `(${entries.length} entr${entries.length === 1 ? 'y' : 'ies'})`,
-  );
+  return path.join(getAgentvConfigDir(), 'config.yaml');
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
@@ -181,6 +100,14 @@ interface ProjectSourceYaml {
   ref: string;
 }
 
+interface ProjectResultsYaml {
+  mode: 'github';
+  repo: string;
+  path?: string;
+  auto_push?: boolean;
+  branch_prefix?: string;
+}
+
 interface ProjectEntryYaml {
   id: string;
   name: string;
@@ -188,6 +115,7 @@ interface ProjectEntryYaml {
   added_at: string;
   last_opened_at: string;
   source?: ProjectSourceYaml;
+  results?: ProjectResultsYaml;
 }
 
 function fromYaml(raw: unknown): ProjectEntry | null {
@@ -209,6 +137,20 @@ function fromYaml(raw: unknown): ProjectEntry | null {
       entry.source = { url: s.url, ref: s.ref };
     }
   }
+  if (e.results && typeof e.results === 'object') {
+    const r = e.results as Partial<ProjectResultsYaml>;
+    if (r.mode === 'github' && typeof r.repo === 'string' && r.repo.trim().length > 0) {
+      entry.results = {
+        mode: 'github',
+        repo: r.repo.trim(),
+        ...(typeof r.path === 'string' && r.path.trim().length > 0 ? { path: r.path.trim() } : {}),
+        ...(typeof r.auto_push === 'boolean' ? { autoPush: r.auto_push } : {}),
+        ...(typeof r.branch_prefix === 'string' && r.branch_prefix.trim().length > 0
+          ? { branchPrefix: r.branch_prefix.trim() }
+          : {}),
+      };
+    }
+  }
   return entry;
 }
 
@@ -223,11 +165,21 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   if (entry.source) {
     yaml.source = { url: entry.source.url, ref: entry.source.ref };
   }
+  if (entry.results) {
+    yaml.results = {
+      mode: entry.results.mode,
+      repo: entry.results.repo,
+      ...(entry.results.path !== undefined && { path: entry.results.path }),
+      ...(entry.results.autoPush !== undefined && { auto_push: entry.results.autoPush }),
+      ...(entry.results.branchPrefix !== undefined && {
+        branch_prefix: entry.results.branchPrefix,
+      }),
+    };
+  }
   return yaml;
 }
 
 export function loadProjectRegistry(): ProjectRegistry {
-  migrateLegacyBenchmarksFile();
   const registryPath = getProjectsRegistryPath();
   if (!existsSync(registryPath)) {
     return { projects: [] };
@@ -256,8 +208,20 @@ export function saveProjectRegistry(registry: ProjectRegistry): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  const payload = { projects: registry.projects.map(toYaml) };
+  const payload = { ...readHomeConfig(registryPath), projects: registry.projects.map(toYaml) };
   writeFileSync(registryPath, stringifyYaml(payload), 'utf-8');
+}
+
+function readHomeConfig(configPath: string): Record<string, unknown> {
+  if (!existsSync(configPath)) return {};
+  try {
+    const parsed = parseYamlValue(readFileSync(configPath, 'utf-8')) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 // ── CRUD operations ─────────────────────────────────────────────────────

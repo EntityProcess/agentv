@@ -9,6 +9,7 @@ import {
   type ResultsRepoStatus,
   directPushResults,
   directorySizeBytes,
+  getProject,
   getProjectForPath,
   getResultsRepoStatus,
   listGitRuns,
@@ -135,9 +136,20 @@ async function loadNormalizedResultsConfig(
 ): Promise<Required<ResultsConfig> | undefined> {
   const repoRoot = (await findRepoRoot(cwd)) ?? cwd;
   const config = await loadConfig(path.join(cwd, '_'), repoRoot);
-  const resolvedProjectId =
-    projectId ?? getProjectForPath(repoRoot)?.id ?? getProjectForPath(cwd)?.id;
-  const resultsConfig = resolveResultsConfigForProject(config, resolvedProjectId);
+  const project =
+    projectId !== undefined
+      ? getProject(projectId)
+      : (getProjectForPath(repoRoot) ?? getProjectForPath(cwd));
+  const projectResults = project?.results
+    ? {
+        mode: project.results.mode,
+        repo: project.results.repo,
+        path: project.results.path,
+        auto_push: project.results.autoPush,
+        branch_prefix: project.results.branchPrefix,
+      }
+    : undefined;
+  const resultsConfig = projectResults ?? resolveResultsConfigForProject(config, project?.id);
   if (!resultsConfig) {
     return undefined;
   }

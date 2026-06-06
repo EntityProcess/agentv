@@ -175,9 +175,9 @@ agentv dashboard --add /path/to/my-evals
 agentv dashboard --add /path/to/other-evals
 ```
 
-Each path must contain a `.agentv/` directory. Registered projects are stored in `$AGENTV_HOME/projects.yaml`, or `~/.agentv/projects.yaml` when `AGENTV_HOME` is unset.
+Each path must contain a `.agentv/` directory. Registered projects are stored under `projects:` in `$AGENTV_HOME/config.yaml`, or `~/.agentv/config.yaml` when `AGENTV_HOME` is unset.
 
-To register a remote repo and keep it synced automatically, add a `source` block to the entry in `$AGENTV_HOME/projects.yaml`:
+To register a remote repo and keep it synced automatically, add a `source` block to the entry in `$AGENTV_HOME/config.yaml`:
 
 ```yaml
 projects:
@@ -193,11 +193,11 @@ On each Dashboard startup, AgentV clones the repo if the path is empty (`git clo
 
 ### Runtime behavior: no restart needed
 
-`projects.yaml` is the single source of truth. Dashboard re-reads it on every `/api/projects` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
+`$AGENTV_HOME/config.yaml` is the single source of truth for registered projects. Dashboard re-reads it on every `/api/projects` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
 
 - Adding via the UI's **Add Project** form or `POST /api/projects`.
 - Removing via the UI's **Remove** button or `DELETE /api/projects/:id`.
-- Editing `$AGENTV_HOME/projects.yaml` directly.
+- Editing the `projects:` block in `$AGENTV_HOME/config.yaml` directly.
 - Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Dashboard reflects it within the next poll.
 
 This satisfies the 24/7-Dashboard use case: the server stays up; projects come and go through config edits or API calls.
@@ -238,40 +238,33 @@ Dashboard can display runs pushed to a remote git repository by other machines o
 
 ### Configuration
 
-Add a `results` block to `.agentv/config.yaml`:
+For a registered project, put result repo settings on that project's entry in `$AGENTV_HOME/config.yaml`:
 
 ```yaml
-results:
-  mode: github
-  repo: EntityProcess/agentv-evals     # GitHub repo (owner/repo or full URL)
-  path: ~/data/agentv-results          # Local clone path on this machine
-  auto_push: true                      # Push directly to base branch after every eval run
+projects:
+  - id: agentv
+    name: AgentV
+    path: /home/entity/projects/EntityProcess/agentv
+    results:
+      mode: github
+      repo: EntityProcess/agentv-examples-eval-results
+      path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
+      auto_push: true
 ```
 
 `results.path` is the filesystem location of the local clone AgentV manages for the results repo. It is **not** a subdirectory inside the remote repo.
 
-For machine-local multi-project dashboards, put per-project results repos in `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`) instead of editing each source repo:
+You can also set a top-level global fallback in the same file. This is used when the current project is not registered or its registry entry has no `results` block:
 
 ```yaml
-results_by_project:
-  agentv:
-    mode: github
-    repo: EntityProcess/agentv-examples-eval-results
-    path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
-    auto_push: true
-  wtg-ai-prompts:
-    mode: github
-    repo: WiseTechGlobal/WTG.AI.Prompts.EvalResults
-    path: /home/entity/projects/WiseTechGlobal/WTG.AI.Prompts.EvalResults
-    auto_push: true
-  wisetechacademy-evals:
-    mode: github
-    repo: WiseTechGlobal/WiseTechAcademy.EvalResults
-    path: /home/entity/projects/WiseTechGlobal/WiseTechAcademy.EvalResults
-    auto_push: true
+results:
+  mode: github
+  repo: EntityProcess/default-eval-results
+  path: /home/entity/projects/EntityProcess/default-eval-results
+  auto_push: true
 ```
 
-The keys under `results_by_project` must match the project IDs in `$AGENTV_HOME/projects.yaml`. Project-local `.agentv/config.yaml` `results` blocks still take precedence. A top-level global `results` block remains the fallback for projects without a specific mapping.
+Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
 
 With `auto_push: true`, every new `agentv eval` or `agentv pipeline bench` pushes results directly to the configured repo's base branch (e.g., `main`). Results appear immediately in Dashboard without requiring PR merges.
 

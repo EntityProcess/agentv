@@ -1214,7 +1214,7 @@ export function createApp(
 
   // ── Benchmark resolution wrapper ──────────────────────────────────────
   // Resolves projectId → DataContext, returning 404 if not found. The
-  // registry is re-read on every request, so edits to projects.yaml (or
+  // registry is re-read on every request, so edits to config.yaml (or
   // POST /api/projects) take effect without restarting the server.
   function withProject(
     c: C,

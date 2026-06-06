@@ -839,7 +839,7 @@ describe('serve app', () => {
       }
     });
 
-    it('uses AGENTV_HOME results_by_project for project-scoped remote status', async () => {
+    it('uses registered project results for project-scoped remote status', async () => {
       const previousHome = process.env.AGENTV_HOME;
       const homeDir = path.join(tempDir, 'agentv-home-project-status');
       process.env.AGENTV_HOME = homeDir;
@@ -854,13 +854,7 @@ describe('serve app', () => {
         );
         writeFileSync(
           path.join(homeDir, 'config.yaml'),
-          `results_by_project:
-  agentv:
-    mode: github
-    repo: EntityProcess/agentv-examples-eval-results
-    path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
-    auto_push: true
-results:
+          `results:
   mode: github
   repo: EntityProcess/fallback-results
 `,
@@ -871,6 +865,12 @@ results:
               id: 'agentv',
               name: 'AgentV',
               path: projectDir,
+              results: {
+                mode: 'github',
+                repo: 'EntityProcess/agentv-examples-eval-results',
+                path: '/home/entity/projects/EntityProcess/agentv-examples-eval-results',
+                autoPush: true,
+              },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
             },
