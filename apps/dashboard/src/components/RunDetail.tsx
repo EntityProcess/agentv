@@ -18,6 +18,7 @@ import { Link } from '@tanstack/react-router';
 import type { EvalResult } from '~/lib/types';
 
 import { isPassing, useRunLog, useStudioConfig } from '~/lib/api';
+import { formatCategoryDisplay } from '~/lib/run-detail-context';
 
 import { PassRatePill } from './PassRatePill';
 import { StatsCards } from './StatsCards';
@@ -38,6 +39,8 @@ interface SuiteStats {
 
 interface CategoryGroup {
   name: string;
+  displayName: string;
+  mutedDisplayName?: string;
   suites: SuiteStats[];
   total: number;
   passed: number;
@@ -80,8 +83,12 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
       const failed = suites.reduce((s, d) => s + d.failed, 0);
       const scoreSum = suites.reduce((s, d) => s + d.avgScore * d.total, 0);
 
+      const display = formatCategoryDisplay(catName);
+
       return {
         name: catName,
+        displayName: display.label,
+        mutedDisplayName: display.mutedLabel,
         suites,
         total,
         passed,
@@ -141,39 +148,59 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
-              {categories.map((cat) => (
-                <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
-                  <td className="px-4 py-2.5 font-medium text-gray-200">
-                    {projectId ? (
-                      <Link
-                        to="/projects/$projectId/runs/$runId/category/$category"
-                        params={{ projectId, runId, category: cat.name }}
-                        className="text-cyan-400 hover:text-cyan-300 hover:underline"
+              {categories.map((cat) => {
+                const label = (
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate">{cat.displayName}</span>
+                    {cat.mutedDisplayName ? (
+                      <span
+                        className="mt-0.5 truncate text-xs font-normal text-gray-500"
+                        title={cat.mutedDisplayName}
                       >
-                        {cat.name}
-                      </Link>
-                    ) : (
-                      <Link
-                        to="/runs/$runId/category/$category"
-                        params={{ runId, category: cat.name }}
-                        className="text-cyan-400 hover:text-cyan-300 hover:underline"
-                      >
-                        {cat.name}
-                      </Link>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <PassRatePill rate={cat.total > 0 ? cat.passed / cat.total : 0} />
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-emerald-400">
-                    {cat.passed}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-red-400">
-                    {cat.failed > 0 ? cat.failed : <span className="text-gray-600">0</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">{cat.total}</td>
-                </tr>
-              ))}
+                        {cat.mutedDisplayName}
+                      </span>
+                    ) : null}
+                  </span>
+                );
+
+                return (
+                  <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
+                    <td className="px-4 py-2.5 font-medium text-gray-200">
+                      {projectId ? (
+                        <Link
+                          to="/projects/$projectId/runs/$runId/category/$category"
+                          params={{ projectId, runId, category: cat.name }}
+                          className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                          title={cat.mutedDisplayName ?? cat.displayName}
+                        >
+                          {label}
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/runs/$runId/category/$category"
+                          params={{ runId, category: cat.name }}
+                          className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                          title={cat.mutedDisplayName ?? cat.displayName}
+                        >
+                          {label}
+                        </Link>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <PassRatePill rate={cat.total > 0 ? cat.passed / cat.total : 0} />
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-emerald-400">
+                      {cat.passed}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-red-400">
+                      {cat.failed > 0 ? cat.failed : <span className="text-gray-600">0</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">
+                      {cat.total}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
