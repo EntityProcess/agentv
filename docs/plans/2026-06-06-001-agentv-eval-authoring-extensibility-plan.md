@@ -83,6 +83,13 @@ Do not start with a deterministic converter. The research question is native aut
 
 Recommended first WTG ports:
 
+- Primary: merged WTG.AI.Prompts PR 679, `skills(cw-sql-schema-migration): add transformation review rules + e2e eval for CargoWise PR #50857`.
+  - Source URL: https://github.com/WiseTechGlobal/WTG.AI.Prompts/pull/679
+  - Key eval: `evals/cargowise/database/data-transformation-pr50857-e2e.eval.yaml`
+  - Workspace template: `evals/cargowise/.templates/eval-workspace-2026.yaml`
+  - Snippets: `clear-job-consol-transport-vessel-fk-offline.cs` and `clear-job-consol-transport-vessel-fk-online.cs`
+  - Skill changes: `cw-sql-schema-migration`, `cw-reviewer` detection/wiring, SQL transformation reference files.
+  - Why it is the best first example: it has a concrete before/after skill-improvement story, pinned workspace setup, e2e evals, cross-target validation, snippets, rubric outcomes, and clear AgentV-specific workspace/reproducibility behavior to compare against peer frameworks.
 - `evals/vcs-workflow-skill/vcs-workflow.eval.yaml` as the low-ceremony LLM/rubric baseline.
 - `evals/cargowise/database/data-transformation.eval.yaml` as domain Q&A with attached reference files.
 - `evals/development/fast-code-search/cargowise.eval.yaml` as the agent/tool-use parity case because it depends on workspace setup plus a code grader that inspects provider logs.
@@ -254,7 +261,7 @@ This subtree should be clearly marked private/internal and should not be mirrore
 
 Initial reference evals to consider:
 
-- Selected WTG.AI.Prompts evals that represent skill/prompt QA, workspace-sensitive coding-agent behavior, and regression checks.
+- WTG.AI.Prompts PR 679 as the primary WTG example, because it represents skill/prompt QA, workspace-sensitive coding-agent behavior, regression checks, pinned workspace setup, and before/after eval-driven prompt improvement in one artifact set.
 - `financial-research-agent/evals/financial-research-agent.eval.yaml` for Dexter-derived financial research rubric/provenance/operator semantics.
 - AgentV public examples such as `examples/features/rubric/`, `examples/showcase/grader-conformance/`, `examples/features/trace-evaluation/`, and `examples/features/tool-trajectory-simple/` are secondary reference material, not the main private parity corpus.
 
