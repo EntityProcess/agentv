@@ -197,6 +197,42 @@ function writeRemoteTagMetadataOverlay(
   return metadataPath;
 }
 
+function writeLocalRunArtifact(
+  projectDir: string,
+  experiment: string,
+  timestamp: string,
+  resultRecord: object,
+): string {
+  const isoTimestamp = timestamp.replace(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
+    '$1T$2:$3:$4.$5Z',
+  );
+  const runDir = path.join(projectDir, '.agentv', 'results', 'runs', experiment, timestamp);
+  mkdirSync(runDir, { recursive: true });
+  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl({ ...resultRecord, experiment }));
+  writeFileSync(
+    path.join(runDir, 'benchmark.json'),
+    JSON.stringify(
+      {
+        metadata: {
+          timestamp: isoTimestamp,
+          experiment,
+          targets: ['gpt-4o'],
+          tests_run: ['test-greeting'],
+        },
+        run_summary: {
+          'gpt-4o': {
+            pass_rate: { mean: 1 },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  return `${experiment}::${timestamp}`;
+}
+
 // ── resolveSourceFile ────────────────────────────────────────────────────
 
 describe('resolveSourceFile', () => {
@@ -1018,6 +1054,173 @@ describe('serve app', () => {
       expect(data.error).toContain('not a writable git checkout');
       expect(existsSync(path.join(runDir, 'tags.json'))).toBe(false);
     });
+
+    it('previews and publishes a selected local run to the configured results repo', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeLocalRunArtifact(
+        tempDir,
+        'selected-publish',
+        '2026-03-26T14-00-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const previewRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`);
+
+      expect(previewRes.status).toBe(200);
+      const preview = (await previewRes.json()) as {
+        source_run_id: string;
+        target_repo: string;
+        target_path: string;
+        remote_exists: boolean;
+        can_publish: boolean;
+      };
+      expect(preview).toMatchObject({
+        source_run_id: runId,
+        target_repo: `file://${remoteDir}`,
+        target_path: '.agentv/results/runs/selected-publish/2026-03-26T14-00-00-000Z',
+        remote_exists: false,
+        can_publish: true,
+      });
+
+      const publishRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replace: false }),
+      });
+
+      expect(publishRes.status).toBe(200);
+      const published = (await publishRes.json()) as {
+        published: boolean;
+        remote_exists: boolean;
+        can_publish: boolean;
+      };
+      expect(published).toMatchObject({
+        published: true,
+        remote_exists: true,
+        can_publish: false,
+      });
+      expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
+        '.agentv/results/runs/selected-publish/2026-03-26T14-00-00-000Z/index.jsonl',
+      );
+    }, 20000);
+
+    it('blocks selected local run overwrite unless replace is explicit', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeLocalRunArtifact(
+        tempDir,
+        'replace-publish',
+        '2026-03-26T15-00-00-000Z',
+        RESULT_A,
+      );
+      writeRemoteRunArtifact(cloneDir, 'replace-publish', '2026-03-26T15-00-00-000Z', {
+        ...RESULT_A,
+        output: [{ role: 'assistant', content: 'old remote result' }],
+      });
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const previewRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`);
+      expect(previewRes.status).toBe(200);
+      await expect(previewRes.json()).resolves.toMatchObject({
+        remote_exists: true,
+        replace_required: true,
+        can_publish: false,
+      });
+
+      const blockedRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replace: false }),
+      });
+      expect(blockedRes.status).toBe(409);
+      const blocked = (await blockedRes.json()) as { error: string };
+      expect(blocked.error).toContain('already has run');
+
+      const replaceRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replace: true }),
+      });
+      expect(replaceRes.status).toBe(200);
+      await expect(replaceRes.json()).resolves.toMatchObject({
+        published: true,
+        replaced: true,
+        remote_exists: true,
+      });
+    }, 20000);
+
+    it('blocks selected local run publish when project-level results sync is dirty', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeLocalRunArtifact(
+        tempDir,
+        'dirty-publish',
+        '2026-03-26T16-00-00-000Z',
+        RESULT_A,
+      );
+      const dirtyPath = path.join(
+        cloneDir,
+        '.agentv',
+        'results',
+        'metadata',
+        'runs',
+        'dirty-publish',
+        'tags.json',
+      );
+      mkdirSync(path.dirname(dirtyPath), { recursive: true });
+      writeFileSync(dirtyPath, '{"tags":["pending"]}\n');
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const previewRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`);
+
+      expect(previewRes.status).toBe(200);
+      const preview = (await previewRes.json()) as {
+        can_publish: boolean;
+        block_reason?: string;
+        remote_status: { sync_status?: string };
+      };
+      expect(preview.can_publish).toBe(false);
+      expect(preview.remote_status.sync_status).toBe('dirty');
+      expect(preview.block_reason).toContain('Sync Project before publishing');
+
+      const publishRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replace: false }),
+      });
+      expect(publishRes.status).toBe(409);
+      const data = (await publishRes.json()) as { error: string };
+      expect(data.error).toContain('Sync Project before publishing');
+    }, 20000);
   });
 
   describe('GET /api/projects/all-runs', () => {
