@@ -135,8 +135,8 @@ AGENTV_RESULTS_REPO=EntityProcess/agentv-evalresults \
 ```
 
 The script clones AgentV examples into `~/agentv-dashboard`, clones the results
-repo, writes the Dashboard project registry, builds the Docker image, and starts
-Dashboard at `http://localhost:3117`.
+repo, writes the Dashboard project registry under `$AGENTV_HOME/config.yaml`,
+builds the Docker image, and starts Dashboard at `http://localhost:3117`.
 
 ## License
 

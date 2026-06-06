@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -77,6 +77,142 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('accepts projects field in global config', async () => {
+    const filePath = path.join(tempDir, 'global-config.yaml');
+    await writeFile(
+      filePath,
+      `projects:
+  - id: agentv
+    name: AgentV
+    path: /srv/agentv
+    results:
+      mode: github
+      repo: EntityProcess/agentv-results
+      path: /srv/agentv-results
+      auto_push: true
+      branch_prefix: eval-results
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('infers AGENTV_HOME config.yaml as global even when the home dir is named .agentv', async () => {
+    const fakeHome = path.join(tempDir, 'fake-user-home');
+    const homeConfigDir = path.join(fakeHome, '.agentv');
+    const filePath = path.join(homeConfigDir, 'config.yaml');
+    await mkdir(homeConfigDir, { recursive: true });
+    await writeFile(
+      filePath,
+      `projects:
+  - id: agentv
+    name: AgentV
+    path: /srv/agentv
+`,
+    );
+
+    const homedirSpy = spyOn(os, 'homedir').mockReturnValue(fakeHome);
+    try {
+      const result = await validateConfigFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    } finally {
+      homedirSpy.mockRestore();
+    }
+  });
+
+  it('warns when projects field appears in project-local config', async () => {
+    const projectDir = path.join(tempDir, 'project-with-projects-field');
+    const filePath = path.join(projectDir, '.agentv', 'config.yaml');
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(
+      filePath,
+      `projects:
+  - id: misplaced
+    name: Misplaced
+    path: /srv/misplaced
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        location: 'projects',
+      }),
+    );
+  });
+
+  it('errors on invalid global project entries and nested results config', async () => {
+    const filePath = path.join(tempDir, 'global-config-invalid-projects.yaml');
+    await writeFile(
+      filePath,
+      `projects:
+  - id: ""
+    name: 42
+    path:
+    results:
+      mode: local
+      repo: ""
+      path: repo/subdir
+      auto_push: yes
+      branch_prefix: ""
+  - not-an-object
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: 'error', location: 'projects[0].id' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].name' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.mode' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.path' }),
+        expect.objectContaining({
+          severity: 'error',
+          location: 'projects[0].results.auto_push',
+        }),
+        expect.objectContaining({
+          severity: 'error',
+          location: 'projects[0].results.branch_prefix',
+        }),
+        expect.objectContaining({ severity: 'error', location: 'projects[1]' }),
+      ]),
+    );
+  });
+
+  it('warns on deprecated results_by_project', async () => {
+    const filePath = path.join(tempDir, 'deprecated-results-by-project.yaml');
+    await writeFile(
+      filePath,
+      `results_by_project:
+  agentv:
+    mode: github
+    repo: EntityProcess/agentv-results
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        location: 'results_by_project',
+      }),
+    );
   });
 
   it('accepts legacy studio field without warnings', async () => {

@@ -52,6 +52,7 @@ require_command() {
 
 require_command docker
 require_command git
+require_command bun
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 deploy_dir="${AGENTV_DEPLOY_DIR:-$HOME/agentv-dashboard}"
@@ -141,14 +142,40 @@ write_project_registry() {
   mkdir -p "$home_dir"
   local now
   now="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
-  cat > "$home_dir/projects.yaml" <<EOF
-projects:
-  - id: agentv-examples
-    name: AgentV Examples
-    path: /data/projects/agentv-examples
-    added_at: "$now"
-    last_opened_at: "$now"
-EOF
+  if [[ -f "$home_dir/config.yaml" ]]; then
+    cp "$home_dir/config.yaml" "$home_dir/config.yaml.bak"
+  fi
+  bun --eval '
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { parse, stringify } from "yaml";
+
+const [configPath, now, resultsRepo] = process.argv.slice(1);
+const existing = existsSync(configPath) ? parse(readFileSync(configPath, "utf8")) : {};
+const config = existing && typeof existing === "object" && !Array.isArray(existing) ? existing : {};
+const projects = Array.isArray(config.projects) ? config.projects : [];
+const existingEntry = projects.find((project) => {
+  return project && typeof project === "object" && project.id === "agentv-examples";
+});
+const nextEntry = {
+  id: "agentv-examples",
+  name: "AgentV Examples",
+  path: "/data/projects/agentv-examples",
+  results: {
+    mode: "github",
+    repo: resultsRepo,
+    path: "/data/results/agentv-evalresults",
+    auto_push: false,
+    branch_prefix: "eval-results",
+  },
+  added_at:
+    existingEntry && typeof existingEntry.added_at === "string" ? existingEntry.added_at : now,
+  last_opened_at: now,
+};
+config.projects = [...projects.filter((project) => {
+  return !(project && typeof project === "object" && project.id === "agentv-examples");
+}), nextEntry];
+writeFileSync(configPath, stringify(config), "utf8");
+' "$home_dir/config.yaml" "$now" "$results_repo"
 }
 
 stage_examples_project() {

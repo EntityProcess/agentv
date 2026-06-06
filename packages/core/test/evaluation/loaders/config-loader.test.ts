@@ -14,7 +14,6 @@ import {
   extractTrialsConfig,
   loadConfig,
   parseExecutionDefaults,
-  parseResultsByProjectConfig,
   parseResultsConfig,
   resolveResultsConfigForProject,
 } from '../../../src/evaluation/loaders/config-loader.js';
@@ -94,8 +93,8 @@ describe('loadConfig', () => {
     }
   });
 
-  it('keeps global results_by_project available when project-local config has no results', async () => {
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-global-project-results-'));
+  it('does not merge global results into project-local config', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-results-isolated-'));
     try {
       const projectDir = path.join(tempDir, 'project');
       const evalDir = path.join(projectDir, 'evals');
@@ -110,61 +109,16 @@ describe('loadConfig', () => {
       );
       writeFileSync(
         path.join(homeDir, 'config.yaml'),
-        `results_by_project:
-  agentv:
-    mode: github
-    repo: EntityProcess/agentv-examples-eval-results
-    path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
-    auto_push: true
+        `results:
+  mode: github
+  repo: EntityProcess/global-results
 `,
       );
 
       await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
         const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
         expect(config?.execution).toEqual({ keep_workspaces: true });
-        expect(resolveResultsConfigForProject(config, 'agentv')).toEqual({
-          mode: 'github',
-          repo: 'EntityProcess/agentv-examples-eval-results',
-          path: '/home/entity/projects/EntityProcess/agentv-examples-eval-results',
-          auto_push: true,
-        });
-      });
-    } finally {
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it('keeps project-local results ahead of global results_by_project', async () => {
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-results-precedence-'));
-    try {
-      const projectDir = path.join(tempDir, 'project');
-      const evalDir = path.join(projectDir, 'evals');
-      const localConfigDir = path.join(projectDir, '.agentv');
-      const homeDir = path.join(tempDir, 'home');
-      mkdirSync(evalDir, { recursive: true });
-      mkdirSync(localConfigDir, { recursive: true });
-      mkdirSync(homeDir, { recursive: true });
-      writeFileSync(
-        path.join(localConfigDir, 'config.yaml'),
-        `results:
-  mode: github
-  repo: EntityProcess/local-results
-`,
-      );
-      writeFileSync(
-        path.join(homeDir, 'config.yaml'),
-        `results_by_project:
-  agentv:
-    mode: github
-    repo: EntityProcess/global-results
-`,
-      );
-
-      await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
-        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
-        expect(resolveResultsConfigForProject(config, 'agentv')?.repo).toBe(
-          'EntityProcess/local-results',
-        );
+        expect(resolveResultsConfigForProject(config, 'agentv')).toBeUndefined();
       });
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -405,51 +359,11 @@ describe('parseResultsConfig', () => {
   });
 });
 
-describe('parseResultsByProjectConfig', () => {
-  it('parses per-project results mappings', () => {
-    const result = parseResultsByProjectConfig(
-      {
-        agentv: {
-          mode: 'github',
-          repo: 'EntityProcess/agentv-examples-eval-results',
-          path: '/home/entity/projects/EntityProcess/agentv-examples-eval-results',
-          auto_push: true,
-        },
-      },
-      '/tmp/config.yaml',
-    );
-
-    expect(result?.agentv).toEqual({
-      mode: 'github',
-      repo: 'EntityProcess/agentv-examples-eval-results',
-      path: '/home/entity/projects/EntityProcess/agentv-examples-eval-results',
-      auto_push: true,
-    });
-  });
-});
-
 describe('resolveResultsConfigForProject', () => {
-  it('uses project mapping before top-level results fallback', () => {
+  it('returns top-level results regardless of project id', () => {
     const result = resolveResultsConfigForProject(
       {
         results: { mode: 'github', repo: 'EntityProcess/fallback' },
-        results_by_project: {
-          agentv: { mode: 'github', repo: 'EntityProcess/project' },
-        },
-      },
-      'agentv',
-    );
-
-    expect(result?.repo).toBe('EntityProcess/project');
-  });
-
-  it('falls back to top-level results when no project mapping matches', () => {
-    const result = resolveResultsConfigForProject(
-      {
-        results: { mode: 'github', repo: 'EntityProcess/fallback' },
-        results_by_project: {
-          other: { mode: 'github', repo: 'EntityProcess/project' },
-        },
       },
       'agentv',
     );

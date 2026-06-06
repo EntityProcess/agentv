@@ -104,7 +104,7 @@ Companion source repos must be independently cloneable. They may copy patterns f
 
 ```mermaid
 flowchart TB
-  setup[Public demo setup] --> registry[AgentV projects.yaml]
+  setup[Public demo setup] --> registry[AgentV home config.yaml projects]
   registry --> dash[AgentV Dashboard]
   setup --> dexter[dexter-evals project]
   setup --> swe[swe-evals project]
@@ -191,7 +191,7 @@ After this review is applied, create Beads from U1-U5 and broadcast one Agent Ma
 
 - **Goal:** Replace or supplement the private-only Dashboard demo configuration with a public project set that registers AgentV examples, `dexter-evals`, and `swe-evals`.
 - **Primary outputs:** updates in the deployment/setup repository, project-spec/result-spec configuration, plus any AgentV docs or examples needed to point users at the public setup.
-- **Patterns to follow:** current `agentv-deploy` project-spec handling, clone-or-update logic, `~/.agentv/projects.yaml` snake_case wire format, and `packages/core/src/projects.ts` source interpolation behavior.
+- **Patterns to follow:** current `agentv-deploy` project-spec handling, clone-or-update logic, `~/.agentv/config.yaml` `projects:` snake_case wire format, and `packages/core/src/projects.ts` source interpolation behavior.
 - **Test scenarios:**
   - Local setup creates or updates the three public project entries and leaves private WiseTech projects out of the public profile.
   - Local setup creates or updates public result-repo mappings for `dexter-evals` and `swe-evals`.
@@ -199,7 +199,7 @@ After this review is applied, create Beads from U1-U5 and broadcast one Agent Ma
   - Missing public companion repos fail with actionable messages or leave source metadata for later sync.
   - Project registry YAML uses `added_at`, `last_opened_at`, and optional `source` with snake_case keys.
   - Docker config, if added, validates without requiring private WiseTech secrets.
-- **Verification:** Run the setup script in `--no-serve` or equivalent mode, inspect generated `projects.yaml` and result config, start Dashboard from source, and confirm all public projects and remote-synced results appear. For Dashboard UI verification, rebuild `apps/dashboard/dist/` before browser UAT. Capture Dashboard UX gaps as follow-up Beads with screenshots or run-artifact references.
+- **Verification:** Run the setup script in `--no-serve` or equivalent mode, inspect generated home `config.yaml` project entries and result config, start Dashboard from source, and confirm all public projects and remote-synced results appear. For Dashboard UI verification, rebuild `apps/dashboard/dist/` before browser UAT. Capture Dashboard UX gaps as follow-up Beads with screenshots or run-artifact references.
 - **Covers:** R1, R2, R3, R4, R5, R19, R20, R21, R22, R23
 
 ---

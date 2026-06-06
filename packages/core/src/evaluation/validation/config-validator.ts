@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
+import { getAgentvConfigDir } from '../../paths.js';
 import { interpolateEnv } from '../interpolation.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -7,8 +9,12 @@ import type { ValidationError, ValidationResult } from './types.js';
 /**
  * Validate a config.yaml file for schema compliance and structural correctness.
  */
-export async function validateConfigFile(filePath: string): Promise<ValidationResult> {
+export async function validateConfigFile(
+  filePath: string,
+  options: { scope?: 'project' | 'global' } = {},
+): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
+  const scope = options.scope ?? inferConfigScope(filePath);
 
   try {
     const content = await readFile(filePath, 'utf8');
@@ -67,80 +73,38 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
       }
     }
 
-    const results = config.results;
-    if (results !== undefined) {
-      if (typeof results !== 'object' || results === null || Array.isArray(results)) {
+    validateResultsConfig(errors, filePath, config.results, 'results');
+
+    const projects = config.projects;
+    if (projects !== undefined) {
+      if (scope === 'project') {
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location: 'projects',
+          message:
+            "Field 'projects' is only valid in $AGENTV_HOME/config.yaml. Ignoring project registry entries in project-local .agentv/config.yaml.",
+        });
+      } else if (!Array.isArray(projects)) {
         errors.push({
           severity: 'error',
           filePath,
-          location: 'results',
-          message: "Field 'results' must be an object",
+          location: 'projects',
+          message: "Field 'projects' must be an array",
         });
       } else {
-        const resultsRecord = results as Record<string, unknown>;
-        if (resultsRecord.mode !== 'github') {
-          errors.push({
-            severity: 'error',
-            filePath,
-            location: 'results.mode',
-            message: "Field 'results.mode' must be 'github'",
-          });
-        }
-        if (typeof resultsRecord.repo !== 'string' || resultsRecord.repo.trim().length === 0) {
-          errors.push({
-            severity: 'error',
-            filePath,
-            location: 'results.repo',
-            message: "Field 'results.repo' must be a non-empty string",
-          });
-        }
-        if (resultsRecord.path !== undefined) {
-          if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
-            errors.push({
-              severity: 'error',
-              filePath,
-              location: 'results.path',
-              message: "Field 'results.path' must be a non-empty string",
-            });
-          } else {
-            const p = resultsRecord.path.trim();
-            const isFilesystemPath =
-              p.startsWith('/') ||
-              p.startsWith('~/') ||
-              p.startsWith('~\\') ||
-              p === '~' ||
-              /^[A-Za-z]:[/\\]/.test(p);
-            if (!isFilesystemPath) {
-              errors.push({
-                severity: 'error',
-                filePath,
-                location: 'results.path',
-                message: `'results.path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results). Found: '${p}'. Remove 'path' to use the default.`,
-              });
-            }
-          }
-        }
-        if (resultsRecord.auto_push !== undefined && typeof resultsRecord.auto_push !== 'boolean') {
-          errors.push({
-            severity: 'error',
-            filePath,
-            location: 'results.auto_push',
-            message: "Field 'results.auto_push' must be a boolean",
-          });
-        }
-        if (
-          resultsRecord.branch_prefix !== undefined &&
-          (typeof resultsRecord.branch_prefix !== 'string' ||
-            resultsRecord.branch_prefix.trim().length === 0)
-        ) {
-          errors.push({
-            severity: 'error',
-            filePath,
-            location: 'results.branch_prefix',
-            message: "Field 'results.branch_prefix' must be a non-empty string",
-          });
-        }
+        validateProjects(errors, filePath, projects);
       }
+    }
+
+    if (config.results_by_project !== undefined) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: 'results_by_project',
+        message:
+          "Field 'results_by_project' is deprecated. Put per-project result repo settings under projects[].results in $AGENTV_HOME/config.yaml.",
+      });
     }
 
     const allowedFields = new Set([
@@ -149,6 +113,8 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
       'required_version',
       'execution',
       'results',
+      'projects',
+      'results_by_project',
       'dashboard',
       'studio',
     ]);
@@ -176,4 +142,134 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     });
     return { valid: false, filePath, fileType: 'config', errors };
   }
+}
+
+function inferConfigScope(filePath: string): 'project' | 'global' {
+  const globalConfigPath = path.resolve(getAgentvConfigDir(), 'config.yaml');
+  if (path.resolve(filePath) === globalConfigPath) {
+    return 'global';
+  }
+  return filePath.split(/[\\/]/).includes('.agentv') ? 'project' : 'global';
+}
+
+function validateProjects(errors: ValidationError[], filePath: string, projects: unknown[]): void {
+  projects.forEach((project, index) => {
+    const location = `projects[${index}]`;
+    if (typeof project !== 'object' || project === null || Array.isArray(project)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message: `Field '${location}' must be an object`,
+      });
+      return;
+    }
+
+    const projectRecord = project as Record<string, unknown>;
+    validateRequiredString(errors, filePath, projectRecord.id, `${location}.id`);
+    validateRequiredString(errors, filePath, projectRecord.name, `${location}.name`);
+    validateRequiredString(errors, filePath, projectRecord.path, `${location}.path`);
+    validateResultsConfig(errors, filePath, projectRecord.results, `${location}.results`);
+  });
+}
+
+function validateRequiredString(
+  errors: ValidationError[],
+  filePath: string,
+  value: unknown,
+  location: string,
+): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must be a non-empty string`,
+    });
+  }
+}
+
+function validateResultsConfig(
+  errors: ValidationError[],
+  filePath: string,
+  rawResults: unknown,
+  location: string,
+): void {
+  if (rawResults === undefined) {
+    return;
+  }
+
+  if (typeof rawResults !== 'object' || rawResults === null || Array.isArray(rawResults)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must be an object`,
+    });
+    return;
+  }
+
+  const resultsRecord = rawResults as Record<string, unknown>;
+  if (resultsRecord.mode !== 'github') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.mode`,
+      message: `Field '${location}.mode' must be 'github'`,
+    });
+  }
+  validateRequiredString(errors, filePath, resultsRecord.repo, `${location}.repo`);
+
+  if (resultsRecord.path !== undefined) {
+    if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.path`,
+        message: `Field '${location}.path' must be a non-empty string`,
+      });
+    } else {
+      const p = resultsRecord.path.trim();
+      if (!isFilesystemPath(p)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.path`,
+          message: `'${location}.path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results). Found: '${p}'. Remove 'path' to use the default.`,
+        });
+      }
+    }
+  }
+
+  if (resultsRecord.auto_push !== undefined && typeof resultsRecord.auto_push !== 'boolean') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.auto_push`,
+      message: `Field '${location}.auto_push' must be a boolean`,
+    });
+  }
+
+  if (
+    resultsRecord.branch_prefix !== undefined &&
+    (typeof resultsRecord.branch_prefix !== 'string' ||
+      resultsRecord.branch_prefix.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.branch_prefix`,
+      message: `Field '${location}.branch_prefix' must be a non-empty string`,
+    });
+  }
+}
+
+function isFilesystemPath(p: string): boolean {
+  return (
+    p.startsWith('/') ||
+    p.startsWith('~/') ||
+    p.startsWith('~\\') ||
+    p === '~' ||
+    /^[A-Za-z]:[/\\]/.test(p)
+  );
 }

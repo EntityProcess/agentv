@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -9,6 +9,7 @@ import {
   getProjectsRegistryPath,
   loadProjectRegistry,
   removeProject,
+  saveProjectRegistry,
   touchProject,
 } from '../src/projects.js';
 
@@ -100,6 +101,14 @@ describe('projects registry', () => {
     });
   });
 
+  it('stores project registry entries under AGENTV_HOME config.yaml', () => {
+    addProject(makeRepo('home-config'));
+
+    expect(path.basename(getProjectsRegistryPath())).toBe('config.yaml');
+    const yamlOnDisk = readFileSync(getProjectsRegistryPath(), 'utf-8');
+    expect(yamlOnDisk).toContain('projects:');
+  });
+
   it('round-trips source field through YAML', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
@@ -122,6 +131,67 @@ describe('projects registry', () => {
     expect(registry.projects).toHaveLength(1);
     const entry = registry.projects[0];
     expect(entry.source).toEqual({ url: 'https://github.com/example/repo', ref: 'main' });
+  });
+
+  it('round-trips project results config through YAML', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `projects:
+  - id: results-project
+    name: Results Project
+    path: /srv/agentv/repo
+    results:
+      mode: github
+      repo: EntityProcess/results-project-runs
+      path: /srv/agentv/results/results-project
+      auto_push: true
+      branch_prefix: eval-results
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadProjectRegistry();
+    expect(registry.projects[0].results).toEqual({
+      mode: 'github',
+      repo: 'EntityProcess/results-project-runs',
+      path: '/srv/agentv/results/results-project',
+      autoPush: true,
+      branchPrefix: 'eval-results',
+    });
+
+    saveProjectRegistry(registry);
+    const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('auto_push: true');
+    expect(yamlOnDisk).toContain('branch_prefix: eval-results');
+    expect(yamlOnDisk).not.toContain('autoPush:');
+    expect(yamlOnDisk).not.toContain('branchPrefix:');
+  });
+
+  it('preserves unrelated global config keys when saving projects', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `results:
+  mode: github
+  repo: EntityProcess/default-results
+dashboard:
+  app_name: AgentV
+`,
+      'utf-8',
+    );
+
+    addProject(makeRepo('preserve-global-config'));
+
+    const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('results:');
+    expect(yamlOnDisk).toContain('repo: EntityProcess/default-results');
+    expect(yamlOnDisk).toContain('dashboard:');
+    expect(yamlOnDisk).toContain('projects:');
   });
 
   it('interpolates env vars in source url', () => {
@@ -153,125 +223,5 @@ describe('projects registry', () => {
 
     const reloaded = loadProjectRegistry().projects.find((p) => p.id === entry.id);
     expect(reloaded?.source).toBeUndefined();
-  });
-});
-
-// ── Legacy benchmarks.yaml → projects.yaml migration ─────────────────────
-// Migration runs on every loadProjectRegistry() call but only acts when the
-// state demands it. These tests cover the four state transitions: legacy
-// only, new only, both present, neither.
-
-describe('legacy benchmarks.yaml migration', () => {
-  let fakeHome: string;
-  // biome-ignore lint/suspicious/noExplicitAny: spy typing from bun:test is intentionally loose.
-  let homedirSpy: any;
-
-  beforeEach(() => {
-    fakeHome = mkdtempSync(path.join(os.tmpdir(), 'agentv-migration-'));
-    homedirSpy = spyOn(os, 'homedir').mockReturnValue(fakeHome);
-  });
-
-  afterEach(() => {
-    homedirSpy?.mockRestore?.();
-    rmSync(fakeHome, { recursive: true, force: true });
-  });
-
-  function legacyPath(): string {
-    return path.join(fakeHome, '.agentv', 'benchmarks.yaml');
-  }
-
-  function writeLegacy(content: string): void {
-    mkdirSync(path.dirname(legacyPath()), { recursive: true });
-    writeFileSync(legacyPath(), content, 'utf-8');
-  }
-
-  it('migrates legacy benchmarks.yaml to projects.yaml on first load', () => {
-    writeLegacy(`benchmarks:
-  - id: legacy-app
-    name: Legacy App
-    path: /srv/legacy
-    added_at: "2026-01-01T00:00:00Z"
-    last_opened_at: "2026-01-02T00:00:00Z"
-`);
-
-    const registry = loadProjectRegistry();
-
-    // The migration ran: legacy gone, new file present, content preserved.
-    expect(existsSync(legacyPath())).toBe(false);
-    expect(existsSync(getProjectsRegistryPath())).toBe(true);
-    expect(registry.projects).toHaveLength(1);
-    expect(registry.projects[0]).toMatchObject({
-      id: 'legacy-app',
-      name: 'Legacy App',
-      path: '/srv/legacy',
-      addedAt: '2026-01-01T00:00:00Z',
-      lastOpenedAt: '2026-01-02T00:00:00Z',
-    });
-
-    // On-disk YAML has the new top-level key.
-    const yamlOnDisk = readFileSync(getProjectsRegistryPath(), 'utf-8');
-    expect(yamlOnDisk).toContain('projects:');
-    expect(yamlOnDisk).not.toMatch(/^benchmarks:/m);
-  });
-
-  it('is idempotent — second load is a no-op once migrated', () => {
-    writeLegacy(`benchmarks:
-  - id: legacy-app
-    name: Legacy App
-    path: /srv/legacy
-    added_at: "2026-01-01T00:00:00Z"
-    last_opened_at: "2026-01-01T00:00:00Z"
-`);
-    loadProjectRegistry(); // migrate
-    const firstMtime = readFileSync(getProjectsRegistryPath(), 'utf-8');
-    loadProjectRegistry(); // should be no-op
-    const secondMtime = readFileSync(getProjectsRegistryPath(), 'utf-8');
-    expect(secondMtime).toBe(firstMtime);
-    expect(existsSync(legacyPath())).toBe(false);
-  });
-
-  it('prefers projects.yaml and warns when both files exist', () => {
-    // Both files present, with different content.
-    writeLegacy(`benchmarks:
-  - id: stale
-    name: Stale Legacy
-    path: /srv/stale
-    added_at: "2026-01-01T00:00:00Z"
-    last_opened_at: "2026-01-01T00:00:00Z"
-`);
-    mkdirSync(path.dirname(getProjectsRegistryPath()), { recursive: true });
-    writeFileSync(
-      getProjectsRegistryPath(),
-      `projects:
-  - id: fresh
-    name: Fresh
-    path: /srv/fresh
-    added_at: "2026-02-01T00:00:00Z"
-    last_opened_at: "2026-02-01T00:00:00Z"
-`,
-      'utf-8',
-    );
-
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const registry = loadProjectRegistry();
-      // Loaded from projects.yaml, not the legacy file.
-      expect(registry.projects).toHaveLength(1);
-      expect(registry.projects[0].id).toBe('fresh');
-      // Legacy file is left in place for the operator to inspect/delete.
-      expect(existsSync(legacyPath())).toBe(true);
-      // Warning was emitted.
-      expect(warnSpy).toHaveBeenCalled();
-    } finally {
-      warnSpy.mockRestore?.();
-    }
-  });
-
-  it('is a no-op when neither file exists (fresh install)', () => {
-    const registry = loadProjectRegistry();
-    expect(registry.projects).toEqual([]);
-    expect(existsSync(legacyPath())).toBe(false);
-    // loadProjectRegistry doesn't pre-create the new file; saveProjectRegistry does.
-    expect(existsSync(getProjectsRegistryPath())).toBe(false);
   });
 });
