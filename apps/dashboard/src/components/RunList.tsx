@@ -259,6 +259,7 @@ export function RunList({
               {enableCombine && <th className="w-10 px-4 py-3" />}
               <th className="w-8 px-4 py-3" />
               <th className="px-4 py-3 font-medium text-gray-400">Run</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Source</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Failed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Total</th>
@@ -327,21 +328,25 @@ export function RunList({
                       </Link>
                     )}
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-                      <span
-                        className={`rounded-md border px-1.5 py-0.5 ${
-                          run.source === 'remote'
-                            ? 'border-cyan-900/60 bg-cyan-950/20 text-cyan-300'
-                            : 'border-gray-800 bg-gray-900/70 text-gray-500'
-                        }`}
-                      >
-                        {run.source === 'remote' ? 'Remote' : 'Local'}
-                      </span>
                       {metadataDirty ? (
                         <span className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-1.5 py-0.5 text-yellow-300">
                           Pending metadata
                         </span>
                       ) : null}
                     </div>
+                  </td>
+
+                  {/* Source */}
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${
+                        run.source === 'remote'
+                          ? 'border-cyan-900/60 bg-cyan-950/20 text-cyan-300'
+                          : 'border-gray-800 bg-gray-900/70 text-gray-400'
+                      }`}
+                    >
+                      {run.source === 'remote' ? 'Remote' : 'Local'}
+                    </span>
                   </td>
 
                   {/* Passed / Failed / Total */}
@@ -370,7 +375,7 @@ export function RunList({
             {(hasNextPage || isFetchingNextPage) && (
               <tr ref={sentinelRef}>
                 <td
-                  colSpan={enableCombine ? 8 : 7}
+                  colSpan={enableCombine ? 9 : 8}
                   className="px-4 py-3 text-center text-xs text-gray-500"
                 >
                   {isFetchingNextPage ? 'Loading more runs…' : 'Scroll to load more…'}
