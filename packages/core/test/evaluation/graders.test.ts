@@ -10,6 +10,7 @@ import {
   LlmGrader,
   TokenUsageGrader,
 } from '../../src/evaluation/graders.js';
+import { assembleLlmGraderPrompt } from '../../src/evaluation/graders/llm-grader-prompt.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
@@ -514,6 +515,88 @@ describe('LlmGrader (llm-grader)', () => {
         .map((a) => a.text)
         .join('\n'),
     ).toContain('[r2]');
+  });
+
+  it('preserves correctness and contradiction operators in rubric prompts', async () => {
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            checks: [
+              { id: 'supported-revenue', satisfied: true, reasoning: 'Supported by answer' },
+              { id: 'no-revenue-conflict', satisfied: true, reasoning: 'No conflict present' },
+            ],
+            overall_reasoning: 'Operators were preserved.',
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+    });
+
+    await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
+      candidate: 'Revenue increased to $10M.',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-grader',
+        rubrics: [
+          {
+            id: 'supported-revenue',
+            operator: 'correctness',
+            outcome: 'States revenue increased to $10M',
+            weight: 1.0,
+            required: true,
+          },
+          {
+            id: 'no-revenue-conflict',
+            operator: 'contradiction',
+            outcome: 'Revenue increased to $10M',
+            weight: 1.0,
+            required: true,
+          },
+        ],
+      },
+    });
+
+    const prompt = graderProvider.lastRequest?.question ?? '';
+    expect(prompt).toContain('(operator: correctness)');
+    expect(prompt).toContain('(operator: contradiction)');
+    expect(prompt).toContain('Correctness: mark satisfied only when');
+    expect(prompt).toContain('Contradiction guard: mark satisfied when');
+    expect(prompt).toContain('Do not require the answer to mention the outcome');
+  });
+
+  it('includes rubric operator guidance in shared prompt assembly', () => {
+    const prompt = assembleLlmGraderPrompt({
+      evalCase: baseTestCase,
+      candidate: 'Revenue did not decline.',
+      promptInputs: { question: '' },
+      evaluatorConfig: {
+        name: 'rubric',
+        type: 'llm-grader',
+        rubrics: [
+          {
+            id: 'no-conflict',
+            operator: 'contradiction',
+            outcome: 'Revenue increased to $10M',
+            weight: 1.0,
+            required: true,
+          },
+        ],
+      },
+    });
+
+    expect(prompt.userPrompt).toContain('(operator: contradiction)');
+    expect(prompt.userPrompt).toContain('Contradiction guard');
   });
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {

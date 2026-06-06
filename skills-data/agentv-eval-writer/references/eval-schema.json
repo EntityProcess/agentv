@@ -425,6 +425,10 @@
                                   "outcome": {
                                     "type": "string"
                                   },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
+                                  },
                                   "weight": {
                                     "type": "number"
                                   },
@@ -1298,6 +1302,10 @@
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -1564,6 +1572,10 @@
                                   "outcome": {
                                     "type": "string"
                                   },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
+                                  },
                                   "weight": {
                                     "type": "number"
                                   },
@@ -2437,6 +2449,10 @@
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -2924,6 +2940,10 @@
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -3797,6 +3817,10 @@
                                       },
                                       "outcome": {
                                         "type": "string"
+                                      },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
                                       },
                                       "weight": {
                                         "type": "number"
@@ -4063,6 +4087,10 @@
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -4936,6 +4964,10 @@
                                       },
                                       "outcome": {
                                         "type": "string"
+                                      },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
                                       },
                                       "weight": {
                                         "type": "number"
@@ -5663,6 +5695,10 @@
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -6543,6 +6579,10 @@
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -6959,6 +6999,10 @@
                                   "outcome": {
                                     "type": "string"
                                   },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
+                                  },
                                   "weight": {
                                     "type": "number"
                                   },
@@ -7832,6 +7876,10 @@
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -8098,6 +8146,10 @@
                                   "outcome": {
                                     "type": "string"
                                   },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
+                                  },
                                   "weight": {
                                     "type": "number"
                                   },
@@ -8971,6 +9023,10 @@
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -9458,6 +9514,10 @@
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -10331,6 +10391,10 @@
                                       },
                                       "outcome": {
                                         "type": "string"
+                                      },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
                                       },
                                       "weight": {
                                         "type": "number"
@@ -10597,6 +10661,10 @@
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -11470,6 +11538,10 @@
                                       },
                                       "outcome": {
                                         "type": "string"
+                                      },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
                                       },
                                       "weight": {
                                         "type": "number"
@@ -12197,6 +12269,10 @@
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -13077,6 +13153,10 @@
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -13597,6 +13677,10 @@
                             "outcome": {
                               "type": "string"
                             },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
+                            },
                             "weight": {
                               "type": "number"
                             },
@@ -14470,6 +14554,10 @@
                             },
                             "outcome": {
                               "type": "string"
+                            },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
                             },
                             "weight": {
                               "type": "number"
@@ -14736,6 +14824,10 @@
                             "outcome": {
                               "type": "string"
                             },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
+                            },
                             "weight": {
                               "type": "number"
                             },
@@ -15609,6 +15701,10 @@
                             },
                             "outcome": {
                               "type": "string"
+                            },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
                             },
                             "weight": {
                               "type": "number"
@@ -15925,6 +16021,10 @@
                         },
                         "outcome": {
                           "type": "string"
+                        },
+                        "operator": {
+                          "type": "string",
+                          "enum": ["correctness", "contradiction"]
                         },
                         "weight": {
                           "type": "number"
@@ -16799,6 +16899,10 @@
                         },
                         "outcome": {
                           "type": "string"
+                        },
+                        "operator": {
+                          "type": "string",
+                          "enum": ["correctness", "contradiction"]
                         },
                         "weight": {
                           "type": "number"

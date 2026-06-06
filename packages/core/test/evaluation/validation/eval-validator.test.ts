@@ -93,6 +93,32 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates rubric criteria with optional operators', async () => {
+    const filePath = path.join(tempDir, 'rubric-operators.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: finance-summary
+    criteria: Keep supported facts and avoid contradictions
+    input: Summarize the finance note
+    assertions:
+      - type: rubrics
+        criteria:
+          - id: supported-revenue
+            operator: correctness
+            outcome: States revenue increased to $10M
+          - id: no-revenue-conflict
+            operator: contradiction
+            outcome: Revenue increased to $10M
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('rejects eval file without input field', async () => {
     const filePath = path.join(tempDir, 'missing-input.yaml');
     await writeFile(

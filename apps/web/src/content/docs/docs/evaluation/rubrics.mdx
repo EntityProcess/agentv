@@ -67,6 +67,7 @@ assertions:
 |-------|---------|-------------|
 | `id` | Auto-generated | Unique identifier for the criterion |
 | `outcome` | — | Description of what to check |
+| `operator` | — | Optional intent hint: `correctness` or `contradiction` |
 | `weight` | `1.0` | Relative importance for scoring |
 | `required` | `false` | If true, failing this criterion fails the entire eval |
 | `min_score` | — | Minimum score (0–1) for this criterion to pass |
@@ -75,6 +76,26 @@ assertions:
 :::note
 `required_min_score` (0–10 integer scale) is deprecated. Use `min_score` (0–1 scale) instead. For example, `required_min_score: 8` becomes `min_score: 0.8`.
 :::
+
+### Criterion Operators
+
+Use `operator` when the criterion outcome should be interpreted with a specific grading intent instead of relying on the wording in `outcome`.
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: supported-revenue
+        operator: correctness
+        outcome: States revenue increased to $10M
+        required: true
+      - id: no-revenue-conflict
+        operator: contradiction
+        outcome: Revenue increased to $10M
+        required: true
+```
+
+`correctness` requires the answer to positively satisfy the outcome. `contradiction` is a guard: the answer passes when it does not make an incompatible claim, even if it omits the outcome entirely.
 
 ## Score-Range Mode (Analytic)
 

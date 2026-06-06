@@ -14,6 +14,7 @@ import { extractLastAssistantContent, isAgentProvider } from '../providers/types
 import { DEPRECATED_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
 import type { AssertionEntry, JsonObject, RubricItem } from '../types.js';
+import { formatRubricOperatorGuidance, formatRubricOperatorLabel } from './rubric-operators.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Grader } from './types.js';
 
@@ -952,6 +953,10 @@ export class LlmGrader implements Grader {
 
       parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 
+      if (rubric.operator) {
+        parts.push(`Operator: ${rubric.operator}`);
+      }
+
       if (rubric.outcome) {
         parts.push(`Description: ${rubric.outcome}`);
       }
@@ -964,6 +969,11 @@ export class LlmGrader implements Grader {
           parts.push(`  - Score ${rangeLabel}: ${range.outcome}`);
         }
       }
+    }
+
+    const operatorGuidance = formatRubricOperatorGuidance(rubrics);
+    if (operatorGuidance.length > 0) {
+      parts.push('', ...operatorGuidance);
     }
 
     parts.push(
@@ -1007,10 +1017,22 @@ export class LlmGrader implements Grader {
 
     parts.push('[[ ## rubrics ## ]]');
 
+    const operatorGuidance = formatRubricOperatorGuidance(rubrics);
+    if (operatorGuidance.length > 0) {
+      parts.push('', 'Operator guidance:');
+      for (const guidance of operatorGuidance) {
+        parts.push(`- ${guidance}`);
+      }
+      parts.push('');
+    }
+
     for (const rubric of rubrics) {
       const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
-      parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.outcome}`);
+      const operatorLabel = formatRubricOperatorLabel(rubric.operator);
+      parts.push(
+        `- [${rubric.id}]${requiredLabel}${weightLabel}${operatorLabel}: ${rubric.outcome}`,
+      );
     }
 
     parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');

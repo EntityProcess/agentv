@@ -1,0 +1,42 @@
+# AgentV Rubric Operator Example
+# Demonstrates optional criterion operators for preserving rubric intent.
+
+name: rubric-operators
+description: "Focused example showing correctness and contradiction rubric operators"
+
+execution:
+  target: llm
+
+tests:
+  - id: finance-summary-operator-guards
+    criteria: |-
+      Summarize the source faithfully. Include supported material facts and avoid
+      claims that contradict the source.
+
+    input:
+      - role: user
+        content: |-
+          Source note:
+          - Q4 revenue increased to $10M from $8M.
+          - Gross margin declined to 42% from 45%.
+
+          Write a two-sentence finance summary.
+
+    expected_output:
+      - role: assistant
+        content: |-
+          Q4 revenue increased to $10M from $8M. Gross margin declined to 42%
+          from 45%.
+
+    assertions:
+      - type: rubrics
+        criteria:
+          - id: supported-revenue
+            operator: correctness
+            outcome: States Q4 revenue increased to $10M from $8M.
+            required: true
+
+          - id: no-margin-contradiction
+            operator: contradiction
+            outcome: Gross margin declined to 42% from 45%.
+            required: true
