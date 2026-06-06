@@ -9,9 +9,11 @@ import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.j
 import {
   directPushResults,
   ensureResultsRepoClone,
+  getResultsRepoSyncStatus,
   listGitRuns,
   materializeGitRun,
   syncResultsRepo,
+  syncResultsRepoForProject,
 } from '../../src/evaluation/results-repo.js';
 
 function cleanGitEnv(): Record<string, string> {
@@ -371,5 +373,149 @@ describe('results repo write path', () => {
 
     expect(git('git branch --show-current', cloneDir)).toBe('scratch');
     expect(git('git rev-parse origin/main', cloneDir)).toBe(remoteMain);
+  }, 20000);
+
+  it('reports behind, ahead, and diverged states from git refs', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
+      sync_status: 'clean',
+      ahead: 0,
+      behind: 0,
+    });
+
+    const localRunDir = path.join(
+      cloneDir,
+      '.agentv',
+      'results',
+      'runs',
+      'local-only',
+      '2026-05-23T10-00-00-000Z',
+    );
+    writeRunArtifacts(localRunDir, 'local-only', '2026-05-23T10:00:00.000Z');
+    git('git add .agentv && git commit --quiet -m "local result"', cloneDir);
+
+    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
+      sync_status: 'ahead',
+      ahead: 1,
+      behind: 0,
+    });
+
+    writeFileSync(path.join(seedDir, 'REMOTE.md'), 'remote update\n');
+    git('git add REMOTE.md && git commit --quiet -m "remote update"', seedDir);
+    git('git push --quiet origin main', seedDir);
+    git('git fetch --quiet origin --prune', cloneDir);
+
+    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
+      sync_status: 'diverged',
+      ahead: 1,
+      behind: 1,
+    });
+  }, 20000);
+
+  it('fast-forwards a clean behind clone during project sync', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = { ...createResultsConfig(remoteDir, cloneDir), auto_push: false };
+
+    await ensureResultsRepoClone(config);
+    writeFileSync(path.join(seedDir, 'REMOTE.md'), 'remote update\n');
+    git('git add REMOTE.md && git commit --quiet -m "remote update"', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      pull_performed: true,
+      push_performed: false,
+      commit_created: false,
+      blocked: false,
+    });
+    expect(readFileSync(path.join(cloneDir, 'REMOTE.md'), 'utf8')).toBe('remote update\n');
+  }, 20000);
+
+  it('commits and pushes safe dirty result metadata when auto_push is enabled', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    const runTimestamp = '2026-05-24T10-00-00-000Z';
+    const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', 'metadata', runTimestamp);
+    writeRunArtifacts(runDir, 'metadata', '2026-05-24T10:00:00.000Z');
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      commit_created: true,
+      push_performed: true,
+      blocked: false,
+    });
+    expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
+      `.agentv/results/runs/metadata/${runTimestamp}/benchmark.json`,
+    );
+  }, 20000);
+
+  it('blocks dirty non-results changes with git summaries instead of resetting', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    writeFileSync(path.join(cloneDir, 'NOTES.md'), 'do not auto-push me\n');
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status.sync_status).toBe('dirty');
+    expect(status.blocked).toBe(true);
+    expect(status.block_reason).toContain('non-results');
+    expect(status.dirty_paths).toEqual(['NOTES.md']);
+    expect(status.git_status).toContain('NOTES.md');
+    expect(readFileSync(path.join(cloneDir, 'NOTES.md'), 'utf8')).toBe('do not auto-push me\n');
+  }, 20000);
+
+  it('blocks diverged committed histories with diff summary', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    const runDir = path.join(
+      cloneDir,
+      '.agentv',
+      'results',
+      'runs',
+      'local-only',
+      '2026-05-25T10-00-00-000Z',
+    );
+    writeRunArtifacts(runDir, 'local-only', '2026-05-25T10:00:00.000Z');
+    git('git add .agentv && git commit --quiet -m "local result"', cloneDir);
+
+    writeFileSync(path.join(seedDir, 'REMOTE.md'), 'remote update\n');
+    git('git add REMOTE.md && git commit --quiet -m "remote update"', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status.sync_status).toBe('diverged');
+    expect(status.blocked).toBe(true);
+    expect(status.block_reason).toContain('diverged');
+    expect(status.git_status).toContain('[ahead 1, behind 1]');
+    expect(status.git_diff_summary).toContain('local-only');
+    expect(status.git_diff_summary).toContain('benchmark.json');
   }, 20000);
 });

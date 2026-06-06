@@ -26,6 +26,16 @@ export interface ResultsRepoLocalPaths {
   readonly statusFile: string;
 }
 
+export type ResultsRepoSyncStatus =
+  | 'clean'
+  | 'unavailable'
+  | 'behind'
+  | 'ahead'
+  | 'diverged'
+  | 'dirty'
+  | 'conflicted'
+  | 'syncing';
+
 export interface ResultsRepoStatus {
   readonly configured: boolean;
   readonly available: boolean;
@@ -36,6 +46,20 @@ export interface ResultsRepoStatus {
   readonly local_dir?: string;
   readonly last_synced_at?: string;
   readonly last_error?: string;
+  readonly sync_status?: ResultsRepoSyncStatus;
+  readonly branch?: string;
+  readonly upstream?: string;
+  readonly ahead?: number;
+  readonly behind?: number;
+  readonly dirty_paths?: readonly string[];
+  readonly conflicted_paths?: readonly string[];
+  readonly git_status?: string;
+  readonly git_diff_summary?: string;
+  readonly blocked?: boolean;
+  readonly block_reason?: string;
+  readonly pull_performed?: boolean;
+  readonly push_performed?: boolean;
+  readonly commit_created?: boolean;
 }
 
 export interface CheckedOutResultsRepoBranch {
@@ -52,6 +76,20 @@ type PersistedStatus = {
   readonly last_synced_at?: string;
   readonly last_error?: string;
 };
+
+type ResultsRepoGitInspection = {
+  readonly syncStatus: ResultsRepoSyncStatus;
+  readonly branch?: string;
+  readonly upstream?: string;
+  readonly ahead?: number;
+  readonly behind?: number;
+  readonly dirtyPaths: readonly string[];
+  readonly conflictedPaths: readonly string[];
+  readonly gitStatus?: string;
+  readonly gitDiffSummary?: string;
+};
+
+const activeResultsRepoSyncs = new Set<string>();
 
 function sanitizeRepoSlug(repo: string): string {
   return repo.trim().replace(/[^A-Za-z0-9._-]+/g, '-');
@@ -200,6 +238,15 @@ async function fetchResultsRepo(repoDir: string): Promise<void> {
   await runGit(['fetch', 'origin', '--prune'], { cwd: repoDir });
 }
 
+async function isGitRepository(repoDir: string): Promise<boolean> {
+  try {
+    const { stdout } = await runGit(['rev-parse', '--is-inside-work-tree'], { cwd: repoDir });
+    return stdout.trim() === 'true';
+  } catch {
+    return false;
+  }
+}
+
 function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
   const cachePaths = getResultsRepoLocalPaths(config.repo);
   const current = readPersistedStatus(cachePaths.statusFile);
@@ -249,6 +296,7 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
       available: false,
       repo: '',
       local_dir: '',
+      sync_status: 'unavailable',
     };
   }
 
@@ -266,7 +314,297 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
     local_dir: normalized.path,
     last_synced_at: persisted.last_synced_at,
     last_error: persisted.last_error,
+    sync_status: existsSync(normalized.path) ? 'clean' : 'unavailable',
   };
+}
+
+function parseGitPorcelainPaths(status: string): {
+  dirtyPaths: string[];
+  conflictedPaths: string[];
+} {
+  const dirtyPaths = new Set<string>();
+  const conflictedPaths = new Set<string>();
+  const conflictCodes = new Set(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']);
+
+  for (const line of status.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const code = line.slice(0, 2);
+    const rawPath = line.slice(3).trim();
+    const paths = rawPath.includes(' -> ') ? rawPath.split(' -> ') : [rawPath];
+
+    for (const p of paths.map((entry) => entry.trim()).filter(Boolean)) {
+      dirtyPaths.add(p);
+      if (conflictCodes.has(code)) {
+        conflictedPaths.add(p);
+      }
+    }
+  }
+
+  return {
+    dirtyPaths: [...dirtyPaths].sort(),
+    conflictedPaths: [...conflictedPaths].sort(),
+  };
+}
+
+async function getCurrentBranch(repoDir: string): Promise<string | undefined> {
+  const { stdout } = await runGit(['branch', '--show-current'], { cwd: repoDir, check: false });
+  const branch = stdout.trim();
+  if (branch) {
+    return branch;
+  }
+
+  const { stdout: sha } = await runGit(['rev-parse', '--short', 'HEAD'], {
+    cwd: repoDir,
+    check: false,
+  });
+  return sha.trim() ? `HEAD@${sha.trim()}` : undefined;
+}
+
+async function resolveComparisonRef(repoDir: string): Promise<string | undefined> {
+  const { stdout: upstream } = await runGit(
+    ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'],
+    { cwd: repoDir, check: false },
+  );
+  const upstreamRef = upstream.trim();
+  if (upstreamRef && !upstreamRef.includes('fatal:')) {
+    return upstreamRef;
+  }
+
+  const baseBranch = await resolveDefaultBranch(repoDir);
+  const fallback = `origin/${baseBranch}`;
+  const { stdout: fallbackSha } = await runGit(['rev-parse', '--verify', fallback], {
+    cwd: repoDir,
+    check: false,
+  });
+  return fallbackSha.trim() ? fallback : undefined;
+}
+
+async function getAheadBehind(
+  repoDir: string,
+  upstream: string | undefined,
+): Promise<{ ahead?: number; behind?: number }> {
+  if (!upstream) {
+    return {};
+  }
+
+  const { stdout } = await runGit(['rev-list', '--left-right', '--count', `HEAD...${upstream}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  const [aheadText, behindText] = stdout.trim().split(/\s+/);
+  const ahead = Number.parseInt(aheadText ?? '', 10);
+  const behind = Number.parseInt(behindText ?? '', 10);
+
+  return {
+    ...(Number.isFinite(ahead) && { ahead }),
+    ...(Number.isFinite(behind) && { behind }),
+  };
+}
+
+async function hasInProgressGitConflict(repoDir: string): Promise<boolean> {
+  const markers = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD'];
+  for (const marker of markers) {
+    const { stdout } = await runGit(['rev-parse', '--git-path', marker], {
+      cwd: repoDir,
+      check: false,
+    });
+    const markerPath = stdout.trim();
+    const resolvedMarkerPath = path.isAbsolute(markerPath)
+      ? markerPath
+      : path.join(repoDir, markerPath);
+    if (markerPath && existsSync(resolvedMarkerPath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function buildGitDiffSummary(
+  repoDir: string,
+  upstream: string | undefined,
+): Promise<string | undefined> {
+  const summaries: string[] = [];
+  for (const args of [
+    ['diff', '--stat'],
+    ['diff', '--cached', '--stat'],
+    ...(upstream ? ([['diff', '--stat', `${upstream}..HEAD`]] as string[][]) : []),
+  ]) {
+    const { stdout } = await runGit(args, { cwd: repoDir, check: false });
+    const summary = stdout.trim();
+    if (summary) {
+      summaries.push(summary);
+    }
+  }
+
+  return summaries.length > 0 ? summaries.join('\n') : undefined;
+}
+
+async function inspectResultsRepoGit(repoDir: string): Promise<ResultsRepoGitInspection> {
+  const branch = await getCurrentBranch(repoDir);
+  const upstream = await resolveComparisonRef(repoDir);
+  const { stdout: porcelain } = await runGit(
+    ['status', '--porcelain=v1', '--untracked-files=all'],
+    {
+      cwd: repoDir,
+      check: false,
+    },
+  );
+  const { stdout: shortStatus } = await runGit(['status', '--short', '--branch'], {
+    cwd: repoDir,
+    check: false,
+  });
+  const { dirtyPaths, conflictedPaths } = parseGitPorcelainPaths(porcelain);
+  const { ahead = 0, behind = 0 } = await getAheadBehind(repoDir, upstream);
+  const inProgressConflict = await hasInProgressGitConflict(repoDir);
+
+  let syncStatus: ResultsRepoSyncStatus = 'clean';
+  if (conflictedPaths.length > 0 || inProgressConflict) {
+    syncStatus = 'conflicted';
+  } else if (dirtyPaths.length > 0) {
+    syncStatus = 'dirty';
+  } else if (ahead > 0 && behind > 0) {
+    syncStatus = 'diverged';
+  } else if (behind > 0) {
+    syncStatus = 'behind';
+  } else if (ahead > 0) {
+    syncStatus = 'ahead';
+  }
+
+  return {
+    syncStatus,
+    branch,
+    upstream,
+    ahead,
+    behind,
+    dirtyPaths,
+    conflictedPaths,
+    gitStatus: shortStatus.trim() || undefined,
+    gitDiffSummary: await buildGitDiffSummary(repoDir, upstream),
+  };
+}
+
+function withGitInspection(
+  status: ResultsRepoStatus,
+  inspection: ResultsRepoGitInspection,
+): ResultsRepoStatus {
+  return {
+    ...status,
+    sync_status: inspection.syncStatus,
+    branch: inspection.branch,
+    upstream: inspection.upstream,
+    ahead: inspection.ahead,
+    behind: inspection.behind,
+    dirty_paths: inspection.dirtyPaths,
+    conflicted_paths: inspection.conflictedPaths,
+    git_status: inspection.gitStatus,
+    git_diff_summary: inspection.gitDiffSummary,
+  };
+}
+
+function withBlockedStatus(
+  status: ResultsRepoStatus,
+  blockReason: string,
+  flags?: {
+    readonly pullPerformed?: boolean;
+    readonly pushPerformed?: boolean;
+    readonly commitCreated?: boolean;
+  },
+): ResultsRepoStatus {
+  return {
+    ...status,
+    blocked: true,
+    block_reason: blockReason,
+    ...(flags?.pullPerformed !== undefined && { pull_performed: flags.pullPerformed }),
+    ...(flags?.pushPerformed !== undefined && { push_performed: flags.pushPerformed }),
+    ...(flags?.commitCreated !== undefined && { commit_created: flags.commitCreated }),
+  };
+}
+
+function withActionFlags(
+  status: ResultsRepoStatus,
+  flags: {
+    readonly pullPerformed: boolean;
+    readonly pushPerformed: boolean;
+    readonly commitCreated: boolean;
+  },
+): ResultsRepoStatus {
+  return {
+    ...status,
+    blocked: false,
+    pull_performed: flags.pullPerformed,
+    push_performed: flags.pushPerformed,
+    commit_created: flags.commitCreated,
+  };
+}
+
+function areSafeResultsRepoPaths(paths: readonly string[]): boolean {
+  return (
+    paths.length > 0 &&
+    paths.every(
+      (p) => p === RESULTS_REPO_RESULTS_DIR || p.startsWith(`${RESULTS_REPO_RESULTS_DIR}/`),
+    )
+  );
+}
+
+async function getAheadPaths(
+  repoDir: string,
+  upstream: string | undefined,
+): Promise<readonly string[]> {
+  if (!upstream) {
+    return [];
+  }
+  const { stdout } = await runGit(['diff', '--name-only', `${upstream}..HEAD`], {
+    cwd: repoDir,
+    check: false,
+  });
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+function getPushTargetBranch(upstream: string | undefined, baseBranch: string): string {
+  return upstream?.startsWith('origin/') ? upstream.slice('origin/'.length) : baseBranch;
+}
+
+async function statusFromInspection(
+  normalized: Required<ResultsConfig>,
+  repoDir: string,
+): Promise<ResultsRepoStatus> {
+  return withGitInspection(getResultsRepoStatus(normalized), await inspectResultsRepoGit(repoDir));
+}
+
+export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<ResultsRepoStatus> {
+  const baseStatus = getResultsRepoStatus(config);
+  if (!config) {
+    return baseStatus;
+  }
+
+  const normalized = normalizeResultsConfig(config);
+  if (activeResultsRepoSyncs.has(normalized.path)) {
+    return {
+      ...baseStatus,
+      sync_status: 'syncing',
+    };
+  }
+
+  if (!existsSync(normalized.path) || !(await isGitRepository(normalized.path))) {
+    return {
+      ...baseStatus,
+      sync_status: 'unavailable',
+    };
+  }
+
+  try {
+    return withGitInspection(baseStatus, await inspectResultsRepoGit(normalized.path));
+  } catch (error) {
+    return {
+      ...baseStatus,
+      sync_status: 'unavailable',
+      last_error: getStatusMessage(error),
+    };
+  }
 }
 
 export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRepoStatus> {
@@ -287,6 +625,199 @@ export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRep
   }
 
   return getResultsRepoStatus(normalized);
+}
+
+function getStatusMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export async function syncResultsRepoForProject(config: ResultsConfig): Promise<ResultsRepoStatus> {
+  const normalized = normalizeResultsConfig(config);
+  const syncKey = normalized.path;
+  if (activeResultsRepoSyncs.has(syncKey)) {
+    return {
+      ...(await getResultsRepoSyncStatus(normalized)),
+      sync_status: 'syncing',
+      blocked: true,
+      block_reason: 'Results repo sync is already in progress',
+    };
+  }
+
+  activeResultsRepoSyncs.add(syncKey);
+  let pullPerformed = false;
+  let pushPerformed = false;
+  let commitCreated = false;
+
+  try {
+    const repoDir = await ensureResultsRepoClone(normalized);
+    await fetchResultsRepo(repoDir);
+    let inspection = await inspectResultsRepoGit(repoDir);
+
+    if (inspection.syncStatus === 'conflicted') {
+      const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+      updateStatusFile(normalized, {
+        last_error: 'Results repo has unresolved git conflicts',
+      });
+      return withBlockedStatus(status, 'Results repo has unresolved git conflicts', {
+        pullPerformed,
+        pushPerformed,
+        commitCreated,
+      });
+    }
+
+    if (inspection.syncStatus === 'dirty') {
+      if (!normalized.auto_push) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        updateStatusFile(normalized, {
+          last_error: 'Results repo has uncommitted changes and auto_push is disabled',
+        });
+        return withBlockedStatus(
+          status,
+          'Results repo has uncommitted changes and auto_push is disabled',
+          {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          },
+        );
+      }
+
+      if (!areSafeResultsRepoPaths(inspection.dirtyPaths)) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        updateStatusFile(normalized, {
+          last_error: 'Results repo has non-results working tree changes',
+        });
+        return withBlockedStatus(status, 'Results repo has non-results working tree changes', {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      if ((inspection.behind ?? 0) > 0) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        const reason = 'Results repo has uncommitted result changes and remote changes';
+        updateStatusFile(normalized, { last_error: reason });
+        return withBlockedStatus(status, reason, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], { cwd: repoDir });
+      await runGit(['commit', '-m', 'chore(results): sync local result metadata'], {
+        cwd: repoDir,
+      });
+      commitCreated = true;
+      inspection = await inspectResultsRepoGit(repoDir);
+    }
+
+    if (inspection.syncStatus === 'diverged') {
+      const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+      updateStatusFile(normalized, {
+        last_error: 'Results repo local and remote histories have diverged',
+      });
+      return withBlockedStatus(status, 'Results repo local and remote histories have diverged', {
+        pullPerformed,
+        pushPerformed,
+        commitCreated,
+      });
+    }
+
+    if ((inspection.behind ?? 0) > 0 && (inspection.ahead ?? 0) === 0) {
+      if (!inspection.upstream) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        updateStatusFile(normalized, {
+          last_error: 'Results repo has no upstream branch to pull from',
+        });
+        return withBlockedStatus(status, 'Results repo has no upstream branch to pull from', {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      try {
+        await runGit(['merge', '--ff-only', inspection.upstream], { cwd: repoDir });
+        pullPerformed = true;
+        inspection = await inspectResultsRepoGit(repoDir);
+      } catch (error) {
+        inspection = await inspectResultsRepoGit(repoDir);
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        const reason = `Results repo could not be fast-forwarded: ${getStatusMessage(error)}`;
+        updateStatusFile(normalized, { last_error: reason });
+        return withBlockedStatus(status, reason, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+    }
+
+    if ((inspection.ahead ?? 0) > 0) {
+      if (!normalized.auto_push) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        return withActionFlags(status, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      const aheadPaths = await getAheadPaths(repoDir, inspection.upstream);
+      if (!inspection.upstream || !areSafeResultsRepoPaths(aheadPaths)) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        const reason = !inspection.upstream
+          ? 'Results repo has no upstream branch to push to'
+          : 'Results repo has non-results committed changes';
+        updateStatusFile(normalized, { last_error: reason });
+        return withBlockedStatus(status, reason, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      const baseBranch = await resolveDefaultBranch(repoDir);
+      const targetBranch = getPushTargetBranch(inspection.upstream, baseBranch);
+      try {
+        await runGit(['push', 'origin', `HEAD:${targetBranch}`], { cwd: repoDir });
+        pushPerformed = true;
+        await fetchResultsRepo(repoDir);
+        inspection = await inspectResultsRepoGit(repoDir);
+      } catch (error) {
+        await fetchResultsRepo(repoDir).catch(() => undefined);
+        inspection = await inspectResultsRepoGit(repoDir);
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        const reason = `Results repo push was rejected: ${getStatusMessage(error)}`;
+        updateStatusFile(normalized, { last_error: reason });
+        return withBlockedStatus(status, reason, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+    }
+
+    updateStatusFile(normalized, {
+      last_synced_at: new Date().toISOString(),
+      last_error: undefined,
+    });
+
+    return withActionFlags(await statusFromInspection(normalized, repoDir), {
+      pullPerformed,
+      pushPerformed,
+      commitCreated,
+    });
+  } catch (error) {
+    updateStatusFile(normalized, {
+      last_error: withFriendlyGitHubAuthError(error).message,
+    });
+    throw withFriendlyGitHubAuthError(error);
+  } finally {
+    activeResultsRepoSyncs.delete(syncKey);
+  }
 }
 
 export async function checkoutResultsRepoBranch(

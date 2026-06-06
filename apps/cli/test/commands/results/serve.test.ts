@@ -136,6 +136,42 @@ function writeRemoteRunArtifact(
   return `${experiment}::${timestamp}`;
 }
 
+function writeDirtyRemoteRunArtifact(
+  cloneDir: string,
+  experiment: string,
+  timestamp: string,
+  resultRecord: object,
+): string {
+  const isoTimestamp = timestamp.replace(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
+    '$1T$2:$3:$4.$5Z',
+  );
+  const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', experiment, timestamp);
+  mkdirSync(runDir, { recursive: true });
+  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
+  writeFileSync(
+    path.join(runDir, 'benchmark.json'),
+    JSON.stringify(
+      {
+        metadata: {
+          timestamp: isoTimestamp,
+          experiment,
+          targets: ['gpt-4o'],
+          tests_run: ['test-greeting'],
+        },
+        run_summary: {
+          'gpt-4o': {
+            pass_rate: { mean: 1 },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  return `${experiment}::${timestamp}`;
+}
+
 // ── resolveSourceFile ────────────────────────────────────────────────────
 
 describe('resolveSourceFile', () => {
@@ -899,6 +935,76 @@ describe('serve app', () => {
         }
       }
     });
+  });
+
+  describe('POST /api/projects/:projectId/remote/sync', () => {
+    it('returns project-scoped sync action fields after pushing safe local result metadata', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      const homeDir = path.join(tempDir, 'agentv-home-project-sync');
+      process.env.AGENTV_HOME = homeDir;
+
+      try {
+        const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+        const projectDir = path.join(tempDir, 'source-project-sync');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(homeDir, { recursive: true });
+        saveProjectRegistry({
+          projects: [
+            {
+              id: 'project-sync',
+              name: 'Project Sync',
+              path: projectDir,
+              results: {
+                mode: 'github',
+                repo: `file://${remoteDir}`,
+                path: cloneDir,
+                autoPush: true,
+              },
+              addedAt: '2026-01-01T00:00:00.000Z',
+              lastOpenedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        });
+        const runId = writeDirtyRemoteRunArtifact(
+          cloneDir,
+          'project-sync',
+          '2026-03-26T12-00-00-000Z',
+          RESULT_A,
+        );
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/projects/project-sync/remote/sync', {
+          method: 'POST',
+        });
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          sync_status: string;
+          commit_created?: boolean;
+          push_performed?: boolean;
+          pull_performed?: boolean;
+          blocked?: boolean;
+          run_count: number;
+        };
+        expect(data).toMatchObject({
+          sync_status: 'clean',
+          commit_created: true,
+          push_performed: true,
+          pull_performed: false,
+          blocked: false,
+          run_count: 1,
+        });
+        expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
+          `.agentv/results/runs/project-sync/${runId.replace('project-sync::', '')}/benchmark.json`,
+        );
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    }, 15000);
   });
 
   // ── GET /api/runs/:filename ─────────────────────────────────────────

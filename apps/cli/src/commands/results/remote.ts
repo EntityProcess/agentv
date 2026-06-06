@@ -11,14 +11,14 @@ import {
   directorySizeBytes,
   getProject,
   getProjectForPath,
-  getResultsRepoStatus,
+  getResultsRepoSyncStatus,
   listGitRuns,
   loadConfig,
   materializeGitRun,
   normalizeResultsConfig,
   resolveResultsConfigForProject,
   resolveResultsRepoRunsDir,
-  syncResultsRepo,
+  syncResultsRepoForProject,
 } from '@agentv/core';
 
 import { findRepoRoot } from '../eval/shared.js';
@@ -52,6 +52,10 @@ function cachedListGitRuns(repoDir: string) {
       }
     });
   return promise;
+}
+
+function invalidateGitRunsCache(repoDir: string): void {
+  gitRunsCache.delete(repoDir);
 }
 
 export type RunSource = 'local' | 'remote';
@@ -173,7 +177,18 @@ export async function getRemoteResultsStatus(
   projectId?: string,
 ): Promise<RemoteResultsStatus> {
   const config = await loadNormalizedResultsConfig(cwd, projectId);
-  const status = getResultsRepoStatus(config);
+  const status = await getResultsRepoSyncStatus(config);
+  const runCount = await getRemoteRunCount(config, status);
+  return {
+    ...status,
+    run_count: runCount,
+  };
+}
+
+async function getRemoteRunCount(
+  config: Required<ResultsConfig> | undefined,
+  status: ResultsRepoStatus,
+): Promise<number> {
   let runCount = 0;
   if (config && status.available) {
     try {
@@ -182,10 +197,7 @@ export async function getRemoteResultsStatus(
       runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
     }
   }
-  return {
-    ...status,
-    run_count: runCount,
-  };
+  return runCount;
 }
 
 export async function syncRemoteResults(
@@ -195,22 +207,28 @@ export async function syncRemoteResults(
   const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) {
     return {
-      ...getResultsRepoStatus(),
+      ...(await getResultsRepoSyncStatus()),
       run_count: 0,
     };
   }
 
   try {
-    await syncResultsRepo(config);
-  } catch (error) {
+    const status = await syncResultsRepoForProject(config);
+    invalidateGitRunsCache(config.path);
     return {
-      ...getResultsRepoStatus(config),
+      ...status,
+      run_count: await getRemoteRunCount(config, status),
+    };
+  } catch (error) {
+    const status = await getResultsRepoSyncStatus(config);
+    return {
+      ...status,
       run_count: 0,
       last_error: getStatusMessage(error),
+      blocked: true,
+      block_reason: getStatusMessage(error),
     };
   }
-
-  return getRemoteResultsStatus(cwd, projectId);
 }
 
 export async function listMergedResultFiles(
