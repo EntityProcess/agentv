@@ -28,6 +28,7 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 | Example | Description |
 |---------|-------------|
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool selection correctness, efficiency scoring, and pairwise comparison as code-grader plugins — includes a decision table for when to use plugins vs the built-in `tool_trajectory` grader |
+| [trace-evaluation](trace-evaluation/) | Replay-first coding-agent trace fixtures with target substitution, fresh deterministic graders, and an imported Codex transcript fixture |
 
 ---
 
@@ -58,4 +59,5 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 | [multi-model-benchmark](multi-model-benchmark/) | Weighted LLM panel |
 | [offline-grader-benchmark](offline-grader-benchmark/) | Weighted LLM panel |
 | [psychotherapy](psychotherapy/) | Domain-specific grading |
+| [trace-evaluation](trace-evaluation/) | Tool use & agent behavior |
 | [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool use & agent behavior |

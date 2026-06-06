@@ -1,0 +1,38 @@
+description: Trace grading over an imported Codex transcript fixture
+
+tests:
+  - id: imported-codex-config-fix
+    criteria: |-
+      The imported coding-agent transcript should show a repository inspection,
+      a targeted config edit, and a concise final explanation.
+
+    input:
+      - role: user
+        content: Inspect the project and change the default request timeout to 5000ms.
+
+    assertions:
+      - name: imported-tool-sequence
+        type: tool-trajectory
+        mode: in_order
+        args_match: superset
+        expected:
+          - tool: Read
+            args:
+              path: package.json
+          - tool: Grep
+            args:
+              pattern: timeout
+          - tool: Edit
+            args:
+              path: src/config.ts
+
+      - name: imported-execution-budget
+        type: execution-metrics
+        max_tool_calls: 5
+        max_llm_calls: 5
+        max_duration_ms: 5000
+
+      - name: replay-proof
+        type: code-grader
+        command: ["bun", "run", "../graders/replay-proof.ts"]
+        require_metrics: false
