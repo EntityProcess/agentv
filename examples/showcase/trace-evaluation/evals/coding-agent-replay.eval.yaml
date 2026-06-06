@@ -1,0 +1,89 @@
+description: Replay-first coding-agent trace evaluation showcase
+
+execution:
+  target: replay_coding_agent
+
+tests:
+  - id: inspect-and-fix-config
+    criteria: |-
+      The coding agent should inspect the repository before editing, find the timeout
+      configuration, and update only the expected config file.
+
+    input:
+      - role: user
+        content: Inspect the project and change the default request timeout to 5000ms.
+
+    assertions:
+      - name: expected-tool-sequence
+        type: tool-trajectory
+        mode: in_order
+        args_match: superset
+        expected:
+          - tool: Read
+            args:
+              path: package.json
+            max_duration_ms: 100
+          - tool: Grep
+            args:
+              pattern: timeout
+            max_duration_ms: 100
+          - tool: Edit
+            args:
+              path: src/config.ts
+            max_duration_ms: 100
+
+      - name: execution-budget
+        type: execution-metrics
+        max_tool_calls: 5
+        max_llm_calls: 3
+        max_tokens: 2000
+        max_cost_usd: 0.01
+        max_duration_ms: 2000
+
+      - name: replay-proof
+        type: code-grader
+        command: ["bun", "run", "../graders/replay-proof.ts"]
+
+  - id: recover-from-tool-error
+    criteria: |-
+      The coding agent should recover from a failed file read, continue with a
+      valid path, and explain the successful config change.
+
+    input:
+      - role: user
+        content: Fix the retry limit bug in the config module. If a file path is wrong, recover and continue.
+
+    assertions:
+      - name: recovery-sequence
+        type: tool-trajectory
+        mode: in_order
+        args_match: superset
+        expected:
+          - tool: Read
+            args:
+              path: src/missing-config.ts
+            max_duration_ms: 100
+          - tool: Read
+            args:
+              path: src/config.ts
+            max_duration_ms: 100
+          - tool: Edit
+            args:
+              path: src/config.ts
+            max_duration_ms: 100
+
+      - name: recovery-check
+        type: code-grader
+        command: ["bun", "run", "../graders/recovery-check.ts"]
+
+      - name: execution-budget
+        type: execution-metrics
+        max_tool_calls: 5
+        max_llm_calls: 4
+        max_tokens: 2500
+        max_cost_usd: 0.02
+        max_duration_ms: 2500
+
+      - name: replay-proof
+        type: code-grader
+        command: ["bun", "run", "../graders/replay-proof.ts"]
