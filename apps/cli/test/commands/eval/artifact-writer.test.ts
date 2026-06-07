@@ -288,7 +288,30 @@ describe('buildBenchmarkArtifact', () => {
     const results = [makeResult({ executionStatus: 'execution_error', score: 0 })];
 
     const benchmark = buildBenchmarkArtifact(results);
-    expect(benchmark.notes.some((n) => n.includes('execution errors'))).toBe(true);
+    expect(benchmark.notes).toContain(
+      '1 test(s) had execution errors and are excluded from quality pass_rate',
+    );
+  });
+
+  it('excludes execution errors from quality pass_rate and per-grader summary', () => {
+    const results = [
+      makeResult({
+        testId: 'quality-pass',
+        score: 1,
+        scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 1 })],
+      }),
+      makeResult({
+        testId: 'provider-timeout',
+        score: 0,
+        executionStatus: 'execution_error',
+        scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0 })],
+      }),
+    ];
+
+    const benchmark = buildBenchmarkArtifact(results);
+
+    expect(benchmark.run_summary['test-target'].pass_rate.mean).toBe(1);
+    expect(benchmark.per_grader_summary?.['quality:llm-grader'].mean).toBe(1);
   });
 
   it('handles empty results', () => {
@@ -396,6 +419,37 @@ describe('buildAggregateGradingArtifact', () => {
     expect(aggregate.summary.total).toBe(1);
     expect(aggregate.summary.passed).toBe(1);
     expect(aggregate.summary.failed).toBe(0);
+  });
+
+  it('excludes execution-error assertions from aggregate quality summary', () => {
+    const results = [
+      makeResult({
+        testId: 'quality-pass',
+        assertions: [{ text: 'quality criterion', passed: true }],
+      }),
+      makeResult({
+        testId: 'provider-timeout',
+        executionStatus: 'execution_error',
+        assertions: [{ text: 'execution error placeholder', passed: false }],
+      }),
+    ];
+
+    const aggregate = buildAggregateGradingArtifact(results);
+
+    expect(aggregate.assertions).toEqual([
+      {
+        test_id: 'quality-pass',
+        text: 'quality criterion',
+        passed: true,
+        evidence: '',
+      },
+    ]);
+    expect(aggregate.summary).toEqual({
+      passed: 1,
+      failed: 0,
+      total: 1,
+      pass_rate: 1,
+    });
   });
 
   it('handles empty results array', () => {

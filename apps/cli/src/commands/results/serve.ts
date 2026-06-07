@@ -414,6 +414,61 @@ function hasUsableTimestamp(timestamp: string | undefined): boolean {
   return !!timestamp && timestamp !== 'unknown' && !Number.isNaN(new Date(timestamp).getTime());
 }
 
+interface QualitySummaryInput {
+  readonly score: number;
+  readonly executionStatus?: string;
+}
+
+interface QualitySummaryStats {
+  readonly totalCount: number;
+  readonly qualityCount: number;
+  readonly passedCount: number;
+  readonly qualityFailureCount: number;
+  readonly executionErrorCount: number;
+  readonly scoreSum: number;
+  readonly passRate: number;
+  readonly avgScore: number;
+}
+
+function isExecutionErrorResult(result: QualitySummaryInput): boolean {
+  return result.executionStatus === 'execution_error';
+}
+
+function summarizeQualityResults(
+  results: readonly QualitySummaryInput[],
+  passThreshold: number,
+): QualitySummaryStats {
+  let qualityCount = 0;
+  let passedCount = 0;
+  let executionErrorCount = 0;
+  let scoreSum = 0;
+
+  for (const result of results) {
+    if (isExecutionErrorResult(result)) {
+      executionErrorCount++;
+      continue;
+    }
+
+    qualityCount++;
+    scoreSum += result.score;
+    if (result.score >= passThreshold) {
+      passedCount++;
+    }
+  }
+
+  const qualityFailureCount = qualityCount - passedCount;
+  return {
+    totalCount: results.length,
+    qualityCount,
+    passedCount,
+    qualityFailureCount,
+    executionErrorCount,
+    scoreSum,
+    passRate: qualityCount > 0 ? passedCount / qualityCount : 0,
+    avgScore: qualityCount > 0 ? scoreSum / qualityCount : 0,
+  };
+}
+
 function paginateRuns<T extends { filename: string }>(
   runs: T[],
   cursor: string | undefined,
@@ -463,18 +518,21 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       let testCount = m.testCount;
       let passRate = m.passRate;
       let avgScore = m.avgScore;
+      let executionErrorCount = 0;
       try {
         const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
         if (records.length > 0) {
+          const qualitySummary = summarizeQualityResults(records, passThreshold);
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
           timestamp =
             hasUsableTimestamp(timestamp) || !records[0].timestamp
               ? timestamp
               : records[0].timestamp;
-          testCount = records.length;
-          passRate = records.filter((r) => r.score >= passThreshold).length / records.length;
-          avgScore = records.reduce((sum, r) => sum + r.score, 0) / records.length;
+          testCount = qualitySummary.totalCount;
+          passRate = qualitySummary.passRate;
+          avgScore = qualitySummary.avgScore;
+          executionErrorCount = qualitySummary.executionErrorCount;
         } else {
           // Run is in-progress with 0 results written yet — fall back to the
           // in-memory target stored when the Dashboard launched this run.
@@ -496,6 +554,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         test_count: testCount,
         pass_rate: passRate,
         avg_score: avgScore,
+        execution_error_count: executionErrorCount,
         size_bytes: m.sizeBytes,
         source: m.source,
         ...(target && { target }),
@@ -601,22 +660,24 @@ async function handleRunSuites(c: C, { searchDir, agentvDir, projectId }: DataCo
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
-    const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+    const suiteMap = new Map<string, EvaluationResult[]>();
     for (const r of loaded) {
       const ds = r.suite ?? r.target ?? 'default';
-      const entry = suiteMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
-      entry.total++;
-      if (r.score >= pass_threshold) entry.passed++;
-      entry.scoreSum += r.score;
+      const entry = suiteMap.get(ds) ?? [];
+      entry.push(r);
       suiteMap.set(ds, entry);
     }
-    const suites = [...suiteMap.entries()].map(([name, entry]) => ({
-      name,
-      total: entry.total,
-      passed: entry.passed,
-      failed: entry.total - entry.passed,
-      avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-    }));
+    const suites = [...suiteMap.entries()].map(([name, entry]) => {
+      const qualitySummary = summarizeQualityResults(entry, pass_threshold);
+      return {
+        name,
+        total: qualitySummary.totalCount,
+        passed: qualitySummary.passedCount,
+        failed: qualitySummary.qualityFailureCount,
+        avg_score: qualitySummary.avgScore,
+        execution_error_count: qualitySummary.executionErrorCount,
+      };
+    });
     return c.json({ suites });
   } catch {
     return c.json({ error: 'Failed to load suites' }, 500);
@@ -630,32 +691,29 @@ async function handleRunCategories(c: C, { searchDir, agentvDir, projectId }: Da
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
-    const categoryMap = new Map<
-      string,
-      { total: number; passed: number; scoreSum: number; suites: Set<string> }
-    >();
+    const categoryMap = new Map<string, { results: EvaluationResult[]; suites: Set<string> }>();
     for (const r of loaded) {
       const cat = r.category ?? DEFAULT_CATEGORY;
       const entry = categoryMap.get(cat) ?? {
-        total: 0,
-        passed: 0,
-        scoreSum: 0,
+        results: [],
         suites: new Set<string>(),
       };
-      entry.total++;
-      if (r.score >= pass_threshold) entry.passed++;
-      entry.scoreSum += r.score;
+      entry.results.push(r);
       entry.suites.add(r.suite ?? r.target ?? 'default');
       categoryMap.set(cat, entry);
     }
-    const categories = [...categoryMap.entries()].map(([name, entry]) => ({
-      name,
-      total: entry.total,
-      passed: entry.passed,
-      failed: entry.total - entry.passed,
-      avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-      suite_count: entry.suites.size,
-    }));
+    const categories = [...categoryMap.entries()].map(([name, entry]) => {
+      const qualitySummary = summarizeQualityResults(entry.results, pass_threshold);
+      return {
+        name,
+        total: qualitySummary.totalCount,
+        passed: qualitySummary.passedCount,
+        failed: qualitySummary.qualityFailureCount,
+        avg_score: qualitySummary.avgScore,
+        execution_error_count: qualitySummary.executionErrorCount,
+        suite_count: entry.suites.size,
+      };
+    });
     return c.json({ categories });
   } catch {
     return c.json({ error: 'Failed to load categories' }, 500);
@@ -671,22 +729,24 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir, projectId }: D
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
     const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
-    const suiteMap = new Map<string, { total: number; passed: number; scoreSum: number }>();
+    const suiteMap = new Map<string, EvaluationResult[]>();
     for (const r of filtered) {
       const ds = r.suite ?? r.target ?? 'default';
-      const entry = suiteMap.get(ds) ?? { total: 0, passed: 0, scoreSum: 0 };
-      entry.total++;
-      if (r.score >= pass_threshold) entry.passed++;
-      entry.scoreSum += r.score;
+      const entry = suiteMap.get(ds) ?? [];
+      entry.push(r);
       suiteMap.set(ds, entry);
     }
-    const suites = [...suiteMap.entries()].map(([name, entry]) => ({
-      name,
-      total: entry.total,
-      passed: entry.passed,
-      failed: entry.total - entry.passed,
-      avg_score: entry.total > 0 ? entry.scoreSum / entry.total : 0,
-    }));
+    const suites = [...suiteMap.entries()].map(([name, entry]) => {
+      const qualitySummary = summarizeQualityResults(entry, pass_threshold);
+      return {
+        name,
+        total: qualitySummary.totalCount,
+        passed: qualitySummary.passedCount,
+        failed: qualitySummary.qualityFailureCount,
+        avg_score: qualitySummary.avgScore,
+        execution_error_count: qualitySummary.executionErrorCount,
+      };
+    });
     return c.json({ suites });
   } catch {
     return c.json({ error: 'Failed to load suites' }, 500);
@@ -791,7 +851,9 @@ async function handleExperiments(c: C, { searchDir, agentvDir, projectId }: Data
       targets: Set<string>;
       runFilenames: Set<string>;
       evalCount: number;
+      qualityCount: number;
       passedCount: number;
+      executionErrorCount: number;
       lastTimestamp: string;
     }
   >();
@@ -805,13 +867,20 @@ async function handleExperiments(c: C, { searchDir, agentvDir, projectId }: Data
           targets: new Set<string>(),
           runFilenames: new Set<string>(),
           evalCount: 0,
+          qualityCount: 0,
           passedCount: 0,
+          executionErrorCount: 0,
           lastTimestamp: '',
         };
         entry.runFilenames.add(m.filename);
         if (r.target) entry.targets.add(r.target);
         entry.evalCount++;
-        if (r.score >= pass_threshold) entry.passedCount++;
+        if (isExecutionErrorResult(r)) {
+          entry.executionErrorCount++;
+        } else {
+          entry.qualityCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
+        }
         if (r.timestamp && r.timestamp > entry.lastTimestamp) {
           entry.lastTimestamp = r.timestamp;
         }
@@ -827,8 +896,10 @@ async function handleExperiments(c: C, { searchDir, agentvDir, projectId }: Data
     run_count: entry.runFilenames.size,
     target_count: entry.targets.size,
     eval_count: entry.evalCount,
+    quality_count: entry.qualityCount,
     passed_count: entry.passedCount,
-    pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+    execution_error_count: entry.executionErrorCount,
+    pass_rate: entry.qualityCount > 0 ? entry.passedCount / entry.qualityCount : 0,
     last_run: entry.lastTimestamp || null,
   }));
 
@@ -859,7 +930,9 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
       experiment: string;
       target: string;
       evalCount: number;
+      qualityCount: number;
       passedCount: number;
+      executionErrorCount: number;
       scoreSum: number;
       tests: Array<{
         test_id: string;
@@ -883,7 +956,9 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     metadata_dirty?: boolean;
     source: 'local' | 'remote';
     eval_count: number;
+    quality_count: number;
     passed_count: number;
+    execution_error_count: number;
     pass_rate: number;
     avg_score: number;
     tests: Array<{
@@ -914,7 +989,9 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         { test_id: string; score: number; passed: boolean; execution_status?: string }
       >();
       let runEvalCount = 0;
+      let runQualityCount = 0;
       let runPassedCount = 0;
+      let runExecutionErrorCount = 0;
       let runScoreSum = 0;
       let runExperiment = 'default';
       let runTarget = 'default';
@@ -934,14 +1011,22 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
           experiment,
           target,
           evalCount: 0,
+          qualityCount: 0,
           passedCount: 0,
+          executionErrorCount: 0,
           scoreSum: 0,
           tests: [],
         };
-        const passed = r.score >= pass_threshold;
+        const isExecutionError = isExecutionErrorResult(r);
+        const passed = !isExecutionError && r.score >= pass_threshold;
         entry.evalCount++;
-        if (passed) entry.passedCount++;
-        entry.scoreSum += r.score;
+        if (isExecutionError) {
+          entry.executionErrorCount++;
+        } else {
+          entry.qualityCount++;
+          if (passed) entry.passedCount++;
+          entry.scoreSum += r.score;
+        }
         entry.tests.push({
           test_id: r.testId,
           score: r.score,
@@ -958,8 +1043,13 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
           execution_status: r.executionStatus,
         });
         runEvalCount++;
-        if (passed) runPassedCount++;
-        runScoreSum += r.score;
+        if (isExecutionError) {
+          runExecutionErrorCount++;
+        } else {
+          runQualityCount++;
+          if (passed) runPassedCount++;
+          runScoreSum += r.score;
+        }
       }
 
       if (runEvalCount === 0) continue;
@@ -973,9 +1063,11 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         ...tagFields,
         source: m.source,
         eval_count: runEvalCount,
+        quality_count: runQualityCount,
         passed_count: runPassedCount,
-        pass_rate: runPassedCount / runEvalCount,
-        avg_score: runScoreSum / runEvalCount,
+        execution_error_count: runExecutionErrorCount,
+        pass_rate: runQualityCount > 0 ? runPassedCount / runQualityCount : 0,
+        avg_score: runQualityCount > 0 ? runScoreSum / runQualityCount : 0,
         tests: runTests,
       });
     } catch {
@@ -994,8 +1086,8 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
   const baselineScores = new Map<string, number>();
   if (baselineTarget) {
     for (const entry of cellMap.values()) {
-      if (entry.target === baselineTarget && entry.evalCount > 0) {
-        baselineScores.set(entry.experiment, entry.scoreSum / entry.evalCount);
+      if (entry.target === baselineTarget && entry.qualityCount > 0) {
+        baselineScores.set(entry.experiment, entry.scoreSum / entry.qualityCount);
       }
     }
   }
@@ -1011,13 +1103,15 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     // Cap to most recent entries to prevent unbounded payloads
     const cappedTests = dedupedTests.slice(-MAX_TESTS_PER_CELL);
 
-    const avgScore = entry.evalCount > 0 ? entry.scoreSum / entry.evalCount : 0;
+    const avgScore = entry.qualityCount > 0 ? entry.scoreSum / entry.qualityCount : 0;
     const cell: Record<string, unknown> = {
       experiment: entry.experiment,
       target: entry.target,
       eval_count: entry.evalCount,
+      quality_count: entry.qualityCount,
       passed_count: entry.passedCount,
-      pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+      execution_error_count: entry.executionErrorCount,
+      pass_rate: entry.qualityCount > 0 ? entry.passedCount / entry.qualityCount : 0,
       avg_score: avgScore,
       tests: cappedTests,
     };
@@ -1055,7 +1149,9 @@ async function handleTargets(c: C, { searchDir, agentvDir, projectId }: DataCont
       experiments: Set<string>;
       runFilenames: Set<string>;
       evalCount: number;
+      qualityCount: number;
       passedCount: number;
+      executionErrorCount: number;
     }
   >();
 
@@ -1068,12 +1164,19 @@ async function handleTargets(c: C, { searchDir, agentvDir, projectId }: DataCont
           experiments: new Set<string>(),
           runFilenames: new Set<string>(),
           evalCount: 0,
+          qualityCount: 0,
           passedCount: 0,
+          executionErrorCount: 0,
         };
         entry.runFilenames.add(m.filename);
         if (r.experiment) entry.experiments.add(r.experiment);
         entry.evalCount++;
-        if (r.score >= pass_threshold) entry.passedCount++;
+        if (isExecutionErrorResult(r)) {
+          entry.executionErrorCount++;
+        } else {
+          entry.qualityCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
+        }
         targetMap.set(target, entry);
       }
     } catch {
@@ -1086,8 +1189,10 @@ async function handleTargets(c: C, { searchDir, agentvDir, projectId }: DataCont
     run_count: entry.runFilenames.size,
     experiment_count: entry.experiments.size,
     eval_count: entry.evalCount,
+    quality_count: entry.qualityCount,
     passed_count: entry.passedCount,
-    pass_rate: entry.evalCount > 0 ? entry.passedCount / entry.evalCount : 0,
+    execution_error_count: entry.executionErrorCount,
+    pass_rate: entry.qualityCount > 0 ? entry.passedCount / entry.qualityCount : 0,
   }));
 
   return c.json({ targets });
@@ -1379,29 +1484,56 @@ export function createApp(
     };
   }
 
+  async function summarizeProjectRunMetas(project: { id: string; path: string }) {
+    const { runs: metas } = await listMergedResultFiles(project.path, undefined, project.id);
+    const threshold = loadStudioConfig(path.join(project.path, '.agentv')).threshold;
+    let passRateSum = 0;
+    let executionErrorCount = 0;
+
+    for (const meta of metas) {
+      try {
+        const records = await loadLightweightResultsForMeta(project.path, meta, project.id);
+        if (records.length > 0) {
+          const qualitySummary = summarizeQualityResults(records, threshold);
+          passRateSum += qualitySummary.passRate;
+          executionErrorCount += qualitySummary.executionErrorCount;
+          continue;
+        }
+      } catch {
+        // Fall back to metadata below when materialized rows are unavailable.
+      }
+      passRateSum += meta.passRate;
+    }
+
+    return {
+      runCount: metas.length,
+      passRate: metas.length > 0 ? passRateSum / metas.length : 0,
+      executionErrorCount,
+      lastRun: metas.length > 0 ? metas[0].timestamp : null,
+    };
+  }
+
   app.get('/api/projects', async (c) => {
     const registry = loadProjectRegistry();
     const projects = await Promise.all(
       registry.projects.map(async (p) => {
-        let runCount = 0;
-        let passRate = 0;
-        let lastRun: string | null = null;
+        let summary = {
+          runCount: 0,
+          passRate: 0,
+          executionErrorCount: 0,
+          lastRun: null as string | null,
+        };
         try {
-          const { runs: metas } = await listMergedResultFiles(p.path, undefined, p.id);
-          runCount = metas.length;
-          if (metas.length > 0) {
-            const totalPassRate = metas.reduce((sum, m) => sum + m.passRate, 0);
-            passRate = totalPassRate / metas.length;
-            lastRun = metas[0].timestamp;
-          }
+          summary = await summarizeProjectRunMetas(p);
         } catch {
           // Project path may be missing or inaccessible
         }
         return {
           ...projectEntryToWire(p),
-          run_count: runCount,
-          pass_rate: passRate,
-          last_run: lastRun,
+          run_count: summary.runCount,
+          pass_rate: summary.passRate,
+          execution_error_count: summary.executionErrorCount,
+          last_run: summary.lastRun,
         };
       }),
     );
@@ -1426,17 +1558,15 @@ export function createApp(
     const project = getProject(c.req.param('projectId') ?? '');
     if (!project) return c.json({ error: 'Project not found' }, 404);
     try {
-      const { runs: metas } = await listMergedResultFiles(project.path, undefined, project.id);
-      const runCount = metas.length;
-      const passRate = runCount > 0 ? metas.reduce((s, m) => s + m.passRate, 0) / runCount : 0;
-      const lastRun = metas.length > 0 ? metas[0].timestamp : null;
+      const summary = await summarizeProjectRunMetas(project);
       return c.json({
         id: project.id,
         name: project.name,
         path: project.path,
-        run_count: runCount,
-        pass_rate: passRate,
-        last_run: lastRun,
+        run_count: summary.runCount,
+        pass_rate: summary.passRate,
+        execution_error_count: summary.executionErrorCount,
+        last_run: summary.lastRun,
       });
     } catch {
       return c.json({ error: 'Failed to read project' }, 500);
@@ -1454,6 +1584,7 @@ export function createApp(
       test_count: number;
       pass_rate: number;
       avg_score: number;
+      execution_error_count: number;
       size_bytes: number;
       target?: string;
       experiment?: string;
@@ -1472,11 +1603,21 @@ export function createApp(
         for (const m of metas) {
           let target: string | undefined;
           let experiment = inferExperimentFromRunId(m.raw_filename);
+          let passRate = m.passRate;
+          let avgScore = m.avgScore;
+          let executionErrorCount = 0;
           try {
             const records = await loadLightweightResultsForMeta(p.path, m, p.id);
             if (records.length > 0) {
+              const qualitySummary = summarizeQualityResults(
+                records,
+                loadStudioConfig(path.join(p.path, '.agentv')).threshold,
+              );
               target = records[0].target;
               experiment = records[0].experiment ?? experiment;
+              passRate = qualitySummary.passRate;
+              avgScore = qualitySummary.avgScore;
+              executionErrorCount = qualitySummary.executionErrorCount;
             }
           } catch {
             // ignore enrichment errors
@@ -1488,8 +1629,9 @@ export function createApp(
             path: m.path,
             timestamp: m.timestamp,
             test_count: m.testCount,
-            pass_rate: m.passRate,
-            avg_score: m.avgScore,
+            pass_rate: passRate,
+            avg_score: avgScore,
+            execution_error_count: executionErrorCount,
             size_bytes: m.sizeBytes,
             source: m.source,
             ...(target && { target }),
@@ -1632,18 +1774,33 @@ export function createApp(
     const entries = await Promise.all(
       metas.map(async (m) => {
         let totalCostUsd = 0;
+        let passRate = m.passRate;
+        let avgScore = m.avgScore;
+        let testCount = m.testCount;
+        let executionErrorCount = 0;
         try {
           const loaded = await loadManifestResultsForMeta(searchDir, m, defaultCtx.projectId);
           totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
+          if (loaded.length > 0) {
+            const qualitySummary = summarizeQualityResults(
+              loaded,
+              loadStudioConfig(agentvDir).threshold,
+            );
+            testCount = qualitySummary.totalCount;
+            passRate = qualitySummary.passRate;
+            avgScore = qualitySummary.avgScore;
+            executionErrorCount = qualitySummary.executionErrorCount;
+          }
         } catch {
           // ignore load errors for aggregate
         }
         return {
           run_filename: m.filename,
           display_name: m.displayName,
-          test_count: m.testCount,
-          pass_rate: m.passRate,
-          avg_score: m.avgScore,
+          test_count: testCount,
+          pass_rate: passRate,
+          avg_score: avgScore,
+          execution_error_count: executionErrorCount,
           total_cost_usd: totalCostUsd,
           timestamp: m.timestamp,
         };

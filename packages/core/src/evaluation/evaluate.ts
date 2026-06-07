@@ -224,13 +224,15 @@ export interface MaterializedEvalConfig {
 export interface EvalSummary {
   /** Total number of test cases */
   readonly total: number;
-  /** Number of passing test cases (score >= threshold) */
+  /** Number of non-execution-error test cases whose score is >= threshold */
   readonly passed: number;
-  /** Number of failing test cases (score < threshold) */
+  /** Number of non-execution-error test cases whose score is < threshold */
   readonly failed: number;
+  /** Number of test cases that failed before quality could be evaluated */
+  readonly executionErrors: number;
   /** Total duration in milliseconds */
   readonly durationMs: number;
-  /** Mean score across all cases */
+  /** Mean score across non-execution-error cases */
   readonly meanScore: number;
 }
 
@@ -609,10 +611,12 @@ function computeSummary(
   threshold = DEFAULT_THRESHOLD,
 ): EvalSummary {
   const total = results.length;
+  const qualityResults = results.filter((r) => r.executionStatus !== 'execution_error');
+  const executionErrors = total - qualityResults.length;
   let passed = 0;
   let scoreSum = 0;
 
-  for (const r of results) {
+  for (const r of qualityResults) {
     scoreSum += r.score;
     if (r.score >= threshold) {
       passed++;
@@ -622,9 +626,10 @@ function computeSummary(
   return {
     total,
     passed,
-    failed: total - passed,
+    failed: qualityResults.length - passed,
+    executionErrors,
     durationMs,
-    meanScore: total > 0 ? scoreSum / total : 0,
+    meanScore: qualityResults.length > 0 ? scoreSum / qualityResults.length : 0,
   };
 }
 

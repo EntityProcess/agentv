@@ -11,6 +11,7 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 import { ScoreBar } from '~/components/ScoreBar';
 import { StatsCards } from '~/components/StatsCards';
 import { useCategorySuites } from '~/lib/api';
+import { executionErrorCount, qualityTotal } from '~/lib/result-summary';
 
 export const Route = createFileRoute('/runs/$runId_/category/$category')({
   component: CategoryPage,
@@ -44,8 +45,10 @@ function CategoryPage() {
   const suites = data?.suites ?? [];
   const total = suites.reduce((s, d) => s + d.total, 0);
   const passed = suites.reduce((s, d) => s + d.passed, 0);
-  const failed = total - passed;
-  const passRate = total > 0 ? passed / total : 0;
+  const failed = suites.reduce((s, d) => s + d.failed, 0);
+  const executionErrors = suites.reduce((s, d) => s + executionErrorCount(d), 0);
+  const qualityCount = total - executionErrors;
+  const passRate = qualityCount > 0 ? passed / qualityCount : 0;
 
   return (
     <div className="space-y-6">
@@ -54,7 +57,13 @@ function CategoryPage() {
         <p className="mt-1 text-sm text-gray-400">Category in run: {runId}</p>
       </div>
 
-      <StatsCards total={total} passed={passed} failed={failed} passRate={passRate} />
+      <StatsCards
+        total={total}
+        passed={passed}
+        failed={failed}
+        passRate={passRate}
+        executionErrors={executionErrors}
+      />
 
       {suites.length === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
@@ -74,7 +83,7 @@ function CategoryPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-200 truncate">{ds.name}</span>
                   <span className="ml-2 text-xs text-gray-500">
-                    {ds.passed}/{ds.total}
+                    {ds.passed}/{qualityTotal(ds)}
                   </span>
                 </div>
                 <div className="mt-2">
@@ -83,6 +92,11 @@ function CategoryPage() {
                 <div className="mt-1 flex gap-3 text-xs">
                   <span className="text-emerald-400">{ds.passed} passed</span>
                   {ds.failed > 0 && <span className="text-red-400">{ds.failed} failed</span>}
+                  {executionErrorCount(ds) > 0 && (
+                    <span className="text-amber-400">
+                      {executionErrorCount(ds)} execution errors
+                    </span>
+                  )}
                 </div>
               </Link>
             ))}

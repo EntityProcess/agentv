@@ -27,6 +27,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { deleteRunTagsApi, saveRunTagsApi } from '~/lib/api';
+import { aggregateQualityCount, executionErrorCount } from '~/lib/result-summary';
 import type { CompareCell, CompareResponse, CompareRunEntry, CompareTestResult } from '~/lib/types';
 
 import { AnalyticsCharts } from './AnalyticsCharts';
@@ -74,9 +75,9 @@ export function AnalyticsTab({
   // When a filter is active, re-aggregate cells/runs client-side from the
   // filtered subset of runs. This avoids a network round-trip on every chip
   // click and keeps the backend responsible only for the initial fetch.
-  // Safe because the server already exposes per-run totals (`eval_count`,
-  // `passed_count`, `avg_score`); we just sum them per (experiment, target)
-  // bucket, weighting averages by run eval_count.
+  // Safe because the server already exposes per-run totals; we sum them per
+  // (experiment, target) bucket, weighting averages by quality_count so
+  // execution errors do not depress quality scores.
   const filteredData = useMemo<CompareResponse | undefined>(() => {
     if (!data) return data;
     if (filterTags.length === 0) return data;
@@ -89,7 +90,9 @@ export function AnalyticsTab({
       experiment: string;
       target: string;
       eval_count: number;
+      quality_count: number;
       passed_count: number;
+      execution_error_count: number;
       score_sum: number;
       tests: CompareTestResult[];
     };
@@ -105,13 +108,18 @@ export function AnalyticsTab({
         experiment: run.experiment,
         target: run.target,
         eval_count: 0,
+        quality_count: 0,
         passed_count: 0,
+        execution_error_count: 0,
         score_sum: 0,
         tests: [],
       };
+      const runQualityCount = aggregateQualityCount(run);
       entry.eval_count += run.eval_count;
+      entry.quality_count += runQualityCount;
       entry.passed_count += run.passed_count;
-      entry.score_sum += run.avg_score * run.eval_count;
+      entry.execution_error_count += executionErrorCount(run);
+      entry.score_sum += run.avg_score * runQualityCount;
       for (const t of run.tests) entry.tests.push(t);
       cellMap.set(key, entry);
     }
@@ -124,9 +132,11 @@ export function AnalyticsTab({
         experiment: e.experiment,
         target: e.target,
         eval_count: e.eval_count,
+        quality_count: e.quality_count,
         passed_count: e.passed_count,
-        pass_rate: e.eval_count > 0 ? e.passed_count / e.eval_count : 0,
-        avg_score: e.eval_count > 0 ? e.score_sum / e.eval_count : 0,
+        execution_error_count: e.execution_error_count,
+        pass_rate: e.quality_count > 0 ? e.passed_count / e.quality_count : 0,
+        avg_score: e.quality_count > 0 ? e.score_sum / e.quality_count : 0,
         tests: [...dedup.values()].slice(-100),
       };
     });
@@ -442,6 +452,8 @@ function AggregatedRow({
 function MatrixCell({ cell }: { cell: CompareCell }) {
   const [expanded, setExpanded] = useState(false);
   const avgPct = Math.round(cell.avg_score * 100);
+  const qualityCount = aggregateQualityCount(cell);
+  const errors = executionErrorCount(cell);
   return (
     <div className="space-y-2">
       <button
@@ -455,10 +467,16 @@ function MatrixCell({ cell }: { cell: CompareCell }) {
           <span>
             <span className="text-emerald-400">{cell.passed_count}</span>
             <span className="text-gray-600"> / </span>
-            <span>{cell.eval_count}</span>
+            <span>{qualityCount}</span>
           </span>
           <span className="text-gray-700">·</span>
           <span>avg {avgPct}%</span>
+          {errors > 0 && (
+            <>
+              <span className="text-gray-700">·</span>
+              <span className="text-amber-400">{errors} errors</span>
+            </>
+          )}
         </div>
       </button>
       {expanded && <TestBreakdown tests={cell.tests} />}
@@ -477,20 +495,29 @@ function TestBreakdown({ tests }: { tests: CompareTestResult[] }) {
         Test cases
       </div>
       <ul className="space-y-1">
-        {tests.map((t) => (
-          <li key={t.test_id} className="flex items-center gap-2 text-xs">
-            <span
-              aria-hidden
-              className={`h-1.5 w-1.5 rounded-full ${t.passed ? 'bg-emerald-400' : 'bg-red-400'}`}
-            />
-            <span className="flex-1 truncate text-gray-300" title={t.test_id}>
-              {t.test_id}
-            </span>
-            <span className={`tabular-nums ${t.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-              {Math.round(t.score * 100)}%
-            </span>
-          </li>
-        ))}
+        {tests.map((t) => {
+          const isError = t.execution_status === 'execution_error';
+          return (
+            <li key={t.test_id} className="flex items-center gap-2 text-xs">
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  isError ? 'bg-amber-400' : t.passed ? 'bg-emerald-400' : 'bg-red-400'
+                }`}
+              />
+              <span className="flex-1 truncate text-gray-300" title={t.test_id}>
+                {t.test_id}
+              </span>
+              <span
+                className={`tabular-nums ${
+                  isError ? 'text-amber-400' : t.passed ? 'text-emerald-400' : 'text-red-400'
+                }`}
+              >
+                {isError ? 'error' : `${Math.round(t.score * 100)}%`}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -551,8 +578,8 @@ function PerRunView({
               <th className="px-4 py-3 font-medium text-gray-400">Tags</th>
               <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Pass rate</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Tests</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Avg</th>
             </tr>
           </thead>
@@ -628,6 +655,8 @@ function PerRunRow({
   readOnly: boolean;
 }) {
   const avgPct = Math.round(run.avg_score * 100);
+  const qualityCount = aggregateQualityCount(run);
+  const errors = executionErrorCount(run);
   const canEdit = !readOnly;
   const tagsBtnRef = useRef<HTMLButtonElement>(null);
   const tags = run.tags ?? [];
@@ -704,7 +733,8 @@ function PerRunRow({
         <td className="px-4 py-3 align-middle text-gray-300">{run.experiment}</td>
         <td className="px-4 py-3 align-middle text-gray-300">{run.target}</td>
         <td className="px-4 py-3 align-middle text-right tabular-nums text-gray-400">
-          {run.eval_count}
+          <div>{qualityCount}</div>
+          {errors > 0 && <div className="text-xs text-amber-400">{errors} errors</div>}
         </td>
         <td className="px-4 py-3 align-middle">
           <PassRatePill rate={run.pass_rate} />
@@ -993,7 +1023,7 @@ function PerRunCompareView({
             </tr>
             <tr className="border-t border-gray-800/50 bg-gray-900/30">
               <th className="sticky left-0 z-10 bg-gray-900/80 px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 backdrop-blur">
-                Pass rate
+                Quality pass rate
               </th>
               {runs.map((run) => (
                 <th key={run.run_id} className="px-4 py-2">
@@ -1021,19 +1051,28 @@ function PerRunCompareView({
                   return (
                     <td key={runId} className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span
-                          aria-hidden
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            t.passed ? 'bg-emerald-400' : 'bg-red-400'
-                          }`}
-                        />
-                        <span
-                          className={`tabular-nums ${
-                            t.passed ? 'text-emerald-400' : 'text-red-400'
-                          }`}
-                        >
-                          {Math.round(t.score * 100)}%
-                        </span>
+                        {t.execution_status === 'execution_error' ? (
+                          <>
+                            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                            <span className="tabular-nums text-amber-400">error</span>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              aria-hidden
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                t.passed ? 'bg-emerald-400' : 'bg-red-400'
+                              }`}
+                            />
+                            <span
+                              className={`tabular-nums ${
+                                t.passed ? 'text-emerald-400' : 'text-red-400'
+                              }`}
+                            >
+                              {Math.round(t.score * 100)}%
+                            </span>
+                          </>
+                        )}
                       </div>
                     </td>
                   );

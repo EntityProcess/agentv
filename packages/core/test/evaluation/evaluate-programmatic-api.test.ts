@@ -37,6 +37,44 @@ describe('evaluate() — programmatic API extensions', () => {
     PROGRAMMATIC_API_TIMEOUT_MS,
   );
 
+  it(
+    'excludes execution errors from quality summary counts',
+    async () => {
+      const { results, summary } = await evaluate({
+        tests: [
+          {
+            id: 'quality-pass',
+            input: 'ok',
+            assert: [{ type: 'contains', value: 'task ok' }],
+          },
+          {
+            id: 'provider-error',
+            input: 'explode',
+            assert: [{ type: 'contains', value: 'task ok' }],
+          },
+        ],
+        task: async (input) => {
+          if (input === 'explode') {
+            throw new Error('provider unavailable');
+          }
+          return 'task ok';
+        },
+        maxRetries: 0,
+      });
+
+      expect(results.map((result) => result.executionStatus).sort()).toEqual([
+        'execution_error',
+        'ok',
+      ]);
+      expect(summary.total).toBe(2);
+      expect(summary.passed).toBe(1);
+      expect(summary.failed).toBe(0);
+      expect(summary.executionErrors).toBe(1);
+      expect(summary.meanScore).toBe(1);
+    },
+    PROGRAMMATIC_API_TIMEOUT_MS,
+  );
+
   // ---------------------------------------------------------------------------
   // response cache
   // ---------------------------------------------------------------------------

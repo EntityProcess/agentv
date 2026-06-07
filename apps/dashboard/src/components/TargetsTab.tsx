@@ -15,6 +15,7 @@ import {
   runListOptions,
   targetsOptions,
 } from '~/lib/api';
+import { aggregateQualityCount, executionErrorCount } from '~/lib/result-summary';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 import type { RunMeta, TargetsResponse } from '~/lib/types';
 
@@ -30,7 +31,9 @@ interface ExperimentRunGroup {
   runs: RunMeta[];
   latestTimestamp: string | null;
   evalCount: number;
+  qualityCount: number;
   passedCount: number;
+  executionErrorCount: number;
   passRate: number;
 }
 
@@ -112,38 +115,46 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Experiments</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Evals</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Execution Errors</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
-            {targets.map((target) => (
-              <tr key={target.name} className="transition-colors hover:bg-gray-900/30">
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTargetName(target.name)}
-                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                  >
-                    {target.name}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                  {target.run_count}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                  {target.experiment_count}
-                </td>
-                <td className="px-4 py-3">
-                  <PassRatePill rate={target.pass_rate} />
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                  <span className="text-emerald-400">{target.passed_count}</span>
-                  <span className="text-gray-600"> / </span>
-                  <span>{target.eval_count}</span>
-                </td>
-              </tr>
-            ))}
+            {targets.map((target) => {
+              const qualityCount = aggregateQualityCount(target);
+              const errors = executionErrorCount(target);
+              return (
+                <tr key={target.name} className="transition-colors hover:bg-gray-900/30">
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTargetName(target.name)}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {target.name}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                    {target.run_count}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                    {target.experiment_count}
+                  </td>
+                  <td className="px-4 py-3">
+                    <PassRatePill rate={target.pass_rate} />
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                    <span className="text-emerald-400">{target.passed_count}</span>
+                    <span className="text-gray-600"> / </span>
+                    <span>{qualityCount}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-amber-400">
+                    {errors > 0 ? errors : <span className="text-gray-600">0</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -170,7 +181,12 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
                 {selectedTarget.experiment_count === 1 ? '' : 's'} &middot;{' '}
                 <span className="text-emerald-400">{selectedTarget.passed_count}</span>
                 <span className="text-gray-600"> / </span>
-                {selectedTarget.eval_count} evals passed
+                {aggregateQualityCount(selectedTarget)} quality evals passed
+                {executionErrorCount(selectedTarget) > 0 && (
+                  <span className="ml-2 text-amber-400">
+                    &middot; {executionErrorCount(selectedTarget)} execution errors
+                  </span>
+                )}
               </p>
             </div>
             <div className="w-full max-w-52">
@@ -200,7 +216,12 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
                     {group.runs.length} run{group.runs.length === 1 ? '' : 's'} &middot;{' '}
                     <span className="text-emerald-400">{group.passedCount}</span>
                     <span className="text-gray-600"> / </span>
-                    {group.evalCount} evals passed
+                    {group.qualityCount} quality evals passed
+                    {group.executionErrorCount > 0 && (
+                      <span className="ml-2 text-amber-400">
+                        &middot; {group.executionErrorCount} execution errors
+                      </span>
+                    )}
                     {group.latestTimestamp && (
                       <span className="ml-2 text-gray-500">
                         &middot; Last run {formatTimestamp(group.latestTimestamp)}
@@ -223,12 +244,18 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
 
 function buildExperimentGroup(name: string, runs: RunMeta[]): ExperimentRunGroup {
   let evalCount = 0;
+  let qualityCount = 0;
   let passedCount = 0;
+  let executionErrorTotal = 0;
   let latestTimestamp: string | null = null;
 
   for (const run of runs) {
+    const runExecutionErrors = executionErrorCount(run);
+    const runQualityCount = Math.max(0, run.test_count - runExecutionErrors);
     evalCount += run.test_count;
-    passedCount += Math.round(run.pass_rate * run.test_count);
+    qualityCount += runQualityCount;
+    executionErrorTotal += runExecutionErrors;
+    passedCount += Math.round(run.pass_rate * runQualityCount);
     if (run.timestamp && (!latestTimestamp || run.timestamp > latestTimestamp)) {
       latestTimestamp = run.timestamp;
     }
@@ -239,8 +266,10 @@ function buildExperimentGroup(name: string, runs: RunMeta[]): ExperimentRunGroup
     runs,
     latestTimestamp,
     evalCount,
+    qualityCount,
     passedCount,
-    passRate: evalCount > 0 ? passedCount / evalCount : 0,
+    executionErrorCount: executionErrorTotal,
+    passRate: qualityCount > 0 ? passedCount / qualityCount : 0,
   };
 }
 

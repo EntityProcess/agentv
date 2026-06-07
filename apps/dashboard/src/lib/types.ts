@@ -13,6 +13,7 @@ export interface RunMeta {
   test_count: number;
   pass_rate: number;
   avg_score: number;
+  execution_error_count?: number;
   size_bytes: number;
   target?: string;
   experiment?: string;
@@ -106,6 +107,7 @@ export interface SuiteSummary {
   passed: number;
   failed: number;
   avg_score: number;
+  execution_error_count?: number;
 }
 
 export interface SuitesResponse {
@@ -123,6 +125,7 @@ export interface IndexEntry {
   test_count: number;
   pass_rate: number;
   avg_score: number;
+  execution_error_count?: number;
   total_cost_usd: number;
   timestamp: string;
 }
@@ -146,7 +149,9 @@ export interface ExperimentSummary {
   run_count: number;
   target_count: number;
   eval_count: number;
+  quality_count?: number;
   passed_count: number;
+  execution_error_count?: number;
   pass_rate: number;
   last_run: string;
 }
@@ -166,7 +171,9 @@ export interface CompareCell {
   experiment: string;
   target: string;
   eval_count: number;
+  quality_count?: number;
   passed_count: number;
+  execution_error_count?: number;
   pass_rate: number;
   avg_score: number;
   tests: CompareTestResult[];
@@ -195,7 +202,9 @@ export interface CompareRunEntry {
   metadata_dirty?: boolean;
   source: 'local' | 'remote';
   eval_count: number;
+  quality_count?: number;
   passed_count: number;
+  execution_error_count?: number;
   pass_rate: number;
   avg_score: number;
   tests: CompareTestResult[];
@@ -244,6 +253,8 @@ export interface TargetSummary {
   pass_rate: number;
   passed_count: number;
   eval_count: number;
+  quality_count?: number;
+  execution_error_count?: number;
 }
 
 export interface TargetsResponse {
@@ -272,6 +283,7 @@ export interface CategorySummary {
   passed: number;
   failed: number;
   avg_score: number;
+  execution_error_count?: number;
   suite_count: number;
 }
 
@@ -335,6 +347,7 @@ export interface ProjectSummary {
   last_opened_at: string;
   run_count: number;
   pass_rate: number;
+  execution_error_count?: number;
   last_run: string | null;
 }
 
