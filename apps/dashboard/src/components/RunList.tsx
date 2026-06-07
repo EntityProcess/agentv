@@ -2,7 +2,7 @@
  * Sortable run table component.
  *
  * Displays all available runs with a pass/fail status dot, human-readable name,
- * source badge, date, test count, and coloured pass-rate pill.
+ * source badge, date, quality test count, execution-error count, and coloured pass-rate pill.
  * Clicking a row navigates to the run detail view.
  *
  * In-progress runs (status `starting` / `running`, surfaced by the backend
@@ -25,6 +25,7 @@ import {
   deleteRunApi,
   useStudioConfig,
 } from '~/lib/api';
+import { executionErrorCount } from '~/lib/result-summary';
 import { formatRunLabel } from '~/lib/run-label';
 import {
   buildCombineSuccessMessage,
@@ -334,21 +335,24 @@ export function RunList({
               <th className="w-8 px-4 py-3" />
               <th className="px-4 py-3 font-medium text-gray-400">Run</th>
               <th className="px-4 py-3 font-medium text-gray-400">Source</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Failed</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Total</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Passed</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Failures</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Errors</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Total</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
               <th className="px-4 py-3 font-medium text-gray-400">When</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
             {runs.map((run) => {
               const ts = formatDate(run.timestamp);
-              const passing = run.pass_rate >= passThreshold;
               const isActive = run.status === 'starting' || run.status === 'running';
               const label = formatRunLabel(run);
-              const passedCount = Math.round(run.pass_rate * run.test_count);
-              const failedCount = run.test_count - passedCount;
+              const errors = executionErrorCount(run);
+              const qualityCount = Math.max(0, run.test_count - errors);
+              const passing = qualityCount > 0 ? run.pass_rate >= passThreshold : errors === 0;
+              const passedCount = Math.round(run.pass_rate * qualityCount);
+              const failedCount = qualityCount - passedCount;
               const selectionDisabledReason = runSelectionDisabledReason(run);
               const selectable =
                 !selectionDisabledReason && selectableRunIds.includes(run.filename);
@@ -372,7 +376,7 @@ export function RunList({
                       />
                     </td>
                   )}
-                  {/* Status dot — spinner for active runs, otherwise pass/fail */}
+                  {/* Status dot — spinner for active runs, otherwise quality pass/fail. */}
                   <td className="px-4 py-3 text-center">
                     {isActive ? (
                       <span
@@ -380,6 +384,10 @@ export function RunList({
                         title={run.status === 'starting' ? 'Starting…' : 'Running…'}
                         aria-label={run.status === 'starting' ? 'Starting' : 'Running'}
                       />
+                    ) : qualityCount === 0 && errors > 0 ? (
+                      <span className="text-base font-bold text-amber-300" title="Execution errors">
+                        !
+                      </span>
                     ) : (
                       <span
                         className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
@@ -440,8 +448,15 @@ export function RunList({
                   <td className="px-4 py-3 text-right tabular-nums text-red-400">
                     {failedCount > 0 ? failedCount : <span className="text-gray-600">0</span>}
                   </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {errors > 0 ? (
+                      <span className="text-amber-300">{errors}</span>
+                    ) : (
+                      <span className="text-gray-600">0</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                    {run.test_count}
+                    {qualityCount}
                   </td>
 
                   {/* Pass rate pill */}
@@ -459,7 +474,7 @@ export function RunList({
             {(hasNextPage || isFetchingNextPage) && (
               <tr ref={sentinelRef}>
                 <td
-                  colSpan={enableCombine ? 9 : 8}
+                  colSpan={enableCombine ? 10 : 9}
                   className="px-4 py-3 text-center text-xs text-gray-500"
                 >
                   {isFetchingNextPage ? 'Loading more runs…' : 'Scroll to load more…'}

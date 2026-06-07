@@ -10,7 +10,8 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 
 import { PassRatePill } from '~/components/PassRatePill';
 import { StatsCards } from '~/components/StatsCards';
-import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
+import { useRunDetail, useStudioConfig } from '~/lib/api';
+import { isExecutionError, summarizeQuality } from '~/lib/result-summary';
 
 export const Route = createFileRoute('/runs/$runId_/suite/$suite')({
   component: SuitePage,
@@ -45,9 +46,7 @@ function SuitePage() {
 
   const results = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
   const total = results.length;
-  const passed = results.filter((r) => isPassing(r.score, passThreshold)).length;
-  const failed = total - passed;
-  const passRate = total > 0 ? passed / total : 0;
+  const summary = summarizeQuality(results, passThreshold);
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   return (
@@ -59,9 +58,10 @@ function SuitePage() {
 
       <StatsCards
         total={total}
-        passed={passed}
-        failed={failed}
-        passRate={passRate}
+        passed={summary.passed}
+        failed={summary.failed}
+        passRate={summary.passRate}
+        executionErrors={summary.executionErrors}
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
 
@@ -76,7 +76,7 @@ function SuitePage() {
               <tr>
                 <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
+                <th className="w-48 px-4 py-3 font-medium text-gray-400">Quality Score</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
               </tr>
@@ -98,9 +98,9 @@ function SuitePage() {
                   </td>
                   <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
                   <td className="px-4 py-3">
-                    {result.executionStatus === 'execution_error' ? (
-                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-red-900/50 text-red-400">
-                        ERR
+                    {isExecutionError(result) ? (
+                      <span className="inline-flex rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
+                        Execution error
                       </span>
                     ) : (
                       <PassRatePill rate={result.score} />

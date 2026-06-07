@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
 import { projectExperimentsOptions, useExperiments } from '~/lib/api';
+import { aggregateQualityCount, executionErrorCount } from '~/lib/result-summary';
 import type { ExperimentSummary } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -47,50 +48,58 @@ export function ExperimentsTab({ projectId }: ExperimentsTabProps) {
             <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Targets</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Evals</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Execution Errors</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
             <th className="px-4 py-3 font-medium text-gray-400">Last Run</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800/50">
-          {experiments.map((exp: ExperimentSummary) => (
-            <tr key={exp.name} className="transition-colors hover:bg-gray-900/30">
-              <td className="px-4 py-3">
-                {projectId ? (
-                  <Link
-                    to="/projects/$projectId/experiments/$experimentName"
-                    params={{ projectId, experimentName: exp.name }}
-                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                  >
-                    {exp.name}
-                  </Link>
-                ) : (
-                  <Link
-                    to="/experiments/$experimentName"
-                    params={{ experimentName: exp.name }}
-                    className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                  >
-                    {exp.name}
-                  </Link>
-                )}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums text-gray-400">{exp.run_count}</td>
-              <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                {exp.target_count}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                <span className="text-emerald-400">{exp.passed_count}</span>
-                <span className="text-gray-600"> / </span>
-                {exp.eval_count}
-              </td>
-              <td className="px-4 py-3">
-                <PassRatePill rate={exp.pass_rate} />
-              </td>
-              <td className="px-4 py-3 text-gray-400" title={formatTimestamp(exp.last_run).full}>
-                {formatTimestamp(exp.last_run).date}
-              </td>
-            </tr>
-          ))}
+          {experiments.map((exp: ExperimentSummary) => {
+            const qualityCount = aggregateQualityCount(exp);
+            const errors = executionErrorCount(exp);
+            return (
+              <tr key={exp.name} className="transition-colors hover:bg-gray-900/30">
+                <td className="px-4 py-3">
+                  {projectId ? (
+                    <Link
+                      to="/projects/$projectId/experiments/$experimentName"
+                      params={{ projectId, experimentName: exp.name }}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {exp.name}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/experiments/$experimentName"
+                      params={{ experimentName: exp.name }}
+                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {exp.name}
+                    </Link>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-gray-400">{exp.run_count}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                  {exp.target_count}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-gray-400">
+                  <span className="text-emerald-400">{exp.passed_count}</span>
+                  <span className="text-gray-600"> / </span>
+                  {qualityCount}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-amber-400">
+                  {errors > 0 ? errors : <span className="text-gray-600">0</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <PassRatePill rate={exp.pass_rate} />
+                </td>
+                <td className="px-4 py-3 text-gray-400" title={formatTimestamp(exp.last_run).full}>
+                  {formatTimestamp(exp.last_run).date}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

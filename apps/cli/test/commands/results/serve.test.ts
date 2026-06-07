@@ -55,6 +55,22 @@ const RESULT_B = {
   cost_usd: 0.003,
 };
 
+const RESULT_EXECUTION_ERROR = {
+  timestamp: '2026-03-18T10:00:07.000Z',
+  test_id: 'test-provider-timeout',
+  suite: 'demo',
+  category: 'runtime',
+  score: 0,
+  assertions: [{ text: 'Execution failed before grading', passed: false }],
+  target: 'gpt-4o',
+  execution_status: 'execution_error',
+  failure_stage: 'target',
+  failure_reason_code: 'provider_timeout',
+  execution_error: {
+    message: 'Provider timed out',
+  },
+};
+
 function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
@@ -679,6 +695,84 @@ describe('serve app', () => {
       const data = (await res.json()) as { runs: Array<{ pass_rate: number }> };
       expect(data.runs).toHaveLength(1);
       expect(data.runs[0].pass_rate).toBe(0);
+    });
+
+    it('reports execution errors separately from quality failures in run summaries', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      const qualityPass = { ...RESULT_A, category: 'runtime' };
+      const qualityFail = { ...RESULT_B, category: 'runtime' };
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl(qualityPass, qualityFail, RESULT_EXECUTION_ERROR),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const runRes = await app.request('/api/runs');
+      expect(runRes.status).toBe(200);
+      const runData = (await runRes.json()) as {
+        runs: Array<{
+          test_count: number;
+          pass_rate: number;
+          avg_score: number;
+          execution_error_count?: number;
+        }>;
+      };
+      expect(runData.runs).toHaveLength(1);
+      expect(runData.runs[0].test_count).toBe(3);
+      expect(runData.runs[0].execution_error_count).toBe(1);
+      expect(runData.runs[0].pass_rate).toBe(0.5);
+      expect(runData.runs[0].avg_score).toBe(0.75);
+
+      const suitesRes = await app.request(`/api/runs/${filename}/suites`);
+      expect(suitesRes.status).toBe(200);
+      const suitesData = (await suitesRes.json()) as {
+        suites: Array<{
+          name: string;
+          total: number;
+          passed: number;
+          failed: number;
+          execution_error_count?: number;
+        }>;
+      };
+      expect(suitesData.suites).toEqual([
+        {
+          name: 'demo',
+          total: 3,
+          passed: 1,
+          failed: 1,
+          avg_score: 0.75,
+          execution_error_count: 1,
+        },
+      ]);
+
+      const categoriesRes = await app.request(`/api/runs/${filename}/categories`);
+      expect(categoriesRes.status).toBe(200);
+      const categoriesData = (await categoriesRes.json()) as {
+        categories: Array<{
+          name: string;
+          total: number;
+          passed: number;
+          failed: number;
+          execution_error_count?: number;
+          suite_count: number;
+        }>;
+      };
+      expect(categoriesData.categories).toEqual([
+        {
+          name: 'runtime',
+          total: 3,
+          passed: 1,
+          failed: 1,
+          avg_score: 0.75,
+          execution_error_count: 1,
+          suite_count: 1,
+        },
+      ]);
     });
 
     it('infers the experiment name from the run id when live results have not written it yet', async () => {

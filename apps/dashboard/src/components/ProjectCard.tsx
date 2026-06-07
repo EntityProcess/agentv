@@ -7,6 +7,7 @@
 
 import { Link } from '@tanstack/react-router';
 
+import { executionErrorCount } from '~/lib/result-summary';
 import type { ProjectSummary } from '~/lib/types';
 
 function formatTimeAgo(timestamp: string | null): string {
@@ -25,6 +26,7 @@ function formatTimeAgo(timestamp: string | null): string {
 
 export function ProjectCard({ project }: { project: ProjectSummary }) {
   const passPercent = Math.round(project.pass_rate * 100);
+  const errors = executionErrorCount(project);
 
   return (
     <Link
@@ -41,13 +43,13 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-4 gap-3">
         <div>
           <p className="text-xs text-gray-500">Runs</p>
           <p className="text-lg font-semibold text-white">{project.run_count}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Pass Rate</p>
+          <p className="text-xs text-gray-500">Quality</p>
           <p
             className={`text-lg font-semibold ${
               project.run_count === 0
@@ -60,6 +62,12 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
             }`}
           >
             {project.run_count > 0 ? `${passPercent}%` : '--'}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Errors</p>
+          <p className={`text-lg font-semibold ${errors > 0 ? 'text-amber-300' : 'text-gray-500'}`}>
+            {errors}
           </p>
         </div>
         <div>

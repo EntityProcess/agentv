@@ -18,6 +18,7 @@ import { Link } from '@tanstack/react-router';
 import type { EvalResult } from '~/lib/types';
 
 import { isPassing, useRunLog, useStudioConfig } from '~/lib/api';
+import { isExecutionError, summarizeQuality } from '~/lib/result-summary';
 import { formatCategoryDisplay } from '~/lib/run-detail-context';
 
 import { PassRatePill } from './PassRatePill';
@@ -33,6 +34,7 @@ interface SuiteStats {
   name: string;
   passed: number;
   failed: number;
+  executionErrors: number;
   total: number;
   avgScore: number;
 }
@@ -45,14 +47,12 @@ interface CategoryGroup {
   total: number;
   passed: number;
   failed: number;
+  executionErrors: number;
   avgScore: number;
 }
 
 function buildCategoryGroups(results: EvalResult[], passThreshold: number): CategoryGroup[] {
-  const categoryMap = new Map<
-    string,
-    Map<string, { passed: number; failed: number; total: number; scoreSum: number }>
-  >();
+  const categoryMap = new Map<string, Map<string, EvalResult[]>>();
 
   for (const r of results) {
     const cat = r.category ?? 'Uncategorized';
@@ -60,28 +60,33 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
     if (!categoryMap.has(cat)) categoryMap.set(cat, new Map());
     // biome-ignore lint/style/noNonNullAssertion: map entry guaranteed by line above
     const dsMap = categoryMap.get(cat)!;
-    const entry = dsMap.get(ds) ?? { passed: 0, failed: 0, total: 0, scoreSum: 0 };
-    entry.total += 1;
-    entry.scoreSum += r.score;
-    if (isPassing(r.score, passThreshold)) entry.passed += 1;
-    else entry.failed += 1;
+    const entry = dsMap.get(ds) ?? [];
+    entry.push(r);
     dsMap.set(ds, entry);
   }
 
   return Array.from(categoryMap.entries())
     .map(([catName, dsMap]) => {
       const suites = Array.from(dsMap.entries())
-        .map(([dsName, stats]) => ({
-          name: dsName,
-          ...stats,
-          avgScore: stats.total > 0 ? stats.scoreSum / stats.total : 0,
-        }))
+        .map(([dsName, suiteResults]) => {
+          const stats = summarizeQuality(suiteResults, passThreshold);
+          return {
+            name: dsName,
+            passed: stats.passed,
+            failed: stats.failed,
+            executionErrors: stats.executionErrors,
+            total: stats.total,
+            avgScore: stats.avgScore,
+          };
+        })
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const total = suites.reduce((s, d) => s + d.total, 0);
       const passed = suites.reduce((s, d) => s + d.passed, 0);
       const failed = suites.reduce((s, d) => s + d.failed, 0);
-      const scoreSum = suites.reduce((s, d) => s + d.avgScore * d.total, 0);
+      const executionErrors = suites.reduce((s, d) => s + d.executionErrors, 0);
+      const qualityTotal = total - executionErrors;
+      const scoreSum = suites.reduce((s, d) => s + d.avgScore * (d.total - d.executionErrors), 0);
 
       const display = formatCategoryDisplay(catName);
 
@@ -93,7 +98,8 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
         total,
         passed,
         failed,
-        avgScore: total > 0 ? scoreSum / total : 0,
+        executionErrors,
+        avgScore: qualityTotal > 0 ? scoreSum / qualityTotal : 0,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -104,9 +110,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
 
   const total = results.length;
-  const passed = results.filter((r) => isPassing(r.score, passThreshold)).length;
-  const failed = total - passed;
-  const passRate = total > 0 ? passed / total : 0;
+  const summary = summarizeQuality(results, passThreshold);
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   const categories = buildCategoryGroups(results, passThreshold);
@@ -127,9 +131,10 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
     <div className="space-y-6">
       <StatsCards
         total={total}
-        passed={passed}
-        failed={failed}
-        passRate={passRate}
+        passed={summary.passed}
+        failed={summary.failed}
+        passRate={summary.passRate}
+        executionErrors={summary.executionErrors}
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
 
@@ -141,9 +146,14 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
             <thead className="border-b border-gray-800 bg-gray-900/50">
               <tr>
                 <th className="px-4 py-2.5 font-medium text-gray-400">Category</th>
-                <th className="px-4 py-2.5 font-medium text-gray-400">Pass Rate</th>
+                <th className="px-4 py-2.5 font-medium text-gray-400">Quality Pass Rate</th>
                 <th className="px-4 py-2.5 text-right font-medium text-gray-400">Passed</th>
-                <th className="px-4 py-2.5 text-right font-medium text-gray-400">Failed</th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-400">
+                  Quality Failures
+                </th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-400">
+                  Execution Errors
+                </th>
                 <th className="px-4 py-2.5 text-right font-medium text-gray-400">Total</th>
               </tr>
             </thead>
@@ -187,13 +197,26 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <PassRatePill rate={cat.total > 0 ? cat.passed / cat.total : 0} />
+                      <PassRatePill
+                        rate={
+                          cat.total - cat.executionErrors > 0
+                            ? cat.passed / (cat.total - cat.executionErrors)
+                            : 0
+                        }
+                      />
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-emerald-400">
                       {cat.passed}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-red-400">
                       {cat.failed > 0 ? cat.failed : <span className="text-gray-600">0</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-amber-400">
+                      {cat.executionErrors > 0 ? (
+                        cat.executionErrors
+                      ) : (
+                        <span className="text-gray-600">0</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">
                       {cat.total}
@@ -216,14 +239,14 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                 <th className="w-8 px-4 py-3" />
                 <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
+                <th className="w-48 px-4 py-3 font-medium text-gray-400">Quality Score</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {results.map((result, idx) => {
-                const isError = result.executionStatus === 'execution_error';
+                const isError = isExecutionError(result);
                 const passing = isPassing(result.score, passThreshold);
                 return (
                   <tr
@@ -233,7 +256,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                     {/* Status dot */}
                     <td className="px-4 py-3 text-center">
                       {isError ? (
-                        <span className="text-base font-bold text-red-400">!</span>
+                        <span className="text-base font-bold text-amber-400">!</span>
                       ) : (
                         <span
                           className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
@@ -264,8 +287,8 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                     <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
                     <td className="px-4 py-3">
                       {isError ? (
-                        <span className="inline-flex rounded-full bg-red-900/50 px-2 py-0.5 text-xs font-medium text-red-400">
-                          ERR
+                        <span className="inline-flex rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
+                          Execution error
                         </span>
                       ) : (
                         <PassRatePill rate={result.score} />

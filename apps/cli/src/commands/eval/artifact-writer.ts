@@ -220,6 +220,10 @@ function computePassRate(result: EvaluationResult): number {
   return (result.score ?? 0) >= DEFAULT_THRESHOLD ? 1.0 : 0.0;
 }
 
+function isExecutionError(result: EvaluationResult): boolean {
+  return result.executionStatus === 'execution_error';
+}
+
 // ---------------------------------------------------------------------------
 // Tool-call counting from trace data
 // ---------------------------------------------------------------------------
@@ -410,8 +414,9 @@ export function buildBenchmarkArtifact(
 
   for (const target of targets) {
     const targetResults = results.filter((r) => r.target === target);
+    const qualityResults = targetResults.filter((r) => !isExecutionError(r));
 
-    const passRates = targetResults.map(computePassRate);
+    const passRates = qualityResults.map(computePassRate);
     const timings = targetResults
       .filter((r) => r.durationMs != null)
       .map((r) => (r.durationMs as number) / 1000);
@@ -446,6 +451,9 @@ export function buildBenchmarkArtifact(
   // Per-grader summary across all results
   const evaluatorScores = new Map<string, number[]>();
   for (const result of results) {
+    if (isExecutionError(result)) {
+      continue;
+    }
     if (result.scores) {
       for (const score of result.scores) {
         const key = `${score.name}:${score.type}`;
@@ -470,7 +478,7 @@ export function buildBenchmarkArtifact(
   ).length;
   if (errorCount > 0) {
     notes.push(
-      `${errorCount} test(s) had execution errors and are included in pass_rate as failures`,
+      `${errorCount} test(s) had execution errors and are excluded from quality pass_rate`,
     );
   }
   if (results.length === 0) {
@@ -529,7 +537,7 @@ export function buildAggregateGradingArtifact(
 ): AggregateGradingArtifact {
   const assertions: AggregateGradingArtifact['assertions'][number][] = [];
 
-  for (const result of results) {
+  for (const result of results.filter((r) => !isExecutionError(r))) {
     if (!result.assertions) continue;
     const testId = result.testId ?? 'unknown';
     for (const a of result.assertions) {
