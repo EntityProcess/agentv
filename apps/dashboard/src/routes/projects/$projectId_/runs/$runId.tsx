@@ -63,10 +63,15 @@ function ProjectRunDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold text-white">{header.heading}</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1
+              className="min-w-0 truncate text-xl font-semibold text-white sm:text-2xl"
+              title={header.heading}
+            >
+              {header.heading}
+            </h1>
             {header.sourceBadge ? (
               <span className="rounded-md border border-cyan-900/60 bg-cyan-950/20 px-2 py-0.5 text-xs font-medium text-cyan-300">
                 {header.sourceBadge}
@@ -84,7 +89,7 @@ function ProjectRunDetailPage() {
             </div>
           ) : null}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
           {!isReadOnly && isActiveRun ? (
             <StopRunButton
               runId={runId}

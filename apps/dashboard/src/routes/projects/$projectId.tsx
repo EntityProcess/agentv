@@ -71,8 +71,8 @@ function ProjectHomePage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="border-b border-gray-800">
-        <div className="flex gap-1">
+      <div className="overflow-x-auto border-b border-gray-800">
+        <div className="flex min-w-max gap-1">
           {tabs.map((t) => (
             <button
               type="button"
@@ -84,7 +84,7 @@ function ProjectHomePage() {
                   search: { tab: t.id } as Record<string, string>,
                 })
               }
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
+              className={`shrink-0 px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === t.id
                   ? 'border-b-2 border-cyan-400 text-cyan-400'
                   : 'text-gray-400 hover:text-gray-300'

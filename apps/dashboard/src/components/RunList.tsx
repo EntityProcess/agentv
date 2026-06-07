@@ -5,6 +5,10 @@
  * source badge, date, test count, and coloured pass-rate pill.
  * Clicking a row navigates to the run detail view.
  *
+ * The table keeps cells on one line and scrolls horizontally on narrow
+ * viewports. Add future columns by extending the table; the min-width keeps the
+ * mobile behavior stable instead of squeezing or clipping right-side columns.
+ *
  * In-progress runs (status `starting` / `running`, surfaced by the backend
  * via the RunMeta `status` field while a Dashboard-launched run is still
  * tracked in-memory) render a pulsing cyan dot instead of the pass/fail
@@ -326,13 +330,13 @@ export function RunList({
           </div>
         </div>
       )}
-      <div className="overflow-hidden rounded-lg border border-gray-800">
-        <table className="w-full text-left text-sm">
+      <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+        <table className="min-w-[780px] w-full whitespace-nowrap text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
               {enableCombine && <th className="w-10 px-4 py-3" />}
               <th className="w-8 px-4 py-3" />
-              <th className="px-4 py-3 font-medium text-gray-400">Run</th>
+              <th className="w-[22rem] px-4 py-3 font-medium text-gray-400">Run</th>
               <th className="px-4 py-3 font-medium text-gray-400">Source</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Failed</th>
@@ -390,28 +394,30 @@ export function RunList({
                   </td>
 
                   {/* Run name */}
-                  <td className="px-4 py-3">
-                    {projectId ? (
-                      <Link
-                        to="/projects/$projectId/runs/$runId"
-                        params={{ projectId, runId: run.filename }}
-                        className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                      >
-                        {label}
-                      </Link>
-                    ) : (
-                      <Link
-                        to="/runs/$runId"
-                        params={{ runId: run.filename }}
-                        className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                      >
-                        {label}
-                      </Link>
-                    )}
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  <td className="w-[22rem] max-w-[22rem] px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {projectId ? (
+                        <Link
+                          to="/projects/$projectId/runs/$runId"
+                          params={{ projectId, runId: run.filename }}
+                          className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                          title={label}
+                        >
+                          {label}
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/runs/$runId"
+                          params={{ runId: run.filename }}
+                          className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                          title={label}
+                        >
+                          {label}
+                        </Link>
+                      )}
                       {metadataDirty ? (
                         <span
-                          className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-1.5 py-0.5 text-yellow-300"
+                          className="shrink-0 rounded-md border border-yellow-900/60 bg-yellow-950/20 px-1.5 py-0.5 text-xs text-yellow-300"
                           title="Use Sync Metadata to push this metadata to the results repo."
                         >
                           Pending sync
