@@ -26,7 +26,13 @@ import {
   useStudioConfig,
 } from '~/lib/api';
 import { formatRunLabel } from '~/lib/run-label';
-import type { RunMeta } from '~/lib/types';
+import {
+  buildCombineSuccessMessage,
+  buildDeleteSuccessMessage,
+  formatSelectedRunCount,
+  runSelectionDisabledReason,
+} from '~/lib/run-list-actions';
+import type { CombineRunsResponse, RunMeta } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
 
@@ -38,6 +44,13 @@ interface RunListProps {
   isFetchingNextPage?: boolean;
   onLoadMore?: () => void;
   enableCombine?: boolean;
+}
+
+interface RunActionFeedback {
+  kind: 'success' | 'error';
+  message: string;
+  combinedRunId?: string;
+  sourceRunIds?: string[];
 }
 
 function formatDate(ts: string | undefined | null): { date: string; full: string } {
@@ -75,19 +88,13 @@ export function RunList({
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
   const requestingNextPageRef = useRef(false);
   const [selectedRunIds, setSelectedRunIds] = useState<string[]>([]);
-  const [combineError, setCombineError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<RunActionFeedback | null>(null);
   const [combineInFlight, setCombineInFlight] = useState(false);
   const [deleteInFlight, setDeleteInFlight] = useState(false);
   const selectableRunIds = useMemo(
     () =>
       runs
-        .filter(
-          (run) =>
-            enableCombine &&
-            run.source === 'local' &&
-            run.status !== 'starting' &&
-            run.status !== 'running',
-        )
+        .filter((run) => enableCombine && !runSelectionDisabledReason(run))
         .map((run) => run.filename),
     [enableCombine, runs],
   );
@@ -150,11 +157,13 @@ export function RunList({
 
   async function handleCombine() {
     if (selectedRunIds.length < 2 || combineInFlight) return;
-    setCombineError(null);
+    const sourceRunIds = [...selectedRunIds];
+    setActionFeedback(null);
     setCombineInFlight(true);
     try {
+      let result: CombineRunsResponse;
       try {
-        await combineRunsApi(selectedRunIds, 'error', projectId);
+        result = await combineRunsApi(sourceRunIds, 'error', projectId);
       } catch (err) {
         if (!(err instanceof CombineRunsApiError) || err.status !== 409) {
           throw err;
@@ -164,12 +173,18 @@ export function RunList({
           `${count} duplicate (test_id, target) pair${count === 1 ? '' : 's'} found. Replace duplicates with the latest timestamp?`,
         );
         if (!confirmed) return;
-        await combineRunsApi(selectedRunIds, 'latest', projectId);
+        result = await combineRunsApi(sourceRunIds, 'latest', projectId);
       }
       setSelectedRunIds([]);
+      setActionFeedback({
+        kind: 'success',
+        message: buildCombineSuccessMessage(sourceRunIds.length, result.display_name),
+        combinedRunId: result.run_id,
+        sourceRunIds,
+      });
       await invalidateRunQueries();
     } catch (err) {
-      setCombineError((err as Error).message);
+      setActionFeedback({ kind: 'error', message: (err as Error).message });
     } finally {
       setCombineInFlight(false);
     }
@@ -177,22 +192,36 @@ export function RunList({
 
   async function handleDelete() {
     if (selectedRunIds.length === 0 || deleteInFlight) return;
-    const count = selectedRunIds.length;
-    const confirmed = window.confirm(
-      `Delete ${count} local run${count === 1 ? '' : 's'}? This removes the run workspace and artifacts from disk.`,
-    );
+    await deleteRuns(selectedRunIds, 'selected');
+  }
+
+  async function handleDeleteCombinedSources() {
+    const sourceRunIds = actionFeedback?.sourceRunIds ?? [];
+    if (sourceRunIds.length === 0 || deleteInFlight) return;
+    await deleteRuns(sourceRunIds, 'combined-sources');
+  }
+
+  async function deleteRuns(runIds: readonly string[], reason: 'selected' | 'combined-sources') {
+    const count = runIds.length;
+    const noun = count === 1 ? 'run' : 'runs';
+    const prompt =
+      reason === 'combined-sources'
+        ? `Delete the ${count} source local ${noun} used for the combined run? The combined run will remain.`
+        : `Delete ${count} local ${noun}? This removes the run workspace and artifacts from disk.`;
+    const confirmed = window.confirm(prompt);
     if (!confirmed) return;
 
-    setCombineError(null);
+    setActionFeedback(null);
     setDeleteInFlight(true);
     try {
-      for (const runId of selectedRunIds) {
+      for (const runId of runIds) {
         await deleteRunApi(runId, projectId);
       }
       setSelectedRunIds([]);
+      setActionFeedback({ kind: 'success', message: buildDeleteSuccessMessage(count) });
       await invalidateRunQueries();
     } catch (err) {
-      setCombineError((err as Error).message);
+      setActionFeedback({ kind: 'error', message: (err as Error).message });
     } finally {
       setDeleteInFlight(false);
     }
@@ -225,29 +254,74 @@ export function RunList({
   return (
     <div className="space-y-3">
       {enableCombine && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900/40 px-4 py-3">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900/40 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium text-gray-200">
-              {selectedRunIds.length} local run{selectedRunIds.length === 1 ? '' : 's'} selected
+              {formatSelectedRunCount(selectedRunIds.length)}
             </p>
-            {combineError && <p className="mt-1 text-xs text-red-400">{combineError}</p>}
+            <p className="text-xs text-gray-500">
+              Select completed local runs to combine or delete. Remote runs stay read-only here.
+            </p>
+            {actionFeedback && (
+              <div
+                className={`mt-2 rounded-md border px-3 py-2 text-sm ${
+                  actionFeedback.kind === 'success'
+                    ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
+                    : 'border-red-900/60 bg-red-950/20 text-red-300'
+                }`}
+                role={actionFeedback.kind === 'error' ? 'alert' : 'status'}
+              >
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>{actionFeedback.message}</span>
+                  {actionFeedback.combinedRunId ? (
+                    projectId ? (
+                      <Link
+                        to="/projects/$projectId/runs/$runId"
+                        params={{ projectId, runId: actionFeedback.combinedRunId }}
+                        className="font-medium text-cyan-300 hover:text-cyan-200 hover:underline"
+                      >
+                        Open combined run
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/runs/$runId"
+                        params={{ runId: actionFeedback.combinedRunId }}
+                        className="font-medium text-cyan-300 hover:text-cyan-200 hover:underline"
+                      >
+                        Open combined run
+                      </Link>
+                    )
+                  ) : null}
+                  {actionFeedback.sourceRunIds && actionFeedback.sourceRunIds.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteCombinedSources()}
+                      disabled={deleteInFlight || combineInFlight}
+                      className="font-medium text-red-300 hover:text-red-200 hover:underline disabled:cursor-not-allowed disabled:text-gray-500"
+                    >
+                      {deleteInFlight ? 'Deleting sources...' : 'Delete source runs'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => void handleDelete()}
               disabled={selectedRunIds.length === 0 || deleteInFlight || combineInFlight}
-              className="rounded-md border border-red-900/70 px-3 py-1.5 text-sm font-medium text-red-300 hover:border-red-700 hover:bg-red-950/40 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-500"
+              className="whitespace-nowrap rounded-md border border-red-900/70 px-3 py-1.5 text-sm font-medium text-red-300 hover:border-red-700 hover:bg-red-950/40 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-500"
             >
-              {deleteInFlight ? 'Deleting...' : 'Delete'}
+              {deleteInFlight ? 'Deleting...' : 'Delete selected'}
             </button>
             <button
               type="button"
               onClick={() => void handleCombine()}
               disabled={selectedRunIds.length < 2 || combineInFlight || deleteInFlight}
-              className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
+              className="whitespace-nowrap rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
             >
-              {combineInFlight ? 'Combining...' : 'Combine'}
+              {combineInFlight ? 'Combining...' : 'Combine selected'}
             </button>
           </div>
         </div>
@@ -275,7 +349,9 @@ export function RunList({
               const label = formatRunLabel(run);
               const passedCount = Math.round(run.pass_rate * run.test_count);
               const failedCount = run.test_count - passedCount;
-              const selectable = selectableRunIds.includes(run.filename);
+              const selectionDisabledReason = runSelectionDisabledReason(run);
+              const selectable =
+                !selectionDisabledReason && selectableRunIds.includes(run.filename);
               const metadataDirty = run.metadata_dirty === true;
               return (
                 <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
@@ -286,7 +362,12 @@ export function RunList({
                         checked={selectedSet.has(run.filename)}
                         disabled={!selectable}
                         onChange={() => toggleRun(run.filename)}
-                        aria-label={`Select ${label}`}
+                        title={selectionDisabledReason}
+                        aria-label={
+                          selectionDisabledReason
+                            ? `${label}: ${selectionDisabledReason}`
+                            : `Select ${label}`
+                        }
                         className="h-4 w-4 rounded border-gray-700 bg-gray-900 text-cyan-500 disabled:opacity-30"
                       />
                     </td>
@@ -329,8 +410,11 @@ export function RunList({
                     )}
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
                       {metadataDirty ? (
-                        <span className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-1.5 py-0.5 text-yellow-300">
-                          Pending metadata
+                        <span
+                          className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-1.5 py-0.5 text-yellow-300"
+                          title="Use Sync Metadata to push this metadata to the results repo."
+                        >
+                          Pending sync
                         </span>
                       ) : null}
                     </div>

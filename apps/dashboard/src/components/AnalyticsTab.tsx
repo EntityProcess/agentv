@@ -717,6 +717,7 @@ function PerRunRow({
             <TagsEditor
               runId={run.run_id}
               currentTags={tags}
+              source={run.source}
               projectId={projectId}
               onClose={onEndEdit}
             />
@@ -762,11 +763,13 @@ function TagChips({ tags, dirty }: { tags: string[]; dirty: boolean }) {
 function TagsEditor({
   runId,
   currentTags,
+  source,
   projectId,
   onClose,
 }: {
   runId: string;
   currentTags: string[];
+  source: 'local' | 'remote';
   projectId?: string;
   onClose: () => void;
 }) {
@@ -838,6 +841,12 @@ function TagsEditor({
           Multi-valued. Enter or comma adds; Backspace removes the last chip.
         </span>
       </div>
+      {source === 'remote' ? (
+        <div className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-3 py-2 text-xs text-yellow-300">
+          Remote tag edits are saved as local metadata. Use Sync Metadata to push them to the
+          results repo.
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500">
         {tags.map((t) => (
           <span

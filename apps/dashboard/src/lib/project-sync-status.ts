@@ -15,6 +15,7 @@ export type ProjectSyncTone = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
 export interface ProjectSyncView {
   state: ProjectSyncState;
   label: string;
+  actionLabel: string;
   tone: ProjectSyncTone;
   summary: string;
   nextAction?: string;
@@ -70,6 +71,7 @@ export function getProjectSyncView(
     return {
       state: 'syncing',
       label: 'Syncing',
+      actionLabel: 'Syncing...',
       tone: 'info',
       summary: 'Sync is in progress.',
       canSync: false,
@@ -80,6 +82,7 @@ export function getProjectSyncView(
     return {
       state: 'unconfigured',
       label: 'Not configured',
+      actionLabel: 'Sync Project',
       tone: 'neutral',
       summary: 'Remote results are not configured for this project.',
       canSync: false,
@@ -90,6 +93,7 @@ export function getProjectSyncView(
     return {
       state: 'unavailable',
       label: 'Unavailable',
+      actionLabel: 'Sync Project',
       tone: 'warn',
       summary: 'The remote results cache is not available locally.',
       nextAction: 'Sync Project can clone or refresh the configured results repo.',
@@ -102,6 +106,7 @@ export function getProjectSyncView(
     return {
       state: 'conflicted',
       label: state === 'diverged' ? 'Conflicted' : 'Conflicted',
+      actionLabel: 'Sync Project',
       tone: 'danger',
       summary:
         status.block_reason ??
@@ -117,6 +122,7 @@ export function getProjectSyncView(
     return {
       state: 'dirty',
       label: 'Dirty',
+      actionLabel: 'Sync Metadata',
       tone: 'warn',
       summary: status.block_reason ?? 'Local result metadata has pending edits.',
       nextAction:
@@ -131,6 +137,7 @@ export function getProjectSyncView(
     return {
       state: 'behind',
       label: 'Behind',
+      actionLabel: 'Sync Project',
       tone: 'info',
       summary: `Remote has ${status.behind ?? 0} commit${status.behind === 1 ? '' : 's'} to pull.`,
       nextAction: 'Sync Project will fast-forward when possible.',
@@ -142,6 +149,7 @@ export function getProjectSyncView(
     return {
       state: 'ahead',
       label: 'Ahead',
+      actionLabel: 'Push Results',
       tone: 'info',
       summary: `Local results are ${status.ahead ?? 0} commit${status.ahead === 1 ? '' : 's'} ahead.`,
       nextAction:
@@ -155,6 +163,7 @@ export function getProjectSyncView(
   return {
     state: 'clean',
     label: 'Clean',
+    actionLabel: 'Sync Project',
     tone: 'good',
     summary: 'Local and remote result metadata are in sync.',
     canSync: true,
