@@ -1,0 +1,66 @@
+---
+interface Props {
+  class?: string;
+}
+
+const className = Astro.props.class;
+---
+
+<span class:list={['av-brand-wordmark', className]} aria-label="AgentV" translate="no">
+  <span class="av-brand-wordmark__letter" aria-hidden="true">A</span>
+  <span aria-hidden="true">gent</span>
+  <span class="av-brand-wordmark__letter" aria-hidden="true">V</span>
+</span>
+
+<style>
+  .av-brand-wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    color: var(--av-brand-text-color, currentColor);
+    font-family: var(
+      --av-font-mono,
+      "JetBrains Mono",
+      "IBM Plex Mono",
+      ui-monospace,
+      "Cascadia Code",
+      "Fira Code",
+      monospace
+    );
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .av-brand-wordmark__letter {
+    color: var(--av-brand-letter-color, #06b6d4);
+  }
+
+  .av-brand-wordmark--hero {
+    --av-brand-text-color: var(--av-text);
+    font-size: clamp(1.35rem, 3vw, 2.15rem);
+    line-height: 1;
+  }
+
+  .av-brand-wordmark--terminal {
+    --av-brand-text-color: var(--av-text-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .av-brand-wordmark--inline {
+    display: inline-flex;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  .av-brand-wordmark--docs {
+    font-size: var(--sl-text-h4);
+  }
+
+  .av-brand-wordmark--not-found {
+    --av-brand-text-color: hsl(0, 0%, 85%);
+    font-size: 1.35rem;
+    font-weight: 600;
+  }
+</style>

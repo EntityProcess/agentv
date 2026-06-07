@@ -6,7 +6,14 @@ export default defineConfig({
   image: { service: { entrypoint: 'astro/assets/services/noop' } },
   integrations: [
     starlight({
-      title: 'agent v',
+      title: 'AgentV',
+      logo: {
+        src: './src/assets/logo.svg',
+        alt: 'AgentV mark',
+      },
+      components: {
+        SiteTitle: './src/components/StarlightSiteTitle.astro',
+      },
       disable404Route: true,
       head: [
         {

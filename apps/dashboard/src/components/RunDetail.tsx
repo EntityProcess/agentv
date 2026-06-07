@@ -5,6 +5,10 @@
  * Category Breakdown is shown as a clean table with coloured pass-rate pills.
  * The All Evals table shows ERR badge instead of 0% for execution errors.
  *
+ * Data tables keep cells on one line and scroll horizontally on narrow
+ * viewports. Add future columns by extending the table; the min-width keeps the
+ * mobile behavior stable instead of clipping the right side.
+ *
  * Also renders a collapsible "Run Log" section sourced from the run's
  * captured `console.log` file (served by `/api/runs/:id/log`). Hidden when no
  * log is available — e.g. for remote runs or local runs that completed before
@@ -141,8 +145,8 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
       {/* Category Breakdown */}
       <div>
         <h3 className="mb-3 text-sm font-medium text-gray-400">Category Breakdown</h3>
-        <div className="overflow-hidden rounded-lg border border-gray-800">
-          <table className="w-full text-left text-sm">
+        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+          <table className="min-w-[620px] w-full whitespace-nowrap text-left text-sm">
             <thead className="border-b border-gray-800 bg-gray-900/50">
               <tr>
                 <th className="px-4 py-2.5 font-medium text-gray-400">Category</th>
@@ -160,11 +164,11 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
             <tbody className="divide-y divide-gray-800/50">
               {categories.map((cat) => {
                 const label = (
-                  <span className="flex min-w-0 flex-col">
+                  <span className="flex min-w-0 items-baseline gap-2">
                     <span className="truncate">{cat.displayName}</span>
                     {cat.mutedDisplayName ? (
                       <span
-                        className="mt-0.5 truncate text-xs font-normal text-gray-500"
+                        className="truncate text-xs font-normal text-gray-500"
                         title={cat.mutedDisplayName}
                       >
                         {cat.mutedDisplayName}
@@ -175,12 +179,12 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
 
                 return (
                   <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
-                    <td className="px-4 py-2.5 font-medium text-gray-200">
+                    <td className="w-[18rem] max-w-[18rem] px-4 py-2.5 font-medium text-gray-200">
                       {projectId ? (
                         <Link
                           to="/projects/$projectId/runs/$runId/category/$category"
                           params={{ projectId, runId, category: cat.name }}
-                          className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                          className="flex min-w-0 text-cyan-400 hover:text-cyan-300 hover:underline"
                           title={cat.mutedDisplayName ?? cat.displayName}
                         >
                           {label}
@@ -189,7 +193,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                         <Link
                           to="/runs/$runId/category/$category"
                           params={{ runId, category: cat.name }}
-                          className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                          className="flex min-w-0 text-cyan-400 hover:text-cyan-300 hover:underline"
                           title={cat.mutedDisplayName ?? cat.displayName}
                         >
                           {label}
@@ -232,13 +236,13 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
       {/* All Evals */}
       <div>
         <h3 className="mb-3 text-sm font-medium text-gray-400">All Evals</h3>
-        <div className="overflow-hidden rounded-lg border border-gray-800">
-          <table className="w-full text-left text-sm">
+        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+          <table className="min-w-[760px] w-full whitespace-nowrap text-left text-sm">
             <thead className="border-b border-gray-800 bg-gray-900/50">
               <tr>
                 <th className="w-8 px-4 py-3" />
-                <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Target</th>
+                <th className="w-[24rem] px-4 py-3 font-medium text-gray-400">Test ID</th>
+                <th className="w-[12rem] px-4 py-3 font-medium text-gray-400">Target</th>
                 <th className="w-48 px-4 py-3 font-medium text-gray-400">Quality Score</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
@@ -265,12 +269,13 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="w-[24rem] max-w-[24rem] px-4 py-3">
                       {projectId ? (
                         <Link
                           to="/projects/$projectId/evals/$runId/$evalId"
                           params={{ projectId, runId, evalId: result.testId }}
-                          className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                          className="block truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                          title={result.testId}
                         >
                           {result.testId}
                         </Link>
@@ -278,13 +283,19 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                         <Link
                           to="/evals/$runId/$evalId"
                           params={{ runId, evalId: result.testId }}
-                          className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                          className="block truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                          title={result.testId}
                         >
                           {result.testId}
                         </Link>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
+                    <td
+                      className="w-[12rem] max-w-[12rem] truncate px-4 py-3 text-gray-400"
+                      title={result.target ?? undefined}
+                    >
+                      {result.target ?? '-'}
+                    </td>
                     <td className="px-4 py-3">
                       {isError ? (
                         <span className="inline-flex rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
