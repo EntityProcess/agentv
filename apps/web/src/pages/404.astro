@@ -1,4 +1,5 @@
 ---
+import BrandWordmark from '../components/BrandWordmark.astro';
 ---
 
 <!doctype html>
@@ -45,17 +46,6 @@
         justify-content: center;
         gap: 0.75rem;
         margin-bottom: 2.5rem;
-      }
-
-      .wordmark {
-        font-size: 1.35rem;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-        color: hsl(0, 0%, 85%);
-      }
-
-      .wordmark-v {
-        color: #06b6d4;
       }
 
       .error-text {
@@ -107,11 +97,11 @@
   <body>
     <div class="card">
       <div class="logo">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="32" height="32">
-          <rect width="120" height="120" rx="24" fill="#06b6d4"/>
-          <text x="60" y="82" text-anchor="middle" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-weight="bold" font-size="64" fill="#0a2a30">v</text>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="32" height="32" aria-hidden="true">
+          <rect width="120" height="120" rx="24" fill="#0a2a30"/>
+          <text x="60" y="76" text-anchor="middle" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-weight="bold" font-size="44" fill="#06b6d4">AV</text>
         </svg>
-        <span class="wordmark">agent<span class="wordmark-v">v</span></span>
+        <BrandWordmark class="av-brand-wordmark--not-found" />
       </div>
       <p class="error-text">404 - Page Not Found</p>
       <nav class="nav-links">
