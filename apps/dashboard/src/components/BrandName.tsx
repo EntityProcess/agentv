@@ -10,7 +10,7 @@ export function BrandName({ appName }: { appName: string }) {
       <span className="text-cyan-400" aria-hidden="true">
         A
       </span>
-      <span aria-hidden="true">gent</span>
+      <span aria-hidden="true">GENT</span>
       <span className="text-cyan-400" aria-hidden="true">
         V
       </span>
