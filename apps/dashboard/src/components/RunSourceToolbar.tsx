@@ -87,7 +87,7 @@ export function RunSourceToolbar({
                 title={!syncView.canSync ? syncView.nextAction : undefined}
                 className="rounded-md border border-cyan-800 bg-cyan-950/40 px-3 py-1.5 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {syncInFlight ? 'Syncing...' : 'Sync Remote Results'}
+                {syncInFlight ? 'Syncing...' : 'Sync Project'}
               </button>
             ) : null}
           </div>

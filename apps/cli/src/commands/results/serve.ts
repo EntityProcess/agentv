@@ -40,7 +40,6 @@ import { command, flag, number, option, optional, positional, string } from 'cmd
 import {
   DEFAULT_CATEGORY,
   type EvaluationResult,
-  ResultsRepoRunExistsError,
   addProject,
   getProject,
   loadConfig,
@@ -73,16 +72,12 @@ import {
   resolveResultSourcePath,
 } from './manifest.js';
 import {
-  LocalRunPublishError,
-  type LocalRunPublishPreview,
   type SourcedResultFileMeta,
   clearRemoteRunTags,
   ensureRemoteRunAvailable,
   findRunById,
   getRemoteResultsStatus,
   listMergedResultFiles,
-  previewLocalRunPublish,
-  publishLocalRun,
   readRemoteRunTagState,
   setRemoteRunTags,
   syncRemoteResults,
@@ -365,34 +360,6 @@ function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
     return 409;
   }
   return 400;
-}
-
-function localRunPublishToWire(
-  preview: LocalRunPublishPreview & { published?: boolean; replaced?: boolean },
-) {
-  return {
-    source_run_id: preview.sourceRunId,
-    target_repo: preview.targetRepo,
-    target_path: preview.targetPath,
-    target_run_id: preview.targetRunId,
-    remote_exists: preview.remoteExists,
-    replace_required: preview.replaceRequired,
-    can_publish: preview.canPublish,
-    ...(preview.blockReason && { block_reason: preview.blockReason }),
-    remote_status: preview.remoteStatus,
-    ...(preview.published !== undefined && { published: preview.published }),
-    ...(preview.replaced !== undefined && { replaced: preview.replaced }),
-  };
-}
-
-function localRunPublishErrorStatus(error: unknown): 400 | 409 | 500 {
-  if (error instanceof LocalRunPublishError) {
-    return error.status;
-  }
-  if (error instanceof ResultsRepoRunExistsError) {
-    return 409;
-  }
-  return 500;
 }
 
 async function ensureRunReadable(
@@ -1248,52 +1215,6 @@ function validateLocalCompletedRun(
   return { error: 'Run workspace is outside the local results directory', status: 400 };
 }
 
-async function handleRunPublishPreview(c: C, { searchDir, projectId }: DataContext) {
-  const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename, projectId);
-  if (!meta) return c.json({ error: 'Run not found' }, 404);
-  const safe = validateLocalCompletedRun(searchDir, meta, 'Selected run publish');
-  if ('error' in safe) return c.json({ error: safe.error }, safe.status);
-
-  try {
-    const preview = await previewLocalRunPublish(searchDir, meta, projectId);
-    return c.json(localRunPublishToWire(preview));
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, localRunPublishErrorStatus(err));
-  }
-}
-
-async function handleRunPublish(c: C, { searchDir, projectId }: DataContext) {
-  const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename, projectId);
-  if (!meta) return c.json({ error: 'Run not found' }, 404);
-  const safe = validateLocalCompletedRun(searchDir, meta, 'Selected run publish');
-  if ('error' in safe) return c.json({ error: safe.error }, safe.status);
-
-  let replace = false;
-  try {
-    const body = (await c.req.json()) as unknown;
-    if (body && typeof body === 'object' && !Array.isArray(body)) {
-      const value = (body as Record<string, unknown>).replace;
-      if (value !== undefined && typeof value !== 'boolean') {
-        return c.json({ error: 'replace must be a boolean' }, 400);
-      }
-      replace = value === true;
-    } else if (body !== undefined) {
-      return c.json({ error: 'Invalid payload' }, 400);
-    }
-  } catch {
-    return c.json({ error: 'Invalid JSON' }, 400);
-  }
-
-  try {
-    const result = await publishLocalRun({ cwd: searchDir, meta, projectId, replace });
-    return c.json(localRunPublishToWire(result));
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, localRunPublishErrorStatus(err));
-  }
-}
-
 async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
   let body: unknown;
   try {
@@ -1618,13 +1539,6 @@ export function createApp(
     }
     return handleRunsCombine(c, defaultCtx);
   });
-  app.get('/api/runs/:filename/publish', (c) => handleRunPublishPreview(c, defaultCtx));
-  app.post('/api/runs/:filename/publish', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return handleRunPublish(c, defaultCtx);
-  });
   app.put('/api/runs/:filename/tags', (c) => {
     if (readOnly) {
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
@@ -1765,15 +1679,6 @@ export function createApp(
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
     return withProject(c, handleRunsCombine);
-  });
-  app.get('/api/projects/:projectId/runs/:filename/publish', (c) =>
-    withProject(c, handleRunPublishPreview),
-  );
-  app.post('/api/projects/:projectId/runs/:filename/publish', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return withProject(c, handleRunPublish);
   });
   app.put('/api/projects/:projectId/runs/:filename/tags', (c) => {
     if (readOnly) {

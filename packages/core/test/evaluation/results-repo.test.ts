@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.js';
 import {
-  ResultsRepoRunExistsError,
   directPushResults,
   ensureResultsRepoClone,
   getResultsRepoSyncStatus,
@@ -353,37 +352,6 @@ describe('results repo write path', () => {
     const runs = await listGitRuns(cloneDir, 'HEAD');
     expect(runs).toHaveLength(1);
     expect(runs[0].run_id).toBe(`with-skills::${runTimestamp}`);
-  }, 20000);
-
-  it('blocks direct overwrite when replaceExisting is false', async () => {
-    const { remoteDir } = initializeRemoteRepo(rootDir);
-    const cloneDir = path.join(rootDir, 'results-clone');
-    const sourceDir = path.join(rootDir, 'source-run');
-    const runTimestamp = '2026-05-22T10-00-00-000Z';
-    const destinationPath = path.join('with-skills', runTimestamp);
-    const config = createResultsConfig(remoteDir, cloneDir);
-    writeRunArtifacts(sourceDir, 'with-skills', '2026-05-22T10:00:00.000Z');
-
-    await ensureResultsRepoClone(config);
-    git('git config user.email "test@example.com"', cloneDir);
-    git('git config user.name "Test User"', cloneDir);
-
-    await directPushResults({
-      config,
-      sourceDir,
-      destinationPath,
-      commitMessage: 'feat(results): with-skills - 1/1 PASS (1.000)',
-    });
-
-    await expect(
-      directPushResults({
-        config,
-        sourceDir,
-        destinationPath,
-        commitMessage: 'feat(results): with-skills - 1/1 PASS (1.000)',
-        replaceExisting: false,
-      }),
-    ).rejects.toBeInstanceOf(ResultsRepoRunExistsError);
   }, 20000);
 
   it('syncResultsRepo refreshes refs without checking out the base branch', async () => {

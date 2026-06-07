@@ -283,7 +283,7 @@ The `source` block and the `results` block sync different repositories:
 - `projects[].source` is the eval source project. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
 - `projects[].results` is the git-backed results store. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in that results repo clone.
 
-With `auto_push: true`, new `agentv eval` and `agentv pipeline bench` runs can push their run artifacts directly to the configured results repo. That run-level publish path is a convenience. The normal team workflow is project-level **Sync Project**, because it handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
+Use project-level **Sync Project** as the results exchange workflow. It handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
 
 Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
 
@@ -293,7 +293,7 @@ Existing runs already present under `.agentv/results/runs/` stay exactly where t
 
 Adding a `results` block does **not** backfill those historical runs into the remote repo automatically. Auto-push only affects runs created after the remote results repo is configured.
 
-If you want older local-only runs in the remote repo, rerun them or copy the run directories into the managed clone manually before committing them there.
+If you want older local-only runs in the remote repo, rerun them or copy the run directories into the managed clone manually before syncing the project.
 
 ### Authentication
 

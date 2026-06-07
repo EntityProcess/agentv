@@ -970,20 +970,12 @@ export async function directPushResults(params: {
   readonly sourceDir: string;
   readonly destinationPath: string;
   readonly commitMessage: string;
-  readonly replaceExisting?: boolean;
 }): Promise<boolean> {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(repoDir);
   await fetchResultsRepo(repoDir);
   const targetRunId = buildGitRunId(params.destinationPath);
-
-  if (params.replaceExisting === false) {
-    const existingRun = await findResultsRepoRun(normalized, targetRunId, `origin/${baseBranch}`);
-    if (existingRun) {
-      throw new ResultsRepoRunExistsError(targetRunId, params.destinationPath);
-    }
-  }
 
   const destinationDir = path.join(
     repoDir,
@@ -1032,19 +1024,6 @@ export async function directPushResults(params: {
   return false;
 }
 
-export async function findResultsRepoRun(
-  config: ResultsConfig,
-  runId: string,
-  ref?: string,
-): Promise<GitListedRun | undefined> {
-  const normalized = normalizeResultsConfig(config);
-  const repoDir = await ensureResultsRepoClone(normalized);
-  const baseBranch = await resolveDefaultBranch(repoDir);
-  await fetchResultsRepo(repoDir);
-  const runs = await listGitRuns(repoDir, ref ?? `origin/${baseBranch}`);
-  return runs.find((run) => run.run_id === runId);
-}
-
 export interface GitListedRun {
   run_id: string;
   experiment: string;
@@ -1057,18 +1036,6 @@ export interface GitListedRun {
   test_count: number;
   avg_score: number;
   size_bytes: number;
-}
-
-export class ResultsRepoRunExistsError extends Error {
-  readonly runId: string;
-  readonly destinationPath: string;
-
-  constructor(runId: string, destinationPath: string) {
-    super(`Remote results repo already has run '${runId}'. Use replace to overwrite it.`);
-    this.name = 'ResultsRepoRunExistsError';
-    this.runId = runId;
-    this.destinationPath = destinationPath;
-  }
 }
 
 type GitBatchBlob = {

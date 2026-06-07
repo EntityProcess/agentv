@@ -5,7 +5,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import { PublishRunAction } from '~/components/PublishRunAction';
 import { ResumeRunActions } from '~/components/ResumeRunActions';
 import { RunDetail } from '~/components/RunDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
@@ -100,12 +99,6 @@ function RunDetailPage() {
               runStatus={runStatus}
             />
           )}
-          <PublishRunAction
-            runId={runId}
-            source={data?.source}
-            status={runStatus}
-            isReadOnly={isReadOnly}
-          />
           {runStatus && <RunStatusIndicator status={runStatus} />}
           {!isReadOnly && !isActiveRun && (
             <button
