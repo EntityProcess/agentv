@@ -1,4 +1,5 @@
 ---
+import BrandWordmark from './BrandWordmark.astro';
 ---
 
 <div class="av-root">
@@ -6,11 +7,11 @@
 <nav class="av-nav" id="av-nav">
   <div class="av-nav-inner">
     <a href="/" class="av-nav-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="28" height="28">
-        <rect width="120" height="120" rx="24" fill="#06b6d4"/>
-        <text x="60" y="82" text-anchor="middle" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-weight="bold" font-size="64" fill="#0a2a30">v</text>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="28" height="28" aria-hidden="true">
+        <rect width="120" height="120" rx="24" fill="#0a2a30"/>
+        <text x="60" y="76" text-anchor="middle" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-weight="bold" font-size="44" fill="#06b6d4">AV</text>
       </svg>
-      <span class="av-wordmark">agent<span class="av-wordmark-v">v</span></span>
+      <BrandWordmark />
     </a>
     <div class="av-nav-links">
       <a href="/docs/">Docs</a>
@@ -45,6 +46,7 @@
     <div class="av-hero-bg"></div>
     <div class="av-hero-inner">
       <div class="av-hero-text">
+        <p class="av-hero-brand"><BrandWordmark class="av-brand-wordmark--hero" /></p>
         <span class="av-hero-label">&gt; AI agent evaluation framework</span>
         <h1>Evaluate agents with<br/><span class="av-gradient-text">terminal precision</span></h1>
         <p class="av-hero-sub">
@@ -73,7 +75,7 @@
             <span class="av-terminal-dot av-dot-red"></span>
             <span class="av-terminal-dot av-dot-yellow"></span>
             <span class="av-terminal-dot av-dot-green"></span>
-            <span class="av-terminal-title">agentv</span>
+            <span class="av-terminal-title"><BrandWordmark class="av-brand-wordmark--terminal" /></span>
           </div>
           <div class="av-terminal-body">
             <!-- Scene 1: agentv eval -->
@@ -227,7 +229,7 @@ tests:
             <tbody>
               <tr>
                 <td>Evaluate</td>
-                <td class="av-col-highlight"><strong>AgentV</strong></td>
+                <td class="av-col-highlight"><strong><BrandWordmark class="av-brand-wordmark--inline" /></strong></td>
                 <td>Pre-production</td>
                 <td>Score agents, detect regressions, gate CI/CD</td>
               </tr>
@@ -347,15 +349,6 @@ tests:
   font-weight: 700;
   font-size: 1.05rem;
   letter-spacing: -0.02em;
-}
-
-.av-wordmark {
-  text-transform: lowercase;
-}
-
-.av-wordmark-v {
-  margin-left: 0.12em;
-  color: #06b6d4;
 }
 
 .av-nav-links {
@@ -576,6 +569,10 @@ tests:
   color: var(--av-indigo);
   margin-bottom: 1.5rem;
   letter-spacing: 0.01em;
+}
+
+.av-hero-brand {
+  margin: 0 0 1rem;
 }
 
 .av-hero-text h1 {
