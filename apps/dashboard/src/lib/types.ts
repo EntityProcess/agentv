@@ -217,20 +217,6 @@ export interface RunTagsResponse {
   updated_at: string;
 }
 
-export interface LocalRunPublishPreviewResponse {
-  source_run_id: string;
-  target_repo: string;
-  target_path: string;
-  target_run_id: string;
-  remote_exists: boolean;
-  replace_required: boolean;
-  can_publish: boolean;
-  block_reason?: string;
-  remote_status: RemoteStatusResponse;
-  published?: boolean;
-  replaced?: boolean;
-}
-
 export interface CombineDuplicateConflict {
   key: string;
   test_id: string;

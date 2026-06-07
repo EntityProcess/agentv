@@ -29,7 +29,6 @@ import type {
   FileContentResponse,
   FileTreeResponse,
   IndexResponse,
-  LocalRunPublishPreviewResponse,
   ProjectEntry,
   ProjectListResponse,
   RemoteStatusResponse,
@@ -304,41 +303,6 @@ export function useStudioConfig(projectId?: string) {
 
 export function useRemoteStatus(projectId?: string) {
   return useQuery(remoteStatusOptions(projectId));
-}
-
-export function runPublishPreviewOptions(filename: string, projectId?: string, enabled = true) {
-  const url = projectId
-    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(filename)}/publish`
-    : `/api/runs/${encodeURIComponent(filename)}/publish`;
-  return queryOptions({
-    queryKey: ['runs', filename, 'publish-preview', projectId ?? ''],
-    queryFn: () => fetchJson<LocalRunPublishPreviewResponse>(url),
-    enabled: !!filename && enabled,
-    staleTime: 5_000,
-  });
-}
-
-export function useRunPublishPreview(filename: string, projectId?: string, enabled = true) {
-  return useQuery(runPublishPreviewOptions(filename, projectId, enabled));
-}
-
-export async function publishRunApi(
-  filename: string,
-  options?: { projectId?: string; replace?: boolean },
-): Promise<LocalRunPublishPreviewResponse> {
-  const url = options?.projectId
-    ? `${projectApiBase(options.projectId)}/runs/${encodeURIComponent(filename)}/publish`
-    : `/api/runs/${encodeURIComponent(filename)}/publish`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ replace: options?.replace === true }),
-  });
-  if (!res.ok) {
-    const err = (await res.json()) as { error?: string };
-    throw new Error(err.error || `Failed to publish run: ${res.status}`);
-  }
-  return res.json() as Promise<LocalRunPublishPreviewResponse>;
 }
 
 /** Default pass threshold matching @agentv/core DEFAULT_THRESHOLD */
