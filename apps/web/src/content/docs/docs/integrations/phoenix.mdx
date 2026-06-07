@@ -1,0 +1,106 @@
+---
+title: Phoenix Adapter
+description: Convert AgentV eval YAML into Phoenix datasets and experiments while keeping AgentV as the source of truth.
+sidebar:
+  order: 4
+---
+
+The Phoenix adapter converts AgentV eval YAML suites into Phoenix dataset and
+experiment payloads. Use it when your team already reviews experiments in
+Phoenix but wants AgentV eval files, graders, result JSONL, and run artifacts to
+remain the canonical source.
+
+The adapter is intentionally narrow. It supports deterministic assertions that
+map cleanly to Phoenix CODE evaluators and reports unsupported AgentV families
+instead of silently dropping semantics.
+
+## Quick Start
+
+From the AgentV repository root:
+
+```bash
+bun --filter @agentv/phoenix-adapter phoenix:assert-smoke
+```
+
+This runs a dry-run smoke conversion for the deterministic assertion example and
+writes a structural report to `/tmp/agentv-phoenix-assert-smoke.json`.
+
+Run a broader dry run:
+
+```bash
+bun --filter @agentv/phoenix-adapter phoenix:dry-run
+```
+
+Run one eval source directly:
+
+```bash
+bun packages/phoenix-adapter/src/cli.ts run \
+  --dry-run \
+  --agentv-root . \
+  --eval-file examples/features/assert/evals/dataset.eval.yaml \
+  --out reports/phoenix-assert.json
+```
+
+## Supported Evaluators
+
+| AgentV assertion family | Phoenix adapter behavior |
+| --- | --- |
+| `contains` | Converts to deterministic Phoenix evaluator logic |
+| `regex` | Converts to deterministic Phoenix evaluator logic |
+| `equals` | Converts to deterministic Phoenix evaluator logic |
+| `is-json` | Converts to deterministic Phoenix evaluator logic |
+| `llm-grader`, rubrics, `code-grader`, `tool-trajectory`, composite, metrics, and custom families | Reported as unsupported in the adapter report |
+
+Unsupported families do not fail conversion by default. Add
+`--fail-on-unsupported` when a parity report should fail CI if any suite needs a
+manual Phoenix-specific evaluator.
+
+```bash
+bun packages/phoenix-adapter/src/cli.ts run \
+  --dry-run \
+  --agentv-root . \
+  --filter examples/features/assert \
+  --fail-on-unsupported
+```
+
+## When to Use the Adapter
+
+Use the Phoenix adapter for:
+
+- deterministic assertion suites that should appear as Phoenix datasets and
+  experiments
+- parity checks that prove Phoenix row IDs match AgentV test IDs
+- integration smoke tests before writing a custom Phoenix evaluator
+
+Keep the eval in AgentV when you need:
+
+- workspace setup, lifecycle hooks, Docker workspaces, or repo materialization
+- code graders that execute commands in the AgentV workspace
+- tool trajectory, trace, cost, latency, or composite scoring
+- rich rubric semantics that need AgentV's assertion objects in result JSONL
+
+Those features can still be represented in Phoenix with custom task and
+evaluator code, but the adapter does not attempt a lossy automatic conversion.
+
+## Traces vs Datasets
+
+The Phoenix adapter creates dataset and experiment payloads. It is separate from
+AgentV's OpenTelemetry trace export.
+
+For trace export, use AgentV's standard OTel options:
+
+```bash
+agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
+```
+
+For live OTel export to a configured backend, use the options documented in
+[Running Evaluations](/docs/evaluation/running-evals/#live-otel-export/).
+
+## Package Docs
+
+The adapter package includes the implementation README, support matrix, and
+verification notes:
+
+- [`packages/phoenix-adapter/README.md`](https://github.com/EntityProcess/agentv/tree/main/packages/phoenix-adapter)
+- [`packages/phoenix-adapter/docs/support-matrix.md`](https://github.com/EntityProcess/agentv/blob/main/packages/phoenix-adapter/docs/support-matrix.md)
+- [`packages/phoenix-adapter/docs/e2e-verification.md`](https://github.com/EntityProcess/agentv/blob/main/packages/phoenix-adapter/docs/e2e-verification.md)
