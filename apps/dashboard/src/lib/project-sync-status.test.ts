@@ -28,9 +28,26 @@ describe('getProjectSyncView', () => {
     expect(view).toMatchObject({
       state: 'dirty',
       label: 'Dirty',
+      actionLabel: 'Sync Metadata',
       canSync: true,
     });
     expect(view.nextAction).toContain('no reset');
+  });
+
+  it('uses a push-oriented action label when local results are ahead', () => {
+    expect(
+      getProjectSyncView({
+        configured: true,
+        available: true,
+        sync_status: 'ahead',
+        ahead: 1,
+        auto_push: true,
+      }),
+    ).toMatchObject({
+      state: 'ahead',
+      actionLabel: 'Push Results',
+      canSync: true,
+    });
   });
 
   it('treats diverged history as a conflict-safe blocked state', () => {
