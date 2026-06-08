@@ -2226,6 +2226,7 @@ describe('serve app', () => {
         name: string;
         experiment: string;
         target: string;
+        category: string;
         score: number;
         tags?: string[];
       }> = [
@@ -2233,6 +2234,7 @@ describe('serve app', () => {
           name: '2026-04-01T10-00-00-000Z',
           experiment: 'exp-a',
           target: 'gpt-4o',
+          category: 'baseline',
           score: 1.0,
           tags: ['baseline'],
         },
@@ -2240,6 +2242,7 @@ describe('serve app', () => {
           name: '2026-04-02T10-00-00-000Z',
           experiment: 'exp-a',
           target: 'claude',
+          category: 'baseline',
           score: 0.9,
           tags: ['baseline'],
         },
@@ -2247,6 +2250,7 @@ describe('serve app', () => {
           name: '2026-04-03T10-00-00-000Z',
           experiment: 'exp-b',
           target: 'gpt-4o',
+          category: 'prompting',
           score: 0.85,
           tags: ['v2-prompt'],
         },
@@ -2255,6 +2259,7 @@ describe('serve app', () => {
           name: '2026-04-04T10-00-00-000Z',
           experiment: 'exp-b',
           target: 'claude',
+          category: 'prompting',
           score: 0.7,
         },
       ];
@@ -2269,6 +2274,7 @@ describe('serve app', () => {
             test_id: `test-${run.name}`,
             experiment: run.experiment,
             target: run.target,
+            category: run.category,
             score: run.score,
           }),
         );
@@ -2284,8 +2290,19 @@ describe('serve app', () => {
     type CompareJson = {
       experiments: string[];
       targets: string[];
-      cells: Array<{ experiment: string; target: string; eval_count: number }>;
-      runs?: Array<{ run_id: string; experiment: string; target: string; tags?: string[] }>;
+      cells: Array<{
+        experiment: string;
+        target: string;
+        eval_count: number;
+        tests?: Array<{ test_id: string; category?: string }>;
+      }>;
+      runs?: Array<{
+        run_id: string;
+        experiment: string;
+        target: string;
+        tags?: string[];
+        tests?: Array<{ test_id: string; category?: string }>;
+      }>;
     };
 
     it('returns all runs when no filter is provided', async () => {
@@ -2300,6 +2317,20 @@ describe('serve app', () => {
       expect(data.experiments.sort()).toEqual(['exp-a', 'exp-b']);
       expect(data.targets.sort()).toEqual(['claude', 'gpt-4o']);
       expect(data.cells).toHaveLength(4);
+    });
+
+    it('preserves per-test category metadata in compare cells and runs', async () => {
+      seedCompareFixture();
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/compare');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as CompareJson;
+
+      const cell = data.cells.find((c) => c.experiment === 'exp-b' && c.target === 'gpt-4o');
+      const run = data.runs?.find((r) => r.experiment === 'exp-b' && r.target === 'gpt-4o');
+      expect(cell?.tests?.[0]?.category).toBe('prompting');
+      expect(run?.tests?.[0]?.category).toBe('prompting');
     });
 
     it('filters to a single tag', async () => {

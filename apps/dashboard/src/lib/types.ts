@@ -206,6 +206,8 @@ export interface ExperimentsResponse {
 
 export interface CompareTestResult {
   test_id: string;
+  /** Optional per-test category from the source eval result, when available. */
+  category?: string;
   score: number;
   passed: boolean;
   execution_status?: string;
