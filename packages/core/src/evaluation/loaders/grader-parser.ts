@@ -6,6 +6,7 @@ import { interpolateEnv } from '../interpolation.js';
 import type { ToolTrajectoryExpectedItem, ToolTrajectoryGraderConfig } from '../trace.js';
 import type {
   ContentPreprocessorConfig,
+  EvalSourceReference,
   GraderConfig,
   GraderKind,
   JsonObject,
@@ -245,6 +246,141 @@ async function expandGraderEntries(
   return expanded;
 }
 
+export async function collectAssertionTemplateSourceReferences(
+  rawEvalCase: JsonObject & {
+    readonly execution?: JsonValue;
+    readonly assertions?: JsonValue;
+    readonly evaluators?: JsonValue;
+    readonly assert?: JsonValue;
+  },
+  globalExecution: JsonObject | undefined,
+  searchRoots: readonly string[],
+  evalId: string,
+): Promise<readonly EvalSourceReference[]> {
+  const execution = rawEvalCase.execution;
+  const executionObject = isJsonObject(execution) ? execution : undefined;
+  const caseEvaluators =
+    rawEvalCase.assertions ??
+    rawEvalCase.assert ??
+    (executionObject ? executionObject.evaluators : undefined) ??
+    rawEvalCase.evaluators;
+  const skipDefaults = executionObject?.skip_defaults === true;
+  const rootEvaluators = skipDefaults
+    ? undefined
+    : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators);
+
+  return [
+    ...(await collectAssertionTemplateReferencesFromValue(caseEvaluators, searchRoots, evalId)),
+    ...(await collectAssertionTemplateReferencesFromValue(rootEvaluators, searchRoots, evalId)),
+  ];
+}
+
+async function collectAssertionTemplateReferencesFromValue(
+  value: JsonValue | undefined,
+  searchRoots: readonly string[],
+  evalId: string,
+  includeContext: IncludeContext = { depth: 0, chain: [] },
+): Promise<readonly EvalSourceReference[]> {
+  if (value === undefined) {
+    return [];
+  }
+
+  const references: EvalSourceReference[] = [];
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (isIncludeEntry(item)) {
+        const nextDepth = includeContext.depth + 1;
+        if (nextDepth > MAX_ASSERTION_INCLUDE_DEPTH) {
+          const chain = [...includeContext.chain, item.include].join(' -> ');
+          throw new Error(
+            `Assertion template include depth exceeded ${MAX_ASSERTION_INCLUDE_DEPTH} in '${evalId}'. Include chain: ${chain}`,
+          );
+        }
+        const resolved = await resolveAssertionTemplateReference(item.include, searchRoots);
+        references.push({
+          kind: 'assertion_template',
+          displayPath: resolved.displayPath,
+          ...(resolved.resolvedPath ? { resolvedPath: path.resolve(resolved.resolvedPath) } : {}),
+        });
+
+        if (resolved.resolvedPath) {
+          if (includeContext.chain.includes(resolved.resolvedPath)) {
+            const cycle = [...includeContext.chain, resolved.resolvedPath].join(' -> ');
+            throw new Error(`Assertion template cycle detected in '${evalId}': ${cycle}`);
+          }
+
+          const content = await readFile(resolved.resolvedPath, 'utf8');
+          const parsed = interpolateEnv(parseYamlValue(content), process.env) as unknown;
+          if (
+            isJsonObject(parsed) &&
+            Array.isArray((parsed as Record<string, unknown>).assertions)
+          ) {
+            const templateDir = path.dirname(resolved.resolvedPath);
+            const nestedSearchRoots = [
+              templateDir,
+              ...searchRoots.filter((root) => path.resolve(root) !== templateDir),
+            ];
+            references.push(
+              ...(await collectAssertionTemplateReferencesFromValue(
+                (parsed as Record<string, JsonValue>).assertions,
+                nestedSearchRoots,
+                evalId,
+                {
+                  depth: nextDepth,
+                  chain: [...includeContext.chain, resolved.resolvedPath],
+                },
+              )),
+            );
+          }
+        }
+        continue;
+      }
+
+      if (isJsonObject(item)) {
+        references.push(
+          ...(await collectAssertionTemplateReferencesFromObject(
+            item,
+            searchRoots,
+            evalId,
+            includeContext,
+          )),
+        );
+      }
+    }
+  } else if (isJsonObject(value)) {
+    references.push(
+      ...(await collectAssertionTemplateReferencesFromObject(
+        value,
+        searchRoots,
+        evalId,
+        includeContext,
+      )),
+    );
+  }
+
+  return references;
+}
+
+async function collectAssertionTemplateReferencesFromObject(
+  value: JsonObject,
+  searchRoots: readonly string[],
+  evalId: string,
+  includeContext: IncludeContext,
+): Promise<readonly EvalSourceReference[]> {
+  const references: EvalSourceReference[] = [];
+  for (const key of ['assertions', 'assert', 'evaluators'] as const) {
+    references.push(
+      ...(await collectAssertionTemplateReferencesFromValue(
+        value[key],
+        searchRoots,
+        evalId,
+        includeContext,
+      )),
+    );
+  }
+  return references;
+}
+
 /**
  * Parse a raw evaluator array into typed GraderConfig objects.
  */
@@ -413,6 +549,7 @@ async function parseGraderList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const resolvedScriptPath = await resolveOptionalCommandSource(command, searchRoots);
 
       const cwd = asString(rawEvaluator.cwd);
       let resolvedCwd: string | undefined;
@@ -489,6 +626,7 @@ async function parseGraderList(
         name,
         type: 'code-grader',
         command,
+        ...(resolvedScriptPath ? { resolvedScriptPath } : {}),
         cwd,
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
@@ -1806,6 +1944,28 @@ function asStringArray(value: unknown, description: string): string[] | undefine
   }
 
   return result;
+}
+
+async function resolveOptionalCommandSource(
+  command: readonly string[],
+  searchRoots: readonly string[],
+): Promise<string | undefined> {
+  const candidate = command.at(-1);
+  if (!candidate || !looksLikeFilePath(candidate)) {
+    return undefined;
+  }
+  const resolved = await resolveFileReference(candidate, searchRoots);
+  return resolved.resolvedPath ? path.resolve(resolved.resolvedPath) : undefined;
+}
+
+function looksLikeFilePath(value: string): boolean {
+  return (
+    path.isAbsolute(value) ||
+    value.startsWith('.') ||
+    value.includes('/') ||
+    value.includes('\\') ||
+    /\.[cm]?[jt]sx?$|\.py$|\.sh$|\.bash$|\.rb$|\.go$|\.rs$/i.test(value)
+  );
 }
 
 function parseCommandToArgv(command: string): string[] {

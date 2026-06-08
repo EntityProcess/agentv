@@ -66,6 +66,49 @@ export interface AssertionEntry {
   durationMs?: number;
 }
 
+export interface SourceOmittedContent {
+  reason: string;
+  message?: string;
+  max_bytes?: number;
+}
+
+export interface SourceCapturedFile {
+  kind?: string;
+  display_path: string;
+  repo_relative_path?: string;
+  absolute_path?: string;
+  content_sha256?: string;
+  size_bytes?: number;
+  content?: string;
+  omitted?: SourceOmittedContent;
+}
+
+export interface SourceReferencedFile extends SourceCapturedFile {
+  kind: string;
+  grader_name?: string;
+  command?: string[];
+}
+
+export interface SourceTraceability {
+  status: 'captured' | 'not_captured';
+  message?: string;
+  eval_file?: SourceCapturedFile;
+  test_id?: string;
+  source_test?: {
+    test_id: string;
+    yaml: string;
+  };
+  graders?: {
+    name: string;
+    type: string;
+    weight?: number;
+    required?: boolean | number;
+    min_score?: number;
+    definition: Record<string, unknown>;
+  }[];
+  referenced_files?: SourceReferencedFile[];
+}
+
 export interface EvalResult {
   testId: string;
   timestamp?: string;
@@ -85,6 +128,7 @@ export interface EvalResult {
   output?: { role: string; content: string }[];
   _toolCalls?: Record<string, unknown>;
   _graderDurationMs?: number;
+  source_traceability?: SourceTraceability;
 }
 
 export interface RunDetailResponse {

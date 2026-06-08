@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
+import { stringify as stringifyYaml } from 'yaml';
 
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import { interpolateEnv, interpolateTemplateVars } from './interpolation.js';
@@ -26,6 +27,7 @@ import {
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
 import {
   coerceEvaluator,
+  collectAssertionTemplateSourceReferences,
   parseGraders,
   parseInlineRubrics,
   parsePreprocessors,
@@ -44,7 +46,10 @@ import type {
   ConversationMode,
   ConversationTurn,
   DockerWorkspaceConfig,
+  EvalGraderSource,
+  EvalSourceReference,
   EvalTest,
+  EvalTestSource,
   GraderConfig,
   JsonObject,
   JsonValue,
@@ -371,7 +376,9 @@ async function loadTestsFromYaml(
   const config = await loadConfig(absoluteTestPath, repoRootPath);
 
   const rawFile = await readFile(absoluteTestPath, 'utf8');
-  const interpolated = interpolateEnv(parseYamlValue(rawFile), process.env) as unknown;
+  const rawParsed = parseYamlValue(rawFile) as unknown;
+  const rawCaseSnapshots = buildRawInlineTestSnapshots(rawParsed);
+  const interpolated = interpolateEnv(rawParsed, process.env) as unknown;
   if (!isJsonObject(interpolated)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
@@ -594,6 +601,13 @@ async function loadTestsFromYaml(
       continue;
     }
 
+    const assertionTemplateReferences = await collectAssertionTemplateSourceReferences(
+      renderedCase,
+      globalExecution,
+      searchRoots,
+      id ?? 'unknown',
+    );
+
     // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
     const inlineRubrics = renderedCase.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
@@ -683,12 +697,305 @@ async function loadTestsFromYaml(
       ...(windowSize !== undefined ? { window_size: windowSize } : {}),
       ...(dependsOn && dependsOn.length > 0 ? { depends_on: dependsOn } : {}),
       ...(onDependencyFailure ? { on_dependency_failure: onDependencyFailure } : {}),
+      source: buildEvalTestSource({
+        evalFilePath,
+        absoluteTestPath,
+        repoRootPath,
+        id,
+        renderedCase,
+        rawCaseSnapshots,
+        inputMessages,
+        evaluators,
+        assertionTemplateReferences,
+      }),
     };
 
     results.push(testCase);
   }
 
   return { tests: results, parsed: suite, suiteWorkspacePath: suiteWorkspace?.path };
+}
+
+const SOURCE_SECRET_KEY_PATTERN =
+  /(api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)/i;
+const REDACTED_SOURCE_VALUE = '[redacted]';
+
+function buildRawInlineTestSnapshots(rawParsed: unknown): Map<string, string> {
+  const snapshots = new Map<string, string>();
+  if (!isJsonObject(rawParsed)) {
+    return snapshots;
+  }
+
+  const rawTests =
+    rawParsed.tests ?? rawParsed.eval_cases ?? (rawParsed as Record<string, unknown>).evalcases;
+  if (!Array.isArray(rawTests)) {
+    return snapshots;
+  }
+
+  for (const rawTest of rawTests) {
+    if (!isJsonObject(rawTest) || typeof rawTest.id !== 'string') {
+      continue;
+    }
+    snapshots.set(rawTest.id, stringifySourceYaml(rawTest));
+  }
+  return snapshots;
+}
+
+function buildEvalTestSource(params: {
+  readonly evalFilePath: string;
+  readonly absoluteTestPath: string;
+  readonly repoRootPath: string;
+  readonly id: string;
+  readonly renderedCase: RawEvalCase;
+  readonly rawCaseSnapshots: ReadonlyMap<string, string>;
+  readonly inputMessages: readonly TestMessage[];
+  readonly evaluators: readonly GraderConfig[] | undefined;
+  readonly assertionTemplateReferences: readonly EvalSourceReference[];
+}): EvalTestSource {
+  const evalFileRepoPath = toPortableRelativePath(params.repoRootPath, params.absoluteTestPath);
+  const testSnapshotYaml =
+    params.rawCaseSnapshots.get(params.id) ?? stringifySourceYaml(params.renderedCase);
+  const evaluatorReferences = collectGraderSourceReferences(params.evaluators);
+  const inputReferences = collectInputSourceReferences(params.inputMessages);
+  const references = dedupeSourceReferences([
+    ...inputReferences,
+    ...evaluatorReferences,
+    ...params.assertionTemplateReferences,
+  ]);
+
+  return {
+    evalFilePath: params.evalFilePath,
+    evalFileAbsolutePath: params.absoluteTestPath,
+    ...(evalFileRepoPath ? { evalFileRepoPath } : {}),
+    testId: params.id,
+    testSnapshotYaml,
+    graderDefinitions: buildGraderSourceDefinitions(params.evaluators),
+    references,
+  };
+}
+
+function stringifySourceYaml(value: unknown): string {
+  return stringifyYaml(sanitizeSourceValue(value), { lineWidth: 0 }).trimEnd();
+}
+
+function sanitizeSourceValue(value: unknown, keyHint?: string): JsonValue {
+  if (keyHint && SOURCE_SECRET_KEY_PATTERN.test(keyHint)) {
+    return REDACTED_SOURCE_VALUE;
+  }
+  if (value === null || typeof value === 'string' || typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeSourceValue(item));
+  }
+  if (typeof value === 'object' && value !== null) {
+    const entries = Object.entries(value as Record<string, unknown>).map(([key, entryValue]) => [
+      key,
+      sanitizeSourceValue(entryValue, key),
+    ]);
+    return Object.fromEntries(entries) as JsonObject;
+  }
+  return String(value);
+}
+
+function buildGraderSourceDefinitions(
+  evaluators: readonly GraderConfig[] | undefined,
+): readonly EvalGraderSource[] {
+  return (evaluators ?? []).map((evaluator) => ({
+    name: evaluator.name,
+    type: evaluator.type,
+    ...(evaluator.weight !== undefined ? { weight: evaluator.weight } : {}),
+    ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+    ...('min_score' in evaluator && evaluator.min_score !== undefined
+      ? { minScore: evaluator.min_score }
+      : {}),
+    definition: sanitizeGraderDefinition(evaluator),
+  }));
+}
+
+function sanitizeGraderDefinition(evaluator: GraderConfig): JsonObject {
+  const copy = sanitizeSourceValue(evaluator) as JsonObject;
+  return stripRuntimeResolutionFields(copy);
+}
+
+function stripRuntimeResolutionFields(value: JsonObject): JsonObject {
+  const stripped: Record<string, JsonValue> = {};
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (
+      key === 'resolvedPromptPath' ||
+      key === 'promptPath' ||
+      key === 'resolvedPromptScript' ||
+      key === 'resolvedScriptPath' ||
+      key === 'resolvedCwd' ||
+      key === 'resolvedCommand'
+    ) {
+      continue;
+    }
+    if (Array.isArray(entryValue)) {
+      stripped[key] = entryValue.map((item) =>
+        isJsonObject(item) ? stripRuntimeResolutionFields(item) : item,
+      ) as JsonValue;
+    } else if (isJsonObject(entryValue)) {
+      stripped[key] = stripRuntimeResolutionFields(entryValue);
+    } else {
+      stripped[key] = entryValue;
+    }
+  }
+  return stripped as JsonObject;
+}
+
+function collectInputSourceReferences(
+  inputMessages: readonly TestMessage[],
+): readonly EvalSourceReference[] {
+  const references: EvalSourceReference[] = [];
+  for (const message of inputMessages) {
+    if (!Array.isArray(message.content)) {
+      continue;
+    }
+    for (const segment of message.content) {
+      if (!isJsonObject(segment) || segment.type !== 'file') {
+        continue;
+      }
+      const displayPath =
+        typeof segment.path === 'string'
+          ? segment.path
+          : typeof segment.value === 'string'
+            ? segment.value
+            : 'input file';
+      references.push({
+        kind: 'input_file',
+        displayPath,
+        ...(typeof segment.resolvedPath === 'string'
+          ? { resolvedPath: path.resolve(segment.resolvedPath) }
+          : {}),
+      });
+    }
+  }
+  return references;
+}
+
+function collectGraderSourceReferences(
+  evaluators: readonly GraderConfig[] | undefined,
+): readonly EvalSourceReference[] {
+  const references: EvalSourceReference[] = [];
+  for (const evaluator of evaluators ?? []) {
+    references.push(...collectSingleGraderSourceReferences(evaluator));
+  }
+  return references;
+}
+
+function collectSingleGraderSourceReferences(
+  evaluator: GraderConfig,
+): readonly EvalSourceReference[] {
+  const references: EvalSourceReference[] = [];
+
+  if (evaluator.type === 'code-grader') {
+    const command = evaluator.command ?? evaluator.script ?? [];
+    references.push({
+      kind: 'code_grader_command',
+      displayPath: evaluator.resolvedScriptPath ?? command.join(' '),
+      ...(evaluator.resolvedScriptPath ? { resolvedPath: evaluator.resolvedScriptPath } : {}),
+      graderName: evaluator.name,
+      command,
+    });
+    if (evaluator.resolvedCwd) {
+      references.push({
+        kind: 'code_grader_cwd',
+        displayPath: evaluator.cwd ?? evaluator.resolvedCwd,
+        resolvedPath: evaluator.resolvedCwd,
+        graderName: evaluator.name,
+      });
+    }
+  }
+
+  if (evaluator.type === 'llm-grader') {
+    const promptPath = evaluator.resolvedPromptPath ?? evaluator.promptPath;
+    if (promptPath) {
+      references.push({
+        kind: 'llm_grader_prompt',
+        displayPath: typeof evaluator.prompt === 'string' ? evaluator.prompt : promptPath,
+        resolvedPath: promptPath,
+        graderName: evaluator.name,
+      });
+    }
+    if (evaluator.resolvedPromptScript && evaluator.resolvedPromptScript.length > 0) {
+      references.push({
+        kind: 'prompt_script',
+        displayPath: evaluator.resolvedPromptScript.at(-1) ?? evaluator.name,
+        resolvedPath: evaluator.resolvedPromptScript.at(-1),
+        graderName: evaluator.name,
+        command: evaluator.resolvedPromptScript,
+      });
+    }
+  }
+
+  const preprocessors = 'preprocessors' in evaluator ? evaluator.preprocessors : undefined;
+  for (const preprocessor of preprocessors ?? []) {
+    if (preprocessor.resolvedCommand && preprocessor.resolvedCommand.length > 0) {
+      references.push({
+        kind: 'preprocessor_command',
+        displayPath: preprocessor.resolvedCommand.at(-1) ?? preprocessor.type,
+        resolvedPath: preprocessor.resolvedCommand.at(-1),
+        graderName: evaluator.name,
+        command: preprocessor.resolvedCommand,
+      });
+    }
+  }
+
+  if (evaluator.type === 'composite') {
+    for (const member of evaluator.assertions) {
+      references.push(...collectSingleGraderSourceReferences(member));
+    }
+    if (evaluator.aggregator.type === 'code-grader') {
+      references.push({
+        kind: 'code_grader_command',
+        displayPath: evaluator.aggregator.path,
+        resolvedPath: path.resolve(evaluator.aggregator.cwd ?? '', evaluator.aggregator.path),
+        graderName: evaluator.name,
+      });
+    } else if (evaluator.aggregator.type === 'llm-grader' && evaluator.aggregator.promptPath) {
+      references.push({
+        kind: 'llm_grader_prompt',
+        displayPath: evaluator.aggregator.prompt ?? evaluator.aggregator.promptPath,
+        resolvedPath: evaluator.aggregator.promptPath,
+        graderName: evaluator.name,
+      });
+    }
+  }
+
+  return references;
+}
+
+function dedupeSourceReferences(
+  references: readonly EvalSourceReference[],
+): readonly EvalSourceReference[] {
+  const seen = new Set<string>();
+  const deduped: EvalSourceReference[] = [];
+  for (const reference of references) {
+    const key = JSON.stringify([
+      reference.kind,
+      reference.resolvedPath ?? reference.displayPath,
+      reference.graderName ?? '',
+      reference.command?.join('\u0000') ?? '',
+    ]);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(reference);
+  }
+  return deduped;
+}
+
+function toPortableRelativePath(root: string, candidate: string): string | undefined {
+  const relative = path.relative(root, candidate);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return relative.split(path.sep).join('/');
+  }
+  return undefined;
 }
 
 /**

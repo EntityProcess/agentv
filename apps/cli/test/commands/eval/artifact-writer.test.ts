@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { readFile, readdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { EvaluationResult, GraderResult } from '@agentv/core';
+import type { EvalTest, EvaluationResult, GraderResult } from '@agentv/core';
 
 import {
   type AggregateGradingArtifact,
   type BenchmarkArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
+  RUN_SOURCE_FILENAME,
+  type RunSourceArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
@@ -844,6 +846,118 @@ describe('writeArtifactsFromResults', () => {
       .split('\n')
       .map(JSON.parse);
     expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/grading.json');
+  });
+
+  it('writes a run-source artifact with captured source metadata when source tests are provided', async () => {
+    const sourceRoot = path.join(testDir, 'src');
+    await mkdir(sourceRoot, { recursive: true });
+    const evalFile = path.join(sourceRoot, 'trace.eval.yaml');
+    const inputFile = path.join(sourceRoot, 'input.txt');
+    const promptFile = path.join(sourceRoot, 'grader.md');
+    const promptScriptFile = path.join(sourceRoot, 'prompt.ts');
+    await writeFile(
+      evalFile,
+      ['api_key: literal-secret', 'tests:', '  - id: trace-case', '    input: hello'].join('\n'),
+    );
+    await writeFile(inputFile, 'input fixture\n');
+    await writeFile(promptFile, 'grade this response\n');
+    await writeFile(promptScriptFile, 'console.log("prompt");\n');
+
+    const sourceTests = [
+      {
+        id: 'trace-case',
+        question: 'hello',
+        input: [],
+        expected_output: [],
+        file_paths: [inputFile],
+        criteria: 'ok',
+        source: {
+          evalFilePath: evalFile,
+          evalFileAbsolutePath: evalFile,
+          evalFileRepoPath: 'src/trace.eval.yaml',
+          testId: 'trace-case',
+          testSnapshotYaml: 'id: trace-case\ninput: hello',
+          graderDefinitions: [
+            {
+              name: 'quality',
+              type: 'llm-grader',
+              weight: 2,
+              minScore: 0.7,
+              definition: {
+                name: 'quality',
+                type: 'llm-grader',
+                prompt: 'file://grader.md',
+              },
+            },
+          ],
+          references: [
+            {
+              kind: 'input_file',
+              displayPath: 'input.txt',
+              resolvedPath: inputFile,
+            },
+            {
+              kind: 'llm_grader_prompt',
+              displayPath: 'grader.md',
+              resolvedPath: promptFile,
+              graderName: 'quality',
+            },
+            {
+              kind: 'prompt_script',
+              displayPath: promptScriptFile,
+              resolvedPath: promptScriptFile,
+              graderName: 'quality',
+              command: [
+                'bun',
+                promptScriptFile,
+                '--api-key=literal-secret',
+                '--password',
+                'literal-secret',
+              ],
+            },
+          ],
+        },
+      } satisfies EvalTest,
+    ];
+
+    const outputDir = path.join(testDir, 'out');
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ testId: 'trace-case', target: 'gpt-4o' })],
+      outputDir,
+      { sourceTests, cwd: testDir, repoRoot: testDir, evalFile },
+    );
+
+    expect(paths.runSourcePath).toBe(path.join(outputDir, RUN_SOURCE_FILENAME));
+    const artifact = JSON.parse(
+      await readFile(paths.runSourcePath ?? '', 'utf8'),
+    ) as RunSourceArtifact;
+
+    expect(artifact.version).toBe(1);
+    expect(artifact.eval_file?.display_path).toBe('src/trace.eval.yaml');
+    expect(artifact.eval_file?.content).toContain('api_key: [redacted]');
+    expect(artifact.results[0]?.source_traceability.status).toBe('captured');
+    expect(artifact.results[0]?.source_traceability.source_test?.yaml).toContain('id: trace-case');
+    expect(artifact.results[0]?.source_traceability.graders?.[0]).toMatchObject({
+      name: 'quality',
+      type: 'llm-grader',
+      min_score: 0.7,
+    });
+    expect(artifact.results[0]?.source_traceability.referenced_files?.[0]).toMatchObject({
+      kind: 'input_file',
+      display_path: 'src/input.txt',
+      content: 'input fixture\n',
+    });
+    expect(artifact.results[0]?.source_traceability.referenced_files?.[1]).toMatchObject({
+      kind: 'llm_grader_prompt',
+      grader_name: 'quality',
+      content: 'grade this response\n',
+    });
+    expect(artifact.results[0]?.source_traceability.referenced_files?.[2]).toMatchObject({
+      kind: 'prompt_script',
+      display_path: 'src/prompt.ts',
+      command: ['bun', 'src/prompt.ts', '--api-key=[redacted]', '--password', '[redacted]'],
+      content: 'console.log("prompt");\n',
+    });
   });
 });
 

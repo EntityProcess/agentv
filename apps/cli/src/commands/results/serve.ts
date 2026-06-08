@@ -52,7 +52,12 @@ import type { Context } from 'hono';
 import { Hono } from 'hono';
 
 import { enforceRequiredVersion } from '../../version-check.js';
-import { parseJsonlResults } from '../eval/artifact-writer.js';
+import {
+  RUN_SOURCE_FILENAME,
+  type RunSourceArtifact,
+  type RunSourceTraceabilityArtifact,
+  parseJsonlResults,
+} from '../eval/artifact-writer.js';
 import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
@@ -259,7 +264,69 @@ function inferLanguage(filePath: string): string {
 /**
  * Strip heavy fields (requests, trace) from results for JSON API responses.
  */
-function stripHeavyFields(results: readonly EvaluationResult[]) {
+const HISTORICAL_SOURCE_TRACEABILITY: RunSourceTraceabilityArtifact = {
+  status: 'not_captured',
+  message: 'Source metadata was not captured for this run.',
+};
+
+function buildResultSourceKey(testId: string | undefined, target: string | undefined): string {
+  return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
+}
+
+function readRunSourceArtifact(runDir: string): RunSourceArtifact | undefined {
+  const artifactPath = path.join(runDir, RUN_SOURCE_FILENAME);
+  if (!existsSync(artifactPath)) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(artifactPath, 'utf8')) as RunSourceArtifact;
+    if (parsed.version !== 1 || !Array.isArray(parsed.results)) {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildRunSourceTraceabilityMap(
+  runDir: string,
+): ReadonlyMap<string, RunSourceTraceabilityArtifact> | undefined {
+  const artifact = readRunSourceArtifact(runDir);
+  if (!artifact) {
+    return undefined;
+  }
+  const traceabilityByResult = new Map<string, RunSourceTraceabilityArtifact>();
+  for (const entry of artifact.results) {
+    traceabilityByResult.set(
+      buildResultSourceKey(entry.test_id, entry.target),
+      entry.source_traceability,
+    );
+    if (!traceabilityByResult.has(buildResultSourceKey(entry.test_id, undefined))) {
+      traceabilityByResult.set(
+        buildResultSourceKey(entry.test_id, undefined),
+        entry.source_traceability,
+      );
+    }
+  }
+  return traceabilityByResult;
+}
+
+function sourceTraceabilityForResult(
+  result: EvaluationResult,
+  traceabilityByResult: ReadonlyMap<string, RunSourceTraceabilityArtifact> | undefined,
+): RunSourceTraceabilityArtifact {
+  return (
+    traceabilityByResult?.get(buildResultSourceKey(result.testId, result.target)) ??
+    traceabilityByResult?.get(buildResultSourceKey(result.testId, undefined)) ??
+    HISTORICAL_SOURCE_TRACEABILITY
+  );
+}
+
+function stripHeavyFields(
+  results: readonly EvaluationResult[],
+  traceabilityByResult?: ReadonlyMap<string, RunSourceTraceabilityArtifact>,
+) {
   return results.map((r) => {
     const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
     const toolCalls =
@@ -269,6 +336,7 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
       ...rest,
       ...(toolCalls && { _toolCalls: toolCalls }),
       ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
+      source_traceability: sourceTraceabilityForResult(r, traceabilityByResult),
     };
   });
 }
@@ -596,6 +664,7 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
+    const traceabilityByResult = buildRunSourceTraceabilityMap(path.dirname(meta.path));
     // Surface run_dir + suite_filter for local runs so the UI can launch a
     // Dashboard-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
@@ -603,7 +672,7 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
     const tagFields = await readRunTagFields(searchDir, meta, projectId);
     return c.json({
-      results: stripHeavyFields(loaded),
+      results: stripHeavyFields(loaded, traceabilityByResult),
       source: meta.source,
       source_label: meta.displayName,
       ...tagFields,
@@ -762,7 +831,9 @@ async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const result = loaded.find((r) => r.testId === evalId);
     if (!result) return c.json({ error: 'Eval not found' }, 404);
-    return c.json({ eval: result });
+    const traceabilityByResult = buildRunSourceTraceabilityMap(path.dirname(meta.path));
+    const [stripped] = stripHeavyFields([result], traceabilityByResult);
+    return c.json({ eval: stripped });
   } catch {
     return c.json({ error: 'Failed to load eval' }, 500);
   }

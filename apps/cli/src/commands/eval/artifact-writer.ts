@@ -1,14 +1,27 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
   DEFAULT_THRESHOLD,
+  type EvalTest,
+  type EvalTestSource,
   type EvaluationResult,
   type GraderResult,
   toTranscriptJsonLines,
 } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
+
+export const RUN_SOURCE_FILENAME = 'run-source.json';
+const MAX_SOURCE_CAPTURE_BYTES = 64 * 1024;
+const SOURCE_SECRET_LINE_PATTERN =
+  /^(\s*[\w.-]*(?:api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)[\w.-]*\s*:\s*).+$/gim;
+const SOURCE_SECRET_ASSIGNMENT_PATTERN =
+  /^((?:--?)?[\w.-]*(?:api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)[\w.-]*[=:]).+$/i;
+const SOURCE_SECRET_FLAG_PATTERN =
+  /^--?[\w.-]*(?:api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)[\w.-]*$/i;
+const REDACTED_SOURCE_VALUE = '[redacted]';
 
 export function buildTestTargetKey(testId?: string, target?: string): string {
   return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
@@ -194,6 +207,65 @@ export interface IndexArtifactEntry {
 }
 
 export type ResultIndexArtifact = IndexArtifactEntry;
+
+export interface RunSourceOmittedContent {
+  readonly reason: 'size_limit' | 'binary' | 'not_file' | 'read_error' | 'unresolved';
+  readonly message?: string;
+  readonly max_bytes?: number;
+}
+
+export interface RunSourceCapturedFile {
+  readonly kind?: string;
+  readonly display_path: string;
+  readonly repo_relative_path?: string;
+  readonly absolute_path?: string;
+  readonly content_sha256?: string;
+  readonly size_bytes?: number;
+  readonly content?: string;
+  readonly omitted?: RunSourceOmittedContent;
+}
+
+export interface RunSourceReferencedFile extends RunSourceCapturedFile {
+  readonly kind: string;
+  readonly grader_name?: string;
+  readonly command?: readonly string[];
+}
+
+export interface RunSourceTraceabilityArtifact {
+  readonly status: 'captured' | 'not_captured';
+  readonly message?: string;
+  readonly eval_file?: RunSourceCapturedFile;
+  readonly test_id?: string;
+  readonly source_test?: {
+    readonly test_id: string;
+    readonly yaml: string;
+  };
+  readonly graders?: readonly {
+    readonly name: string;
+    readonly type: string;
+    readonly weight?: number;
+    readonly required?: boolean | number;
+    readonly min_score?: number;
+    readonly definition: Record<string, unknown>;
+  }[];
+  readonly referenced_files?: readonly RunSourceReferencedFile[];
+}
+
+export interface RunSourceResultEntry {
+  readonly test_id: string;
+  readonly target?: string;
+  readonly suite?: string;
+  readonly category?: string;
+  readonly eval_file_path?: string;
+  readonly source_traceability: RunSourceTraceabilityArtifact;
+}
+
+export interface RunSourceArtifact {
+  readonly version: 1;
+  readonly captured_at: string;
+  readonly eval_file?: RunSourceCapturedFile;
+  readonly results: readonly RunSourceResultEntry[];
+}
 
 // ---------------------------------------------------------------------------
 // Statistics helpers
@@ -565,6 +637,307 @@ export function buildAggregateGradingArtifact(
   };
 }
 
+function toPortableRelativePath(root: string | undefined, candidate: string): string | undefined {
+  if (!root) {
+    return undefined;
+  }
+  const relative = path.relative(root, candidate);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return relative.split(path.sep).join('/');
+  }
+  return undefined;
+}
+
+function redactSecretLikeLines(content: string): string {
+  return content.replace(SOURCE_SECRET_LINE_PATTERN, `$1${REDACTED_SOURCE_VALUE}`);
+}
+
+function isLikelyBinary(buffer: Buffer): boolean {
+  return buffer.subarray(0, Math.min(buffer.length, 8000)).includes(0);
+}
+
+function buildFileIdentity(params: {
+  readonly displayPath: string;
+  readonly resolvedPath?: string;
+  readonly repoRoot?: string;
+  readonly cwd?: string;
+}): Pick<RunSourceCapturedFile, 'display_path' | 'repo_relative_path' | 'absolute_path'> {
+  const resolvedPath = params.resolvedPath ? path.resolve(params.resolvedPath) : undefined;
+  const repoRelative = resolvedPath
+    ? (toPortableRelativePath(params.repoRoot, resolvedPath) ??
+      toPortableRelativePath(params.cwd, resolvedPath))
+    : undefined;
+  const displayPath = repoRelative ?? params.displayPath;
+  return {
+    display_path: displayPath,
+    ...(repoRelative ? { repo_relative_path: repoRelative } : {}),
+    ...(!repoRelative && resolvedPath ? { absolute_path: resolvedPath } : {}),
+  };
+}
+
+function toPortableCommandArg(arg: string, repoRoot: string | undefined, cwd: string | undefined) {
+  if (!path.isAbsolute(arg)) {
+    return arg;
+  }
+  return toPortableRelativePath(repoRoot, arg) ?? toPortableRelativePath(cwd, arg) ?? arg;
+}
+
+function sanitizeSourceCommand(
+  command: readonly string[],
+  options: { readonly repoRoot?: string; readonly cwd?: string },
+): readonly string[] {
+  let redactNext = false;
+  return command.map((arg) => {
+    const portableArg = toPortableCommandArg(arg, options.repoRoot, options.cwd);
+    if (redactNext) {
+      redactNext = false;
+      return REDACTED_SOURCE_VALUE;
+    }
+    if (SOURCE_SECRET_ASSIGNMENT_PATTERN.test(portableArg)) {
+      return portableArg.replace(SOURCE_SECRET_ASSIGNMENT_PATTERN, `$1${REDACTED_SOURCE_VALUE}`);
+    }
+    if (SOURCE_SECRET_FLAG_PATTERN.test(portableArg)) {
+      redactNext = true;
+    }
+    return portableArg;
+  });
+}
+
+async function captureSourceFile(params: {
+  readonly kind?: string;
+  readonly displayPath: string;
+  readonly resolvedPath?: string;
+  readonly repoRoot?: string;
+  readonly cwd?: string;
+  readonly graderName?: string;
+  readonly command?: readonly string[];
+}): Promise<RunSourceReferencedFile | RunSourceCapturedFile> {
+  const identity = buildFileIdentity({
+    displayPath: params.displayPath,
+    resolvedPath: params.resolvedPath,
+    repoRoot: params.repoRoot,
+    cwd: params.cwd,
+  });
+  const base = {
+    ...(params.kind ? { kind: params.kind } : {}),
+    ...identity,
+    ...(params.graderName ? { grader_name: params.graderName } : {}),
+    ...(params.command
+      ? {
+          command: sanitizeSourceCommand(params.command, {
+            repoRoot: params.repoRoot,
+            cwd: params.cwd,
+          }),
+        }
+      : {}),
+  };
+
+  if (!params.resolvedPath) {
+    return {
+      ...base,
+      omitted: { reason: 'unresolved', message: 'No resolved source path was available.' },
+    };
+  }
+
+  try {
+    const fileStat = await stat(params.resolvedPath);
+    if (!fileStat.isFile()) {
+      return {
+        ...base,
+        size_bytes: fileStat.size,
+        omitted: { reason: 'not_file', message: 'Resolved source path is not a file.' },
+      };
+    }
+
+    const contentBuffer = await readFile(params.resolvedPath);
+    const contentSha256 = createHash('sha256').update(contentBuffer).digest('hex');
+    const common = {
+      ...base,
+      content_sha256: contentSha256,
+      size_bytes: contentBuffer.length,
+    };
+
+    if (contentBuffer.length > MAX_SOURCE_CAPTURE_BYTES) {
+      return {
+        ...common,
+        omitted: {
+          reason: 'size_limit',
+          max_bytes: MAX_SOURCE_CAPTURE_BYTES,
+          message: 'Source file exceeded the run-source capture size limit.',
+        },
+      };
+    }
+
+    if (isLikelyBinary(contentBuffer)) {
+      return {
+        ...common,
+        omitted: { reason: 'binary', message: 'Source file appears to be binary.' },
+      };
+    }
+
+    return {
+      ...common,
+      content: redactSecretLikeLines(contentBuffer.toString('utf8').replace(/\r\n/g, '\n')),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ...base,
+      omitted: { reason: 'read_error', message },
+    };
+  }
+}
+
+function buildSourceByTestId(
+  sourceTests: readonly EvalTest[] | undefined,
+): Map<string, EvalTestSource> {
+  const sourceByTestId = new Map<string, EvalTestSource>();
+  for (const test of sourceTests ?? []) {
+    if (test.source) {
+      sourceByTestId.set(test.source.testId, test.source);
+    }
+  }
+  return sourceByTestId;
+}
+
+function evalFileDisplayPath(source: EvalTestSource, fallbackEvalFile?: string): string {
+  return (
+    source.evalFileRepoPath ??
+    source.evalFilePath ??
+    fallbackEvalFile ??
+    source.evalFileAbsolutePath
+  );
+}
+
+async function captureEvalFile(
+  sourceByTestId: ReadonlyMap<string, EvalTestSource>,
+  options: RunSourceBuildOptions,
+): Promise<RunSourceCapturedFile | undefined> {
+  const firstSource = sourceByTestId.values().next().value;
+  if (!firstSource) {
+    return undefined;
+  }
+  return captureSourceFile({
+    displayPath: evalFileDisplayPath(firstSource, options.evalFile),
+    resolvedPath: firstSource.evalFileAbsolutePath,
+    repoRoot: options.repoRoot,
+    cwd: options.cwd,
+  });
+}
+
+function toRunSourceGraderDefinitions(
+  source: EvalTestSource,
+): RunSourceTraceabilityArtifact['graders'] {
+  return source.graderDefinitions.map((grader) => ({
+    name: grader.name,
+    type: grader.type,
+    ...(grader.weight !== undefined ? { weight: grader.weight } : {}),
+    ...(grader.required !== undefined ? { required: grader.required } : {}),
+    ...(grader.minScore !== undefined ? { min_score: grader.minScore } : {}),
+    definition: toSnakeCaseDeep(grader.definition) as Record<string, unknown>,
+  }));
+}
+
+async function captureReferencedFiles(
+  source: EvalTestSource,
+  options: RunSourceBuildOptions,
+): Promise<readonly RunSourceReferencedFile[]> {
+  const captured = await Promise.all(
+    source.references.map(async (reference) => {
+      const file = await captureSourceFile({
+        kind: reference.kind,
+        displayPath: reference.displayPath,
+        resolvedPath: reference.resolvedPath,
+        repoRoot: options.repoRoot,
+        cwd: options.cwd,
+        graderName: reference.graderName,
+        command: reference.command,
+      });
+      return file as RunSourceReferencedFile;
+    }),
+  );
+  return captured;
+}
+
+interface RunSourceBuildOptions {
+  readonly evalFile?: string;
+  readonly cwd?: string;
+  readonly repoRoot?: string;
+  readonly sourceTests?: readonly EvalTest[];
+}
+
+export async function buildRunSourceArtifact(
+  results: readonly EvaluationResult[],
+  options: RunSourceBuildOptions = {},
+): Promise<RunSourceArtifact | undefined> {
+  const sourceByTestId = buildSourceByTestId(options.sourceTests);
+  if (sourceByTestId.size === 0) {
+    return undefined;
+  }
+
+  const evalFile = await captureEvalFile(sourceByTestId, options);
+  const resultsWithSource: RunSourceResultEntry[] = [];
+  for (const result of results) {
+    const testId = result.testId ?? 'unknown';
+    const source = sourceByTestId.get(testId);
+    if (!source) {
+      resultsWithSource.push({
+        test_id: testId,
+        target: result.target,
+        suite: getSuite(result),
+        category: result.category,
+        source_traceability: {
+          status: 'not_captured',
+          message: 'Source metadata was not available for this result.',
+        },
+      });
+      continue;
+    }
+
+    const referencedFiles = await captureReferencedFiles(source, options);
+    resultsWithSource.push({
+      test_id: testId,
+      target: result.target,
+      suite: getSuite(result),
+      category: result.category,
+      eval_file_path: evalFileDisplayPath(source, options.evalFile),
+      source_traceability: {
+        status: 'captured',
+        ...(evalFile ? { eval_file: evalFile } : {}),
+        test_id: source.testId,
+        source_test: {
+          test_id: source.testId,
+          yaml: source.testSnapshotYaml,
+        },
+        graders: toRunSourceGraderDefinitions(source),
+        referenced_files: referencedFiles,
+      },
+    });
+  }
+
+  return {
+    version: 1,
+    captured_at: new Date().toISOString(),
+    ...(evalFile ? { eval_file: evalFile } : {}),
+    results: resultsWithSource,
+  };
+}
+
+export async function writeRunSourceArtifact(
+  results: readonly EvaluationResult[],
+  outputDir: string,
+  options: RunSourceBuildOptions = {},
+): Promise<string | undefined> {
+  const artifact = await buildRunSourceArtifact(results, options);
+  if (!artifact) {
+    return undefined;
+  }
+
+  const outputPath = path.join(outputDir, RUN_SOURCE_FILENAME);
+  await writeFile(outputPath, `${JSON.stringify(toSnakeCaseDeep(artifact), null, 2)}\n`, 'utf8');
+  return outputPath;
+}
+
 function safeArtifactPathSegment(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim();
   if (!trimmed) {
@@ -817,6 +1190,7 @@ export async function writeArtifacts(
   timingPath: string;
   benchmarkPath: string;
   indexPath: string;
+  runSourcePath?: string;
 }> {
   const content = await readFile(jsonlPath, 'utf8');
   const results = parseJsonlResults(content);
@@ -894,12 +1268,20 @@ export async function writePerTestArtifacts(
 export async function writeArtifactsFromResults(
   results: readonly EvaluationResult[],
   outputDir: string,
-  options?: { evalFile?: string; experiment?: string; plannedTestCount?: number },
+  options?: {
+    evalFile?: string;
+    experiment?: string;
+    plannedTestCount?: number;
+    cwd?: string;
+    repoRoot?: string;
+    sourceTests?: readonly EvalTest[];
+  },
 ): Promise<{
   testArtifactDir: string;
   timingPath: string;
   benchmarkPath: string;
   indexPath: string;
+  runSourcePath?: string;
 }> {
   const testArtifactDir = outputDir;
   const timingPath = path.join(outputDir, 'timing.json');
@@ -963,5 +1345,12 @@ export async function writeArtifactsFromResults(
   const transcriptPath = path.join(outputDir, 'transcript.jsonl');
   await writeFile(transcriptPath, buildTranscriptMessageLines(results), 'utf8');
 
-  return { testArtifactDir, timingPath, benchmarkPath, indexPath };
+  const runSourcePath = await writeRunSourceArtifact(results, outputDir, {
+    evalFile: options?.evalFile,
+    cwd: options?.cwd,
+    repoRoot: options?.repoRoot,
+    sourceTests: options?.sourceTests,
+  });
+
+  return { testArtifactDir, timingPath, benchmarkPath, indexPath, runSourcePath };
 }

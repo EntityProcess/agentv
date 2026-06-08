@@ -924,6 +924,47 @@ export type GraderConfig =
   | InlineAssertEvaluatorConfig;
 
 /**
+ * Source reference resolved while loading an eval definition.
+ *
+ * These records are intentionally lightweight and contain identities only:
+ * file content is captured later by the artifact writer with size limits and
+ * redaction at the disk boundary.
+ */
+export interface EvalSourceReference {
+  readonly kind:
+    | 'input_file'
+    | 'llm_grader_prompt'
+    | 'prompt_script'
+    | 'code_grader_command'
+    | 'code_grader_cwd'
+    | 'assertion_template'
+    | 'preprocessor_command';
+  readonly displayPath: string;
+  readonly resolvedPath?: string;
+  readonly graderName?: string;
+  readonly command?: readonly string[];
+}
+
+export interface EvalGraderSource {
+  readonly name: string;
+  readonly type: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  readonly minScore?: number;
+  readonly definition: JsonObject;
+}
+
+export interface EvalTestSource {
+  readonly evalFilePath: string;
+  readonly evalFileAbsolutePath: string;
+  readonly evalFileRepoPath?: string;
+  readonly testId: string;
+  readonly testSnapshotYaml: string;
+  readonly graderDefinitions: readonly EvalGraderSource[];
+  readonly references: readonly EvalSourceReference[];
+}
+
+/**
  * A single turn in a multi-turn conversation evaluation.
  * Each turn is a user message. The runner generates the assistant response.
  */
@@ -998,6 +1039,8 @@ export interface EvalTest {
   readonly depends_on?: readonly string[];
   /** What to do when a dependency fails: skip (default), fail, or run anyway. */
   readonly on_dependency_failure?: DependencyFailurePolicy;
+  /** Source metadata used to write run-local traceability artifacts. */
+  readonly source?: EvalTestSource;
 }
 
 /**

@@ -39,6 +39,7 @@ import {
   parseJsonlResults,
   writeArtifactsFromResults,
   writeInitialBenchmarkArtifact,
+  writeRunSourceArtifact,
 } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
@@ -1667,6 +1668,9 @@ export async function runEvalCommand(
     // Write artifacts to the run directory (always, not conditional on flags)
     if (usesDefaultArtifactWorkspace && allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
+      const sourceTests = activeTestFiles.flatMap(
+        (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
+      );
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then aggregate
         // from the full index.jsonl (old + new results with deduplication)
@@ -1678,21 +1682,34 @@ export async function runEvalCommand(
           runDir,
           { evalFile, experiment: normalizeExperimentName(options.experiment) },
         );
+        const runSourcePath = await writeRunSourceArtifact(summaryResults, runDir, {
+          evalFile,
+          cwd,
+          repoRoot,
+          sourceTests,
+        });
         const indexPath = path.join(runDir, 'index.jsonl');
         console.log(`Artifact workspace updated: ${runDir}`);
         console.log(`  Index: ${indexPath}`);
         console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
         console.log(`  Timing: ${timingPath}`);
         console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+        if (runSourcePath) {
+          console.log(`  Run source: ${runSourcePath}`);
+        }
       } else {
         const {
           testArtifactDir,
           timingPath,
           benchmarkPath: workspaceBenchmarkPath,
           indexPath,
+          runSourcePath,
         } = await writeArtifactsFromResults(allResults, runDir, {
           evalFile,
           experiment: normalizeExperimentName(options.experiment),
+          cwd,
+          repoRoot,
+          sourceTests,
         });
         console.log(`Artifact workspace written to: ${runDir}`);
         console.log(`  Index: ${indexPath}`);
@@ -1701,6 +1718,9 @@ export async function runEvalCommand(
         );
         console.log(`  Timing: ${timingPath}`);
         console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+        if (runSourcePath) {
+          console.log(`  Run source: ${runSourcePath}`);
+        }
       }
     }
 

@@ -1,6 +1,5 @@
 /**
- * Three-tab eval detail view: Checks (assertions + scores), Files (artifact browser),
- * and Feedback (review comments).
+ * Eval detail view with checks, source traceability, artifact files, and feedback.
  *
  * Layout: compact header → tabs → full-height content area.
  * Scores and assertions are only visible in the Checks tab.
@@ -18,7 +17,14 @@ import {
   useEvalFiles,
   useStudioConfig,
 } from '~/lib/api';
-import type { AssertionEntry, EvalResult, ScoreEntry } from '~/lib/types';
+import type {
+  AssertionEntry,
+  EvalResult,
+  ScoreEntry,
+  SourceCapturedFile,
+  SourceReferencedFile,
+  SourceTraceability,
+} from '~/lib/types';
 
 import { FeedbackPanel } from './FeedbackPanel';
 import type { FileNode } from './FileTree';
@@ -32,7 +38,7 @@ interface EvalDetailProps {
   projectId?: string;
 }
 
-type Tab = 'checks' | 'files' | 'feedback';
+type Tab = 'checks' | 'source' | 'files' | 'feedback';
 
 /** Recursively find the first file node in the tree. */
 function findFirstFile(nodes: FileNode[]): string | null {
@@ -53,6 +59,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'checks', label: 'Checks' },
+    { id: 'source', label: 'Source' },
     { id: 'files', label: 'Files' },
     ...(isReadOnly ? [] : [{ id: 'feedback' as const, label: 'Feedback' }]),
   ];
@@ -91,12 +98,161 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
             <FilesTab result={result} runId={runId} projectId={projectId} />
           </div>
         )}
+        {activeTab === 'source' && (
+          <div className="overflow-auto p-4">
+            <SourceTab result={result} />
+          </div>
+        )}
         {!isReadOnly && activeTab === 'feedback' && (
           <div className="p-4">
             <FeedbackPanel testId={result.testId} />
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function formatBytes(value: number | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function SourceMetaRow({ label, value }: { label: string; value?: string | number | boolean }) {
+  if (value === undefined || value === '') return null;
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-medium uppercase text-gray-500">{label}</dt>
+      <dd className="mt-1 break-words font-mono text-sm text-gray-200">{String(value)}</dd>
+    </div>
+  );
+}
+
+function SourceFileSummary({ file }: { file: SourceCapturedFile }) {
+  const size = formatBytes(file.size_bytes);
+  return (
+    <dl className="grid gap-3 md:grid-cols-2">
+      <SourceMetaRow label="Path" value={file.display_path} />
+      <SourceMetaRow label="SHA-256" value={file.content_sha256} />
+      <SourceMetaRow label="Size" value={size} />
+      <SourceMetaRow label="Omitted" value={file.omitted?.message ?? file.omitted?.reason} />
+    </dl>
+  );
+}
+
+function SourceCodeBlock({ value, language }: { value: string; language?: string }) {
+  return (
+    <pre className="max-h-96 overflow-auto rounded-md border border-gray-800 bg-gray-950 p-3 text-xs text-gray-200">
+      <code data-language={language}>{value}</code>
+    </pre>
+  );
+}
+
+function SourceReferencedFileItem({ file }: { file: SourceReferencedFile }) {
+  const title = `${file.kind}${file.grader_name ? ` · ${file.grader_name}` : ''}`;
+  return (
+    <details className="rounded-md border border-gray-800 bg-gray-900 p-3" open={false}>
+      <summary className="cursor-pointer text-sm font-medium text-gray-200">
+        <span>{title}</span>
+        <span className="ml-3 font-mono text-xs text-gray-500">{file.display_path}</span>
+      </summary>
+      <div className="mt-3 space-y-3">
+        <SourceFileSummary file={file} />
+        {file.command && file.command.length > 0 && (
+          <SourceCodeBlock value={JSON.stringify(file.command, null, 2)} language="json" />
+        )}
+        {file.content && <SourceCodeBlock value={file.content} />}
+      </div>
+    </details>
+  );
+}
+
+function SourceTab({ result }: { result: EvalResult }) {
+  const traceability: SourceTraceability | undefined = result.source_traceability;
+  if (!traceability || traceability.status !== 'captured') {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h4 className="text-sm font-medium text-gray-300">Source metadata</h4>
+        <p className="mt-2 text-sm text-gray-500">
+          {traceability?.message ?? 'Source metadata was not captured for this run.'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h4 className="mb-3 text-sm font-medium text-gray-300">Traceability</h4>
+        <dl className="grid gap-3 md:grid-cols-2">
+          <SourceMetaRow label="Eval file" value={traceability.eval_file?.display_path} />
+          <SourceMetaRow label="Test ID" value={traceability.test_id ?? result.testId} />
+          <SourceMetaRow label="Suite" value={result.suite} />
+          <SourceMetaRow label="Category" value={result.category} />
+          <SourceMetaRow label="Target" value={result.target} />
+        </dl>
+      </section>
+
+      {traceability.source_test?.yaml && (
+        <section className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-300">Source Test</h4>
+          <SourceCodeBlock value={traceability.source_test.yaml} language="yaml" />
+        </section>
+      )}
+
+      {traceability.eval_file?.content && (
+        <section className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-300">Eval File Snapshot</h4>
+          <SourceFileSummary file={traceability.eval_file} />
+          <SourceCodeBlock value={traceability.eval_file.content} language="yaml" />
+        </section>
+      )}
+
+      {traceability.graders && traceability.graders.length > 0 && (
+        <section className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-300">Graders</h4>
+          <div className="space-y-3">
+            {traceability.graders.map((grader) => (
+              <details
+                key={`${grader.name}-${grader.type}`}
+                className="rounded-md border border-gray-800 bg-gray-900 p-3"
+              >
+                <summary className="cursor-pointer text-sm font-medium text-gray-200">
+                  {grader.name}
+                  <span className="ml-3 font-mono text-xs text-gray-500">{grader.type}</span>
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <dl className="grid gap-3 md:grid-cols-3">
+                    <SourceMetaRow label="Weight" value={grader.weight} />
+                    <SourceMetaRow label="Required" value={grader.required} />
+                    <SourceMetaRow label="Min score" value={grader.min_score} />
+                  </dl>
+                  <SourceCodeBlock
+                    value={JSON.stringify(grader.definition, null, 2)}
+                    language="json"
+                  />
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {traceability.referenced_files && traceability.referenced_files.length > 0 && (
+        <section className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-300">Referenced Files</h4>
+          <div className="space-y-3">
+            {traceability.referenced_files.map((file, index) => (
+              <SourceReferencedFileItem
+                key={`${file.kind}-${file.display_path}-${file.grader_name ?? ''}-${index}`}
+                file={file}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
