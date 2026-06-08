@@ -1,7 +1,7 @@
 /**
  * Overview stat bar for a run — compact inline layout matching table width.
  *
- * Shows: quality pass rate, passed, quality failures, execution errors, total
+ * Shows: pass rate, passed, failures, execution errors, total
  * (and optional cost) in a single row.
  */
 
@@ -27,10 +27,10 @@ export function StatsCards({
 
   return (
     <div className="flex flex-wrap items-center gap-6 rounded-lg border border-gray-800 bg-gray-900/60 px-5 py-3">
-      <Stat label="Quality Pass Rate" value={`${pct}%`} accent={rateColor} large />
+      <Stat label="Pass Rate" value={`${pct}%`} accent={rateColor} large />
       <div className="h-6 w-px bg-gray-700" />
       <Stat label="Passed" value={String(passed)} accent="text-emerald-400" />
-      <Stat label="Quality Failures" value={String(failed)} accent="text-red-400" />
+      <Stat label="Failures" value={String(failed)} accent="text-red-400" />
       {executionErrors > 0 && (
         <Stat label="Execution Errors" value={String(executionErrors)} accent="text-amber-400" />
       )}

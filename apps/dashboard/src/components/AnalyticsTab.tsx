@@ -578,8 +578,8 @@ function PerRunView({
               <th className="px-4 py-3 font-medium text-gray-400">Tags</th>
               <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Tests</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Avg</th>
             </tr>
           </thead>
@@ -1023,7 +1023,7 @@ function PerRunCompareView({
             </tr>
             <tr className="border-t border-gray-800/50 bg-gray-900/30">
               <th className="sticky left-0 z-10 bg-gray-900/80 px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 backdrop-blur">
-                Quality pass rate
+                Pass rate
               </th>
               {runs.map((run) => (
                 <th key={run.run_id} className="px-4 py-2">

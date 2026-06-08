@@ -115,8 +115,8 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Experiments</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Evals</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Execution Errors</th>
             </tr>
           </thead>
@@ -181,7 +181,7 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
                 {selectedTarget.experiment_count === 1 ? '' : 's'} &middot;{' '}
                 <span className="text-emerald-400">{selectedTarget.passed_count}</span>
                 <span className="text-gray-600"> / </span>
-                {aggregateQualityCount(selectedTarget)} quality evals passed
+                {aggregateQualityCount(selectedTarget)} evals passed
                 {executionErrorCount(selectedTarget) > 0 && (
                   <span className="ml-2 text-amber-400">
                     &middot; {executionErrorCount(selectedTarget)} execution errors
@@ -216,7 +216,7 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
                     {group.runs.length} run{group.runs.length === 1 ? '' : 's'} &middot;{' '}
                     <span className="text-emerald-400">{group.passedCount}</span>
                     <span className="text-gray-600"> / </span>
-                    {group.qualityCount} quality evals passed
+                    {group.qualityCount} evals passed
                     {group.executionErrorCount > 0 && (
                       <span className="ml-2 text-amber-400">
                         &middot; {group.executionErrorCount} execution errors
