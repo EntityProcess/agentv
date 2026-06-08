@@ -117,6 +117,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Use `br` (beads_rust) for Beads operations. `br` is non-invasive and never commits or pushes; after `br sync --flush-only`, manually run `git add .beads/` and commit the exported state when the bead graph is part of the change.
 - Use the upstream bead-aware launcher from the EntityProcess agent plugin tooling for worker launch. The launcher should claim the bead, record a launch note, export `EP_TASK_ID`/`BEAD_ID`/`AGENTV_BEAD_ID`, then delegate to the existing `ep-spawn-agent` workflow.
 - Use `ntm` for tmux session orchestration, monitoring, and dispatch when launching or tending worker sessions. NTM project names must resolve under `ntm config get projects_base`; set `AGENTV_NTM_SESSION` when the repo worktree is not directly under that base.
+- For Codex workers launched through NTM, prefer the stable `agentv` project plus a task label, such as `ntm spawn agentv --label traceability --cod=1`. This keeps workers on the same trusted NTM project directory while still giving each task its own tmux session. Avoid inventing fresh NTM project names like `agentv-traceability` unless you intentionally need a separate project root.
 - GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
 
 ### Beads Ownership
@@ -136,16 +137,18 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Do not commit project-local Agent Mail config files; they contain bearer tokens and are ignored by `.gitignore`.
 
 ### Worktree Setup
-- For any feature, bug fix, or non-trivial repo change, work from a dedicated git worktree based on the latest `origin/main`.
-- Before starting implementation, run `git fetch origin` and verify your worktree `HEAD` is based on the current `origin/main` commit.
-- Do not implement from the primary checkout, from a stale local `main`, or from a branch created off an outdated base.
+- Start every repo change by running `git fetch origin`, inspecting `git status --short --branch`, and checking/reserving the intended paths in Agent Mail.
+- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, Beads-only notes, a small single-file fix, or a focused review follow-up); and you hold Agent Mail reservations for the paths you will edit.
+- When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local Agent Mail config, generated evidence, or unrelated Beads/doc state. If Beads state diverged across worktrees, reconcile it explicitly before merge or push.
+- Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale/dirty in paths you need.
+- Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit. Do not implement from a stale local `main` or from a branch created off an outdated base.
 - Manual setup:
 ```bash
 git fetch origin
 git worktree add ../agentv.worktrees/<type>-<short-desc> -b <type>/<issue-or-topic>-<short-desc> origin/main
 cd ../agentv.worktrees/<type>-<short-desc>
 ```
-- If you discover you are not on a fresh worktree from the latest `origin/main`, stop and fix that first before changing code.
+- If you discover you are on a stale base or have uncoordinated dirty files, stop and fix that before changing code.
 
 ### Planning
 - Use plan mode for any non-trivial task (5+ steps or architectural decisions).
