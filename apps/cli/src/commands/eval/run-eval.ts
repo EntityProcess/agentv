@@ -45,7 +45,7 @@ import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
-import { buildDefaultRunDir, normalizeExperimentName } from './result-layout.js';
+import { buildRunDir, createRunDirName, normalizeExperimentName } from './result-layout.js';
 import {
   buildExclusionFilter,
   loadErrorTestIds,
@@ -415,10 +415,18 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   }
 }
 
-function buildDefaultOutputPathForExperiment(cwd: string, experiment?: string): string {
-  const runDir = buildDefaultRunDir(cwd, experiment);
+function buildDefaultOutputPathForExperiment(
+  cwd: string,
+  experiment: string | undefined,
+  runId: string,
+): string {
+  const runDir = buildRunDir(cwd, experiment, runId);
   mkdirSync(runDir, { recursive: true });
   return path.join(runDir, 'index.jsonl');
+}
+
+function isSameResolvedPath(left: string, right: string): boolean {
+  return path.resolve(left) === path.resolve(right);
 }
 
 type ProgressReporter = {
@@ -981,13 +989,10 @@ export async function runEvalCommand(
 ): Promise<RunEvalResult | undefined> {
   const cwd = process.cwd();
 
-  // Set AGENTV_RUN_TIMESTAMP so CLI targets can group artifacts under the same run folder.
-  if (!process.env.AGENTV_RUN_TIMESTAMP) {
-    process.env.AGENTV_RUN_TIMESTAMP = new Date()
-      .toISOString()
-      .replace(/:/g, '-')
-      .replace(/\./g, '-');
-  }
+  // Set AGENTV_RUN_TIMESTAMP so CLI targets and AgentV's canonical run bundle
+  // agree on the same run ID.
+  const runId = process.env.AGENTV_RUN_TIMESTAMP ?? createRunDirName();
+  process.env.AGENTV_RUN_TIMESTAMP = runId;
 
   // Load agentv.config.ts (if present) for default values
   let config: Awaited<ReturnType<typeof loadTsConfig>> = null;
@@ -1014,9 +1019,11 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  const experimentName = normalizeExperimentName(options.experiment);
   if (!process.env.AGENTV_EXPERIMENT) {
-    process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
+    process.env.AGENTV_EXPERIMENT = experimentName;
   }
+  const canonicalRunDir = buildRunDir(cwd, experimentName, runId);
 
   // Validate --grader-target / --model combinations
   if (options.graderTarget === 'agentv' && !options.model) {
@@ -1158,7 +1165,7 @@ export async function runEvalCommand(
     usesDefaultArtifactWorkspace = false;
   } else {
     // Default: .agentv/results/runs/<experiment>/<timestamp>/
-    outputPath = buildDefaultOutputPathForExperiment(cwd, options.experiment);
+    outputPath = buildDefaultOutputPathForExperiment(cwd, experimentName, runId);
     runDir = path.dirname(outputPath);
     usesDefaultArtifactWorkspace = true;
   }
@@ -1477,7 +1484,7 @@ export async function runEvalCommand(
     await writeInitialBenchmarkArtifact(runDir, {
       evalFile,
       plannedTestCount: totalEvalCount,
-      experiment: normalizeExperimentName(options.experiment),
+      experiment: experimentName,
     });
   }
 
@@ -1665,22 +1672,23 @@ export async function runEvalCommand(
       console.log(`Benchmark written to: ${benchmarkPath}`);
     }
 
-    // Write artifacts to the run directory (always, not conditional on flags)
+    const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
+    const sourceTests = activeTestFiles.flatMap(
+      (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
+    );
+
+    // Write artifacts to the requested artifact workspace for backward compatibility.
     if (usesDefaultArtifactWorkspace && allResults.length > 0) {
-      const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-      const sourceTests = activeTestFiles.flatMap(
-        (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
-      );
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then aggregate
         // from the full index.jsonl (old + new results with deduplication)
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
         await writePerTestArtifacts(allResults, runDir, {
-          experiment: normalizeExperimentName(options.experiment),
+          experiment: experimentName,
         });
         const { benchmarkPath: workspaceBenchmarkPath, timingPath } = await aggregateRunDir(
           runDir,
-          { evalFile, experiment: normalizeExperimentName(options.experiment) },
+          { evalFile, experiment: experimentName },
         );
         const runSourcePath = await writeRunSourceArtifact(summaryResults, runDir, {
           evalFile,
@@ -1706,7 +1714,7 @@ export async function runEvalCommand(
           runSourcePath,
         } = await writeArtifactsFromResults(allResults, runDir, {
           evalFile,
-          experiment: normalizeExperimentName(options.experiment),
+          experiment: experimentName,
           cwd,
           repoRoot,
           sourceTests,
@@ -1721,6 +1729,36 @@ export async function runEvalCommand(
         if (runSourcePath) {
           console.log(`  Run source: ${runSourcePath}`);
         }
+      }
+    }
+
+    const shouldWriteCanonicalRunBundle =
+      allResults.length > 0 &&
+      (!usesDefaultArtifactWorkspace || !isSameResolvedPath(canonicalRunDir, runDir));
+    if (shouldWriteCanonicalRunBundle) {
+      const {
+        testArtifactDir,
+        timingPath,
+        benchmarkPath: workspaceBenchmarkPath,
+        indexPath,
+        runSourcePath,
+      } = await writeArtifactsFromResults(summaryResults, canonicalRunDir, {
+        evalFile,
+        experiment: experimentName,
+        plannedTestCount: isResumeAppend ? undefined : totalEvalCount,
+        cwd,
+        repoRoot,
+        sourceTests,
+      });
+      console.log(`Canonical run bundle written to: ${canonicalRunDir}`);
+      console.log(`  Index: ${indexPath}`);
+      console.log(
+        `  Per-test artifacts: ${testArtifactDir} (${summaryResults.length} test directories)`,
+      );
+      console.log(`  Timing: ${timingPath}`);
+      console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+      if (runSourcePath) {
+        console.log(`  Run source: ${runSourcePath}`);
       }
     }
 
@@ -1763,11 +1801,14 @@ export async function runEvalCommand(
       console.log(`\nResults written to: ${outputPath}`);
 
       // Persist last run path for `agentv results` commands
-      await saveRunCache(cwd, outputPath).catch(() => undefined);
+      const cachedOutputPath = shouldWriteCanonicalRunBundle
+        ? path.join(canonicalRunDir, 'index.jsonl')
+        : outputPath;
+      await saveRunCache(cwd, cachedOutputPath).catch(() => undefined);
 
       await maybeAutoExportRunArtifacts({
         cwd,
-        run_dir: runDir,
+        run_dir: shouldWriteCanonicalRunBundle ? canonicalRunDir : runDir,
         test_files: activeTestFiles,
         results: allResults,
         eval_summaries: remoteEvalSummaries.map((summary) => ({
@@ -1790,7 +1831,7 @@ export async function runEvalCommand(
                   : 'FAIL',
           })),
         })),
-        experiment: normalizeExperimentName(options.experiment),
+        experiment: experimentName,
       });
     }
 

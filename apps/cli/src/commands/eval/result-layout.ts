@@ -22,19 +22,34 @@ export function createRunDirName(timestamp = new Date()): string {
   return timestamp.toISOString().replace(/[:.]/g, '-');
 }
 
-export function buildDefaultRunDir(
-  cwd: string,
-  experiment?: string,
-  timestamp = new Date(),
-): string {
+export function normalizeRunId(runId: string): string {
+  const trimmed = runId.trim();
+  if (!trimmed) {
+    throw new Error('Run ID cannot be empty.');
+  }
+  if (!/^[A-Za-z0-9._-]+$/.test(trimmed)) {
+    throw new Error(`Invalid run ID "${trimmed}". Use only letters, numbers, ".", "_" and "-".`);
+  }
+  return trimmed;
+}
+
+export function buildRunDir(cwd: string, experiment: string | undefined, runId: string): string {
   return path.join(
     cwd,
     '.agentv',
     'results',
     RESULT_RUNS_DIRNAME,
     normalizeExperimentName(experiment),
-    createRunDirName(timestamp),
+    normalizeRunId(runId),
   );
+}
+
+export function buildDefaultRunDir(
+  cwd: string,
+  experiment?: string,
+  timestamp = new Date(),
+): string {
+  return buildRunDir(cwd, experiment, createRunDirName(timestamp));
 }
 
 export function buildDefaultIndexPath(cwd: string, experiment?: string): string {

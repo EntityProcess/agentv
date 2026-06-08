@@ -17,6 +17,8 @@ export const RUN_SOURCE_FILENAME = 'run-source.json';
 const MAX_SOURCE_CAPTURE_BYTES = 64 * 1024;
 const SOURCE_SECRET_LINE_PATTERN =
   /^(\s*[\w.-]*(?:api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)[\w.-]*\s*:\s*).+$/gim;
+const SOURCE_SECRET_KEY_PATTERN =
+  /(api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)/i;
 const SOURCE_SECRET_ASSIGNMENT_PATTERN =
   /^((?:--?)?[\w.-]*(?:api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)[\w.-]*[=:]).+$/i;
 const SOURCE_SECRET_FLAG_PATTERN =
@@ -652,6 +654,27 @@ function redactSecretLikeLines(content: string): string {
   return content.replace(SOURCE_SECRET_LINE_PATTERN, `$1${REDACTED_SOURCE_VALUE}`);
 }
 
+function redactSecretLikeValue(value: unknown, keyHint?: string): unknown {
+  if (keyHint && SOURCE_SECRET_KEY_PATTERN.test(keyHint)) {
+    return REDACTED_SOURCE_VALUE;
+  }
+  if (typeof value === 'string') {
+    return redactSecretLikeLines(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSecretLikeValue(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [
+        key,
+        redactSecretLikeValue(entryValue, key),
+      ]),
+    );
+  }
+  return value;
+}
+
 function isLikelyBinary(buffer: Buffer): boolean {
   return buffer.subarray(0, Math.min(buffer.length, 8000)).includes(0);
 }
@@ -834,7 +857,10 @@ function toRunSourceGraderDefinitions(
     ...(grader.weight !== undefined ? { weight: grader.weight } : {}),
     ...(grader.required !== undefined ? { required: grader.required } : {}),
     ...(grader.minScore !== undefined ? { min_score: grader.minScore } : {}),
-    definition: toSnakeCaseDeep(grader.definition) as Record<string, unknown>,
+    definition: toSnakeCaseDeep(redactSecretLikeValue(grader.definition)) as Record<
+      string,
+      unknown
+    >,
   }));
 }
 
@@ -907,7 +933,7 @@ export async function buildRunSourceArtifact(
         test_id: source.testId,
         source_test: {
           test_id: source.testId,
-          yaml: source.testSnapshotYaml,
+          yaml: redactSecretLikeLines(source.testSnapshotYaml),
         },
         graders: toRunSourceGraderDefinitions(source),
         referenced_files: referencedFiles,

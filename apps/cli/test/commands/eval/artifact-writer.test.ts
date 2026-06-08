@@ -959,6 +959,68 @@ describe('writeArtifactsFromResults', () => {
       content: 'console.log("prompt");\n',
     });
   });
+
+  it('redacts secret-shaped source snapshots and grader definitions while preserving required_env names', async () => {
+    const sourceTests = [
+      {
+        id: 'redaction-case',
+        question: 'hello',
+        input: [],
+        expected_output: [],
+        file_paths: [],
+        criteria: 'ok',
+        source: {
+          evalFilePath: 'redaction.eval.yaml',
+          evalFileAbsolutePath: undefined,
+          testId: 'redaction-case',
+          testSnapshotYaml: [
+            'id: redaction-case',
+            'api_key: literal-secret',
+            'required_env:',
+            '  - OPENAI_API_KEY',
+          ].join('\n'),
+          graderDefinitions: [
+            {
+              name: 'quality',
+              type: 'llm-grader',
+              definition: {
+                name: 'quality',
+                type: 'llm-grader',
+                config: {
+                  secret_token: 'literal-secret',
+                  required_env: ['OPENAI_API_KEY'],
+                },
+              },
+            },
+          ],
+          references: [],
+        },
+      } as unknown as EvalTest,
+    ];
+
+    const outputDir = path.join(testDir, 'redaction-out');
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ testId: 'redaction-case', target: 'gpt-4o' })],
+      outputDir,
+      { sourceTests },
+    );
+
+    const artifact = JSON.parse(
+      await readFile(paths.runSourcePath ?? '', 'utf8'),
+    ) as RunSourceArtifact;
+    const traceability = artifact.results[0]?.source_traceability;
+
+    expect(traceability?.source_test?.yaml).toContain('api_key: [redacted]');
+    expect(traceability?.source_test?.yaml).toContain('OPENAI_API_KEY');
+    expect(traceability?.source_test?.yaml).not.toContain('literal-secret');
+    expect(traceability?.graders?.[0]?.definition).toMatchObject({
+      config: {
+        secret_token: '[redacted]',
+        required_env: ['OPENAI_API_KEY'],
+      },
+    });
+    expect(JSON.stringify(traceability?.graders)).not.toContain('literal-secret');
+  });
 });
 
 describe('writeArtifacts (from JSONL file)', () => {

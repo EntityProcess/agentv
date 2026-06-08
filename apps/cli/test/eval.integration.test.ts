@@ -250,6 +250,62 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('writes a canonical run bundle while preserving a legacy --out file', async () => {
+    const fixture = await createFixture();
+    try {
+      const runId = '2026-06-08T10-40-00-000Z';
+      const legacyOutputPath = path.join(fixture.baseDir, 'legacy-results', 'custom.jsonl');
+      const { stdout } = await runCli(
+        fixture,
+        ['eval', fixture.testFilePath, '--out', legacyOutputPath, '--experiment', 'audit'],
+        { AGENTV_RUN_TIMESTAMP: runId },
+      );
+
+      expect(extractOutputPath(stdout)).toBe(legacyOutputPath);
+      expect(await readJsonLines(legacyOutputPath)).toHaveLength(2);
+
+      const canonicalRunDir = path.join(
+        fixture.suiteDir,
+        '.agentv',
+        'results',
+        'runs',
+        'audit',
+        runId,
+      );
+      expect(stdout).toContain(`Canonical run bundle written to: ${canonicalRunDir}`);
+      expect((await readdir(canonicalRunDir)).sort()).toEqual([
+        'benchmark.json',
+        'case-alpha',
+        'case-beta',
+        'index.jsonl',
+        'run-source.json',
+        'timing.json',
+        'transcript.jsonl',
+      ]);
+
+      const canonicalResults = await readJsonLines(path.join(canonicalRunDir, 'index.jsonl'));
+      expect(canonicalResults).toHaveLength(2);
+      const benchmark = JSON.parse(
+        await readFile(path.join(canonicalRunDir, 'benchmark.json'), 'utf8'),
+      ) as { metadata: { experiment?: string; planned_test_count?: number } };
+      expect(benchmark.metadata.experiment).toBe('audit');
+      expect(benchmark.metadata.planned_test_count).toBe(2);
+
+      const runSource = JSON.parse(
+        await readFile(path.join(canonicalRunDir, 'run-source.json'), 'utf8'),
+      ) as { version: number; results: unknown[] };
+      expect(runSource.version).toBe(1);
+      expect(runSource.results).toHaveLength(2);
+
+      const cache = JSON.parse(
+        await readFile(path.join(fixture.suiteDir, '.agentv', 'cache.json'), 'utf8'),
+      ) as { lastRunDir?: string };
+      expect(cache.lastRunDir).toBe(canonicalRunDir);
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('loads the nearest .env first and uses parent .env only for missing keys', async () => {
     const fixture = await createNestedEnvFixture();
     try {
