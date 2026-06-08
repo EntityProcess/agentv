@@ -26,6 +26,11 @@ import {
 import { runsHomePath } from '~/lib/navigation';
 import type { RunEvalRequest } from '~/lib/types';
 import {
+  filterEvalFileOptions,
+  selectEvalFileForSuiteFilter,
+  toEvalFileOptions,
+} from './run-eval-files';
+import {
   buildRunEvalRequest,
   getDefaultThresholdInputValue,
   getThresholdFieldValue,
@@ -73,7 +78,14 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   const { data: runStatus } = useEvalRunStatus(activeRunId, projectId);
   const { data: studioConfig } = useStudioConfig(projectId);
 
-  const evalFiles = useMemo(() => discoverData?.eval_files ?? [], [discoverData]);
+  const evalFiles = useMemo(
+    () => toEvalFileOptions(discoverData?.eval_files ?? []),
+    [discoverData],
+  );
+  const matchingEvalFiles = useMemo(
+    () => filterEvalFileOptions(evalFiles, suiteFilter),
+    [evalFiles, suiteFilter],
+  );
   const targetNames = useMemo(() => targetsData?.targets ?? [], [targetsData]);
   const defaultThresholdInput = useMemo(
     () => getDefaultThresholdInputValue(threshold, studioConfig?.threshold),
@@ -205,24 +217,26 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
             placeholder="evals/**/*.eval.yaml"
             className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
           />
-          {evalFiles.length > 0 && !suiteFilter && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {evalFiles.slice(0, 5).map((f) => (
-                <button
-                  key={f.relative_path}
-                  type="button"
-                  onClick={() =>
-                    setSuiteFilter((prev) =>
-                      prev ? `${prev}, ${f.relative_path}` : f.relative_path,
-                    )
-                  }
-                  className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-400 hover:bg-gray-700 hover:text-gray-200"
-                >
-                  {f.relative_path}
-                </button>
-              ))}
-              {evalFiles.length > 5 && (
-                <span className="px-1 text-xs text-gray-500">+{evalFiles.length - 5} more</span>
+          {evalFiles.length > 0 && (
+            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-md border border-gray-800 bg-gray-950/60 p-1">
+              {matchingEvalFiles.length > 0 ? (
+                matchingEvalFiles.map((f) => (
+                  <button
+                    key={f.relativePath}
+                    type="button"
+                    onClick={() =>
+                      setSuiteFilter((prev) => selectEvalFileForSuiteFilter(prev, f.relativePath))
+                    }
+                    className="block w-full rounded px-2 py-1 text-left text-xs text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                  >
+                    <span className="block truncate">{f.relativePath}</span>
+                    {f.category && (
+                      <span className="block truncate text-[11px] text-gray-600">{f.category}</span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="px-2 py-1 text-xs text-gray-500">No matching eval files</div>
               )}
             </div>
           )}
