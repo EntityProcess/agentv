@@ -66,6 +66,8 @@ Don't build features until there's a concrete need. Before adding a new capabili
 ### 6. Non-Breaking Extensions
 New fields should be optional. Existing configurations must continue working unchanged.
 
+Same-week or unreleased surfaces can be hard-deprecated. If a field, artifact name, CLI flag, or behavior was introduced in the current calendar week and has not shipped to real external consumers, prefer converging hard to the correct contract instead of carrying aliases, mirrors, or compatibility readers. This is especially important for wire-format names: fix them to the snake_case v1 shape before release. Do not apply this shortcut to established files, flags, config fields, or known consumers; those still need an explicit compatibility, migration, and versioning plan.
+
 ### 7. AI-First Design
 AI agents are the primary users of AgentV—not humans reading docs. Design for AI comprehension and composability.
 
