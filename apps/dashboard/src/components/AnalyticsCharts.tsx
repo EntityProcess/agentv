@@ -9,7 +9,7 @@
  *   1. Normalized gain bar chart (horizontal bars, g per task × target)
  *   2. Domain/tag heatmap (pass rate by tag × target)
  *   3. Negative delta table (tasks where non-baseline scored worse)
- *   4. Score distribution histogram (score variance for a single run)
+ *   4. Filterable score distribution histogram (experiment/category/time)
  *   5. Trend-over-time line chart (mean score per target over time)
  *
  * All charts use recharts styled with Tailwind-matching colors to
@@ -18,7 +18,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -34,6 +34,13 @@ import {
 } from 'recharts';
 
 import { compareOptionsWithBaseline, projectCompareOptions } from '~/lib/api';
+import {
+  ALL_DISTRIBUTION_FILTER_VALUE,
+  SCORE_DISTRIBUTION_TIME_PERIODS,
+  type ScoreDistributionFilters,
+  type ScoreDistributionTimePeriod,
+  buildScoreDistributionModel,
+} from '~/lib/score-distribution';
 import type { CompareResponse, CompareRunEntry } from '~/lib/types';
 
 // ── Color palette matching Dashboard DESIGN.md ────────────────────────────
@@ -439,53 +446,209 @@ function NegativeDeltaTable({ data, baseline }: { data: CompareResponse; baselin
 
 // ── 4. Score distribution histogram ────────────────────────────────────
 
+const DEFAULT_DISTRIBUTION_FILTERS: ScoreDistributionFilters = {
+  experiment: ALL_DISTRIBUTION_FILTER_VALUE,
+  category: ALL_DISTRIBUTION_FILTER_VALUE,
+  timePeriod: 'all',
+};
+
 function ScoreDistribution({ data }: { data: CompareResponse }) {
-  const histData = useMemo(() => {
-    // Collect all test scores from all cells
-    const scores: number[] = [];
-    for (const cell of data.cells) {
-      for (const t of cell.tests) {
-        scores.push(t.score);
+  const [filters, setFilters] = useState<ScoreDistributionFilters>(DEFAULT_DISTRIBUTION_FILTERS);
+  const model = useMemo(() => buildScoreDistributionModel(data, filters), [data, filters]);
+
+  useEffect(() => {
+    setFilters((prev) => {
+      const experimentStillAvailable =
+        !prev.experiment ||
+        model.experimentOptions.some((option) => option.value === prev.experiment);
+      const categoryStillAvailable =
+        !prev.category || model.categoryOptions.some((option) => option.value === prev.category);
+      const timePeriodStillAvailable = prev.timePeriod === 'all' || model.hasTimestampedScores;
+      if (experimentStillAvailable && categoryStillAvailable && timePeriodStillAvailable) {
+        return prev;
       }
-    }
-    if (scores.length === 0) return [];
+      return {
+        experiment: experimentStillAvailable ? prev.experiment : ALL_DISTRIBUTION_FILTER_VALUE,
+        category: categoryStillAvailable ? prev.category : ALL_DISTRIBUTION_FILTER_VALUE,
+        timePeriod: timePeriodStillAvailable ? prev.timePeriod : 'all',
+      };
+    });
+  }, [model.experimentOptions, model.categoryOptions, model.hasTimestampedScores]);
 
-    // Build 10-bucket histogram (0-10%, 10-20%, ..., 90-100%)
-    const buckets = Array.from({ length: 10 }, (_, i) => ({
-      range: `${i * 10}–${(i + 1) * 10}%`,
-      count: 0,
-    }));
-    for (const s of scores) {
-      const idx = Math.min(Math.floor(s * 10), 9);
-      buckets[idx].count++;
-    }
-    return buckets;
-  }, [data.cells]);
+  const updateFilter = <K extends keyof ScoreDistributionFilters>(
+    key: K,
+    value: ScoreDistributionFilters[K],
+  ) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
-  if (histData.length === 0) return null;
+  const clearFilters = () => setFilters(DEFAULT_DISTRIBUTION_FILTERS);
+  const hasActiveFilters =
+    filters.experiment !== ALL_DISTRIBUTION_FILTER_VALUE ||
+    filters.category !== ALL_DISTRIBUTION_FILTER_VALUE ||
+    filters.timePeriod !== 'all';
+  const hasAnyScores = model.totalScores > 0;
+  const emptyMessage = scoreDistributionEmptyMessage(model, filters);
 
   return (
     <ChartSection title="Score Distribution">
-      <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-3">
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={histData} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.gridLine} vertical={false} />
-            <XAxis
-              dataKey="range"
-              tick={{ fill: COLORS.labelText, fontSize: 11 }}
-              axisLine={{ stroke: COLORS.gridLine }}
-            />
-            <YAxis
-              tick={{ fill: COLORS.labelText, fontSize: 11 }}
-              axisLine={{ stroke: COLORS.gridLine }}
-            />
-            <Tooltip content={<ChartTooltip />} />
-            <Bar dataKey="count" name="Tests" fill={COLORS.cyan} radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="space-y-3">
+        <div className="rounded-lg border border-gray-800 bg-gray-900/30 px-3 py-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DistributionSelect
+              id="score-distribution-experiment"
+              label="Experiment"
+              value={filters.experiment}
+              onChange={(value) => updateFilter('experiment', value)}
+              disabled={model.experimentOptions.length === 0}
+            >
+              <option value={ALL_DISTRIBUTION_FILTER_VALUE}>All experiments</option>
+              {model.experimentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} ({option.count})
+                </option>
+              ))}
+            </DistributionSelect>
+            <DistributionSelect
+              id="score-distribution-category"
+              label="Category"
+              value={filters.category}
+              onChange={(value) => updateFilter('category', value)}
+              disabled={!model.categoryAvailable}
+              help={
+                model.categoryAvailable || !hasAnyScores
+                  ? undefined
+                  : 'Category metadata is not present in these compare results.'
+              }
+            >
+              <option value={ALL_DISTRIBUTION_FILTER_VALUE}>All categories</option>
+              {model.categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} ({option.count})
+                </option>
+              ))}
+            </DistributionSelect>
+            <DistributionSelect
+              id="score-distribution-time"
+              label="Time period"
+              value={filters.timePeriod}
+              onChange={(value) => updateFilter('timePeriod', value as ScoreDistributionTimePeriod)}
+              disabled={!model.hasTimestampedScores}
+              help={
+                model.hasTimestampedScores || !hasAnyScores
+                  ? undefined
+                  : 'Recent windows need run timestamps from compare data.'
+              }
+            >
+              {SCORE_DISTRIBUTION_TIME_PERIODS.map((period) => (
+                <option key={period.value} value={period.value}>
+                  {period.label}
+                </option>
+              ))}
+            </DistributionSelect>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-800/70 pt-3 text-xs">
+            <span className="tabular-nums text-gray-400">
+              Showing <span className="text-gray-200">{model.filteredScores}</span> of{' '}
+              <span className="text-gray-200">{model.totalScores}</span> scores
+            </span>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-gray-500 underline-offset-2 transition-colors hover:text-gray-300 hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+
+        {model.buckets.length > 0 ? (
+          <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-3">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={model.buckets} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.gridLine} vertical={false} />
+                <XAxis
+                  dataKey="range"
+                  tick={{ fill: COLORS.labelText, fontSize: 11 }}
+                  axisLine={{ stroke: COLORS.gridLine }}
+                />
+                <YAxis
+                  tick={{ fill: COLORS.labelText, fontSize: 11 }}
+                  axisLine={{ stroke: COLORS.gridLine }}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="count" name="Tests" fill={COLORS.cyan} radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <ScoreDistributionEmptyState message={emptyMessage} />
+        )}
       </div>
     </ChartSection>
   );
+}
+
+function DistributionSelect({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+  help,
+  children,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  help?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0 space-y-1">
+      <label
+        htmlFor={id}
+        className="block text-xs font-medium uppercase tracking-wider text-gray-500"
+      >
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-gray-100 transition-colors focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:border-gray-800 disabled:text-gray-600"
+      >
+        {children}
+      </select>
+      {help && <p className="text-xs leading-5 text-gray-500">{help}</p>}
+    </div>
+  );
+}
+
+function ScoreDistributionEmptyState({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-gray-800 bg-gray-900/20 px-4 py-8 text-center">
+      <p className="text-sm text-gray-400">{message}</p>
+    </div>
+  );
+}
+
+function scoreDistributionEmptyMessage(
+  model: ReturnType<typeof buildScoreDistributionModel>,
+  filters: ScoreDistributionFilters,
+) {
+  if (model.totalScores === 0) {
+    return 'No test scores are available in this comparison yet.';
+  }
+  if (filters.category && !model.categoryAvailable) {
+    return 'Category metadata is not available in these compare results.';
+  }
+  return 'No scores match the selected distribution filters.';
 }
 
 // ── 5. Trend over time ─────────────────────────────────────────────────

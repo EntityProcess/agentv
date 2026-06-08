@@ -994,6 +994,14 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
       .filter(Boolean),
   );
 
+  type CompareTestEntry = {
+    test_id: string;
+    category?: string;
+    score: number;
+    passed: boolean;
+    execution_status?: string;
+  };
+
   // Collect per-test-case results keyed by experiment × target (aggregated view)
   const cellMap = new Map<
     string,
@@ -1005,12 +1013,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
       passedCount: number;
       executionErrorCount: number;
       scoreSum: number;
-      tests: Array<{
-        test_id: string;
-        score: number;
-        passed: boolean;
-        execution_status?: string;
-      }>;
+      tests: CompareTestEntry[];
     }
   >();
 
@@ -1032,12 +1035,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     execution_error_count: number;
     pass_rate: number;
     avg_score: number;
-    tests: Array<{
-      test_id: string;
-      score: number;
-      passed: boolean;
-      execution_status?: string;
-    }>;
+    tests: CompareTestEntry[];
   }> = [];
 
   const experimentsSet = new Set<string>();
@@ -1055,10 +1053,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
       }
 
       const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
-      const runTestMap = new Map<
-        string,
-        { test_id: string; score: number; passed: boolean; execution_status?: string }
-      >();
+      const runTestMap = new Map<string, CompareTestEntry>();
       let runEvalCount = 0;
       let runQualityCount = 0;
       let runPassedCount = 0;
@@ -1100,6 +1095,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         }
         entry.tests.push({
           test_id: r.testId,
+          ...(r.category && { category: r.category }),
           score: r.score,
           passed,
           execution_status: r.executionStatus,
@@ -1109,6 +1105,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         // Per-run accumulation. Dedupe tests within the run by last-wins.
         runTestMap.set(r.testId, {
           test_id: r.testId,
+          ...(r.category && { category: r.category }),
           score: r.score,
           passed,
           execution_status: r.executionStatus,
