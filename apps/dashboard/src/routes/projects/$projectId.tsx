@@ -71,8 +71,8 @@ function ProjectHomePage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="overflow-x-auto border-b border-gray-800">
-        <div className="flex min-w-max gap-1">
+      <div className="border-b border-gray-800 sm:overflow-x-auto">
+        <div className="flex flex-wrap gap-1 sm:min-w-max sm:flex-nowrap">
           {tabs.map((t) => (
             <button
               type="button"

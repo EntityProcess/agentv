@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'bun:test';
+
+import type { RunMeta } from '../lib/types';
+import { buildRunListItemView } from './RunList';
+
+function runMeta(overrides: Partial<RunMeta> = {}): RunMeta {
+  return {
+    filename: 'run-2026-06-08.jsonl',
+    path: '/tmp/run-2026-06-08.jsonl',
+    timestamp: '2026-06-08T10:00:00.000Z',
+    test_count: 10,
+    pass_rate: 0.7,
+    avg_score: 0.7,
+    size_bytes: 1024,
+    source: 'local',
+    ...overrides,
+  };
+}
+
+describe('buildRunListItemView', () => {
+  it('deducts execution errors from quality totals for both table and mobile views', () => {
+    const view = buildRunListItemView(
+      runMeta({
+        execution_error_count: 2,
+      }),
+      0.8,
+    );
+
+    expect(view.errors).toBe(2);
+    expect(view.qualityCount).toBe(8);
+    expect(view.passedCount).toBe(6);
+    expect(view.failedCount).toBe(2);
+    expect(view.passing).toBe(false);
+  });
+
+  it('preserves active run status separately from pass rate', () => {
+    const view = buildRunListItemView(
+      runMeta({
+        status: 'running',
+        pass_rate: 0,
+      }),
+      0.8,
+    );
+
+    expect(view.isActive).toBe(true);
+    expect(view.passing).toBe(false);
+  });
+});

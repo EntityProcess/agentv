@@ -295,7 +295,7 @@ function SingleProjectHome() {
 
       {/* Tab navigation */}
       <div className="border-b border-gray-800">
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1 sm:flex-nowrap">
           {tabs.map((t) => (
             <button
               type="button"
