@@ -150,11 +150,9 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
             <thead className="border-b border-gray-800 bg-gray-900/50">
               <tr>
                 <th className="px-4 py-2.5 font-medium text-gray-400">Category</th>
-                <th className="px-4 py-2.5 font-medium text-gray-400">Quality Pass Rate</th>
+                <th className="px-4 py-2.5 font-medium text-gray-400">Pass Rate</th>
                 <th className="px-4 py-2.5 text-right font-medium text-gray-400">Passed</th>
-                <th className="px-4 py-2.5 text-right font-medium text-gray-400">
-                  Quality Failures
-                </th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-400">Failures</th>
                 <th className="px-4 py-2.5 text-right font-medium text-gray-400">
                   Execution Errors
                 </th>
@@ -243,7 +241,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                 <th className="w-8 px-4 py-3" />
                 <th className="w-[24rem] px-4 py-3 font-medium text-gray-400">Test ID</th>
                 <th className="w-[12rem] px-4 py-3 font-medium text-gray-400">Target</th>
-                <th className="w-48 px-4 py-3 font-medium text-gray-400">Quality Score</th>
+                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
               </tr>

@@ -74,7 +74,7 @@ function ProjectSuitePage() {
               <tr>
                 <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
                 <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-                <th className="w-48 px-4 py-3 font-medium text-gray-400">Quality Score</th>
+                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
               </tr>

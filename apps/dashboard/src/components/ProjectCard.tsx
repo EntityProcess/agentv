@@ -49,7 +49,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
           <p className="text-lg font-semibold text-white">{project.run_count}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Quality</p>
+          <p className="text-xs text-gray-500">Pass Rate</p>
           <p
             className={`text-lg font-semibold ${
               project.run_count === 0

@@ -425,16 +425,16 @@ export function RunList({
               </div>
 
               <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-800/70 pt-3">
-                <MobileRunMetric label="Quality Pass Rate" valueClassName="text-gray-300">
+                <MobileRunMetric label="Pass Rate" valueClassName="text-gray-300">
                   <PassRatePill rate={run.pass_rate} />
                 </MobileRunMetric>
-                <MobileRunMetric label="Quality Total" valueClassName="text-gray-300">
+                <MobileRunMetric label="Total" valueClassName="text-gray-300">
                   {qualityCount}
                 </MobileRunMetric>
-                <MobileRunMetric label="Quality Passed" valueClassName="text-emerald-300">
+                <MobileRunMetric label="Passed" valueClassName="text-emerald-300">
                   {passedCount}
                 </MobileRunMetric>
-                <MobileRunMetric label="Quality Failures" valueClassName="text-red-400">
+                <MobileRunMetric label="Failures" valueClassName="text-red-400">
                   {failedCount > 0 ? failedCount : <span className="text-gray-600">0</span>}
                 </MobileRunMetric>
                 <MobileRunMetric label="Errors" valueClassName="text-amber-300">
@@ -465,11 +465,11 @@ export function RunList({
               <th className="w-8 px-4 py-3" />
               <th className="w-[22rem] px-4 py-3 font-medium text-gray-400">Run</th>
               <th className="px-4 py-3 font-medium text-gray-400">Source</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Passed</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Failures</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Failures</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Errors</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Total</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-400">Total</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
               <th className="px-4 py-3 font-medium text-gray-400">When</th>
             </tr>
           </thead>

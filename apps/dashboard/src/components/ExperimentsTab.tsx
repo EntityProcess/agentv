@@ -48,9 +48,9 @@ export function ExperimentsTab({ projectId }: ExperimentsTabProps) {
             <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Targets</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-400">Quality Evals</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
             <th className="px-4 py-3 text-right font-medium text-gray-400">Execution Errors</th>
-            <th className="px-4 py-3 font-medium text-gray-400">Quality Pass Rate</th>
+            <th className="px-4 py-3 font-medium text-gray-400">Pass Rate</th>
             <th className="px-4 py-3 font-medium text-gray-400">Last Run</th>
           </tr>
         </thead>
