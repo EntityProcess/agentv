@@ -39,7 +39,6 @@ import {
   parseJsonlResults,
   writeArtifactsFromResults,
   writeInitialBenchmarkArtifact,
-  writeRunSourceArtifact,
 } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
@@ -60,6 +59,7 @@ import {
   formatMatrixSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
+import type { TaskBundleTargetSelection } from './task-bundle.js';
 
 const DEFAULT_WORKERS = 3;
 
@@ -724,6 +724,27 @@ async function prepareFileMetadata(params: {
     tags: suite.metadata?.tags,
     providerFactory: suite.providerFactory,
   };
+}
+
+function buildTaskBundleTargetSelections(
+  activeTestFiles: readonly string[],
+  fileMetadata: ReadonlyMap<
+    string,
+    { readonly selections: readonly { readonly selection: TargetSelection }[] }
+  >,
+): readonly TaskBundleTargetSelection[] {
+  return activeTestFiles.flatMap((testFilePath) => {
+    const meta = fileMetadata.get(testFilePath);
+    if (!meta) {
+      return [];
+    }
+    return meta.selections.map(({ selection }) => ({
+      evalFileAbsolutePath: testFilePath,
+      targetName: selection.targetName,
+      resolvedTargetName: selection.resolvedTarget.name,
+      definitions: selection.definitions,
+    }));
+  });
 }
 
 async function runSingleEvalFile(params: {
@@ -1671,45 +1692,41 @@ export async function runEvalCommand(
       const sourceTests = activeTestFiles.flatMap(
         (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
       );
+      const taskBundleTargets = buildTaskBundleTargetSelections(activeTestFiles, fileMetadata);
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then aggregate
         // from the full index.jsonl (old + new results with deduplication)
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
         await writePerTestArtifacts(allResults, runDir, {
           experiment: normalizeExperimentName(options.experiment),
+          cwd,
+          repoRoot,
+          sourceTests,
+          taskBundleTargets,
         });
         const { benchmarkPath: workspaceBenchmarkPath, timingPath } = await aggregateRunDir(
           runDir,
           { evalFile, experiment: normalizeExperimentName(options.experiment) },
         );
-        const runSourcePath = await writeRunSourceArtifact(summaryResults, runDir, {
-          evalFile,
-          cwd,
-          repoRoot,
-          sourceTests,
-        });
         const indexPath = path.join(runDir, 'index.jsonl');
         console.log(`Artifact workspace updated: ${runDir}`);
         console.log(`  Index: ${indexPath}`);
         console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
         console.log(`  Timing: ${timingPath}`);
         console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
-        if (runSourcePath) {
-          console.log(`  Run source: ${runSourcePath}`);
-        }
       } else {
         const {
           testArtifactDir,
           timingPath,
           benchmarkPath: workspaceBenchmarkPath,
           indexPath,
-          runSourcePath,
         } = await writeArtifactsFromResults(allResults, runDir, {
           evalFile,
           experiment: normalizeExperimentName(options.experiment),
           cwd,
           repoRoot,
           sourceTests,
+          taskBundleTargets,
         });
         console.log(`Artifact workspace written to: ${runDir}`);
         console.log(`  Index: ${indexPath}`);
@@ -1718,9 +1735,6 @@ export async function runEvalCommand(
         );
         console.log(`  Timing: ${timingPath}`);
         console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
-        if (runSourcePath) {
-          console.log(`  Run source: ${runSourcePath}`);
-        }
       }
     }
 
