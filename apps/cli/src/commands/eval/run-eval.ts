@@ -126,6 +126,7 @@ interface NormalizedOptions {
   readonly transcript?: string;
   readonly experiment?: string;
   readonly budgetUsd?: number;
+  readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -195,6 +196,35 @@ function normalizeFilter(value: unknown): string | readonly string[] | undefined
   }
 
   return normalizeString(value);
+}
+
+function normalizeSourceMetadataByEvalFile(
+  value: unknown,
+): ReadonlyMap<string, Record<string, unknown>> | undefined {
+  if (value instanceof Map) {
+    const entries = [...value.entries()].filter(
+      (entry): entry is [string, Record<string, unknown>] =>
+        typeof entry[0] === 'string' &&
+        typeof entry[1] === 'object' &&
+        entry[1] !== null &&
+        !Array.isArray(entry[1]),
+    );
+    return entries.length > 0
+      ? new Map(entries.map(([key, metadata]) => [path.resolve(key), metadata]))
+      : undefined;
+  }
+
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const entries = Object.entries(value).filter(
+      (entry): entry is [string, Record<string, unknown>] =>
+        typeof entry[1] === 'object' && entry[1] !== null && !Array.isArray(entry[1]),
+    );
+    return entries.length > 0
+      ? new Map(entries.map(([key, metadata]) => [path.resolve(key), metadata]))
+      : undefined;
+  }
+
+  return undefined;
 }
 
 /**
@@ -404,7 +434,28 @@ function normalizeOptions(
     transcript: normalizeString(rawOptions.transcript),
     experiment: normalizeString(rawOptions.experiment),
     budgetUsd: normalizeOptionalNumber(rawOptions.budgetUsd),
+    sourceMetadataByEvalFile: normalizeSourceMetadataByEvalFile(
+      rawOptions.sourceMetadataByEvalFile,
+    ),
   } satisfies NormalizedOptions;
+}
+
+function withSourceMetadata(
+  result: EvaluationResult,
+  testFilePath: string,
+  options: NormalizedOptions,
+): EvaluationResult {
+  const sourceMetadata = options.sourceMetadataByEvalFile?.get(path.resolve(testFilePath));
+  if (!sourceMetadata) {
+    return result;
+  }
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      ...sourceMetadata,
+    },
+  };
 }
 
 async function ensureFileExists(filePath: string, description: string): Promise<void> {
@@ -919,9 +970,10 @@ async function runSingleEvalFile(params: {
       // Trim output messages for results JSONL based on --output-messages.
       // Each message is trimmed to { role, content } only (no toolCalls, startTime, etc.).
       // Full output with tool calls goes to OTel.
-      const trimmedOutput = trimOutputMessages(result.output, options.outputMessages);
+      const resultWithMetadata = withSourceMetadata(result, testFilePath, options);
+      const trimmedOutput = trimOutputMessages(resultWithMetadata.output, options.outputMessages);
       const trimmedResult: EvaluationResult = {
-        ...result,
+        ...resultWithMetadata,
         output: trimmedOutput,
       };
       await outputWriter.append(trimmedResult);
@@ -976,7 +1028,7 @@ async function runSingleEvalFile(params: {
     },
   });
 
-  return { results: [...results] };
+  return { results: results.map((result) => withSourceMetadata(result, testFilePath, options)) };
 }
 
 export interface RunEvalResult {
@@ -1529,9 +1581,11 @@ export async function runEvalCommand(
             target: selection.targetName,
           }));
           for (const r of skippedResults) {
-            await outputWriter.append(r);
+            await outputWriter.append(withSourceMetadata(r, testFilePath, options));
           }
-          allResults.push(...skippedResults);
+          allResults.push(
+            ...skippedResults.map((r) => withSourceMetadata(r, testFilePath, options)),
+          );
         }
         continue;
       }
@@ -1614,21 +1668,27 @@ export async function runEvalCommand(
             console.error(
               `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
             );
-            const errorResults: EvaluationResult[] = filteredTestCases.map((testCase) => ({
-              timestamp: new Date().toISOString(),
-              testId: testCase.id,
-              score: 0,
-              assertions: [],
-              output: [],
-              scores: [],
-              error: message,
-              executionStatus: 'execution_error' as const,
-              failureStage: 'setup' as const,
-              failureReasonCode: 'setup_error' as const,
-              durationMs: 0,
-              tokenUsage: { input: 0, output: 0, inputTokens: 0, outputTokens: 0 },
-              target: selection.targetName,
-            }));
+            const errorResults: EvaluationResult[] = filteredTestCases.map((testCase) =>
+              withSourceMetadata(
+                {
+                  timestamp: new Date().toISOString(),
+                  testId: testCase.id,
+                  score: 0,
+                  assertions: [],
+                  output: [],
+                  scores: [],
+                  error: message,
+                  executionStatus: 'execution_error' as const,
+                  failureStage: 'setup' as const,
+                  failureReasonCode: 'setup_error' as const,
+                  durationMs: 0,
+                  tokenUsage: { input: 0, output: 0 },
+                  target: selection.targetName,
+                },
+                testFilePath,
+                options,
+              ),
+            );
             for (const errResult of errorResults) {
               await outputWriter.append(errResult);
             }
