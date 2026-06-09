@@ -122,11 +122,12 @@ function findRepoRoot(startPath: string): string {
 async function runEval(evalFile: string): Promise<string> {
   const tempDir = mkdtempSync(join(tmpdir(), 'agentv-'));
   const resultsFile = join(tempDir, 'results.jsonl');
+  const runDir = join(tempDir, 'run');
 
   const repoRoot = findRepoRoot(dirname(evalFile));
   const evalPath = resolve(evalFile);
 
-  const cmd = ['bun', 'agentv', 'eval', evalPath, '--out', resultsFile];
+  const cmd = ['bun', 'agentv', 'eval', evalPath, '--output', runDir, '--export', resultsFile];
 
   logInfo(`Running: ${cmd.join(' ')}`);
   logInfo(`Working directory: ${repoRoot}`);

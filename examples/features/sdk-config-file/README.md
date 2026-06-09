@@ -6,7 +6,7 @@ Demonstrates using `defineConfig()` from `@agentv/core` for typed project-level 
 
 1. Creates an `agentv.config.ts` with `defineConfig()`
 2. Configures execution defaults (workers, retries)
-3. Sets output format and cost limits
+3. Sets the default output directory and cost limits
 
 ## How to Run
 

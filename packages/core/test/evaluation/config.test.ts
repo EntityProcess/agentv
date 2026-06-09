@@ -49,4 +49,8 @@ describe('defineConfig execution defaults', () => {
     const config = defineConfig({ execution: { traceFile: 'trace.jsonl' } } as never);
     expect(config.execution).toEqual({});
   });
+
+  it('rejects removed output.format', () => {
+    expect(() => defineConfig({ output: { format: 'jsonl' } } as never)).toThrow(/format/);
+  });
 });

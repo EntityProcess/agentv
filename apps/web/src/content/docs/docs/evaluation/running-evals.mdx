@@ -86,6 +86,9 @@ Write all artifacts (index.jsonl, benchmark.json, per-test grading/timing) to a 
 agentv eval evals/my-eval.yaml --output ./my-results
 ```
 
+`--output` is a run directory, not a file path. The canonical manifest is always
+`<output>/index.jsonl`.
+
 ### Export Additional Formats
 
 Write additional output files alongside the artifact directory. Format is inferred from the file extension (`.jsonl`, `.json`, `.xml`, `.yaml`, `.html`):
@@ -525,4 +528,4 @@ docker run --rm \
 
 ## All Options
 
-Run `agentv eval --help` for the full list of options including workers, timeouts, output formats, and trace dumping.
+Run `agentv eval --help` for the full list of options including workers, timeouts, output directories, exports, and trace dumping.

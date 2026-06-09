@@ -46,19 +46,19 @@ export const evalRunCommand = command({
     out: option({
       type: optional(string),
       long: 'out',
-      description: '[Deprecated: use --output] Write results to the specified path',
+      description: '[Removed: use --output <dir> and --export <file>] Former flat result path',
     }),
     output: option({
       type: optional(string),
       long: 'output',
       short: 'o',
       description:
-        'Artifact directory for run output (index.jsonl, benchmark.json, per-test grading/timing)',
+        'Run artifact directory (writes index.jsonl, benchmark.json, timing, and per-test artifacts)',
     }),
     outputFormat: option({
       type: optional(string),
       long: 'output-format',
-      description: "[Deprecated] Output format: 'jsonl', 'yaml', or 'html' (default: jsonl)",
+      description: '[Removed: use --export <file>] Run directories always write index.jsonl',
     }),
     experiment: option({
       type: optional(string),
@@ -188,8 +188,7 @@ export const evalRunCommand = command({
     artifacts: option({
       type: optional(string),
       long: 'artifacts',
-      description:
-        '[Deprecated: use --output] Write companion artifacts to the specified directory',
+      description: '[Removed: use --output <dir>] Former companion artifact directory',
     }),
     graderTarget: option({
       type: optional(string),
