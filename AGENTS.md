@@ -117,34 +117,30 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 ### Beads-First Orchestration
 - Beads is AgentV's normal durable task graph. Use it for assignment, status, dependencies, handoff notes, decomposition, and resumability. Agent sessions are disposable workers that read and write the bead graph.
 - Use `br` (beads_rust) for Beads operations. `br` is non-invasive and never commits or pushes; after `br sync --flush-only`, manually run `git add .beads/` and commit the exported state when the bead graph is part of the change.
-- Use the upstream bead-aware launcher from the EntityProcess agent plugin tooling for worker launch. The launcher should claim the bead, record a launch note, export `EP_TASK_ID`/`BEAD_ID`/`AGENTV_BEAD_ID`, then delegate to the existing `ep-spawn-agent` workflow.
-- Use `ntm` for tmux session orchestration, monitoring, and dispatch when launching or tending worker sessions. NTM project names must resolve under `ntm config get projects_base`; set `AGENTV_NTM_SESSION` when the repo worktree is not directly under that base.
-- For Codex workers launched through NTM, prefer the stable `agentv` project plus a task label, such as `ntm spawn agentv --label traceability --cod=1`. This keeps workers on the same trusted NTM project directory while still giving each task its own tmux session. Avoid inventing fresh NTM project names like `agentv-traceability` unless you intentionally need a separate project root.
+- If your local operator workflow provides a bead-aware launcher, use it to claim the bead, record a launch note, and export the task environment variables expected by that workflow. Keep private launcher names, paths, session aliases, and dispatch policy in `AGENTS.md.local` or the operator workspace.
 - GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
 
 ### Beads Ownership
 - AgentV Beads are for AgentV repository implementation deliverables: code, tests, docs, examples, config, fixtures, committed evidence, or repo-local release/CI work.
-- Research-only and cross-repo orchestration work belongs in the agent-orchestrator Beads graph at `/home/entity/ntm_Dev/agent-orchestrator` unless the expected output is a committed AgentV deliverable. This includes cross-repo research, framework comparisons, private-repo investigations, status audits, worker dispatch logs, and decision records without AgentV repo changes.
-- Do not commit `.beads/issues.jsonl` in AgentV just to record research dispatch notes or orchestration status.
-- If orchestrator research discovers AgentV implementation work, create or link a focused AgentV Bead for that implementation and keep the research record in agent-orchestrator.
+- Local/private orchestration policies, cross-repo research records, private-repo investigations, status audits, worker dispatch logs, and operator decision records belong in untracked `AGENTS.md.local` or the operator workspace, not this public repository.
+- Do not commit `.beads/issues.jsonl` in AgentV just to record research dispatch notes or orchestration status that does not produce AgentV repository changes.
+- If external research discovers AgentV implementation work, create or link a focused AgentV Bead for that implementation and keep the external research record outside this repository.
 - Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
 - Create beads with short generated IDs. Do not pass `--slug`; the title carries the human-readable name, including `EPIC:` when useful.
-- Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
+- Claim work with the configured bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
 - Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
 - Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
 - Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately broadcast it through Agent Mail with the stash name, affected paths, reason, and recovery plan.
 
 ### MCP Agent Mail
-- Agent Mail is available as `mcp-agent-mail` at `http://127.0.0.1:8765/api/` when the local server is running.
-- Start the server with `am` in a new shell, or run `/home/entity/.local/share/mcp_agent_mail/scripts/run_server_with_token.sh`.
-- At session start, call `ensure_project` for `/home/entity/projects/EntityProcess/agentv`, then `register_agent` if this session does not already have an Agent Mail identity.
-- Before editing shared files, create advisory reservations with `file_reservation_paths` for the intended paths/globs.
-- Use threads for coordination: `send_message` with a stable `thread_id`, `fetch_inbox` to check mail, and `acknowledge_message` after acting on a message.
+- If Agent Mail is part of your local operator workflow, keep server URLs, startup commands, bearer tokens, and canonical project keys in `AGENTS.md.local` or operator workspace docs.
+- Before editing shared files, create advisory reservations with `file_reservation_paths` for the intended paths/globs when Agent Mail is configured.
+- Use threads for coordination when Agent Mail is configured: `send_message` with a stable `thread_id`, `fetch_inbox` to check mail, and `acknowledge_message` after acting on a message.
 - Do not commit project-local Agent Mail config files; they contain bearer tokens and are ignored by `.gitignore`.
 
 ### Worktree Setup
-- Start every repo change by running `git fetch origin`, inspecting `git status --short --branch`, and checking/reserving the intended paths in Agent Mail.
-- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, Beads-only notes, a small single-file fix, or a focused review follow-up); and you hold Agent Mail reservations for the paths you will edit.
+- Start every repo change by running `git fetch origin`, inspecting `git status --short --branch`, and checking/reserving the intended paths in Agent Mail when configured.
+- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, Beads-only notes, a small single-file fix, or a focused review follow-up); and you hold Agent Mail reservations for the paths you will edit when Agent Mail is configured.
 - When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local Agent Mail config, generated evidence, or unrelated Beads/doc state. If Beads state diverged across worktrees, reconcile it explicitly before merge or push.
 - Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale/dirty in paths you need.
 - Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit. Do not implement from a stale local `main` or from a branch created off an outdated base.
@@ -482,7 +478,7 @@ Use Beads for live ownership and GitHub for external collaboration. Do not dupli
 
 Exception: if the bead is part of an epic/worktree continuation and the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the epic bead or parent bead. In that case, keep the child/task bead open or in progress rather than closing it as completed until the PR is merged or the parent explicitly supersedes it.
 
-If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches, artifact/documentation branches, and private asset repos. It does not override the rule against pushing directly to `main` in this repository.
+If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches and artifact/documentation branches. For private asset repositories, follow the relevant untracked local override. It does not override the rule against pushing directly to `main` in this repository.
 
 When working from a GitHub issue instead of a bead, use GitHub project state to avoid duplicate work before branching:
 
