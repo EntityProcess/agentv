@@ -33,11 +33,13 @@ export interface ResultManifestRecord {
   readonly input_path?: string;
   readonly output_path?: string;
   readonly response_path?: string;
+  readonly artifact_dir?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
   readonly targets_path?: string;
   readonly files_path?: string;
   readonly graders_path?: string;
+  readonly metadata?: Record<string, unknown>;
 }
 
 function parseJsonlLines<T>(content: string): T[] {
@@ -175,6 +177,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
     costUsd: record.cost_usd,
     input: hydrateInput(baseDir, record),
     output: hydrateOutput(baseDir, record),
+    metadata: record.metadata,
   } as EvaluationResult;
 }
 

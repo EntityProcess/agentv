@@ -15,6 +15,7 @@ import { inspectCommand } from './commands/inspect/index.js';
 import { pipelineCommand } from './commands/pipeline/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
+import { runsCommand } from './commands/runs/index.js';
 import { selfCommand } from './commands/self/index.js';
 import { skillsCommand } from './commands/skills/index.js';
 import { transpileCommand } from './commands/transpile/index.js';
@@ -39,6 +40,7 @@ export const app = subcommands({
     init: initCmdTsCommand,
     pipeline: pipelineCommand,
     results: resultsCommand,
+    runs: runsCommand,
     self: selfCommand,
     skills: skillsCommand,
     serve: resultsServeCommand,
@@ -72,6 +74,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'init',
   'pipeline',
   'results',
+  'runs',
   'self',
   'skills',
   'serve',

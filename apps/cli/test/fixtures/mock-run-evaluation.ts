@@ -47,10 +47,26 @@ interface EvaluationResultLike {
   readonly timestamp: string;
 }
 
-function buildResults(targetName: string): EvaluationResultLike[] {
+function evalCaseIds(evalCases: ReadonlyArray<unknown> | undefined): readonly string[] {
+  if (!Array.isArray(evalCases) || evalCases.length === 0) {
+    return ['case-alpha', 'case-beta'];
+  }
+  return evalCases
+    .map((evalCase) =>
+      evalCase &&
+      typeof evalCase === 'object' &&
+      'id' in evalCase &&
+      typeof evalCase.id === 'string'
+        ? evalCase.id
+        : undefined,
+    )
+    .filter((id): id is string => id !== undefined);
+}
+
+function buildResult(targetName: string, testId: string, index: number): EvaluationResultLike {
   const baseTime = new Date('2024-01-01T00:00:00.000Z');
-  return [
-    {
+  if (testId === 'case-alpha') {
+    return {
       testId: 'case-alpha',
       score: 0.6,
       assertions: [{ text: 'alpha', passed: true }],
@@ -58,8 +74,10 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       expectedAspectCount: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
-    },
-    {
+    };
+  }
+  if (testId === 'case-beta') {
+    return {
       testId: 'case-beta',
       score: 0.9,
       assertions: [
@@ -71,8 +89,24 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       expectedAspectCount: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
-    },
-  ];
+    };
+  }
+  return {
+    testId,
+    score: 1,
+    assertions: [{ text: testId, passed: true }],
+    output: [{ role: 'assistant', content: `${testId} answer` }],
+    expectedAspectCount: 1,
+    target: targetName,
+    timestamp: new Date(baseTime.getTime() + index * 60_000).toISOString(),
+  };
+}
+
+function buildResults(
+  targetName: string,
+  evalCases: ReadonlyArray<unknown> | undefined,
+): EvaluationResultLike[] {
+  return evalCaseIds(evalCases).map((testId, index) => buildResult(targetName, testId, index));
 }
 
 async function maybeWriteDiagnostics(
@@ -135,7 +169,7 @@ async function maybeWritePromptDump(
 export async function runEvaluation(
   options: RunEvaluationOptionsLike,
 ): Promise<readonly EvaluationResultLike[]> {
-  const results = buildResults(options.target?.name ?? 'unknown-target');
+  const results = buildResults(options.target?.name ?? 'unknown-target', options.evalCases);
 
   await maybeWriteDiagnostics(options, results);
   await maybeWritePromptDump(
