@@ -518,4 +518,56 @@ describe('results repo write path', () => {
     expect(status.git_diff_summary).toContain('local-only');
     expect(status.git_diff_summary).toContain('benchmark.json');
   }, 20000);
+
+  it('supersedes stale sync errors with the current conflicted status', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = { ...createResultsConfig(remoteDir, cloneDir), auto_push: false };
+    const relativeMetadataPath = path.join(
+      '.agentv',
+      'results',
+      'metadata',
+      'runs',
+      'stale-error',
+      '2026-05-26T10-00-00-000Z',
+      'tags.json',
+    );
+    const writeTags = (repoDir: string, tags: string[]) => {
+      const tagPath = path.join(repoDir, relativeMetadataPath);
+      mkdirSync(path.dirname(tagPath), { recursive: true });
+      writeFileSync(tagPath, `${JSON.stringify({ tags }, null, 2)}\n`);
+    };
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    writeTags(cloneDir, ['dirty']);
+    const dirtyStatus = await syncResultsRepoForProject(config);
+    expect(dirtyStatus.sync_status).toBe('dirty');
+    expect(dirtyStatus.block_reason).toContain('auto_push is disabled');
+
+    git('git reset --hard --quiet', cloneDir);
+    git('git clean -fd --quiet .agentv', cloneDir);
+
+    writeTags(seedDir, ['base']);
+    git('git add .agentv && git commit --quiet -m "seed tag metadata"', seedDir);
+    git('git push --quiet origin main', seedDir);
+    git('git pull --ff-only --quiet', cloneDir);
+
+    writeTags(cloneDir, ['local']);
+    git('git add .agentv && git commit --quiet -m "local tag metadata"', cloneDir);
+    writeTags(seedDir, ['remote']);
+    git('git add .agentv && git commit --quiet -m "remote tag metadata"', seedDir);
+    git('git push --quiet origin main', seedDir);
+    git('git fetch --quiet origin --prune', cloneDir);
+    git('git merge origin/main || true', cloneDir);
+
+    const status = await getResultsRepoSyncStatus(config);
+
+    expect(status.sync_status).toBe('conflicted');
+    expect(status.last_error).toBe('Results repo has unresolved git conflicts');
+    expect(status.last_error).not.toContain('auto_push is disabled');
+    expect(status.conflicted_paths).toEqual([relativeMetadataPath]);
+  }, 20000);
 });

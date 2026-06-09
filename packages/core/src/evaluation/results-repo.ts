@@ -498,7 +498,32 @@ function withGitInspection(
     conflicted_paths: inspection.conflictedPaths,
     git_status: inspection.gitStatus,
     git_diff_summary: inspection.gitDiffSummary,
+    last_error: lastErrorForGitInspection(status, inspection),
   };
+}
+
+function lastErrorForGitInspection(
+  status: ResultsRepoStatus,
+  inspection: ResultsRepoGitInspection,
+): string | undefined {
+  if (inspection.syncStatus === 'conflicted') {
+    return 'Results repo has unresolved git conflicts';
+  }
+
+  if (inspection.syncStatus === 'diverged') {
+    return 'Results repo local and remote histories have diverged';
+  }
+
+  if (inspection.syncStatus === 'dirty') {
+    if (status.auto_push === false) {
+      return 'Results repo has uncommitted changes and auto_push is disabled';
+    }
+    if (!areSafeResultsRepoPaths(inspection.dirtyPaths)) {
+      return 'Results repo has non-results working tree changes';
+    }
+  }
+
+  return undefined;
 }
 
 function withBlockedStatus(
