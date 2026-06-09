@@ -38,7 +38,8 @@ Also ensure:
 - tests/docs are updated when relevant
 - no unrelated refactors in the same PR
 - CI-relevant checks pass locally when needed (`bun run verify` and `bun run validate:examples`)
-- Beads changes are exported with `br sync --flush-only` and staged under `.beads/`
+- task tracker state is kept out of commits unless a maintainer explicitly asks for
+  a repository-local tracker artifact
 
 ## Workflow
 

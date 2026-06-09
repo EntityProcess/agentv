@@ -41,16 +41,18 @@ cline.mcp.json
 factory.mcp.json
 windsurf.mcp.json
 
-# Gas Town / Beads shared state
-.beads/hooks/
-.beads/.br_history/
-.beads/.bv.lock
+# Local task tracker and orchestrator state
+.beads/
 .runtime/
 .logs/
 state.json
 
-# NTM local project config embeds machine-specific paths
+# NTM local project state can embed machine-specific paths
 .ntm/config.toml
+.ntm/logs/
+.ntm/pids/
+.ntm/rate_limits.json
+.ntm/summaries/
 
 # bv (beads viewer) local config and caches
 .bv/
