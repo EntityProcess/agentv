@@ -30,7 +30,7 @@ import {
   useStudioConfig,
 } from '~/lib/api';
 import { executionErrorCount } from '~/lib/result-summary';
-import { formatRunLabel } from '~/lib/run-label';
+import { type RunDisplay, formatRunDisplay } from '~/lib/run-label';
 import {
   buildCombineSuccessMessage,
   buildDeleteSuccessMessage,
@@ -63,6 +63,7 @@ interface RunListItemView {
   ts: { date: string; full: string };
   isActive: boolean;
   label: string;
+  display: RunDisplay;
   errors: number;
   qualityCount: number;
   passing: boolean;
@@ -94,7 +95,8 @@ function formatDate(ts: string | undefined | null): { date: string; full: string
 export function buildRunListItemView(run: RunMeta, passThreshold: number): RunListItemView {
   const ts = formatDate(run.timestamp);
   const isActive = run.status === 'starting' || run.status === 'running';
-  const label = formatRunLabel(run);
+  const display = formatRunDisplay(run, { includePassRate: false });
+  const label = display.label;
   const errors = executionErrorCount(run);
   const qualityCount = Math.max(0, run.test_count - errors);
   const passing = qualityCount > 0 ? run.pass_rate >= passThreshold : errors === 0;
@@ -107,6 +109,7 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
     ts,
     isActive,
     label,
+    display,
     errors,
     qualityCount,
     passing,
@@ -380,8 +383,17 @@ export function RunList({
       )}
       <div className="space-y-2 sm:hidden">
         {runViews.map((view) => {
-          const { run, ts, label, errors, qualityCount, passedCount, failedCount, metadataDirty } =
-            view;
+          const {
+            run,
+            ts,
+            label,
+            display,
+            errors,
+            qualityCount,
+            passedCount,
+            failedCount,
+            metadataDirty,
+          } = view;
           const selectionDisabledReason = runSelectionDisabledReason(run);
           const selectable = !selectionDisabledReason && selectableRunIds.includes(run.filename);
 
@@ -411,9 +423,15 @@ export function RunList({
                   <RunNameLink
                     projectId={projectId}
                     runId={run.filename}
-                    label={label}
-                    className="block break-all text-sm font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                    label={display.primary}
+                    title={display.title}
+                    className="block truncate text-sm font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                   />
+                  {display.secondary ? (
+                    <p className="mt-0.5 truncate text-xs text-gray-500" title={display.title}>
+                      {display.secondary}
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <SourceBadge source={run.source} />
                     {metadataDirty ? <PendingSyncBadge /> : null}
@@ -479,6 +497,7 @@ export function RunList({
                 run,
                 ts,
                 label,
+                display,
                 errors,
                 qualityCount,
                 passedCount,
@@ -514,14 +533,25 @@ export function RunList({
 
                   {/* Run name */}
                   <td className="w-[22rem] max-w-[22rem] px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <RunNameLink
-                        projectId={projectId}
-                        runId={run.filename}
-                        label={label}
-                        className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                      />
-                      {metadataDirty ? <PendingSyncBadge /> : null}
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <RunNameLink
+                          projectId={projectId}
+                          runId={run.filename}
+                          label={display.primary}
+                          title={display.title}
+                          className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                        />
+                        {metadataDirty ? <PendingSyncBadge /> : null}
+                      </div>
+                      {display.secondary ? (
+                        <div
+                          className="mt-0.5 truncate text-xs text-gray-500"
+                          title={display.title}
+                        >
+                          {display.secondary}
+                        </div>
+                      ) : null}
                     </div>
                   </td>
 
@@ -581,11 +611,13 @@ function RunNameLink({
   projectId,
   runId,
   label,
+  title,
   className,
 }: {
   projectId?: string;
   runId: string;
   label: string;
+  title: string;
   className: string;
 }) {
   return projectId ? (
@@ -593,12 +625,12 @@ function RunNameLink({
       to="/projects/$projectId/runs/$runId"
       params={{ projectId, runId }}
       className={className}
-      title={label}
+      title={title}
     >
       {label}
     </Link>
   ) : (
-    <Link to="/runs/$runId" params={{ runId }} className={className} title={label}>
+    <Link to="/runs/$runId" params={{ runId }} className={className} title={title}>
       {label}
     </Link>
   );

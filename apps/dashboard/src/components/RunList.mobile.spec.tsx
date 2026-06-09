@@ -45,4 +45,22 @@ describe('buildRunListItemView', () => {
     expect(view.isActive).toBe(true);
     expect(view.passing).toBe(false);
   });
+
+  it('uses compact run display without duplicating the pass-rate column', () => {
+    const view = buildRunListItemView(
+      runMeta({
+        display_name: '2026-03-27T05-00-00-000Z',
+        filename: 'remote::2026-03-27T05-00-00-000Z',
+        target: 'remote-target',
+        timestamp: '2026-03-27T05:00:00.000Z',
+        pass_rate: 1,
+        source: 'remote',
+      }),
+      0.8,
+    );
+
+    expect(view.display.primary).toBe('27/03 05:00');
+    expect(view.display.secondary).toBe('remote-target');
+    expect(view.label).toBe('27/03 05:00 · remote-target');
+  });
 });
