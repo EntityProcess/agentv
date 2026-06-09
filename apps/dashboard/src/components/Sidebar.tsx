@@ -34,7 +34,7 @@ import {
   useStudioConfig,
 } from '~/lib/api';
 import { resolveProjectDisplayName } from '~/lib/project-display-name';
-import { formatRunLabel, timeAgo } from '~/lib/run-label';
+import { formatRunDisplay } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
 import { BrandName } from './BrandName';
@@ -85,6 +85,17 @@ function BrandHeader({ projectId }: { projectId?: string }) {
         <BrandName appName={appName} />
       </Link>
     </div>
+  );
+}
+
+function SidebarRunText({ display }: { display: ReturnType<typeof formatRunDisplay> }) {
+  return (
+    <>
+      <span className="block truncate">{display.primary}</span>
+      {display.secondary ? (
+        <span className="block truncate text-xs text-gray-600">{display.secondary}</span>
+      ) : null}
+    </>
   );
 }
 
@@ -274,6 +285,7 @@ function RunSidebar() {
         </div>
 
         {data?.runs.map((run) => {
+          const display = formatRunDisplay(run);
           const isActive =
             isHome === false &&
             runMatch &&
@@ -289,10 +301,9 @@ function RunSidebar() {
                 to="/projects/$projectId/runs/$runId"
                 params={{ projectId: run.project_id, runId: run.filename }}
                 className="mb-0.5 block rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
-                title={run.project_name}
+                title={`${display.title}\nProject: ${run.project_name}`}
               >
-                <span className="block truncate">{formatRunLabel(run)}</span>
-                <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
+                <SidebarRunText display={display} />
               </Link>
             );
           }
@@ -307,9 +318,9 @@ function RunSidebar() {
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
+              title={display.title}
             >
-              <span className="block truncate">{formatRunLabel(run)}</span>
-              <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
+              <SidebarRunText display={display} />
             </Link>
           );
         })}
@@ -507,6 +518,7 @@ function ProjectRunDetailSidebar({
           Runs
         </div>
         {data?.runs.map((run) => {
+          const display = formatRunDisplay(run);
           const isActive = currentRunId === run.filename;
           return (
             <Link
@@ -518,9 +530,9 @@ function ProjectRunDetailSidebar({
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
+              title={display.title}
             >
-              <span className="block truncate">{formatRunLabel(run)}</span>
-              <span className="block text-xs text-gray-600">{timeAgo(run.timestamp)}</span>
+              <SidebarRunText display={display} />
             </Link>
           );
         })}

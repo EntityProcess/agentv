@@ -143,6 +143,7 @@ describe('listGitRuns', () => {
       JSON.stringify(
         {
           metadata: {
+            display_name: 'remote friendly run',
             timestamp: '2026-05-21T11:00:00.000Z',
             experiment: 'with-skills',
             targets: ['claude-sonnet', 'gpt-4o'],
@@ -174,7 +175,7 @@ describe('listGitRuns', () => {
     expect(runs[0]).toMatchObject({
       experiment: 'with-skills',
       timestamp: '2026-05-21T11:00:00.000Z',
-      display_name: '2026-05-21T11-00-00-000Z',
+      display_name: 'remote friendly run',
       manifest_path: '.agentv/results/runs/with-skills/2026-05-21T11-00-00-000Z/index.jsonl',
       benchmark_path: '.agentv/results/runs/with-skills/2026-05-21T11-00-00-000Z/benchmark.json',
       test_count: 3,
@@ -184,6 +185,7 @@ describe('listGitRuns', () => {
     expect(runs[0].target).toBeUndefined();
     expect(runs[1]).toMatchObject({
       experiment: 'default',
+      display_name: '2026-05-20T10-00-00-000Z',
       target: 'gpt-4o',
       manifest_path: '.agentv/results/runs/default/2026-05-20T10-00-00-000Z/index.jsonl',
       test_count: 2,

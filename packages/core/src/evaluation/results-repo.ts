@@ -1070,6 +1070,7 @@ type GitBatchBlob = {
 
 type GitRunBenchmark = {
   readonly metadata?: {
+    readonly display_name?: string;
     readonly timestamp?: string;
     readonly experiment?: string;
     readonly targets?: readonly string[];
@@ -1242,6 +1243,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
     const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);
     const runId = buildGitRunId(relativeRunPath);
     const timestamp = benchmark.metadata?.timestamp?.trim() || path.posix.basename(runDir);
+    const displayName = benchmark.metadata?.display_name?.trim() || path.posix.basename(runDir);
     const targets = benchmark.metadata?.targets ?? [];
     const passRate = computeAveragePassRate(benchmark.run_summary);
 
@@ -1254,7 +1256,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
         ...(targets.length === 1 && targets[0] ? { target: targets[0] } : {}),
         manifest_path: path.posix.join(runDir, 'index.jsonl'),
         benchmark_path: benchmarkPath,
-        display_name: path.posix.basename(runDir),
+        display_name: displayName,
         test_count: benchmark.metadata?.tests_run?.length ?? 0,
         avg_score: 0,
         size_bytes: blob.size,
