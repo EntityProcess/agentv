@@ -33,6 +33,11 @@ export interface ResultManifestRecord {
   readonly input_path?: string;
   readonly output_path?: string;
   readonly response_path?: string;
+  readonly task_dir?: string;
+  readonly eval_path?: string;
+  readonly targets_path?: string;
+  readonly files_path?: string;
+  readonly graders_path?: string;
 }
 
 function parseJsonlLines<T>(content: string): T[] {

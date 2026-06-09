@@ -1686,92 +1686,7 @@ describe('serve app', () => {
       expect(data.source_label).toBe(filename);
     });
 
-    it('exposes run-source traceability on run and eval detail responses', async () => {
-      const runId = writeLocalRunArtifact(
-        tempDir,
-        'traceability',
-        '2026-03-25T11-00-00-000Z',
-        RESULT_A,
-      );
-      const runDir = path.join(
-        tempDir,
-        '.agentv',
-        'results',
-        'runs',
-        'traceability',
-        '2026-03-25T11-00-00-000Z',
-      );
-      writeFileSync(
-        path.join(runDir, 'run-source.json'),
-        `${JSON.stringify(
-          {
-            version: 1,
-            captured_at: '2026-03-25T11:00:01.000Z',
-            eval_file: {
-              display_path: 'evals/demo.eval.yaml',
-              content_sha256: 'abc123',
-              size_bytes: 42,
-              content: 'tests:\\n  - id: test-greeting\\n',
-            },
-            results: [
-              {
-                test_id: 'test-greeting',
-                target: 'gpt-4o',
-                suite: 'demo',
-                eval_file_path: 'evals/demo.eval.yaml',
-                source_traceability: {
-                  status: 'captured',
-                  test_id: 'test-greeting',
-                  source_test: {
-                    test_id: 'test-greeting',
-                    yaml: 'id: test-greeting\\ninput: hello',
-                  },
-                  graders: [
-                    {
-                      name: 'greeting_quality',
-                      type: 'llm-grader',
-                      definition: { name: 'greeting_quality', type: 'llm-grader' },
-                    },
-                  ],
-                  referenced_files: [
-                    {
-                      kind: 'input_file',
-                      display_path: 'fixtures/input.txt',
-                      content_sha256: 'def456',
-                      size_bytes: 5,
-                      content: 'hello',
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-          null,
-          2,
-        )}\n`,
-      );
-
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const runRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
-      expect(runRes.status).toBe(200);
-      const runData = (await runRes.json()) as {
-        results: Array<{ source_traceability: { status: string; source_test?: { yaml: string } } }>;
-      };
-      expect(runData.results[0]?.source_traceability.status).toBe('captured');
-      expect(runData.results[0]?.source_traceability.source_test?.yaml).toContain('test-greeting');
-
-      const evalRes = await app.request(
-        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting`,
-      );
-      expect(evalRes.status).toBe(200);
-      const evalData = (await evalRes.json()) as {
-        eval: { source_traceability: { status: string; referenced_files?: unknown[] } };
-      };
-      expect(evalData.eval.source_traceability.status).toBe('captured');
-      expect(evalData.eval.source_traceability.referenced_files).toHaveLength(1);
-    });
-
-    it('marks source traceability as not captured for historical runs', async () => {
+    it('loads historical runs without task bundle metadata', async () => {
       const runId = writeLocalRunArtifact(
         tempDir,
         'historical',
@@ -1783,12 +1698,10 @@ describe('serve app', () => {
       const res = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
-        results: Array<{ source_traceability: { status: string; message?: string } }>;
+        results: Array<Record<string, unknown>>;
       };
-      expect(data.results[0]?.source_traceability).toMatchObject({
-        status: 'not_captured',
-        message: 'Source metadata was not captured for this run.',
-      });
+      expect(data.results[0]).not.toHaveProperty('task_dir');
+      expect(data.results[0]).not.toHaveProperty('source_traceability');
     });
   });
 

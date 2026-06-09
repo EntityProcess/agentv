@@ -2,15 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { EvalTest, EvaluationResult, GraderResult } from '@agentv/core';
+import {
+  type EvalTest,
+  type EvaluationResult,
+  type GraderResult,
+  parseYamlValue,
+} from '@agentv/core';
 
 import {
   type AggregateGradingArtifact,
   type BenchmarkArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
-  RUN_SOURCE_FILENAME,
-  type RunSourceArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
   buildBenchmarkArtifact,
@@ -848,13 +851,14 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/grading.json');
   });
 
-  it('writes a run-source artifact with captured source metadata when source tests are provided', async () => {
+  it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {
     const sourceRoot = path.join(testDir, 'src');
     await mkdir(sourceRoot, { recursive: true });
     const evalFile = path.join(sourceRoot, 'trace.eval.yaml');
     const inputFile = path.join(sourceRoot, 'input.txt');
     const promptFile = path.join(sourceRoot, 'grader.md');
     const promptScriptFile = path.join(sourceRoot, 'prompt.ts');
+    const envFile = path.join(sourceRoot, '.env');
     await writeFile(
       evalFile,
       ['api_key: literal-secret', 'tests:', '  - id: trace-case', '    input: hello'].join('\n'),
@@ -862,11 +866,12 @@ describe('writeArtifactsFromResults', () => {
     await writeFile(inputFile, 'input fixture\n');
     await writeFile(promptFile, 'grade this response\n');
     await writeFile(promptScriptFile, 'console.log("prompt");\n');
+    await writeFile(envFile, 'OPENAI_API_KEY=literal-secret\n');
 
     const sourceTests = [
       {
         id: 'trace-case',
-        question: 'hello',
+        question: 'file://input.txt',
         input: [],
         expected_output: [],
         file_paths: [inputFile],
@@ -876,7 +881,7 @@ describe('writeArtifactsFromResults', () => {
           evalFileAbsolutePath: evalFile,
           evalFileRepoPath: 'src/trace.eval.yaml',
           testId: 'trace-case',
-          testSnapshotYaml: 'id: trace-case\ninput: hello',
+          testSnapshotYaml: 'id: trace-case\ninput: file://input.txt',
           graderDefinitions: [
             {
               name: 'quality',
@@ -887,6 +892,13 @@ describe('writeArtifactsFromResults', () => {
                 name: 'quality',
                 type: 'llm-grader',
                 prompt: 'file://grader.md',
+                promptScript: [
+                  'bun',
+                  promptScriptFile,
+                  '--api-key=literal-secret',
+                  '--password',
+                  'literal-secret',
+                ],
               },
             },
           ],
@@ -915,6 +927,11 @@ describe('writeArtifactsFromResults', () => {
                 'literal-secret',
               ],
             },
+            {
+              kind: 'input_file',
+              displayPath: '.env',
+              resolvedPath: envFile,
+            },
           ],
         },
       } satisfies EvalTest,
@@ -924,40 +941,185 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults(
       [makeResult({ testId: 'trace-case', target: 'gpt-4o' })],
       outputDir,
-      { sourceTests, cwd: testDir, repoRoot: testDir, evalFile },
+      {
+        sourceTests,
+        cwd: testDir,
+        repoRoot: testDir,
+        evalFile,
+        taskBundleTargets: [
+          {
+            evalFileAbsolutePath: evalFile,
+            targetName: 'gpt-4o',
+            definitions: [
+              {
+                name: 'gpt-4o',
+                provider: 'openai',
+                api_key: '${{ OPENAI_API_KEY }}',
+                fallback_targets: ['backup'],
+              },
+              {
+                name: 'backup',
+                provider: 'openai',
+                api_key: 'literal-secret',
+              },
+            ],
+          },
+        ],
+      },
     );
 
-    expect(paths.runSourcePath).toBe(path.join(outputDir, RUN_SOURCE_FILENAME));
-    const artifact = JSON.parse(
-      await readFile(paths.runSourcePath ?? '', 'utf8'),
-    ) as RunSourceArtifact;
+    const taskDir = path.join(outputDir, 'trace-case', 'task');
+    const evalPath = path.join(taskDir, 'EVAL.yaml');
+    const targetsPath = path.join(taskDir, 'targets.yaml');
+    const taskEval = await readFile(evalPath, 'utf8');
+    const taskTargets = await readFile(targetsPath, 'utf8');
+    const indexLine = JSON.parse((await readFile(paths.indexPath, 'utf8')).trim());
 
-    expect(artifact.version).toBe(1);
-    expect(artifact.eval_file?.display_path).toBe('src/trace.eval.yaml');
-    expect(artifact.eval_file?.content).toContain('api_key: [redacted]');
-    expect(artifact.results[0]?.source_traceability.status).toBe('captured');
-    expect(artifact.results[0]?.source_traceability.source_test?.yaml).toContain('id: trace-case');
-    expect(artifact.results[0]?.source_traceability.graders?.[0]).toMatchObject({
-      name: 'quality',
-      type: 'llm-grader',
-      min_score: 0.7,
+    expect(indexLine).toMatchObject({
+      artifact_dir: 'trace-case',
+      task_dir: 'trace-case/task',
+      eval_path: 'trace-case/task/EVAL.yaml',
+      targets_path: 'trace-case/task/targets.yaml',
+      files_path: 'trace-case/task/files',
+      graders_path: 'trace-case/task/graders',
     });
-    expect(artifact.results[0]?.source_traceability.referenced_files?.[0]).toMatchObject({
-      kind: 'input_file',
-      display_path: 'src/input.txt',
-      content: 'input fixture\n',
-    });
-    expect(artifact.results[0]?.source_traceability.referenced_files?.[1]).toMatchObject({
-      kind: 'llm_grader_prompt',
-      grader_name: 'quality',
-      content: 'grade this response\n',
-    });
-    expect(artifact.results[0]?.source_traceability.referenced_files?.[2]).toMatchObject({
-      kind: 'prompt_script',
-      display_path: 'src/prompt.ts',
-      command: ['bun', 'src/prompt.ts', '--api-key=[redacted]', '--password', '[redacted]'],
-      content: 'console.log("prompt");\n',
-    });
+    expect(await readFile(path.join(taskDir, 'files', 'src', 'input.txt'), 'utf8')).toBe(
+      'input fixture\n',
+    );
+    expect(await readFile(path.join(taskDir, 'files', 'src', '.env'), 'utf8')).toBe('[redacted]\n');
+    expect(await readFile(path.join(taskDir, 'graders', 'src', 'grader.md'), 'utf8')).toBe(
+      'grade this response\n',
+    );
+    expect(await readFile(path.join(taskDir, 'graders', 'src', 'prompt.ts'), 'utf8')).toBe(
+      'console.log("prompt");\n',
+    );
+
+    const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
+    const [testCase] = parsedEval.tests as Record<string, unknown>[];
+    const [assertion] = testCase.assertions as Record<string, unknown>[];
+    expect(parsedEval.execution).toEqual({ target: 'gpt-4o' });
+    expect(testCase.input).toBe('file://files/src/input.txt');
+    expect(assertion.prompt).toBe('file://graders/src/grader.md');
+    expect(assertion.prompt_script).toEqual([
+      'bun',
+      'graders/src/prompt.ts',
+      '--api-key=[redacted]',
+      '--password',
+      '[redacted]',
+    ]);
+
+    expect(taskTargets).toContain('api_key: ${{ OPENAI_API_KEY }}');
+    expect(taskTargets).toContain('api_key: "[redacted]"');
+    expect(taskEval).not.toContain('literal-secret');
+    expect(taskTargets).not.toContain('literal-secret');
+    await expect(
+      readdir(path.join(outputDir, 'trace-case', '.agentv', 'results')),
+    ).rejects.toThrow();
+    await expect(readdir(path.join(taskDir, '.agentv', 'results'))).rejects.toThrow();
+  });
+
+  it('writes task bundle index links for multi-test runs', async () => {
+    const evalFile = path.join(testDir, 'multi.eval.yaml');
+    await mkdir(path.dirname(evalFile), { recursive: true });
+    await writeFile(
+      evalFile,
+      ['tests:', '  - id: alpha', '    input: A', '  - id: beta', '    input: B'].join('\n'),
+    );
+    const sourceTests = ['alpha', 'beta'].map(
+      (id) =>
+        ({
+          id,
+          question: id,
+          input: [],
+          expected_output: [],
+          file_paths: [],
+          criteria: 'ok',
+          source: {
+            evalFilePath: evalFile,
+            evalFileAbsolutePath: evalFile,
+            testId: id,
+            testSnapshotYaml: `id: ${id}\ninput: ${id}`,
+            graderDefinitions: [],
+            references: [],
+          },
+        }) satisfies EvalTest,
+    );
+
+    const paths = await writeArtifactsFromResults(
+      [
+        makeResult({ testId: 'alpha', target: 'mock-target' }),
+        makeResult({ testId: 'beta', target: 'mock-target' }),
+      ],
+      path.join(testDir, 'multi-out'),
+      {
+        sourceTests,
+        taskBundleTargets: [
+          {
+            evalFileAbsolutePath: evalFile,
+            targetName: 'mock-target',
+            definitions: [{ name: 'mock-target', provider: 'mock', response: 'ok' }],
+          },
+        ],
+      },
+    );
+
+    const indexLines = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    expect(indexLines.map((line) => line.task_dir)).toEqual(['alpha/task', 'beta/task']);
+    expect(await readdir(path.join(testDir, 'multi-out', 'alpha', 'task'))).toContain('EVAL.yaml');
+    expect(await readdir(path.join(testDir, 'multi-out', 'beta', 'task'))).toContain('EVAL.yaml');
+  });
+
+  it('matches task bundle targets by resolved result target while preserving selected target name', async () => {
+    const evalFile = path.join(testDir, 'resolved-target.eval.yaml');
+    await mkdir(path.dirname(evalFile), { recursive: true });
+    await writeFile(evalFile, 'tests:\n  - id: alias-case\n    input: hello\n');
+    const sourceTests = [
+      {
+        id: 'alias-case',
+        question: 'hello',
+        input: [],
+        expected_output: [],
+        file_paths: [],
+        criteria: 'ok',
+        source: {
+          evalFilePath: evalFile,
+          evalFileAbsolutePath: evalFile,
+          testId: 'alias-case',
+          testSnapshotYaml: 'id: alias-case\ninput: hello',
+          graderDefinitions: [],
+          references: [],
+        },
+      } satisfies EvalTest,
+    ];
+
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ testId: 'alias-case', target: 'mock-target-dry-run' })],
+      path.join(testDir, 'resolved-target-out'),
+      {
+        sourceTests,
+        taskBundleTargets: [
+          {
+            evalFileAbsolutePath: evalFile,
+            targetName: 'mock-target',
+            resolvedTargetName: 'mock-target-dry-run',
+            definitions: [{ name: 'mock-target', provider: 'mock', response: 'ok' }],
+          },
+        ],
+      },
+    );
+
+    const indexLine = JSON.parse((await readFile(paths.indexPath, 'utf8')).trim());
+    expect(indexLine.task_dir).toBe('alias-case/task');
+
+    const taskEval = await readFile(
+      path.join(testDir, 'resolved-target-out', 'alias-case', 'task', 'EVAL.yaml'),
+      'utf8',
+    );
+    const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
+    expect(parsedEval.execution).toEqual({ target: 'mock-target' });
   });
 });
 

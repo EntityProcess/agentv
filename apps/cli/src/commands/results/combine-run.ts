@@ -11,6 +11,7 @@
 
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -309,6 +310,11 @@ const MANIFEST_PATH_FIELDS = [
   'input_path',
   'output_path',
   'response_path',
+  'task_dir',
+  'eval_path',
+  'targets_path',
+  'files_path',
+  'graders_path',
 ] as const;
 
 function copyReferencedArtifact(
@@ -322,13 +328,18 @@ function copyReferencedArtifact(
     throw new Error(`Unsafe artifact path in source manifest: ${relativePath}`);
   }
   const sourcePath = path.join(sourceBaseDir, relativePath);
-  if (!existsSync(sourcePath) || !statSync(sourcePath).isFile()) {
+  if (!existsSync(sourcePath)) {
     return relativePath;
   }
   const rewritten = path.posix.join(`sources/source-${sourceIndex + 1}`, relativePath);
   const destPath = path.join(outputDir, rewritten);
+  const sourceStat = statSync(sourcePath);
   mkdirSync(path.dirname(destPath), { recursive: true });
-  copyFileSync(sourcePath, destPath);
+  if (sourceStat.isDirectory()) {
+    cpSync(sourcePath, destPath, { recursive: true });
+  } else if (sourceStat.isFile()) {
+    copyFileSync(sourcePath, destPath);
+  }
   return rewritten;
 }
 
