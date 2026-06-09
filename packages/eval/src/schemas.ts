@@ -27,6 +27,7 @@ export const TokenUsageSchema = z.object({
   input: z.number(),
   output: z.number(),
   cached: z.number().optional(),
+  reasoning: z.number().optional(),
 });
 
 /**
@@ -38,6 +39,152 @@ export const TraceSummarySchema = z.object({
   errorCount: z.number(),
   toolDurations: z.record(z.string(), z.array(z.number())).optional(),
   llmCallCount: z.number().optional(),
+});
+
+export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trace.v1' as const;
+
+export const NORMALIZED_TRACE_SOURCE_KINDS = [
+  'agentv_run',
+  'otlp',
+  'phoenix',
+  'langfuse',
+  'pi_session',
+  'imported_transcript',
+  'compact_transcript',
+] as const;
+
+export const NORMALIZED_TRACE_EVENT_TYPES = [
+  'message',
+  'model_turn',
+  'tool_call',
+  'tool_result',
+] as const;
+
+export const NORMALIZED_TOOL_STATUSES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
+
+export const NORMALIZED_REDACTION_LEVELS = ['none', 'partial', 'full'] as const;
+
+const MetadataSchema = z.record(z.string(), z.unknown());
+
+export const NormalizedRedactionStateSchema = z.object({
+  level: z.enum(NORMALIZED_REDACTION_LEVELS),
+  fields: z.array(z.string()).optional(),
+  reason: z.string().optional(),
+});
+
+export const NormalizedTraceErrorSchema = z.object({
+  message: z.string(),
+  name: z.string().optional(),
+  code: z.string().optional(),
+  stack: z.string().optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceSourceSchema = z.object({
+  kind: z.enum(NORMALIZED_TRACE_SOURCE_KINDS),
+  path: z.string().optional(),
+  url: z.string().optional(),
+  provider: z.string().optional(),
+  format: z.string().optional(),
+  version: z.string().optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceSessionSchema = z.object({
+  sessionId: z.string().optional(),
+  conversationId: z.string().optional(),
+  cwd: z.string().optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceBranchSchema = z.object({
+  selectedLeafId: z.string().optional(),
+  selectedPathIds: z.array(z.string()).optional(),
+  includedEventIds: z.array(z.string()).optional(),
+  omittedEventIds: z.array(z.string()).optional(),
+  selectionReason: z.string().optional(),
+});
+
+export const NormalizedTraceSourceRefSchema = z.object({
+  eventId: z.string().optional(),
+  messageId: z.string().optional(),
+  spanId: z.string().optional(),
+  traceId: z.string().optional(),
+  rawKind: z.string().optional(),
+  path: z.string().optional(),
+  line: z.number().int().nonnegative().optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedRawEvidenceSchema = z.object({
+  kind: z.string(),
+  ref: z.string().optional(),
+  mediaType: z.string().optional(),
+  content: z.unknown().optional(),
+  redacted: z.boolean().optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceMessageSchema = z.object({
+  role: z.string(),
+  name: z.string().optional(),
+  content: z.unknown().optional(),
+  redaction: NormalizedRedactionStateSchema.optional(),
+  tokenUsage: TokenUsageSchema.optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceModelSchema = z.object({
+  provider: z.string().optional(),
+  name: z.string().optional(),
+  invocationId: z.string().optional(),
+  tokenUsage: TokenUsageSchema.optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceToolSchema = z.object({
+  name: z.string(),
+  callId: z.string().optional(),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
+  status: z.enum(NORMALIZED_TOOL_STATUSES).optional(),
+  error: NormalizedTraceErrorSchema.optional(),
+  redaction: NormalizedRedactionStateSchema.optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTraceEventSchema = z.object({
+  eventId: z.string(),
+  parentEventId: z.string().optional(),
+  ordinal: z.number().int().nonnegative(),
+  type: z.enum(NORMALIZED_TRACE_EVENT_TYPES),
+  timestamp: z.string().optional(),
+  durationMs: z.number().nonnegative().optional(),
+  durationInferred: z.boolean().optional(),
+  turnIndex: z.number().int().nonnegative().optional(),
+  message: NormalizedTraceMessageSchema.optional(),
+  model: NormalizedTraceModelSchema.optional(),
+  tool: NormalizedTraceToolSchema.optional(),
+  sourceRef: NormalizedTraceSourceRefSchema.optional(),
+  rawEvidence: z.array(NormalizedRawEvidenceSchema).optional(),
+  redaction: NormalizedRedactionStateSchema.optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+export const NormalizedTrajectorySchema = z.object({
+  schemaVersion: z.literal(NORMALIZED_TRAJECTORY_SCHEMA_VERSION),
+  source: NormalizedTraceSourceSchema,
+  session: NormalizedTraceSessionSchema,
+  branch: NormalizedTraceBranchSchema.optional(),
+  events: z.array(NormalizedTraceEventSchema),
+  tokenUsage: TokenUsageSchema.optional(),
+  costUsd: z.number().optional(),
+  durationMs: z.number().optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
+  metadata: MetadataSchema.optional(),
 });
 
 /**
@@ -155,6 +302,18 @@ export type CodeGraderInput = z.infer<typeof CodeGraderInputSchema>;
 export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
 
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
+export type NormalizedTrajectory = z.infer<typeof NormalizedTrajectorySchema>;
+export type NormalizedTraceSource = z.infer<typeof NormalizedTraceSourceSchema>;
+export type NormalizedTraceSession = z.infer<typeof NormalizedTraceSessionSchema>;
+export type NormalizedTraceBranch = z.infer<typeof NormalizedTraceBranchSchema>;
+export type NormalizedTraceEvent = z.infer<typeof NormalizedTraceEventSchema>;
+export type NormalizedTraceMessage = z.infer<typeof NormalizedTraceMessageSchema>;
+export type NormalizedTraceModel = z.infer<typeof NormalizedTraceModelSchema>;
+export type NormalizedTraceTool = z.infer<typeof NormalizedTraceToolSchema>;
+export type NormalizedTraceError = z.infer<typeof NormalizedTraceErrorSchema>;
+export type NormalizedTraceSourceRef = z.infer<typeof NormalizedTraceSourceRefSchema>;
+export type NormalizedRawEvidence = z.infer<typeof NormalizedRawEvidenceSchema>;
+export type NormalizedRedactionState = z.infer<typeof NormalizedRedactionStateSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;
