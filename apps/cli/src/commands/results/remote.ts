@@ -230,12 +230,25 @@ export async function syncRemoteResults(
     const status = await getResultsRepoSyncStatus(config);
     return {
       ...status,
-      run_count: 0,
+      run_count: await getRemoteRunCount(config, status),
       last_error: getStatusMessage(error),
       blocked: true,
       block_reason: getStatusMessage(error),
     };
   }
+}
+
+function dedupeSyncedRunCopies(runs: SourcedResultFileMeta[]): SourcedResultFileMeta[] {
+  const byRunId = new Map<string, SourcedResultFileMeta>();
+
+  for (const run of runs) {
+    const existing = byRunId.get(run.raw_filename);
+    if (!existing || (existing.source === 'remote' && run.source === 'local')) {
+      byRunId.set(run.raw_filename, run);
+    }
+  }
+
+  return [...byRunId.values()];
 }
 
 export async function listMergedResultFiles(
@@ -301,7 +314,7 @@ export async function listMergedResultFiles(
     );
   }
 
-  const merged = [...localRuns, ...remoteRuns].sort((a, b) =>
+  const merged = dedupeSyncedRunCopies([...localRuns, ...remoteRuns]).sort((a, b) =>
     b.timestamp.localeCompare(a.timestamp),
   );
   return {

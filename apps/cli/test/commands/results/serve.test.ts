@@ -899,6 +899,40 @@ describe('serve app', () => {
       expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
     }, 15000);
 
+    it('dedupes synced local and remote run copies in favor of the local run', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'green-uat',
+        '2026-03-26T10-30-00-000Z',
+        RESULT_A,
+      );
+      writeLocalRunArtifact(tempDir, 'green-uat', '2026-03-26T10-30-00-000Z', RESULT_A);
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: runId,
+        source: 'local',
+      });
+    }, 15000);
+
     it('computes git-native remote run list totals from materialized index rows', async () => {
       const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
       const secondPass = {
@@ -1554,6 +1588,66 @@ describe('serve app', () => {
         expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
           `.agentv/results/metadata/runs/project-sync-push/${runTimestamp}/tags.json`,
         );
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    }, 15000);
+
+    it('keeps cached remote run count when project sync cannot fetch the remote', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      const homeDir = path.join(tempDir, 'agentv-home-project-sync-offline');
+      process.env.AGENTV_HOME = homeDir;
+
+      try {
+        const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+        const projectDir = path.join(tempDir, 'source-project-sync-offline');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(homeDir, { recursive: true });
+        saveProjectRegistry({
+          projects: [
+            {
+              id: 'project-sync-offline',
+              name: 'Project Sync Offline',
+              path: projectDir,
+              results: {
+                mode: 'github',
+                repo: `file://${remoteDir}`,
+                path: cloneDir,
+                autoPush: true,
+              },
+              addedAt: '2026-01-01T00:00:00.000Z',
+              lastOpenedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        });
+        writeRemoteRunArtifact(
+          cloneDir,
+          'project-sync-offline',
+          '2026-03-26T12-30-00-000Z',
+          RESULT_A,
+        );
+        git('git remote set-url origin "file:///tmp/agentv-missing-results-remote.git"', cloneDir);
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request('/api/projects/project-sync-offline/remote/sync', {
+          method: 'POST',
+        });
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          available?: boolean;
+          blocked?: boolean;
+          block_reason?: string;
+          run_count?: number;
+        };
+        expect(data.available).toBe(true);
+        expect(data.blocked).toBe(true);
+        expect(data.block_reason).toContain('does not appear to be a git repository');
+        expect(data.run_count).toBe(1);
       } finally {
         if (previousHome === undefined) {
           process.env.AGENTV_HOME = undefined;
