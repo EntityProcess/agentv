@@ -641,7 +641,7 @@ import { defineConfig } from '@agentv/core';
 
 export default defineConfig({
   execution: { workers: 5, maxRetries: 2 },
-  output: { format: 'jsonl', dir: './results' },
+  output: { dir: './results' },
   limits: { maxCostUsd: 10.0 },
 });
 ```

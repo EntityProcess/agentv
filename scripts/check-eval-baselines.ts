@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { readdir, rename } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { toCamelCaseDeep, toSnakeCaseDeep, trimBaselineResult } from '@agentv/core';
 import type { EvaluationResult } from '@agentv/core';
@@ -106,14 +107,19 @@ async function runAgentVEval(evalFile: string, candidatePath: string): Promise<n
     );
   }
 
-  const args = ['bun', 'agentv', 'eval', evalFile, '--out', candidatePath];
-  const proc = Bun.spawn(args, {
-    cwd: repoRoot,
-    stdout: 'inherit',
-    stderr: 'inherit',
-    env,
-  });
-  return await proc.exited;
+  const runDir = mkdtempSync(path.join(tmpdir(), 'agentv-baseline-check-'));
+  const args = ['bun', 'agentv', 'eval', evalFile, '--output', runDir, '--export', candidatePath];
+  try {
+    const proc = Bun.spawn(args, {
+      cwd: repoRoot,
+      stdout: 'inherit',
+      stderr: 'inherit',
+      env,
+    });
+    return await proc.exited;
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
 }
 
 /** Read a JSONL file, trim each record for baseline storage, and write back. */

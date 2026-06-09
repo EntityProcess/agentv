@@ -2,7 +2,7 @@
  * check-grader-scores.ts
  *
  * Post-processor that walks examples/**\/*.grader-scores.yaml, finds the
- * sibling *.results.jsonl produced by a prior `agentv eval --out` run, and
+ * sibling *.results.jsonl produced by a prior `agentv eval --export` run, and
  * asserts each (test_id, grader, range) tuple matches the expected score range.
  *
  * Usage:
@@ -11,9 +11,9 @@
  * To add score checks for a new eval:
  *   1. Create <eval-stem>.grader-scores.yaml next to <eval-stem>.eval.yaml.
  *   2. Populate it with (test_id, grader, range) entries.
- *   3. Run the eval with --out to produce the sibling results file:
+ *   3. Run the eval with --export to produce the sibling results file:
  *        bun apps/cli/src/cli.ts eval <eval-stem>.eval.yaml --target <t> \
- *          --out <eval-stem>.results.jsonl
+ *          --output <eval-stem>.run --export <eval-stem>.results.jsonl
  *   4. Run this script to verify.
  */
 
@@ -103,7 +103,7 @@ function main(): void {
 
     if (!existsSync(resultsPath)) {
       console.error(
-        `\nMissing results file for ${gsFile}:\n  ${resultsPath}\n  Did you run \`agentv eval --out ${resultsPath}\` first?`,
+        `\nMissing results file for ${gsFile}:\n  ${resultsPath}\n  Did you run \`agentv eval --export ${resultsPath}\` first?`,
       );
       // Count each entry as failed so CI catches missing results
       try {

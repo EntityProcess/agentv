@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -136,7 +136,7 @@ async function runCli(
   fixture: EvalFixture,
   args: readonly string[],
   extraEnv: Record<string, string | undefined> = {},
-): Promise<{ stdout: string; stderr: string }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number | undefined }> {
   const baseEnv: Record<string, string | undefined> = { ...process.env };
   baseEnv.CLI_ENV_SAMPLE = undefined;
   baseEnv.CLI_ENV_ROOT_ONLY = undefined;
@@ -155,7 +155,7 @@ async function runCli(
       reject: false,
     });
 
-    return { stdout: result.stdout, stderr: result.stderr };
+    return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
   } catch (error) {
     console.error('CLI execution failed:', error);
     throw error;
@@ -207,6 +207,18 @@ async function writeTsCacheConfig(fixture: EvalFixture, cachePath: string): Prom
   );
 }
 
+async function writeTsOutputConfig(fixture: EvalFixture, outputDir: string): Promise<void> {
+  await writeFile(
+    path.join(fixture.suiteDir, 'agentv.config.ts'),
+    `export default { output: { dir: ${JSON.stringify(outputDir)} } };\n`,
+    'utf8',
+  );
+}
+
+async function expectFileExists(filePath: string): Promise<void> {
+  await access(filePath);
+}
+
 async function prependYamlCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
   const original = await readFile(fixture.testFilePath, 'utf8');
   await writeFile(
@@ -247,6 +259,136 @@ describe('agentv eval CLI', () => {
       // Prompt dump feature has been removed, so we no longer check for it
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('writes canonical artifacts under an explicit --output directory', async () => {
+    const fixture = await createFixture();
+    try {
+      const outputDir = path.join(fixture.baseDir, 'explicit-run');
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--output',
+        outputDir,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
+      expect(stdout).toContain(`Artifact directory: ${outputDir}`);
+
+      const results = await readJsonLines(path.join(outputDir, 'index.jsonl'));
+      expect(results).toHaveLength(2);
+      await expectFileExists(path.join(outputDir, 'benchmark.json'));
+      await expectFileExists(path.join(outputDir, 'timing.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'grading.json'));
+      await expectFileExists(path.join(outputDir, 'case-beta', 'grading.json'));
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('uses agentv.config.ts output.dir as the canonical artifact directory fallback', async () => {
+    const fixture = await createFixture();
+    try {
+      await writeTsOutputConfig(fixture, './configured-results');
+
+      const { stdout, exitCode } = await runCli(fixture, ['eval', fixture.testFilePath]);
+
+      const outputDir = path.join(fixture.suiteDir, 'configured-results');
+      expect(exitCode).toBe(0);
+      expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
+      await expectFileExists(path.join(outputDir, 'index.jsonl'));
+      await expectFileExists(path.join(outputDir, 'benchmark.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'grading.json'));
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('writes additional --export files without changing the canonical index location', async () => {
+    const fixture = await createFixture();
+    try {
+      const outputDir = path.join(fixture.baseDir, 'run');
+      const junitPath = path.join(fixture.baseDir, 'junit.xml');
+      const flatJsonlPath = path.join(fixture.baseDir, 'flat.jsonl');
+
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--output',
+        outputDir,
+        '--threshold',
+        '0.8',
+        '--export',
+        junitPath,
+        '--export',
+        flatJsonlPath,
+      ]);
+
+      expect(exitCode).toBe(1);
+      expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
+      expect(stdout).toContain('Export files:');
+      expect(stdout).toContain(junitPath);
+      expect(stdout).toContain(flatJsonlPath);
+
+      const canonicalResults = await readJsonLines(path.join(outputDir, 'index.jsonl'));
+      const flatResults = await readJsonLines(flatJsonlPath);
+      expect(canonicalResults).toHaveLength(2);
+      expect(flatResults).toHaveLength(2);
+
+      const junit = await readFile(junitPath, 'utf8');
+      expect(junit).toContain('<testsuites tests="2" failures="1" errors="0"');
+      expect(junit).toContain('<failure message="score=0.600"');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('fails with migration guidance for removed eval output flags', async () => {
+    const cases = [
+      {
+        args: ['--out', 'legacy.jsonl'],
+        expected: ['--out was removed', '--output <dir>', '--export legacy.jsonl'],
+      },
+      {
+        args: ['--artifacts', 'legacy-artifacts'],
+        expected: ['--artifacts was removed', '--output legacy-artifacts'],
+      },
+      {
+        args: ['-o', 'junit.xml', '--artifacts', 'legacy-artifacts'],
+        expected: [
+          '--artifacts was removed',
+          '--output legacy-artifacts',
+          '--export junit.xml for JUnit XML',
+        ],
+      },
+      {
+        args: ['--output-format', 'html'],
+        expected: ['--output-format was removed', 'index.jsonl', '--export <file>'],
+      },
+      {
+        args: ['--output', 'results.xml'],
+        expected: [
+          '--output expects a run directory',
+          'Use --export results.xml for JUnit XML',
+          '<dir>/index.jsonl',
+        ],
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const fixture = await createFixture();
+      try {
+        const result = await runCli(fixture, ['eval', fixture.testFilePath, ...testCase.args]);
+        expect(result.exitCode).toBe(1);
+        const output = `${result.stdout}\n${result.stderr}`;
+        for (const expected of testCase.expected) {
+          expect(output).toContain(expected);
+        }
+      } finally {
+        await rm(fixture.baseDir, { recursive: true, force: true });
+      }
     }
   }, 30_000);
 

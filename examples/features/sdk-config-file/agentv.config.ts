@@ -7,7 +7,6 @@ export default defineConfig({
     agentTimeoutMs: 60_000,
   },
   output: {
-    format: 'jsonl',
     dir: './results',
   },
   limits: {

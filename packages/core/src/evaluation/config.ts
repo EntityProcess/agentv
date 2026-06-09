@@ -16,7 +16,6 @@
  *     agentTimeoutMs: 120_000,
  *   },
  *   output: {
- *     format: 'jsonl',
  *     dir: './results',
  *   },
  * });
@@ -52,11 +51,10 @@ const AgentVConfigSchema = z.object({
   /** Output settings */
   output: z
     .object({
-      /** Output format */
-      format: z.enum(['jsonl', 'yaml', 'json', 'xml']).optional(),
-      /** Output directory */
+      /** Default eval run artifact directory */
       dir: z.string().optional(),
     })
+    .strict()
     .optional(),
 
   /** Response caching */
@@ -115,7 +113,7 @@ export type AgentVConfig = z.infer<typeof AgentVConfigSchema>;
  *
  * export default defineConfig({
  *   execution: { workers: 5 },
- *   output: { format: 'jsonl', dir: './results' },
+ *   output: { dir: './results' },
  *   limits: { maxCostUsd: 10.0 },
  * });
  * ```

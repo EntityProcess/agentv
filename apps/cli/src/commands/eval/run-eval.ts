@@ -84,10 +84,10 @@ interface NormalizedOptions {
   readonly targetsPath?: string;
   readonly filter?: string | readonly string[];
   readonly workers?: number;
-  /** --output <dir>: artifact directory (new canonical meaning) */
+  /** --output <dir>: canonical artifact directory */
   readonly outputDir?: string;
-  /** Legacy --out <path>: deprecated, treated as artifact dir */
-  readonly outPath?: string;
+  /** Removed: use --output for run directories and --export for extra files */
+  readonly removedOut?: string;
   /** --export <paths...>: additional output files */
   readonly exportPaths: readonly string[];
   readonly dryRun: boolean;
@@ -115,8 +115,10 @@ interface NormalizedOptions {
   readonly keepWorkspaces: boolean;
   /** Deprecated: benchmark.json is always written to artifact dir */
   readonly benchmarkJson?: string;
-  /** Deprecated: use --output instead */
+  /** Removed: use --output instead */
   readonly artifacts?: string;
+  /** Removed: the run directory always uses index.jsonl */
+  readonly outputFormat?: string;
   readonly graderTarget?: string;
   readonly model?: string;
   readonly outputMessages: number | 'all';
@@ -227,6 +229,43 @@ function normalizeSourceMetadataByEvalFile(
   return undefined;
 }
 
+const LEGACY_OUTPUT_FILE_EXTENSIONS = new Set([
+  '.jsonl',
+  '.json',
+  '.xml',
+  '.yaml',
+  '.yml',
+  '.html',
+  '.htm',
+]);
+
+function looksLikeLegacyOutputFilePath(value: string): boolean {
+  return LEGACY_OUTPUT_FILE_EXTENSIONS.has(path.extname(value).toLowerCase());
+}
+
+function outputFileMigrationMessage(value: string): string {
+  const ext = path.extname(value).toLowerCase();
+  const exportHint =
+    ext === '.xml'
+      ? `Use --export ${value} for JUnit XML.`
+      : `Use --export ${value} if you still need that extra file.`;
+  return `--output expects a run directory, not a file path: ${value}\n${exportHint} Set --output <dir> for the canonical run artifacts; AgentV always writes <dir>/index.jsonl.`;
+}
+
+function artifactsMigrationMessage(artifactsDir: string, outputDir?: string): string {
+  const lines = [`--artifacts was removed from agentv eval. Use --output ${artifactsDir} instead.`];
+  if (outputDir && looksLikeLegacyOutputFilePath(outputDir)) {
+    const ext = path.extname(outputDir).toLowerCase();
+    lines.push(
+      ext === '.xml'
+        ? `Use --export ${outputDir} for JUnit XML.`
+        : `Use --export ${outputDir} if you still need that extra file.`,
+    );
+    lines.push(`Migration example: --output ${artifactsDir} --export ${outputDir}`);
+  }
+  return lines.join('\n');
+}
+
 /**
  * Check whether an eval file's tags satisfy --tag / --exclude-tag filters.
  *
@@ -316,7 +355,6 @@ function normalizeOptions(
   const configWorkers = config?.execution?.workers;
   const workers = cliWorkers ?? configWorkers ?? 0;
 
-  // --output is now a single optional string (artifact directory)
   const cliOutputDir = normalizeString(rawOptions.output);
 
   // --export is the new repeatable flag for additional output files
@@ -354,9 +392,9 @@ function normalizeOptions(
   const configCacheEnabled = config?.cache?.enabled;
   const configCachePath = normalizeString(config?.cache?.path);
 
-  // Output dir: CLI --out > config output.dir > auto-generated
+  // Output dir: CLI --output > config output.dir > auto-generated
   const cliOut = normalizeString(rawOptions.out);
-  const configOut = config?.output?.dir;
+  const configOutputDir = normalizeString(config?.output?.dir);
   const cliWorkspacePath = normalizeString(rawOptions.workspacePath);
   const cliWorkspaceModeRaw = normalizeString(rawOptions.workspaceMode);
   const cliWorkspaceMode = normalizeWorkspaceMode(rawOptions.workspaceMode);
@@ -376,8 +414,8 @@ function normalizeOptions(
     targetsPath: normalizeString(rawOptions.targets),
     filter: normalizeFilter(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
-    outputDir: cliOutputDir,
-    outPath: cliOut ?? configOut,
+    outputDir: cliOutputDir ?? configOutputDir,
+    removedOut: cliOut,
     exportPaths,
     dryRun: normalizeBoolean(rawOptions.dryRun),
     dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
@@ -425,6 +463,7 @@ function normalizeOptions(
       config?.execution?.keepWorkspaces === true,
     benchmarkJson: normalizeString(rawOptions.benchmarkJson),
     artifacts: normalizeString(rawOptions.artifacts),
+    outputFormat: normalizeString(rawOptions.outputFormat),
     graderTarget: normalizeString(rawOptions.graderTarget),
     model: normalizeString(rawOptions.model),
     outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
@@ -1096,6 +1135,27 @@ export async function runEvalCommand(
     throw new Error('--grader-target agentv requires --model (e.g., --model openai:gpt-5-mini)');
   }
 
+  if (options.removedOut) {
+    throw new Error(
+      [
+        '--out was removed from agentv eval. Use --output <dir> for the canonical run directory.',
+        'If you need an additional flat file, add --export <file>.',
+        `Migration example: --out ${options.removedOut} -> --output <dir> --export ${options.removedOut}`,
+      ].join('\n'),
+    );
+  }
+  if (options.outputFormat) {
+    throw new Error(
+      '--output-format was removed from agentv eval. The run directory always writes index.jsonl; use --export <file> for JSON, XML/JUnit, YAML, or HTML copies.',
+    );
+  }
+  if (options.artifacts) {
+    throw new Error(artifactsMigrationMessage(options.artifacts, options.outputDir));
+  }
+  if (options.outputDir && looksLikeLegacyOutputFilePath(options.outputDir)) {
+    throw new Error(outputFileMigrationMessage(options.outputDir));
+  }
+
   // --retry-errors: resume from a previous run by re-running execution_error and missing test cases.
   // Uses an exclusion filter to skip already-completed (non-error) cases, which naturally includes
   // both error cases and cases that never ran (e.g., due to a crash or interrupt).
@@ -1125,7 +1185,7 @@ export async function runEvalCommand(
   // last-known run dir for this cwd from .agentv/cache.json. Matches promptfoo's
   // `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default"
   // convention. The cache pointer is written by saveRunCache after every eval.
-  if (options.resume && !options.retryErrors && !options.outputDir && !options.artifacts) {
+  if (options.resume && !options.retryErrors && !options.outputDir) {
     const cachedDir = await resolveCachedRunDir(cwd);
     if (cachedDir) {
       options = { ...options, outputDir: cachedDir };
@@ -1140,7 +1200,7 @@ export async function runEvalCommand(
   let resumeSkipKeys: Set<string> | undefined;
   let isResumeAppend = false;
   if (options.resume && !options.retryErrors) {
-    const explicitResumeDir = options.outputDir ?? options.artifacts;
+    const explicitResumeDir = options.outputDir;
     if (explicitResumeDir) {
       const resumeIndexPath = path.join(path.resolve(explicitResumeDir), 'index.jsonl');
       if (existsSync(resumeIndexPath)) {
@@ -1190,50 +1250,27 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  // Emit deprecation warnings for legacy flags
-  if (options.outPath) {
-    console.warn('Warning: --out is deprecated. Use --output <dir> to set the artifact directory.');
-  }
-  if (options.artifacts) {
-    console.warn(
-      'Warning: --artifacts is deprecated. Use --output <dir> to set the artifact directory.',
-    );
-  }
+  // Emit deprecation warnings for remaining legacy flags.
   if (options.benchmarkJson) {
     console.warn(
       'Warning: --benchmark-json is deprecated. benchmark.json is always written to the artifact directory.',
     );
   }
-  if (normalizeString(input.rawOptions.outputFormat)) {
-    console.warn(
-      'Warning: --output-format is deprecated. The artifact directory always uses JSONL.',
-    );
-  }
 
   // Resolve artifact directory (runDir) and primary output path.
-  // Precedence: --output > --artifacts (deprecated) > --out (deprecated) > default
-  const explicitDir = options.outputDir ?? options.artifacts;
+  // Precedence: --output > config output.dir > default
+  const explicitDir = options.outputDir;
   let runDir: string;
   let outputPath: string;
-  let usesDefaultArtifactWorkspace: boolean;
 
   if (explicitDir) {
-    // --output <dir> or --artifacts <dir>: use as artifact directory
     runDir = path.resolve(explicitDir);
     mkdirSync(runDir, { recursive: true });
     outputPath = path.join(runDir, 'index.jsonl');
-    usesDefaultArtifactWorkspace = true;
-  } else if (options.outPath) {
-    // --out <path> (deprecated): use dirname as artifact dir
-    outputPath = path.resolve(options.outPath);
-    runDir = path.dirname(outputPath);
-    mkdirSync(runDir, { recursive: true });
-    usesDefaultArtifactWorkspace = false;
   } else {
     // Default: .agentv/results/runs/<experiment>/<timestamp>/
     outputPath = buildDefaultOutputPathForExperiment(cwd, options.experiment);
     runDir = path.dirname(outputPath);
-    usesDefaultArtifactWorkspace = true;
   }
 
   // Initialize OTel exporter if --export-otel flag is set or file export flags are used
@@ -1545,7 +1582,7 @@ export async function runEvalCommand(
   // has execution_status: ok. The end-of-run write preserves this value via
   // readPlannedTestCount inside aggregateRunDir / writeArtifactsFromResults.
   // Skip on resume — we want to preserve the *original* planned count.
-  if (!isResumeAppend && usesDefaultArtifactWorkspace && totalEvalCount > 0) {
+  if (!isResumeAppend && totalEvalCount > 0) {
     const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
     await writeInitialBenchmarkArtifact(runDir, {
       evalFile,
@@ -1719,7 +1756,7 @@ export async function runEvalCommand(
 
     // When resuming, compute summary from ALL results (old + new, deduplicated)
     let summaryResults = allResults;
-    if (isResumeAppend && usesDefaultArtifactWorkspace) {
+    if (isResumeAppend) {
       const content = await readFile(outputPath, 'utf8');
       summaryResults = deduplicateByTestIdTarget(parseJsonlResults(content));
     }
@@ -1747,7 +1784,7 @@ export async function runEvalCommand(
     }
 
     // Write artifacts to the run directory (always, not conditional on flags)
-    if (usesDefaultArtifactWorkspace && allResults.length > 0) {
+    if (allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
       const sourceTests = activeTestFiles.flatMap(
         (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
