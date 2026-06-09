@@ -123,6 +123,10 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
 
 ### Beads Ownership
+- AgentV Beads are for AgentV repository implementation deliverables: code, tests, docs, examples, config, fixtures, committed evidence, or repo-local release/CI work.
+- Research-only and cross-repo orchestration work belongs in the agent-orchestrator Beads graph at `/home/entity/ntm_Dev/agent-orchestrator` unless the expected output is a committed AgentV deliverable. This includes cross-repo research, framework comparisons, private-repo investigations, status audits, worker dispatch logs, and decision records without AgentV repo changes.
+- Do not commit `.beads/issues.jsonl` in AgentV just to record research dispatch notes or orchestration status.
+- If orchestrator research discovers AgentV implementation work, create or link a focused AgentV Bead for that implementation and keep the research record in agent-orchestrator.
 - Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
 - Create beads with short generated IDs. Do not pass `--slug`; the title carries the human-readable name, including `EPIC:` when useful.
 - Claim work with the upstream bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
