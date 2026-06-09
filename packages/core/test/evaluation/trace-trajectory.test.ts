@@ -324,6 +324,29 @@ describe('normalized trajectory contract', () => {
     expect(fromTrajectory).toEqual(fromMessages);
   });
 
+  it('keeps TraceSummary as a derived read model outside trajectory wire state', () => {
+    const trajectory = buildTrajectory();
+    const wire = toNormalizedTrajectoryWire(trajectory);
+    const summary = computeTraceSummaryFromTrajectory(fromNormalizedTrajectoryWire(wire));
+
+    expect(wire).not.toHaveProperty('trace');
+    expect(wire).not.toHaveProperty('summary');
+    expect(wire).not.toHaveProperty('trace_summary');
+    expect(summary.trace).toEqual({
+      eventCount: 2,
+      toolCalls: {
+        read_file: 1,
+        write_file: 1,
+      },
+      errorCount: 1,
+      toolDurations: {
+        read_file: [150],
+        write_file: [1000],
+      },
+      llmCallCount: 1,
+    });
+  });
+
   it('counts LLM turns once when message and model_turn events coexist', () => {
     const trajectory: NormalizedTrajectory = {
       schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,

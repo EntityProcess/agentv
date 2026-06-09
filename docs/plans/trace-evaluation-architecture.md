@@ -110,10 +110,10 @@ flowchart TB
   Q --> R
 ```
 
-The normalized trajectory should have two layers:
+The normalized trace model should keep one canonical source of truth plus derived read models:
 
-- A compact summary for cheap storage and dashboard aggregation: counts, durations, token usage, cost, error count, and tool-call counts.
-- A full trajectory for grading and explanation: ordered model turns, tool calls/results, branch metadata, source event IDs, content redaction state, and raw evidence handles.
+- The full trajectory is the canonical artifact for grading, replay, and explanation: ordered model turns, tool calls/results, branch metadata, source event IDs, content redaction state, and raw evidence handles.
+- The compact summary is a derived compatibility/read model for cheap result storage and dashboard aggregation: counts, durations, token usage, cost, error count, and tool-call counts. It must be recomputable from a full trajectory and should not be authored as separate trace state when the trajectory is available.
 
 Directional wire shape:
 
@@ -178,7 +178,7 @@ The exact schema belongs in implementation, but these concepts should be stable:
 - **Files:** `packages/core/src/evaluation/trace.ts`, `packages/core/src/evaluation/types.ts`, `packages/eval/src/schemas.ts`, new focused files under `packages/core/src/evaluation/trace/` if the existing file becomes too large.
 - **Patterns:** Follow the existing `TraceSummary`, `TokenUsage`, and project wire conversion conventions. Keep internal fields camelCase and wire fields snake_case.
 - **Test Scenarios:** Add tests that validate round-trip conversion, version rejection, missing optional content, inferred duration flags, branch metadata, and raw evidence handles.
-- **Verification:** Unit tests should prove summaries can be derived from full trajectories without changing current summary behavior.
+- **Verification:** Unit tests should prove summaries can be derived from full trajectories without changing current summary behavior, and that normalized trajectory artifacts do not embed a separate summary payload.
 
 ### U2. Trajectory Extraction From AgentV Runs
 

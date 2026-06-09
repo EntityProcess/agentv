@@ -1,10 +1,13 @@
 /**
  * Trace models for evaluation-time agent behavior.
  *
- * This module has two layers:
- * - TraceSummary is the compact result artifact used by existing graders and CLI output.
- * - NormalizedTrajectory is the full, versioned trajectory contract that importers
- *   and future trajectory-aware graders can share.
+ * This module separates the canonical trace contract from compatibility views:
+ * - NormalizedTrajectory is the full, versioned trajectory contract that importers,
+ *   replay, and trajectory-aware graders should use as the source of truth.
+ * - TraceSummary is a derived compact read model used by existing graders, result
+ *   artifacts, and CLI/dashboard aggregation. When a full trajectory exists, do
+ *   not author TraceSummary independently; derive it with
+ *   computeTraceSummaryFromTrajectory().
  *
  * Keep TypeScript internals camelCase. Persisted trajectory artifacts use the
  * snake_case NormalizedTrajectoryWire shape and must pass through the converters
@@ -147,6 +150,13 @@ export interface NormalizedTraceEvent {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * Canonical in-memory trajectory model.
+ *
+ * Persisted trajectory artifacts are the snake_case wire shape below. They do
+ * not embed TraceSummary because compact summaries are one-way projections from
+ * this full event stream.
+ */
 export interface NormalizedTrajectory {
   readonly schemaVersion: typeof NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
   readonly source: NormalizedTraceSource;
@@ -592,8 +602,12 @@ export interface TokenUsage {
 }
 
 /**
- * Compact summary of a trace for lightweight persistence.
- * Included in results by default to avoid payload bloat.
+ * Derived compact summary of a trace for lightweight persistence.
+ *
+ * This is a compatibility/read model for existing result artifacts and
+ * aggregation. It is intentionally smaller than NormalizedTrajectory and should
+ * not be treated as independently authored trace state when a full trajectory is
+ * available.
  */
 export interface TraceSummary {
   /** Total number of events in trace */
@@ -683,8 +697,8 @@ interface MessageLike {
 }
 
 /**
- * Compute a lightweight summary from output messages.
- * Used for default result persistence without payload bloat.
+ * Compute a lightweight summary from provider output messages.
+ * Used for legacy/default result persistence when no full trajectory is present.
  *
  * Derives timing information from span boundaries:
  * - startTime: earliest startTime across all messages and tool calls
@@ -792,6 +806,11 @@ export function getSelectedTrajectoryEvents(
 
 /**
  * Derive the existing compact TraceSummary shape from a full trajectory.
+ *
+ * This is the canonical bridge from the high-fidelity trajectory contract to the
+ * backward-compatible summary/read model. Keep the projection one-way: importers
+ * and replay should preserve NormalizedTrajectory, while existing result readers
+ * can continue consuming the derived TraceSummary shape unchanged.
  *
  * The summary keeps the current lightweight contract: eventCount is the number
  * of tool-call events, toolCalls is counted by tool name, toolDurations carries

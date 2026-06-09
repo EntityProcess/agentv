@@ -31,7 +31,11 @@ export const TokenUsageSchema = z.object({
 });
 
 /**
- * Trace summary schema (camelCase for TypeScript ergonomics).
+ * Derived trace summary schema (camelCase for TypeScript ergonomics).
+ *
+ * This is a compatibility/read model for existing code graders and result
+ * artifacts. Full trace state should use NormalizedTrajectory and project into
+ * this shape only at result or grader-compatibility boundaries.
  */
 export const TraceSummarySchema = z.object({
   eventCount: z.number(),
@@ -173,6 +177,13 @@ export const NormalizedTraceEventSchema = z.object({
   metadata: MetadataSchema.optional(),
 });
 
+/**
+ * Canonical trajectory schema exposed to custom graders.
+ *
+ * AgentV-owned persisted trajectory artifacts use the snake_case wire schemas
+ * and converters in @agentv/core. This SDK schema mirrors the internal
+ * camelCase model that grader authors receive.
+ */
 export const NormalizedTrajectorySchema = z.object({
   schemaVersion: z.literal(NORMALIZED_TRAJECTORY_SCHEMA_VERSION),
   source: NormalizedTraceSourceSchema,
