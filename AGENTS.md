@@ -114,22 +114,17 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Working Style
 
-### Beads-First Orchestration
-- Beads is AgentV's normal durable task graph. Use it for assignment, status, dependencies, handoff notes, decomposition, and resumability. Agent sessions are disposable workers that read and write the bead graph.
-- Use `br` (beads_rust) for Beads operations. `br` is non-invasive and never commits or pushes; after `br sync --flush-only`, manually run `git add .beads/` and commit the exported state when the bead graph is part of the change.
-- If your local operator workflow provides a bead-aware launcher, use it to claim the bead, record a launch note, and export the task environment variables expected by that workflow. Keep private launcher names, paths, session aliases, and dispatch policy in `AGENTS.md.local` or the operator workspace.
-- GitHub remains the PR, CI, review, and merge surface. Do not use GitHub Issues or Projects as the internal AgentV task graph unless explicitly bridging external collaboration.
+### Task Tracking and Orchestration
+- Treat task tracking instructions as operator-supplied context. If the operator prompt provides an external tracker database, path, or environment variable, use that exact tracker for assignment, status, dependencies, handoff notes, decomposition, and resumability.
+- If no external tracker is supplied, work from the user's prompt and the current branch/PR. Do not create, sync, stage, or commit repo-local task tracker state unless the user explicitly requests it.
+- Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details in `AGENTS.md.local` or outside this public repository.
+- GitHub remains the PR, CI, review, and merge surface. Use GitHub Issues or Projects for external collaboration only when the user or operator prompt asks for that workflow.
 
-### Beads Ownership
-- AgentV Beads are for AgentV repository implementation deliverables: code, tests, docs, examples, config, fixtures, committed evidence, or repo-local release/CI work.
-- Local/private orchestration policies, cross-repo research records, private-repo investigations, status audits, worker dispatch logs, and operator decision records belong in untracked `AGENTS.md.local` or the operator workspace, not this public repository.
-- Do not commit `.beads/issues.jsonl` in AgentV just to record research dispatch notes or orchestration status that does not produce AgentV repository changes.
-- If external research discovers AgentV implementation work, create or link a focused AgentV Bead for that implementation and keep the external research record outside this repository.
-- Use the `bv` robot workflow below for graph-aware triage and `br` for bead mutations.
-- Create beads with short generated IDs. Do not pass `--slug`; the title carries the human-readable name, including `EPIC:` when useful.
-- Claim work with the configured bead-aware launcher when launching a worker, or with `br update <id> --claim --json` / `br update <id> --status in_progress --json` when working manually.
-- Keep the bead updated with notes for user-visible decisions, verification evidence, blockers, and handoff state.
-- Before handoff or commit, run `br sync --flush-only`, then stage `.beads/` along with the code changes when the bead graph is part of the change.
+### Tracker Ownership
+- External tracker state belongs to the operator-provided tracker, not this repository.
+- Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
+- If external research discovers AgentV implementation work, capture the public code/docs change in a focused branch/PR and keep private research or orchestration records outside this repository.
+- When an external tracker is supplied, keep it updated with user-visible decisions, verification evidence, blockers, and handoff state. Run sync or flush commands only against that supplied tracker and keep exported tracker state out of AgentV commits unless explicitly requested.
 - Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately broadcast it through Agent Mail with the stash name, affected paths, reason, and recovery plan.
 
 ### MCP Agent Mail
@@ -140,8 +135,8 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ### Worktree Setup
 - Start every repo change by running `git fetch origin`, inspecting `git status --short --branch`, and checking/reserving the intended paths in Agent Mail when configured.
-- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, Beads-only notes, a small single-file fix, or a focused review follow-up); and you hold Agent Mail reservations for the paths you will edit when Agent Mail is configured.
-- When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local Agent Mail config, generated evidence, or unrelated Beads/doc state. If Beads state diverged across worktrees, reconcile it explicitly before merge or push.
+- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, a small single-file fix, or a focused review follow-up); and you hold Agent Mail reservations for the paths you will edit when Agent Mail is configured.
+- When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local Agent Mail config, generated evidence, or unrelated tracker/doc state. Reconcile external tracker state in the supplied tracker, not by staging repo-local artifacts.
 - Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale/dirty in paths you need.
 - Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit. Do not implement from a stale local `main` or from a branch created off an outdated base.
 - Manual setup:
@@ -160,7 +155,7 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Prefer automation: execute the requested work without extra confirmation unless blocked by missing information, safety concerns, or an irreversible/destructive action the user has not approved.
 
 ### Worker and Review Strategy
-- For complex problems, keep this worker focused on its assigned scope and create or claim additional beads when more workers are needed.
+- For complex problems, keep this worker focused on its assigned scope and create or claim additional tracker items when an operator-supplied tracker supports that workflow.
 - Before declaring a repo change complete or opening/finalizing a PR, complete manual e2e verification first (see E2E Checklist), **then** run a final review pass when warranted. E2E must pass before review — if e2e fails, fix the issue before investing time in review. The user may explicitly skip the review step.
 
 ### Autonomous Bug Fixes
@@ -277,9 +272,9 @@ bun run verify
 bun run validate:examples
 ```
 
-Beads sync is explicit. If you change the Beads graph, run `br sync --flush-only`, stage `.beads/`, and include the exported JSONL in the commit. Hooks must not silently mutate or stash shared worktrees.
+Task tracker sync is operator-supplied. If the prompt provides an external tracker sync or flush command, run it exactly as instructed and keep exported tracker state out of AgentV commits unless explicitly requested. Hooks must not silently mutate or stash shared worktrees.
 
-NTM hooks are optional local coordination tooling. Do not commit generated `.beads/hooks/*` files or local `.ntm/config.toml`; they embed machine-specific paths and can bypass the repo's normal Git behavior when installed via `core.hooksPath`.
+NTM hooks are optional local coordination tooling. Do not commit generated task-tracker hook files or local `.ntm/config.toml`; they embed machine-specific paths and can bypass the repo's normal Git behavior when installed via `core.hooksPath`.
 
 If an existing checkout has NTM or prek hooks installed, restore Git's default hook path:
 ```bash
@@ -475,13 +470,13 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-Use Beads for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker. Push focused commits to the assigned branch and open/update the PR requested by the bead/user. A branch, pushed commit, or draft PR is not done for ordinary scoped work. Close the bead only after the scoped work is complete, verified, merged to `main` through a PR, and documented with verification evidence.
+Use the operator-supplied tracker, when present, for live ownership and GitHub for external collaboration. Do not duplicate claim state in a separate live tracker. Push focused commits to the assigned branch and open/update the PR requested by the tracker item or user. A branch, pushed commit, or draft PR is not done for ordinary scoped work. Mark tracker items complete only after the scoped work is complete, verified, merged to `main` through a PR, and documented with verification evidence.
 
-Exception: if the bead is part of an epic/worktree continuation and the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the epic bead or parent bead. In that case, keep the child/task bead open or in progress rather than closing it as completed until the PR is merged or the parent explicitly supersedes it.
+Exception: if the tracker item is part of an epic/worktree continuation and the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the parent tracker item. In that case, keep the child/task item open or in progress rather than closing it as completed until the PR is merged or the parent explicitly supersedes it.
 
 If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches and artifact/documentation branches. For private asset repositories, follow the relevant untracked local override. It does not override the rule against pushing directly to `main` in this repository.
 
-When working from a GitHub issue instead of a bead, use GitHub project state to avoid duplicate work before branching:
+When working from a GitHub issue instead of an operator-supplied tracker item, use GitHub project state to avoid duplicate work before branching:
 
 ```bash
 gh issue view <number> --repo EntityProcess/agentv --json number,title,state,projectItems,assignees,url
@@ -503,7 +498,7 @@ Complete E2E verification before marking a PR ready for review. Never push direc
 
 ### Tracker Conventions
 
-- GitHub Issues + Projects are external collaboration surfaces, not the default internal task graph.
+- GitHub Issues + Projects are external collaboration surfaces, not a substitute for operator-supplied tracker state unless explicitly directed.
 - `bug` marks defects.
 - Issues without `bug` are non-bug work by default.
 - `core`, `wui`, and `tui` are area labels.
@@ -589,100 +584,3 @@ The release script (`bun scripts/release.ts`) is what the Release workflow calls
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
-
-<!-- bv-agent-instructions-v2 -->
-
----
-
-## Beads Workflow Integration
-
-This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking and [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) (`bv`) for graph-aware triage. Issues are stored in `.beads/` and tracked in git.
-
-### Using bv as an AI sidecar
-
-bv is a graph-aware triage engine for Beads projects (.beads/beads.jsonl). Instead of parsing JSONL or hallucinating graph traversal, use robot flags for deterministic, dependency-aware outputs with precomputed metrics (PageRank, betweenness, critical path, cycles, HITS, eigenvector, k-core).
-
-**Scope boundary:** bv handles *what to work on* (triage, priority, planning). `br` handles creating, modifying, and closing beads.
-
-**CRITICAL: Use ONLY --robot-* flags. Bare bv launches an interactive TUI that blocks your session.**
-
-#### The Workflow: Start With Triage
-
-**`bv --robot-triage` is your single entry point.** It returns everything you need in one call:
-- `quick_ref`: at-a-glance counts + top 3 picks
-- `recommendations`: ranked actionable items with scores, reasons, unblock info
-- `quick_wins`: low-effort high-impact items
-- `blockers_to_clear`: items that unblock the most downstream work
-- `project_health`: status/type/priority distributions, graph metrics
-- `commands`: copy-paste shell commands for next steps
-
-```bash
-bv --robot-triage        # THE MEGA-COMMAND: start here
-bv --robot-next          # Minimal: just the single top pick + claim command
-
-# Token-optimized output (TOON) for lower LLM context usage:
-bv --robot-triage --format toon
-```
-
-Before claiming, verify current state with `br show <id> --json` or `br ready --json`. `recommendations` can include graph-important blocked or assigned work; only `quick_ref.top_picks` and non-empty `claim_command` fields represent claimable work.
-
-#### Other bv Commands
-
-| Command | Returns |
-|---------|---------|
-| `--robot-plan` | Parallel execution tracks with unblocks lists |
-| `--robot-priority` | Priority misalignment detection with confidence |
-| `--robot-insights` | Full metrics: PageRank, betweenness, HITS, eigenvector, critical path, cycles, k-core |
-| `--robot-alerts` | Stale issues, blocking cascades, priority mismatches |
-| `--robot-suggest` | Hygiene: duplicates, missing deps, label suggestions, cycle breaks |
-| `--robot-diff --diff-since <ref>` | Changes since ref: new/closed/modified issues |
-| `--robot-graph [--graph-format=json\|dot\|mermaid]` | Dependency graph export |
-
-#### Scoping & Filtering
-
-```bash
-bv --robot-plan --label backend              # Scope to label's subgraph
-bv --robot-insights --as-of HEAD~30          # Historical point-in-time
-bv --recipe actionable --robot-plan          # Pre-filter: ready to work (no blockers)
-bv --recipe high-impact --robot-triage       # Pre-filter: top PageRank scores
-```
-
-### br Commands for Issue Management
-
-```bash
-br ready              # Show issues ready to work (no blockers)
-br list --status=open # All open issues
-br show <id>          # Full issue details with dependencies
-br create --title="..." --type=task --priority=2  # No --slug for routine work
-br update <id> --status=in_progress
-br close <id> --reason="Completed"
-br close <id1> <id2>  # Close multiple issues at once
-br sync --flush-only  # Export DB to JSONL
-```
-
-### Workflow Pattern
-
-1. **Triage**: Run `bv --robot-triage` to find the highest-impact actionable work
-2. **Claim**: Use `br update <id> --status=in_progress`
-3. **Work**: Implement the task
-4. **Complete**: Use `br close <id>`
-5. **Sync**: Always run `br sync --flush-only` at session end
-
-### Key Concepts
-
-- **Dependencies**: Issues can block other issues. `br ready` shows only unblocked work.
-- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers 0-4, not words)
-- **Types**: task, bug, feature, epic, chore, docs, question
-- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
-
-### Session Protocol
-
-```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-br sync --flush-only    # Export beads changes to JSONL
-git commit -m "..."     # Commit everything
-git push                # Push to remote
-```
-
-<!-- end-bv-agent-instructions -->
