@@ -985,6 +985,39 @@ export async function createDraftResultsPr(params: {
 
 const DIRECT_PUSH_MAX_RETRIES = 3;
 
+async function hasUnpushedCommits(repoDir: string, baseBranch: string): Promise<boolean> {
+  const { stdout } = await runGit(['rev-list', '--count', `origin/${baseBranch}..HEAD`], {
+    cwd: repoDir,
+    check: false,
+  });
+  return Number.parseInt(stdout.trim(), 10) > 0;
+}
+
+async function pushDirectResultsToBase(params: {
+  readonly normalized: Required<ResultsConfig>;
+  readonly repoDir: string;
+  readonly baseBranch: string;
+}): Promise<void> {
+  for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
+    try {
+      await runGit(['push', 'origin', `HEAD:${params.baseBranch}`], { cwd: params.repoDir });
+      updateStatusFile(params.normalized, {
+        last_synced_at: new Date().toISOString(),
+        last_error: undefined,
+      });
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
+        await fetchResultsRepo(params.repoDir);
+        await runGit(['rebase', `origin/${params.baseBranch}`], { cwd: params.repoDir });
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 /**
  * Push results directly to the base branch of the results repo.
  * Handles non-fast-forward conflicts by fetching, rebasing, and retrying.
@@ -1020,6 +1053,14 @@ export async function directPushResults(params: {
     check: false,
   });
   if (status.trim().length === 0) {
+    if (await hasUnpushedCommits(repoDir, baseBranch)) {
+      const aheadPaths = await getAheadPaths(repoDir, `origin/${baseBranch}`);
+      if (!areSafeResultsRepoPaths(aheadPaths)) {
+        throw new Error('Results repo has non-results committed changes');
+      }
+      await pushDirectResultsToBase({ normalized, repoDir, baseBranch });
+      return true;
+    }
     return false;
   }
 
@@ -1027,26 +1068,8 @@ export async function directPushResults(params: {
     cwd: repoDir,
   });
 
-  for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
-    try {
-      await runGit(['push', 'origin', `HEAD:${baseBranch}`], { cwd: repoDir });
-      updateStatusFile(normalized, {
-        last_synced_at: new Date().toISOString(),
-        last_error: undefined,
-      });
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
-        await fetchResultsRepo(repoDir);
-        await runGit(['rebase', `origin/${baseBranch}`], { cwd: repoDir });
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  return false;
+  await pushDirectResultsToBase({ normalized, repoDir, baseBranch });
+  return true;
 }
 
 export interface GitListedRun {
