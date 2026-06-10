@@ -519,7 +519,7 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
-  it('blocks dirty non-results changes with git summaries instead of resetting', async () => {
+  it('ignores dirty non-results files when reporting project sync status', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
@@ -527,14 +527,124 @@ describe('results repo write path', () => {
     await ensureResultsRepoClone(config);
     writeFileSync(path.join(cloneDir, 'NOTES.md'), 'do not auto-push me\n');
 
+    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
+      sync_status: 'clean',
+      dirty_paths: [],
+      last_error: undefined,
+    });
+
     const status = await syncResultsRepoForProject(config);
 
-    expect(status.sync_status).toBe('dirty');
-    expect(status.blocked).toBe(true);
-    expect(status.block_reason).toContain('non-results');
-    expect(status.dirty_paths).toEqual(['NOTES.md']);
+    expect(status.sync_status).toBe('clean');
+    expect(status.blocked).toBe(false);
+    expect(status.dirty_paths).toEqual([]);
     expect(status.git_status).toContain('NOTES.md');
     expect(readFileSync(path.join(cloneDir, 'NOTES.md'), 'utf8')).toBe('do not auto-push me\n');
+  }, 20000);
+
+  it('commits and pushes dirty result artifacts while leaving unrelated files untracked', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+    writeFileSync(path.join(cloneDir, 'package.json'), '{"dependencies":{"agentv":"next"}}\n');
+
+    const runTimestamp = '2026-05-24T11-00-00-000Z';
+    const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', 'safe-run', runTimestamp);
+    writeRunArtifacts(runDir, 'safe-run', '2026-05-24T11:00:00.000Z');
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      commit_created: true,
+      push_performed: true,
+      blocked: false,
+    });
+    expect(status.dirty_paths).toEqual([]);
+    expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
+      `.agentv/results/runs/safe-run/${runTimestamp}/benchmark.json`,
+    );
+    expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
+      'package.json',
+    );
+    expect(readFileSync(path.join(cloneDir, 'package.json'), 'utf8')).toBe(
+      '{"dependencies":{"agentv":"next"}}\n',
+    );
+  }, 20000);
+
+  it('fast-forwards remote updates even when unrelated local files are dirty', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    writeFileSync(path.join(cloneDir, 'package.json'), '{"dependencies":{"agentv":"next"}}\n');
+    writeFileSync(path.join(seedDir, 'REMOTE.md'), 'remote update\n');
+    git('git add REMOTE.md && git commit --quiet -m "remote update"', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      pull_performed: true,
+      push_performed: false,
+      commit_created: false,
+      blocked: false,
+    });
+    expect(readFileSync(path.join(cloneDir, 'REMOTE.md'), 'utf8')).toBe('remote update\n');
+    expect(readFileSync(path.join(cloneDir, 'package.json'), 'utf8')).toBe(
+      '{"dependencies":{"agentv":"next"}}\n',
+    );
+  }, 20000);
+
+  it('pulls remote updates before pushing local result artifacts with unrelated dirty files', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+    writeFileSync(path.join(cloneDir, 'package.json'), '{"dependencies":{"agentv":"next"}}\n');
+
+    writeFileSync(path.join(seedDir, 'REMOTE.md'), 'remote update\n');
+    git('git add REMOTE.md && git commit --quiet -m "remote update"', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const runTimestamp = '2026-05-24T12-00-00-000Z';
+    const runDir = path.join(
+      cloneDir,
+      '.agentv',
+      'results',
+      'runs',
+      'pulled-then-pushed',
+      runTimestamp,
+    );
+    writeRunArtifacts(runDir, 'pulled-then-pushed', '2026-05-24T12:00:00.000Z');
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      pull_performed: true,
+      push_performed: true,
+      commit_created: true,
+      blocked: false,
+    });
+    const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
+    expect(remoteFiles).toContain('REMOTE.md');
+    expect(remoteFiles).toContain(
+      `.agentv/results/runs/pulled-then-pushed/${runTimestamp}/benchmark.json`,
+    );
+    expect(remoteFiles).not.toContain('package.json');
+    expect(readFileSync(path.join(cloneDir, 'package.json'), 'utf8')).toBe(
+      '{"dependencies":{"agentv":"next"}}\n',
+    );
   }, 20000);
 
   it('blocks diverged committed histories with diff summary', async () => {
