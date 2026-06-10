@@ -69,7 +69,7 @@ Use `results export` when you need the artifact workspace layout itself rather t
 agentv results export <run-workspace-or-index.jsonl> [--out <dir>]
 ```
 
-This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving.
+This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving. The run workspace is also where generated task bundles live: `index.jsonl` rows may point to per-result `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` entries. Keep those generated artifacts with the run when sharing or auditing results.
 
 ## Inspection helpers
 

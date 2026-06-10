@@ -12,7 +12,8 @@ verification commands. AgentV represents that with existing primitives:
 - Put runtime behavior in `workspace`, `execution`, `input`, `expected_output`,
   and `assertions`.
 - Put provenance and classification in per-case `metadata`.
-- Put bulky per-case artifacts in case directories and supporting files.
+- Put bulky per-case authoring inputs in optional case directories and supporting files.
+- Use generated run folders, not hand-authored source bundles, as the portable audit artifact.
 
 These are documentation patterns, not special runtime schema keys. AgentV does
 not interpret keys such as `source_commit`, `test_patch`, or `question_type`
@@ -64,7 +65,7 @@ on per-case metadata such as a patch path, source row, or selected test list.
 
 ## Task Artifact Anatomy
 
-Benchmark task packs map cleanly onto AgentV fields:
+Benchmark task packs map cleanly onto AgentV fields at authoring time:
 
 | Task artifact | AgentV pattern |
 |---------------|----------------|
@@ -74,14 +75,16 @@ Benchmark task packs map cleanly onto AgentV fields:
 | Gold answer | `expected_output` when the answer is passive reference data |
 | Active verification | `assertions`, especially `code-grader` for commands or artifact checks |
 | Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
-| Bulky task files | `tests: ./cases/` with per-case directories and supporting files |
+| Bulky task files | Optional `tests: ./cases/` with per-case directories and supporting files |
 
-This mirrors the common task shape used by filesystem-native benchmark harnesses:
-Margin keeps each task's prompt, case metadata, tests, environment, and optional
-oracle in a case directory; Terminal-Bench and Harbor keep task instructions,
-container setup, run-test scripts, and result artifacts as separate files. In
-AgentV, keep the same separation but bind it with eval YAML instead of adding a
-large benchmark-specific schema.
+Use this separation only when it makes the source eval easier to maintain. It is
+not a first-class artifact schema. After an eval runs, AgentV writes the portable
+audit surface into the generated run folder: each result can link from
+`index.jsonl` to a run-local `task/` bundle containing `EVAL.yaml`,
+`targets.yaml`, and copied `files/` or `graders/` snapshots where applicable.
+Review, Dashboard files views, and rerun workflows should inspect those generated
+run artifacts instead of requiring authors to maintain a parallel source-side
+bundle layout. See [Generated Task Bundles](/docs/evaluation/running-evals/#generated-task-bundles).
 
 ## SWE-Style Case
 
@@ -181,11 +184,11 @@ regeneration checks. If a hook or grader needs the source file at runtime, clone
 it through `workspace.repos` or make the generator output available as a normal
 fixture file.
 
-## When to Split Into Case Directories
+## Optional Source-Side Case Directories
 
 Inline YAML is fine when a case has a short prompt, a short expected answer, and
-a few metadata fields. Move away from inline YAML when the benchmark starts
-accumulating task-local artifacts:
+a few metadata fields. Move source inputs into case directories only when the
+benchmark starts accumulating bulky authoring resources:
 
 - The case has patches, hidden tests, oracle JSON, screenshots, reports, or
   fixture files.
@@ -260,5 +263,5 @@ script.
 - Keep `metadata` snake_case because it crosses process and result boundaries.
 - Prefer `expected_output` for passive gold answers and `code-grader` for active
   commands, file checks, or generated artifact validation.
-- Prefer case directories over long inline YAML once task artifacts become part
-  of the benchmark contract.
+- Prefer case directories over long inline YAML only for bulky source inputs;
+  the generated run folder remains the portable artifact contract.

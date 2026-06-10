@@ -86,7 +86,7 @@ You can also set the same field globally in `$AGENTV_HOME/config.yaml` or `~/.ag
 
 ## Run Detail
 
-Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from.
+Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from. Files and source views resolve against the generated run artifacts referenced by `index.jsonl`—including per-result task bundles when present—so Dashboard does not require authors to create a separate source-side bundle structure.
 
 <Image src={studioRunDetail} alt="AgentV Dashboard run detail showing 100% pass rate across 5 tests with scores and duration" />
 
