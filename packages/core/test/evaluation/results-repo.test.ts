@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -307,6 +307,56 @@ describe('results repo write path', () => {
   afterEach(() => {
     rmSync(rootDir, { recursive: true, force: true });
   });
+
+  it('retries an interrupted direct push without dropping the committed run', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const sourceDir = path.join(rootDir, 'source-run');
+    const runTimestamp = '2026-05-22T11-00-00-000Z';
+    const destinationPath = path.join('retry', runTimestamp);
+    const config = createResultsConfig(remoteDir, cloneDir);
+    const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
+    writeRunArtifacts(sourceDir, 'retry', '2026-05-22T11:00:00.000Z');
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    writeFileSync(hookPath, '#!/usr/bin/env sh\necho "simulated interrupted push" >&2\nexit 1\n');
+    chmodSync(hookPath, 0o755);
+
+    await expect(
+      directPushResults({
+        config,
+        sourceDir,
+        destinationPath,
+        commitMessage: 'feat(results): retry - 1/1 PASS (1.000)',
+      }),
+    ).rejects.toThrow(/simulated interrupted push/);
+    expect(git('git rev-list --count origin/main..HEAD', cloneDir)).toBe('1');
+    expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
+      `.agentv/results/runs/retry/${runTimestamp}/benchmark.json`,
+    );
+
+    rmSync(hookPath, { force: true });
+
+    await expect(
+      directPushResults({
+        config,
+        sourceDir,
+        destinationPath,
+        commitMessage: 'feat(results): retry - 1/1 PASS (1.000)',
+      }),
+    ).resolves.toBe(true);
+
+    expect(git('git rev-list --count origin/main..HEAD', cloneDir)).toBe('0');
+    expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
+      `.agentv/results/runs/retry/${runTimestamp}/benchmark.json`,
+    );
+    expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
+      `Agentv-Run: retry::${runTimestamp}`,
+    );
+  }, 20000);
 
   it('commits pushed runs into the configured clone with an Agentv-Run trailer', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
