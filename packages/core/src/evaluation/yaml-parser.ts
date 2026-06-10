@@ -119,6 +119,8 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `assertions` instead */
   readonly assert?: JsonValue;
   readonly input?: JsonValue;
+  readonly metadata?: JsonValue;
+  readonly governance?: JsonValue;
   /** Shorthand: list of file paths to prepend as type:file content blocks in each test's user message. */
   readonly input_files?: JsonValue;
   // Suite-level metadata fields
@@ -431,9 +433,9 @@ async function loadTestsFromYaml(
 
   const suiteWorkspace = await resolveWorkspaceConfig(suite.workspace, evalFileDir);
 
-  // Suite-level governance block (top-level `governance:` wins over `metadata.governance:`).
-  // Merged into each case's `metadata.governance` via mergeSuiteMetadataPayload.
-  const suiteGovernance = extractSuiteGovernance(suite);
+  // Suite-level metadata defaults. Top-level `metadata:` is inherited by each case.
+  // Top-level `governance:` wins over `metadata.governance:` for compatibility.
+  const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
 
   const rawSuiteInput = suite.input;
   const rawSuiteInputFiles = suite.input_files;
@@ -631,10 +633,7 @@ async function loadTestsFromYaml(
     const rawCaseMetadata = isJsonObject(renderedCase.metadata)
       ? (renderedCase.metadata as Record<string, unknown>)
       : undefined;
-    const suitePayload =
-      suiteGovernance !== undefined ? { governance: suiteGovernance } : undefined;
-    const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suitePayload);
-
+    const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suiteMetadataPayload);
     // Extract per-test targets override (matrix evaluation)
     const caseTargets = extractTargetsFromTestCase(renderedCase as JsonObject);
 
@@ -1328,23 +1327,26 @@ function asString(value: unknown): string | undefined {
 }
 
 /**
- * Pull the optional `governance` block out of a suite YAML. Top-level `governance:` wins
- * over the nested `metadata.governance:` form so that authors who already use top-level
- * suite metadata fields (`name`, `description`, `tags`) can keep their existing layout.
+ * Build metadata defaults inherited by each test case. Top-level `metadata:` carries
+ * arbitrary domain/source fields; top-level `governance:` wins over nested
+ * `metadata.governance:` so existing governance evals keep their precedence.
  */
-function extractSuiteGovernance(suite: RawTestSuite): Record<string, unknown> | undefined {
+function extractSuiteMetadataPayload(suite: RawTestSuite): Record<string, unknown> | undefined {
+  const payload = isJsonObject(suite.metadata)
+    ? ({ ...(suite.metadata as Record<string, unknown>) } as Record<string, unknown>)
+    : {};
+
   const top = (suite as JsonObject).governance;
   if (isJsonObject(top)) {
-    return top as Record<string, unknown>;
-  }
-  const wrapper = (suite as JsonObject).metadata;
-  if (isJsonObject(wrapper)) {
-    const nested = (wrapper as JsonObject).governance;
+    payload.governance = top as Record<string, unknown>;
+  } else {
+    const nested = payload.governance;
     if (isJsonObject(nested)) {
-      return nested as Record<string, unknown>;
+      payload.governance = nested as Record<string, unknown>;
     }
   }
-  return undefined;
+
+  return Object.keys(payload).length > 0 ? payload : undefined;
 }
 
 /**

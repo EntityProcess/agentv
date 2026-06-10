@@ -7,6 +7,10 @@
  *   - {{ output }}          — last assistant message as plain text
  *   - {{ expected_output }} — reference answer as plain text
  *   - {{ criteria }}        — evaluation criteria string
+ *   - {{ metadata }}        — per-test metadata as formatted JSON
+ *   - {{ metadata_json }}   — per-test metadata as compact JSON
+ *   - {{ rubrics }}        — llm-grader rubrics as formatted JSON
+ *   - {{ rubrics_json }}   — llm-grader rubrics as compact JSON
  *   - {{ file_changes }}    — file diff (if available)
  *   - {{ tool_calls }}     — formatted summary of tool calls from agent execution
  *
@@ -18,6 +22,10 @@
 export const TEMPLATE_VARIABLES = {
   EXPECTED_OUTPUT: 'expected_output',
   CRITERIA: 'criteria',
+  METADATA: 'metadata',
+  METADATA_JSON: 'metadata_json',
+  RUBRICS: 'rubrics',
+  RUBRICS_JSON: 'rubrics_json',
   INPUT: 'input',
   OUTPUT: 'output',
   FILE_CHANGES: 'file_changes',

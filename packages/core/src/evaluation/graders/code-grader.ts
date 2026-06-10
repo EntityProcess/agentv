@@ -168,6 +168,7 @@ export class CodeGrader implements Grader {
         context.evalCase.input as readonly Record<string, unknown>[],
         getImageDir,
       ),
+      metadata: context.evalCase.metadata ?? null,
       trace: context.trace ?? null,
       tokenUsage: context.tokenUsage ?? null,
       costUsd: context.costUsd ?? null,
