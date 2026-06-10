@@ -4,6 +4,11 @@
  * The summary table opens a target detail view. That detail view groups runs
  * by experiment and reuses the existing run-detail routes for the final click,
  * so category breakdowns and individual test cases stay consistent everywhere.
+ *
+ * The target summary keeps its desktop table layout while using the same
+ * mobile-safe table pattern as run detail screens: a fixed minimum width inside
+ * an overflow container. This keeps every metric readable on phone viewports
+ * instead of clipping the right-side columns.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -108,8 +113,8 @@ export function TargetsTab({ projectId }: TargetsTabProps = {}) {
 
   if (!selectedTarget) {
     return (
-      <div className="overflow-hidden rounded-lg border border-gray-800">
-        <table className="w-full text-left text-sm">
+      <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+        <table className="min-w-[720px] w-full whitespace-nowrap text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
