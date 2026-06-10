@@ -453,7 +453,8 @@ async function inspectResultsRepoGit(repoDir: string): Promise<ResultsRepoGitIns
     cwd: repoDir,
     check: false,
   });
-  const { dirtyPaths, conflictedPaths } = parseGitPorcelainPaths(porcelain);
+  const { dirtyPaths: allDirtyPaths, conflictedPaths } = parseGitPorcelainPaths(porcelain);
+  const dirtyPaths = allDirtyPaths.filter(isSafeResultsRepoPath);
   const { ahead = 0, behind = 0 } = await getAheadBehind(repoDir, upstream);
   const inProgressConflict = await hasInProgressGitConflict(repoDir);
 
@@ -518,9 +519,6 @@ function lastErrorForGitInspection(
     if (status.auto_push === false) {
       return 'Results repo has uncommitted changes and auto_push is disabled';
     }
-    if (!areSafeResultsRepoPaths(inspection.dirtyPaths)) {
-      return 'Results repo has non-results working tree changes';
-    }
   }
 
   return undefined;
@@ -562,13 +560,12 @@ function withActionFlags(
   };
 }
 
+function isSafeResultsRepoPath(p: string): boolean {
+  return p === RESULTS_REPO_RESULTS_DIR || p.startsWith(`${RESULTS_REPO_RESULTS_DIR}/`);
+}
+
 function areSafeResultsRepoPaths(paths: readonly string[]): boolean {
-  return (
-    paths.length > 0 &&
-    paths.every(
-      (p) => p === RESULTS_REPO_RESULTS_DIR || p.startsWith(`${RESULTS_REPO_RESULTS_DIR}/`),
-    )
-  );
+  return paths.length > 0 && paths.every(isSafeResultsRepoPath);
 }
 
 async function getAheadPaths(
@@ -707,35 +704,53 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         );
       }
 
-      if (!areSafeResultsRepoPaths(inspection.dirtyPaths)) {
-        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
-        updateStatusFile(normalized, {
-          last_error: 'Results repo has non-results working tree changes',
-        });
-        return withBlockedStatus(status, 'Results repo has non-results working tree changes', {
-          pullPerformed,
-          pushPerformed,
-          commitCreated,
-        });
-      }
-
       if ((inspection.behind ?? 0) > 0) {
-        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
-        const reason = 'Results repo has uncommitted result changes and remote changes';
-        updateStatusFile(normalized, { last_error: reason });
-        return withBlockedStatus(status, reason, {
-          pullPerformed,
-          pushPerformed,
-          commitCreated,
-        });
+        if (!inspection.upstream) {
+          const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+          updateStatusFile(normalized, {
+            last_error: 'Results repo has no upstream branch to pull from',
+          });
+          return withBlockedStatus(status, 'Results repo has no upstream branch to pull from', {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
+
+        try {
+          await runGit(['merge', '--ff-only', inspection.upstream], { cwd: repoDir });
+          pullPerformed = true;
+          inspection = await inspectResultsRepoGit(repoDir);
+        } catch (error) {
+          inspection = await inspectResultsRepoGit(repoDir);
+          const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+          const reason = `Results repo could not be fast-forwarded: ${getStatusMessage(error)}`;
+          updateStatusFile(normalized, { last_error: reason });
+          return withBlockedStatus(status, reason, {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
       }
 
-      await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], { cwd: repoDir });
-      await runGit(['commit', '-m', 'chore(results): sync local result metadata'], {
-        cwd: repoDir,
-      });
-      commitCreated = true;
-      inspection = await inspectResultsRepoGit(repoDir);
+      if (inspection.syncStatus === 'dirty') {
+        await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], { cwd: repoDir });
+        await runGit(
+          [
+            'commit',
+            '-m',
+            'chore(results): sync local result metadata',
+            '--',
+            RESULTS_REPO_RESULTS_DIR,
+          ],
+          {
+            cwd: repoDir,
+          },
+        );
+        commitCreated = true;
+        inspection = await inspectResultsRepoGit(repoDir);
+      }
     }
 
     if (inspection.syncStatus === 'diverged') {
