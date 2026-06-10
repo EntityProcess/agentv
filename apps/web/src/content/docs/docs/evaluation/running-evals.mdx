@@ -11,7 +11,7 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/runs/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts.
+Results are written to `.agentv/results/runs/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts. Use this generated run folder as the portable audit surface: copy or sync the run directory, not a hand-authored parallel bundle.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -88,6 +88,40 @@ agentv eval evals/my-eval.yaml --output ./my-results
 
 `--output` is a run directory, not a file path. The canonical manifest is always
 `<output>/index.jsonl`.
+
+### Generated Task Bundles
+
+Each result can also include a generated task bundle inside its per-test artifact
+directory. The bundle captures the eval slice and target settings that produced
+that row, so reviewers and rerun tooling can inspect the exact run-local source
+instead of relying on a mutable checkout.
+
+Typical layout:
+
+```text
+my-results/
+  index.jsonl
+  benchmark.json
+  <test-id>/
+    grading.json
+    timing.json
+    input.md
+    outputs/response.md
+    task/
+      EVAL.yaml
+      targets.yaml
+      files/      # copied input files when the case references them
+      graders/    # copied grader prompt/script files when applicable
+```
+
+The `index.jsonl` row links to these generated paths with snake_case fields such
+as `artifact_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
+`graders_path`. Treat those paths as relative to the run directory. When you need
+a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
+share the generated run directory and its `index.jsonl` manifest. Source-side
+case directories are still useful for organizing bulky prompts, fixtures, or
+tests while authoring an eval, but they are optional input organization rather
+than a separate artifact schema.
 
 ### Export Additional Formats
 
