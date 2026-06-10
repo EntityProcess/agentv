@@ -12,6 +12,7 @@ import {
   useQuery,
 } from '@tanstack/react-query';
 
+import { shouldPollRemoteStatus } from './project-sync-status';
 import type {
   CategoriesResponse,
   CombineDuplicateConflict,
@@ -232,6 +233,7 @@ export function remoteStatusOptions(projectId?: string) {
     queryKey: ['remote-status', projectId ?? ''],
     queryFn: () => fetchJson<RemoteStatusResponse>(url),
     staleTime: 5_000,
+    refetchInterval: (query) => (shouldPollRemoteStatus(query.state.data) ? 1_000 : false),
   });
 }
 

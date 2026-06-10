@@ -19,6 +19,7 @@ import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceTo
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   addProjectApi,
+  remoteStatusOptions,
   syncRemoteResultsApi,
   useCompare,
   useEvalRuns,
@@ -248,17 +249,20 @@ function SingleProjectHome() {
     setSyncFeedback(null);
     try {
       const result = await syncRemoteResultsApi();
+      queryClient.setQueryData(remoteStatusOptions().queryKey, result);
       setSyncFeedback(buildProjectSyncFeedback(result));
-      await Promise.all([
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['runs'] }),
         queryClient.invalidateQueries({ queryKey: ['experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['compare'] }),
         queryClient.invalidateQueries({ queryKey: ['targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
-      ]);
+      ]).catch(() => undefined);
     } catch (err) {
       setSyncFeedback(buildProjectSyncErrorFeedback(err, remoteStatus));
-      await queryClient.invalidateQueries({ queryKey: ['remote-status', ''] });
+      void queryClient
+        .invalidateQueries({ queryKey: ['remote-status', ''] })
+        .catch(() => undefined);
     } finally {
       setSyncInFlight(false);
     }
