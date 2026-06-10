@@ -576,6 +576,44 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
+  it('does not commit unrelated files that were already staged before sync', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+    writeFileSync(path.join(cloneDir, 'package.json'), '{"dependencies":{"agentv":"next"}}\n');
+    git('git add package.json', cloneDir);
+
+    const runTimestamp = '2026-05-24T11-30-00-000Z';
+    const runDir = path.join(
+      cloneDir,
+      '.agentv',
+      'results',
+      'runs',
+      'staged-unrelated',
+      runTimestamp,
+    );
+    writeRunArtifacts(runDir, 'staged-unrelated', '2026-05-24T11:30:00.000Z');
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      commit_created: true,
+      push_performed: true,
+      blocked: false,
+    });
+    const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
+    expect(remoteFiles).toContain(
+      `.agentv/results/runs/staged-unrelated/${runTimestamp}/benchmark.json`,
+    );
+    expect(remoteFiles).not.toContain('package.json');
+    expect(git('git status --porcelain', cloneDir)).toContain('A  package.json');
+  }, 20000);
+
   it('fast-forwards remote updates even when unrelated local files are dirty', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');

@@ -736,9 +736,18 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
 
       if (inspection.syncStatus === 'dirty') {
         await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], { cwd: repoDir });
-        await runGit(['commit', '-m', 'chore(results): sync local result metadata'], {
-          cwd: repoDir,
-        });
+        await runGit(
+          [
+            'commit',
+            '-m',
+            'chore(results): sync local result metadata',
+            '--',
+            RESULTS_REPO_RESULTS_DIR,
+          ],
+          {
+            cwd: repoDir,
+          },
+        );
         commitCreated = true;
         inspection = await inspectResultsRepoGit(repoDir);
       }
