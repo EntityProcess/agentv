@@ -9,7 +9,9 @@ import { Image } from 'astro:assets';
 import resultsReportOverview from '../../../../assets/screenshots/results-report-overview.png';
 import resultsReportDetails from '../../../../assets/screenshots/results-report-details.png';
 
-The `results` command family works on existing AgentV run workspaces and `index.jsonl` manifests. Use it after an eval run to inspect failures, validate manifests, export artifact layouts, or generate a shareable HTML report.
+The `results` command family works on existing local AgentV run workspaces and `index.jsonl` manifests. Use it after an eval run to inspect failures, validate manifests, export artifact layouts, combine/delete local run workspaces, or generate a shareable HTML report.
+
+Remote result repository exchange is intentionally not part of `agentv results`. New eval runs can auto-export to a configured results repo when `auto_push: true`; manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/tools/dashboard/#remote-results) for configuration and sync behavior.
 
 ## Subcommands
 
@@ -17,6 +19,8 @@ The `results` command family works on existing AgentV run workspaces and `index.
 |-----------|---------|
 | `results report` | Generate a self-contained static HTML report from an existing run workspace |
 | `results export` | Materialize or normalize the artifact workspace structure for a manifest |
+| `results combine` | Combine partial local run workspaces into a new local run workspace |
+| `results delete` | Delete one or more local run workspaces |
 | `results summary` | Print aggregate metrics for a run |
 | `results failures` | Show only failing cases |
 | `results show` | Display case-level rows from a run workspace |
@@ -79,3 +83,14 @@ agentv results validate .agentv/results/runs/<timestamp>
 ```
 
 For a review-centric workflow built around these artifacts, see [Human Review Checkpoint](/docs/guides/human-review/).
+
+## Remote results sync/status
+
+The CLI contract is deliberately narrow: `agentv results` manages local result artifacts only. It does not expose `results remote status` or `results remote sync` subcommands.
+
+Use these supported remote workflows instead:
+
+- **Automatic publishing:** configure `projects[].results.auto_push: true`; new `agentv eval` and `agentv pipeline bench` runs push their artifacts after the run completes.
+- **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
+- **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
+- **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.path` clone with `git` directly, then sync again.

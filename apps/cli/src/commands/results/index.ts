@@ -11,7 +11,7 @@ import { resultsValidateCommand } from './validate.js';
 
 export const resultsCommand = subcommands({
   name: 'results',
-  description: 'Inspect, export, and manage evaluation results',
+  description: 'Inspect, export, and manage local evaluation results',
   cmds: {
     combine: resultsCombineCommand,
     delete: resultsDeleteCommand,

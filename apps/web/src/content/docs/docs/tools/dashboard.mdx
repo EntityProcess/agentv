@@ -285,6 +285,8 @@ The `source` block and the `results` block sync different repositories:
 
 Use project-level **Sync Project** as the results exchange workflow. It handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
 
+There is no separate `agentv results remote status` or `agentv results remote sync` command. The `agentv results` CLI stays focused on local run workspaces; manual remote exchange is Dashboard/API-only, with eval auto-export covering the common CI/publisher path.
+
 Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
 
 ### What happens to existing local runs?
@@ -302,6 +304,13 @@ Uses `gh` CLI and `git` credentials already configured on the machine. If authen
 ### Syncing in Dashboard
 
 Once configured, Dashboard reads local runs and the configured results repo clone for that project. The status endpoint does not fetch from the remote on every page load; use **Sync Project** when you want to exchange changes with the results repo remote.
+
+Automation can use the same API that Dashboard uses:
+
+- `GET /api/projects/:projectId/remote/status`
+- `POST /api/projects/:projectId/remote/sync`
+
+Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
 
 In the default multi-project flow, open a project card first, then use **Sync Project** in that project's toolbar. The toolbar shows the project display name, sync state, last synced time, configured repo, and remote run count. Statuses include clean, unavailable, behind, ahead, dirty, diverged, conflicted, and syncing.
 
