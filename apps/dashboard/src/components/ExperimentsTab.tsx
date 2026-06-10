@@ -3,6 +3,10 @@
  *
  * Displays experiment name, number of runs, targets, pass rate, and
  * last run timestamp. Each row links to the experiment detail page.
+ *
+ * The table keeps the desktop column layout on mobile by using the same
+ * overflow container + fixed minimum width pattern as other Dashboard summary
+ * tables, so right-side metrics remain reachable instead of being clipped.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -41,8 +45,8 @@ export function ExperimentsTab({ projectId }: ExperimentsTabProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-800">
-      <table className="w-full text-left text-sm">
+    <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+      <table className="min-w-[760px] w-full whitespace-nowrap text-left text-sm">
         <thead className="border-b border-gray-800 bg-gray-900/50">
           <tr>
             <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
@@ -128,8 +132,8 @@ function formatTimestamp(ts: string | undefined | null): { date: string; full: s
 
 function LoadingSkeleton() {
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-800">
-      <div className="animate-pulse">
+    <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+      <div className="min-w-[760px] animate-pulse">
         <div className="border-b border-gray-800 bg-gray-900/50 px-4 py-3">
           <div className="h-4 w-48 rounded bg-gray-800" />
         </div>
