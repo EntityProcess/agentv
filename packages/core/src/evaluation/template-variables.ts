@@ -9,8 +9,6 @@
  *   - {{ criteria }}        — evaluation criteria string
  *   - {{ metadata }}        — per-test metadata as formatted JSON
  *   - {{ metadata_json }}   — per-test metadata as compact JSON
- *   - {{ input_object }}      — per-test structured input object as formatted JSON
- *   - {{ input_object_json }} — per-test structured input object as compact JSON
  *   - {{ rubrics }}        — llm-grader rubrics as formatted JSON
  *   - {{ rubrics_json }}   — llm-grader rubrics as compact JSON
  *   - {{ file_changes }}    — file diff (if available)
@@ -26,8 +24,6 @@ export const TEMPLATE_VARIABLES = {
   CRITERIA: 'criteria',
   METADATA: 'metadata',
   METADATA_JSON: 'metadata_json',
-  INPUT_OBJECT: 'input_object',
-  INPUT_OBJECT_JSON: 'input_object_json',
   RUBRICS: 'rubrics',
   RUBRICS_JSON: 'rubrics_json',
   INPUT: 'input',

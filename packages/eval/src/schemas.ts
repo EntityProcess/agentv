@@ -276,7 +276,6 @@ export const CodeGraderInputSchema = z.object({
   outputPath: z.string().optional(),
   inputFiles: z.array(z.string()),
   input: z.array(MessageSchema),
-  inputObject: z.unknown().nullable().optional(),
   metadata: z.record(z.unknown()).nullable().optional(),
   trace: TraceSummarySchema.nullable().optional(),
   tokenUsage: TokenUsageSchema.nullable().optional(),

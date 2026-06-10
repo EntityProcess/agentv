@@ -96,10 +96,10 @@ File Changes: {{file_changes}}
     expect(request?.systemPrompt).not.toContain(`Question: ${formattedQuestion}`);
   });
 
-  it('substitutes structured metadata, input_object, and rubrics variables', async () => {
+  it('substitutes structured input, metadata, and rubrics variables', async () => {
     const customPrompt = `
 Metadata: {{metadata_json}}
-Input Object: {{input_object_json}}
+Input: {{input}}
 Rubrics: {{rubrics_json}}
 Candidate: {{output}}
 `;
@@ -124,14 +124,14 @@ Candidate: {{output}}
     await evaluator.evaluate({
       evalCase: {
         ...baseTestCase,
-        inputObject: { company: 'Apple', ticker: 'AAPL' },
+        input: [{ role: 'user', content: { company: 'Apple', ticker: 'AAPL' } }],
         metadata: { source_repo: 'https://github.com/virattt/dexter' },
       },
       candidate: 'Apple revenue increased.',
       target: baseTarget,
       provider: graderProvider,
       attempt: 0,
-      promptInputs: { question: 'Research Apple' },
+      promptInputs: { question: '{\n  "company": "Apple",\n  "ticker": "AAPL"\n}' },
       now: new Date(),
       evaluator: {
         name: 'dexter',
@@ -150,7 +150,7 @@ Candidate: {{output}}
 
     const prompt = graderProvider.lastRequest?.question ?? '';
     expect(prompt).toContain('"source_repo":"https://github.com/virattt/dexter"');
-    expect(prompt).toContain('"ticker":"AAPL"');
+    expect(prompt).toContain('"ticker": "AAPL"');
     expect(prompt).toContain('"operator":"correctness"');
     expect(prompt).toContain('Candidate: Apple revenue increased.');
   });

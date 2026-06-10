@@ -46,8 +46,6 @@ function buildTemplateVariables(input: {
     [TEMPLATE_VARIABLES.CRITERIA]: input.evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.METADATA]: stringifyPretty(input.evalCase.metadata),
     [TEMPLATE_VARIABLES.METADATA_JSON]: stringifyCompact(input.evalCase.metadata),
-    [TEMPLATE_VARIABLES.INPUT_OBJECT]: stringifyPretty(input.evalCase.inputObject),
-    [TEMPLATE_VARIABLES.INPUT_OBJECT_JSON]: stringifyCompact(input.evalCase.inputObject),
     [TEMPLATE_VARIABLES.RUBRICS]: stringifyPretty(input.rubrics),
     [TEMPLATE_VARIABLES.RUBRICS_JSON]: stringifyCompact(input.rubrics),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: input.fileChanges ?? '',

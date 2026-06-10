@@ -29,7 +29,7 @@ describe('containsTemplateVariables', () => {
   it('returns true for structured template variables', () => {
     expect(
       containsTemplateVariables(
-        'Review {{metadata_json}}, {{input_object_json}}, and {{rubrics_json}} against {{output}}',
+        'Review {{metadata_json}} and {{rubrics_json}} against {{input}} and {{output}}',
       ),
     ).toBe(true);
   });

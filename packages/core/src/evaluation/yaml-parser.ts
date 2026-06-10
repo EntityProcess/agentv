@@ -64,7 +64,7 @@ import type {
   WorkspaceHooksConfig,
   WorkspaceScriptConfig,
 } from './types.js';
-import { isJsonObject, isJsonValue, isTestMessage } from './types.js';
+import { isJsonObject, isTestMessage } from './types.js';
 import { parseRepoConfig } from './workspace/repo-config-parser.js';
 import { parseYamlValue } from './yaml-loader.js';
 
@@ -142,7 +142,6 @@ type RawEvalCase = JsonObject & {
   /** @deprecated Use `criteria` instead */
   readonly expected_outcome?: JsonValue;
   readonly input?: JsonValue;
-  readonly input_object?: JsonValue;
   /** Shorthand: list of file paths to prepend as type:file content blocks in the user message. */
   readonly input_files?: JsonValue;
   readonly expected_output?: JsonValue;
@@ -635,10 +634,6 @@ async function loadTestsFromYaml(
       ? (renderedCase.metadata as Record<string, unknown>)
       : undefined;
     const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suiteMetadataPayload);
-    const inputObject = isJsonValue(renderedCase.input_object)
-      ? renderedCase.input_object
-      : undefined;
-
     // Extract per-test targets override (matrix evaluation)
     const caseTargets = extractTargetsFromTestCase(renderedCase as JsonObject);
 
@@ -683,7 +678,6 @@ async function loadTestsFromYaml(
       conversation_id: conversationId,
       question: question,
       input: inputMessages,
-      ...(inputObject !== undefined ? { inputObject } : {}),
       expected_output: outputSegments,
       reference_answer: referenceAnswer,
       file_paths: userFilePaths,

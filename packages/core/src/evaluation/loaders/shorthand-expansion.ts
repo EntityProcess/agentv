@@ -15,6 +15,7 @@ import { isJsonObject, isTestMessage } from '../types.js';
  *
  * Supports:
  * - String: "What is 2+2?" -> [{ role: 'user', content: "What is 2+2?" }]
+ * - Object (without role key): { accuracy: 0.9 } -> [{ role: 'user', content: { accuracy: 0.9 } }]
  * - Array of messages: Already in message format, passthrough
  *
  * @param value The raw `input` value from YAML/JSONL
@@ -27,6 +28,15 @@ export function expandInputShorthand(value: JsonValue | undefined): TestMessage[
 
   // String shorthand: single user message
   if (typeof value === 'string') {
+    return [{ role: 'user', content: value }];
+  }
+
+  // Object shorthand: single user message with structured content.
+  // If it already looks like a message, preserve the existing message shape.
+  if (isJsonObject(value)) {
+    if ('role' in value) {
+      return isTestMessage(value) ? [value] : undefined;
+    }
     return [{ role: 'user', content: value }];
   }
 

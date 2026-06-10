@@ -103,7 +103,6 @@ async function executePromptTemplate(
     output: context.output ?? null,
     inputFiles: context.evalCase.file_paths,
     input: context.evalCase.input,
-    inputObject: context.evalCase.inputObject ?? null,
     metadata: context.evalCase.metadata ?? null,
     trace: context.trace ?? null,
     fileChanges: context.fileChanges ?? null,

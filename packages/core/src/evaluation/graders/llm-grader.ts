@@ -177,8 +177,6 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
     [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.METADATA]: stringifyPretty(context.evalCase.metadata),
     [TEMPLATE_VARIABLES.METADATA_JSON]: stringifyCompact(context.evalCase.metadata),
-    [TEMPLATE_VARIABLES.INPUT_OBJECT]: stringifyPretty(context.evalCase.inputObject),
-    [TEMPLATE_VARIABLES.INPUT_OBJECT_JSON]: stringifyCompact(context.evalCase.inputObject),
     [TEMPLATE_VARIABLES.RUBRICS]: stringifyPretty(rubrics),
     [TEMPLATE_VARIABLES.RUBRICS_JSON]: stringifyCompact(rubrics),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',

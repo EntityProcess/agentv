@@ -199,12 +199,11 @@ tests:
     });
   });
 
-  it('loads structured input_object and rubric criteria aliases', async () => {
+  it('loads structured input objects and rubric criteria aliases', async () => {
     const { filePath, dir } = createTempYaml(`
 tests:
   - id: case-1
-    input: "Research Apple"
-    input_object:
+    input:
       company: Apple
       ticker: AAPL
     assertions:
@@ -217,7 +216,8 @@ tests:
 `);
 
     const suite = await loadTestSuite(filePath, dir);
-    expect(suite.tests[0].inputObject).toEqual({ company: 'Apple', ticker: 'AAPL' });
+    expect(suite.tests[0].input[0].content).toEqual({ company: 'Apple', ticker: 'AAPL' });
+    expect(suite.tests[0].question).toContain('"ticker": "AAPL"');
     const grader = suite.tests[0].assertions?.[0];
     expect(grader?.type).toBe('llm-grader');
     if (grader?.type === 'llm-grader') {
