@@ -6,6 +6,7 @@ import {
   buildRemoteStatusItems,
   formatRemoteRunCount,
   getProjectSyncView,
+  shouldPollRemoteStatus,
 } from './project-sync-status';
 
 describe('getProjectSyncView', () => {
@@ -46,6 +47,25 @@ describe('getProjectSyncView', () => {
     ).toMatchObject({
       state: 'ahead',
       actionLabel: 'Push Results',
+      canSync: true,
+    });
+  });
+
+  it('returns to a clean sync action when a status refetch settles an overlapping sync', () => {
+    const view = getProjectSyncView(
+      {
+        configured: true,
+        available: true,
+        sync_status: 'clean',
+        run_count: 1,
+        dirty_paths: [],
+      },
+      false,
+    );
+
+    expect(view).toMatchObject({
+      state: 'clean',
+      actionLabel: 'Sync Project',
       canSync: true,
     });
   });
@@ -152,5 +172,17 @@ describe('buildRemoteStatusItems', () => {
     expect(items).toContain('1 remote run');
     expect(items).toContain('Repo: WiseTechGlobal/WTG.AI.Prompts.EvalResults');
     expect(items.some((item) => item.startsWith('Last synced '))).toBe(true);
+  });
+});
+
+describe('shouldPollRemoteStatus', () => {
+  it('polls only while the server reports an overlapping sync in progress', () => {
+    expect(
+      shouldPollRemoteStatus({ configured: true, available: true, sync_status: 'syncing' }),
+    ).toBe(true);
+    expect(
+      shouldPollRemoteStatus({ configured: true, available: true, sync_status: 'clean' }),
+    ).toBe(false);
+    expect(shouldPollRemoteStatus(undefined)).toBe(false);
   });
 });

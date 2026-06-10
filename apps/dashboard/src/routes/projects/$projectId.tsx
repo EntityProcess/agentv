@@ -17,6 +17,7 @@ import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceTo
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   projectCompareOptions,
+  remoteStatusOptions,
   syncRemoteResultsApi,
   useEvalRuns,
   useInfiniteProjectRunList,
@@ -150,18 +151,21 @@ function ProjectRunsTab({
     setSyncFeedback(null);
     try {
       const result = await syncRemoteResultsApi(projectId);
+      queryClient.setQueryData(remoteStatusOptions(projectId).queryKey, result);
       const feedback = buildProjectSyncFeedback(result);
       setSyncFeedback(feedback);
-      await Promise.all([
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
-      ]);
+      ]).catch(() => undefined);
     } catch (err) {
       setSyncFeedback(buildProjectSyncErrorFeedback(err, remoteStatus));
-      await queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] });
+      void queryClient
+        .invalidateQueries({ queryKey: ['remote-status', projectId] })
+        .catch(() => undefined);
     } finally {
       setSyncInFlight(false);
     }

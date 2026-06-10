@@ -63,6 +63,10 @@ export function buildRemoteStatusItems(
   ].filter((item): item is string => item !== undefined);
 }
 
+export function shouldPollRemoteStatus(status: RemoteStatusResponse | undefined): boolean {
+  return status?.sync_status === 'syncing';
+}
+
 export function getProjectSyncView(
   status: RemoteStatusResponse | undefined,
   syncInFlight = false,
