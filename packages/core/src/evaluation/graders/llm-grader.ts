@@ -155,6 +155,41 @@ interface StructuredGenerationResult {
   readonly tokenUsage?: TokenUsage;
 }
 
+function stringifyPretty(value: unknown): string {
+  return value === undefined ? '' : JSON.stringify(value, null, 2);
+}
+
+function stringifyCompact(value: unknown): string {
+  return value === undefined ? '' : JSON.stringify(value);
+}
+
+function buildTemplateVariables(context: EvaluationContext): Record<string, string> {
+  const formattedQuestion =
+    context.promptInputs.question && context.promptInputs.question.trim().length > 0
+      ? context.promptInputs.question
+      : context.evalCase.question;
+  const rubrics = context.evaluator?.type === 'llm-grader' ? context.evaluator.rubrics : undefined;
+
+  return {
+    [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
+    [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
+    [TEMPLATE_VARIABLES.METADATA]: stringifyPretty(context.evalCase.metadata),
+    [TEMPLATE_VARIABLES.METADATA_JSON]: stringifyCompact(context.evalCase.metadata),
+    [TEMPLATE_VARIABLES.INPUT_OBJECT]: stringifyPretty(context.evalCase.inputObject),
+    [TEMPLATE_VARIABLES.INPUT_OBJECT_JSON]: stringifyCompact(context.evalCase.inputObject),
+    [TEMPLATE_VARIABLES.RUBRICS]: stringifyPretty(rubrics),
+    [TEMPLATE_VARIABLES.RUBRICS_JSON]: stringifyCompact(rubrics),
+    [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+    [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
+    // Deprecated aliases — same values as the primary variables above
+    [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
+  };
+}
+
 function resolveContentBasePath(context: EvaluationContext): string | undefined {
   if (context.workspacePath) {
     return context.workspacePath;
@@ -259,25 +294,7 @@ export class LlmGrader implements Grader {
     context: EvaluationContext,
     graderProvider: Provider,
   ): Promise<EvaluationScore> {
-    const formattedQuestion =
-      context.promptInputs.question && context.promptInputs.question.trim().length > 0
-        ? context.promptInputs.question
-        : context.evalCase.question;
-
-    // Prepare template variables for substitution.
-    // Primary variables resolve to human-readable text; deprecated _text aliases map to the same values.
-    const variables = {
-      [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
-      [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
-      [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
-      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
-      [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
-      // Deprecated aliases — same values as the primary variables above
-      [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
-      [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
-    };
+    const variables = buildTemplateVariables(context);
 
     // Build system prompt (only the mandatory output schema)
     const systemPrompt = buildOutputSchema();
@@ -367,7 +384,10 @@ export class LlmGrader implements Grader {
       return this.evaluateWithScoreRanges(context, graderProvider, rubrics);
     }
 
-    const prompt = this.buildRubricPrompt(context, rubrics);
+    const prompt =
+      context.graderTemplateOverride || this.graderTemplate
+        ? this.buildCustomPrompt(context)
+        : this.buildRubricPrompt(context, rubrics);
     const systemPrompt = buildRubricOutputSchema();
 
     const graderRawRequest: JsonObject = {
@@ -423,7 +443,10 @@ export class LlmGrader implements Grader {
     graderProvider: Provider,
     rubrics: readonly RubricItem[],
   ): Promise<EvaluationScore> {
-    const prompt = this.buildScoreRangePrompt(context, rubrics);
+    const prompt =
+      context.graderTemplateOverride || this.graderTemplate
+        ? this.buildCustomPrompt(context)
+        : this.buildScoreRangePrompt(context, rubrics);
     const systemPrompt = buildScoreRangeOutputSchema();
 
     const graderRawRequest: JsonObject = {
@@ -688,22 +711,12 @@ export class LlmGrader implements Grader {
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    const variables: Record<string, string> = {
-      [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
-      [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
-      [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
-      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
-      [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
-      // Deprecated aliases
-      [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
-      [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
-    };
+    const variables = buildTemplateVariables(context);
 
-    if (this.graderTemplate) {
-      warnDeprecatedTemplateVars(this.graderTemplate);
-      return substituteVariables(this.graderTemplate, variables);
+    const template = context.graderTemplateOverride ?? this.graderTemplate;
+    if (template) {
+      warnDeprecatedTemplateVars(template);
+      return substituteVariables(template, variables);
     }
 
     const config = context.evaluator;
@@ -767,21 +780,11 @@ export class LlmGrader implements Grader {
     const config = context.evaluator;
     const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
 
-    if (this.graderTemplate) {
-      const variables: Record<string, string> = {
-        [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
-        [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
-        [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
-        [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
-        [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
-        [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
-        // Deprecated aliases
-        [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
-        [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
-        [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
-      };
-      warnDeprecatedTemplateVars(this.graderTemplate);
-      const customPrompt = substituteVariables(this.graderTemplate, variables);
+    const template = context.graderTemplateOverride ?? this.graderTemplate;
+    if (template) {
+      const variables = buildTemplateVariables(context);
+      warnDeprecatedTemplateVars(template);
+      const customPrompt = substituteVariables(template, variables);
 
       const outputSchema =
         rubrics && rubrics.length > 0 ? buildRubricOutputSchema() : buildOutputSchema();
@@ -982,6 +985,12 @@ export class LlmGrader implements Grader {
     );
 
     return parts.join('\n');
+  }
+
+  private buildCustomPrompt(context: EvaluationContext): string {
+    const template = context.graderTemplateOverride ?? this.graderTemplate ?? '';
+    warnDeprecatedTemplateVars(template);
+    return substituteVariables(template, buildTemplateVariables(context));
   }
 
   private buildRubricPrompt(context: EvaluationContext, rubrics: readonly RubricItem[]): string {

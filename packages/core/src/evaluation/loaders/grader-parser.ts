@@ -2143,7 +2143,7 @@ function parseRubricItems(
     }
 
     const id = asString(rawRubric.id) ?? `rubric-${index + 1}`;
-    const expectedOutcome = asString(rawRubric.outcome) ?? '';
+    const expectedOutcome = asString(rawRubric.outcome) ?? asString(rawRubric.criteria) ?? '';
     const operator = parseRubricOperator(rawRubric.operator, id, evaluatorName, evalId);
     const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
 

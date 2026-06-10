@@ -1009,6 +1009,8 @@ export interface EvalTest {
   readonly conversation_id?: string;
   readonly question: string;
   readonly input: readonly TestMessage[];
+  /** Optional structured per-case input payload for grader prompt templates. */
+  readonly inputObject?: JsonValue;
   readonly expected_output: readonly JsonObject[];
   readonly reference_answer?: string;
   readonly file_paths: readonly string[];

@@ -18,6 +18,46 @@ export interface LlmGraderPromptAssembly {
   mode: 'freeform' | 'checklist' | 'score_range';
 }
 
+function stringifyPretty(value: unknown): string {
+  return value === undefined ? '' : JSON.stringify(value, null, 2);
+}
+
+function stringifyCompact(value: unknown): string {
+  return value === undefined ? '' : JSON.stringify(value);
+}
+
+function buildTemplateVariables(input: {
+  evalCase: EvalTest;
+  candidate: string;
+  promptInputs: PromptInputs;
+  rubrics?: readonly RubricItem[];
+  fileChanges?: string;
+  toolCalls?: string;
+}): Record<string, string> {
+  const formattedQuestion =
+    input.promptInputs.question && input.promptInputs.question.trim().length > 0
+      ? input.promptInputs.question
+      : input.evalCase.question;
+
+  return {
+    [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT]: input.candidate.trim(),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (input.evalCase.reference_answer ?? '').trim(),
+    [TEMPLATE_VARIABLES.CRITERIA]: input.evalCase.criteria.trim(),
+    [TEMPLATE_VARIABLES.METADATA]: stringifyPretty(input.evalCase.metadata),
+    [TEMPLATE_VARIABLES.METADATA_JSON]: stringifyCompact(input.evalCase.metadata),
+    [TEMPLATE_VARIABLES.INPUT_OBJECT]: stringifyPretty(input.evalCase.inputObject),
+    [TEMPLATE_VARIABLES.INPUT_OBJECT_JSON]: stringifyCompact(input.evalCase.inputObject),
+    [TEMPLATE_VARIABLES.RUBRICS]: stringifyPretty(input.rubrics),
+    [TEMPLATE_VARIABLES.RUBRICS_JSON]: stringifyCompact(input.rubrics),
+    [TEMPLATE_VARIABLES.FILE_CHANGES]: input.fileChanges ?? '',
+    [TEMPLATE_VARIABLES.TOOL_CALLS]: input.toolCalls ?? '',
+    [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT_TEXT]: input.candidate.trim(),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (input.evalCase.reference_answer ?? '').trim(),
+  };
+}
+
 export function assembleLlmGraderPrompt(input: {
   evalCase: EvalTest;
   candidate: string;
@@ -42,6 +82,17 @@ export function assembleLlmGraderPrompt(input: {
 
   // Detect mode
   if (rubrics && rubrics.length > 0) {
+    if (graderTemplateOverride) {
+      return assembleCustom(
+        evalCase,
+        candidate,
+        promptInputs,
+        rubrics,
+        fileChanges,
+        toolCalls,
+        graderTemplateOverride,
+      );
+    }
     const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
     if (hasScoreRanges) {
       return assembleScoreRange(evalCase, candidate, promptInputs, rubrics, fileChanges, toolCalls);
@@ -67,23 +118,13 @@ function assembleFreeform(
   toolCalls?: string,
   graderTemplateOverride?: string,
 ): LlmGraderPromptAssembly {
-  const formattedQuestion =
-    promptInputs.question && promptInputs.question.trim().length > 0
-      ? promptInputs.question
-      : evalCase.question;
-
-  const variables = {
-    [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
-    [TEMPLATE_VARIABLES.OUTPUT]: candidate.trim(),
-    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (evalCase.reference_answer ?? '').trim(),
-    [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
-    [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
-    [TEMPLATE_VARIABLES.TOOL_CALLS]: toolCalls ?? '',
-    // Deprecated aliases
-    [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
-    [TEMPLATE_VARIABLES.OUTPUT_TEXT]: candidate.trim(),
-    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (evalCase.reference_answer ?? '').trim(),
-  };
+  const variables = buildTemplateVariables({
+    evalCase,
+    candidate,
+    promptInputs,
+    fileChanges,
+    toolCalls,
+  });
 
   const systemPrompt = buildOutputSchema();
   const template = graderTemplateOverride ?? DEFAULT_GRADER_TEMPLATE;
@@ -102,6 +143,37 @@ function assembleFreeform(
     userPrompt,
     responseSchema: systemPrompt,
     mode: 'freeform',
+  };
+}
+
+function assembleCustom(
+  evalCase: EvalTest,
+  candidate: string,
+  promptInputs: PromptInputs,
+  rubrics: readonly RubricItem[],
+  fileChanges: string | undefined,
+  toolCalls: string | undefined,
+  graderTemplateOverride: string,
+): LlmGraderPromptAssembly {
+  const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
+  const systemPrompt = hasScoreRanges ? buildScoreRangeOutputSchema() : buildRubricOutputSchema();
+  const userPrompt = substituteVariables(
+    graderTemplateOverride,
+    buildTemplateVariables({
+      evalCase,
+      candidate,
+      promptInputs,
+      rubrics,
+      fileChanges,
+      toolCalls,
+    }),
+  );
+
+  return {
+    systemPrompt,
+    userPrompt,
+    responseSchema: systemPrompt,
+    mode: hasScoreRanges ? 'score_range' : 'checklist',
   };
 }
 

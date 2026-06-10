@@ -173,4 +173,59 @@ tests:
       owasp_llm_top_10_2025: ['LLM01'],
     });
   });
+
+  it('merges arbitrary suite metadata into each case and lets case scalars override', async () => {
+    const { filePath, dir } = createTempYaml(`
+metadata:
+  source_repo: https://github.com/virattt/dexter
+  source_commit: 8d9419829f443f84b804d033bb2c3b1fbd788629
+  source_file: src/evals/dataset/finance_agent.csv
+  tags: [suite]
+tests:
+  - id: case-1
+    criteria: "Answer"
+    input: "Query"
+    metadata:
+      source_file: override.csv
+      tags: [case]
+`);
+
+    const suite = await loadTestSuite(filePath, dir);
+    expect(suite.tests[0].metadata).toMatchObject({
+      source_repo: 'https://github.com/virattt/dexter',
+      source_commit: '8d9419829f443f84b804d033bb2c3b1fbd788629',
+      source_file: 'override.csv',
+      tags: ['suite', 'case'],
+    });
+  });
+
+  it('loads structured input_object and rubric criteria aliases', async () => {
+    const { filePath, dir } = createTempYaml(`
+tests:
+  - id: case-1
+    input: "Research Apple"
+    input_object:
+      company: Apple
+      ticker: AAPL
+    assertions:
+      - name: dexter_rubric
+        type: llm-grader
+        rubrics:
+          - id: factual
+            operator: correctness
+            criteria: "Uses the supplied company and ticker"
+`);
+
+    const suite = await loadTestSuite(filePath, dir);
+    expect(suite.tests[0].inputObject).toEqual({ company: 'Apple', ticker: 'AAPL' });
+    const grader = suite.tests[0].assertions?.[0];
+    expect(grader?.type).toBe('llm-grader');
+    if (grader?.type === 'llm-grader') {
+      expect(grader.rubrics?.[0]).toMatchObject({
+        id: 'factual',
+        operator: 'correctness',
+        outcome: 'Uses the supplied company and ticker',
+      });
+    }
+  });
 });

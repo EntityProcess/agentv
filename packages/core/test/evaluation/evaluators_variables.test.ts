@@ -96,6 +96,65 @@ File Changes: {{file_changes}}
     expect(request?.systemPrompt).not.toContain(`Question: ${formattedQuestion}`);
   });
 
+  it('substitutes structured metadata, input_object, and rubrics variables', async () => {
+    const customPrompt = `
+Metadata: {{metadata_json}}
+Input Object: {{input_object_json}}
+Rubrics: {{rubrics_json}}
+Candidate: {{output}}
+`;
+
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            checks: [{ id: 'factual', satisfied: true, reasoning: 'Matches' }],
+            overall_reasoning: 'OK',
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+      graderTemplate: customPrompt,
+    });
+
+    await evaluator.evaluate({
+      evalCase: {
+        ...baseTestCase,
+        inputObject: { company: 'Apple', ticker: 'AAPL' },
+        metadata: { source_repo: 'https://github.com/virattt/dexter' },
+      },
+      candidate: 'Apple revenue increased.',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: 'Research Apple' },
+      now: new Date(),
+      evaluator: {
+        name: 'dexter',
+        type: 'llm-grader',
+        rubrics: [
+          {
+            id: 'factual',
+            operator: 'correctness',
+            outcome: 'Uses the supplied ticker',
+            weight: 1,
+            required: true,
+          },
+        ],
+      },
+    });
+
+    const prompt = graderProvider.lastRequest?.question ?? '';
+    expect(prompt).toContain('"source_repo":"https://github.com/virattt/dexter"');
+    expect(prompt).toContain('"ticker":"AAPL"');
+    expect(prompt).toContain('"operator":"correctness"');
+    expect(prompt).toContain('Candidate: Apple revenue increased.');
+  });
+
   it('deprecated _text aliases still resolve correctly', async () => {
     const formattedQuestion = 'What is 2+2?';
     const customPrompt = `

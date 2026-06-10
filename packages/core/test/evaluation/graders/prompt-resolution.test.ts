@@ -26,6 +26,14 @@ describe('containsTemplateVariables', () => {
     expect(containsTemplateVariables('Review {{file_changes}}')).toBe(true);
   });
 
+  it('returns true for structured template variables', () => {
+    expect(
+      containsTemplateVariables(
+        'Review {{metadata_json}}, {{input_object_json}}, and {{rubrics_json}} against {{output}}',
+      ),
+    ).toBe(true);
+  });
+
   it('returns true for deprecated {{output_text}} variable', () => {
     expect(containsTemplateVariables('Grade the {{output_text}}')).toBe(true);
   });
