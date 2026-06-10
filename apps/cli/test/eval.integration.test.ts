@@ -557,4 +557,35 @@ describe('agentv eval CLI', () => {
       .toLowerCase();
     expect(transcriptHelp).not.toContain('cache');
   }, 30_000);
+
+  it('omits removed benchmark JSON export flag from help', async () => {
+    const result = await execa('bun', ['--no-env-file', CLI_ENTRY, 'eval', 'run', '--help'], {
+      cwd: projectRoot,
+      env: { ...process.env, CI: 'true' },
+      reject: false,
+    });
+    const helpText = `${result.stdout}\n${result.stderr}`;
+    expect(helpText).not.toContain('--benchmark-json');
+    expect(helpText).toContain('--output');
+    expect(helpText).toContain('benchmark.json');
+  }, 30_000);
+
+  it('rejects the removed benchmark JSON export flag as an unknown argument', async () => {
+    const fixture = await createFixture();
+    try {
+      const result = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--benchmark-json',
+        path.join(fixture.baseDir, 'benchmark.json'),
+      ]);
+
+      expect(result.exitCode).not.toBe(0);
+      const output = `${result.stdout}\n${result.stderr}`;
+      expect(output).toContain('Unknown arguments');
+      expect(output).toContain('--benchmark-json');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
 });

@@ -179,12 +179,6 @@ export const evalRunCommand = command({
       long: 'strict',
       description: 'Exit with error on version mismatch (instead of warning)',
     }),
-    benchmarkJson: option({
-      type: optional(string),
-      long: 'benchmark-json',
-      description:
-        '[Deprecated: benchmark.json is included in artifact dir] Write Agent Skills benchmark.json to the specified path',
-    }),
     artifacts: option({
       type: optional(string),
       long: 'artifacts',
@@ -282,7 +276,6 @@ export const evalRunCommand = command({
       resume: args.resume,
       rerunFailed: args.rerunFailed,
       strict: args.strict,
-      benchmarkJson: args.benchmarkJson,
       artifacts: args.artifacts,
       graderTarget: args.graderTarget,
       model: args.model,

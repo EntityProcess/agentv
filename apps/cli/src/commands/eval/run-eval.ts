@@ -40,7 +40,6 @@ import {
   writeArtifactsFromResults,
   writeInitialBenchmarkArtifact,
 } from './artifact-writer.js';
-import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { type OutputWriter, createOutputWriter, createWriterFromPath } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
@@ -113,8 +112,6 @@ interface NormalizedOptions {
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
   readonly keepWorkspaces: boolean;
-  /** Deprecated: benchmark.json is always written to artifact dir */
-  readonly benchmarkJson?: string;
   /** Removed: use --output instead */
   readonly artifacts?: string;
   /** Removed: the run directory always uses index.jsonl */
@@ -461,7 +458,6 @@ function normalizeOptions(
       normalizeBoolean(rawOptions.keepWorkspaces) ||
       yamlExecution?.keep_workspaces === true ||
       config?.execution?.keepWorkspaces === true,
-    benchmarkJson: normalizeString(rawOptions.benchmarkJson),
     artifacts: normalizeString(rawOptions.artifacts),
     outputFormat: normalizeString(rawOptions.outputFormat),
     graderTarget: normalizeString(rawOptions.graderTarget),
@@ -1250,13 +1246,6 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  // Emit deprecation warnings for remaining legacy flags.
-  if (options.benchmarkJson) {
-    console.warn(
-      'Warning: --benchmark-json is deprecated. benchmark.json is always written to the artifact directory.',
-    );
-  }
-
   // Resolve artifact directory (runDir) and primary output path.
   // Precedence: --output > config output.dir > default
   const explicitDir = options.outputDir;
@@ -1774,13 +1763,6 @@ export async function runEvalCommand(
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && summaryResults.length > 0) {
       console.log(formatMatrixSummary(summaryResults));
-    }
-
-    // Write Agent Skills benchmark.json if requested (deprecated flag — backward compat)
-    if (options.benchmarkJson && allResults.length > 0) {
-      const benchmarkPath = path.resolve(options.benchmarkJson);
-      await writeBenchmarkJson(benchmarkPath, allResults);
-      console.log(`Benchmark written to: ${benchmarkPath}`);
     }
 
     // Write artifacts to the run directory (always, not conditional on flags)

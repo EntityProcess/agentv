@@ -14,7 +14,7 @@ The eval run command currently exposes several overlapping ways to choose where 
 - `--out <path>` is deprecated and currently treated as a file path whose dirname becomes the artifact directory.
 - `--artifacts <dir>` is deprecated and currently aliases the artifact directory.
 - `--output-format` is deprecated and ignored because run directories always use `index.jsonl`.
-- `--benchmark-json` is deprecated, still writes an extra Agent Skills compatibility file, and is outside this cleanup's requested removal set.
+- `--benchmark-json` was a deprecated extra Agent Skills compatibility output path outside this cleanup's requested removal set; a follow-up cleanup removes that flag and keeps the run directory `benchmark.json` as canonical.
 - Dashboard launch paths already pass `--output <dir>` and expect `<dir>/index.jsonl`.
 - Repository docs/examples still contain old `agentv eval --out <file>` guidance in compare workflows, grader-score helper comments, and local scripts.
 
@@ -51,7 +51,7 @@ Removed now:
 
 Warned/scheduled:
 
-- `--benchmark-json` remains deprecated for now because the Bead did not list it as a known surface and it writes a specialized compatibility artifact. Follow-up cleanup should remove it after a separate audit.
+- `--benchmark-json` is removed by the follow-up cleanup after auditing for consumers; use `--output <dir>` and read `<dir>/benchmark.json` instead of requesting a second benchmark file.
 
 ## Migration
 
