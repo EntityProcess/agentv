@@ -94,8 +94,7 @@ jobs:
             "${TARGET_FLAG[@]}" \
             --workers 3 \
             --threshold ${{ steps.filter.outputs.threshold }} \
-            --output .agentv/ci-results/artifacts \
-            --export .agentv/ci-results/junit.xml
+            --output .agentv/ci-results/artifacts
           EXIT_CODE=$?
 
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
@@ -103,16 +102,6 @@ jobs:
       - name: Post eval summary
         if: always()
         run: bun run scripts/ci-summary.ts .agentv/ci-results >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish JUnit test results
-        if: always()
-        continue-on-error: true
-        uses: dorny/test-reporter@v1
-        with:
-          name: AgentV Eval Results
-          path: .agentv/ci-results/junit.xml
-          reporter: java-junit
-          fail-on-error: false
 
       - name: Upload eval artifacts
         if: always()

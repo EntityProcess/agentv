@@ -384,8 +384,7 @@ Unit tests alone are insufficient for grader changes. After implementing or modi
 ```bash
 # 1. Run the eval, writing results to a sibling *.results.jsonl file
 bun apps/cli/src/cli.ts eval examples/path/to/suite.eval.yaml --target azure \
-  --output examples/path/to/suite.run \
-  --export examples/path/to/suite.results.jsonl
+  --output examples/path/to/suite.run
 
 # 2. Assert all expected score ranges pass
 bun scripts/check-grader-scores.ts
@@ -396,7 +395,7 @@ The script auto-discovers `examples/**/*.grader-scores.yaml`, locates the siblin
 **To add score checks for a new eval:**
 1. Create `<eval-stem>.grader-scores.yaml` next to the eval YAML.
 2. Add entries for each `(test_id, grader, range)` you care about — `grader` must match a `scores[].name` value in the JSONL output, and `range.min`/`range.max` default to 0/1 if omitted.
-3. Run the eval with `--output <eval-stem>.run --export <eval-stem>.results.jsonl`, then run the script.
+3. Run the eval with `--output <eval-stem>.run`, then run the script.
 
 See `examples/red-team/archetypes/coding-agent/suites/screenshot-pii-upload.grader-scores.yaml` for a concrete example.
 

@@ -46,7 +46,7 @@ export const evalRunCommand = command({
     out: option({
       type: optional(string),
       long: 'out',
-      description: '[Removed: use --output <dir> and --export <file>] Former flat result path',
+      description: '[Removed: use --output <dir>] Former flat result path',
     }),
     output: option({
       type: optional(string),
@@ -58,18 +58,12 @@ export const evalRunCommand = command({
     outputFormat: option({
       type: optional(string),
       long: 'output-format',
-      description: '[Removed: use --export <file>] Run directories always write index.jsonl',
+      description: '[Removed] Run directories always write index.jsonl',
     }),
     experiment: option({
       type: optional(string),
       long: 'experiment',
       description: 'Experiment label for canonical run output (default: default)',
-    }),
-    export: multioption({
-      type: array(string),
-      long: 'export',
-      description:
-        'Write additional output file(s). Format inferred from extension: .jsonl, .json, .xml, .yaml, .html (repeatable)',
     }),
     dryRun: flag({
       long: 'dry-run',
@@ -252,7 +246,6 @@ export const evalRunCommand = command({
       output: args.output,
       outputFormat: args.outputFormat,
       experiment: args.experiment,
-      export: args.export,
       dryRun: args.dryRun,
       dryRunDelay: args.dryRunDelay,
       dryRunDelayMin: args.dryRunDelayMin,

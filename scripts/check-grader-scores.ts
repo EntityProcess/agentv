@@ -2,7 +2,7 @@
  * check-grader-scores.ts
  *
  * Post-processor that walks examples/**\/*.grader-scores.yaml, finds the
- * sibling *.results.jsonl produced by a prior `agentv eval --export` run, and
+ * sibling <eval-stem>.run/index.jsonl produced by a prior `agentv eval --output` run, and
  * asserts each (test_id, grader, range) tuple matches the expected score range.
  *
  * Usage:
@@ -11,9 +11,9 @@
  * To add score checks for a new eval:
  *   1. Create <eval-stem>.grader-scores.yaml next to <eval-stem>.eval.yaml.
  *   2. Populate it with (test_id, grader, range) entries.
- *   3. Run the eval with --export to produce the sibling results file:
+ *   3. Run the eval with --output to produce the sibling run index:
  *        bun apps/cli/src/cli.ts eval <eval-stem>.eval.yaml --target <t> \
- *          --output <eval-stem>.run --export <eval-stem>.results.jsonl
+ *          --output <eval-stem>.run
  *   4. Run this script to verify.
  */
 
@@ -54,7 +54,7 @@ interface JsonlResult {
 function resolveResultsPath(graderScoresPath: string): string {
   const dir = path.dirname(graderScoresPath);
   const base = path.basename(graderScoresPath, '.grader-scores.yaml');
-  return path.join(dir, `${base}.results.jsonl`);
+  return path.join(dir, `${base}.run`, 'index.jsonl');
 }
 
 function parseJsonl(filePath: string): JsonlResult[] {
@@ -103,7 +103,7 @@ function main(): void {
 
     if (!existsSync(resultsPath)) {
       console.error(
-        `\nMissing results file for ${gsFile}:\n  ${resultsPath}\n  Did you run \`agentv eval --export ${resultsPath}\` first?`,
+        `\nMissing results file for ${gsFile}:\n  ${resultsPath}\n  Did you run \`agentv eval --output ${path.join(path.dirname(resultsPath), '..')}\` first?`,
       );
       // Count each entry as failed so CI catches missing results
       try {

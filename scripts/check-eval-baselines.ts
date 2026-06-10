@@ -1,5 +1,13 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { readdir, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -108,7 +116,7 @@ async function runAgentVEval(evalFile: string, candidatePath: string): Promise<n
   }
 
   const runDir = mkdtempSync(path.join(tmpdir(), 'agentv-baseline-check-'));
-  const args = ['bun', 'agentv', 'eval', evalFile, '--output', runDir, '--export', candidatePath];
+  const args = ['bun', 'agentv', 'eval', evalFile, '--output', runDir];
   try {
     const proc = Bun.spawn(args, {
       cwd: repoRoot,
@@ -116,7 +124,11 @@ async function runAgentVEval(evalFile: string, candidatePath: string): Promise<n
       stderr: 'inherit',
       env,
     });
-    return await proc.exited;
+    const exitCode = await proc.exited;
+    if (exitCode === 0) {
+      copyFileSync(path.join(runDir, 'index.jsonl'), candidatePath);
+    }
+    return exitCode;
   } finally {
     rmSync(runDir, { recursive: true, force: true });
   }
