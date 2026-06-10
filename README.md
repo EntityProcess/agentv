@@ -78,8 +78,7 @@ agentv compare .agentv/results/runs/<timestamp>/index.jsonl
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./run   # writes ./run/index.jsonl
-agentv eval evals/my-eval.yaml --export report.html
-agentv eval evals/my-eval.yaml --export results.xml   # JUnit XML for CI
+cat ./run/index.jsonl                         # JSONL results for scripts/CI
 ```
 
 ## TypeScript SDK

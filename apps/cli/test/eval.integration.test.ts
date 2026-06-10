@@ -306,12 +306,23 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('writes additional --export files without changing the canonical index location', async () => {
+  it('rejects removed --export and keeps --output as the canonical index location', async () => {
     const fixture = await createFixture();
     try {
       const outputDir = path.join(fixture.baseDir, 'run');
-      const junitPath = path.join(fixture.baseDir, 'junit.xml');
       const flatJsonlPath = path.join(fixture.baseDir, 'flat.jsonl');
+
+      const removed = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--output',
+        outputDir,
+        '--export',
+        flatJsonlPath,
+      ]);
+
+      expect(removed.exitCode).not.toBe(0);
+      expect(`${removed.stdout}\n${removed.stderr}`).toContain('Unknown arguments');
 
       const { stdout, exitCode } = await runCli(fixture, [
         'eval',
@@ -320,26 +331,17 @@ describe('agentv eval CLI', () => {
         outputDir,
         '--threshold',
         '0.8',
-        '--export',
-        junitPath,
-        '--export',
-        flatJsonlPath,
       ]);
 
       expect(exitCode).toBe(1);
       expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
-      expect(stdout).toContain('Export files:');
-      expect(stdout).toContain(junitPath);
-      expect(stdout).toContain(flatJsonlPath);
+      expect(stdout).not.toContain('Export files:');
 
       const canonicalResults = await readJsonLines(path.join(outputDir, 'index.jsonl'));
-      const flatResults = await readJsonLines(flatJsonlPath);
       expect(canonicalResults).toHaveLength(2);
-      expect(flatResults).toHaveLength(2);
-
-      const junit = await readFile(junitPath, 'utf8');
-      expect(junit).toContain('<testsuites tests="2" failures="1" errors="0"');
-      expect(junit).toContain('<failure message="score=0.600"');
+      await expectFileExists(path.join(outputDir, 'benchmark.json'));
+      await expectFileExists(path.join(outputDir, 'timing.json'));
+      await expectFileExists(path.join(outputDir, 'transcript.jsonl'));
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -349,7 +351,11 @@ describe('agentv eval CLI', () => {
     const cases = [
       {
         args: ['--out', 'legacy.jsonl'],
-        expected: ['--out was removed', '--output <dir>', '--export legacy.jsonl'],
+        expected: [
+          '--out was removed',
+          '--output <dir>',
+          'Flat result file export from agentv eval has been removed',
+        ],
       },
       {
         args: ['--artifacts', 'legacy-artifacts'],
@@ -360,18 +366,18 @@ describe('agentv eval CLI', () => {
         expected: [
           '--artifacts was removed',
           '--output legacy-artifacts',
-          '--export junit.xml for JUnit XML',
+          'JUnit XML export from agentv eval has been removed',
         ],
       },
       {
         args: ['--output-format', 'html'],
-        expected: ['--output-format was removed', 'index.jsonl', '--export <file>'],
+        expected: ['--output-format was removed', 'index.jsonl'],
       },
       {
         args: ['--output', 'results.xml'],
         expected: [
           '--output expects a run directory',
-          'Use --export results.xml for JUnit XML',
+          'JUnit XML export from agentv eval has been removed',
           '<dir>/index.jsonl',
         ],
       },
