@@ -628,6 +628,33 @@ describe('serve app', () => {
       expect(secondPage.next_cursor).toBeUndefined();
     });
 
+    it('sorts runs by displayed timestamp descending before pagination', async () => {
+      createLocalRun(tempDir, 'z-older-directory-name', {
+        ...RESULT_A,
+        timestamp: '2026-03-25T10:00:00.000Z',
+      });
+      createLocalRun(tempDir, 'a-newer-directory-name', {
+        ...RESULT_A,
+        timestamp: '2026-03-25T10:09:00.000Z',
+      });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const res = await app.request('/api/runs?limit=1');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        runs: Array<{ filename: string; timestamp: string }>;
+        next_cursor?: string;
+      };
+      expect(data.runs.map(({ filename, timestamp }) => ({ filename, timestamp }))).toEqual([
+        {
+          filename: 'a-newer-directory-name',
+          timestamp: '2026-03-25T10:09:00.000Z',
+        },
+      ]);
+      expect(data.next_cursor).toBe('a-newer-directory-name');
+    });
+
     it('returns an empty page for unknown cursors', async () => {
       createLocalRun(tempDir, '2026-03-25T10-00-00-000Z', RESULT_A);
       createLocalRun(tempDir, '2026-03-25T11-00-00-000Z', RESULT_A);
