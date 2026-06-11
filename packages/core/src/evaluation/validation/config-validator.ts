@@ -175,17 +175,21 @@ function validateProjects(errors: ValidationError[], filePath: string, projects:
         severity: 'error',
         filePath,
         location: `${location}.source`,
-        message: `Field '${location}.source' was removed. Move 'source.url' to '${location}.repository' as a GitHub owner/name value (for example, 'example/repo') and move 'source.ref' to '${location}.ref'.`,
+        message: `Field '${location}.source' was removed. Move 'source.url' to '${location}.repo_url' and move 'source.ref' to '${location}.ref'. Use a Git remote URL such as https://github.com/example/repo.git or git@github.com:example/repo.git.`,
       });
     }
 
     if (projectRecord.repository !== undefined) {
-      validateGitHubRepository(
-        errors,
+      errors.push({
+        severity: 'error',
         filePath,
-        projectRecord.repository,
-        `${location}.repository`,
-      );
+        location: `${location}.repository`,
+        message: `Field '${location}.repository' was removed. Use '${location}.repo_url' with a Git remote URL instead.`,
+      });
+    }
+
+    if (projectRecord.repo_url !== undefined) {
+      validateGitRemoteUrl(errors, filePath, projectRecord.repo_url, `${location}.repo_url`);
     }
 
     if (projectRecord.ref !== undefined) {
@@ -212,7 +216,7 @@ function validateRequiredString(
   }
 }
 
-function validateGitHubRepository(
+function validateGitRemoteUrl(
   errors: ValidationError[],
   filePath: string,
   value: unknown,
@@ -223,18 +227,18 @@ function validateGitHubRepository(
       severity: 'error',
       filePath,
       location,
-      message: `Field '${location}' must be a non-empty GitHub owner/name repository (e.g., EntityProcess/agentv)`,
+      message: `Field '${location}' must be a non-empty Git remote URL (e.g., https://github.com/EntityProcess/agentv.git or git@github.com:EntityProcess/agentv.git)`,
     });
     return;
   }
 
-  const repository = value.trim();
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+  const repoUrl = value.trim();
+  if (!/^(https?:\/\/|ssh:\/\/|git@|file:\/\/).+/.test(repoUrl)) {
     errors.push({
       severity: 'error',
       filePath,
       location,
-      message: `Field '${location}' must use GitHub owner/name format (e.g., EntityProcess/agentv), not a URL. It resolves to https://github.com/<owner>/<name>.git for git operations.`,
+      message: `Field '${location}' must be a Git remote URL, not an owner/name shorthand. Use https://github.com/owner/repo.git or git@github.com:owner/repo.git.`,
     });
   }
 }
@@ -262,9 +266,10 @@ function validateProjectResultsConfig(
   const resultsRecord = rawResults as Record<string, unknown>;
 
   const removedFields: Record<string, string> = {
-    mode: `Remove '${location}.mode'; project results are GitHub-backed by '${location}.repository'.`,
-    repo: `Field '${location}.repo' was removed. Use '${location}.repository' with GitHub owner/name format instead.`,
-    path: `Field '${location}.path' was removed. Use '${location}.local_path' for the local clone path instead.`,
+    mode: `Remove '${location}.mode'; project results use '${location}.repo_url' as the Git remote URL.`,
+    repo: `Field '${location}.repo' was removed. Use '${location}.repo_url' with a Git remote URL instead.`,
+    repository: `Field '${location}.repository' was removed. Use '${location}.repo_url' with a Git remote URL instead.`,
+    local_path: `Field '${location}.local_path' was removed. Use '${location}.path' for the local clone path instead.`,
     auto_push: `Field '${location}.auto_push' was removed. Use '${location}.sync.auto_push' instead.`,
   };
 
@@ -279,25 +284,22 @@ function validateProjectResultsConfig(
     }
   }
 
-  validateGitHubRepository(errors, filePath, resultsRecord.repository, `${location}.repository`);
+  validateGitRemoteUrl(errors, filePath, resultsRecord.repo_url, `${location}.repo_url`);
 
-  if (resultsRecord.local_path !== undefined) {
-    if (
-      typeof resultsRecord.local_path !== 'string' ||
-      resultsRecord.local_path.trim().length === 0
-    ) {
+  if (resultsRecord.path !== undefined) {
+    if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
       errors.push({
         severity: 'error',
         filePath,
-        location: `${location}.local_path`,
-        message: `Field '${location}.local_path' must be a non-empty string`,
+        location: `${location}.path`,
+        message: `Field '${location}.path' must be a non-empty string`,
       });
-    } else if (!isFilesystemPath(resultsRecord.local_path.trim())) {
+    } else if (!isFilesystemPath(resultsRecord.path.trim())) {
       errors.push({
         severity: 'error',
         filePath,
-        location: `${location}.local_path`,
-        message: `'${location}.local_path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results).`,
+        location: `${location}.path`,
+        message: `'${location}.path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results).`,
       });
     }
   }

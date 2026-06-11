@@ -16,18 +16,18 @@
  *   projects:
  *     - id: my-app
  *       name: My App
- *       repository: example/my-app
+ *       repo_url: https://github.com/example/my-app.git
  *       path: /home/user/projects/my-app
  *       ref: main
  *       results:
- *         repository: example/my-app-results
- *         local_path: /srv/agentv/results/my-app
+ *         repo_url: git@github.com:example/my-app-results.git
+ *         path: /srv/agentv/results/my-app
  *         sync:
  *           auto_push: true
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *
- * The optional `repository` field enables remote sync via syncProjects():
+ * The optional `repoUrl` field enables remote sync via syncProjects():
  *   first run — git clone --depth 1 --filter=blob:none
  *   subsequent runs — git pull --ff-only
  *
@@ -61,8 +61,8 @@ export interface ProjectResultsSyncConfig {
 }
 
 export interface ProjectResultsConfig {
-  repository: string;
-  localPath?: string;
+  repoUrl: string;
+  path?: string;
   sync?: ProjectResultsSyncConfig;
   branchPrefix?: string;
 }
@@ -70,7 +70,7 @@ export interface ProjectResultsConfig {
 export interface ProjectEntry {
   id: string;
   name: string;
-  repository?: string;
+  repoUrl?: string;
   path: string;
   ref?: string;
   addedAt: string;
@@ -98,8 +98,8 @@ interface ProjectResultsSyncYaml {
 }
 
 interface ProjectResultsYaml {
-  repository: string;
-  local_path?: string;
+  repo_url: string;
+  path?: string;
   sync?: ProjectResultsSyncYaml;
   branch_prefix?: string;
 }
@@ -107,7 +107,7 @@ interface ProjectResultsYaml {
 interface ProjectEntryYaml {
   id: string;
   name: string;
-  repository?: string;
+  repo_url?: string;
   path: string;
   ref?: string;
   added_at: string;
@@ -128,21 +128,19 @@ function fromYaml(raw: unknown): ProjectEntry | null {
     addedAt: typeof e.added_at === 'string' ? e.added_at : '',
     lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
   };
-  if (typeof e.repository === 'string' && e.repository.trim().length > 0) {
-    entry.repository = e.repository.trim();
+  if (typeof e.repo_url === 'string' && e.repo_url.trim().length > 0) {
+    entry.repoUrl = e.repo_url.trim();
   }
   if (typeof e.ref === 'string' && e.ref.trim().length > 0) {
     entry.ref = e.ref.trim();
   }
   if (e.results && typeof e.results === 'object') {
     const r = e.results as Partial<ProjectResultsYaml>;
-    if (typeof r.repository === 'string' && r.repository.trim().length > 0) {
+    if (typeof r.repo_url === 'string' && r.repo_url.trim().length > 0) {
       const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
       entry.results = {
-        repository: r.repository.trim(),
-        ...(typeof r.local_path === 'string' && r.local_path.trim().length > 0
-          ? { localPath: r.local_path.trim() }
-          : {}),
+        repoUrl: r.repo_url.trim(),
+        ...(typeof r.path === 'string' && r.path.trim().length > 0 ? { path: r.path.trim() } : {}),
         ...(sync && typeof sync.auto_push === 'boolean'
           ? { sync: { autoPush: sync.auto_push } }
           : {}),
@@ -159,7 +157,7 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   const yaml: ProjectEntryYaml = {
     id: entry.id,
     name: entry.name,
-    ...(entry.repository !== undefined && { repository: entry.repository }),
+    ...(entry.repoUrl !== undefined && { repo_url: entry.repoUrl }),
     path: entry.path,
     ...(entry.ref !== undefined && { ref: entry.ref }),
     added_at: entry.addedAt,
@@ -167,8 +165,8 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   };
   if (entry.results) {
     yaml.results = {
-      repository: entry.results.repository,
-      ...(entry.results.localPath !== undefined && { local_path: entry.results.localPath }),
+      repo_url: entry.results.repoUrl,
+      ...(entry.results.path !== undefined && { path: entry.results.path }),
       ...(entry.results.sync?.autoPush !== undefined && {
         sync: { auto_push: entry.results.sync.autoPush },
       }),

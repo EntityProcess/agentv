@@ -154,8 +154,8 @@ async function loadNormalizedResultsConfig(
   const projectResults = project?.results
     ? {
         mode: 'github' as const,
-        repo: project.results.repository,
-        path: project.results.localPath,
+        repo: project.results.repoUrl,
+        path: project.results.path,
         auto_push: project.results.sync?.autoPush,
         branch_prefix: project.results.branchPrefix,
       }

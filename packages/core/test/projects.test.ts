@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os';
 import path from 'node:path';
 
-import { resolveGitHubRepositoryUrl } from '../src/project-sync.js';
 import {
   addProject,
   getProject,
@@ -110,7 +109,7 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('projects:');
   });
 
-  it('round-trips repository and ref fields through YAML', () => {
+  it('round-trips repo_url and ref fields through YAML', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
     writeFileSync(
@@ -118,7 +117,7 @@ describe('projects registry', () => {
       `projects:
   - id: remote-bench
     name: Remote Bench
-    repository: example/repo
+    repo_url: git@github.com:example/repo.git
     path: /srv/agentv/repo
     ref: main
     added_at: "2026-01-01T00:00:00Z"
@@ -130,7 +129,7 @@ describe('projects registry', () => {
     const registry = loadProjectRegistry();
     expect(registry.projects).toHaveLength(1);
     const entry = registry.projects[0];
-    expect(entry.repository).toBe('example/repo');
+    expect(entry.repoUrl).toBe('git@github.com:example/repo.git');
     expect(entry.ref).toBe('main');
   });
 
@@ -144,8 +143,8 @@ describe('projects registry', () => {
     name: Results Project
     path: /srv/agentv/repo
     results:
-      repository: EntityProcess/results-project-runs
-      local_path: /srv/agentv/results/results-project
+      repo_url: https://github.com/EntityProcess/results-project-runs.git
+      path: /srv/agentv/results/results-project
       sync:
         auto_push: true
       branch_prefix: eval-results
@@ -157,18 +156,19 @@ describe('projects registry', () => {
 
     const registry = loadProjectRegistry();
     expect(registry.projects[0].results).toEqual({
-      repository: 'EntityProcess/results-project-runs',
-      localPath: '/srv/agentv/results/results-project',
+      repoUrl: 'https://github.com/EntityProcess/results-project-runs.git',
+      path: '/srv/agentv/results/results-project',
       sync: { autoPush: true },
       branchPrefix: 'eval-results',
     });
 
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
-    expect(yamlOnDisk).toContain('local_path: /srv/agentv/results/results-project');
+    expect(yamlOnDisk).toContain('path: /srv/agentv/results/results-project');
     expect(yamlOnDisk).toContain('auto_push: true');
     expect(yamlOnDisk).toContain('branch_prefix: eval-results');
     expect(yamlOnDisk).not.toContain('localPath:');
+    expect(yamlOnDisk).not.toContain('local_path:');
     expect(yamlOnDisk).not.toContain('autoPush:');
     expect(yamlOnDisk).not.toContain('branchPrefix:');
   });
@@ -196,40 +196,34 @@ dashboard:
     expect(yamlOnDisk).toContain('projects:');
   });
 
-  it('interpolates env vars in repository', () => {
+  it('interpolates env vars in repo_url', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
     // Use concatenation to avoid JS template literal evaluating ${{ ... }}
     const d = '$';
     writeFileSync(
       registryPath,
-      `projects:\n  - id: env-bench\n    name: Env Bench\n    repository: "${d}{{ BENCH_REPOSITORY }}"\n    path: /srv/agentv/repo\n    ref: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n`,
+      `projects:\n  - id: env-bench\n    name: Env Bench\n    repo_url: "${d}{{ BENCH_REPO_URL }}"\n    path: /srv/agentv/repo\n    ref: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n`,
       'utf-8',
     );
 
-    const origRepository = process.env.BENCH_REPOSITORY;
+    const origRepository = process.env.BENCH_REPO_URL;
     try {
-      process.env.BENCH_REPOSITORY = 'example/bench-repo';
+      process.env.BENCH_REPO_URL = 'https://github.com/example/bench-repo.git';
       const registry = loadProjectRegistry();
-      expect(registry.projects[0].repository).toBe('example/bench-repo');
+      expect(registry.projects[0].repoUrl).toBe('https://github.com/example/bench-repo.git');
     } finally {
-      if (origRepository === undefined) process.env.BENCH_REPOSITORY = undefined;
-      else process.env.BENCH_REPOSITORY = origRepository;
+      if (origRepository === undefined) process.env.BENCH_REPO_URL = undefined;
+      else process.env.BENCH_REPO_URL = origRepository;
     }
   });
 
-  it('entries without repository work unchanged', () => {
+  it('entries without repo_url work unchanged', () => {
     const repoPath = makeRepo('no-repository');
     const entry = addProject(repoPath);
-    expect(entry.repository).toBeUndefined();
+    expect(entry.repoUrl).toBeUndefined();
 
     const reloaded = loadProjectRegistry().projects.find((p) => p.id === entry.id);
-    expect(reloaded?.repository).toBeUndefined();
-  });
-
-  it('resolves GitHub owner/name repositories to clone URLs', () => {
-    expect(resolveGitHubRepositoryUrl('EntityProcess/agentv')).toBe(
-      'https://github.com/EntityProcess/agentv.git',
-    );
+    expect(reloaded?.repoUrl).toBeUndefined();
   });
 });
