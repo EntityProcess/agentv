@@ -4,9 +4,11 @@
  *
  * ## Content model
  *
- * `Message.content` accepts `string | Content[]`:
+ * `Message.content` accepts `string | object[] | object`:
  * - `string` — backward-compatible plain text (most common case)
- * - `Content[]` — typed content blocks for multimodal messages
+ * - `object[]` — typed content blocks for multimodal messages, plus AgentV
+ *   eval input blocks such as `{ type: "file", value, path, text }`
+ * - `object` — structured YAML/JSON content such as expected outputs
  *
  * Content variants:
  * - `ContentText`  — `{ type: 'text', text: string }`
@@ -245,15 +247,20 @@ export const ContentSchema = z.discriminatedUnion('type', [
   ContentFileSchema,
 ]);
 
+const MessageContentBlockSchema = z.union([ContentSchema, z.record(z.unknown())]);
+
 /**
  * Unified message schema for input, expected, and output messages.
  *
- * `content` is either a plain string or a `Content[]` array of typed blocks.
- * Use `getTextContent()` from `@agentv/core` to extract plain text from either form.
+ * `content` is a plain string, an array of structured blocks, or a
+ * structured object from YAML/JSON eval files. Use `getTextContent()` from
+ * `@agentv/core` to extract plain text when the content is textual.
  */
 export const MessageSchema = z.object({
   role: z.enum(['assistant', 'user', 'system', 'tool']),
-  content: z.union([z.string(), z.array(ContentSchema)]).optional(),
+  content: z
+    .union([z.string(), z.array(MessageContentBlockSchema), z.record(z.unknown())])
+    .optional(),
   toolCalls: z.array(ToolCallSchema).optional(),
   name: z.string().optional(),
   startTime: z.string().optional(),
