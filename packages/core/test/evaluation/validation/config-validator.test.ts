@@ -86,12 +86,12 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    repository: EntityProcess/agentv
+    repo_url: https://github.com/EntityProcess/agentv.git
     path: /srv/agentv
     ref: main
     results:
-      repository: EntityProcess/agentv-results
-      local_path: /srv/agentv-results
+      repo_url: git@github.com:EntityProcess/agentv-results.git
+      path: /srv/agentv-results
       sync:
         auto_push: true
       branch_prefix: eval-results
@@ -160,12 +160,12 @@ describe('validateConfigFile', () => {
       `projects:
   - id: ""
     name: 42
-    repository: https://github.com/EntityProcess/agentv
+    repo_url: EntityProcess/agentv
     path:
     ref: ""
     results:
-      repository: https://github.com/EntityProcess/results
-      local_path: repo/subdir
+      repo_url: EntityProcess/results
+      path: repo/subdir
       sync:
         auto_push: yes
       branch_prefix: ""
@@ -180,11 +180,11 @@ describe('validateConfigFile', () => {
       expect.arrayContaining([
         expect.objectContaining({ severity: 'error', location: 'projects[0].id' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].name' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].repository' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].repo_url' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].ref' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repository' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.local_path' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo_url' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.path' }),
         expect.objectContaining({
           severity: 'error',
           location: 'projects[0].results.sync.auto_push',
@@ -200,6 +200,12 @@ describe('validateConfigFile', () => {
 
   it.each([
     {
+      field: 'repository',
+      yaml: 'repository: example/repo',
+      location: 'projects[0].repository',
+      migration: 'repo_url',
+    },
+    {
       field: 'source',
       yaml: `source:
       url: https://github.com/example/repo
@@ -211,30 +217,39 @@ describe('validateConfigFile', () => {
       field: 'results.mode',
       yaml: `results:
       mode: github
-      repository: example/results`,
+      repo_url: https://github.com/example/results.git`,
       location: 'projects[0].results.mode',
       migration: 'Remove',
     },
     {
       field: 'results.repo',
       yaml: `results:
-      repository: example/results
+      repo_url: https://github.com/example/results.git
       repo: example/legacy-results`,
       location: 'projects[0].results.repo',
       migration: 'Use',
     },
+
     {
-      field: 'results.path',
+      field: 'results.repository',
       yaml: `results:
-      repository: example/results
-      path: /srv/results`,
-      location: 'projects[0].results.path',
-      migration: 'local_path',
+      repo_url: https://github.com/example/results.git
+      repository: example/results`,
+      location: 'projects[0].results.repository',
+      migration: 'repo_url',
+    },
+    {
+      field: 'results.local_path',
+      yaml: `results:
+      repo_url: https://github.com/example/results.git
+      local_path: /srv/results`,
+      location: 'projects[0].results.local_path',
+      migration: 'path',
     },
     {
       field: 'results.auto_push',
       yaml: `results:
-      repository: example/results
+      repo_url: https://github.com/example/results.git
       auto_push: true`,
       location: 'projects[0].results.auto_push',
       migration: 'sync.auto_push',
@@ -246,7 +261,7 @@ describe('validateConfigFile', () => {
       `projects:
   - id: legacy
     name: Legacy
-    repository: example/repo
+    repo_url: https://github.com/example/repo.git
     path: /srv/legacy
     ref: main
     ${legacy.yaml}

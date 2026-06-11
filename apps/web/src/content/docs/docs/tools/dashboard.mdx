@@ -189,13 +189,13 @@ agentv dashboard --add /path/to/other-evals
 
 Each path must contain a `.agentv/` directory. Registered projects are stored under `projects:` in `$AGENTV_HOME/config.yaml`, or `~/.agentv/config.yaml` when `AGENTV_HOME` is unset.
 
-To register a remote repo and keep it synced automatically, add `repository` and `ref` to the entry in `$AGENTV_HOME/config.yaml`. `repository` uses GitHub's standard owner/name form and AgentV resolves it to `https://github.com/<owner>/<name>.git` for clone and pull operations:
+To register a remote repo and keep it synced automatically, add `repo_url` and `ref` to the entry in `$AGENTV_HOME/config.yaml`. `repo_url` is the Git remote URL AgentV passes to `git clone`, so it can be HTTPS or SSH:
 
 ```yaml
 projects:
   - id: my-evals
     name: My Evals
-    repository: example/my-evals
+    repo_url: https://github.com/example/my-evals.git
     path: /srv/agentv/my-evals
     ref: main
 ```
@@ -255,17 +255,17 @@ For a registered project, put results repo settings on that project's entry in `
 projects:
   - id: agentv
     name: AgentV
-    repository: EntityProcess/agentv
+    repo_url: https://github.com/EntityProcess/agentv.git
     path: /home/entity/projects/EntityProcess/agentv
     ref: main
     results:
-      repository: EntityProcess/agentv-examples-eval-results
-      local_path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
+      repo_url: git@github.com:EntityProcess/agentv-examples-eval-results.git
+      path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
       sync:
         auto_push: true
 ```
 
-`results.local_path` is the filesystem location of the local clone AgentV manages for the results repo. It is **not** a subdirectory inside the remote repo. `results.repository` uses GitHub owner/name form and resolves to `https://github.com/<owner>/<name>.git` for clone and push operations.
+`results.path` is the filesystem location of the local clone AgentV manages for the results repo. It uses the same local-path field name as the source project. `results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured.
 
 You can also set a top-level global fallback in the same file. This is used when the current project is not registered or its registry entry has no `results` block:
 
@@ -279,10 +279,10 @@ results:
 
 Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
 
-The project `repository` and the `results` block sync different repositories:
+The project `repo_url` and the `results` block sync different repositories:
 
-- `projects[].repository` is the eval source project. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
-- `projects[].results.repository` is the git-backed results store. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in that results repo clone.
+- `projects[].repo_url` is the eval source project remote. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
+- `projects[].results.repo_url` is the git-backed results store remote. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in that results repo clone.
 
 #### Migration from the legacy project schema
 
@@ -309,17 +309,17 @@ After:
 projects:
   - id: agentv
     name: AgentV
-    repository: EntityProcess/agentv
+    repo_url: https://github.com/EntityProcess/agentv.git
     path: /home/entity/projects/EntityProcess/agentv
     ref: main
     results:
-      repository: EntityProcess/agentv-eval-results
-      local_path: /home/entity/projects/EntityProcess/agentv-eval-results
+      repo_url: https://github.com/EntityProcess/agentv-eval-results.git
+      path: /home/entity/projects/EntityProcess/agentv-eval-results
       sync:
         auto_push: true
 ```
 
-Legacy project fields (`source`, `results.mode`, `results.repo`, `results.path`, and `results.auto_push`) fail validation with migration guidance.
+Legacy project fields (`source`, `repository`, `results.mode`, `results.repo`, `results.repository`, `results.local_path`, and `results.auto_push`) fail validation with migration guidance.
 
 Use project-level **Sync Project** as the results exchange workflow. It handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
 
