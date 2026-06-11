@@ -127,6 +127,37 @@ describe('MessageSchema content variants', () => {
     expect(content.map((c) => c.type)).toEqual(['text', 'image', 'file']);
   });
 
+  it('accepts AgentV eval file/text input blocks', () => {
+    const msg = MessageSchema.parse({
+      role: 'user',
+      content: [
+        {
+          type: 'file',
+          value: '../skills/export-risk-assessment.md',
+          path: '../skills/export-risk-assessment.md',
+          text: '# instructions',
+          resolved_path: '/repo/examples/skills/export-risk-assessment.md',
+        },
+        {
+          type: 'text',
+          value: 'Assess export risk for this shipment',
+        },
+      ],
+    });
+    const content = msg.content as Record<string, unknown>[];
+    expect(content).toHaveLength(2);
+    expect(content[0].value).toBe('../skills/export-risk-assessment.md');
+    expect(content[1].value).toBe('Assess export risk for this shipment');
+  });
+
+  it('accepts structured object content from eval YAML', () => {
+    const msg = MessageSchema.parse({
+      role: 'assistant',
+      content: { riskLevel: 'High', reasoning: 'CHPL Tier 1 item' },
+    });
+    expect(msg.content).toEqual({ riskLevel: 'High', reasoning: 'CHPL Tier 1 item' });
+  });
+
   it('accepts undefined content', () => {
     const msg = MessageSchema.parse({ role: 'tool' });
     expect(msg.content).toBeUndefined();
@@ -229,6 +260,20 @@ describe('CodeGraderInputSchema', () => {
     const result = CodeGraderInputSchema.parse(inputWithContentArray);
     const content = result.input[0].content as { type: string }[];
     expect(content).toHaveLength(2);
+  });
+
+  it('accepts structured expectedOutput content objects', () => {
+    const inputWithStructuredExpectedOutput = {
+      ...validInput,
+      expectedOutput: [
+        {
+          role: 'assistant',
+          content: { riskLevel: 'High' },
+        },
+      ],
+    };
+    const result = CodeGraderInputSchema.parse(inputWithStructuredExpectedOutput);
+    expect(result.expectedOutput[0].content).toEqual({ riskLevel: 'High' });
   });
 });
 
