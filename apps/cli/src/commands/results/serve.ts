@@ -411,6 +411,22 @@ function hasUsableTimestamp(timestamp: string | undefined): boolean {
   return !!timestamp && timestamp !== 'unknown' && !Number.isNaN(new Date(timestamp).getTime());
 }
 
+function compareRunsByTimestampDesc<T extends { timestamp: string; filename: string }>(
+  a: T,
+  b: T,
+): number {
+  const aTime = hasUsableTimestamp(a.timestamp) ? new Date(a.timestamp).getTime() : null;
+  const bTime = hasUsableTimestamp(b.timestamp) ? new Date(b.timestamp).getTime() : null;
+
+  if (aTime !== null && bTime !== null && aTime !== bTime) {
+    return bTime - aTime;
+  }
+  if (aTime !== null && bTime === null) return -1;
+  if (aTime === null && bTime !== null) return 1;
+
+  return b.filename.localeCompare(a.filename);
+}
+
 interface QualitySummaryInput {
   readonly score: number;
   readonly executionStatus?: string;
@@ -561,6 +577,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       };
     }),
   );
+  runs.sort(compareRunsByTimestampDesc);
   const page = paginateRuns(runs, cursor, limit);
   return c.json({
     runs: page.runs,
@@ -1646,7 +1663,7 @@ export function createApp(
       }
     }
 
-    allRuns.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    allRuns.sort(compareRunsByTimestampDesc);
     return c.json({ runs: allRuns });
   });
 
