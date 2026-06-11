@@ -169,7 +169,30 @@ function validateProjects(errors: ValidationError[], filePath: string, projects:
     validateRequiredString(errors, filePath, projectRecord.id, `${location}.id`);
     validateRequiredString(errors, filePath, projectRecord.name, `${location}.name`);
     validateRequiredString(errors, filePath, projectRecord.path, `${location}.path`);
-    validateResultsConfig(errors, filePath, projectRecord.results, `${location}.results`);
+
+    if (projectRecord.source !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.source`,
+        message: `Field '${location}.source' was removed. Move 'source.url' to '${location}.repository' as a GitHub owner/name value (for example, 'example/repo') and move 'source.ref' to '${location}.ref'.`,
+      });
+    }
+
+    if (projectRecord.repository !== undefined) {
+      validateGitHubRepository(
+        errors,
+        filePath,
+        projectRecord.repository,
+        `${location}.repository`,
+      );
+    }
+
+    if (projectRecord.ref !== undefined) {
+      validateRequiredString(errors, filePath, projectRecord.ref, `${location}.ref`);
+    }
+
+    validateProjectResultsConfig(errors, filePath, projectRecord.results, `${location}.results`);
   });
 }
 
@@ -185,6 +208,135 @@ function validateRequiredString(
       filePath,
       location,
       message: `Field '${location}' must be a non-empty string`,
+    });
+  }
+}
+
+function validateGitHubRepository(
+  errors: ValidationError[],
+  filePath: string,
+  value: unknown,
+  location: string,
+): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must be a non-empty GitHub owner/name repository (e.g., EntityProcess/agentv)`,
+    });
+    return;
+  }
+
+  const repository = value.trim();
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must use GitHub owner/name format (e.g., EntityProcess/agentv), not a URL. It resolves to https://github.com/<owner>/<name>.git for git operations.`,
+    });
+  }
+}
+
+function validateProjectResultsConfig(
+  errors: ValidationError[],
+  filePath: string,
+  rawResults: unknown,
+  location: string,
+): void {
+  if (rawResults === undefined) {
+    return;
+  }
+
+  if (typeof rawResults !== 'object' || rawResults === null || Array.isArray(rawResults)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must be an object`,
+    });
+    return;
+  }
+
+  const resultsRecord = rawResults as Record<string, unknown>;
+
+  const removedFields: Record<string, string> = {
+    mode: `Remove '${location}.mode'; project results are GitHub-backed by '${location}.repository'.`,
+    repo: `Field '${location}.repo' was removed. Use '${location}.repository' with GitHub owner/name format instead.`,
+    path: `Field '${location}.path' was removed. Use '${location}.local_path' for the local clone path instead.`,
+    auto_push: `Field '${location}.auto_push' was removed. Use '${location}.sync.auto_push' instead.`,
+  };
+
+  for (const [field, message] of Object.entries(removedFields)) {
+    if (resultsRecord[field] !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${field}`,
+        message,
+      });
+    }
+  }
+
+  validateGitHubRepository(errors, filePath, resultsRecord.repository, `${location}.repository`);
+
+  if (resultsRecord.local_path !== undefined) {
+    if (
+      typeof resultsRecord.local_path !== 'string' ||
+      resultsRecord.local_path.trim().length === 0
+    ) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.local_path`,
+        message: `Field '${location}.local_path' must be a non-empty string`,
+      });
+    } else if (!isFilesystemPath(resultsRecord.local_path.trim())) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.local_path`,
+        message: `'${location}.local_path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results).`,
+      });
+    }
+  }
+
+  if (resultsRecord.sync !== undefined) {
+    if (
+      typeof resultsRecord.sync !== 'object' ||
+      resultsRecord.sync === null ||
+      Array.isArray(resultsRecord.sync)
+    ) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.sync`,
+        message: `Field '${location}.sync' must be an object`,
+      });
+    } else {
+      const syncRecord = resultsRecord.sync as Record<string, unknown>;
+      if (syncRecord.auto_push !== undefined && typeof syncRecord.auto_push !== 'boolean') {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.sync.auto_push`,
+          message: `Field '${location}.sync.auto_push' must be a boolean`,
+        });
+      }
+    }
+  }
+
+  if (
+    resultsRecord.branch_prefix !== undefined &&
+    (typeof resultsRecord.branch_prefix !== 'string' ||
+      resultsRecord.branch_prefix.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.branch_prefix`,
+      message: `Field '${location}.branch_prefix' must be a non-empty string`,
     });
   }
 }

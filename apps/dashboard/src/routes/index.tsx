@@ -427,7 +427,7 @@ function RunsTabContent({
                 <p className="mt-2 text-sm text-gray-500">
                   Sync remote results or run an eval with{' '}
                   <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
-                    auto_push: true
+                    sync.auto_push: true
                   </code>{' '}
                   in your config.
                 </p>

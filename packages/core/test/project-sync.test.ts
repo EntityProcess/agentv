@@ -30,9 +30,9 @@ describe('syncProject', () => {
     mock.restore();
   });
 
-  it('throws when entry has no source', async () => {
+  it('throws when entry has no repository', async () => {
     const entry = makeEntry({ path: tmpDir });
-    await expect(syncProject(entry)).rejects.toThrow(/no source defined/);
+    await expect(syncProject(entry)).rejects.toThrow(/no repository defined/);
   });
 
   it('runs git clone when .git does not exist', async () => {
@@ -40,7 +40,8 @@ describe('syncProject', () => {
     const dest = path.join(tmpDir, 'repo');
     const entry = makeEntry({
       path: dest,
-      source: { url: 'https://github.com/example/repo', ref: 'main' },
+      repository: 'example/repo',
+      ref: 'main',
     });
     await syncProject(entry);
     expect(spy).toHaveBeenCalledWith(
@@ -52,7 +53,7 @@ describe('syncProject', () => {
         '--filter=blob:none',
         '--branch',
         'main',
-        'https://github.com/example/repo',
+        'https://github.com/example/repo.git',
         dest,
       ],
       expect.objectContaining({ stdio: 'inherit' }),
@@ -64,7 +65,8 @@ describe('syncProject', () => {
     const spy = spyOn(childProcess, 'execFileSync').mockReturnValue(Buffer.from(''));
     const entry = makeEntry({
       path: tmpDir,
-      source: { url: 'https://github.com/example/repo', ref: 'main' },
+      repository: 'example/repo',
+      ref: 'main',
     });
     await syncProject(entry);
     expect(spy).toHaveBeenCalledWith(
@@ -80,17 +82,15 @@ describe('syncProjects', () => {
     mock.restore();
   });
 
-  it('skips entries with no source', async () => {
+  it('skips entries with no repository', async () => {
     const spy = spyOn(childProcess, 'execFileSync').mockReturnValue(Buffer.from(''));
     await syncProjects([makeEntry()]);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('syncs entries that have a source', async () => {
+  it('syncs entries that have a repository', async () => {
     const spy = spyOn(childProcess, 'execFileSync').mockReturnValue(Buffer.from(''));
-    const entries = [
-      makeEntry({ source: { url: 'https://github.com/example/repo', ref: 'main' } }),
-    ];
+    const entries = [makeEntry({ repository: 'example/repo', ref: 'main' })];
     await syncProjects(entries);
     expect(spy).toHaveBeenCalled();
   });

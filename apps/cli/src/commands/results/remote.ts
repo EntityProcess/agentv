@@ -153,10 +153,10 @@ async function loadNormalizedResultsConfig(
       : (getProjectForPath(repoRoot) ?? getProjectForPath(cwd));
   const projectResults = project?.results
     ? {
-        mode: project.results.mode,
-        repo: project.results.repo,
-        path: project.results.path,
-        auto_push: project.results.autoPush,
+        mode: 'github' as const,
+        repo: project.results.repository,
+        path: project.results.localPath,
+        auto_push: project.results.sync?.autoPush,
         branch_prefix: project.results.branchPrefix,
       }
     : undefined;

@@ -86,12 +86,14 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
+    repository: EntityProcess/agentv
     path: /srv/agentv
+    ref: main
     results:
-      mode: github
-      repo: EntityProcess/agentv-results
-      path: /srv/agentv-results
-      auto_push: true
+      repository: EntityProcess/agentv-results
+      local_path: /srv/agentv-results
+      sync:
+        auto_push: true
       branch_prefix: eval-results
 `,
     );
@@ -158,12 +160,14 @@ describe('validateConfigFile', () => {
       `projects:
   - id: ""
     name: 42
+    repository: https://github.com/EntityProcess/agentv
     path:
+    ref: ""
     results:
-      mode: local
-      repo: ""
-      path: repo/subdir
-      auto_push: yes
+      repository: https://github.com/EntityProcess/results
+      local_path: repo/subdir
+      sync:
+        auto_push: yes
       branch_prefix: ""
   - not-an-object
 `,
@@ -176,13 +180,14 @@ describe('validateConfigFile', () => {
       expect.arrayContaining([
         expect.objectContaining({ severity: 'error', location: 'projects[0].id' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].name' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].repository' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.mode' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.path' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].ref' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repository' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.local_path' }),
         expect.objectContaining({
           severity: 'error',
-          location: 'projects[0].results.auto_push',
+          location: 'projects[0].results.sync.auto_push',
         }),
         expect.objectContaining({
           severity: 'error',
@@ -190,6 +195,75 @@ describe('validateConfigFile', () => {
         }),
         expect.objectContaining({ severity: 'error', location: 'projects[1]' }),
       ]),
+    );
+  });
+
+  it.each([
+    {
+      field: 'source',
+      yaml: `source:
+      url: https://github.com/example/repo
+      ref: main`,
+      location: 'projects[0].source',
+      migration: 'Move',
+    },
+    {
+      field: 'results.mode',
+      yaml: `results:
+      mode: github
+      repository: example/results`,
+      location: 'projects[0].results.mode',
+      migration: 'Remove',
+    },
+    {
+      field: 'results.repo',
+      yaml: `results:
+      repository: example/results
+      repo: example/legacy-results`,
+      location: 'projects[0].results.repo',
+      migration: 'Use',
+    },
+    {
+      field: 'results.path',
+      yaml: `results:
+      repository: example/results
+      path: /srv/results`,
+      location: 'projects[0].results.path',
+      migration: 'local_path',
+    },
+    {
+      field: 'results.auto_push',
+      yaml: `results:
+      repository: example/results
+      auto_push: true`,
+      location: 'projects[0].results.auto_push',
+      migration: 'sync.auto_push',
+    },
+  ])('errors on removed legacy project field $field with migration guidance', async (legacy) => {
+    const filePath = path.join(tempDir, `global-config-legacy-${legacy.field}.yaml`);
+    await writeFile(
+      filePath,
+      `projects:
+  - id: legacy
+    name: Legacy
+    repository: example/repo
+    path: /srv/legacy
+    ref: main
+    ${legacy.yaml}
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: legacy.location,
+      }),
+    );
+    expect(result.errors.find((e) => e.location === legacy.location)?.message).toContain(
+      legacy.migration,
     );
   });
 

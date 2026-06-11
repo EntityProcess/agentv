@@ -16,19 +16,18 @@
  *   projects:
  *     - id: my-app
  *       name: My App
+ *       repository: example/my-app
  *       path: /home/user/projects/my-app
- *       source:
- *         url: ${{ PROJECT_REPO_URL }}
- *         ref: ${{ PROJECT_REPO_REF:-main }}
+ *       ref: main
  *       results:
- *         mode: github
- *         repo: example/my-app-results
- *         path: /srv/agentv/results/my-app
- *         auto_push: true
+ *         repository: example/my-app-results
+ *         local_path: /srv/agentv/results/my-app
+ *         sync:
+ *           auto_push: true
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *
- * The optional `source` field enables remote sync via syncProjects():
+ * The optional `repository` field enables remote sync via syncProjects():
  *   first run — git clone --depth 1 --filter=blob:none
  *   subsequent runs — git pull --ff-only
  *
@@ -57,26 +56,25 @@ import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
-export interface ProjectResultsConfig {
-  mode: 'github';
-  repo: string;
-  path?: string;
+export interface ProjectResultsSyncConfig {
   autoPush?: boolean;
-  branchPrefix?: string;
 }
 
-export interface ProjectSource {
-  url: string;
-  ref: string;
+export interface ProjectResultsConfig {
+  repository: string;
+  localPath?: string;
+  sync?: ProjectResultsSyncConfig;
+  branchPrefix?: string;
 }
 
 export interface ProjectEntry {
   id: string;
   name: string;
+  repository?: string;
   path: string;
+  ref?: string;
   addedAt: string;
   lastOpenedAt: string;
-  source?: ProjectSource;
   results?: ProjectResultsConfig;
 }
 
@@ -95,26 +93,25 @@ export function getProjectsRegistryPath(): string {
 // internals stay camelCase. fromYaml / toYaml handle the translation; every
 // other function in this module works in camelCase only.
 
-interface ProjectSourceYaml {
-  url: string;
-  ref: string;
+interface ProjectResultsSyncYaml {
+  auto_push?: boolean;
 }
 
 interface ProjectResultsYaml {
-  mode: 'github';
-  repo: string;
-  path?: string;
-  auto_push?: boolean;
+  repository: string;
+  local_path?: string;
+  sync?: ProjectResultsSyncYaml;
   branch_prefix?: string;
 }
 
 interface ProjectEntryYaml {
   id: string;
   name: string;
+  repository?: string;
   path: string;
+  ref?: string;
   added_at: string;
   last_opened_at: string;
-  source?: ProjectSourceYaml;
   results?: ProjectResultsYaml;
 }
 
@@ -131,20 +128,24 @@ function fromYaml(raw: unknown): ProjectEntry | null {
     addedAt: typeof e.added_at === 'string' ? e.added_at : '',
     lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
   };
-  if (e.source && typeof e.source === 'object') {
-    const s = e.source as Partial<ProjectSourceYaml>;
-    if (typeof s.url === 'string' && typeof s.ref === 'string') {
-      entry.source = { url: s.url, ref: s.ref };
-    }
+  if (typeof e.repository === 'string' && e.repository.trim().length > 0) {
+    entry.repository = e.repository.trim();
+  }
+  if (typeof e.ref === 'string' && e.ref.trim().length > 0) {
+    entry.ref = e.ref.trim();
   }
   if (e.results && typeof e.results === 'object') {
     const r = e.results as Partial<ProjectResultsYaml>;
-    if (r.mode === 'github' && typeof r.repo === 'string' && r.repo.trim().length > 0) {
+    if (typeof r.repository === 'string' && r.repository.trim().length > 0) {
+      const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
       entry.results = {
-        mode: 'github',
-        repo: r.repo.trim(),
-        ...(typeof r.path === 'string' && r.path.trim().length > 0 ? { path: r.path.trim() } : {}),
-        ...(typeof r.auto_push === 'boolean' ? { autoPush: r.auto_push } : {}),
+        repository: r.repository.trim(),
+        ...(typeof r.local_path === 'string' && r.local_path.trim().length > 0
+          ? { localPath: r.local_path.trim() }
+          : {}),
+        ...(sync && typeof sync.auto_push === 'boolean'
+          ? { sync: { autoPush: sync.auto_push } }
+          : {}),
         ...(typeof r.branch_prefix === 'string' && r.branch_prefix.trim().length > 0
           ? { branchPrefix: r.branch_prefix.trim() }
           : {}),
@@ -158,19 +159,19 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   const yaml: ProjectEntryYaml = {
     id: entry.id,
     name: entry.name,
+    ...(entry.repository !== undefined && { repository: entry.repository }),
     path: entry.path,
+    ...(entry.ref !== undefined && { ref: entry.ref }),
     added_at: entry.addedAt,
     last_opened_at: entry.lastOpenedAt,
   };
-  if (entry.source) {
-    yaml.source = { url: entry.source.url, ref: entry.source.ref };
-  }
   if (entry.results) {
     yaml.results = {
-      mode: entry.results.mode,
-      repo: entry.results.repo,
-      ...(entry.results.path !== undefined && { path: entry.results.path }),
-      ...(entry.results.autoPush !== undefined && { auto_push: entry.results.autoPush }),
+      repository: entry.results.repository,
+      ...(entry.results.localPath !== undefined && { local_path: entry.results.localPath }),
+      ...(entry.results.sync?.autoPush !== undefined && {
+        sync: { auto_push: entry.results.sync.autoPush },
+      }),
       ...(entry.results.branchPrefix !== undefined && {
         branch_prefix: entry.results.branchPrefix,
       }),

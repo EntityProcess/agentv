@@ -97,7 +97,6 @@ export {
 } from './paths.js';
 export {
   type ProjectEntry,
-  type ProjectSource,
   type ProjectRegistry,
   loadProjectRegistry,
   saveProjectRegistry,
@@ -110,7 +109,7 @@ export {
   deriveProjectId,
   getProjectsRegistryPath,
 } from './projects.js';
-export { syncProject, syncProjects } from './project-sync.js';
+export { syncProject, syncProjects, resolveGitHubRepositoryUrl } from './project-sync.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';
 export * from './observability/index.js';
