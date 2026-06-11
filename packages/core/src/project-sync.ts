@@ -1,5 +1,5 @@
 /**
- * Project sync — pulls remote git repos to the local path declared in the
+ * Project sync — pulls remote GitHub repos to the local path declared in the
  * project registry before Dashboard/eval startup.
  *
  * Sync is oneshot only, triggered by the Dashboard UI "Sync" button or the
@@ -18,17 +18,24 @@ import { existsSync } from 'node:fs';
 
 import type { ProjectEntry } from './projects.js';
 
+export function resolveGitHubRepositoryUrl(repository: string): string {
+  return `https://github.com/${repository.trim().replace(/\.git$/, '')}.git`;
+}
+
 /**
- * Clone or pull a single project entry from its declared source.
+ * Clone or pull a single project entry from its declared repository.
  * - No .git present: shallow clone into entry.path.
  * - .git present: git pull --ff-only to update in place.
- * Throws on git error or missing source.
+ * Throws on git error or missing repository/ref.
  */
 export async function syncProject(entry: ProjectEntry): Promise<void> {
-  if (!entry.source) {
-    throw new Error(`Project '${entry.id}' has no source defined`);
+  if (!entry.repository) {
+    throw new Error(`Project '${entry.id}' has no repository defined`);
   }
-  const { url, ref } = entry.source;
+  if (!entry.ref) {
+    throw new Error(`Project '${entry.id}' has no ref defined`);
+  }
+  const url = resolveGitHubRepositoryUrl(entry.repository);
   const dest = entry.path;
 
   if (existsSync(`${dest}/.git`)) {
@@ -36,20 +43,20 @@ export async function syncProject(entry: ProjectEntry): Promise<void> {
   } else {
     childProcess.execFileSync(
       'git',
-      ['clone', '--depth', '1', '--filter=blob:none', '--branch', ref, url, dest],
+      ['clone', '--depth', '1', '--filter=blob:none', '--branch', entry.ref, url, dest],
       { stdio: 'inherit' },
     );
   }
 }
 
 /**
- * Iterate project entries and sync any that have a source declared.
- * Entries without source are skipped silently.
+ * Iterate project entries and sync any that have a repository declared.
+ * Entries without repository are skipped silently.
  */
 export async function syncProjects(entries: ProjectEntry[]): Promise<void> {
   for (const entry of entries) {
-    if (!entry.source) continue;
-    console.log(`Syncing project '${entry.id}' from ${entry.source.url}...`);
+    if (!entry.repository) continue;
+    console.log(`Syncing project '${entry.id}' from ${entry.repository}...`);
     await syncProject(entry);
     console.log(`Project '${entry.id}' synced.`);
   }
