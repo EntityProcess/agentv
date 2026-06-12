@@ -24,7 +24,7 @@ targets:
     #   - ${{ CODEX_APPROVAL_PRESET }}
     cwd: ${{ CODEX_WORKSPACE_DIR }}            # Where scratch workspaces are created
     log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
-    log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
+    stream_log: raw                    # Optional: 'summary' for consolidated logs or 'raw' for per-event logs
 
   # Claude - Anthropic's Claude Agent SDK
   - name: claude
@@ -36,7 +36,7 @@ targets:
     # max_turns: 50                            # Optional: max conversation turns
     # max_budget_usd: 5.0                      # Optional: max cost budget in USD
     # log_dir: ${{ CLAUDE_LOG_DIR }}           # Optional: where stream logs are stored (defaults to ./.agentv/logs/claude)
-    log_format: json                           # Optional: 'summary' (default) or 'json' for raw event logs
+    stream_log: raw                           # Optional: 'summary' for consolidated logs or 'raw' for per-event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
   - name: azure-llm

@@ -124,6 +124,7 @@ const COPILOT_SDK_SETTINGS = new Set([
   'timeout_seconds',
   'log_dir',
   'log_format',
+  'stream_log',
   'system_prompt',
   'byok',
 ]);
@@ -140,6 +141,7 @@ const COPILOT_CLI_SETTINGS = new Set([
   'timeout_seconds',
   'log_dir',
   'log_format',
+  'stream_log',
   'system_prompt',
 ]);
 
@@ -173,6 +175,7 @@ const CLAUDE_SETTINGS = new Set([
   'log_directory',
   'log_format',
   'log_output_format',
+  'stream_log',
   'system_prompt',
   'max_turns',
   'max_budget_usd',
