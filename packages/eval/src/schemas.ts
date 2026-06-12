@@ -35,9 +35,8 @@ export const TokenUsageSchema = z.object({
 /**
  * Derived trace summary schema (camelCase for TypeScript ergonomics).
  *
- * This is a compatibility/read model for existing code graders and result
- * artifacts. Full trace state should use NormalizedTrajectory and project into
- * this shape only at result or grader-compatibility boundaries.
+ * This is a compact read model for metric-style graders. Full transcript/tool
+ * evidence lives in the canonical `Trace` under `messages` and `events`.
  */
 export const TraceSummarySchema = z.object({
   eventCount: z.number(),
@@ -64,11 +63,19 @@ export const NORMALIZED_TRACE_EVENT_TYPES = [
   'model_turn',
   'tool_call',
   'tool_result',
+  'final_response',
+  'error',
 ] as const;
 
 export const NORMALIZED_TOOL_STATUSES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
 
 export const NORMALIZED_REDACTION_LEVELS = ['none', 'partial', 'full'] as const;
+
+export const TRACE_SCHEMA_VERSION = NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
+export const TRACE_SOURCE_KINDS = NORMALIZED_TRACE_SOURCE_KINDS;
+export const TRACE_EVENT_TYPES = NORMALIZED_TRACE_EVENT_TYPES;
+export const TRACE_TOOL_STATUSES = NORMALIZED_TOOL_STATUSES;
+export const TRACE_REDACTION_LEVELS = NORMALIZED_REDACTION_LEVELS;
 
 const MetadataSchema = z.record(z.string(), z.unknown());
 
@@ -173,6 +180,7 @@ export const NormalizedTraceEventSchema = z.object({
   message: NormalizedTraceMessageSchema.optional(),
   model: NormalizedTraceModelSchema.optional(),
   tool: NormalizedTraceToolSchema.optional(),
+  error: NormalizedTraceErrorSchema.optional(),
   sourceRef: NormalizedTraceSourceRefSchema.optional(),
   rawEvidence: z.array(NormalizedRawEvidenceSchema).optional(),
   redaction: NormalizedRedactionStateSchema.optional(),
@@ -199,6 +207,19 @@ export const NormalizedTrajectorySchema = z.object({
   endedAt: z.string().optional(),
   metadata: MetadataSchema.optional(),
 });
+
+export const TraceRedactionStateSchema = NormalizedRedactionStateSchema;
+export const TraceErrorSchema = NormalizedTraceErrorSchema;
+export const TraceSourceSchema = NormalizedTraceSourceSchema;
+export const TraceSessionSchema = NormalizedTraceSessionSchema;
+export const TraceBranchSchema = NormalizedTraceBranchSchema;
+export const TraceSourceRefSchema = NormalizedTraceSourceRefSchema;
+export const TraceRawEvidenceSchema = NormalizedRawEvidenceSchema;
+export const TraceMessageSchema = NormalizedTraceMessageSchema;
+export const TraceModelSchema = NormalizedTraceModelSchema;
+export const TraceToolSchema = NormalizedTraceToolSchema;
+export const TraceEventSchema = NormalizedTraceEventSchema;
+export const TraceArtifactSchema = NormalizedTrajectorySchema;
 
 /**
  * Tool call schema.
@@ -270,21 +291,44 @@ export const MessageSchema = z.object({
 });
 
 /**
+ * Canonical evaluation trace exposed to custom graders.
+ *
+ * Top-level summary fields (`eventCount`, `toolCalls`, `errorCount`) remain
+ * available for existing metric graders; full transcript/tool evidence is under
+ * `messages` and structured execution events under `events`.
+ */
+export const TraceSchema = TraceSummarySchema.extend({
+  schemaVersion: z.literal(TRACE_SCHEMA_VERSION),
+  messages: z.array(MessageSchema),
+  events: z.array(TraceEventSchema),
+  tokenUsage: TokenUsageSchema.optional(),
+  costUsd: z.number().optional(),
+  durationMs: z.number().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  metadata: MetadataSchema.optional(),
+});
+
+/**
  * Code grader input schema (camelCase, converted from snake_case wire format).
  *
- * Structured fields (`input`, `output`, `expectedOutput`) are always `Message[]`.
- * To extract plain text from message content, use `getTextContent()` from `@agentv/core`.
+ * `output` is the final answer/scored result only. Transcript-aware graders
+ * should inspect `messages`, `trace.messages`, or `trace.events`.
  */
 export const CodeGraderInputSchema = z.object({
   criteria: z.string(),
   expectedOutput: z.array(MessageSchema),
-  output: z.array(MessageSchema).nullable().optional(),
+  output: z.string().nullable().optional(),
+  /** Deprecated migration alias; same value as output for text agents. */
+  answer: z.string().optional(),
+  messages: z.array(MessageSchema).optional().default([]),
   /** Path to a temp file containing the output JSON (used for large payloads). */
   outputPath: z.string().optional(),
   inputFiles: z.array(z.string()),
   input: z.array(MessageSchema),
   metadata: z.record(z.unknown()).nullable().optional(),
-  trace: TraceSummarySchema.nullable().optional(),
+  trace: TraceSchema.nullable().optional(),
+  traceSummary: TraceSummarySchema.nullable().optional(),
   tokenUsage: TokenUsageSchema.nullable().optional(),
   costUsd: z.number().nullable().optional(),
   durationMs: z.number().nullable().optional(),
@@ -321,18 +365,43 @@ export type CodeGraderInput = z.infer<typeof CodeGraderInputSchema>;
 export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
 
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
-export type NormalizedTrajectory = z.infer<typeof NormalizedTrajectorySchema>;
-export type NormalizedTraceSource = z.infer<typeof NormalizedTraceSourceSchema>;
-export type NormalizedTraceSession = z.infer<typeof NormalizedTraceSessionSchema>;
-export type NormalizedTraceBranch = z.infer<typeof NormalizedTraceBranchSchema>;
-export type NormalizedTraceEvent = z.infer<typeof NormalizedTraceEventSchema>;
-export type NormalizedTraceMessage = z.infer<typeof NormalizedTraceMessageSchema>;
-export type NormalizedTraceModel = z.infer<typeof NormalizedTraceModelSchema>;
-export type NormalizedTraceTool = z.infer<typeof NormalizedTraceToolSchema>;
-export type NormalizedTraceError = z.infer<typeof NormalizedTraceErrorSchema>;
-export type NormalizedTraceSourceRef = z.infer<typeof NormalizedTraceSourceRefSchema>;
-export type NormalizedRawEvidence = z.infer<typeof NormalizedRawEvidenceSchema>;
-export type NormalizedRedactionState = z.infer<typeof NormalizedRedactionStateSchema>;
+export type Trace = z.infer<typeof TraceSchema>;
+export type TraceArtifact = z.infer<typeof TraceArtifactSchema>;
+export type TraceSource = z.infer<typeof TraceSourceSchema>;
+export type TraceSession = z.infer<typeof TraceSessionSchema>;
+export type TraceBranch = z.infer<typeof TraceBranchSchema>;
+export type TraceEvent = z.infer<typeof TraceEventSchema>;
+export type TraceMessage = z.infer<typeof TraceMessageSchema>;
+export type TraceModel = z.infer<typeof TraceModelSchema>;
+export type TraceTool = z.infer<typeof TraceToolSchema>;
+export type TraceError = z.infer<typeof TraceErrorSchema>;
+export type TraceSourceRef = z.infer<typeof TraceSourceRefSchema>;
+export type TraceRawEvidence = z.infer<typeof TraceRawEvidenceSchema>;
+export type TraceRedactionState = z.infer<typeof TraceRedactionStateSchema>;
+/** @deprecated Use TraceArtifact for legacy import/replay artifacts or Trace for evaluation results. */
+export type NormalizedTrajectory = TraceArtifact;
+/** @deprecated Use TraceSource. */
+export type NormalizedTraceSource = TraceSource;
+/** @deprecated Use TraceSession. */
+export type NormalizedTraceSession = TraceSession;
+/** @deprecated Use TraceBranch. */
+export type NormalizedTraceBranch = TraceBranch;
+/** @deprecated Use TraceEvent. */
+export type NormalizedTraceEvent = TraceEvent;
+/** @deprecated Use TraceMessage. */
+export type NormalizedTraceMessage = TraceMessage;
+/** @deprecated Use TraceModel. */
+export type NormalizedTraceModel = TraceModel;
+/** @deprecated Use TraceTool. */
+export type NormalizedTraceTool = TraceTool;
+/** @deprecated Use TraceError. */
+export type NormalizedTraceError = TraceError;
+/** @deprecated Use TraceSourceRef. */
+export type NormalizedTraceSourceRef = TraceSourceRef;
+/** @deprecated Use TraceRawEvidence. */
+export type NormalizedRawEvidence = TraceRawEvidence;
+/** @deprecated Use TraceRedactionState. */
+export type NormalizedRedactionState = TraceRedactionState;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;

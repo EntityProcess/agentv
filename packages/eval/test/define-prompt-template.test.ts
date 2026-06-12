@@ -2,6 +2,16 @@ import { describe, expect, it } from 'bun:test';
 
 import { PromptTemplateInputSchema } from '../src/schemas.js';
 
+const makeTrace = (overrides: Record<string, unknown> = {}) => ({
+  schemaVersion: 'agentv.trace.v1',
+  eventCount: 3,
+  toolCalls: { read: 2, write: 1 },
+  errorCount: 0,
+  messages: [],
+  events: [],
+  ...overrides,
+});
+
 describe('PromptTemplateInputSchema', () => {
   // Minimal valid input with all required fields
   const validInput = {
@@ -29,11 +39,7 @@ describe('PromptTemplateInputSchema', () => {
   it('accepts optional trace', () => {
     const inputWithTrace = {
       ...validInput,
-      trace: {
-        eventCount: 3,
-        toolCalls: { read: 2, write: 1 },
-        errorCount: 0,
-      },
+      trace: makeTrace(),
     };
     const result = PromptTemplateInputSchema.parse(inputWithTrace);
     expect(result.trace?.eventCount).toBe(3);
@@ -85,10 +91,11 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.input[0].content).toBe('What is 2+2?');
   });
 
-  it('accepts optional output with toolCalls', () => {
+  it('accepts final output plus transcript messages with toolCalls', () => {
     const inputWithOutput = {
       ...validInput,
-      output: [
+      output: 'Reading file...',
+      messages: [
         {
           role: 'assistant',
           content: 'Reading file...',
@@ -97,21 +104,18 @@ describe('PromptTemplateInputSchema', () => {
       ],
     };
     const result = PromptTemplateInputSchema.parse(inputWithOutput);
-    expect(result.output?.[0].toolCalls?.[0].tool).toBe('read');
+    expect(result.output).toBe('Reading file...');
+    expect(result.messages?.[0].toolCalls?.[0].tool).toBe('read');
   });
 
   it('accepts full input with all fields', () => {
     const fullInput = {
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
-      output: [{ role: 'assistant', content: 'The answer is 4' }],
+      output: 'The answer is 4',
       inputFiles: ['/path/to/input.txt'],
       input: [{ role: 'user', content: 'What is 2+2?' }],
-      trace: {
-        eventCount: 1,
-        toolCalls: {},
-        errorCount: 0,
-      },
+      trace: makeTrace({ eventCount: 1, toolCalls: {} }),
       config: { rubric: 'Check correctness' },
     };
     const result = PromptTemplateInputSchema.parse(fullInput);

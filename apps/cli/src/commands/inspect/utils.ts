@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { EvaluationResult, TraceSummary } from '@agentv/core';
-import { DEFAULT_THRESHOLD, toCamelCaseDeep } from '@agentv/core';
+import { DEFAULT_THRESHOLD, toCamelCaseDeep, toSnakeCaseDeep } from '@agentv/core';
 import {
   RESULT_INDEX_FILENAME,
   RESULT_RUNS_DIRNAME,
@@ -183,6 +183,7 @@ function toRawResult(result: EvaluationResult): RawResult {
     end_time: result.endTime,
     input: result.input,
     output: result.output,
+    trace: toSnakeCaseDeep(result.trace) as RawTraceSummary,
     file_changes: result.fileChanges,
   };
 }

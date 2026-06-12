@@ -801,10 +801,8 @@ describe('runEvalCase trace integration', () => {
     expect(result.trace?.errorCount).toBe(0);
   });
 
-  it('omits trace when provider returns no output', async () => {
-    const provider = new TraceProvider('mock', {
-      output: [{ role: 'assistant', content: 'The weather is sunny' }],
-    });
+  it('builds a canonical trace even when provider returns no output', async () => {
+    const provider = new TraceProvider('mock', {});
 
     const result = await runEvalCase({
       evalCase: traceTestCase,
@@ -813,7 +811,10 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace).toBeUndefined();
+    expect(result.output).toBe('');
+    expect(result.trace).toBeDefined();
+    expect(result.trace.messages.map((message) => message.role)).toEqual(['user', 'assistant']);
+    expect(result.trace.events.some((event) => event.type === 'final_response')).toBe(true);
   });
 
   it('includes trace when provider reports tokenUsage without output', async () => {
@@ -907,7 +908,7 @@ describe('runEvalCase trace integration', () => {
     expect(result.scores?.[0]?.verdict).toBe('pass');
   });
 
-  it('fails tool-trajectory evaluator when no trace available', async () => {
+  it('fails tool-trajectory evaluator when the trace has no matching tools', async () => {
     const provider = new TraceProvider('mock', {
       output: [{ role: 'assistant', content: 'Result' }],
     });
@@ -944,7 +945,7 @@ describe('runEvalCase trace integration', () => {
     expect(result.score).toBe(0);
     expect(result.scores?.[0]?.verdict).toBe('fail');
     expect(result.scores?.[0]?.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
-      'No trace available for evaluation',
+      'search: called 0 times (required >=1)',
     );
   });
 
@@ -1152,7 +1153,7 @@ describe('runEvalCase trace integration', () => {
 const stdin = readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
 const question = (input.input || []).map((m) => String(m.content ?? '')).join('\\n');
-const answer = (input.output || []).map((m) => String(m.content ?? '')).join('\\n');
+const answer = String(input.output ?? '');
 const ref = (input.expected_output || []).map((m) => String(m.content ?? '')).join('\\n') || 'none';
 console.log(\`Question: \${question}
 Answer: \${answer}
@@ -1222,7 +1223,7 @@ Reference: \${ref}\`);
 const stdin = fs.readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
 const question = (input.input || []).map((m) => String(m.content || '')).join('\\n');
-const answer = (input.output || []).map((m) => String(m.content || '')).join('\\n');
+const answer = String(input.output || '');
 console.log('Question: ' + question + '\\nAnswer: ' + answer);
 `,
       );

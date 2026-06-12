@@ -185,10 +185,7 @@ export class OtelTraceExporter {
         if (result.suite) rootSpan.setAttribute('agentv.suite', result.suite);
         rootSpan.setAttribute('agentv.score', result.score);
         if (captureContent && result.output.length > 0) {
-          const lastMsg = result.output[result.output.length - 1];
-          const text =
-            typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
-          rootSpan.setAttribute('agentv.output_text', text);
+          rootSpan.setAttribute('agentv.output_text', result.output);
         }
 
         // Flat execution metrics
@@ -219,12 +216,15 @@ export class OtelTraceExporter {
             rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
         }
 
-        // Child spans from output messages (--trace mode)
-        if (result.output) {
+        // Child spans from canonical trace messages.
+        // Some callers may still export older result artifacts while migrating,
+        // so tolerate a missing trace instead of crashing the exporter.
+        const traceMessages = result.trace?.messages ?? [];
+        if (traceMessages.length > 0) {
           const parentCtx = api.trace.setSpan(api.context.active(), rootSpan);
 
           if (this.options.groupTurns) {
-            const turns = groupMessagesIntoTurns(result.output);
+            const turns = groupMessagesIntoTurns(traceMessages);
             if (turns.length > 1) {
               for (const [i, turn] of turns.entries()) {
                 api.context.with(parentCtx, () => {
@@ -244,12 +244,12 @@ export class OtelTraceExporter {
                 });
               }
             } else {
-              for (const msg of result.output) {
+              for (const msg of traceMessages) {
                 this.exportMessage(tracer, api, parentCtx, msg, captureContent);
               }
             }
           } else {
-            for (const msg of result.output) {
+            for (const msg of traceMessages) {
               this.exportMessage(tracer, api, parentCtx, msg, captureContent);
             }
           }
@@ -593,13 +593,13 @@ export class OtelStreamingObserver {
     }
 
     const model =
-      result.output.find((msg) => msg.role === 'assistant')?.metadata?.model ??
+      result.trace.messages.find((msg) => msg.role === 'assistant')?.metadata?.model ??
       result.target ??
       'unknown';
 
     this.onLlmCall(String(model), result.tokenUsage);
 
-    for (const message of result.output) {
+    for (const message of result.trace.messages) {
       for (const toolCall of message.toolCalls ?? []) {
         this.onToolCall(
           toolCall.tool,

@@ -18,6 +18,7 @@ import { readFile } from 'node:fs/promises';
 
 import { toCamelCaseDeep, toSnakeCaseDeep } from '../evaluation/case-conversion.js';
 import type { Message, ProviderTokenUsage } from '../evaluation/providers/types.js';
+import { type Trace, buildTraceFromMessages } from '../evaluation/trace.js';
 
 /**
  * A parsed transcript: ordered messages plus session metadata (internal camelCase).
@@ -146,6 +147,64 @@ export function toTranscriptJsonLines(
     transcript_cost_usd: entry.costUsd,
     source,
   }));
+}
+
+/**
+ * Convert a canonical evaluation trace to transcript JSONL rows.
+ */
+export function traceToTranscriptJsonLines(
+  trace: Trace,
+  options?: { testId?: string; target?: string },
+): TranscriptJsonLine[] {
+  const provider =
+    (typeof trace.metadata?.provider === 'string' ? trace.metadata.provider : undefined) ??
+    options?.target ??
+    'agentv';
+  const sessionId =
+    (typeof trace.metadata?.provider_session_id === 'string'
+      ? trace.metadata.provider_session_id
+      : undefined) ??
+    (typeof trace.metadata?.eval_case_id === 'string' ? trace.metadata.eval_case_id : undefined) ??
+    options?.testId ??
+    'trace';
+
+  return toTranscriptJsonLines(
+    {
+      messages: [...trace.messages],
+      source: {
+        provider,
+        sessionId,
+        startedAt: trace.startTime,
+      },
+      tokenUsage: trace.tokenUsage,
+      durationMs: trace.durationMs,
+      costUsd: trace.costUsd,
+    },
+    options,
+  );
+}
+
+/**
+ * Reconstruct a canonical trace/messages representation from transcript JSONL
+ * rows. Transcript-aware graders can use this for offline replay parity.
+ */
+export function traceFromTranscriptJsonLines(lines: readonly TranscriptJsonLine[]): Trace {
+  const [entry] = groupTranscriptJsonLines(lines);
+  if (!entry) {
+    return buildTraceFromMessages();
+  }
+
+  return buildTraceFromMessages({
+    output: entry.messages,
+    tokenUsage: entry.tokenUsage,
+    durationMs: entry.durationMs,
+    costUsd: entry.costUsd ?? undefined,
+    startTime: entry.source.startedAt,
+    provider: entry.source.provider,
+    target: entry.target,
+    testId: entry.testId,
+    conversationId: entry.source.sessionId,
+  });
 }
 
 function buildReplayMessage(line: TranscriptJsonLine): Message {

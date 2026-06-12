@@ -1,19 +1,21 @@
 /**
  * Trace models for evaluation-time agent behavior.
  *
- * This module separates the canonical trace contract from compatibility views:
- * - NormalizedTrajectory is the full, versioned trajectory contract that importers,
- *   replay, and trajectory-aware graders should use as the source of truth.
- * - TraceSummary is a derived compact read model used by existing graders, result
- *   artifacts, and CLI/dashboard aggregation. When a full trajectory exists, do
- *   not author TraceSummary independently; derive it with
- *   computeTraceSummaryFromTrajectory().
+ * `Trace` is AgentV's canonical normalized execution model. Evaluation results
+ * keep `output` as the final answer/scored result only; the full transcript,
+ * tool calls/results, errors, timing, usage, provider/session provenance, and
+ * replay/eval metrics live in `trace`.
  *
- * Keep TypeScript internals camelCase. Persisted trajectory artifacts use the
- * snake_case NormalizedTrajectoryWire shape and must pass through the converters
- * in this file.
+ * `TraceSummary` is a derived compact read model for metric-style graders and
+ * aggregation. Derive it from `Trace.messages`/`Trace.events`; do not treat it
+ * as the canonical trace.
+ *
+ * TypeScript internals are camelCase. Persisted JSON/JSONL wire shapes are
+ * snake_case and must pass through the converters in this file or a boundary
+ * serializer such as `toSnakeCaseDeep()`.
  */
 import { z } from 'zod';
+import type { Message } from './providers/types.js';
 
 export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trace.v1' as const;
 
@@ -32,19 +34,36 @@ export const NORMALIZED_TRACE_EVENT_TYPES = [
   'model_turn',
   'tool_call',
   'tool_result',
+  'final_response',
+  'error',
 ] as const;
 
 export const NORMALIZED_TOOL_STATUSES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
 
 export const NORMALIZED_REDACTION_LEVELS = ['none', 'partial', 'full'] as const;
 
-export type NormalizedTraceSourceKind = (typeof NORMALIZED_TRACE_SOURCE_KINDS)[number];
-export type NormalizedTraceEventType = (typeof NORMALIZED_TRACE_EVENT_TYPES)[number];
-export type NormalizedToolStatus = (typeof NORMALIZED_TOOL_STATUSES)[number];
-export type NormalizedRedactionLevel = (typeof NORMALIZED_REDACTION_LEVELS)[number];
+export const TRACE_SCHEMA_VERSION = NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
+export const TRACE_SOURCE_KINDS = NORMALIZED_TRACE_SOURCE_KINDS;
+export const TRACE_EVENT_TYPES = NORMALIZED_TRACE_EVENT_TYPES;
+export const TRACE_TOOL_STATUSES = NORMALIZED_TOOL_STATUSES;
+export const TRACE_REDACTION_LEVELS = NORMALIZED_REDACTION_LEVELS;
 
-export interface NormalizedTraceSource {
-  readonly kind: NormalizedTraceSourceKind;
+export type TraceSourceKind = (typeof TRACE_SOURCE_KINDS)[number];
+export type TraceEventType = (typeof TRACE_EVENT_TYPES)[number];
+export type TraceToolStatus = (typeof TRACE_TOOL_STATUSES)[number];
+export type TraceRedactionLevel = (typeof TRACE_REDACTION_LEVELS)[number];
+
+/** @deprecated Use TraceSourceKind. */
+export type NormalizedTraceSourceKind = TraceSourceKind;
+/** @deprecated Use TraceEventType. */
+export type NormalizedTraceEventType = TraceEventType;
+/** @deprecated Use TraceToolStatus. */
+export type NormalizedToolStatus = TraceToolStatus;
+/** @deprecated Use TraceRedactionLevel. */
+export type NormalizedRedactionLevel = TraceRedactionLevel;
+
+export interface TraceSource {
+  readonly kind: TraceSourceKind;
   readonly path?: string;
   readonly url?: string;
   readonly provider?: string;
@@ -53,7 +72,7 @@ export interface NormalizedTraceSource {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedTraceSession {
+export interface TraceSession {
   readonly sessionId?: string;
   readonly conversationId?: string;
   readonly cwd?: string;
@@ -62,7 +81,7 @@ export interface NormalizedTraceSession {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedTraceBranch {
+export interface TraceBranch {
   readonly selectedLeafId?: string;
   readonly selectedPathIds?: readonly string[];
   readonly includedEventIds?: readonly string[];
@@ -70,7 +89,7 @@ export interface NormalizedTraceBranch {
   readonly selectionReason?: string;
 }
 
-export interface NormalizedTraceSourceRef {
+export interface TraceSourceRef {
   readonly eventId?: string;
   readonly messageId?: string;
   readonly spanId?: string;
@@ -81,7 +100,7 @@ export interface NormalizedTraceSourceRef {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedRawEvidence {
+export interface TraceRawEvidence {
   readonly kind: string;
   readonly ref?: string;
   readonly mediaType?: string;
@@ -90,13 +109,13 @@ export interface NormalizedRawEvidence {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedRedactionState {
-  readonly level: NormalizedRedactionLevel;
+export interface TraceRedactionState {
+  readonly level: TraceRedactionLevel;
   readonly fields?: readonly string[];
   readonly reason?: string;
 }
 
-export interface NormalizedTraceError {
+export interface TraceError {
   readonly message: string;
   readonly name?: string;
   readonly code?: string;
@@ -104,16 +123,16 @@ export interface NormalizedTraceError {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedTraceMessage {
+export interface TraceMessage {
   readonly role: string;
   readonly name?: string;
   readonly content?: unknown;
-  readonly redaction?: NormalizedRedactionState;
+  readonly redaction?: TraceRedactionState;
   readonly tokenUsage?: TokenUsage;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedTraceModel {
+export interface TraceModel {
   readonly provider?: string;
   readonly name?: string;
   readonly invocationId?: string;
@@ -121,48 +140,49 @@ export interface NormalizedTraceModel {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedTraceTool {
+export interface TraceTool {
   readonly name: string;
   readonly callId?: string;
   readonly input?: unknown;
   readonly output?: unknown;
-  readonly status?: NormalizedToolStatus;
-  readonly error?: NormalizedTraceError;
-  readonly redaction?: NormalizedRedactionState;
+  readonly status?: TraceToolStatus;
+  readonly error?: TraceError;
+  readonly redaction?: TraceRedactionState;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface NormalizedTraceEvent {
+export interface TraceEvent {
   readonly eventId: string;
   readonly parentEventId?: string;
   readonly ordinal: number;
-  readonly type: NormalizedTraceEventType;
+  readonly type: TraceEventType;
   readonly timestamp?: string;
   readonly durationMs?: number;
   readonly durationInferred?: boolean;
   readonly turnIndex?: number;
-  readonly message?: NormalizedTraceMessage;
-  readonly model?: NormalizedTraceModel;
-  readonly tool?: NormalizedTraceTool;
-  readonly sourceRef?: NormalizedTraceSourceRef;
-  readonly rawEvidence?: readonly NormalizedRawEvidence[];
-  readonly redaction?: NormalizedRedactionState;
+  readonly message?: TraceMessage;
+  readonly model?: TraceModel;
+  readonly tool?: TraceTool;
+  readonly error?: TraceError;
+  readonly sourceRef?: TraceSourceRef;
+  readonly rawEvidence?: readonly TraceRawEvidence[];
+  readonly redaction?: TraceRedactionState;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 /**
- * Canonical in-memory trajectory model.
+ * Legacy imported trace artifact shape used by older import/replay helpers.
  *
- * Persisted trajectory artifacts are the snake_case wire shape below. They do
- * not embed TraceSummary because compact summaries are one-way projections from
- * this full event stream.
+ * New evaluation results use `Trace` below: final answer in `output`, full
+ * transcript under `trace.messages`, structured spans under `trace.events`, and
+ * provider-native session identifiers in `trace.metadata`.
  */
-export interface NormalizedTrajectory {
+export interface TraceArtifact {
   readonly schemaVersion: typeof NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
-  readonly source: NormalizedTraceSource;
-  readonly session: NormalizedTraceSession;
-  readonly branch?: NormalizedTraceBranch;
-  readonly events: readonly NormalizedTraceEvent[];
+  readonly source: TraceSource;
+  readonly session: TraceSession;
+  readonly branch?: TraceBranch;
+  readonly events: readonly TraceEvent[];
   readonly tokenUsage?: TokenUsage;
   readonly costUsd?: number;
   readonly durationMs?: number;
@@ -170,6 +190,12 @@ export interface NormalizedTrajectory {
   readonly endedAt?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
+
+/**
+ * @deprecated Use `Trace` for evaluation results or `TraceArtifact` for legacy
+ * import/replay artifacts.
+ */
+export type NormalizedTrajectory = TraceArtifact;
 
 function omitUndefinedProperties<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
@@ -286,6 +312,7 @@ export const NormalizedTraceEventWireSchema = z.object({
   message: NormalizedTraceMessageWireSchema.optional(),
   model: NormalizedTraceModelWireSchema.optional(),
   tool: NormalizedTraceToolWireSchema.optional(),
+  error: NormalizedTraceErrorWireSchema.optional(),
   source_ref: NormalizedTraceSourceRefWireSchema.optional(),
   raw_evidence: z.array(NormalizedRawEvidenceWireSchema).optional(),
   redaction: NormalizedRedactionStateWireSchema.optional(),
@@ -309,9 +336,23 @@ export const NormalizedTrajectoryWireSchema = z.object({
 export type NormalizedTrajectoryWire = z.infer<typeof NormalizedTrajectoryWireSchema>;
 export type NormalizedTraceEventWire = z.infer<typeof NormalizedTraceEventWireSchema>;
 
-export function toNormalizedTrajectoryWire(
-  trajectory: NormalizedTrajectory,
-): NormalizedTrajectoryWire {
+export const TraceRedactionStateWireSchema = NormalizedRedactionStateWireSchema;
+export const TraceErrorWireSchema = NormalizedTraceErrorWireSchema;
+export const TraceSourceWireSchema = NormalizedTraceSourceWireSchema;
+export const TraceSessionWireSchema = NormalizedTraceSessionWireSchema;
+export const TraceBranchWireSchema = NormalizedTraceBranchWireSchema;
+export const TraceSourceRefWireSchema = NormalizedTraceSourceRefWireSchema;
+export const TraceRawEvidenceWireSchema = NormalizedRawEvidenceWireSchema;
+export const TraceMessageWireSchema = NormalizedTraceMessageWireSchema;
+export const TraceModelWireSchema = NormalizedTraceModelWireSchema;
+export const TraceToolWireSchema = NormalizedTraceToolWireSchema;
+export const TraceEventWireSchema = NormalizedTraceEventWireSchema;
+export const TraceArtifactWireSchema = NormalizedTrajectoryWireSchema;
+
+export type TraceArtifactWire = NormalizedTrajectoryWire;
+export type TraceEventWire = NormalizedTraceEventWire;
+
+export function toNormalizedTrajectoryWire(trajectory: TraceArtifact): NormalizedTrajectoryWire {
   return NormalizedTrajectoryWireSchema.parse(
     omitUndefinedProperties({
       schema_version: trajectory.schemaVersion,
@@ -329,7 +370,7 @@ export function toNormalizedTrajectoryWire(
   );
 }
 
-export function fromNormalizedTrajectoryWire(input: unknown): NormalizedTrajectory {
+export function fromNormalizedTrajectoryWire(input: unknown): TraceArtifact {
   const wire = NormalizedTrajectoryWireSchema.parse(input);
 
   return {
@@ -347,7 +388,15 @@ export function fromNormalizedTrajectoryWire(input: unknown): NormalizedTrajecto
   };
 }
 
-function toNormalizedTraceSourceWire(source: NormalizedTraceSource) {
+export function toTraceArtifactWire(artifact: TraceArtifact): TraceArtifactWire {
+  return toNormalizedTrajectoryWire(artifact);
+}
+
+export function fromTraceArtifactWire(input: unknown): TraceArtifact {
+  return fromNormalizedTrajectoryWire(input);
+}
+
+function toNormalizedTraceSourceWire(source: TraceSource) {
   return omitUndefinedProperties({
     kind: source.kind,
     path: source.path,
@@ -361,7 +410,7 @@ function toNormalizedTraceSourceWire(source: NormalizedTraceSource) {
 
 function fromNormalizedTraceSourceWire(
   source: z.infer<typeof NormalizedTraceSourceWireSchema>,
-): NormalizedTraceSource {
+): TraceSource {
   return {
     kind: source.kind,
     path: source.path,
@@ -373,7 +422,7 @@ function fromNormalizedTraceSourceWire(
   };
 }
 
-function toNormalizedTraceSessionWire(session: NormalizedTraceSession) {
+function toNormalizedTraceSessionWire(session: TraceSession) {
   return omitUndefinedProperties({
     session_id: session.sessionId,
     conversation_id: session.conversationId,
@@ -386,7 +435,7 @@ function toNormalizedTraceSessionWire(session: NormalizedTraceSession) {
 
 function fromNormalizedTraceSessionWire(
   session: z.infer<typeof NormalizedTraceSessionWireSchema>,
-): NormalizedTraceSession {
+): TraceSession {
   return {
     sessionId: session.session_id,
     conversationId: session.conversation_id,
@@ -397,7 +446,7 @@ function fromNormalizedTraceSessionWire(
   };
 }
 
-function toNormalizedTraceBranchWire(branch: NormalizedTraceBranch) {
+function toNormalizedTraceBranchWire(branch: TraceBranch) {
   return omitUndefinedProperties({
     selected_leaf_id: branch.selectedLeafId,
     selected_path_ids: branch.selectedPathIds,
@@ -409,7 +458,7 @@ function toNormalizedTraceBranchWire(branch: NormalizedTraceBranch) {
 
 function fromNormalizedTraceBranchWire(
   branch: z.infer<typeof NormalizedTraceBranchWireSchema>,
-): NormalizedTraceBranch {
+): TraceBranch {
   return {
     selectedLeafId: branch.selected_leaf_id,
     selectedPathIds: branch.selected_path_ids,
@@ -419,7 +468,7 @@ function fromNormalizedTraceBranchWire(
   };
 }
 
-function toNormalizedTraceEventWire(event: NormalizedTraceEvent): NormalizedTraceEventWire {
+function toNormalizedTraceEventWire(event: TraceEvent): NormalizedTraceEventWire {
   return NormalizedTraceEventWireSchema.parse(
     omitUndefinedProperties({
       event_id: event.eventId,
@@ -433,6 +482,7 @@ function toNormalizedTraceEventWire(event: NormalizedTraceEvent): NormalizedTrac
       message: event.message ? toNormalizedTraceMessageWire(event.message) : undefined,
       model: event.model ? toNormalizedTraceModelWire(event.model) : undefined,
       tool: event.tool ? toNormalizedTraceToolWire(event.tool) : undefined,
+      error: event.error ? toNormalizedTraceErrorWire(event.error) : undefined,
       source_ref: event.sourceRef ? toNormalizedTraceSourceRefWire(event.sourceRef) : undefined,
       raw_evidence: event.rawEvidence?.map(toNormalizedRawEvidenceWire),
       redaction: event.redaction,
@@ -441,7 +491,7 @@ function toNormalizedTraceEventWire(event: NormalizedTraceEvent): NormalizedTrac
   );
 }
 
-function fromNormalizedTraceEventWire(event: NormalizedTraceEventWire): NormalizedTraceEvent {
+function fromNormalizedTraceEventWire(event: NormalizedTraceEventWire): TraceEvent {
   return {
     eventId: event.event_id,
     parentEventId: event.parent_event_id,
@@ -454,6 +504,7 @@ function fromNormalizedTraceEventWire(event: NormalizedTraceEventWire): Normaliz
     message: event.message ? fromNormalizedTraceMessageWire(event.message) : undefined,
     model: event.model ? fromNormalizedTraceModelWire(event.model) : undefined,
     tool: event.tool ? fromNormalizedTraceToolWire(event.tool) : undefined,
+    error: event.error ? fromNormalizedTraceErrorWire(event.error) : undefined,
     sourceRef: event.source_ref ? fromNormalizedTraceSourceRefWire(event.source_ref) : undefined,
     rawEvidence: event.raw_evidence?.map(fromNormalizedRawEvidenceWire),
     redaction: event.redaction,
@@ -461,7 +512,7 @@ function fromNormalizedTraceEventWire(event: NormalizedTraceEventWire): Normaliz
   };
 }
 
-function toNormalizedTraceMessageWire(message: NormalizedTraceMessage) {
+function toNormalizedTraceMessageWire(message: TraceMessage) {
   return omitUndefinedProperties({
     role: message.role,
     name: message.name,
@@ -474,7 +525,7 @@ function toNormalizedTraceMessageWire(message: NormalizedTraceMessage) {
 
 function fromNormalizedTraceMessageWire(
   message: z.infer<typeof NormalizedTraceMessageWireSchema>,
-): NormalizedTraceMessage {
+): TraceMessage {
   return {
     role: message.role,
     name: message.name,
@@ -485,7 +536,7 @@ function fromNormalizedTraceMessageWire(
   };
 }
 
-function toNormalizedTraceModelWire(model: NormalizedTraceModel) {
+function toNormalizedTraceModelWire(model: TraceModel) {
   return omitUndefinedProperties({
     provider: model.provider,
     name: model.name,
@@ -497,7 +548,7 @@ function toNormalizedTraceModelWire(model: NormalizedTraceModel) {
 
 function fromNormalizedTraceModelWire(
   model: z.infer<typeof NormalizedTraceModelWireSchema>,
-): NormalizedTraceModel {
+): TraceModel {
   return {
     provider: model.provider,
     name: model.name,
@@ -507,7 +558,7 @@ function fromNormalizedTraceModelWire(
   };
 }
 
-function toNormalizedTraceToolWire(tool: NormalizedTraceTool) {
+function toNormalizedTraceToolWire(tool: TraceTool) {
   return omitUndefinedProperties({
     name: tool.name,
     call_id: tool.callId,
@@ -522,7 +573,7 @@ function toNormalizedTraceToolWire(tool: NormalizedTraceTool) {
 
 function fromNormalizedTraceToolWire(
   tool: z.infer<typeof NormalizedTraceToolWireSchema>,
-): NormalizedTraceTool {
+): TraceTool {
   return {
     name: tool.name,
     callId: tool.call_id,
@@ -535,7 +586,29 @@ function fromNormalizedTraceToolWire(
   };
 }
 
-function toNormalizedTraceSourceRefWire(sourceRef: NormalizedTraceSourceRef) {
+function toNormalizedTraceErrorWire(error: TraceError) {
+  return omitUndefinedProperties({
+    message: error.message,
+    name: error.name,
+    code: error.code,
+    stack: error.stack,
+    metadata: error.metadata,
+  });
+}
+
+function fromNormalizedTraceErrorWire(
+  error: z.infer<typeof NormalizedTraceErrorWireSchema>,
+): TraceError {
+  return {
+    message: error.message,
+    name: error.name,
+    code: error.code,
+    stack: error.stack,
+    metadata: error.metadata,
+  };
+}
+
+function toNormalizedTraceSourceRefWire(sourceRef: TraceSourceRef) {
   return omitUndefinedProperties({
     event_id: sourceRef.eventId,
     message_id: sourceRef.messageId,
@@ -550,7 +623,7 @@ function toNormalizedTraceSourceRefWire(sourceRef: NormalizedTraceSourceRef) {
 
 function fromNormalizedTraceSourceRefWire(
   sourceRef: z.infer<typeof NormalizedTraceSourceRefWireSchema>,
-): NormalizedTraceSourceRef {
+): TraceSourceRef {
   return {
     eventId: sourceRef.event_id,
     messageId: sourceRef.message_id,
@@ -563,7 +636,7 @@ function fromNormalizedTraceSourceRefWire(
   };
 }
 
-function toNormalizedRawEvidenceWire(evidence: NormalizedRawEvidence) {
+function toNormalizedRawEvidenceWire(evidence: TraceRawEvidence) {
   return omitUndefinedProperties({
     kind: evidence.kind,
     ref: evidence.ref,
@@ -576,7 +649,7 @@ function toNormalizedRawEvidenceWire(evidence: NormalizedRawEvidence) {
 
 function fromNormalizedRawEvidenceWire(
   evidence: z.infer<typeof NormalizedRawEvidenceWireSchema>,
-): NormalizedRawEvidence {
+): TraceRawEvidence {
   return {
     kind: evidence.kind,
     ref: evidence.ref,
@@ -586,6 +659,32 @@ function fromNormalizedRawEvidenceWire(
     metadata: evidence.metadata,
   };
 }
+
+// Deprecated compatibility names retained for callers that imported the older
+// normalized-trace terminology. New code should use the AgentV-owned Trace*
+// names above.
+/** @deprecated Use TraceSource. */
+export type NormalizedTraceSource = TraceSource;
+/** @deprecated Use TraceSession. */
+export type NormalizedTraceSession = TraceSession;
+/** @deprecated Use TraceBranch. */
+export type NormalizedTraceBranch = TraceBranch;
+/** @deprecated Use TraceSourceRef. */
+export type NormalizedTraceSourceRef = TraceSourceRef;
+/** @deprecated Use TraceRawEvidence. */
+export type NormalizedRawEvidence = TraceRawEvidence;
+/** @deprecated Use TraceRedactionState. */
+export type NormalizedRedactionState = TraceRedactionState;
+/** @deprecated Use TraceError. */
+export type NormalizedTraceError = TraceError;
+/** @deprecated Use TraceMessage. */
+export type NormalizedTraceMessage = TraceMessage;
+/** @deprecated Use TraceModel. */
+export type NormalizedTraceModel = TraceModel;
+/** @deprecated Use TraceTool. */
+export type NormalizedTraceTool = TraceTool;
+/** @deprecated Use TraceEvent. */
+export type NormalizedTraceEvent = TraceEvent;
 
 /**
  * Token usage metrics from provider execution.
@@ -605,8 +704,8 @@ export interface TokenUsage {
  * Derived compact summary of a trace for lightweight persistence.
  *
  * This is a compatibility/read model for existing result artifacts and
- * aggregation. It is intentionally smaller than NormalizedTrajectory and should
- * not be treated as independently authored trace state when a full trajectory is
+ * aggregation. It is intentionally smaller than Trace and should
+ * not be treated as independently authored trace state when a full Trace is
  * available.
  */
 export interface TraceSummary {
@@ -620,6 +719,247 @@ export interface TraceSummary {
   readonly toolDurations?: Readonly<Record<string, readonly number[]>>;
   /** Number of LLM calls (assistant messages) */
   readonly llmCallCount?: number;
+}
+
+/**
+ * Canonical trace attached to every evaluation result.
+ *
+ * The compact TraceSummary fields are mirrored for existing
+ * metric graders; `messages` and `events` are the complete canonical
+ * execution record. Result `output` is only the final answer; tools,
+ * intermediate assistant text, timing, usage, provider provenance, and replay
+ * metadata live here.
+ */
+export interface Trace extends TraceSummary {
+  readonly schemaVersion: typeof TRACE_SCHEMA_VERSION;
+  /** Complete normalized chat transcript used for transcript-aware graders. */
+  readonly messages: readonly Message[];
+  /** Structured event stream derived from the same messages and metrics. */
+  readonly events: readonly TraceEvent[];
+  readonly tokenUsage?: TokenUsage;
+  readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly startTime?: string;
+  readonly endTime?: string;
+  /** Provider/session/eval provenance. Provider-native IDs use metadata keys. */
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+interface BuildTraceOptions {
+  readonly input?: readonly Message[];
+  readonly output?: readonly Message[];
+  readonly summary?: TraceSummary;
+  readonly finalOutput?: string;
+  readonly tokenUsage?: TokenUsage;
+  readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly startTime?: string;
+  readonly endTime?: string;
+  readonly provider?: string;
+  readonly target?: string;
+  readonly testId?: string;
+  readonly conversationId?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly error?: TraceError | string;
+}
+
+function sameMessageContent(first: Message | undefined, second: Message | undefined): boolean {
+  if (!first || !second) return false;
+  return (
+    first.role === second.role && JSON.stringify(first.content) === JSON.stringify(second.content)
+  );
+}
+
+function buildTraceMessages(
+  input: readonly Message[] | undefined,
+  output: readonly Message[] | undefined,
+): readonly Message[] {
+  const outputMessages = output ?? [];
+  if (outputMessages.length === 0) {
+    return input ?? [];
+  }
+
+  // Agent/transcript providers often return a full conversation (including the
+  // user/system turns). Single-shot LLM providers usually return only the final
+  // assistant message. Avoid duplicating the prompt when the provider already
+  // supplied a conversation-shaped transcript.
+  const outputLooksLikeFullTranscript = outputMessages.some(
+    (message) => message.role === 'user' || message.role === 'system',
+  );
+  if (outputLooksLikeFullTranscript) {
+    return outputMessages;
+  }
+
+  const inputMessages = input ?? [];
+  if (
+    inputMessages.length === 1 &&
+    outputMessages.length > 0 &&
+    sameMessageContent(inputMessages[0], outputMessages[0])
+  ) {
+    return outputMessages;
+  }
+  return [...inputMessages, ...outputMessages];
+}
+
+function toTraceMessage(message: Message): TraceMessage {
+  return {
+    role: message.role,
+    name: message.name,
+    content: message.content,
+    tokenUsage: message.tokenUsage,
+    metadata: message.metadata,
+  };
+}
+
+function toTraceError(error: TraceError | string): TraceError {
+  return typeof error === 'string' ? { message: error } : error;
+}
+
+/**
+ * Build the canonical trace for an evaluation case from provider messages and
+ * execution metrics. This is the single projection used by result JSONL,
+ * code-grader stdin, `outputs/answer.md`, and `outputs/transcript.jsonl`.
+ */
+export function buildTraceFromMessages(options: BuildTraceOptions = {}): Trace {
+  const messages = buildTraceMessages(options.input, options.output);
+  const computed = computeTraceSummary(messages);
+  const summary = options.summary ?? computed.trace;
+  const events: TraceEvent[] = [];
+  let ordinal = 0;
+
+  for (const [messageIndex, message] of messages.entries()) {
+    const eventId = `message-${messageIndex}`;
+    events.push({
+      eventId,
+      ordinal: ordinal++,
+      type: 'message',
+      timestamp: message.startTime,
+      durationMs: message.durationMs,
+      message: toTraceMessage(message),
+      metadata: { message_index: messageIndex },
+    });
+
+    for (const [toolIndex, toolCall] of (message.toolCalls ?? []).entries()) {
+      const toolEventId = `message-${messageIndex}-tool-${toolIndex}`;
+      events.push({
+        eventId: toolEventId,
+        parentEventId: eventId,
+        ordinal: ordinal++,
+        type: 'tool_call',
+        timestamp: toolCall.startTime,
+        durationMs: toolCall.durationMs,
+        tool: {
+          name: toolCall.tool,
+          callId: toolCall.id,
+          input: toolCall.input,
+          output: toolCall.output,
+          status: 'ok',
+        },
+        metadata: {
+          message_index: messageIndex,
+          tool_index: toolIndex,
+        },
+      });
+
+      if (toolCall.output !== undefined) {
+        events.push({
+          eventId: `${toolEventId}-result`,
+          parentEventId: toolEventId,
+          ordinal: ordinal++,
+          type: 'tool_result',
+          timestamp: toolCall.endTime,
+          tool: {
+            name: toolCall.tool,
+            callId: toolCall.id,
+            output: toolCall.output,
+            status: 'ok',
+          },
+          metadata: {
+            message_index: messageIndex,
+            tool_index: toolIndex,
+          },
+        });
+      }
+    }
+  }
+
+  const finalAssistantIndex = [...messages]
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find((entry) => entry.message.role === 'assistant')?.index;
+  if (finalAssistantIndex !== undefined) {
+    const finalMessage = messages[finalAssistantIndex];
+    events.push({
+      eventId: 'final-response',
+      parentEventId: `message-${finalAssistantIndex}`,
+      ordinal: ordinal++,
+      type: 'final_response',
+      timestamp: finalMessage.endTime ?? finalMessage.startTime ?? options.endTime,
+      message: {
+        ...toTraceMessage(finalMessage),
+        content: options.finalOutput ?? finalMessage.content,
+      },
+      metadata: { message_index: finalAssistantIndex },
+    });
+  }
+
+  if (options.error) {
+    events.push({
+      eventId: 'error',
+      ordinal: ordinal++,
+      type: 'error',
+      timestamp: options.endTime,
+      error: toTraceError(options.error),
+    });
+  }
+
+  return {
+    schemaVersion: TRACE_SCHEMA_VERSION,
+    eventCount: summary.eventCount,
+    toolCalls: summary.toolCalls,
+    errorCount: summary.errorCount + (options.error ? 1 : 0),
+    llmCallCount: summary.llmCallCount,
+    ...(summary.toolDurations ? { toolDurations: summary.toolDurations } : {}),
+    messages,
+    events,
+    tokenUsage: options.tokenUsage,
+    costUsd: options.costUsd,
+    durationMs: options.durationMs,
+    startTime: options.startTime ?? computed.startTime,
+    endTime: options.endTime ?? computed.endTime,
+    metadata: {
+      ...(options.provider ? { provider: options.provider } : {}),
+      ...(options.target ? { target: options.target } : {}),
+      ...(options.testId ? { eval_case_id: options.testId } : {}),
+      ...(options.conversationId ? { provider_session_id: options.conversationId } : {}),
+      ...options.metadata,
+    },
+  };
+}
+
+/**
+ * Return a copy of an existing trace with an appended structured error event.
+ */
+export function appendErrorEventToTrace(
+  trace: Trace,
+  error: TraceError | string,
+  metadata?: Readonly<Record<string, unknown>>,
+): Trace {
+  return {
+    ...trace,
+    errorCount: trace.errorCount + 1,
+    events: [
+      ...trace.events,
+      {
+        eventId: `error-${trace.events.length}`,
+        ordinal: trace.events.length,
+        type: 'error',
+        timestamp: trace.endTime,
+        error: toTraceError(error),
+        metadata,
+      },
+    ],
+  };
 }
 
 /**
@@ -793,9 +1133,7 @@ export function computeTraceSummary(messages: readonly MessageLike[]): TraceComp
  * source also carries explicit `branch.includedEventIds`, honor it here so
  * branchable transcripts cannot accidentally grade omitted alternatives.
  */
-export function getSelectedTrajectoryEvents(
-  trajectory: NormalizedTrajectory,
-): readonly NormalizedTraceEvent[] {
+export function getSelectedTrajectoryEvents(trajectory: TraceArtifact): readonly TraceEvent[] {
   if (!trajectory.branch?.includedEventIds || trajectory.branch.includedEventIds.length === 0) {
     return trajectory.events;
   }
@@ -809,16 +1147,14 @@ export function getSelectedTrajectoryEvents(
  *
  * This is the canonical bridge from the high-fidelity trajectory contract to the
  * backward-compatible summary/read model. Keep the projection one-way: importers
- * and replay should preserve NormalizedTrajectory, while existing result readers
+ * and replay should preserve TraceArtifact or Trace, while existing result readers
  * can continue consuming the derived TraceSummary shape unchanged.
  *
  * The summary keeps the current lightweight contract: eventCount is the number
  * of tool-call events, toolCalls is counted by tool name, toolDurations carries
  * per-tool milliseconds when present, and llmCallCount counts model turns.
  */
-export function computeTraceSummaryFromTrajectory(
-  trajectory: NormalizedTrajectory,
-): TraceComputeResult {
+export function computeTraceSummaryFromTrajectory(trajectory: TraceArtifact): TraceComputeResult {
   const selectedEvents = getSelectedTrajectoryEvents(trajectory);
   const hasModelTurnEvents = selectedEvents.some((event) => event.type === 'model_turn');
   const toolCallCounts: Record<string, number> = {};
@@ -896,7 +1232,7 @@ function deriveEventEnd(start: Date | undefined, durationMs: number | undefined)
   return new Date(start.getTime() + durationMs);
 }
 
-function isErrorToolEvent(event: NormalizedTraceEvent): boolean {
+function isErrorToolEvent(event: TraceEvent): boolean {
   return Boolean(
     event.tool?.error ||
       event.tool?.status === 'error' ||

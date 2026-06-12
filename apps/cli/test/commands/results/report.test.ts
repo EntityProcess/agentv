@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import type { EvaluationResult, GraderResult } from '@agentv/core';
+import { type EvaluationResult, type GraderResult, buildTraceFromMessages } from '@agentv/core';
 
 import { writeArtifactsFromResults } from '../../../src/commands/eval/artifact-writer.js';
 import {
@@ -29,19 +29,34 @@ function makeScore(
 }
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
-  return {
+  const result = {
     timestamp: '2026-04-15T01:00:00.000Z',
     testId: 'test-1',
     suite: 'default',
     score: 1,
     assertions: [{ text: 'fallback assertion', passed: true, evidence: 'ok' }],
-    output: [{ role: 'assistant', content: 'answer' }],
+    output: 'answer',
     input: [{ role: 'user', content: 'question' }],
     target: 'default',
     executionStatus: 'ok',
     tokenUsage: { input: 100, output: 50 },
     durationMs: 1200,
     ...overrides,
+  };
+
+  return {
+    ...result,
+    trace:
+      result.trace ??
+      buildTraceFromMessages({
+        input: Array.isArray(result.input) ? result.input : [],
+        output: result.output ? [{ role: 'assistant', content: result.output }] : [],
+        finalOutput: result.output,
+        target: result.target,
+        testId: result.testId,
+        tokenUsage: result.tokenUsage,
+        durationMs: result.durationMs,
+      }),
   };
 }
 

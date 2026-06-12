@@ -46,7 +46,10 @@ import { createBuiltinRegistry, discoverAssertions, discoverGraders } from './re
 import type { RunBudgetTracker } from './run-budget-tracker.js';
 import {
   type TokenUsage,
+  type Trace,
   type TraceSummary,
+  appendErrorEventToTrace,
+  buildTraceFromMessages,
   computeTraceSummary,
   mergeExecutionMetrics,
 } from './trace.js';
@@ -1130,10 +1133,9 @@ export async function runEvaluation(
 
     // Helper: build a DependencyResult from a completed EvaluationResult
     function toDependencyResult(r: EvaluationResult): DependencyResult {
-      const outputText = extractLastAssistantContent(r.output);
       return {
         score: r.score,
-        output: outputText,
+        output: r.output,
         workspace_path: r.workspacePath,
         details: r.scores
           ? (Object.fromEntries(
@@ -1196,6 +1198,7 @@ export async function runEvaluation(
       // eval files/targets in the current CLI invocation, so queued cases stop once
       // cumulative spend reaches the cap while already-running cases are allowed to finish.
       if (runBudgetTracker?.isExceeded()) {
+        const errorMessage = `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`;
         const budgetResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
           testId: evalCase.id,
@@ -1203,15 +1206,24 @@ export async function runEvaluation(
           category: evalCase.category,
           score: 0,
           assertions: [],
-          output: [],
+          output: errorMessage,
+          trace: buildTraceFromMessages({
+            input: evalCase.input as readonly Message[],
+            output: [{ role: 'assistant' as const, content: errorMessage }],
+            finalOutput: errorMessage,
+            target: target.name,
+            testId: evalCase.id,
+            conversationId: evalCase.conversation_id,
+            error: errorMessage,
+          }),
           target: target.name,
-          error: `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`,
+          error: errorMessage,
           budgetExceeded: true,
           executionStatus: 'execution_error',
           failureStage: 'setup',
           failureReasonCode: 'budget_exceeded',
           executionError: {
-            message: `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`,
+            message: errorMessage,
             stage: 'setup',
           },
         };
@@ -1235,6 +1247,7 @@ export async function runEvaluation(
 
       // Check suite-level budget before dispatching
       if (budgetUsd !== undefined && budgetExhausted) {
+        const errorMessage = `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${budgetUsd.toFixed(4)})`;
         const budgetResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
           testId: evalCase.id,
@@ -1242,15 +1255,24 @@ export async function runEvaluation(
           category: evalCase.category,
           score: 0,
           assertions: [],
-          output: [],
+          output: errorMessage,
+          trace: buildTraceFromMessages({
+            input: evalCase.input as readonly Message[],
+            output: [{ role: 'assistant' as const, content: errorMessage }],
+            finalOutput: errorMessage,
+            target: target.name,
+            testId: evalCase.id,
+            conversationId: evalCase.conversation_id,
+            error: errorMessage,
+          }),
           target: target.name,
-          error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${budgetUsd.toFixed(4)})`,
+          error: errorMessage,
           budgetExceeded: true,
           executionStatus: 'execution_error',
           failureStage: 'setup',
           failureReasonCode: 'budget_exceeded',
           executionError: {
-            message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${budgetUsd.toFixed(4)})`,
+            message: errorMessage,
             stage: 'setup',
           },
         };
@@ -1282,7 +1304,16 @@ export async function runEvaluation(
           category: evalCase.category,
           score: 0,
           assertions: [],
-          output: [],
+          output: errorMsg,
+          trace: buildTraceFromMessages({
+            input: evalCase.input as readonly Message[],
+            output: [{ role: 'assistant' as const, content: errorMsg }],
+            finalOutput: errorMsg,
+            target: target.name,
+            testId: evalCase.id,
+            conversationId: evalCase.conversation_id,
+            error: errorMsg,
+          }),
           target: target.name,
           error: errorMsg,
           executionStatus: 'execution_error',
@@ -1455,7 +1486,16 @@ export async function runEvaluation(
                   category: evalCase.category,
                   score: 0,
                   assertions: [],
-                  output: [],
+                  output: errorMsg,
+                  trace: buildTraceFromMessages({
+                    input: evalCase.input as readonly Message[],
+                    output: [{ role: 'assistant' as const, content: errorMsg }],
+                    finalOutput: errorMsg,
+                    target: target.name,
+                    testId: evalCase.id,
+                    conversationId: evalCase.conversation_id,
+                    error: errorMsg,
+                  }),
                   target: target.name,
                   error: errorMsg,
                   executionStatus: 'execution_error',
@@ -1756,6 +1796,10 @@ async function runBatchEvaluation(options: {
       if (providerError) {
         result = {
           ...result,
+          trace: appendErrorEventToTrace(result.trace, providerError, {
+            failure_stage: 'agent',
+            failure_reason_code: 'provider_error',
+          }),
           error: providerError,
           executionStatus: 'execution_error' as const,
           failureStage: 'agent' as const,
@@ -2495,6 +2539,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           ...result,
           ...targetUsedField,
           evalRun,
+          trace: appendErrorEventToTrace(result.trace, providerError, {
+            failure_stage: 'agent',
+            failure_reason_code: 'provider_error',
+          }),
           error: providerError,
           executionStatus,
           failureStage: 'agent' as const,
@@ -2510,6 +2558,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
             ...targetUsedField,
             score: 0,
             evalRun,
+            trace: appendErrorEventToTrace(result.trace, skippedEvaluatorError, {
+              failure_stage: 'evaluator',
+              failure_reason_code: 'evaluator_error',
+            }),
             error: skippedEvaluatorError,
             executionStatus,
             failureStage: 'evaluator' as const,
@@ -2748,6 +2800,24 @@ async function evaluateCandidate(options: {
     dependencyResults,
   } = options;
 
+  const input = buildResultInput(promptInputs);
+  const outputMessages = output ?? [{ role: 'assistant' as const, content: candidate }];
+  const evaluationTrace = buildTraceFromMessages({
+    input,
+    output: outputMessages,
+    summary: trace,
+    finalOutput: candidate,
+    tokenUsage,
+    costUsd,
+    durationMs,
+    startTime,
+    endTime,
+    provider: provider.kind,
+    target: target.name,
+    testId: evalCase.id,
+    conversationId: evalCase.conversation_id,
+  });
+
   const gradeTimestamp = nowFn();
   const { score, scores } = await runEvaluatorsForCase({
     evalCase,
@@ -2762,7 +2832,7 @@ async function evaluateCandidate(options: {
     graderProvider,
     agentTimeoutMs,
     output,
-    trace,
+    trace: evaluationTrace,
     costUsd,
     durationMs,
     tokenUsage,
@@ -2811,8 +2881,6 @@ async function evaluateCandidate(options: {
           ...(evaluatorRequest ? { evaluator: evaluatorRequest } : {}),
         }
       : undefined;
-  const input = buildResultInput(promptInputs);
-
   return {
     timestamp: completedAt.toISOString(),
     testId: evalCase.id,
@@ -2829,9 +2897,9 @@ async function evaluateCandidate(options: {
     endTime,
     requests,
     input,
-    output: output ?? [{ role: 'assistant' as const, content: candidate }],
+    output: candidate,
     scores: scores,
-    trace: trace,
+    trace: evaluationTrace,
     fileChanges,
     executionStatus: classifyQualityStatus(score.score, evalThreshold),
   };
@@ -2850,7 +2918,7 @@ async function runEvaluatorsForCase(options: {
   readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly trace?: Trace;
   readonly costUsd?: number;
   readonly durationMs?: number;
   readonly tokenUsage?: TokenUsage;
@@ -2993,7 +3061,7 @@ async function runEvaluatorList(options: {
   readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly trace?: Trace;
   readonly costUsd?: number;
   readonly durationMs?: number;
   readonly tokenUsage?: TokenUsage;
@@ -3519,9 +3587,20 @@ async function runConversationMode(options: {
     role: m.role,
     content: m.content,
   }));
+  const totalDurationMs = Date.now() - caseStartMs;
+  const finalOutput = extractLastAssistantContent(outputMessages);
+  const trace = buildTraceFromMessages({
+    input: evalCase.input as readonly Message[],
+    output: outputMessages,
+    finalOutput,
+    durationMs: totalDurationMs,
+    provider: provider.kind,
+    target: target.name,
+    testId: evalCase.id,
+    conversationId: evalCase.conversation_id,
+  });
 
   const flatAssertions: AssertionEntry[] = allResultScores.flatMap((s) => [...s.assertions]);
-  const totalDurationMs = Date.now() - caseStartMs;
 
   return {
     timestamp: nowFn().toISOString(),
@@ -3531,7 +3610,8 @@ async function runConversationMode(options: {
     score: finalScore,
     assertions: flatAssertions,
     target: target.name,
-    output: outputMessages,
+    output: finalOutput,
+    trace,
     scores: allResultScores,
     executionStatus: classifyQualityStatus(finalScore, threshold ?? DEFAULT_THRESHOLD),
     input: evalCase.input.map((m) => ({
@@ -3732,6 +3812,16 @@ function buildErrorResult(
         }
       : undefined;
   const input = buildResultInput(promptInputs);
+  const output = `Error occurred: ${message}`;
+  const trace = buildTraceFromMessages({
+    input,
+    output: [{ role: 'assistant' as const, content: output }],
+    finalOutput: output,
+    target: targetName,
+    testId: evalCase.id,
+    conversationId: evalCase.conversation_id,
+    error: message,
+  });
 
   return {
     timestamp: timestamp.toISOString(),
@@ -3744,7 +3834,8 @@ function buildErrorResult(
     target: targetName,
     requests,
     input,
-    output: [{ role: 'assistant' as const, content: `Error occurred: ${message}` }],
+    output,
+    trace,
     error: message,
     executionStatus: 'execution_error',
     failureStage,

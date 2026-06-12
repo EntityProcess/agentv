@@ -35,9 +35,7 @@ function formatInput(result: EvaluationResult): string {
 
 function formatOutput(result: EvaluationResult): string {
   if (!result.output || result.output.length === 0) return '(no output)';
-  return result.output
-    .map((msg) => String((msg as unknown as Record<string, unknown>).content ?? ''))
-    .join('\n');
+  return result.output;
 }
 
 // ── Formatting ───────────────────────────────────────────────────────────

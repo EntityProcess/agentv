@@ -48,12 +48,9 @@ describe('Lazy file-backed output loading', () => {
   });
 
   it('lazily loads output from file when outputPath is set', () => {
-    const messages = [
-      { role: 'assistant', content: 'Hello from file' },
-      { role: 'user', content: 'Test' },
-    ];
+    const answer = 'Hello from file';
     const filePath = join(tmpDir, 'output.json');
-    writeFileSync(filePath, JSON.stringify(messages));
+    writeFileSync(filePath, JSON.stringify(answer));
 
     const input: CodeGraderInput = CodeGraderInputSchema.parse({
       criteria: 'test',
@@ -79,8 +76,7 @@ describe('Lazy file-backed output loading', () => {
 
     // First access triggers file read
     const output = input.output;
-    expect(output).toHaveLength(2);
-    expect(output?.[0].content).toBe('Hello from file');
+    expect(output).toBe('Hello from file');
 
     // Second access uses cache
     const output2 = input.output;
@@ -91,13 +87,12 @@ describe('Lazy file-backed output loading', () => {
     const input: CodeGraderInput = CodeGraderInputSchema.parse({
       criteria: 'test',
       expectedOutput: [],
-      output: [{ role: 'assistant', content: 'inline' }],
+      output: 'inline',
       inputFiles: [],
       input: [],
     });
 
     // No lazy loading needed — output is already present
-    expect(input.output).toHaveLength(1);
-    expect(input.output?.[0].content).toBe('inline');
+    expect(input.output).toBe('inline');
   });
 });

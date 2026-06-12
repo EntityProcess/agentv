@@ -6,6 +6,7 @@ import {
   type EvalTest,
   type EvaluationResult,
   type GraderResult,
+  buildTraceFromMessages,
   parseYamlValue,
 } from '@agentv/core';
 
@@ -26,16 +27,33 @@ import {
 } from '../../../src/commands/eval/artifact-writer.js';
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
-  return {
+  const result = {
     timestamp: '2026-03-13T00:00:00.000Z',
     testId: 'test-1',
     score: 0.9,
     assertions: [{ text: 'criterion-1', passed: true }],
-    output: [{ role: 'assistant' as const, content: 'test answer' }],
+    output: 'test answer',
     target: 'test-target',
     executionStatus: 'ok',
     ...overrides,
   } as EvaluationResult;
+
+  return {
+    ...result,
+    trace:
+      result.trace ??
+      buildTraceFromMessages({
+        input: Array.isArray(result.input) ? result.input : [],
+        output: result.output ? [{ role: 'assistant', content: result.output }] : [],
+        finalOutput: result.output,
+        target: result.target,
+        testId: result.testId,
+        conversationId: result.conversationId,
+        tokenUsage: result.tokenUsage,
+        durationMs: result.durationMs,
+        costUsd: result.costUsd,
+      }),
+  };
 }
 
 function makeEvaluatorResult(overrides: Partial<GraderResult> = {}): GraderResult {
@@ -734,6 +752,20 @@ describe('writeArtifactsFromResults', () => {
   });
 
   it('writes transcript.jsonl as one message object per line', async () => {
+    const input = [{ role: 'user' as const, content: 'Inspect artifact output' }];
+    const output = [
+      {
+        role: 'assistant' as const,
+        content: 'Reading artifact-writer.ts',
+        toolCalls: [
+          {
+            tool: 'Read',
+            input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+            output: 'file contents',
+          },
+        ],
+      },
+    ];
     const results = [
       makeResult({
         testId: 'transcript-case',
@@ -742,20 +774,19 @@ describe('writeArtifactsFromResults', () => {
         durationMs: 4200,
         costUsd: 0.25,
         tokenUsage: { input: 100, output: 40, cached: 10, reasoning: 5 },
-        input: [{ role: 'user' as const, content: 'Inspect artifact output' }],
-        output: [
-          {
-            role: 'assistant' as const,
-            content: 'Reading artifact-writer.ts',
-            toolCalls: [
-              {
-                tool: 'Read',
-                input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
-                output: 'file contents',
-              },
-            ],
-          },
-        ],
+        input,
+        output: 'Reading artifact-writer.ts',
+        trace: buildTraceFromMessages({
+          input,
+          output,
+          finalOutput: 'Reading artifact-writer.ts',
+          target: 'codex',
+          testId: 'transcript-case',
+          conversationId: 'session-123',
+          tokenUsage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+          durationMs: 4200,
+          costUsd: 0.25,
+        }),
       }),
     ];
 
@@ -779,7 +810,6 @@ describe('writeArtifactsFromResults', () => {
         source: {
           provider: 'codex',
           session_id: 'session-123',
-          timestamp: '2026-03-13T00:00:00.000Z',
         },
       },
       {
@@ -801,7 +831,6 @@ describe('writeArtifactsFromResults', () => {
         source: {
           provider: 'codex',
           session_id: 'session-123',
-          timestamp: '2026-03-13T00:00:00.000Z',
         },
       },
     ]);
@@ -822,7 +851,7 @@ describe('writeArtifactsFromResults', () => {
         target: 'baseline',
         assertions: [{ text: 'baseline-check', passed: true, evidence: 'baseline evidence' }],
         input: [{ role: 'user' as const, content: 'baseline input' }],
-        output: [{ role: 'assistant' as const, content: 'baseline output' }],
+        output: 'baseline output',
       }),
     ];
 
@@ -1136,7 +1165,7 @@ describe('writeArtifacts (from JSONL file)', () => {
         test_id: 'from-file',
         score: 0.85,
         assertions: [{ text: 'pass-1', passed: true }],
-        output: [{ role: 'assistant', content: 'file answer' }],
+        output: 'file answer',
         target: 'default',
         execution_status: 'ok',
         duration_ms: 12000,

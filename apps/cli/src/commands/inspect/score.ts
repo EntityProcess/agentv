@@ -9,6 +9,7 @@ import {
   type Provider,
   type ProviderRequest,
   type ProviderResponse,
+  buildTraceFromMessages,
   createBuiltinRegistry,
   toCamelCaseDeep,
 } from '@agentv/core';
@@ -205,9 +206,25 @@ async function runScore(
   for (const raw of results) {
     if (testIdFilter && raw.test_id !== testIdFilter) continue;
 
-    const trace = toTraceSummary(raw);
     const candidate = extractCandidate(raw);
-    const output = raw.output as readonly Message[] | undefined;
+    const output =
+      (raw.trace as { messages?: unknown } | undefined)?.messages ??
+      (Array.isArray(raw.output) ? raw.output : undefined);
+    const outputMessages = Array.isArray(output)
+      ? (toCamelCaseDeep(output) as readonly Message[])
+      : undefined;
+    const trace =
+      raw.trace &&
+      Array.isArray((raw.trace as { messages?: unknown }).messages) &&
+      Array.isArray((raw.trace as { events?: unknown }).events)
+        ? (toCamelCaseDeep(raw.trace) as EvaluationContext['trace'])
+        : buildTraceFromMessages({
+            output: outputMessages,
+            finalOutput: candidate,
+            summary: toTraceSummary(raw),
+            target: raw.target,
+            testId: raw.test_id,
+          });
 
     const evalContext: EvaluationContext = {
       evalCase: buildTestCase(raw),
@@ -217,7 +234,7 @@ async function runScore(
       attempt: 1,
       promptInputs: { question: '' },
       now: new Date(),
-      output: Array.isArray(output) ? output : undefined,
+      output: outputMessages,
       trace,
       tokenUsage: raw.token_usage
         ? (toCamelCaseDeep(raw.token_usage) as EvaluationContext['tokenUsage'])

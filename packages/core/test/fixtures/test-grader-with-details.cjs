@@ -7,9 +7,16 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasExpected = Array.isArray(input.expected_output);
-// Extract candidate text from the output message array
-const outputMessages = Array.isArray(input.output) ? input.output : [];
-const candidateText = outputMessages.map((m) => String(m.content ?? '')).join('');
+// `output` is the final answer/scored result. Keep a tiny legacy fallback so
+// this fixture can still explain failures if an old message-array payload leaks.
+const candidateText =
+  typeof input.output === 'string'
+    ? input.output
+    : typeof input.answer === 'string'
+      ? input.answer
+      : Array.isArray(input.output)
+        ? input.output.map((m) => String(m.content ?? '')).join('')
+        : '';
 const hasCandidate = candidateText.length > 0;
 
 // Emit details with structured metrics

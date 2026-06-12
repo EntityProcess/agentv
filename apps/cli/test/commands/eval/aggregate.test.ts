@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import type { EvaluationResult } from '@agentv/core';
+import { type EvaluationResult, buildTraceFromMessages } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../../src/utils/case-conversion.js';
 
 import {
@@ -14,16 +14,28 @@ import {
 } from '../../../src/commands/eval/artifact-writer.js';
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
-  return {
+  const result = {
     timestamp: '2026-04-13T00:00:00.000Z',
     testId: 'test-1',
     score: 0.9,
     assertions: [{ text: 'criterion-1', passed: true }],
-    output: [{ role: 'assistant' as const, content: 'test answer' }],
+    output: 'test answer',
     target: 'test-target',
     executionStatus: 'ok',
     ...overrides,
   } as EvaluationResult;
+
+  return {
+    ...result,
+    trace:
+      result.trace ??
+      buildTraceFromMessages({
+        output: result.output ? [{ role: 'assistant', content: result.output }] : [],
+        finalOutput: result.output,
+        target: result.target,
+        testId: result.testId,
+      }),
+  };
 }
 
 function writeJsonlIndex(dir: string, results: Partial<EvaluationResult>[]): string {
@@ -180,9 +192,7 @@ describe('writePerTestArtifacts', () => {
   });
 
   it('writes response.md for results with output', async () => {
-    const results = [
-      makeResult({ testId: 'test-1', output: [{ role: 'assistant' as const, content: 'hello' }] }),
-    ];
+    const results = [makeResult({ testId: 'test-1', output: 'hello' })];
 
     await writePerTestArtifacts(results, tmpDir);
 

@@ -549,7 +549,7 @@ describe('runEvalCase — conversation mode', () => {
     expect(turn2Score?.score).toBe(1.0);
   });
 
-  it('output contains full conversation transcript with all user and assistant messages', async () => {
+  it('output is the final answer while trace contains the full conversation transcript', async () => {
     const provider = new SequenceProvider('mock', [
       assistantResponse('Answer 1'),
       assistantResponse('Answer 2'),
@@ -574,10 +574,12 @@ describe('runEvalCase — conversation mode', () => {
       now: nowFn,
     });
 
-    // Output should have all messages from the conversation
-    const output = result.output ?? [];
-    const userMessages = output.filter((m) => m.role === 'user');
-    const assistantMessages = output.filter((m) => m.role === 'assistant');
+    // Output is only the final answer/scored result.
+    expect(result.output).toBe('Answer 2');
+
+    // Trace preserves all messages from the conversation.
+    const userMessages = result.trace.messages.filter((m) => m.role === 'user');
+    const assistantMessages = result.trace.messages.filter((m) => m.role === 'assistant');
 
     expect(userMessages.length).toBe(2);
     expect(assistantMessages.length).toBe(2);
