@@ -93,15 +93,6 @@ targets:
     thinking: low
     stream_log: raw
 
-  - name: pi-sdk-openai
-    provider: pi-coding-agent
-    subprovider: openai
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    model: gpt-5.5
-    grader_target: openai
-    thinking: low
-    stream_log: raw
 
   - name: pi-azure
     provider: pi-cli
