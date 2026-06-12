@@ -21,6 +21,7 @@
  *       ref: main
  *       results:
  *         repo_url: git@github.com:example/my-app-results.git
+ *         branch: agentv-results
  *         path: /srv/agentv/results/my-app
  *         sync:
  *           auto_push: true
@@ -62,6 +63,7 @@ export interface ProjectResultsSyncConfig {
 
 export interface ProjectResultsConfig {
   repoUrl: string;
+  branch?: string;
   path?: string;
   sync?: ProjectResultsSyncConfig;
   branchPrefix?: string;
@@ -99,6 +101,7 @@ interface ProjectResultsSyncYaml {
 
 interface ProjectResultsYaml {
   repo_url: string;
+  branch?: string;
   path?: string;
   sync?: ProjectResultsSyncYaml;
   branch_prefix?: string;
@@ -140,6 +143,9 @@ function fromYaml(raw: unknown): ProjectEntry | null {
       const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
       entry.results = {
         repoUrl: r.repo_url.trim(),
+        ...(typeof r.branch === 'string' && r.branch.trim().length > 0
+          ? { branch: r.branch.trim() }
+          : {}),
         ...(typeof r.path === 'string' && r.path.trim().length > 0 ? { path: r.path.trim() } : {}),
         ...(sync && typeof sync.auto_push === 'boolean'
           ? { sync: { autoPush: sync.auto_push } }
@@ -166,6 +172,7 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   if (entry.results) {
     yaml.results = {
       repo_url: entry.results.repoUrl,
+      ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
       ...(entry.results.path !== undefined && { path: entry.results.path }),
       ...(entry.results.sync?.autoPush !== undefined && {
         sync: { auto_push: entry.results.sync.autoPush },

@@ -53,6 +53,7 @@ describe('validateConfigFile', () => {
       `results:
   mode: github
   repo: EntityProcess/agentv-evals
+  branch: agentv-results
   auto_push: true
   branch_prefix: eval-results
 `,
@@ -91,6 +92,7 @@ describe('validateConfigFile', () => {
     ref: main
     results:
       repo_url: git@github.com:EntityProcess/agentv-results.git
+      branch: agentv-results
       path: /srv/agentv-results
       sync:
         auto_push: true
@@ -165,6 +167,7 @@ describe('validateConfigFile', () => {
     ref: ""
     results:
       repo_url: EntityProcess/results
+      branch: ""
       path: repo/subdir
       sync:
         auto_push: yes
@@ -184,6 +187,7 @@ describe('validateConfigFile', () => {
         expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].ref' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo_url' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.branch' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].results.path' }),
         expect.objectContaining({
           severity: 'error',

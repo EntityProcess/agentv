@@ -81,6 +81,7 @@ export {
   materializeGitRun,
   type CheckedOutResultsRepoBranch,
   type GitListedRun,
+  type NormalizedResultsConfig,
   type PreparedResultsRepoBranch,
   type ResultsRepoLocalPaths,
   type ResultsRepoSyncStatus,

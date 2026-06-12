@@ -286,6 +286,18 @@ function validateProjectResultsConfig(
 
   validateGitRemoteUrl(errors, filePath, resultsRecord.repo_url, `${location}.repo_url`);
 
+  if (
+    resultsRecord.branch !== undefined &&
+    (typeof resultsRecord.branch !== 'string' || resultsRecord.branch.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.branch`,
+      message: `Field '${location}.branch' must be a non-empty string`,
+    });
+  }
+
   if (resultsRecord.path !== undefined) {
     if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
       errors.push({
@@ -373,6 +385,18 @@ function validateResultsConfig(
     });
   }
   validateRequiredString(errors, filePath, resultsRecord.repo, `${location}.repo`);
+
+  if (
+    resultsRecord.branch !== undefined &&
+    (typeof resultsRecord.branch !== 'string' || resultsRecord.branch.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.branch`,
+      message: `Field '${location}.branch' must be a non-empty string`,
+    });
+  }
 
   if (resultsRecord.path !== undefined) {
     if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {

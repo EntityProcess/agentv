@@ -118,6 +118,7 @@ function writeRemoteRunArtifact(
   experiment: string,
   timestamp: string,
   resultRecords: object | object[],
+  branch = 'main',
 ): string {
   const isoTimestamp = timestamp.replace(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
@@ -148,7 +149,7 @@ function writeRemoteRunArtifact(
     ),
   );
   git(`git add "${runDir}" && git commit --quiet -m "add ${experiment}"`, cloneDir);
-  git('git push --quiet origin main', cloneDir);
+  git(`git push --quiet origin HEAD:${branch}`, cloneDir);
   git('git fetch --quiet origin --prune', cloneDir);
   return `${experiment}::${timestamp}`;
 }
@@ -924,6 +925,97 @@ describe('serve app', () => {
       expect(detailData.source).toBe('remote');
       expect(detailData.results).toHaveLength(1);
       expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
+    }, 15000);
+
+    it('lists git-native remote runs from the configured storage branch', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const storageBranch = 'agentv-results';
+      git(`git switch --quiet --orphan ${storageBranch}`, cloneDir);
+      git('git rm -rf --quiet . 2>/dev/null || true', cloneDir);
+      git('git commit --quiet --allow-empty -m "seed results branch"', cloneDir);
+      git(`git push --quiet origin HEAD:${storageBranch}`, cloneDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'branch-green-uat',
+        '2026-03-26T11-00-00-000Z',
+        RESULT_A,
+        storageBranch,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  branch: ${storageBranch}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string; experiment?: string }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: `remote::${runId}`,
+        source: 'remote',
+        experiment: 'branch-green-uat',
+      });
+    }, 15000);
+
+    it('does not fall back to checked-out default branch runs when the configured storage branch is missing', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'main-only',
+        '2026-03-26T11-30-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  branch: agentv-results
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const statusRes = await app.request('/api/remote/status');
+      expect(statusRes.status).toBe(200);
+      const statusData = (await statusRes.json()) as {
+        available: boolean;
+        sync_status?: string;
+        run_count: number;
+        last_error?: string;
+      };
+      expect(statusData).toMatchObject({
+        available: false,
+        sync_status: 'unavailable',
+        run_count: 0,
+      });
+      expect(statusData.last_error ?? '').toContain(
+        "Results repo remote branch 'agentv-results' does not exist",
+      );
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string }>;
+      };
+      expect(listData.runs).toHaveLength(0);
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(`remote::${runId}`)}`);
+      expect(detailRes.status).toBe(404);
     }, 15000);
 
     it('dedupes synced local and remote run copies in favor of the local run', async () => {

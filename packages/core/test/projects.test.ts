@@ -144,6 +144,7 @@ describe('projects registry', () => {
     path: /srv/agentv/repo
     results:
       repo_url: https://github.com/EntityProcess/results-project-runs.git
+      branch: agentv-results
       path: /srv/agentv/results/results-project
       sync:
         auto_push: true
@@ -157,6 +158,7 @@ describe('projects registry', () => {
     const registry = loadProjectRegistry();
     expect(registry.projects[0].results).toEqual({
       repoUrl: 'https://github.com/EntityProcess/results-project-runs.git',
+      branch: 'agentv-results',
       path: '/srv/agentv/results/results-project',
       sync: { autoPush: true },
       branchPrefix: 'eval-results',
@@ -164,6 +166,7 @@ describe('projects registry', () => {
 
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('branch: agentv-results');
     expect(yamlOnDisk).toContain('path: /srv/agentv/results/results-project');
     expect(yamlOnDisk).toContain('auto_push: true');
     expect(yamlOnDisk).toContain('branch_prefix: eval-results');

@@ -40,6 +40,8 @@ export type ExecutionDefaults = {
 export type ResultsConfig = {
   readonly mode: 'github';
   readonly repo: string;
+  /** Optional remote branch used as the canonical git-backed results store. */
+  readonly branch?: string;
   /** Local filesystem path for the results clone. Optional; defaults to ~/.agentv/results/<slug>/. */
   readonly path?: string;
   readonly auto_push?: boolean;
@@ -610,6 +612,15 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     return undefined;
   }
 
+  let branch: string | undefined;
+  if (obj.branch !== undefined) {
+    if (typeof obj.branch !== 'string' || obj.branch.trim().length === 0) {
+      logWarning(`Invalid results.branch in ${configPath}, expected non-empty string`);
+      return undefined;
+    }
+    branch = obj.branch.trim();
+  }
+
   let resultsPath: string | undefined;
   if (obj.path !== undefined) {
     if (typeof obj.path !== 'string' || obj.path.trim().length === 0) {
@@ -643,6 +654,7 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   return {
     mode: 'github',
     repo,
+    ...(branch !== undefined && { branch }),
     ...(resultsPath !== undefined && { path: resultsPath }),
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
     ...(branchPrefix && { branch_prefix: branchPrefix }),
