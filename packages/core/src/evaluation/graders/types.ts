@@ -1,6 +1,6 @@
 import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
-import type { TokenUsage, TraceSummary } from '../trace.js';
+import type { TokenUsage, Trace } from '../trace.js';
 import type {
   DependencyResult,
   DockerWorkspaceConfig,
@@ -37,8 +37,8 @@ export interface EvaluationContext {
   readonly evaluator?: GraderConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly output?: readonly Message[];
-  /** Lightweight summary of trace events (if available) */
-  readonly trace?: TraceSummary;
+  /** Canonical execution trace with messages, events, metrics, and provenance. */
+  readonly trace?: Trace;
   /** Token usage from provider execution (promoted from TraceSummary) */
   readonly tokenUsage?: TokenUsage;
   /** Total cost in USD (from provider) */

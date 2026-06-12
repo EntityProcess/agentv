@@ -82,7 +82,9 @@ interface RawToolCall {
  * Shows a hierarchical trace: LLM calls → tool calls.
  */
 function renderTree(result: RawResult): string {
-  const messages = result.output as RawMessage[] | undefined;
+  const messages =
+    (result.trace as { messages?: RawMessage[] } | undefined)?.messages ??
+    (Array.isArray(result.output) ? (result.output as RawMessage[]) : undefined);
   const spans = getTraceSpans(result);
 
   if (!messages || messages.length === 0) {

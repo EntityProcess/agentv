@@ -3,7 +3,7 @@ import path from 'node:path';
 import { command, option, optional, positional, string } from 'cmd-ts';
 import fg from 'fast-glob';
 
-import { executeScript } from '@agentv/core';
+import { buildTraceFromMessages, executeScript } from '@agentv/core';
 
 export const evalAssertCommand = command({
   name: 'assert',
@@ -64,17 +64,26 @@ export const evalAssertCommand = command({
 
     // Build payload matching CodeGrader's expected format (snake_case).
     // Include all fields that defineCodeGrader validates as required.
+    const messages = [{ role: 'assistant' as const, content: resolvedOutput }];
+    const inputMessages = [{ role: 'user' as const, content: resolvedInput }];
+    const trace = buildTraceFromMessages({
+      input: inputMessages,
+      output: messages,
+      finalOutput: resolvedOutput,
+    });
     const payload = JSON.stringify(
       {
-        output: [{ role: 'assistant', content: resolvedOutput }],
-        input: [{ role: 'user', content: resolvedInput }],
+        output: resolvedOutput,
+        answer: resolvedOutput,
+        messages,
+        input: inputMessages,
         question: resolvedInput,
         criteria: '',
         expected_output: [],
         reference_answer: '',
 
         input_files: [],
-        trace: null,
+        trace,
         token_usage: null,
         cost_usd: null,
         duration_ms: null,

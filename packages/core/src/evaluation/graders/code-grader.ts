@@ -134,17 +134,19 @@ export class CodeGrader implements Grader {
       return imageTmpDir;
     };
 
-    // Materialize multimodal content (data URIs → temp files, source → path)
-    const materializedOutput = await materializeContentForGrader(
-      context.output as readonly Record<string, unknown>[] | undefined,
+    const transcriptMessages = context.trace?.messages ?? context.output ?? [];
+
+    // Materialize transcript multimodal content (data URIs → temp files, source → path)
+    const materializedMessages = await materializeContentForGrader(
+      transcriptMessages as unknown as readonly Record<string, unknown>[] | undefined,
       getImageDir,
     );
 
-    // Determine whether to use file-backed output for large payloads
-    let outputForPayload: readonly Record<string, unknown>[] | null = materializedOutput;
+    // Determine whether to use file-backed output for large final answers
+    let outputForPayload: string | null = context.candidate;
     let outputPath: string | undefined;
 
-    if (outputForPayload) {
+    if (outputForPayload !== null) {
       const serialized = JSON.stringify(outputForPayload);
       if (serialized.length > FILE_BACKED_OUTPUT_THRESHOLD) {
         const tmpDir = await mkdtemp(join(tmpdir(), 'agentv-grader-'));
@@ -154,6 +156,13 @@ export class CodeGrader implements Grader {
       }
     }
 
+    const traceForPayload = context.trace
+      ? {
+          ...context.trace,
+          messages: materializedMessages ?? context.trace.messages,
+        }
+      : null;
+
     // Build payload (camelCase internally, converted to snake_case for graders)
     const payload = {
       criteria: context.evalCase.criteria,
@@ -162,6 +171,8 @@ export class CodeGrader implements Grader {
         getImageDir,
       ),
       output: outputForPayload,
+      answer: context.candidate,
+      messages: materializedMessages ?? [],
       outputPath,
       inputFiles: context.evalCase.file_paths,
       input: await materializeContentForGrader(
@@ -169,7 +180,16 @@ export class CodeGrader implements Grader {
         getImageDir,
       ),
       metadata: context.evalCase.metadata ?? null,
-      trace: context.trace ?? null,
+      trace: traceForPayload,
+      traceSummary: context.trace
+        ? {
+            eventCount: context.trace.eventCount,
+            toolCalls: context.trace.toolCalls,
+            errorCount: context.trace.errorCount,
+            toolDurations: context.trace.toolDurations,
+            llmCallCount: context.trace.llmCallCount,
+          }
+        : null,
       tokenUsage: context.tokenUsage ?? null,
       costUsd: context.costUsd ?? null,
       durationMs: context.durationMs ?? null,

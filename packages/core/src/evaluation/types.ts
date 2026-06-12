@@ -1,4 +1,4 @@
-import type { TokenUsage, ToolTrajectoryGraderConfig, TraceSummary } from './trace.js';
+import type { TokenUsage, ToolTrajectoryGraderConfig, Trace } from './trace.js';
 
 /** A single assertion verdict with optional evidence. */
 export interface AssertionEntry {
@@ -1194,14 +1194,14 @@ export interface EvaluationResult {
   };
   readonly scores?: readonly GraderResult[];
   readonly error?: string;
-  /** Lightweight summary of the execution trace (always included when available) */
-  readonly trace?: TraceSummary;
+  /** Canonical execution trace: messages, events, metrics, and provider provenance. */
+  readonly trace: Trace;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
   /** Input messages sent to the agent. Always Message[] for consistent shape with output. */
   readonly input?: readonly import('./providers/types.js').Message[];
-  /** Output messages from agent execution. Always present — at minimum contains the final assistant message. */
-  readonly output: readonly import('./providers/types.js').Message[];
+  /** Final answer / scored result only. Full transcript lives in trace.messages/events. */
+  readonly output: string;
   /** Captured output from workspace before_all script */
   readonly beforeAllOutput?: string;
   /** Captured output from workspace before_each script */

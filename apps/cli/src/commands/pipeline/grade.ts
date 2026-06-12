@@ -17,6 +17,7 @@ import { join } from 'node:path';
 
 import {
   type AssertionResult,
+  buildTraceFromMessages,
   executeScript,
   runContainsAllAssertion,
   runContainsAnyAssertion,
@@ -107,13 +108,22 @@ export async function runCodeGraders(
     const { testId, resultsDir, responseText, inputData } = task;
     const graderName = graderConfig.name as string;
     const inputText = extractInputText(inputData.input);
+    const messages = [{ role: 'assistant' as const, content: responseText }];
+    const trace = buildTraceFromMessages({
+      input: inputData.input,
+      output: messages,
+      finalOutput: responseText,
+      testId,
+    });
     const payload = JSON.stringify({
-      output: [{ role: 'assistant', content: responseText }],
+      output: responseText,
+      answer: responseText,
+      messages,
       input: inputData.input,
       criteria: '',
       expected_output: [],
       input_files: inputData.input_files ?? [],
-      trace: null,
+      trace,
       token_usage: null,
       cost_usd: null,
       duration_ms: null,

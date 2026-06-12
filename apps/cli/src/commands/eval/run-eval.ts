@@ -15,6 +15,7 @@ import {
   ResponseCache,
   RunBudgetTracker,
   type TrialsConfig,
+  buildTraceFromMessages,
   runEvaluation as defaultRunEvaluation,
   deriveCategory,
   ensureVSCodeSubagents,
@@ -313,32 +314,15 @@ function normalizeOutputMessages(cliValue: string | undefined): number | 'all' {
 }
 
 /**
- * Trim output messages for results JSONL.
- * Each message is stripped to { role, content } only.
- *
- * - `1` (default): last assistant message only (legacy behavior)
- * - `N`: last N messages (any role)
- * - `'all'`: all messages
+ * Deprecated compatibility hook for the old output-as-messages JSONL surface.
+ * Result `output` is now the final answer string; full transcript data stays
+ * under `trace.messages` and is intentionally not trimmed here.
  */
 export function trimOutputMessages(
   output: EvaluationResult['output'],
-  outputMessages: number | 'all',
+  _outputMessages: number | 'all',
 ): EvaluationResult['output'] {
-  const messages = output ?? [];
-
-  if (outputMessages === 'all') {
-    return messages.map((m) => ({ role: m.role, content: m.content }));
-  }
-
-  if (outputMessages === 1) {
-    // Legacy behavior: last assistant message only
-    const lastAssistant = messages.filter((m) => m.role === 'assistant').at(-1);
-    return lastAssistant ? [{ role: lastAssistant.role, content: lastAssistant.content }] : [];
-  }
-
-  // Last N messages (any role), trimmed to { role, content }
-  const sliced = messages.slice(-outputMessages);
-  return sliced.map((m) => ({ role: m.role, content: m.content }));
+  return output;
 }
 
 function normalizeOptions(
@@ -1576,7 +1560,16 @@ export async function runEvalCommand(
             testId: testCase.id,
             score: 0,
             assertions: [],
-            output: [],
+            output: budgetMsg,
+            trace: buildTraceFromMessages({
+              input: testCase.input as EvaluationResult['input'],
+              output: [{ role: 'assistant' as const, content: budgetMsg }],
+              finalOutput: budgetMsg,
+              target: selection.targetName,
+              testId: testCase.id,
+              conversationId: testCase.conversation_id,
+              error: budgetMsg,
+            }),
             error: budgetMsg,
             budgetExceeded: true,
             executionStatus: 'execution_error' as const,
@@ -1680,7 +1673,16 @@ export async function runEvalCommand(
                   testId: testCase.id,
                   score: 0,
                   assertions: [],
-                  output: [],
+                  output: message,
+                  trace: buildTraceFromMessages({
+                    input: testCase.input as EvaluationResult['input'],
+                    output: [{ role: 'assistant' as const, content: message }],
+                    finalOutput: message,
+                    target: selection.targetName,
+                    testId: testCase.id,
+                    conversationId: testCase.conversation_id,
+                    error: message,
+                  }),
                   scores: [],
                   error: message,
                   executionStatus: 'execution_error' as const,
