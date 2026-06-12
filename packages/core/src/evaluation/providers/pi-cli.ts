@@ -254,13 +254,19 @@ export class PiCliProvider implements Provider {
     const provider = this.config.subprovider?.toLowerCase() ?? 'google';
 
     if (provider === 'azure') {
-      // Pi CLI uses azure-openai-responses with AZURE_OPENAI_RESOURCE_NAME.
-      // Extract the resource name from base_url (or use it as-is if already a name).
+      // Pi CLI uses azure-openai-responses with either AZURE_OPENAI_RESOURCE_NAME
+      // (short name, pi constructs the URL) or AZURE_OPENAI_BASE_URL (full URL used as-is).
       if (this.config.apiKey) {
         env.AZURE_OPENAI_API_KEY = this.config.apiKey;
       }
       if (this.config.baseUrl) {
-        env.AZURE_OPENAI_RESOURCE_NAME = extractAzureResourceName(this.config.baseUrl);
+        if (/^https?:\/\//.test(this.config.baseUrl)) {
+          // Full URL — pass directly so pi uses it as-is
+          env.AZURE_OPENAI_BASE_URL = this.config.baseUrl;
+        } else {
+          // Bare resource name — existing behaviour, pi constructs the URL
+          env.AZURE_OPENAI_RESOURCE_NAME = extractAzureResourceName(this.config.baseUrl);
+        }
       }
     } else {
       if (this.config.apiKey) {
