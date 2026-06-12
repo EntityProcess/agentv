@@ -9,10 +9,9 @@
  * import { defineAssertion } from '@agentv/eval';
  *
  * export default defineAssertion(({ output, criteria }) => {
- *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
  *   return {
- *     pass: text.includes('hello'),
- *     assertions: [{ text: 'Checks greeting', passed: text.includes('hello') }],
+ *     pass: output.includes('hello'),
+ *     assertions: [{ text: 'Checks greeting', passed: output.includes('hello') }],
  *   };
  * }));
  * ```
@@ -23,7 +22,6 @@
  * import { defineCodeGrader } from '@agentv/eval';
  *
  * export default defineCodeGrader(({ trace, output }) => {
- *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
  *   return {
  *     score: trace?.eventCount <= 5 ? 1.0 : 0.5,
  *     assertions: [{ text: 'Efficient tool usage', passed: trace?.eventCount <= 5 }],
@@ -43,7 +41,25 @@ export {
   NORMALIZED_TRACE_EVENT_TYPES,
   NORMALIZED_TRACE_SOURCE_KINDS,
   NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
+  TRACE_REDACTION_LEVELS,
+  TRACE_SCHEMA_VERSION,
+  TRACE_SOURCE_KINDS,
+  TRACE_EVENT_TYPES,
+  TRACE_TOOL_STATUSES,
   TraceSummarySchema,
+  TraceSchema,
+  TraceArtifactSchema,
+  TraceRawEvidenceSchema,
+  TraceRedactionStateSchema,
+  TraceBranchSchema,
+  TraceErrorSchema,
+  TraceEventSchema,
+  TraceMessageSchema,
+  TraceModelSchema,
+  TraceSessionSchema,
+  TraceSourceRefSchema,
+  TraceSourceSchema,
+  TraceToolSchema,
   NormalizedRawEvidenceSchema,
   NormalizedRedactionStateSchema,
   NormalizedTraceBranchSchema,
@@ -66,6 +82,18 @@ export {
   ContentSchema,
   type CodeGraderInput,
   type CodeGraderResult,
+  type TraceArtifact,
+  type TraceRawEvidence,
+  type TraceRedactionState,
+  type TraceBranch,
+  type TraceError,
+  type TraceEvent,
+  type TraceMessage,
+  type TraceModel,
+  type TraceSession,
+  type TraceSource,
+  type TraceSourceRef,
+  type TraceTool,
   type NormalizedRawEvidence,
   type NormalizedRedactionState,
   type NormalizedTraceBranch,
@@ -79,6 +107,7 @@ export {
   type NormalizedTraceTool,
   type NormalizedTrajectory,
   type TraceSummary,
+  type Trace,
   type Message,
   type ToolCall,
   type TokenUsage,

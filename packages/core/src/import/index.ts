@@ -15,6 +15,8 @@ export {
   groupTranscriptJsonLines,
   readTranscriptFile,
   readTranscriptJsonl,
+  traceFromTranscriptJsonLines,
+  traceToTranscriptJsonLines,
   toTranscriptJsonLines,
   type TranscriptEntry,
   type TranscriptJsonLine,
