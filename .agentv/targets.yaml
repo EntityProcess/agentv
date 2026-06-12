@@ -32,13 +32,13 @@ targets:
     provider: copilot-cli
     model: ${{ COPILOT_MODEL }}
     grader_target: grader
-    log_format: json
+    stream_log: raw
 
   - name: copilot-sdk
     provider: copilot-sdk
     model: ${{ COPILOT_MODEL }}
     grader_target: grader
-    log_format: json
+    stream_log: raw
 
   - name: copilot-sdk-azure
     provider: copilot-sdk
@@ -48,7 +48,7 @@ targets:
       base_url: ${{ AZURE_OPENAI_ENDPOINT }}
       api_key: ${{ AZURE_OPENAI_API_KEY }}
     grader_target: grader
-    log_format: json
+    stream_log: raw
 
   - name: claude
     provider: claude-cli
@@ -85,12 +85,23 @@ targets:
 
   - name: pi-sdk
     provider: pi-coding-agent
-    subprovider: openrouter
-    model: ${{ OPENROUTER_MODEL }}
-    api_key: ${{ OPENROUTER_API_KEY }}
-    grader_target: grader
-    tools: read,bash,edit,write
-    log_format: json
+    subprovider: openai
+    base_url: ${{ OPENAI_ENDPOINT }}
+    api_key: ${{ OPENAI_API_KEY }}
+    model: gpt-5.5
+    grader_target: openai
+    thinking: low
+    stream_log: raw
+
+  - name: pi-sdk-openai
+    provider: pi-coding-agent
+    subprovider: openai
+    base_url: ${{ OPENAI_ENDPOINT }}
+    api_key: ${{ OPENAI_API_KEY }}
+    model: gpt-5.5
+    grader_target: openai
+    thinking: low
+    stream_log: raw
 
   - name: pi-azure
     provider: pi-cli
@@ -104,11 +115,11 @@ targets:
     provider: pi-coding-agent
     subprovider: azure
     base_url: ${{ AZURE_OPENAI_ENDPOINT }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    model: gpt-5.5
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     grader_target: grader
-    tools: read,bash,edit,write
-    log_format: json
+    thinking: low
+    stream_log: raw
 
   - name: codex
     provider: codex
