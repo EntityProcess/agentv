@@ -26,7 +26,7 @@ const RESULT_FULL = {
     { text: 'Says hello', passed: true },
     { text: 'Uses name', passed: true },
   ],
-  output: [{ role: 'assistant', content: 'Hello, Alice!' }],
+  output: 'Hello, Alice!',
   target: 'gpt-4o',
   scores: [
     {
@@ -88,7 +88,7 @@ const RESULT_NO_TRACE = {
   suite: 'demo',
   score: 1.0,
   assertions: [{ text: 'Correct', passed: true }],
-  output: [{ role: 'assistant', content: 'Yes.' }],
+  output: 'Yes.',
   target: 'default',
   token_usage: { input: 50, output: 20 },
   cost_usd: 0.001,
@@ -210,7 +210,10 @@ describe('results export', () => {
       execution_status: 'ok',
       grading_path: 'demo/test-greeting/grading.json',
       timing_path: 'demo/test-greeting/timing.json',
-      output_path: 'demo/test-greeting/outputs/response.md',
+      output_path: 'demo/test-greeting/outputs/answer.md',
+      answer_path: 'demo/test-greeting/outputs/answer.md',
+      response_path: 'demo/test-greeting/outputs/response.md',
+      transcript_path: 'demo/test-greeting/outputs/transcript.jsonl',
       input_path: 'demo/test-greeting/input.md',
     });
   });
@@ -270,15 +273,19 @@ describe('results export', () => {
     expect(existsSync(perTestTimingPath)).toBe(true);
   });
 
-  it('should write answer text to <test-id>/outputs/response.md as human-readable markdown', async () => {
+  it('should write answer text to <test-id>/outputs/answer.md as human-readable markdown', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL);
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'response.md');
+    const answerPath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'answer.md');
     expect(existsSync(answerPath)).toBe(true);
-    expect(readFileSync(answerPath, 'utf8')).toBe('@[assistant]:\nHello, Alice!');
+    expect(readFileSync(answerPath, 'utf8')).toBe('Hello, Alice!');
+
+    const responsePath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'response.md');
+    expect(existsSync(responsePath)).toBe(true);
+    expect(readFileSync(responsePath, 'utf8')).toBe('Hello, Alice!');
   });
 
   it('should group results by target in benchmark.json', async () => {
@@ -345,7 +352,7 @@ describe('results export', () => {
     const answerPath = path.join(
       artifactDir(outputDir, RESULT_DIFFERENT_TARGET),
       'outputs',
-      'response.md',
+      'answer.md',
     );
     expect(existsSync(answerPath)).toBe(false);
   });

@@ -205,7 +205,12 @@ describe('trace utils', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].test_id).toBe('test-2');
-      expect(results[0].trace).toBeUndefined();
+      expect(results[0].trace).toMatchObject({
+        schema_version: 'agentv.trace.v1',
+        event_count: 0,
+        messages: [],
+        events: [],
+      });
     });
 
     it('loads index.jsonl directly', () => {
@@ -216,7 +221,12 @@ describe('trace utils', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].test_id).toBe('test-2');
-      expect(results[0].trace).toBeUndefined();
+      expect(results[0].trace).toMatchObject({
+        schema_version: 'agentv.trace.v1',
+        event_count: 0,
+        messages: [],
+        events: [],
+      });
     });
 
     it('loads simple trace jsonl exports and keeps spans available for trace commands', () => {

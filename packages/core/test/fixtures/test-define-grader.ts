@@ -7,8 +7,9 @@ import { defineCodeGrader } from '../../../eval/src/index.js';
 export default defineCodeGrader(({ output, criteria }) => {
   const assertions: { text: string; passed: boolean }[] = [];
 
-  // Extract text from the output message array
-  const candidateText = (output ?? []).map((m) => String(m.content ?? '')).join(' ');
+  // `output` is the final answer/scored result. Transcript-aware graders should
+  // use messages/trace instead.
+  const candidateText = output ?? '';
 
   // Simple check: does candidate mention the criteria keywords?
   const outcomeWords = criteria.toLowerCase().split(/\s+/);

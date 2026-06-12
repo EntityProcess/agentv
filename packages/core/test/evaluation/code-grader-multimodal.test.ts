@@ -269,8 +269,9 @@ describe('CodeGrader multimodal integration', () => {
     expect(result.score).toBe(1.0);
     const details = result.details as Record<string, unknown>;
     const payload = details.payload as Record<string, unknown>;
-    const outputMsgs = payload.output as Record<string, unknown>[];
-    expect(outputMsgs[0].content).toBe('Hello world');
+    expect(payload.output).toBe('answer');
+    const messages = payload.messages as Record<string, unknown>[];
+    expect(messages[0].content).toBe('Hello world');
   });
 
   it('materializes image data URIs in output for grader', async () => {
@@ -300,8 +301,9 @@ describe('CodeGrader multimodal integration', () => {
     // Verify the grader received the payload with image paths (not data URIs)
     const details = result.details as Record<string, unknown>;
     const payload = details.payload as Record<string, unknown>;
-    const outputMsgs = payload.output as Record<string, unknown>[];
-    const content = outputMsgs[0].content as Record<string, unknown>[];
+    expect(payload.output).toBe('answer');
+    const messages = payload.messages as Record<string, unknown>[];
+    const content = messages[0].content as Record<string, unknown>[];
 
     // Text block preserved
     expect(content[0]).toEqual({ type: 'text', text: 'Generated chart:' });

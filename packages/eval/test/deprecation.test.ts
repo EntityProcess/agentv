@@ -23,15 +23,17 @@ describe('enrichInput — pass-through', () => {
     expect(result).toBe(input);
   });
 
-  it('structured fields (input, output, expectedOutput) remain Message[]', () => {
+  it('structured fields (input, messages, expectedOutput) remain transcript arrays', () => {
     const input = buildInput({
       input: [{ role: 'user', content: 'Hello' }],
-      output: [{ role: 'assistant', content: 'Hi' }],
+      output: 'Hi',
+      messages: [{ role: 'assistant', content: 'Hi' }],
       expectedOutput: [{ role: 'assistant', content: 'Hi there' }],
     });
     enrichInput(input);
     expect(Array.isArray(input.input)).toBe(true);
-    expect(Array.isArray(input.output)).toBe(true);
+    expect(input.output).toBe('Hi');
+    expect(Array.isArray(input.messages)).toBe(true);
     expect(Array.isArray(input.expectedOutput)).toBe(true);
   });
 });

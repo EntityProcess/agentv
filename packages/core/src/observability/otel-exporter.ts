@@ -216,8 +216,10 @@ export class OtelTraceExporter {
             rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
         }
 
-        // Child spans from trace messages (--trace mode)
-        const traceMessages = result.trace.messages;
+        // Child spans from canonical trace messages.
+        // Some callers may still export older result artifacts while migrating,
+        // so tolerate a missing trace instead of crashing the exporter.
+        const traceMessages = result.trace?.messages ?? [];
         if (traceMessages.length > 0) {
           const parentCtx = api.trace.setSpan(api.context.active(), rootSpan);
 

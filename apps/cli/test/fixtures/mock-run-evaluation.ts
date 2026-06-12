@@ -41,7 +41,8 @@ interface EvaluationResultLike {
     readonly passed: boolean;
     readonly evidence?: string;
   }[];
-  readonly output: readonly { readonly role: string; readonly content: string }[];
+  readonly output: string;
+  readonly trace: Record<string, unknown>;
   readonly expectedAspectCount: number;
   readonly target: string;
   readonly timestamp: string;
@@ -63,20 +64,53 @@ function evalCaseIds(evalCases: ReadonlyArray<unknown> | undefined): readonly st
     .filter((id): id is string => id !== undefined);
 }
 
+function buildTrace(targetName: string, testId: string, output: string): Record<string, unknown> {
+  const message = { role: 'assistant', content: output };
+  return {
+    schemaVersion: 'agentv.trace.v1',
+    eventCount: 2,
+    toolCalls: {},
+    errorCount: 0,
+    llmCallCount: 1,
+    messages: [message],
+    events: [
+      {
+        eventId: 'message-0',
+        ordinal: 0,
+        type: 'message',
+        message,
+        metadata: { message_index: 0 },
+      },
+      {
+        eventId: 'final-response',
+        parentEventId: 'message-0',
+        ordinal: 1,
+        type: 'final_response',
+        message,
+        metadata: { message_index: 0 },
+      },
+    ],
+    metadata: { provider: 'mock', target: targetName, eval_case_id: testId },
+  };
+}
+
 function buildResult(targetName: string, testId: string, index: number): EvaluationResultLike {
   const baseTime = new Date('2024-01-01T00:00:00.000Z');
   if (testId === 'case-alpha') {
+    const output = 'Alpha answer';
     return {
       testId: 'case-alpha',
       score: 0.6,
       assertions: [{ text: 'alpha', passed: true }],
-      output: [{ role: 'assistant', content: 'Alpha answer' }],
+      output,
+      trace: buildTrace(targetName, 'case-alpha', output),
       expectedAspectCount: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
     };
   }
   if (testId === 'case-beta') {
+    const output = 'Beta answer';
     return {
       testId: 'case-beta',
       score: 0.9,
@@ -85,17 +119,20 @@ function buildResult(targetName: string, testId: string, index: number): Evaluat
         { text: 'gamma', passed: true },
         { text: 'delta', passed: false },
       ],
-      output: [{ role: 'assistant', content: 'Beta answer' }],
+      output,
+      trace: buildTrace(targetName, 'case-beta', output),
       expectedAspectCount: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
     };
   }
+  const output = `${testId} answer`;
   return {
     testId,
     score: 1,
     assertions: [{ text: testId, passed: true }],
-    output: [{ role: 'assistant', content: `${testId} answer` }],
+    output,
+    trace: buildTrace(targetName, testId, output),
     expectedAspectCount: 1,
     target: targetName,
     timestamp: new Date(baseTime.getTime() + index * 60_000).toISOString(),

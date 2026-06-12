@@ -13,7 +13,7 @@ const makeResult = (overrides: Partial<EvaluationResult> = {}): EvaluationResult
       { text: "contains 'Dear'", passed: false, evidence: "'Dear' not found" },
       { text: 'contains greeting', passed: true },
     ],
-    output: [{ role: 'assistant', content: 'Hi there!' }],
+    output: 'Hi there!',
     input: [{ role: 'user', content: 'Give a formal greeting' }],
     executionStatus: 'success',
     durationMs: 1200,

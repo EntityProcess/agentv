@@ -4,6 +4,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'bun:test';
+import { buildTraceFromMessages } from '../../src/evaluation/trace.js';
 import { OTEL_BACKEND_PRESETS, OtelTraceExporter } from '../../src/observability/otel-exporter.js';
 
 // ---------------------------------------------------------------------------
@@ -225,7 +226,13 @@ describe('W3C traceparent propagation', () => {
       testId: 'test-tp',
       target: 'my-agent',
       score: 1,
-      output: [{ role: 'assistant' as const, content: 'ok' }],
+      output: 'ok',
+      trace: buildTraceFromMessages({
+        output: [{ role: 'assistant' as const, content: 'ok' }],
+        finalOutput: 'ok',
+        target: 'my-agent',
+        testId: 'test-tp',
+      }),
       timestamp: new Date().toISOString(),
     }) as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
 
@@ -353,14 +360,20 @@ describe('Per-span token usage metrics', () => {
       target: 'my-agent',
       score: 1,
       timestamp: new Date().toISOString(),
-      output: [
-        {
-          role: 'assistant',
-          content: 'hello',
-          metadata: { model: 'gpt-4' },
-          tokenUsage: { input: 100, output: 50, cached: 25 },
-        },
-      ],
+      output: 'hello',
+      trace: buildTraceFromMessages({
+        output: [
+          {
+            role: 'assistant',
+            content: 'hello',
+            metadata: { model: 'gpt-4' },
+            tokenUsage: { input: 100, output: 50, cached: 25 },
+          },
+        ],
+        finalOutput: 'hello',
+        target: 'my-agent',
+        testId: 'test-tokens',
+      }),
     } as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
 
     await setup.exporter.exportResult(result);
@@ -385,13 +398,19 @@ describe('Per-span token usage metrics', () => {
       target: 'my-agent',
       score: 1,
       timestamp: new Date().toISOString(),
-      output: [
-        {
-          role: 'assistant',
-          content: 'hello',
-          metadata: { model: 'gpt-4' },
-        },
-      ],
+      output: 'hello',
+      trace: buildTraceFromMessages({
+        output: [
+          {
+            role: 'assistant',
+            content: 'hello',
+            metadata: { model: 'gpt-4' },
+          },
+        ],
+        finalOutput: 'hello',
+        target: 'my-agent',
+        testId: 'test-no-tokens',
+      }),
     } as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
 
     await setup.exporter.exportResult(result);
@@ -416,14 +435,20 @@ describe('Per-span token usage metrics', () => {
       target: 'my-agent',
       score: 1,
       timestamp: new Date().toISOString(),
-      output: [
-        {
-          role: 'assistant',
-          content: 'hello',
-          metadata: { model: 'gpt-4' },
-          tokenUsage: { input: 200, output: 75 },
-        },
-      ],
+      output: 'hello',
+      trace: buildTraceFromMessages({
+        output: [
+          {
+            role: 'assistant',
+            content: 'hello',
+            metadata: { model: 'gpt-4' },
+            tokenUsage: { input: 200, output: 75 },
+          },
+        ],
+        finalOutput: 'hello',
+        target: 'my-agent',
+        testId: 'test-partial-tokens',
+      }),
     } as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
 
     await setup.exporter.exportResult(result);

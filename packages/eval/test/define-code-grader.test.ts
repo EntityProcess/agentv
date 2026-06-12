@@ -14,6 +14,16 @@ import {
   MessageSchema,
 } from '../src/schemas.js';
 
+const makeTrace = (overrides: Record<string, unknown> = {}) => ({
+  schemaVersion: 'agentv.trace.v1',
+  eventCount: 3,
+  toolCalls: { read: 2, write: 1 },
+  errorCount: 0,
+  messages: [],
+  events: [],
+  ...overrides,
+});
+
 // ---------------------------------------------------------------------------
 // Content schemas
 // ---------------------------------------------------------------------------
@@ -180,11 +190,7 @@ describe('CodeGraderInputSchema', () => {
   it('accepts optional trace', () => {
     const inputWithTrace = {
       ...validInput,
-      trace: {
-        eventCount: 3,
-        toolCalls: { read: 2, write: 1 },
-        errorCount: 0,
-      },
+      trace: makeTrace(),
     };
     const result = CodeGraderInputSchema.parse(inputWithTrace);
     expect(result.trace?.eventCount).toBe(3);
@@ -209,10 +215,11 @@ describe('CodeGraderInputSchema', () => {
     expect(result.config).toEqual({ maxToolCalls: 10, strictMode: true });
   });
 
-  it('accepts optional output with toolCalls', () => {
+  it('accepts final output plus transcript messages with toolCalls', () => {
     const inputWithOutput = {
       ...validInput,
-      output: [
+      output: 'Reading file...',
+      messages: [
         {
           role: 'assistant',
           content: 'Reading file...',
@@ -221,13 +228,15 @@ describe('CodeGraderInputSchema', () => {
       ],
     };
     const result = CodeGraderInputSchema.parse(inputWithOutput);
-    expect(result.output?.[0].toolCalls?.[0].tool).toBe('read');
+    expect(result.output).toBe('Reading file...');
+    expect(result.messages?.[0].toolCalls?.[0].tool).toBe('read');
   });
 
-  it('accepts output with Content[] containing image blocks', () => {
+  it('accepts transcript messages with Content[] containing image blocks', () => {
     const inputWithImages = {
       ...validInput,
-      output: [
+      output: 'Generated chart:',
+      messages: [
         {
           role: 'assistant',
           content: [
@@ -238,7 +247,7 @@ describe('CodeGraderInputSchema', () => {
       ],
     };
     const result = CodeGraderInputSchema.parse(inputWithImages);
-    const content = result.output?.[0].content as { type: string; path?: string }[];
+    const content = result.messages?.[0].content as { type: string; path?: string }[];
     expect(content).toHaveLength(2);
     expect(content[1].type).toBe('image');
     expect(content[1].path).toBe('/workspace/chart.png');
