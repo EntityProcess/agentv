@@ -723,6 +723,7 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
   } catch (error) {
     return {
       ...baseStatus,
+      ...(normalized.branch ? { available: false } : {}),
       sync_status: 'unavailable',
       last_error: getStatusMessage(error),
     };

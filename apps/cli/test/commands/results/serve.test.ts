@@ -968,6 +968,56 @@ describe('serve app', () => {
       });
     }, 15000);
 
+    it('does not fall back to checked-out default branch runs when the configured storage branch is missing', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'main-only',
+        '2026-03-26T11-30-00-000Z',
+        RESULT_A,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  branch: agentv-results
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const statusRes = await app.request('/api/remote/status');
+      expect(statusRes.status).toBe(200);
+      const statusData = (await statusRes.json()) as {
+        available: boolean;
+        sync_status?: string;
+        run_count: number;
+        last_error?: string;
+      };
+      expect(statusData).toMatchObject({
+        available: false,
+        sync_status: 'unavailable',
+        run_count: 0,
+      });
+      expect(statusData.last_error ?? '').toContain(
+        "Results repo remote branch 'agentv-results' does not exist",
+      );
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string }>;
+      };
+      expect(listData.runs).toHaveLength(0);
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(`remote::${runId}`)}`);
+      expect(detailRes.status).toBe(404);
+    }, 15000);
+
     it('dedupes synced local and remote run copies in favor of the local run', async () => {
       const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
       const runId = writeRemoteRunArtifact(

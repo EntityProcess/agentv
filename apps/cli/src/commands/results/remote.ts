@@ -211,7 +211,9 @@ async function getRemoteRunCount(
     try {
       runCount = (await cachedListGitRuns(config.path, getResultsStorageRef(config))).length;
     } catch {
-      runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
+      if (!config.branch) {
+        runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
+      }
     }
   }
   return runCount;
@@ -301,16 +303,20 @@ export async function listMergedResultFiles(
         sizeBytes: r.size_bytes || 0,
       }));
     } catch (error) {
-      console.error('git-native listing failed, falling back', error);
-      remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
-        (meta) =>
-          ({
-            ...meta,
-            filename: encodeRemoteRunId(meta.filename),
-            raw_filename: meta.filename,
-            source: 'remote' as const,
-          }) satisfies SourcedResultFileMeta,
-      );
+      if (config.branch) {
+        console.error('git-native listing failed for configured results branch', error);
+      } else {
+        console.error('git-native listing failed, falling back', error);
+        remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
+          (meta) =>
+            ({
+              ...meta,
+              filename: encodeRemoteRunId(meta.filename),
+              raw_filename: meta.filename,
+              source: 'remote' as const,
+            }) satisfies SourcedResultFileMeta,
+        );
+      }
     }
   } else {
     remoteRuns = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).map(
