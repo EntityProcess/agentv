@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'bun:test';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   containsTemplateVariables,
   resolveCustomPrompt,
 } from '../../../src/evaluation/graders/prompt-resolution.js';
+import { buildTraceFromMessages } from '../../../src/evaluation/trace.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('containsTemplateVariables', () => {
   it('returns true for template with {{output}}', () => {
@@ -81,5 +88,71 @@ describe('resolveCustomPrompt', () => {
       prompt: { command: ['node', 'script.js'] },
     });
     expect(result).toBeUndefined();
+  });
+
+  it('passes final answer as output and transcript through messages/trace to executable prompts', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'prompt-template-contract-'));
+    const promptPath = path.join(tmpDir, 'prompt-template.ts');
+    const promptTemplateRuntime = pathToFileURL(
+      path.resolve(__dirname, '../../../../eval/src/prompt-template.ts'),
+    ).href;
+
+    writeFileSync(
+      promptPath,
+      `import { definePromptTemplate } from ${JSON.stringify(promptTemplateRuntime)};
+
+definePromptTemplate((ctx) => {
+  if (typeof ctx.output !== 'string') {
+    throw new Error('expected output to be the final answer string');
+  }
+  if (ctx.output !== 'Final answer') {
+    throw new Error('unexpected final answer: ' + ctx.output);
+  }
+  if (ctx.answer !== ctx.output) {
+    throw new Error('answer should mirror output');
+  }
+  if (!Array.isArray(ctx.messages) || ctx.messages.length < 2) {
+    throw new Error('expected transcript messages');
+  }
+  if (!ctx.messages.some((message) => message.role === 'assistant' && message.content === 'Trace assistant turn')) {
+    throw new Error('expected transcript message from trace');
+  }
+  if (!ctx.trace || !Array.isArray(ctx.trace.messages) || ctx.trace.messages.length !== ctx.messages.length) {
+    throw new Error('expected full trace with transcript messages');
+  }
+
+  return \`Final: \${ctx.output}; messages: \${ctx.messages.length}; trace: \${ctx.trace.messages.length}\`;
+});
+`,
+    );
+
+    const trace = buildTraceFromMessages({
+      input: [{ role: 'user', content: 'Question?' }],
+      output: [{ role: 'assistant', content: 'Trace assistant turn' }],
+      finalOutput: 'Final answer',
+      target: 'mock',
+      testId: 'prompt-contract',
+    });
+
+    const result = await resolveCustomPrompt(
+      {
+        resolvedPromptScript: [process.execPath, 'run', promptPath],
+      },
+      {
+        evalCase: {
+          id: 'prompt-contract',
+          input: [{ role: 'user', content: 'Question?' }],
+          expected_output: [{ role: 'assistant', content: 'Expected answer' }],
+          file_paths: [],
+          criteria: 'Check final answer.',
+        },
+        candidate: 'Final answer',
+        output: [{ role: 'assistant', content: 'Legacy transcript fallback' }],
+        trace,
+      },
+      5_000,
+    );
+
+    expect(result).toBe('Final: Final answer; messages: 2; trace: 2');
   });
 });

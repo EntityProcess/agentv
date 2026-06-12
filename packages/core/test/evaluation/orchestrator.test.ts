@@ -1153,7 +1153,7 @@ describe('runEvalCase trace integration', () => {
 const stdin = readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
 const question = (input.input || []).map((m) => String(m.content ?? '')).join('\\n');
-const answer = (input.output || []).map((m) => String(m.content ?? '')).join('\\n');
+const answer = String(input.output ?? '');
 const ref = (input.expected_output || []).map((m) => String(m.content ?? '')).join('\\n') || 'none';
 console.log(\`Question: \${question}
 Answer: \${answer}
@@ -1223,7 +1223,7 @@ Reference: \${ref}\`);
 const stdin = fs.readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
 const question = (input.input || []).map((m) => String(m.content || '')).join('\\n');
-const answer = (input.output || []).map((m) => String(m.content || '')).join('\\n');
+const answer = String(input.output || '');
 console.log('Question: ' + question + '\\nAnswer: ' + answer);
 `,
       );

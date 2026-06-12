@@ -17,7 +17,7 @@ import { toSnakeCaseDeep } from '../case-conversion.js';
 import { readTextFile } from '../file-utils.js';
 import type { Message } from '../providers/types.js';
 import { VALID_TEMPLATE_VARIABLES } from '../template-variables.js';
-import type { TraceSummary } from '../trace.js';
+import type { Trace } from '../trace.js';
 import type { EvalTest, PromptScriptConfig } from '../types.js';
 import { executeScript } from './code-grader.js';
 
@@ -25,7 +25,7 @@ export interface ResolveCustomPromptContext {
   readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly trace?: Trace;
   readonly config?: Record<string, unknown>;
   readonly fileChanges?: string;
   readonly workspacePath?: string;
@@ -97,10 +97,14 @@ async function executePromptTemplate(
   config?: Record<string, unknown>,
   timeoutMs?: number,
 ): Promise<string> {
+  const messages = context.trace?.messages ?? context.output ?? [];
+
   const payload = {
     criteria: context.evalCase.criteria,
     expectedOutput: context.evalCase.expected_output,
-    output: context.output ?? null,
+    output: context.candidate,
+    answer: context.candidate,
+    messages,
     inputFiles: context.evalCase.file_paths,
     input: context.evalCase.input,
     metadata: context.evalCase.metadata ?? null,
