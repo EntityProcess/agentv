@@ -5,7 +5,7 @@ import {
   DEFAULT_THRESHOLD,
   type EvaluationResult,
   type GitListedRun,
-  type ResultsConfig,
+  type NormalizedResultsConfig,
   type ResultsRepoStatus,
   directPushResults,
   directorySizeBytes,
@@ -37,32 +37,41 @@ import {
 
 // ── In-memory TTL cache for listGitRuns ────────────────────────────
 // Avoids repeated expensive git ls-tree + git cat-file --batch operations
-// on every API request. Cache key is repoDir, TTL is 60 seconds.
+// on every API request. Cache key is repoDir + ref, TTL is 60 seconds.
 const gitRunsCache = new Map<string, { data: Promise<GitListedRun[]>; expiresAt: number }>();
 const GIT_RUNS_CACHE_TTL_MS = 60_000;
 
-function cachedListGitRuns(repoDir: string) {
+function getResultsStorageRef(config: NormalizedResultsConfig): string | undefined {
+  return config.branch ? `origin/${config.branch}` : undefined;
+}
+
+function cachedListGitRuns(repoDir: string, ref?: string) {
   const now = Date.now();
-  const cached = gitRunsCache.get(repoDir);
+  const cacheKey = `${repoDir}\0${ref ?? ''}`;
+  const cached = gitRunsCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     return cached.data;
   }
-  const promise = listGitRuns(repoDir);
-  gitRunsCache.set(repoDir, { data: promise, expiresAt: now + GIT_RUNS_CACHE_TTL_MS });
+  const promise = ref ? listGitRuns(repoDir, ref) : listGitRuns(repoDir);
+  gitRunsCache.set(cacheKey, { data: promise, expiresAt: now + GIT_RUNS_CACHE_TTL_MS });
   // Evict stale entry once the promise settles so a fresh fetch replaces it
   promise
     .catch(() => {})
     .finally(() => {
-      const entry = gitRunsCache.get(repoDir);
+      const entry = gitRunsCache.get(cacheKey);
       if (entry && entry.expiresAt <= Date.now()) {
-        gitRunsCache.delete(repoDir);
+        gitRunsCache.delete(cacheKey);
       }
     });
   return promise;
 }
 
 function invalidateGitRunsCache(repoDir: string): void {
-  gitRunsCache.delete(repoDir);
+  for (const key of gitRunsCache.keys()) {
+    if (key.startsWith(`${repoDir}\0`)) {
+      gitRunsCache.delete(key);
+    }
+  }
 }
 
 export type RunSource = 'local' | 'remote';
@@ -144,7 +153,7 @@ async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
 async function loadNormalizedResultsConfig(
   cwd: string,
   projectId?: string,
-): Promise<Required<ResultsConfig> | undefined> {
+): Promise<NormalizedResultsConfig | undefined> {
   const repoRoot = (await findRepoRoot(cwd)) ?? cwd;
   const config = await loadConfig(path.join(cwd, '_'), repoRoot);
   const project =
@@ -155,6 +164,7 @@ async function loadNormalizedResultsConfig(
     ? {
         mode: 'github' as const,
         repo: project.results.repoUrl,
+        branch: project.results.branch,
         path: project.results.path,
         auto_push: project.results.sync?.autoPush,
         branch_prefix: project.results.branchPrefix,
@@ -193,13 +203,13 @@ export async function getRemoteResultsStatus(
 }
 
 async function getRemoteRunCount(
-  config: Required<ResultsConfig> | undefined,
+  config: NormalizedResultsConfig | undefined,
   status: ResultsRepoStatus,
 ): Promise<number> {
   let runCount = 0;
   if (config && status.available) {
     try {
-      runCount = (await cachedListGitRuns(config.path)).length;
+      runCount = (await cachedListGitRuns(config.path, getResultsStorageRef(config))).length;
     } catch {
       runCount = listResultFilesFromRunsDir(resolveResultsRepoRunsDir(config)).length;
     }
@@ -277,7 +287,7 @@ export async function listMergedResultFiles(
   let remoteRuns: SourcedResultFileMeta[] = [];
   if (config.mode === 'github') {
     try {
-      const gitRuns = await cachedListGitRuns(config.path);
+      const gitRuns = await cachedListGitRuns(config.path, getResultsStorageRef(config));
       remoteRuns = gitRuns.map((r) => ({
         filename: encodeRemoteRunId(r.run_id),
         raw_filename: r.run_id,
@@ -359,7 +369,7 @@ export async function ensureRemoteRunAvailable(
     '.agentv/results/runs',
     path.posix.dirname(relativeManifestPath),
   );
-  await materializeGitRun(config.path, relativeRunPath);
+  await materializeGitRun(config.path, relativeRunPath, getResultsStorageRef(config));
 }
 
 export async function readRemoteRunTagState(

@@ -254,6 +254,7 @@ describe('parseResultsConfig', () => {
       {
         mode: 'github',
         repo: 'EntityProcess/agentv-evals',
+        branch: 'agentv-results',
         path: '~/data/agentv-results',
         auto_push: true,
         branch_prefix: 'eval-results',
@@ -264,6 +265,7 @@ describe('parseResultsConfig', () => {
     expect(result).toEqual({
       mode: 'github',
       repo: 'EntityProcess/agentv-evals',
+      branch: 'agentv-results',
       path: '~/data/agentv-results',
       auto_push: true,
       branch_prefix: 'eval-results',
@@ -351,6 +353,19 @@ describe('parseResultsConfig', () => {
       {
         mode: 'github',
         repo: 123,
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when branch is empty', () => {
+    const result = parseResultsConfig(
+      {
+        mode: 'github',
+        repo: 'EntityProcess/agentv-evals',
+        branch: '',
       },
       '/tmp/.agentv/config.yaml',
     );

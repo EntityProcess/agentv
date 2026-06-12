@@ -62,6 +62,15 @@ export interface ResultsRepoStatus {
   readonly commit_created?: boolean;
 }
 
+export interface NormalizedResultsConfig {
+  readonly mode: 'github';
+  readonly repo: string;
+  readonly branch?: string;
+  readonly path: string;
+  readonly auto_push: boolean;
+  readonly branch_prefix: string;
+}
+
 export interface CheckedOutResultsRepoBranch {
   readonly branchName: string;
   readonly baseBranch: string;
@@ -116,14 +125,16 @@ function expandHome(p: string): string {
   return p;
 }
 
-export function normalizeResultsConfig(config: ResultsConfig): Required<ResultsConfig> {
+export function normalizeResultsConfig(config: ResultsConfig): NormalizedResultsConfig {
   const repo = config.repo.trim();
+  const branch = config.branch?.trim();
   const resolvedPath = config.path
     ? expandHome(config.path.trim())
     : path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repo));
   return {
     mode: 'github',
     repo,
+    ...(branch ? { branch } : {}),
     path: resolvedPath,
     auto_push: config.auto_push === true,
     branch_prefix: config.branch_prefix?.trim() || 'eval-results',
@@ -236,6 +247,78 @@ async function resolveDefaultBranch(repoDir: string): Promise<string> {
 
 async function fetchResultsRepo(repoDir: string): Promise<void> {
   await runGit(['fetch', 'origin', '--prune'], { cwd: repoDir });
+}
+
+function remoteBranchRef(branch: string): string {
+  return `origin/${branch}`;
+}
+
+function missingConfiguredBranchError(config: NormalizedResultsConfig): Error {
+  const branch = config.branch ?? '<unknown>';
+  return new Error(
+    [
+      `Results repo remote branch '${branch}' does not exist in ${config.repo}.`,
+      'Create the storage branch once, then retry. Example:',
+      `  git clone ${resolveResultsRepoUrl(config.repo)} /tmp/agentv-results-init`,
+      '  cd /tmp/agentv-results-init',
+      `  git switch --orphan ${branch}`,
+      '  git rm -rf .',
+      '  git commit --allow-empty -m "chore(results): initialize AgentV results branch"',
+      `  git push origin HEAD:${branch}`,
+    ].join('\n'),
+  );
+}
+
+async function assertConfiguredResultsBranchExists(
+  repoDir: string,
+  config: NormalizedResultsConfig,
+): Promise<string | undefined> {
+  if (!config.branch) {
+    return undefined;
+  }
+
+  const ref = remoteBranchRef(config.branch);
+  const { stdout } = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  if (!stdout.trim()) {
+    throw missingConfiguredBranchError(config);
+  }
+  return ref;
+}
+
+async function localBranchExists(repoDir: string, branch: string): Promise<boolean> {
+  const { stdout } = await runGit(['rev-parse', '--verify', `refs/heads/${branch}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  return stdout.trim().length > 0;
+}
+
+async function checkoutConfiguredResultsBranch(
+  repoDir: string,
+  config: NormalizedResultsConfig,
+): Promise<string | undefined> {
+  const remoteRef = await assertConfiguredResultsBranchExists(repoDir, config);
+  if (!config.branch || !remoteRef) {
+    return undefined;
+  }
+
+  const currentBranch = await getCurrentBranch(repoDir);
+  if (currentBranch !== config.branch) {
+    if (await localBranchExists(repoDir, config.branch)) {
+      await runGit(['checkout', config.branch], { cwd: repoDir });
+    } else {
+      await runGit(['checkout', '--track', '-b', config.branch, remoteRef], { cwd: repoDir });
+    }
+  }
+  await runGit(['branch', '--set-upstream-to', remoteRef, config.branch], {
+    cwd: repoDir,
+    check: false,
+  });
+
+  return remoteRef;
 }
 
 async function isGitRepository(repoDir: string): Promise<boolean> {
@@ -360,7 +443,14 @@ async function getCurrentBranch(repoDir: string): Promise<string | undefined> {
   return sha.trim() ? `HEAD@${sha.trim()}` : undefined;
 }
 
-async function resolveComparisonRef(repoDir: string): Promise<string | undefined> {
+async function resolveComparisonRef(
+  repoDir: string,
+  config?: NormalizedResultsConfig,
+): Promise<string | undefined> {
+  if (config?.branch) {
+    return assertConfiguredResultsBranchExists(repoDir, config);
+  }
+
   const { stdout: upstream } = await runGit(
     ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'],
     { cwd: repoDir, check: false },
@@ -439,9 +529,12 @@ async function buildGitDiffSummary(
   return summaries.length > 0 ? summaries.join('\n') : undefined;
 }
 
-async function inspectResultsRepoGit(repoDir: string): Promise<ResultsRepoGitInspection> {
+async function inspectResultsRepoGit(
+  repoDir: string,
+  config?: NormalizedResultsConfig,
+): Promise<ResultsRepoGitInspection> {
   const branch = await getCurrentBranch(repoDir);
-  const upstream = await resolveComparisonRef(repoDir);
+  const upstream = await resolveComparisonRef(repoDir, config);
   const { stdout: porcelain } = await runGit(
     ['status', '--porcelain=v1', '--untracked-files=all'],
     {
@@ -591,10 +684,13 @@ function getPushTargetBranch(upstream: string | undefined, baseBranch: string): 
 }
 
 async function statusFromInspection(
-  normalized: Required<ResultsConfig>,
+  normalized: NormalizedResultsConfig,
   repoDir: string,
 ): Promise<ResultsRepoStatus> {
-  return withGitInspection(getResultsRepoStatus(normalized), await inspectResultsRepoGit(repoDir));
+  return withGitInspection(
+    getResultsRepoStatus(normalized),
+    await inspectResultsRepoGit(repoDir, normalized),
+  );
 }
 
 export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<ResultsRepoStatus> {
@@ -619,7 +715,11 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
   }
 
   try {
-    return withGitInspection(baseStatus, await inspectResultsRepoGit(normalized.path));
+    if (normalized.branch) {
+      await fetchResultsRepo(normalized.path);
+      await checkoutConfiguredResultsBranch(normalized.path, normalized);
+    }
+    return withGitInspection(baseStatus, await inspectResultsRepoGit(normalized.path, normalized));
   } catch (error) {
     return {
       ...baseStatus,
@@ -635,6 +735,7 @@ export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRep
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
     await fetchResultsRepo(repoDir);
+    await checkoutConfiguredResultsBranch(repoDir, normalized);
     updateStatusFile(normalized, {
       last_synced_at: new Date().toISOString(),
       last_error: undefined,
@@ -673,7 +774,8 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
     await fetchResultsRepo(repoDir);
-    let inspection = await inspectResultsRepoGit(repoDir);
+    await checkoutConfiguredResultsBranch(repoDir, normalized);
+    let inspection = await inspectResultsRepoGit(repoDir, normalized);
 
     if (inspection.syncStatus === 'conflicted') {
       const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
@@ -720,9 +822,9 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         try {
           await runGit(['merge', '--ff-only', inspection.upstream], { cwd: repoDir });
           pullPerformed = true;
-          inspection = await inspectResultsRepoGit(repoDir);
+          inspection = await inspectResultsRepoGit(repoDir, normalized);
         } catch (error) {
-          inspection = await inspectResultsRepoGit(repoDir);
+          inspection = await inspectResultsRepoGit(repoDir, normalized);
           const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
           const reason = `Results repo could not be fast-forwarded: ${getStatusMessage(error)}`;
           updateStatusFile(normalized, { last_error: reason });
@@ -749,7 +851,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
           },
         );
         commitCreated = true;
-        inspection = await inspectResultsRepoGit(repoDir);
+        inspection = await inspectResultsRepoGit(repoDir, normalized);
       }
     }
 
@@ -781,9 +883,9 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       try {
         await runGit(['merge', '--ff-only', inspection.upstream], { cwd: repoDir });
         pullPerformed = true;
-        inspection = await inspectResultsRepoGit(repoDir);
+        inspection = await inspectResultsRepoGit(repoDir, normalized);
       } catch (error) {
-        inspection = await inspectResultsRepoGit(repoDir);
+        inspection = await inspectResultsRepoGit(repoDir, normalized);
         const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
         const reason = `Results repo could not be fast-forwarded: ${getStatusMessage(error)}`;
         updateStatusFile(normalized, { last_error: reason });
@@ -819,16 +921,16 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         });
       }
 
-      const baseBranch = await resolveDefaultBranch(repoDir);
+      const baseBranch = normalized.branch ?? (await resolveDefaultBranch(repoDir));
       const targetBranch = getPushTargetBranch(inspection.upstream, baseBranch);
       try {
         await runGit(['push', 'origin', `HEAD:${targetBranch}`], { cwd: repoDir });
         pushPerformed = true;
         await fetchResultsRepo(repoDir);
-        inspection = await inspectResultsRepoGit(repoDir);
+        inspection = await inspectResultsRepoGit(repoDir, normalized);
       } catch (error) {
         await fetchResultsRepo(repoDir).catch(() => undefined);
-        inspection = await inspectResultsRepoGit(repoDir);
+        inspection = await inspectResultsRepoGit(repoDir, normalized);
         const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
         const reason = `Results repo push was rejected: ${getStatusMessage(error)}`;
         updateStatusFile(normalized, { last_error: reason });
@@ -1000,22 +1102,23 @@ export async function createDraftResultsPr(params: {
 
 const DIRECT_PUSH_MAX_RETRIES = 3;
 
-async function hasUnpushedCommits(repoDir: string, baseBranch: string): Promise<boolean> {
-  const { stdout } = await runGit(['rev-list', '--count', `origin/${baseBranch}..HEAD`], {
+async function hasUnpushedCommits(repoDir: string, upstreamRef: string): Promise<boolean> {
+  const { stdout } = await runGit(['rev-list', '--count', `${upstreamRef}..HEAD`], {
     cwd: repoDir,
     check: false,
   });
   return Number.parseInt(stdout.trim(), 10) > 0;
 }
 
-async function pushDirectResultsToBase(params: {
-  readonly normalized: Required<ResultsConfig>;
+async function pushDirectResultsToStorageBranch(params: {
+  readonly normalized: NormalizedResultsConfig;
   readonly repoDir: string;
-  readonly baseBranch: string;
+  readonly storageBranch: string;
+  readonly upstreamRef: string;
 }): Promise<void> {
   for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
     try {
-      await runGit(['push', 'origin', `HEAD:${params.baseBranch}`], { cwd: params.repoDir });
+      await runGit(['push', 'origin', `HEAD:${params.storageBranch}`], { cwd: params.repoDir });
       updateStatusFile(params.normalized, {
         last_synced_at: new Date().toISOString(),
         last_error: undefined,
@@ -1025,7 +1128,7 @@ async function pushDirectResultsToBase(params: {
       const message = error instanceof Error ? error.message : String(error);
       if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
         await fetchResultsRepo(params.repoDir);
-        await runGit(['rebase', `origin/${params.baseBranch}`], { cwd: params.repoDir });
+        await runGit(['rebase', params.upstreamRef], { cwd: params.repoDir });
       } else {
         throw error;
       }
@@ -1034,7 +1137,7 @@ async function pushDirectResultsToBase(params: {
 }
 
 /**
- * Push results directly to the base branch of the results repo.
+ * Push results directly to the configured storage branch of the results repo.
  * Handles non-fast-forward conflicts by fetching, rebasing, and retrying.
  * Returns true if artifacts were pushed, false if no changes were detected.
  */
@@ -1046,8 +1149,10 @@ export async function directPushResults(params: {
 }): Promise<boolean> {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
-  const baseBranch = await resolveDefaultBranch(repoDir);
   await fetchResultsRepo(repoDir);
+  const configuredRef = await checkoutConfiguredResultsBranch(repoDir, normalized);
+  const storageBranch = normalized.branch ?? (await resolveDefaultBranch(repoDir));
+  const upstreamRef = configuredRef ?? remoteBranchRef(storageBranch);
   const targetRunId = buildGitRunId(params.destinationPath);
 
   const destinationDir = path.join(
@@ -1068,12 +1173,12 @@ export async function directPushResults(params: {
     check: false,
   });
   if (status.trim().length === 0) {
-    if (await hasUnpushedCommits(repoDir, baseBranch)) {
-      const aheadPaths = await getAheadPaths(repoDir, `origin/${baseBranch}`);
+    if (await hasUnpushedCommits(repoDir, upstreamRef)) {
+      const aheadPaths = await getAheadPaths(repoDir, upstreamRef);
       if (!areSafeResultsRepoPaths(aheadPaths)) {
         throw new Error('Results repo has non-results committed changes');
       }
-      await pushDirectResultsToBase({ normalized, repoDir, baseBranch });
+      await pushDirectResultsToStorageBranch({ normalized, repoDir, storageBranch, upstreamRef });
       return true;
     }
     return false;
@@ -1083,7 +1188,7 @@ export async function directPushResults(params: {
     cwd: repoDir,
   });
 
-  await pushDirectResultsToBase({ normalized, repoDir, baseBranch });
+  await pushDirectResultsToStorageBranch({ normalized, repoDir, storageBranch, upstreamRef });
   return true;
 }
 

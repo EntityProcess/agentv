@@ -90,7 +90,7 @@ The CLI contract is deliberately narrow: `agentv results` manages local result a
 
 Use these supported remote workflows instead:
 
-- **Automatic publishing:** configure `projects[].results.auto_push: true`; new `agentv eval` and `agentv pipeline bench` runs push their artifacts after the run completes.
+- **Automatic publishing:** configure `projects[].results.sync.auto_push: true`; new `agentv eval` and `agentv pipeline bench` runs push their artifacts after the run completes. Add `projects[].results.branch` when the results repo stores artifacts on a non-default branch.
 - **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
 - **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
 - **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.path` clone with `git` directly, then sync again.

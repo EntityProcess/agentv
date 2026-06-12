@@ -260,12 +260,13 @@ projects:
     ref: main
     results:
       repo_url: git@github.com:EntityProcess/agentv-examples-eval-results.git
+      branch: agentv-results
       path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
       sync:
         auto_push: true
 ```
 
-`results.path` is the filesystem location of the local clone AgentV manages for the results repo. It uses the same local-path field name as the source project. `results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured.
+`results.path` is the filesystem location of the local clone AgentV manages for the results repo. It uses the same local-path field name as the source project. `results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured. `results.branch` is optional; when present, AgentV reads and writes that existing storage branch instead of the results repo's default branch.
 
 You can also set a top-level global fallback in the same file. This is used when the current project is not registered or its registry entry has no `results` block:
 
@@ -273,6 +274,7 @@ You can also set a top-level global fallback in the same file. This is used when
 results:
   mode: github
   repo: EntityProcess/default-eval-results
+  branch: agentv-results
   path: /home/entity/projects/EntityProcess/default-eval-results
   auto_push: true
 ```
@@ -314,6 +316,7 @@ projects:
     ref: main
     results:
       repo_url: https://github.com/EntityProcess/agentv-eval-results.git
+      branch: agentv-results
       path: /home/entity/projects/EntityProcess/agentv-eval-results
       sync:
         auto_push: true
@@ -325,7 +328,7 @@ Use project-level **Sync Project** as the results exchange workflow. It handles 
 
 There is no separate `agentv results remote status` or `agentv results remote sync` command. The `agentv results` CLI stays focused on local run workspaces; manual remote exchange is Dashboard/API-only, with eval auto-export covering the common CI/publisher path.
 
-Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry.
+Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe — non-fast-forward conflicts are resolved automatically via rebase retry. If `results.branch` is configured, create that remote branch once before syncing (for example with `git switch --orphan agentv-results` and `git push origin HEAD:agentv-results`). `branch_prefix` remains only the prefix for temporary result/PR branch names; it is not the storage branch.
 
 ### What happens to existing local runs?
 

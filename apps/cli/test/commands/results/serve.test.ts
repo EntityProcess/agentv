@@ -118,6 +118,7 @@ function writeRemoteRunArtifact(
   experiment: string,
   timestamp: string,
   resultRecords: object | object[],
+  branch = 'main',
 ): string {
   const isoTimestamp = timestamp.replace(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
@@ -148,7 +149,7 @@ function writeRemoteRunArtifact(
     ),
   );
   git(`git add "${runDir}" && git commit --quiet -m "add ${experiment}"`, cloneDir);
-  git('git push --quiet origin main', cloneDir);
+  git(`git push --quiet origin HEAD:${branch}`, cloneDir);
   git('git fetch --quiet origin --prune', cloneDir);
   return `${experiment}::${timestamp}`;
 }
@@ -924,6 +925,47 @@ describe('serve app', () => {
       expect(detailData.source).toBe('remote');
       expect(detailData.results).toHaveLength(1);
       expect(detailData.results[0]).toMatchObject({ testId: 'test-greeting' });
+    }, 15000);
+
+    it('lists git-native remote runs from the configured storage branch', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const storageBranch = 'agentv-results';
+      git(`git switch --quiet --orphan ${storageBranch}`, cloneDir);
+      git('git rm -rf --quiet . 2>/dev/null || true', cloneDir);
+      git('git commit --quiet --allow-empty -m "seed results branch"', cloneDir);
+      git(`git push --quiet origin HEAD:${storageBranch}`, cloneDir);
+      const runId = writeRemoteRunArtifact(
+        cloneDir,
+        'branch-green-uat',
+        '2026-03-26T11-00-00-000Z',
+        RESULT_A,
+        storageBranch,
+      );
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  branch: ${storageBranch}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; source: string; experiment?: string }>;
+      };
+      expect(listData.runs).toHaveLength(1);
+      expect(listData.runs[0]).toMatchObject({
+        filename: `remote::${runId}`,
+        source: 'remote',
+        experiment: 'branch-green-uat',
+      });
     }, 15000);
 
     it('dedupes synced local and remote run copies in favor of the local run', async () => {
