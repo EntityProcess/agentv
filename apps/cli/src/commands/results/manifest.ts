@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import type { EvaluationResult } from '@agentv/core';
+import {
+  type EvaluationResult,
+  type TranscriptJsonLine,
+  buildTraceFromMessages,
+  traceFromTranscriptJsonLines,
+} from '@agentv/core';
 
 import type { GradingArtifact, TimingArtifact } from '../eval/artifact-writer.js';
 import {
@@ -32,6 +37,8 @@ export interface ResultManifestRecord {
   readonly timing_path?: string;
   readonly input_path?: string;
   readonly output_path?: string;
+  readonly answer_path?: string;
+  readonly transcript_path?: string;
   readonly response_path?: string;
   readonly artifact_dir?: string;
   readonly task_dir?: string;
@@ -106,20 +113,35 @@ function hydrateOutput(
   baseDir: string,
   record: ResultManifestRecord,
 ): EvaluationResult['output'] | undefined {
-  const responseText = readOptionalText(baseDir, record.output_path ?? record.response_path);
+  const responseText = readOptionalText(
+    baseDir,
+    record.output_path ?? record.answer_path ?? record.response_path,
+  );
   if (!responseText) {
     return undefined;
   }
 
-  const messages = parseMarkdownMessages(responseText);
-  if (messages.length > 0) {
-    return messages.map((message) => ({
-      role: message.role as 'assistant' | 'user' | 'system' | 'tool',
-      content: message.content,
-    }));
+  return responseText.trimEnd();
+}
+
+function hydrateTrace(baseDir: string, record: ResultManifestRecord): EvaluationResult['trace'] {
+  const transcriptText = readOptionalText(baseDir, record.transcript_path);
+  if (transcriptText) {
+    try {
+      return traceFromTranscriptJsonLines(parseJsonlLines<TranscriptJsonLine>(transcriptText));
+    } catch {
+      // Fall through to a minimal trace below.
+    }
   }
 
-  return [{ role: 'assistant', content: responseText.trimEnd() }];
+  const output = hydrateOutput(baseDir, record) ?? '';
+  return buildTraceFromMessages({
+    input: hydrateInput(baseDir, record),
+    output: output ? [{ role: 'assistant', content: output }] : [],
+    finalOutput: output,
+    target: record.target,
+    testId: record.test_id,
+  });
 }
 
 function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): EvaluationResult {
@@ -176,7 +198,8 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
     durationMs: timing?.duration_ms ?? record.duration_ms,
     costUsd: record.cost_usd,
     input: hydrateInput(baseDir, record),
-    output: hydrateOutput(baseDir, record),
+    output: hydrateOutput(baseDir, record) ?? '',
+    trace: hydrateTrace(baseDir, record),
     metadata: record.metadata,
   } as EvaluationResult;
 }

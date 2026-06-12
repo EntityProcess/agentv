@@ -6,8 +6,12 @@ import {
   type EvalTest,
   type EvaluationResult,
   type GraderResult,
+  type Message,
   type TargetDefinition,
-  toTranscriptJsonLines,
+  type TraceSummary,
+  buildTraceFromMessages,
+  extractLastAssistantContent,
+  traceToTranscriptJsonLines,
 } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
@@ -195,7 +199,10 @@ export interface IndexArtifactEntry {
   readonly grading_path: string;
   readonly timing_path: string;
   readonly output_path?: string;
+  readonly answer_path?: string;
+  readonly transcript_path?: string;
   readonly input_path?: string;
+  /** @deprecated Use output_path/answer_path for the final answer. */
   readonly response_path?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
@@ -245,23 +252,8 @@ function countToolCalls(result: EvaluationResult): {
   toolCalls: Record<string, number>;
   total: number;
 } {
-  const toolCalls: Record<string, number> = {};
-  let total = 0;
-
-  const trace = result.trace as
-    | { steps?: readonly { toolName?: string; type?: string }[] }
-    | undefined;
-
-  if (trace?.steps) {
-    for (const step of trace.steps) {
-      if (step.toolName || step.type === 'tool') {
-        const name = step.toolName ?? 'unknown';
-        toolCalls[name] = (toolCalls[name] ?? 0) + 1;
-        total += 1;
-      }
-    }
-  }
-
+  const toolCalls = { ...(result.trace?.toolCalls ?? {}) };
+  const total = Object.values(toolCalls).reduce((sum, count) => sum + count, 0);
   return { toolCalls, total };
 }
 
@@ -365,9 +357,8 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
     workspace_changes: parseWorkspaceChanges(result.fileChanges),
     conversation: result.conversationId
       ? {
-          turns: result.trace
-            ? ((result.trace as { steps?: readonly unknown[] }).steps?.length ?? 0)
-            : 0,
+          turns:
+            result.trace?.messages.filter((message) => message.role === 'assistant').length ?? 0,
           conversation_id: result.conversationId,
         }
       : undefined,
@@ -661,7 +652,10 @@ export function buildIndexArtifactEntry(
     gradingPath: string;
     timingPath: string;
     outputPath?: string;
+    answerPath?: string;
+    transcriptPath?: string;
     inputPath?: string;
+    responsePath?: string;
     taskBundle?: MaterializedTaskBundlePaths;
   },
 ): IndexArtifactEntry {
@@ -689,8 +683,17 @@ export function buildIndexArtifactEntry(
     output_path: options.outputPath
       ? toRelativeArtifactPath(options.outputDir, options.outputPath)
       : undefined,
+    answer_path: options.answerPath
+      ? toRelativeArtifactPath(options.outputDir, options.answerPath)
+      : undefined,
+    transcript_path: options.transcriptPath
+      ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
+      : undefined,
     input_path: options.inputPath
       ? toRelativeArtifactPath(options.outputDir, options.inputPath)
+      : undefined,
+    response_path: options.responsePath
+      ? toRelativeArtifactPath(options.outputDir, options.responsePath)
       : undefined,
     ...buildTaskBundleIndexFields(options.outputDir, options.taskBundle),
     metadata: result.metadata,
@@ -703,7 +706,8 @@ export function buildResultIndexArtifact(
 ): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
   const input = extractInput(result);
-  const hasResponse = Array.isArray(result.output) && result.output.length > 0;
+  const hasAnswer = result.output.length > 0;
+  const hasTranscript = result.trace.messages.length > 0 || result.trace.events.length > 0;
 
   return {
     timestamp: result.timestamp,
@@ -725,10 +729,12 @@ export function buildResultIndexArtifact(
     grading_path: path.posix.join(artifactSubdir, 'grading.json'),
     timing_path: path.posix.join(artifactSubdir, 'timing.json'),
     input_path: input ? path.posix.join(artifactSubdir, 'input.md') : undefined,
-    output_path: hasResponse
-      ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
+    output_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
+    answer_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
+    transcript_path: hasTranscript
+      ? path.posix.join(artifactSubdir, 'outputs', 'transcript.jsonl')
       : undefined,
-    response_path: hasResponse
+    response_path: hasAnswer
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
       : undefined,
     ...(taskBundle
@@ -753,6 +759,16 @@ async function writeJsonlFile(filePath: string, records: readonly unknown[]): Pr
     records.length === 0
       ? ''
       : `${records.map((record) => JSON.stringify(toSnakeCaseDeep(record))).join('\n')}\n`;
+  await writeFile(filePath, content, 'utf8');
+}
+
+async function writeTranscriptJsonl(filePath: string, result: EvaluationResult): Promise<void> {
+  const lines = traceToTranscriptJsonLines(result.trace, {
+    testId: result.testId,
+    target: result.target,
+  });
+  const content =
+    lines.length > 0 ? `${lines.map((line) => JSON.stringify(line)).join('\n')}\n` : '';
   await writeFile(filePath, content, 'utf8');
 }
 
@@ -852,6 +868,7 @@ type ParsedEvaluationResult = Record<string, unknown> & {
   assertions: EvaluationResult['assertions'];
   target: string;
   output: EvaluationResult['output'];
+  trace: EvaluationResult['trace'];
   executionStatus: EvaluationResult['executionStatus'];
 };
 
@@ -874,7 +891,7 @@ function isAssertionEntry(value: unknown): value is EvaluationResult['assertions
   );
 }
 
-function isOutputMessage(value: unknown): value is EvaluationResult['output'][number] {
+function isOutputMessage(value: unknown): value is Message {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
@@ -890,12 +907,47 @@ function isExecutionStatus(value: unknown): value is EvaluationResult['execution
   );
 }
 
+function isTraceRecord(value: unknown): value is EvaluationResult['trace'] {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Array.isArray((value as { messages?: unknown }).messages) &&
+    Array.isArray((value as { events?: unknown }).events)
+  );
+}
+
 function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }
 
   const result = value as Record<string, unknown>;
+  const legacyOutputMessages = Array.isArray(result.output)
+    ? result.output.filter(isOutputMessage)
+    : undefined;
+  const output =
+    typeof result.output === 'string'
+      ? result.output
+      : extractLastAssistantContent(legacyOutputMessages);
+  const legacySummary =
+    result.trace && typeof result.trace === 'object' && !Array.isArray(result.trace)
+      ? (result.trace as TraceSummary)
+      : undefined;
+  const trace = isTraceRecord(result.trace)
+    ? result.trace
+    : buildTraceFromMessages({
+        input: Array.isArray(result.input) ? (result.input as EvaluationResult['input']) : [],
+        output: legacyOutputMessages,
+        summary: legacySummary,
+        finalOutput: output,
+        tokenUsage: result.tokenUsage as EvaluationResult['tokenUsage'],
+        costUsd: typeof result.costUsd === 'number' ? result.costUsd : undefined,
+        durationMs: typeof result.durationMs === 'number' ? result.durationMs : undefined,
+        target: typeof result.target === 'string' ? result.target : undefined,
+        testId: typeof result.testId === 'string' ? result.testId : undefined,
+      });
+
   return {
     ...result,
     timestamp: typeof result.timestamp === 'string' ? result.timestamp : new Date(0).toISOString(),
@@ -903,7 +955,8 @@ function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefin
     score: typeof result.score === 'number' ? result.score : 0,
     assertions: Array.isArray(result.assertions) ? result.assertions.filter(isAssertionEntry) : [],
     target: typeof result.target === 'string' ? result.target : 'unknown',
-    output: Array.isArray(result.output) ? result.output.filter(isOutputMessage) : [],
+    output,
+    trace,
     executionStatus: isExecutionStatus(result.executionStatus) ? result.executionStatus : 'ok',
   };
 }
@@ -959,23 +1012,10 @@ function buildTranscriptMessageLines(results: readonly EvaluationResult[]): stri
   const lines: string[] = [];
 
   for (const result of results) {
-    const transcriptLines = toTranscriptJsonLines(
-      {
-        messages: [...(result.input ?? []), ...result.output],
-        source: {
-          provider: result.target,
-          sessionId: result.conversationId ?? result.testId,
-          startedAt: result.timestamp,
-        },
-        tokenUsage: result.tokenUsage,
-        durationMs: result.durationMs,
-        costUsd: result.costUsd,
-      },
-      {
-        testId: result.testId,
-        target: result.target,
-      },
-    );
+    const transcriptLines = traceToTranscriptJsonLines(result.trace, {
+      testId: result.testId,
+      target: result.target,
+    });
 
     lines.push(...transcriptLines.map((line) => JSON.stringify(line)));
   }
@@ -1085,14 +1125,16 @@ export async function writePerTestArtifacts(
     if (input) {
       await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
     }
-    if (result.output && result.output.length > 0) {
+    if (result.output.length > 0 || result.trace.messages.length > 0) {
       const outputsDir = path.join(testDir, 'outputs');
       await mkdir(outputsDir, { recursive: true });
-      await writeFile(
-        path.join(outputsDir, 'response.md'),
-        formatOutputMarkdown(result.output),
-        'utf8',
-      );
+      if (result.output.length > 0) {
+        await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
+        // Deprecated compatibility alias. New consumers should use answer.md
+        // for scored output or transcript.jsonl for the full execution record.
+        await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
+      }
+      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result);
     }
 
     const taskBundle = await materializeTaskBundleForResult({
@@ -1156,14 +1198,16 @@ export async function writeArtifactsFromResults(
       await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
     }
 
-    if (result.output && result.output.length > 0) {
+    if (result.output.length > 0 || result.trace.messages.length > 0) {
       const outputsDir = path.join(testDir, 'outputs');
       await mkdir(outputsDir, { recursive: true });
-      await writeFile(
-        path.join(outputsDir, 'response.md'),
-        formatOutputMarkdown(result.output),
-        'utf8',
-      );
+      if (result.output.length > 0) {
+        await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
+        // Deprecated compatibility alias. New consumers should use answer.md
+        // for scored output or transcript.jsonl for the full execution record.
+        await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
+      }
+      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result);
     }
 
     const taskBundle = await materializeTaskBundleForResult({

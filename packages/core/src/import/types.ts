@@ -18,7 +18,7 @@ import { readFile } from 'node:fs/promises';
 
 import { toCamelCaseDeep, toSnakeCaseDeep } from '../evaluation/case-conversion.js';
 import type { Message, ProviderTokenUsage } from '../evaluation/providers/types.js';
-import { buildTraceFromMessages, type Trace } from '../evaluation/trace.js';
+import { type Trace, buildTraceFromMessages } from '../evaluation/trace.js';
 
 /**
  * A parsed transcript: ordered messages plus session metadata (internal camelCase).
