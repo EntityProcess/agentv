@@ -33,6 +33,7 @@ import {
 
 import { enforceRequiredVersion } from '../../version-check.js';
 import {
+  type RemoteExportStatus,
   getRelativeRunPath,
   loadNormalizedResultsConfig,
   maybeAutoExportRunArtifacts,
@@ -1553,6 +1554,7 @@ export async function runEvalCommand(
   // Only active when a results repo with auto_push is configured; otherwise a no-op.
   let wipLoop: WipCheckpointLoop | undefined;
   let wipCleanedUp = false;
+  let finalExportStatus: RemoteExportStatus = 'disabled';
   {
     const wipConfig = await loadNormalizedResultsConfig(cwd).catch(() => undefined);
     if (wipConfig?.auto_push) {
@@ -1847,7 +1849,7 @@ export async function runEvalCommand(
       // Persist last run path for `agentv results` commands
       await saveRunCache(cwd, outputPath).catch(() => undefined);
 
-      await maybeAutoExportRunArtifacts({
+      finalExportStatus = await maybeAutoExportRunArtifacts({
         cwd,
         run_dir: runDir,
         test_files: activeTestFiles,
@@ -1895,8 +1897,13 @@ export async function runEvalCommand(
       );
     }
 
-    // WIP cleanup on success: publish succeeded, so remove the WIP branch.
-    if (wipLoop) {
+    // WIP cleanup on success: remove the WIP branch only after the final
+    // results branch is confirmed published (or confirmed already up to date).
+    // If export failed, leave the remote WIP checkpoint as the durable copy.
+    if (
+      wipLoop &&
+      (finalExportStatus === 'published' || finalExportStatus === 'already_published')
+    ) {
       wipCleanedUp = true;
       await wipLoop.stopAndDeleteWipBranch();
     }

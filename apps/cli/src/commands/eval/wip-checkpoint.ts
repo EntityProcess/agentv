@@ -33,6 +33,20 @@ import {
 
 const WIP_CHECKPOINT_INTERVAL_MS = 30_000;
 
+export interface WipCheckpointLoopDependencies {
+  readonly buildWipBranchName: (runDir: string) => string;
+  readonly deleteWipBranch: typeof deleteWipBranch;
+  readonly pushWipCheckpoint: typeof pushWipCheckpoint;
+  readonly setupWipWorktree: typeof setupWipWorktree;
+}
+
+const defaultDependencies: WipCheckpointLoopDependencies = {
+  buildWipBranchName,
+  deleteWipBranch,
+  pushWipCheckpoint,
+  setupWipWorktree,
+};
+
 function warnCheckpointError(context: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   console.warn(`WIP checkpoint: ${context}: ${message}`);
@@ -44,8 +58,10 @@ export class WipCheckpointLoop {
   private readonly runDir: string;
   private readonly destinationPath: string;
   private readonly intervalMs: number;
+  private readonly deps: WipCheckpointLoopDependencies;
   private handle: WipWorktreeHandle | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
+  private checkpointInFlight: Promise<void> | undefined;
   private active = false;
 
   constructor(params: {
@@ -53,17 +69,19 @@ export class WipCheckpointLoop {
     readonly runDir: string;
     readonly destinationPath: string;
     readonly intervalMs?: number;
+    readonly dependencies?: WipCheckpointLoopDependencies;
   }) {
     this.config = params.config;
     this.runDir = params.runDir;
     this.destinationPath = params.destinationPath;
     this.intervalMs = params.intervalMs ?? WIP_CHECKPOINT_INTERVAL_MS;
-    this.wipBranch = buildWipBranchName(params.runDir);
+    this.deps = params.dependencies ?? defaultDependencies;
+    this.wipBranch = this.deps.buildWipBranchName(params.runDir);
   }
 
   async start(): Promise<void> {
     try {
-      this.handle = await setupWipWorktree({
+      this.handle = await this.deps.setupWipWorktree({
         config: this.config,
         wipBranch: this.wipBranch,
       });
@@ -73,16 +91,24 @@ export class WipCheckpointLoop {
     }
     this.active = true;
     this.timer = setInterval(() => {
-      if (!this.active) return;
-      this.checkpoint().catch((err) => warnCheckpointError('push failed', err));
+      this.runCheckpointIfIdle();
     }, this.intervalMs);
     // Unref so the timer never prevents process exit.
     this.timer.unref?.();
   }
 
+  private runCheckpointIfIdle(): void {
+    if (!this.active || this.checkpointInFlight) return;
+    this.checkpointInFlight = this.checkpoint()
+      .catch((err) => warnCheckpointError('push failed', err))
+      .finally(() => {
+        this.checkpointInFlight = undefined;
+      });
+  }
+
   private async checkpoint(): Promise<void> {
     if (!this.handle) return;
-    await pushWipCheckpoint({
+    await this.deps.pushWipCheckpoint({
       handle: this.handle,
       sourceDir: this.runDir,
       destinationPath: this.destinationPath,
@@ -96,6 +122,7 @@ export class WipCheckpointLoop {
       clearInterval(this.timer);
       this.timer = undefined;
     }
+    await this.checkpointInFlight;
     if (this.handle) {
       await this.handle
         .cleanup()
@@ -111,7 +138,7 @@ export class WipCheckpointLoop {
   async stopAndDeleteWipBranch(): Promise<void> {
     await this.stop();
     try {
-      await deleteWipBranch({ config: this.config, wipBranch: this.wipBranch });
+      await this.deps.deleteWipBranch({ config: this.config, wipBranch: this.wipBranch });
     } catch (err) {
       warnCheckpointError(`failed to delete remote branch ${this.wipBranch}`, err);
     }
