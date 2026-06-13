@@ -32,7 +32,11 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
-import { maybeAutoExportRunArtifacts } from '../results/remote.js';
+import {
+  getRelativeRunPath,
+  loadNormalizedResultsConfig,
+  maybeAutoExportRunArtifacts,
+} from '../results/remote.js';
 import {
   aggregateRunDir,
   buildTestTargetKey,
@@ -60,6 +64,7 @@ import {
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 import type { TaskBundleTargetSelection } from './task-bundle.js';
+import { WipCheckpointLoop } from './wip-checkpoint.js';
 
 const DEFAULT_WORKERS = 3;
 
@@ -1543,6 +1548,23 @@ export async function runEvalCommand(
     });
   }
 
+  // Periodic WIP checkpoint loop: push partial results to a unique non-default
+  // branch every ~60s so pod loss doesn't discard completed-test output.
+  // Only active when a results repo with auto_push is configured; otherwise a no-op.
+  let wipLoop: WipCheckpointLoop | undefined;
+  let wipCleanedUp = false;
+  {
+    const wipConfig = await loadNormalizedResultsConfig(cwd).catch(() => undefined);
+    if (wipConfig?.auto_push) {
+      wipLoop = new WipCheckpointLoop({
+        config: wipConfig,
+        runDir,
+        destinationPath: getRelativeRunPath(cwd, runDir),
+      });
+      await wipLoop.start();
+    }
+  }
+
   // Eval files run sequentially; within each file, --workers N test cases run in parallel.
   // This matches industry practice (promptfoo, deepeval, OpenAI Evals) and avoids cross-file
   // workspace races without any grouping complexity.
@@ -1873,6 +1895,12 @@ export async function runEvalCommand(
       );
     }
 
+    // WIP cleanup on success: publish succeeded, so remove the WIP branch.
+    if (wipLoop) {
+      wipCleanedUp = true;
+      await wipLoop.stopAndDeleteWipBranch();
+    }
+
     return {
       executionErrorCount: summary.executionErrorCount,
       outputPath,
@@ -1883,6 +1911,11 @@ export async function runEvalCommand(
       budgetExceeded: runBudgetExceeded || undefined,
     };
   } finally {
+    // WIP cleanup on failure/interrupt: stop the loop but leave the remote
+    // WIP branch intact for manual recovery.
+    if (wipLoop && !wipCleanedUp) {
+      await wipLoop.stop().catch(() => undefined);
+    }
     unsubscribeCodexLogs();
     unsubscribePiLogs();
     unsubscribeCopilotSdkLogs();

@@ -120,7 +120,7 @@ function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {
   return result.score >= DEFAULT_THRESHOLD ? 'PASS' : 'FAIL';
 }
 
-function getRelativeRunPath(cwd: string, runDir: string): string {
+export function getRelativeRunPath(cwd: string, runDir: string): string {
   const relative = path.relative(path.join(cwd, '.agentv', 'results', 'runs'), runDir);
   if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
     return relative;
@@ -150,7 +150,7 @@ async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
   }
 }
 
-async function loadNormalizedResultsConfig(
+export async function loadNormalizedResultsConfig(
   cwd: string,
   projectId?: string,
 ): Promise<NormalizedResultsConfig | undefined> {

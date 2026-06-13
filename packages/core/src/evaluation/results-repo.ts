@@ -1356,6 +1356,119 @@ function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
   return blobs;
 }
 
+// ── WIP (work-in-progress) branch helpers ─────────────────────────────────
+//
+// Periodic best-effort checkpoints push the partial run output to a unique
+// non-default branch (`agentv/inflight/<hostname>/<run-dir-basename>`) every ~30s.
+// The branch is force-pushed (single-writer) to avoid conflict handling and
+// noisy history. On successful run completion the branch is deleted.
+//
+// Manual recovery: if a pod is lost mid-run, an operator can clone the results
+// repo, checkout `agentv/inflight/<hostname>/<run-dir>`, and resume with:
+//   cp -r .agentv/results/runs/<run-dir> <local-workspace>
+//   agentv eval <eval-file> --output <local-workspace>/<run-dir> --resume
+
+export function buildWipBranchName(runDir: string): string {
+  const hostname = os
+    .hostname()
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .slice(0, 40);
+  const runBasename = path
+    .basename(runDir)
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .slice(0, 60);
+  return `agentv/inflight/${hostname}/${runBasename}`;
+}
+
+export interface WipWorktreeHandle {
+  readonly wipBranch: string;
+  readonly worktreeDir: string;
+  readonly cloneDir: string;
+  readonly cleanup: () => Promise<void>;
+}
+
+export async function setupWipWorktree(params: {
+  readonly config: ResultsConfig;
+  readonly wipBranch: string;
+}): Promise<WipWorktreeHandle> {
+  const normalized = normalizeResultsConfig(params.config);
+  const cloneDir = await ensureResultsRepoClone(normalized);
+  await fetchResultsRepo(cloneDir);
+  const baseBranch = await resolveDefaultBranch(cloneDir);
+  const worktreeRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-wip-'));
+  const worktreeDir = path.join(worktreeRoot, 'repo');
+  await runGit(['worktree', 'add', '-B', params.wipBranch, worktreeDir, `origin/${baseBranch}`], {
+    cwd: cloneDir,
+  });
+  // Ensure commits work even without a global git user config.
+  await runGit(['config', 'user.email', 'agentv@wip-checkpoint'], { cwd: worktreeDir });
+  await runGit(['config', 'user.name', 'AgentV WIP Checkpoint'], { cwd: worktreeDir });
+  return {
+    wipBranch: params.wipBranch,
+    worktreeDir,
+    cloneDir,
+    cleanup: async () => {
+      try {
+        await runGit(['worktree', 'remove', '--force', worktreeDir], { cwd: cloneDir });
+      } finally {
+        await rm(worktreeRoot, { recursive: true, force: true }).catch(() => undefined);
+      }
+    },
+  };
+}
+
+/**
+ * Snapshot the current run output into the WIP worktree and force-push to the
+ * remote WIP branch. Returns true if a push was performed, false if nothing changed.
+ *
+ * Uses `--amend` on the base-branch tip so the remote WIP branch always holds
+ * exactly one snapshot commit (no noisy history accumulation).
+ */
+export async function pushWipCheckpoint(params: {
+  readonly handle: WipWorktreeHandle;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+}): Promise<boolean> {
+  const destinationDir = path.join(
+    params.handle.worktreeDir,
+    RESULTS_REPO_RUNS_DIR,
+    params.destinationPath,
+  );
+  await stageResultsArtifacts({
+    repoDir: params.handle.worktreeDir,
+    sourceDir: params.sourceDir,
+    destinationDir,
+  });
+  await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], {
+    cwd: params.handle.worktreeDir,
+  });
+  const { stdout: status } = await runGit(['status', '--porcelain'], {
+    cwd: params.handle.worktreeDir,
+    check: false,
+  });
+  if (!status.trim()) {
+    return false;
+  }
+  const timestamp = new Date().toISOString();
+  await runGit(
+    ['commit', '--amend', '-m', `wip(results): checkpoint ${params.handle.wipBranch} ${timestamp}`],
+    { cwd: params.handle.worktreeDir },
+  );
+  await runGit(['push', '--force', 'origin', params.handle.wipBranch], {
+    cwd: params.handle.worktreeDir,
+  });
+  return true;
+}
+
+export async function deleteWipBranch(params: {
+  readonly config: ResultsConfig;
+  readonly wipBranch: string;
+}): Promise<void> {
+  const normalized = normalizeResultsConfig(params.config);
+  const cloneDir = await ensureResultsRepoClone(normalized);
+  await runGit(['push', 'origin', '--delete', params.wipBranch], { cwd: cloneDir });
+}
+
 export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {
   const { stdout: treeOut } = await runGit(
     ['ls-tree', '-r', '--name-only', ref, RESULTS_REPO_RUNS_DIR],
