@@ -102,6 +102,8 @@ export interface RemoteExportPayload {
   readonly experiment?: string;
 }
 
+export type RemoteExportStatus = 'disabled' | 'published' | 'already_published' | 'failed';
+
 export interface RemoteResultsStatus extends ResultsRepoStatus {
   readonly run_count: number;
 }
@@ -120,7 +122,7 @@ function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {
   return result.score >= DEFAULT_THRESHOLD ? 'PASS' : 'FAIL';
 }
 
-function getRelativeRunPath(cwd: string, runDir: string): string {
+export function getRelativeRunPath(cwd: string, runDir: string): string {
   const relative = path.relative(path.join(cwd, '.agentv', 'results', 'runs'), runDir);
   if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
     return relative;
@@ -150,7 +152,7 @@ async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
   }
 }
 
-async function loadNormalizedResultsConfig(
+export async function loadNormalizedResultsConfig(
   cwd: string,
   projectId?: string,
 ): Promise<NormalizedResultsConfig | undefined> {
@@ -427,10 +429,12 @@ export async function clearRemoteRunTags(
   return deleteRemoteRunTags(config.path, meta.path);
 }
 
-export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload): Promise<void> {
+export async function maybeAutoExportRunArtifacts(
+  payload: RemoteExportPayload,
+): Promise<RemoteExportStatus> {
   const config = await loadNormalizedResultsConfig(payload.cwd);
   if (!config?.auto_push) {
-    return;
+    return 'disabled';
   }
 
   try {
@@ -448,12 +452,14 @@ export async function maybeAutoExportRunArtifacts(payload: RemoteExportPayload):
 
     if (!pushed) {
       console.warn('Warning: results export produced no git changes. Skipping push.');
-      return;
+      return 'already_published';
     }
 
     console.log(`Results pushed to ${config.repo} (${config.path}/${relativeRunPath})`);
+    return 'published';
   } catch (error) {
     console.warn(`Warning: skipping results export: ${getStatusMessage(error)}`);
     console.warn("Warning: Run 'gh auth login' if GitHub authentication is missing.");
+    return 'failed';
   }
 }

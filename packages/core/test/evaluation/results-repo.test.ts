@@ -7,11 +7,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.js';
 import {
+  buildWipBranchName,
+  deleteWipBranch,
   directPushResults,
   ensureResultsRepoClone,
   getResultsRepoSyncStatus,
   listGitRuns,
   materializeGitRun,
+  pushWipCheckpoint,
+  setupWipWorktree,
   syncResultsRepo,
   syncResultsRepoForProject,
 } from '../../src/evaluation/results-repo.js';
@@ -899,4 +903,162 @@ describe('results repo write path', () => {
     expect(status.last_error).not.toContain('auto_push is disabled');
     expect(status.conflicted_paths).toEqual([relativeMetadataPath]);
   }, 20000);
+});
+
+describe('buildWipBranchName', () => {
+  it('produces an agentv/inflight/<hostname>/<basename> branch name', () => {
+    const runDir = '/some/path/.agentv/results/runs/default/2026-01-15T10-00-00';
+    const branch = buildWipBranchName(runDir);
+    expect(branch).toMatch(/^agentv\/inflight\/[^/]+\/2026-01-15T10-00-00$/);
+  });
+
+  it('sanitizes special characters in hostname and run dir name', () => {
+    const branch = buildWipBranchName('/path/to/run dir with spaces!');
+    expect(branch).not.toMatch(/[ !]/);
+    expect(branch).toMatch(/^agentv\/inflight\//);
+  });
+});
+
+describe('WIP branch helpers', () => {
+  let rootDir: string;
+  let remoteDir: string;
+  let cloneDir: string;
+  let config: ResultsConfig;
+
+  beforeEach(() => {
+    rootDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-wip-test-'));
+    const { remoteDir: remote, seedDir } = initializeRemoteRepo(rootDir);
+    remoteDir = remote;
+    cloneDir = path.join(rootDir, 'clone');
+    config = createResultsConfig(remoteDir, cloneDir);
+    // Keep seedDir reference to avoid lint warning
+    void seedDir;
+  });
+
+  afterEach(() => {
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  it('setupWipWorktree creates a worktree on a new local branch', async () => {
+    const wipBranch = 'agentv/inflight/test-host/test-run-001';
+    const handle = await setupWipWorktree({ config, wipBranch });
+
+    try {
+      expect(handle.wipBranch).toBe(wipBranch);
+      expect(handle.worktreeDir).toBeTruthy();
+      // The worktree dir should be a git repo
+      const result = git('git rev-parse --is-inside-work-tree', handle.worktreeDir);
+      expect(result).toBe('true');
+      // Should be on the WIP branch
+      const branch = git('git branch --show-current', handle.worktreeDir);
+      expect(branch).toBe(wipBranch);
+    } finally {
+      await handle.cleanup();
+    }
+  }, 30000);
+
+  it('setupWipWorktree bases the WIP branch on the configured storage branch', async () => {
+    const storageBranch = initializeRemoteStorageBranch(
+      path.join(rootDir, 'results-seed'),
+      'agentv-results',
+    );
+    const wipBranch = 'agentv/inflight/test-host/test-run-configured-branch';
+    const handle = await setupWipWorktree({
+      config: { ...config, branch: storageBranch },
+      wipBranch,
+    });
+
+    try {
+      const wipHead = git('git rev-parse HEAD', handle.worktreeDir);
+      const storageHead = git(`git rev-parse origin/${storageBranch}`, cloneDir);
+      const defaultHead = git('git rev-parse origin/main', cloneDir);
+
+      expect(wipHead).toBe(storageHead);
+      expect(wipHead).not.toBe(defaultHead);
+    } finally {
+      await handle.cleanup();
+    }
+  }, 30000);
+
+  it('pushWipCheckpoint force-pushes run artifacts to the WIP branch', async () => {
+    const wipBranch = 'agentv/inflight/test-host/test-run-002';
+    const handle = await setupWipWorktree({ config, wipBranch });
+
+    // Write some run artifacts to push
+    const runDir = path.join(rootDir, 'run-output');
+    writeRunArtifacts(runDir, 'default', '2026-01-15T10-00-00');
+
+    try {
+      const pushed = await pushWipCheckpoint({
+        handle,
+        sourceDir: runDir,
+        destinationPath: 'default/2026-01-15T10-00-00',
+      });
+      expect(pushed).toBe(true);
+
+      // The remote WIP branch should now exist
+      const remoteBranches = git('git branch -r', cloneDir);
+      expect(remoteBranches).toContain(`origin/${wipBranch}`);
+    } finally {
+      await handle.cleanup();
+    }
+  }, 30000);
+
+  it('pushWipCheckpoint returns false when run output has not changed', async () => {
+    const wipBranch = 'agentv/inflight/test-host/test-run-003';
+    const handle = await setupWipWorktree({ config, wipBranch });
+
+    const runDir = path.join(rootDir, 'run-output-static');
+    writeRunArtifacts(runDir, 'default', '2026-01-15T11-00-00');
+
+    try {
+      // First push: creates content
+      const first = await pushWipCheckpoint({
+        handle,
+        sourceDir: runDir,
+        destinationPath: 'default/2026-01-15T11-00-00',
+      });
+      expect(first).toBe(true);
+
+      // Second push with identical content: should skip
+      const second = await pushWipCheckpoint({
+        handle,
+        sourceDir: runDir,
+        destinationPath: 'default/2026-01-15T11-00-00',
+      });
+      expect(second).toBe(false);
+    } finally {
+      await handle.cleanup();
+    }
+  }, 30000);
+
+  it('deleteWipBranch removes the remote WIP branch', async () => {
+    const wipBranch = 'agentv/inflight/test-host/test-run-004';
+    const handle = await setupWipWorktree({ config, wipBranch });
+    const runDir = path.join(rootDir, 'run-delete-test');
+    writeRunArtifacts(runDir, 'default', '2026-01-15T12-00-00');
+
+    try {
+      await pushWipCheckpoint({
+        handle,
+        sourceDir: runDir,
+        destinationPath: 'default/2026-01-15T12-00-00',
+      });
+    } finally {
+      await handle.cleanup();
+    }
+
+    // Verify branch exists on remote before deletion
+    await ensureResultsRepoClone(config);
+    git('git fetch --quiet --all --prune', cloneDir);
+    const branchesBefore = git('git branch -r', cloneDir);
+    expect(branchesBefore).toContain(`origin/${wipBranch}`);
+
+    // Delete it
+    await deleteWipBranch({ config, wipBranch });
+
+    git('git fetch --quiet --all --prune', cloneDir);
+    const branchesAfter = git('git branch -r', cloneDir);
+    expect(branchesAfter).not.toContain(`origin/${wipBranch}`);
+  }, 30000);
 });

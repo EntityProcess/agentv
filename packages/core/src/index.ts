@@ -77,6 +77,10 @@ export {
   pushResultsRepoBranch,
   createDraftResultsPr,
   directPushResults,
+  buildWipBranchName,
+  setupWipWorktree,
+  pushWipCheckpoint,
+  deleteWipBranch,
   listGitRuns,
   materializeGitRun,
   type CheckedOutResultsRepoBranch,
@@ -86,6 +90,7 @@ export {
   type ResultsRepoLocalPaths,
   type ResultsRepoSyncStatus,
   type ResultsRepoStatus,
+  type WipWorktreeHandle,
 } from './evaluation/results-repo.js';
 export {
   getAgentvConfigDir,
