@@ -19,6 +19,8 @@ import type { ResultsConfig } from './loaders/config-loader.js';
 const execFileAsync = promisify(execFile);
 const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
 const RESULTS_REPO_RUNS_DIR = `${RESULTS_REPO_RESULTS_DIR}/runs`;
+const RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
+const RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -219,6 +221,11 @@ async function runGh(
   options?: { cwd?: string },
 ): Promise<{ stdout: string; stderr: string }> {
   return runCommand('gh', args, options);
+}
+
+async function ensureResultsRepoCommitIdentity(repoDir: string): Promise<void> {
+  await runGit(['config', 'user.email', RESULTS_REPO_COMMIT_EMAIL], { cwd: repoDir });
+  await runGit(['config', 'user.name', RESULTS_REPO_COMMIT_NAME], { cwd: repoDir });
 }
 
 async function resolveDefaultBranch(repoDir: string): Promise<string> {
@@ -839,6 +846,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
 
       if (inspection.syncStatus === 'dirty') {
         await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], { cwd: repoDir });
+        await ensureResultsRepoCommitIdentity(repoDir);
         await runGit(
           [
             'commit',
@@ -1052,6 +1060,7 @@ export async function commitAndPushResultsBranch(params: {
     return false;
   }
 
+  await ensureResultsRepoCommitIdentity(params.repoDir);
   await runGit(['commit', '-m', params.commitMessage], { cwd: params.repoDir });
   await runGit(['push', '-u', 'origin', params.branchName], { cwd: params.repoDir });
   return true;
@@ -1185,6 +1194,7 @@ export async function directPushResults(params: {
     return false;
   }
 
+  await ensureResultsRepoCommitIdentity(repoDir);
   await runGit(['commit', '-m', params.commitMessage, '-m', `Agentv-Run: ${targetRunId}`], {
     cwd: repoDir,
   });

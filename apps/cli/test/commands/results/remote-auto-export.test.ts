@@ -102,15 +102,37 @@ describe('maybeAutoExportRunArtifacts', () => {
   let rootDir: string;
   let projectDir: string;
   let cloneDir: string;
+  let previousHome: string | undefined;
+  let previousXdgConfigHome: string | undefined;
 
   beforeEach(() => {
     rootDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-remote-export-test-'));
     projectDir = path.join(rootDir, 'project');
     cloneDir = path.join(rootDir, 'results-clone');
     mkdirSync(projectDir, { recursive: true });
+
+    // CI runners do not always have a global Git identity configured. Keep the
+    // tests honest by making the results repo clone rely on AgentV's local
+    // identity setup rather than the developer machine's ~/.gitconfig.
+    previousHome = process.env.HOME;
+    previousXdgConfigHome = process.env.XDG_CONFIG_HOME;
+    process.env.HOME = path.join(rootDir, 'empty-home');
+    process.env.XDG_CONFIG_HOME = path.join(rootDir, 'empty-xdg-config');
+    mkdirSync(process.env.HOME, { recursive: true });
+    mkdirSync(process.env.XDG_CONFIG_HOME, { recursive: true });
   });
 
   afterEach(() => {
+    if (previousHome === undefined) {
+      process.env.HOME = undefined;
+    } else {
+      process.env.HOME = previousHome;
+    }
+    if (previousXdgConfigHome === undefined) {
+      process.env.XDG_CONFIG_HOME = undefined;
+    } else {
+      process.env.XDG_CONFIG_HOME = previousXdgConfigHome;
+    }
     rmSync(rootDir, { recursive: true, force: true });
   });
 
