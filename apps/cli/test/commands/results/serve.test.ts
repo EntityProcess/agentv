@@ -2330,6 +2330,47 @@ describe('serve app', () => {
       const data = (await res.json()) as { content: string };
       expect(data.content).toContain('Hello, Alice!');
     });
+
+    it('serves transcript JSONL artifacts as browser-visible raw text and downloads', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-transcript');
+      const runId = 'with-transcript::2026-03-25T10-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const transcriptPath = path.join(timestampDir, artifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'user',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'with-transcript',
+          transcript_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const artifactUrl = `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${artifactPath}`;
+
+      const rawRes = await app.request(`${artifactUrl}?raw=1`);
+      expect(rawRes.status).toBe(200);
+      expect(rawRes.headers.get('content-type')).toContain('text/plain');
+      expect(await rawRes.text()).toBe(transcriptJsonl);
+
+      const downloadRes = await app.request(`${artifactUrl}?download=1`);
+      expect(downloadRes.status).toBe(200);
+      expect(downloadRes.headers.get('content-disposition')).toBe(
+        'attachment; filename="transcript.jsonl"',
+      );
+      expect(await downloadRes.text()).toBe(transcriptJsonl);
+    });
   });
 
   // ── GET /api/compare (tag filter) ───────────────────────────────────

@@ -6,10 +6,11 @@
  * Assertions are grouped by grader name.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import {
+  artifactFileContentUrl,
   isPassing,
   projectEvalFileContentOptions,
   projectEvalFilesOptions,
@@ -31,6 +32,12 @@ import type { FileNode } from './FileTree';
 import { FileTree } from './FileTree';
 import { MonacoViewer } from './MonacoViewer';
 import { ScoreBar } from './ScoreBar';
+import {
+  TranscriptTimeline,
+  findAnswerPath,
+  findTranscriptPath,
+  parseTranscriptJsonl,
+} from './TranscriptTimeline';
 
 interface EvalDetailProps {
   eval: EvalResult;
@@ -38,7 +45,7 @@ interface EvalDetailProps {
   projectId?: string;
 }
 
-type Tab = 'checks' | 'source' | 'files' | 'feedback';
+type Tab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
 
 /** Recursively find the first file node in the tree. */
 function findFirstFile(nodes: FileNode[]): string | null {
@@ -54,15 +61,22 @@ function findFirstFile(nodes: FileNode[]): string | null {
 
 export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('checks');
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const { data: config } = useStudioConfig(projectId);
   const isReadOnly = config?.read_only === true;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'checks', label: 'Checks' },
+    { id: 'transcript', label: 'Transcript' },
     { id: 'source', label: 'Source' },
     { id: 'files', label: 'Files' },
     ...(isReadOnly ? [] : [{ id: 'feedback' as const, label: 'Feedback' }]),
   ];
+
+  const openFile = (filePath: string) => {
+    setSelectedFilePath(filePath);
+    setActiveTab('files');
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -95,7 +109,23 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
         )}
         {activeTab === 'files' && (
           <div className="h-full p-4">
-            <FilesTab result={result} runId={runId} projectId={projectId} />
+            <FilesTab
+              result={result}
+              runId={runId}
+              projectId={projectId}
+              selectedPath={selectedFilePath}
+              onSelectedPathChange={setSelectedFilePath}
+            />
+          </div>
+        )}
+        {activeTab === 'transcript' && (
+          <div className="overflow-auto p-4">
+            <TranscriptTab
+              result={result}
+              runId={runId}
+              projectId={projectId}
+              onOpenFile={openFile}
+            />
           </div>
         )}
         {activeTab === 'source' && (
@@ -406,11 +436,162 @@ function ChecksTab({ result, projectId }: { result: EvalResult; projectId?: stri
   );
 }
 
+function containsFilePath(nodes: FileNode[], filePath: string | null): boolean {
+  if (!filePath) return false;
+  for (const node of nodes) {
+    if (node.type === 'file' && node.path === filePath) return true;
+    if (node.children && containsFilePath(node.children, filePath)) return true;
+  }
+  return false;
+}
+
+function TranscriptTab({
+  result,
+  runId,
+  projectId,
+  onOpenFile,
+}: {
+  result: EvalResult;
+  runId: string;
+  projectId?: string;
+  onOpenFile: (path: string) => void;
+}) {
+  const evalId = result.testId;
+  const { data: filesData, isLoading: isLoadingFiles } = projectId
+    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId))
+    : useEvalFiles(runId, evalId);
+  const files = filesData?.files ?? [];
+  const transcriptPath = findTranscriptPath(files);
+  const answerPath = findAnswerPath(files);
+
+  const { data: transcriptContentData, isLoading: isLoadingTranscript } = projectId
+    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, transcriptPath ?? ''))
+    : useEvalFileContent(runId, evalId, transcriptPath ?? '');
+  const { data: answerContentData } = projectId
+    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, answerPath ?? ''))
+    : useEvalFileContent(runId, evalId, answerPath ?? '');
+
+  const parsedTranscript = useMemo(
+    () => parseTranscriptJsonl(transcriptContentData?.content ?? ''),
+    [transcriptContentData?.content],
+  );
+
+  if (isLoadingFiles) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4 text-sm text-gray-500">
+        Loading transcript artifacts...
+      </div>
+    );
+  }
+
+  if (!transcriptPath) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          This run does not include canonical <code>outputs/transcript.jsonl</code>. Dashboard does
+          not parse <code>response.md</code> or markdown transcripts for this view.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoadingTranscript) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4 text-sm text-gray-500">
+        Loading <code>{transcriptPath}</code>...
+      </div>
+    );
+  }
+
+  if (parsedTranscript.error) {
+    return (
+      <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-4">
+        <h3 className="text-sm font-medium text-red-300">Transcript could not be parsed</h3>
+        <p className="mt-2 text-sm text-gray-300">{parsedTranscript.error}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenFile(transcriptPath)}
+            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
+          >
+            Open raw JSONL in Files
+          </button>
+          <a
+            href={artifactFileContentUrl({
+              projectId,
+              runId,
+              evalId,
+              filePath: transcriptPath,
+              raw: true,
+            })}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md px-3 py-1.5 text-sm text-cyan-400 transition-colors hover:text-cyan-300 hover:underline"
+          >
+            Open raw JSONL
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (parsedTranscript.entries.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h3 className="text-sm font-medium text-gray-300">Empty transcript</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          <code>{transcriptPath}</code> exists but contains no JSONL rows.
+        </p>
+      </div>
+    );
+  }
+
+  const answerHref = answerPath
+    ? artifactFileContentUrl({ projectId, runId, evalId, filePath: answerPath, raw: true })
+    : undefined;
+  const transcriptHref = artifactFileContentUrl({
+    projectId,
+    runId,
+    evalId,
+    filePath: transcriptPath,
+    raw: true,
+  });
+  const transcriptDownloadHref = artifactFileContentUrl({
+    projectId,
+    runId,
+    evalId,
+    filePath: transcriptPath,
+    download: true,
+  });
+
+  return (
+    <TranscriptTimeline
+      entries={parsedTranscript.entries}
+      finalAnswer={answerPath ? (answerContentData?.content ?? result.output) : undefined}
+      answerPath={answerPath}
+      transcriptPath={transcriptPath}
+      answerHref={answerHref}
+      transcriptHref={transcriptHref}
+      transcriptDownloadHref={transcriptDownloadHref}
+      onOpenFile={onOpenFile}
+    />
+  );
+}
+
 function FilesTab({
   result,
   runId,
   projectId,
-}: { result: EvalResult; runId: string; projectId?: string }) {
+  selectedPath,
+  onSelectedPathChange,
+}: {
+  result: EvalResult;
+  runId: string;
+  projectId?: string;
+  selectedPath: string | null;
+  onSelectedPathChange: (path: string) => void;
+}) {
   const evalId = result.testId;
 
   // Use project-scoped API hooks when projectId is present
@@ -419,10 +600,15 @@ function FilesTab({
     : useEvalFiles(runId, evalId);
   const files = filesData?.files ?? [];
 
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [localSelectedPath, setLocalSelectedPath] = useState<string | null>(null);
   const [mobileShowTree, setMobileShowTree] = useState(false);
 
-  const effectivePath = selectedPath ?? (files.length > 0 ? findFirstFile(files) : null);
+  const requestedPath = selectedPath ?? localSelectedPath;
+  const effectivePath = containsFilePath(files, requestedPath)
+    ? requestedPath
+    : files.length > 0
+      ? findFirstFile(files)
+      : null;
 
   const { data: fileContentData, isLoading: isLoadingContent } = projectId
     ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? ''))
@@ -448,7 +634,8 @@ function FilesTab({
           files={files}
           selectedPath={effectivePath}
           onSelect={(path) => {
-            setSelectedPath(path);
+            setLocalSelectedPath(path);
+            onSelectedPathChange(path);
             // On mobile, auto-switch to content viewer after selecting a file
             setMobileShowTree(false);
           }}

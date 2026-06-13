@@ -10,6 +10,8 @@
  *   - GET /api/runs   — list available run workspaces with metadata
  *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/runs/:filename/log — stream the captured console.log for a run
+ *   - GET /api/runs/:filename/evals/:evalId/files/* — read artifact files as JSON,
+ *     or as raw/downloadable text with ?raw=1 / ?download=1
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
  *   - GET /api/projects  — list registered projects
@@ -254,6 +256,21 @@ function inferLanguage(filePath: string): string {
     '.patch': 'diff',
   };
   return langMap[ext] ?? 'plaintext';
+}
+
+function inferRawContentType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.json') return 'application/json; charset=utf-8';
+  // Raw artifact links should be inspectable in a tab instead of rendered as
+  // same-origin HTML/SVG. The explicit ?download=1 path adds
+  // Content-Disposition for users that want a file.
+  if (ext === '.jsonl') return 'text/plain; charset=utf-8';
+  if (ext === '.md') return 'text/markdown; charset=utf-8';
+  return 'text/plain; charset=utf-8';
+}
+
+function contentDispositionFilename(filePath: string): string {
+  return path.basename(filePath).replace(/["\\\r\n]/g, '_');
 }
 
 function stripHeavyFields(results: readonly EvaluationResult[]) {
@@ -800,6 +817,8 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
       record.input_path,
       record.output_path,
       record.response_path,
+      record.answer_path,
+      record.transcript_path,
       record.task_dir,
       record.eval_path,
       record.targets_path,
@@ -833,7 +852,13 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
   // Extract the wildcard suffix without depending on decoded route params.
   const marker = '/files/';
   const markerIdx = c.req.path.indexOf(marker);
-  const filePath = markerIdx >= 0 ? c.req.path.slice(markerIdx + marker.length) : '';
+  const encodedFilePath = markerIdx >= 0 ? c.req.path.slice(markerIdx + marker.length) : '';
+  let filePath = '';
+  try {
+    filePath = encodedFilePath ? decodeURIComponent(encodedFilePath) : '';
+  } catch {
+    return c.json({ error: 'Invalid file path encoding' }, 400);
+  }
 
   if (!filePath) return c.json({ error: 'No file path specified' }, 400);
 
@@ -855,6 +880,16 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
   try {
     const fileContent = readFileSync(absolutePath, 'utf8');
+    if (c.req.query('raw') === '1' || c.req.query('download') === '1') {
+      c.header('Content-Type', inferRawContentType(absolutePath));
+      if (c.req.query('download') === '1') {
+        c.header(
+          'Content-Disposition',
+          `attachment; filename="${contentDispositionFilename(absolutePath)}"`,
+        );
+      }
+      return c.body(fileContent);
+    }
     const language = inferLanguage(absolutePath);
     return c.json({ content: fileContent, language });
   } catch {
