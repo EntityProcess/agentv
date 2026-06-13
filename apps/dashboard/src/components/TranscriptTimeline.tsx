@@ -105,6 +105,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isTranscriptJsonLine(value: unknown): value is TranscriptJsonLine {
   if (!isRecord(value)) return false;
+  if (value.tool_calls !== undefined && !Array.isArray(value.tool_calls)) return false;
   return (
     typeof value.test_id === 'string' &&
     typeof value.target === 'string' &&
@@ -412,7 +413,7 @@ function TranscriptMessageCard({ line, ordinal }: { line: TranscriptJsonLine; or
   const content = formatContent(line.content);
   const duration = formatDurationMs(line.duration_ms);
   const tokenUsage = formatTokenUsage(line.token_usage);
-  const toolCalls = line.tool_calls?.filter(isRecord) ?? [];
+  const toolCalls = Array.isArray(line.tool_calls) ? line.tool_calls.filter(isRecord) : [];
 
   return (
     <article className={`rounded-lg border p-4 ${roleStyle.container}`}>

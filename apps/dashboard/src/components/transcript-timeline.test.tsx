@@ -26,6 +26,21 @@ describe('TranscriptTimeline', () => {
     expect(parsed.entries[1].tool_calls?.[0]?.tool).toBe('read_file');
   });
 
+  it('rejects malformed optional tool_calls fields before rendering', () => {
+    const parsed = parseTranscriptJsonl(
+      JSON.stringify({
+        test_id: 'final-json-answer',
+        target: 'codex',
+        message_index: 0,
+        role: 'assistant',
+        tool_calls: { id: 'call-1', tool: 'read_file' },
+      }),
+    );
+
+    expect(parsed.entries).toEqual([]);
+    expect(parsed.error).toBe('Line 1 is not a transcript JSONL row.');
+  });
+
   it('finds canonical transcript and answer artifacts without selecting response.md', () => {
     expect(findTranscriptPath(structuredTranscriptFiles)).toBe(
       'final-json-answer__codex/outputs/transcript.jsonl',
