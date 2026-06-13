@@ -957,6 +957,29 @@ describe('WIP branch helpers', () => {
     }
   }, 30000);
 
+  it('setupWipWorktree bases the WIP branch on the configured storage branch', async () => {
+    const storageBranch = initializeRemoteStorageBranch(
+      path.join(rootDir, 'results-seed'),
+      'agentv-results',
+    );
+    const wipBranch = 'agentv/inflight/test-host/test-run-configured-branch';
+    const handle = await setupWipWorktree({
+      config: { ...config, branch: storageBranch },
+      wipBranch,
+    });
+
+    try {
+      const wipHead = git('git rev-parse HEAD', handle.worktreeDir);
+      const storageHead = git(`git rev-parse origin/${storageBranch}`, cloneDir);
+      const defaultHead = git('git rev-parse origin/main', cloneDir);
+
+      expect(wipHead).toBe(storageHead);
+      expect(wipHead).not.toBe(defaultHead);
+    } finally {
+      await handle.cleanup();
+    }
+  }, 30000);
+
   it('pushWipCheckpoint force-pushes run artifacts to the WIP branch', async () => {
     const wipBranch = 'agentv/inflight/test-host/test-run-002';
     const handle = await setupWipWorktree({ config, wipBranch });

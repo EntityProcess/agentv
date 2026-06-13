@@ -1394,10 +1394,15 @@ export async function setupWipWorktree(params: {
   const normalized = normalizeResultsConfig(params.config);
   const cloneDir = await ensureResultsRepoClone(normalized);
   await fetchResultsRepo(cloneDir);
-  const baseBranch = await resolveDefaultBranch(cloneDir);
+  const baseRef = normalized.branch
+    ? await assertConfiguredResultsBranchExists(cloneDir, normalized)
+    : remoteBranchRef(await resolveDefaultBranch(cloneDir));
+  if (!baseRef) {
+    throw missingConfiguredBranchError(normalized);
+  }
   const worktreeRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-wip-'));
   const worktreeDir = path.join(worktreeRoot, 'repo');
-  await runGit(['worktree', 'add', '-B', params.wipBranch, worktreeDir, `origin/${baseBranch}`], {
+  await runGit(['worktree', 'add', '-B', params.wipBranch, worktreeDir, baseRef], {
     cwd: cloneDir,
   });
   // Ensure commits work even without a global git user config.
