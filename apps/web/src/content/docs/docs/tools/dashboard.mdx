@@ -245,7 +245,7 @@ IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becom
 
 ## Remote Results
 
-Dashboard can display runs pushed to a remote git repository by other machines or CI alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber).
+Dashboard can display runs pushed to a remote git repository by other machines or CI alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber). For in-progress eval durability before final publish, AgentV writes [WIP checkpoints](/docs/tools/wip-checkpoints/) to `agentv/inflight/...` branches; Dashboard lists them only after they are recovered locally or published to the normal results branch.
 
 ### Configuration
 
@@ -334,7 +334,7 @@ Each run writes to a unique timestamped directory, so concurrent pushes from mul
 
 Existing runs already present under `.agentv/results/runs/` stay exactly where they are and continue to appear in Dashboard as **local** runs.
 
-Adding a `results` block does **not** backfill those historical runs into the remote repo automatically. Auto-push only affects runs created after the remote results repo is configured.
+Adding a `results` block does **not** backfill those historical runs into the remote repo automatically. Auto-push only affects runs created after the remote results repo is configured. The same auto-push setting also enables best-effort WIP checkpoints for in-progress `agentv eval` runs.
 
 If you want older local-only runs in the remote repo, rerun them or copy the run directories into the managed clone manually before syncing the project.
 
