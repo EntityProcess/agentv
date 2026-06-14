@@ -54,6 +54,31 @@ What it shows:
 - **Expandable details** — unified assertions with pass/fail indicators and type badges, collapsible input/output
 - **Criteria column** — shows the test prompt or description inline for quick scanning
 
+### Publish a static report with GitHub Pages
+
+The generated file is self-contained HTML: no Dashboard server, API endpoint, or external asset host is required after it is written. That makes it a good fit for public result repositories served by GitHub Pages.
+
+One minimal publication workflow is:
+
+```bash
+# 1. Run an eval and sync or copy the run workspace into your public results repo.
+agentv eval evals/demo.eval.yaml --output .agentv/results/runs/demo-live
+
+# 2. In the public results repo, render the report into the Pages source directory.
+agentv results report .agentv/results/runs/demo-live --out docs/index.html
+
+# 3. Review the generated HTML before publishing.
+grep -RInE 'sk-[A-Za-z0-9]|Bearer |localhost|127\.0\.0\.1|/home/|/Users/|/tmp/' docs/index.html
+
+# 4. Commit the run artifacts and docs/index.html, then enable GitHub Pages
+#    for the repository's docs/ directory or the branch used for Pages.
+git add .agentv/results/runs/demo-live docs/index.html README.md
+git commit -m "docs(results): publish static AgentV report"
+git push
+```
+
+Use `--out docs/<name>.html` when a repository should publish multiple runs. Link those files from the result repository README so readers can browse a dashboard-like report from GitHub Pages instead of running `agentv dashboard` or opening raw JSONL.
+
 <Image src={resultsReportDetails} alt="AgentV results report showing an expanded failing test case with unified assertions, deterministic type badges, pass/fail indicators, evidence text, and collapsible input/output" />
 
 | Option | Description |
