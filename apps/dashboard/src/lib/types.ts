@@ -125,7 +125,7 @@ export interface EvalResult {
   scores?: ScoreEntry[];
   assertions?: AssertionEntry[];
   input?: { role: string; content: string }[];
-  output?: { role: string; content: string }[];
+  output?: string;
   _toolCalls?: Record<string, unknown>;
   _graderDurationMs?: number;
   source_traceability?: SourceTraceability;

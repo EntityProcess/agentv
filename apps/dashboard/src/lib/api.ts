@@ -87,6 +87,32 @@ function flattenRunListPages(pages: RunListResponse[] | undefined): RunListRespo
   };
 }
 
+function encodeArtifactPath(filePath: string): string {
+  return filePath
+    .split('/')
+    .filter((segment) => segment.length > 0)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+export function artifactFileContentUrl(options: {
+  runId: string;
+  evalId: string;
+  filePath: string;
+  projectId?: string;
+  raw?: boolean;
+  download?: boolean;
+}): string {
+  const base = options.projectId
+    ? `${projectApiBase(options.projectId)}/runs/${encodeURIComponent(options.runId)}/evals/${encodeURIComponent(options.evalId)}/files/${encodeArtifactPath(options.filePath)}`
+    : `/api/runs/${encodeURIComponent(options.runId)}/evals/${encodeURIComponent(options.evalId)}/files/${encodeArtifactPath(options.filePath)}`;
+  const params = new URLSearchParams();
+  if (options.raw) params.set('raw', '1');
+  if (options.download) params.set('download', '1');
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+}
+
 export const runListOptions = queryOptions({
   queryKey: ['runs'],
   queryFn: () => fetchJson<RunListResponse>('/api/runs'),
@@ -194,9 +220,7 @@ export function evalFileContentOptions(runId: string, evalId: string, filePath: 
   return queryOptions({
     queryKey: ['runs', runId, 'evals', evalId, 'files', filePath],
     queryFn: () =>
-      fetchJson<FileContentResponse>(
-        `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
-      ),
+      fetchJson<FileContentResponse>(artifactFileContentUrl({ runId, evalId, filePath })),
     enabled: !!runId && !!evalId && !!filePath,
   });
 }
@@ -477,7 +501,7 @@ export function projectEvalFileContentOptions(
     queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'files', filePath],
     queryFn: () =>
       fetchJson<FileContentResponse>(
-        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files/${filePath}`,
+        artifactFileContentUrl({ projectId, runId, evalId, filePath }),
       ),
     enabled: !!projectId && !!runId && !!evalId && !!filePath,
   });
