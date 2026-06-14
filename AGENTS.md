@@ -125,18 +125,17 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
 - If external research discovers AgentV implementation work, capture the public code/docs change in a focused branch/PR and keep private research or orchestration records outside this repository.
 - When an external tracker is supplied, keep it updated with user-visible decisions, verification evidence, blockers, and handoff state. Run sync or flush commands only against that supplied tracker and keep exported tracker state out of AgentV commits unless explicitly requested.
-- Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately broadcast it through Agent Mail with the stash name, affected paths, reason, and recovery plan.
+- Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately record it in the supplied tracker or orchestrator handoff with the stash name, affected paths, reason, and recovery plan.
 
-### MCP Agent Mail
-- If Agent Mail is part of your local operator workflow, keep server URLs, startup commands, bearer tokens, and canonical project keys in `AGENTS.md.local` or operator workspace docs.
-- Before editing shared files, create advisory reservations with `file_reservation_paths` for the intended paths/globs when Agent Mail is configured.
-- Use threads for coordination when Agent Mail is configured: `send_message` with a stable `thread_id`, `fetch_inbox` to check mail, and `acknowledge_message` after acting on a message.
-- Do not commit project-local Agent Mail config files; they contain bearer tokens and are ignored by `.gitignore`.
+### Coordination and Shared Checkouts
+- Use the operator-supplied tracker for ownership, handoff notes, blockers, and evidence.
+- If the operator provides a separate coordination or reservation system, keep its server URLs, startup commands, bearer tokens, and project keys in `AGENTS.md.local` or operator workspace docs.
+- Do not commit project-local coordination config files; they may contain bearer tokens and are ignored by `.gitignore`.
 
 ### Worktree Setup
-- Start every repo change by running `git fetch origin`, inspecting `git status --short --branch`, and checking/reserving the intended paths in Agent Mail when configured.
-- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, a small single-file fix, or a focused review follow-up); and you hold Agent Mail reservations for the paths you will edit when Agent Mail is configured.
-- When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local Agent Mail config, generated evidence, or unrelated tracker/doc state. Reconcile external tracker state in the supplied tracker, not by staging repo-local artifacts.
+- Start every repo change by running `git fetch origin` and inspecting `git status --short --branch`.
+- Prefer the primary checkout for small, bounded work when all of these are true: local `main` is current with `origin/main` or can be fast-forwarded cleanly; the change is narrow (docs-only, a small single-file fix, or a focused review follow-up); and the intended paths are not dirty or owned by another worker in the supplied tracker.
+- When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local coordination config, generated evidence, or unrelated tracker/doc state. Reconcile external tracker state in the supplied tracker, not by staging repo-local artifacts.
 - Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale/dirty in paths you need.
 - Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit. Do not implement from a stale local `main` or from a branch created off an outdated base.
 - Manual setup:
