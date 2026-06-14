@@ -160,6 +160,15 @@ const MOCK_SETTINGS = new Set([
   'trace', // For testing tool-trajectory evaluator
 ]);
 
+const REPLAY_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'fixtures',
+  'source_target',
+  'suite',
+  'eval_path',
+  'variant',
+]);
+
 // CLI_SETTINGS removed - Zod schema validation now handles CLI provider settings validation
 // in resolveCliConfig() via CliTargetInputSchema
 
@@ -220,6 +229,8 @@ function getKnownSettings(provider: string): Set<string> | null {
       return VSCODE_SETTINGS;
     case 'mock':
       return MOCK_SETTINGS;
+    case 'replay':
+      return REPLAY_SETTINGS;
     case 'cli':
       // CLI provider validation is now handled by Zod schema in resolveCliConfig()
       // Return null to skip duplicate validation in validateUnknownSettings()
@@ -579,6 +590,24 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     // Validate CLI provider fields
     if (providerValue === 'cli') {
       validateCliSettings(target, absolutePath, location, errors);
+    }
+    if (providerValue === 'replay') {
+      if (!isNonEmptyString(target.fixtures)) {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.fixtures`,
+          message: "Replay provider requires 'fixtures' as a non-empty string",
+        });
+      }
+      if (!isNonEmptyString(target.source_target)) {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.source_target`,
+          message: "Replay provider requires 'source_target' as a non-empty string",
+        });
+      }
     }
 
     // Check for unknown settings properties on target object

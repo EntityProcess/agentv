@@ -9,6 +9,7 @@ import {
   runEvalCase,
   runEvaluation,
 } from '../../src/evaluation/orchestrator.js';
+import { ReplayProvider } from '../../src/evaluation/providers/index.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Message,
@@ -17,6 +18,11 @@ import type {
   ProviderResponse,
   ToolCall,
 } from '../../src/evaluation/providers/types.js';
+import {
+  REPLAY_FIXTURE_SCHEMA_VERSION,
+  type ReplayFixtureRecord,
+  serializeReplayFixtureRecord,
+} from '../../src/evaluation/replay-fixtures.js';
 import { RunBudgetTracker } from '../../src/evaluation/run-budget-tracker.js';
 import type { EvalTest, TrialsConfig } from '../../src/evaluation/types.js';
 
@@ -294,6 +300,151 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
     expect(second.output).toEqual(first.output);
     expect(provider.callIndex).toBe(1);
+  });
+
+  it('records live provider output to strict replay fixture JSONL', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-replay-record-'));
+    const fixturePath = path.join(tempDir, 'fixtures', 'target-output.jsonl');
+    const evalFilePath = path.join(tempDir, 'evals', 'sample.eval.yaml');
+    const provider = new SequenceProvider('live-agent', {
+      responses: [
+        {
+          output: [
+            {
+              role: 'assistant',
+              content: 'Recorded live answer',
+              toolCalls: [
+                {
+                  tool: 'Read',
+                  id: 'call-read',
+                  input: { path: 'src/config.ts' },
+                  output: { content: 'timeoutMs = 0' },
+                  durationMs: 18,
+                },
+              ],
+            },
+          ],
+          tokenUsage: { input: 42, output: 7, cached: 3 },
+          costUsd: 0.0123,
+          durationMs: 456,
+        },
+      ],
+    });
+
+    const result = await runEvalCase({
+      evalCase: { ...baseTestCase, id: 'record-live', suite: 'record-suite' },
+      provider,
+      target: { ...baseTarget, name: 'live-agent' },
+      evaluators: evaluatorRegistry,
+      now: () => new Date('2026-06-01T00:00:00.000Z'),
+      replayRecording: {
+        fixturesPath: fixturePath,
+        sourceTarget: 'live_coding_agent',
+        variant: 'legal-v1',
+      },
+      evalFilePath,
+      repoRoot: tempDir,
+    });
+
+    expect(result.executionStatus).toBe('ok');
+    const raw = readFileSync(fixturePath, 'utf8').trim();
+    const row = JSON.parse(raw) as Record<string, unknown>;
+    expect(row).toMatchObject({
+      schema_version: REPLAY_FIXTURE_SCHEMA_VERSION,
+      suite: 'record-suite',
+      eval_path: 'evals/sample.eval.yaml',
+      test_id: 'record-live',
+      source_target: 'live_coding_agent',
+      attempt: 0,
+      variant: 'legal-v1',
+      recorded_at: '2026-06-01T00:00:00.000Z',
+      token_usage: { input: 42, output: 7, cached: 3 },
+      cost_usd: 0.0123,
+      duration_ms: 456,
+    });
+    const output = row.output as Array<Record<string, unknown>>;
+    const toolCalls = output[0]?.tool_calls as Array<Record<string, unknown>>;
+    expect(toolCalls[0]?.duration_ms).toBe(18);
+  });
+
+  it('replays target output without invoking the live target and still runs graders', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-replay-run-'));
+    const fixturePath = path.join(tempDir, 'replay.jsonl');
+    const replayRecord: ReplayFixtureRecord = {
+      schemaVersion: REPLAY_FIXTURE_SCHEMA_VERSION,
+      suite: 'replay-suite',
+      evalPath: 'evals/replay.eval.yaml',
+      testId: 'case-replay',
+      sourceTarget: 'live_coding_agent',
+      attempt: 0,
+      fixtureId: 'fixture-replay',
+      recordedAt: '2026-06-01T00:00:00.000Z',
+      output: [{ role: 'assistant', content: 'Replayed target answer' }],
+      tokenUsage: { input: 12, output: 4 },
+      costUsd: 0.003,
+      durationMs: 222,
+    };
+    writeFileSync(fixturePath, `${serializeReplayFixtureRecord(replayRecord)}\n`, 'utf8');
+
+    let liveTargetCalls = 0;
+    let graderRuns = 0;
+    const replayTarget: ResolvedTarget = {
+      kind: 'replay',
+      name: 'replay_coding_agent',
+      config: {
+        fixturesPath: fixturePath,
+        sourceTarget: 'live_coding_agent',
+      },
+    };
+    const liveProvider: Provider = {
+      id: 'live:agent',
+      kind: 'mock' as const,
+      targetName: 'live_coding_agent',
+      async invoke(): Promise<ProviderResponse> {
+        liveTargetCalls += 1;
+        return { output: [{ role: 'assistant', content: 'live response' }] };
+      },
+    };
+    const replayProvider = new ReplayProvider('replay_coding_agent', replayTarget.config);
+    const freshEvaluatorRegistry = {
+      'llm-grader': {
+        kind: 'llm-grader',
+        async evaluate() {
+          graderRuns += 1;
+          return {
+            score: 1,
+            verdict: 'pass' as const,
+            assertions: [{ text: 'fresh grader', passed: true }],
+            expectedAspectCount: 1,
+          };
+        },
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: path.join(tempDir, 'evals', 'replay.eval.yaml'),
+      repoRoot: tempDir,
+      target: replayTarget,
+      targets: [{ name: 'live_coding_agent', provider: 'mock' }],
+      providerFactory: (target) =>
+        target.name === 'live_coding_agent' ? liveProvider : replayProvider,
+      evaluators: freshEvaluatorRegistry,
+      evalCases: [
+        {
+          ...baseTestCase,
+          id: 'case-replay',
+          suite: 'replay-suite',
+          evaluator: 'llm-grader',
+        },
+      ],
+    });
+
+    expect(liveTargetCalls).toBe(0);
+    expect(graderRuns).toBe(1);
+    expect(results[0]?.output).toBe('Replayed target answer');
+    expect(results[0]?.tokenUsage).toEqual({ input: 12, output: 4 });
+    expect(results[0]?.costUsd).toBe(0.003);
+    expect(results[0]?.durationMs).toBe(222);
   });
 
   it('preserves workspace cwd across retry attempts', async () => {

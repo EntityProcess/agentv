@@ -5,17 +5,7 @@ targets:
     timeout_seconds: 300
 
   - name: replay_coding_agent
-    provider: cli
-    command: >-
-      bun run ./scripts/replay-fixture.ts
-      --fixtures ./fixtures/replay-target-output.jsonl
-      --suite trace-evaluation-showcase
-      --source-target live_coding_agent
-      --test-id {EVAL_ID}
-      --attempt {ATTEMPT}
-      --output {OUTPUT_FILE}
-    cwd: ..
-    timeout_seconds: 15
-    healthcheck:
-      command: bun run ./scripts/replay-fixture.ts --healthcheck
-      cwd: ..
+    provider: replay
+    fixtures: ../fixtures/replay-target-output.jsonl
+    suite: trace-evaluation-showcase
+    source_target: live_coding_agent

@@ -128,6 +128,8 @@ interface NormalizedOptions {
   readonly tags: readonly string[];
   readonly excludeTags: readonly string[];
   readonly transcript?: string;
+  readonly recordReplay?: string;
+  readonly recordReplayVariant?: string;
   readonly experiment?: string;
   readonly budgetUsd?: number;
   readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
@@ -448,6 +450,8 @@ function normalizeOptions(
     tags: normalizeStringArray(rawOptions.tag),
     excludeTags: normalizeStringArray(rawOptions.excludeTag),
     transcript: normalizeString(rawOptions.transcript),
+    recordReplay: normalizeString(rawOptions.recordReplay),
+    recordReplayVariant: normalizeString(rawOptions.recordReplayVariant),
     experiment: normalizeString(rawOptions.experiment),
     budgetUsd: normalizeOptionalNumber(rawOptions.budgetUsd),
     sourceMetadataByEvalFile: normalizeSourceMetadataByEvalFile(
@@ -867,6 +871,13 @@ async function runSingleEvalFile(params: {
   } = params;
 
   const targetName = selection.targetName;
+  const replayRecording = options.recordReplay
+    ? {
+        fixturesPath: path.resolve(options.recordReplay),
+        sourceTarget: targetName,
+        variant: options.recordReplayVariant,
+      }
+    : undefined;
 
   await ensureFileExists(testFilePath, 'Test file');
 
@@ -974,6 +985,7 @@ async function runSingleEvalFile(params: {
     model: options.model,
     threshold: options.threshold,
     targetHooks: resolvedTargetSelection.targetHooks,
+    replayRecording,
     providerFactory,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
@@ -1397,6 +1409,9 @@ export async function runEvalCommand(
 
   if (cache) {
     console.log(`Response cache: enabled (${cache.cachePath})`);
+  }
+  if (options.recordReplay) {
+    console.log(`Replay recording: ${path.resolve(options.recordReplay)}`);
   }
 
   // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold.

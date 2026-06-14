@@ -18,6 +18,7 @@ import { MockProvider } from './mock.js';
 import { PiCliProvider } from './pi-cli.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import { ProviderRegistry } from './provider-registry.js';
+import { ReplayProvider } from './replay.js';
 import type { ResolvedTarget } from './targets.js';
 import {
   COMMON_TARGET_SETTINGS,
@@ -59,6 +60,7 @@ export type {
   OpenRouterResolvedConfig,
   PiCliResolvedConfig,
   PiCodingAgentResolvedConfig,
+  ReplayResolvedConfig,
   ResolvedTarget,
   VSCodeResolvedConfig,
 } from './targets.js';
@@ -92,6 +94,7 @@ export {
 
 export { discoverProviders } from './provider-discovery.js';
 export { discoverCopilotSessions, type CopilotSession } from './copilot-session-discovery.js';
+export { ReplayProvider } from './replay.js';
 
 /**
  * Create and return the default provider registry with all built-in providers.
@@ -119,6 +122,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('claude-sdk', (t) => new ClaudeSdkProvider(t.name, t.config as never))
     .register('mock', (t) => new MockProvider(t.name, t.config as never))
     .register('agentv', (t) => new AgentvProvider(t.name, t.config as never))
+    .register('replay', (t) => new ReplayProvider(t.name, t.config as never))
     .register('vscode', (t) => new VSCodeProvider(t.name, t.config as never, 'vscode'))
     .register(
       'vscode-insiders',

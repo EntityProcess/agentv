@@ -58,7 +58,6 @@ try {
 
   const proofRecords = readJsonl(proofLog);
   const results = readJsonl(resultIndexPath);
-  const targetRuns = proofRecords.filter((record) => record.kind === 'target_replay');
   const graderRuns = proofRecords.filter((record) => record.kind === 'grader_run');
 
   const resultTargets = new Set(results.map((record) => record.target));
@@ -89,8 +88,6 @@ try {
   if (resultTargets.size !== 1 || !resultTargets.has('replay_coding_agent')) {
     failures.push(`expected only replay_coding_agent target, got ${[...resultTargets].join(', ')}`);
   }
-  if (targetRuns.length !== 2)
-    failures.push(`expected 2 replay target calls, got ${targetRuns.length}`);
   if (graderRuns.length !== 2)
     failures.push(`expected 2 replay-proof grader runs, got ${graderRuns.length}`);
   if (missingScoreTypes.length > 0) {
@@ -103,6 +100,20 @@ try {
     if (result.score !== 1) {
       failures.push(`expected score 1 for ${String(result.test_id)}, got ${String(result.score)}`);
     }
+    if (typeof result.cost_usd !== 'number') {
+      failures.push(`expected cost_usd for ${String(result.test_id)}`);
+    }
+    if (typeof result.duration_ms !== 'number') {
+      failures.push(`expected duration_ms for ${String(result.test_id)}`);
+    }
+    const tokenUsage = result.token_usage as Record<string, unknown> | undefined;
+    if (
+      !tokenUsage ||
+      typeof tokenUsage.input !== 'number' ||
+      typeof tokenUsage.output !== 'number'
+    ) {
+      failures.push(`expected token_usage for ${String(result.test_id)}`);
+    }
   }
 
   if (failures.length > 0) {
@@ -110,8 +121,8 @@ try {
   }
 
   console.log(`Replay proof passed: ${results.length} tests`);
-  console.log(`Target calls: ${targetRuns.length} replay fixture lookup(s)`);
   console.log(`Fresh grader runs: ${graderRuns.length} replay-proof invocation(s)`);
+  console.log('Provider metrics: preserved from replay fixture rows');
   console.log('Result target: replay_coding_agent');
 } finally {
   rmSync(tmp, { recursive: true, force: true });

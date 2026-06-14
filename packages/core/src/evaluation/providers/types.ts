@@ -32,7 +32,8 @@ export type ProviderKind =
   | 'vscode'
   | 'vscode-insiders'
   | 'agentv'
-  | 'transcript';
+  | 'transcript'
+  | 'replay';
 
 /**
  * Agent providers that spawn interactive sessions with filesystem access.
@@ -98,6 +99,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'vscode-insiders',
   'agentv',
   'transcript',
+  'replay',
 ] as const;
 
 /**
@@ -165,6 +167,8 @@ export interface ProviderRequest {
   readonly chatPrompt?: ChatPrompt;
   readonly inputFiles?: readonly string[];
   readonly evalCaseId?: string;
+  readonly suite?: string;
+  readonly evalFilePath?: string;
   readonly attempt?: number;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
@@ -407,6 +411,10 @@ export interface TargetDefinition {
   readonly max_budget_usd?: number | unknown | undefined;
   // Mock fields
   readonly response?: string | unknown | undefined;
+  // Replay fixture fields
+  readonly fixtures?: string | unknown | undefined;
+  readonly source_target?: string | unknown | undefined;
+  readonly eval_path?: string | unknown | undefined;
   // VSCode fields
   readonly wait?: boolean | unknown | undefined;
   readonly dry_run?: boolean | unknown | undefined;

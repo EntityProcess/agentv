@@ -22,6 +22,11 @@ interface RunEvaluationOptionsLike {
   readonly runBudgetTracker?: {
     readonly budgetCapUsd?: number;
   };
+  readonly replayRecording?: {
+    readonly fixturesPath?: string;
+    readonly sourceTarget?: string;
+    readonly variant?: string;
+  };
   readonly onResult?: (result: EvaluationResultLike) => Promise<void> | void;
 }
 
@@ -170,6 +175,7 @@ async function maybeWriteDiagnostics(
     budgetUsd: options.budgetUsd ?? null,
     hasRunBudgetTracker: options.runBudgetTracker !== undefined,
     runBudgetCapUsd: options.runBudgetTracker?.budgetCapUsd ?? null,
+    replayRecording: options.replayRecording ?? null,
     evalCaseIds: Array.isArray(options.evalCases)
       ? options.evalCases
           .map((evalCase) =>

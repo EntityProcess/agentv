@@ -223,6 +223,17 @@ export const evalRunCommand = command({
       description:
         'Grade a pre-recorded transcript JSONL instead of invoking a live provider. Ignores targets.',
     }),
+    recordReplay: option({
+      type: optional(string),
+      long: 'record-replay',
+      description:
+        'Append live target outputs to a replay fixture JSONL file. Graders still run normally.',
+    }),
+    recordReplayVariant: option({
+      type: optional(string),
+      long: 'record-replay-variant',
+      description: 'Optional variant key to store with --record-replay fixture rows.',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -278,6 +289,8 @@ export const evalRunCommand = command({
       tag: args.tag,
       excludeTag: args.excludeTag,
       transcript: args.transcript,
+      recordReplay: args.recordReplay,
+      recordReplayVariant: args.recordReplayVariant,
     };
     const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
     if (result?.allExecutionErrors) {

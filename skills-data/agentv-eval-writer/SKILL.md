@@ -544,6 +544,10 @@ agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run] [--thresh
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
+# Record live target output for later target substitution
+agentv eval <file.yaml> --target live_agent --record-replay fixtures/target-output.jsonl
+agentv eval <file.yaml> --target replay_agent
+
 # Run a single assertion in isolation (no API keys needed)
 agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 
@@ -566,6 +570,8 @@ agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/res
 # Prefer simple assertions when they fit the criteria; use deterministic or LLM-based graders when needed
 agentv validate <file.yaml>
 ```
+
+**Replay targets:** Add `provider: replay`, `fixtures: <jsonl>`, and `source_target: <live target name>` in `.agentv/targets.yaml`. Optional `suite`, `eval_path`, and `variant` tighten lookup. The eval YAML and graders stay unchanged; replay only substitutes recorded target output, and graders run fresh.
 
 ## Code Judge SDK
 
