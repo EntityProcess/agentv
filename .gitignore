@@ -33,6 +33,8 @@ AGENTS.md.local
 .vscode/mcp.json
 .opencode/
 .ao/
+.workmux.yaml
+.github/hooks/workmux-status/
 
 # MCP Agent Mail local configs (contain bearer tokens)
 .mcp.json
