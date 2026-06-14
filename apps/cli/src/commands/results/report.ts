@@ -124,7 +124,7 @@ export function renderResultsReport(
     serializeReportResult(result, sourceFile, records[index], benchmarkEvalFile),
   );
   const dataJson = JSON.stringify(rows).replace(/<\//g, '<\\/');
-  return RESULTS_REPORT_TEMPLATE.replace('__DATA_PLACEHOLDER__', dataJson);
+  return RESULTS_REPORT_TEMPLATE.replace('__DATA_PLACEHOLDER__', () => dataJson);
 }
 
 export async function writeResultsReport(

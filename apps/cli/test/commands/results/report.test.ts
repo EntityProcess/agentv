@@ -148,6 +148,27 @@ describe('results report', () => {
     expect(html).not.toContain('Grader Results');
   });
 
+  it('embeds result text containing replacement tokens without corrupting the inline script', async () => {
+    const runDir = path.join(tempDir, 'run');
+    await writeArtifactsFromResults(
+      [
+        makeResult({
+          output: "literal replacement tokens: $' $& $` $$",
+        }),
+      ],
+      runDir,
+      { evalFile: 'evals/demo.eval.yaml' },
+    );
+
+    const { outputPath } = await writeResultsReport(runDir, undefined, tempDir);
+    const html = readFileSync(outputPath, 'utf8');
+
+    expect(html.match(/<\/script>/g)).toHaveLength(1);
+    expect(html).toContain("literal replacement tokens: $' $& $` $$");
+    expect(html).toContain('<script>');
+    expect(html).toContain('</script>');
+  });
+
   it('emits an inline report script that parses successfully', async () => {
     const runDir = path.join(tempDir, 'run');
     await writeArtifactsFromResults([makeResult()], runDir, { evalFile: 'evals/demo.eval.yaml' });
