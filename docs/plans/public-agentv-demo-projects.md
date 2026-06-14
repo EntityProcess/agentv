@@ -123,7 +123,7 @@ The public demo setup owns project registration, result-repo registration, and l
 
 ## Execution Handoff
 
-After this review is applied, create Beads from U1-U5 and broadcast one Agent Mail thread before implementation starts. The broadcast should name the repo topology, owner boundaries, result-sync contract, secret-handling rules, and the requirement to create follow-up Beads when real data exposes Dashboard UX gaps or AgentV core gaps.
+After this review is applied, create Beads from U1-U5 and record one orchestrator handoff before implementation starts. The handoff should name the repo topology, owner boundaries, result-sync contract, secret-handling rules, and the requirement to create follow-up Beads when real data exposes Dashboard UX gaps or AgentV core gaps.
 
 ---
 
@@ -206,7 +206,7 @@ After this review is applied, create Beads from U1-U5 and broadcast one Agent Ma
 
 ## Sequencing
 
-1. Create and claim Beads from U1-U5, then broadcast the Agent Mail handoff before implementation workers start.
+1. Create and claim Beads from U1-U5, then record the orchestrator handoff before implementation workers start.
 2. Complete U1 first. The `swe-evals` harness should not be built around unvalidated tasks.
 3. U2 and U3 can proceed in parallel after U1 has at least one validated SWE task.
 4. U4 should start once final public repo names are chosen; result repo names are part of the public demo contract.
@@ -243,7 +243,7 @@ Out of scope:
 - **Result sync confusion:** A run can appear local but fail to sync remotely. Mitigation: U4 must verify both directions needed for the demo: push/write to the result repo and Dashboard visibility from a clean setup.
 - **Public artifact leakage:** A local run can be safe while a public results repo leaks prompts, endpoint values, private paths, or sensitive Dexter data. Mitigation: U4 must use a Dashboard-ready artifact allowlist and leakage preflight before publishing.
 - **AgentV primitive gaps:** Dexter or SWE conversion may expose missing AgentV schema, provider, result-sync, or Dashboard ingestion primitives. Mitigation: record the gap, draft a separate plan, and create follow-up Beads instead of absorbing core work into the companion-repo units.
-- **Cross-repo coordination:** Work spans AgentV, new companion repos, and deployment setup. Mitigation: create Beads from implementation units and broadcast Agent Mail ownership before editing shared files.
+- **Cross-repo coordination:** Work spans AgentV, new companion repos, and deployment setup. Mitigation: create Beads from implementation units and record ownership before editing shared files.
 
 ---
 
@@ -263,11 +263,11 @@ Out of scope:
 ## Documentation And Operational Notes
 
 - Public docs should name the local-only secret boundary explicitly: `.env.example` and templates are committed; `.env`, BWS outputs, resolved endpoints, API keys, and result-repo auth tokens are not.
-- Setup scripts should print variable names and missing-config guidance only. They should not print resolved secret values, private endpoints, or token-like strings in failure output, Agent Mail handoffs, JSONL artifacts, or Dashboard-visible logs.
+- Setup scripts should print variable names and missing-config guidance only. They should not print resolved secret values, private endpoints, or token-like strings in failure output, handoffs, JSONL artifacts, or Dashboard-visible logs.
 - Results repos are public demo artifacts, not scratch output. Their naming, initialization, and sync commands should be documented alongside the source repos.
 - The public demo setup should have a local source-based path first. Docker can be added for repeatability, but local iteration should not require image rebuilds.
 - Dashboard UAT requires rebuilding the Dashboard frontend bundle before browser verification when Dashboard source may have changed.
-- After this plan is accepted, create Beads from U1-U5 and send one Agent Mail broadcast with links to the requirements doc and this plan.
+- After this plan is accepted, create Beads from U1-U5 and record one orchestrator handoff with links to the requirements doc and this plan.
 
 ---
 
