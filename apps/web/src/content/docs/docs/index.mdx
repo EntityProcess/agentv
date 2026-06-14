@@ -42,6 +42,26 @@ AgentV is a CLI-first AI agent evaluation framework. It evaluates your agents lo
 - **Rubrics** — Structured criteria with weights for grading
 - **Results** — JSONL output with scores, reasoning, and execution traces
 
+## AI agent navigation map
+
+Use this topic map when you are an AI agent trying to decide which primitive or workflow to compose next:
+
+| Goal | Start here | Why |
+| --- | --- | --- |
+| Create a first eval | [Quickstart](/docs/getting-started/quickstart/) → [Eval files](/docs/evaluation/eval-files/) | Defines the smallest runnable YAML shape before adding advanced fields. |
+| Run or resume evals | [Running evals](/docs/evaluation/running-evals/) → [WIP checkpoints](/docs/tools/wip-checkpoints/) | Covers `agentv eval`, concurrency, `--resume`, `--rerun-failed`, and remote partial-run recovery. |
+| Choose graders | [Rubrics](/docs/evaluation/rubrics/) → [Code graders](/docs/graders/code-graders/) → [LLM graders](/docs/graders/llm-graders/) | Keeps deterministic checks, rubric scoring, and LLM judgment separate. |
+| Evaluate tool use or agents | [Tool trajectory](/docs/graders/tool-trajectory/) → [Coding agents](/docs/targets/coding-agents/) → [CLI provider](/docs/targets/cli-provider/) | Shows how targets, transcripts, and tool-call assertions compose. |
+| Share and inspect results | [Results](/docs/tools/results/) → [Dashboard](/docs/tools/dashboard/) | Explains local artifacts, reports, remote result repositories, and Dashboard review flows. |
+| Compare runs | [Compare](/docs/tools/compare/) → [Dashboard Analytics](/docs/tools/dashboard/#analytics) | Use CLI metrics for automation and Dashboard analytics for interactive inspection. |
+| Govern or improve an agent workflow | [Agent eval layers](/docs/guides/agent-eval-layers/) → [Skill improvement workflow](/docs/guides/skill-improvement-workflow/) → [Enterprise governance](/docs/guides/enterprise-governance/) | Moves from primitive eval design to iterative agent improvement and governance checks. |
+
+### Navigation strategy recommendation
+
+Keep the public Astro/Starlight docs as AgentV's canonical navigation layer, and add lightweight topic-map sections like the one above when agents need a faster path through related pages. This borrows the useful LLM Wiki convention of one-line index entries with dense cross-links, without introducing a separate wiki, custom schema, or runtime navigation code.
+
+That is the smallest fit for the current docs: Starlight already provides the sidebar, URLs, search, and link validation, while the source MDX files remain reviewable in ordinary PRs. A full LLM Wiki-style knowledge graph would add duplicate source-of-truth and maintenance overhead before AgentV has enough public docs or contradictory source material to justify provenance tracking. Revisit a richer topic-map or wiki only if a docs section grows beyond a scannable page index, or if multiple sources need explicit confidence/contradiction metadata.
+
 ## Features
 
 - **Multi-objective scoring**: Correctness, latency, cost, safety in one run

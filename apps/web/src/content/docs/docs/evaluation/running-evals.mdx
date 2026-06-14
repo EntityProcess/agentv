@@ -301,7 +301,7 @@ agentv eval evals/my-eval.yaml --rerun-failed
 agentv eval evals/my-eval.yaml --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
 ```
 
-After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it.
+After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
 
 The interactive wizard (`agentv eval` with no arguments) remembers the last run's artifact directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
 
