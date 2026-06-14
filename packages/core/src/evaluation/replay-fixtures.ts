@@ -16,9 +16,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 
-import { toCamelCaseDeep, toSnakeCaseDeep } from './case-conversion.js';
 import type { ResolvedTarget } from './providers/targets.js';
-import type { Message, ProviderResponse, ProviderTokenUsage } from './providers/types.js';
+import type { Message, ProviderResponse, ProviderTokenUsage, ToolCall } from './providers/types.js';
 import type { EvalTest } from './types.js';
 
 export const REPLAY_FIXTURE_SCHEMA_VERSION = 'agentv.replay_fixture.v1';
@@ -81,6 +80,8 @@ const ReplayFixtureWireSchema = z
   })
   .strict();
 
+type ToolCallWire = z.infer<typeof ToolCallWireSchema>;
+type MessageWire = z.infer<typeof MessageWireSchema>;
 type ReplayFixtureWireRecord = z.infer<typeof ReplayFixtureWireSchema>;
 
 export interface ReplayFixtureRecord {
@@ -146,13 +147,39 @@ function fromWireRecord(wire: ReplayFixtureWireRecord): ReplayFixtureRecord {
     recordedAt: wire.recorded_at,
     source: wire.source,
     redaction: wire.redaction,
-    output: toCamelCaseDeep(wire.output) as readonly Message[],
+    output: wire.output.map(fromWireMessage),
     transcript: wire.transcript,
     tokenUsage: wire.token_usage,
     costUsd: wire.cost_usd,
     durationMs: wire.duration_ms,
     startTime: wire.start_time,
     endTime: wire.end_time,
+  };
+}
+
+function fromWireMessage(wire: MessageWire): Message {
+  return {
+    role: wire.role,
+    name: wire.name,
+    content: wire.content as Message['content'],
+    toolCalls: wire.tool_calls?.map(fromWireToolCall),
+    startTime: wire.start_time,
+    endTime: wire.end_time,
+    durationMs: wire.duration_ms,
+    metadata: wire.metadata,
+    tokenUsage: wire.token_usage,
+  };
+}
+
+function fromWireToolCall(wire: ToolCallWire): ToolCall {
+  return {
+    tool: wire.tool,
+    input: wire.input,
+    output: wire.output,
+    id: wire.id,
+    startTime: wire.start_time,
+    endTime: wire.end_time,
+    durationMs: wire.duration_ms,
   };
 }
 
@@ -169,7 +196,7 @@ function toWireRecord(record: ReplayFixtureRecord): ReplayFixtureWireRecord {
     recorded_at: record.recordedAt,
     source: record.source,
     redaction: record.redaction,
-    output: toSnakeCaseDeep(record.output),
+    output: record.output.map(toWireMessage),
     transcript: record.transcript,
     token_usage: record.tokenUsage,
     cost_usd: record.costUsd,
@@ -180,6 +207,32 @@ function toWireRecord(record: ReplayFixtureRecord): ReplayFixtureWireRecord {
 
   const parsed = ReplayFixtureWireSchema.parse(dropUndefined(wire));
   return parsed;
+}
+
+function toWireMessage(message: Message): MessageWire {
+  return {
+    role: message.role,
+    name: message.name,
+    content: message.content,
+    tool_calls: message.toolCalls?.map(toWireToolCall),
+    start_time: message.startTime,
+    end_time: message.endTime,
+    duration_ms: message.durationMs,
+    metadata: message.metadata,
+    token_usage: message.tokenUsage,
+  };
+}
+
+function toWireToolCall(toolCall: ToolCall): ToolCallWire {
+  return {
+    tool: toolCall.tool,
+    input: toolCall.input,
+    output: toolCall.output,
+    id: toolCall.id,
+    start_time: toolCall.startTime,
+    end_time: toolCall.endTime,
+    duration_ms: toolCall.durationMs,
+  };
 }
 
 function dropUndefined(value: Record<string, unknown>): Record<string, unknown> {
