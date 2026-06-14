@@ -23,9 +23,9 @@ function assistantText(output: readonly Message[] | null | undefined): string {
     .toLowerCase();
 }
 
-export default defineCodeGrader(({ output }) => {
-  const toolCalls = allToolCalls(output);
-  const text = assistantText(output);
+export default defineCodeGrader(({ messages }) => {
+  const toolCalls = allToolCalls(messages);
+  const text = assistantText(messages);
 
   const failedReadIndex = toolCalls.findIndex(
     (call) => call.tool === 'Read' && hasErrorOutput(call),

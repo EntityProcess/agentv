@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -43,6 +44,11 @@ import {
   isAgentProvider,
 } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions, discoverGraders } from './registry/index.js';
+import {
+  type ReplayRecordingOptions,
+  appendReplayFixtureRecord,
+  buildReplayFixtureRecord,
+} from './replay-fixtures.js';
 import type { RunBudgetTracker } from './run-budget-tracker.js';
 import {
   type TokenUsage,
@@ -103,6 +109,10 @@ type MaybePromise<T> = T | Promise<T>;
 
 const execFileAsync = promisify(execFile);
 const WORKSPACE_GIT_TIMEOUT_MS = 300_000;
+
+function pathFromRoot(root: URL | string): string {
+  return root instanceof URL ? fileURLToPath(root) : String(root);
+}
 
 function classifyQualityStatus(score: number, threshold = DEFAULT_THRESHOLD): ExecutionStatus {
   return score >= threshold ? 'ok' : 'quality_failure';
@@ -374,6 +384,12 @@ export interface RunEvalCaseOptions {
   readonly dependencyResults?: Readonly<Record<string, import('./types.js').DependencyResult>>;
   /** Per-target hooks from eval file (before_all, before_each, after_each, after_all) */
   readonly targetHooks?: import('./types.js').TargetHooksConfig;
+  /** Append live target outputs to a replay JSONL fixture file. */
+  readonly replayRecording?: ReplayRecordingOptions;
+  /** Eval file path used for replay fixture identity. Required when replayRecording is set. */
+  readonly evalFilePath?: string;
+  /** Repo root used to serialize replay fixture eval_path as a stable relative path. */
+  readonly repoRoot?: string;
 }
 
 export interface ProgressEvent {
@@ -451,6 +467,8 @@ export interface RunEvaluationOptions {
   readonly threshold?: number;
   /** Per-target hooks from eval file (before_all, before_each, after_each, after_all) */
   readonly targetHooks?: import('./types.js').TargetHooksConfig;
+  /** Append live target outputs to a replay JSONL fixture file. */
+  readonly replayRecording?: ReplayRecordingOptions;
 }
 
 export async function runEvaluation(
@@ -491,7 +509,9 @@ export async function runEvaluation(
     graderTarget: cliGraderTarget,
     model: cliModel,
     threshold: scoreThreshold,
+    replayRecording,
   } = options;
+  const repoRootPath = pathFromRoot(repoRoot);
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
   let useCache = options.useCache;
@@ -673,6 +693,9 @@ export async function runEvaluation(
         targetResolver,
         availableTargets,
         threshold: scoreThreshold,
+        replayRecording,
+        evalFilePath,
+        repoRoot: repoRootPath,
       });
     } catch (error) {
       if (verbose) {
@@ -1385,6 +1408,9 @@ export async function runEvaluation(
           verbose,
           threshold: scoreThreshold,
           targetHooks: options.targetHooks,
+          replayRecording,
+          evalFilePath,
+          repoRoot: repoRootPath,
           ...(depResults && Object.keys(depResults).length > 0
             ? { dependencyResults: depResults }
             : {}),
@@ -1668,6 +1694,9 @@ async function runBatchEvaluation(options: {
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly threshold?: number;
+  readonly replayRecording?: ReplayRecordingOptions;
+  readonly evalFilePath: string;
+  readonly repoRoot: string;
 }): Promise<readonly EvaluationResult[]> {
   const {
     evalCases,
@@ -1684,6 +1713,9 @@ async function runBatchEvaluation(options: {
     targetResolver,
     availableTargets,
     threshold: batchThreshold,
+    replayRecording,
+    evalFilePath,
+    repoRoot,
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
@@ -1702,6 +1734,8 @@ async function runBatchEvaluation(options: {
       systemPrompt: promptInputs.systemMessage,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
+      suite: evalCase.suite,
+      evalFilePath,
     };
   });
 
@@ -1732,6 +1766,16 @@ async function runBatchEvaluation(options: {
     const evalCase = evalCases[i];
     const promptInputs = promptInputsList[i];
     const providerResponse = batchResponse[i];
+    await maybeRecordReplayFixture({
+      replayRecording,
+      evalCase,
+      evalFilePath,
+      repoRoot,
+      target,
+      attempt: 0,
+      response: providerResponse,
+      nowFn,
+    });
 
     // Extract output from batch response
     const output = providerResponse.output;
@@ -1862,6 +1906,39 @@ async function runBatchEvaluation(options: {
   return results;
 }
 
+async function maybeRecordReplayFixture(options: {
+  readonly replayRecording?: ReplayRecordingOptions;
+  readonly evalCase: EvalTest;
+  readonly evalFilePath?: string;
+  readonly repoRoot?: string;
+  readonly target: ResolvedTarget;
+  readonly attempt: number;
+  readonly response: ProviderResponse;
+  readonly nowFn: () => Date;
+}): Promise<void> {
+  const { replayRecording, evalCase, evalFilePath, repoRoot, target, attempt, response, nowFn } =
+    options;
+  if (!replayRecording || target.kind === 'replay') {
+    return;
+  }
+  if (!evalFilePath || !repoRoot) {
+    throw new Error('Replay recording requires evalFilePath and repoRoot');
+  }
+
+  const record = buildReplayFixtureRecord({
+    evalCase,
+    evalFilePath,
+    repoRoot,
+    target,
+    sourceTarget: replayRecording.sourceTarget,
+    attempt,
+    variant: replayRecording.variant,
+    response,
+    now: nowFn,
+  });
+  await appendReplayFixtureRecord(replayRecording.fixturesPath, record);
+}
+
 export async function runEvalCase(options: RunEvalCaseOptions): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -1891,6 +1968,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     verbose,
     threshold: caseThreshold,
     dependencyResults,
+    replayRecording,
+    evalFilePath,
+    repoRoot,
   } = options;
   const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
@@ -2234,6 +2314,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       threshold: evalCase.threshold ?? caseThreshold,
       targetResolver,
       availableTargets,
+      evalFilePath,
     });
 
     // Cleanup workspace (same logic as standard path)
@@ -2265,6 +2346,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         target,
         promptInputs,
         attempt,
+        evalFilePath,
         agentTimeoutMs,
         signal,
         cwd: workspacePath,
@@ -2297,6 +2379,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           target,
           promptInputs,
           attempt: 0,
+          evalFilePath,
           agentTimeoutMs,
           signal,
           cwd: workspacePath,
@@ -2333,6 +2416,20 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       return { ...errorResult, workspacePath };
     }
     return errorResult;
+  }
+
+  const responseWasCached = cachedResponse !== undefined && providerResponse === cachedResponse;
+  if (!responseWasCached) {
+    await maybeRecordReplayFixture({
+      replayRecording,
+      evalCase,
+      evalFilePath,
+      repoRoot,
+      target: targetUsed ? { ...target, name: targetUsed } : target,
+      attempt,
+      response: providerResponse,
+      nowFn,
+    });
   }
 
   if (cacheKey && cache && !cachedResponse) {
@@ -3346,6 +3443,7 @@ async function runConversationMode(options: {
   readonly threshold?: number;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
+  readonly evalFilePath?: string;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -3365,6 +3463,7 @@ async function runConversationMode(options: {
     threshold,
     targetResolver,
     availableTargets,
+    evalFilePath,
   } = options;
 
   // biome-ignore lint/style/noNonNullAssertion: turns is guaranteed by the caller (conversation mode gate)
@@ -3418,6 +3517,8 @@ async function runConversationMode(options: {
         question: userContent,
         chatPrompt: chatPromptForProvider,
         evalCaseId: `${evalCase.id}/turn-${turnIndex}`,
+        suite: evalCase.suite,
+        evalFilePath,
         signal,
         cwd: workspacePath,
         workspaceFile: caseWorkspaceFile,
@@ -3713,6 +3814,7 @@ async function invokeProvider(
     readonly target: ResolvedTarget;
     readonly promptInputs: PromptInputs;
     readonly attempt: number;
+    readonly evalFilePath?: string;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
     /** Working directory override (e.g., from eval-level workspace.template) */
@@ -3729,6 +3831,7 @@ async function invokeProvider(
     evalCase,
     promptInputs,
     attempt,
+    evalFilePath,
     agentTimeoutMs,
     signal,
     cwd,
@@ -3754,6 +3857,8 @@ async function invokeProvider(
       chatPrompt: promptInputs.chatPrompt,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
+      suite: evalCase.suite,
+      evalFilePath,
       attempt,
       signal: controller.signal,
       cwd,

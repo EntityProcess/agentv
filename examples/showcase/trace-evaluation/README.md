@@ -3,7 +3,7 @@
 This showcase demonstrates trace evaluation as target substitution:
 
 - `live_coding_agent` is the live coding-agent target shape a team would record from.
-- `replay_coding_agent` is a normal CLI target alias that returns recorded provider output from JSONL.
+- `replay_coding_agent` is a normal replay target alias that returns recorded provider output from JSONL.
 - The eval YAML and graders stay the same when switching targets.
 - Replay fixtures return target output only; AgentV runs graders fresh on each replay run.
 
@@ -23,7 +23,6 @@ trace-evaluation/
 │   ├── recovery-check.ts
 │   └── replay-proof.ts
 └── scripts/
-    ├── replay-fixture.ts
     └── prove-replay.ts
 ```
 
@@ -38,8 +37,9 @@ bun apps/cli/src/cli.ts eval \
   --output /tmp/agentv-trace-showcase-replay-run
 ```
 
-The replay target looks up records by `suite`, `test_id`, `source_target`, and `attempt`.
-Missing or duplicate records fail before grading.
+The replay target looks up records by `suite`, `eval_path` when present, `test_id`,
+`source_target`, `attempt`, and `variant` when configured. Missing or duplicate
+records fail before grading.
 
 ## Proof Run
 
@@ -50,9 +50,20 @@ bun examples/showcase/trace-evaluation/scripts/prove-replay.ts
 The proof script runs the replay eval with common LLM API keys blanked. It then verifies:
 
 - the result target is `replay_coding_agent`,
-- the replay target was invoked once per test,
 - the proof code grader ran once per test,
+- replayed target metrics are preserved,
 - deterministic graders produced fresh scores for `tool-trajectory`, `execution-metrics`, `recovery-check`, and `replay-proof`.
+
+To record a new fixture from a live target, run the same eval with the live
+target and `--record-replay`:
+
+```bash
+bun apps/cli/src/cli.ts eval \
+  examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml \
+  --target live_coding_agent \
+  --record-replay examples/showcase/trace-evaluation/fixtures/replay-target-output.jsonl \
+  --output /tmp/agentv-trace-showcase-live-run
+```
 
 ## Transcript Import Fixture
 

@@ -2,7 +2,7 @@
 import { appendFileSync } from 'node:fs';
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs, output, config }) => {
+export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs, messages, config }) => {
   const proofLog = process.env.AGENTV_TRACE_SHOWCASE_PROOF_LOG;
   const testId = (process.env.AGENTV_EVAL_TEST_ID ?? process.env.AGENTV_TEST_ID) || 'unknown';
   const nestedConfig = config?.config as Record<string, unknown> | undefined;
@@ -30,7 +30,7 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs, outpu
     );
   }
 
-  const assistantMessages = output?.filter((message) => message.role === 'assistant') ?? [];
+  const assistantMessages = messages?.filter((message) => message.role === 'assistant') ?? [];
   const assertions = [
     {
       text: `Trace has tool calls (${trace?.eventCount ?? 0})`,

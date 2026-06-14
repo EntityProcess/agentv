@@ -495,6 +495,44 @@ export default defineConfig({
 
 Response cache and replay are separate concepts. The response cache is an iteration aid for repeated live provider calls. Transcript or fixture replay is target substitution from curated artifacts, and graders still run fresh against the replayed output.
 
+## Replay Target Fixtures
+
+Replay target fixtures let you record live target output once, then swap in a replay target alias for later runs without changing eval YAML or grader config. This is useful for expensive coding-agent and document-intelligence runs where you want deterministic target output but fresh grading.
+
+Record target output from the live target with `--record-replay`:
+
+```bash
+agentv eval evals/legal-review.eval.yaml \
+  --target live_coding_agent \
+  --record-replay fixtures/legal-review-target-output.jsonl
+```
+
+Then add a replay target alias in `.agentv/targets.yaml`:
+
+```yaml
+targets:
+  - name: live_coding_agent
+    provider: codex
+    model: gpt-5
+    grader_target: grader_gpt_5_mini
+
+  - name: replay_coding_agent
+    provider: replay
+    fixtures: ../fixtures/legal-review-target-output.jsonl
+    source_target: live_coding_agent
+    suite: legal-review
+```
+
+Run the same eval against the replay alias:
+
+```bash
+agentv eval evals/legal-review.eval.yaml --target replay_coding_agent
+```
+
+Replay fixture rows are strict snake_case JSONL. Each row is keyed by `suite` or `eval_path`, `test_id`, `source_target`, `attempt`, and optional `variant`; missing or duplicate rows fail before grading. Rows preserve the recorded target `output`, `tool_calls`, `transcript`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, and `end_time` when the live provider supplied them.
+
+The replay provider never invokes the live target. It only returns the recorded target output, then AgentV runs graders fresh against that output. Keep replay fixtures separate from the response cache and from cached grader judgments.
+
 ## Environment Variables
 
 ### AGENTV_HOME

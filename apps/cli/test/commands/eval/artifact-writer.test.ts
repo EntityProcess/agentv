@@ -498,6 +498,11 @@ describe('buildIndexArtifactEntry', () => {
         scores: [makeEvaluatorResult({ name: 'quality', score: 0.7 })],
         executionStatus: 'quality_failure',
         error: 'model drift',
+        tokenUsage: { input: 100, output: 40, cached: 10 },
+        costUsd: 0.25,
+        durationMs: 4200,
+        startTime: '2026-03-13T00:00:01.000Z',
+        endTime: '2026-03-13T00:00:05.200Z',
       }),
       {
         outputDir: '/tmp/artifacts',
@@ -514,6 +519,11 @@ describe('buildIndexArtifactEntry', () => {
       suite: 'demo',
       score: 0.9,
       target: 'claude',
+      token_usage: { input: 100, output: 40, cached: 10 },
+      cost_usd: 0.25,
+      duration_ms: 4200,
+      start_time: '2026-03-13T00:00:01.000Z',
+      end_time: '2026-03-13T00:00:05.200Z',
       scores: [
         {
           name: 'quality',

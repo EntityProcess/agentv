@@ -537,6 +537,41 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('passes --record-replay separately from the response cache', async () => {
+    const fixture = await createFixture();
+    try {
+      const replayPath = path.join(fixture.baseDir, 'fixtures', 'target-output.jsonl');
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--target',
+        'cli-target',
+        '--record-replay',
+        replayPath,
+        '--record-replay-variant',
+        'legal-v1',
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain(`Replay recording: ${replayPath}`);
+      expect(stdout).not.toContain('Response cache: enabled');
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        target: 'cli-target',
+        hasCache: false,
+        cachePath: null,
+        useCache: false,
+        replayRecording: {
+          fixturesPath: replayPath,
+          sourceTarget: 'cli-target',
+          variant: 'legal-v1',
+        },
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('keeps response cache help separate from transcript replay terminology', async () => {
     const result = await execa('bun', ['--no-env-file', CLI_ENTRY, 'eval', 'run', '--help'], {
       cwd: projectRoot,
@@ -547,6 +582,7 @@ describe('agentv eval CLI', () => {
     expect(helpText).toContain('--cache');
     expect(helpText).toContain('--cache-path');
     expect(helpText).toContain('--transcript');
+    expect(helpText).toContain('--record-replay');
 
     const cacheHelp = helpText
       .split(/\r?\n/)
@@ -562,6 +598,13 @@ describe('agentv eval CLI', () => {
       .join('\n')
       .toLowerCase();
     expect(transcriptHelp).not.toContain('cache');
+
+    const replayHelp = helpText
+      .split(/\r?\n/)
+      .filter((line) => line.includes('--record-replay'))
+      .join('\n')
+      .toLowerCase();
+    expect(replayHelp).not.toContain('response cache');
   }, 30_000);
 
   it('omits removed benchmark JSON export flag from help', async () => {

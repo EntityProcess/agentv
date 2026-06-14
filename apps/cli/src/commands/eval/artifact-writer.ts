@@ -189,6 +189,11 @@ export interface IndexArtifactEntry {
   readonly experiment?: string;
   readonly score: number;
   readonly target: string;
+  readonly token_usage?: EvaluationResult['tokenUsage'];
+  readonly cost_usd?: number;
+  readonly duration_ms?: number;
+  readonly start_time?: string;
+  readonly end_time?: string;
   readonly scores?: readonly Record<string, unknown>[];
   readonly execution_status?: string;
   readonly error?: string;
@@ -667,6 +672,11 @@ export function buildIndexArtifactEntry(
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
+    token_usage: result.tokenUsage,
+    cost_usd: result.costUsd,
+    duration_ms: result.durationMs,
+    start_time: result.startTime,
+    end_time: result.endTime,
     scores: result.scores
       ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
       : undefined,
@@ -717,6 +727,11 @@ export function buildResultIndexArtifact(
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
+    token_usage: result.tokenUsage,
+    cost_usd: result.costUsd,
+    duration_ms: result.durationMs,
+    start_time: result.startTime,
+    end_time: result.endTime,
     scores: result.scores
       ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
       : undefined,

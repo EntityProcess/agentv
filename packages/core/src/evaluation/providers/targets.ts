@@ -557,6 +557,14 @@ export interface AgentVResolvedConfig {
   readonly temperature: number;
 }
 
+export interface ReplayResolvedConfig {
+  readonly fixturesPath: string;
+  readonly sourceTarget: string;
+  readonly suite?: string;
+  readonly evalPath?: string;
+  readonly variant?: string;
+}
+
 export interface TargetDeprecationWarning {
   readonly location: string;
   readonly message: string;
@@ -744,7 +752,8 @@ export type ResolvedTarget =
     })
   | (ResolvedTargetBase & { readonly kind: 'agentv'; readonly config: AgentVResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'cli'; readonly config: CliResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'transcript'; readonly config: Record<string, never> });
+  | (ResolvedTargetBase & { readonly kind: 'transcript'; readonly config: Record<string, never> })
+  | (ResolvedTargetBase & { readonly kind: 'replay'; readonly config: ReplayResolvedConfig });
 
 /**
  * Optional settings accepted on ALL target definitions regardless of provider.
@@ -1066,6 +1075,12 @@ export function resolveTargetDefinition(
         kind: 'cli',
         ...base,
         config: resolveCliConfig(parsed, env, evalFilePath),
+      };
+    case 'replay':
+      return {
+        kind: 'replay',
+        ...base,
+        config: resolveReplayConfig(parsed, env, evalFilePath),
       };
     default:
       // Unknown provider kind — resolve as CLI target.
@@ -1948,6 +1963,44 @@ function normalizeClaudeLogFormat(value: unknown): 'summary' | 'json' | undefine
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
   const response = typeof target.response === 'string' ? target.response : undefined;
   return { response };
+}
+
+function resolveReplayConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  evalFilePath?: string,
+): ReplayResolvedConfig {
+  const fixtures = resolveString(target.fixtures, env, `${target.name} replay fixtures`, true);
+  const fixturesPath =
+    evalFilePath && !path.isAbsolute(fixtures)
+      ? path.resolve(path.dirname(path.resolve(evalFilePath)), fixtures)
+      : path.resolve(fixtures);
+  const sourceTarget = resolveString(
+    target.source_target,
+    env,
+    `${target.name} replay source_target`,
+    true,
+  );
+  const suite = resolveOptionalString(target.suite, env, `${target.name} replay suite`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const evalPath = resolveOptionalString(target.eval_path, env, `${target.name} replay eval_path`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const variant = resolveOptionalString(target.variant, env, `${target.name} replay variant`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  return {
+    fixturesPath,
+    sourceTarget,
+    suite,
+    evalPath,
+    variant,
+  };
 }
 
 function resolveVSCodeConfig(
