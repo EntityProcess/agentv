@@ -16,6 +16,12 @@ import { fileURLToPath } from 'node:url';
 
 import type { ProviderRequest } from './types.js';
 
+export const DEFAULT_COPILOT_TIMEOUT_MS = 90 * 60 * 1000;
+
+export function resolveCopilotTimeoutMs(timeoutMs: number | undefined): number {
+  return timeoutMs ?? DEFAULT_COPILOT_TIMEOUT_MS;
+}
+
 // ---------------------------------------------------------------------------
 // Platform binary resolution
 // ---------------------------------------------------------------------------

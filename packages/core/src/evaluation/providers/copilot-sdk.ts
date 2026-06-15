@@ -9,6 +9,7 @@ import {
   CopilotStreamLogger,
   buildLogFilename,
   isLogStreamingDisabled,
+  resolveCopilotTimeoutMs,
   resolvePlatformCliPath,
 } from './copilot-utils.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
@@ -327,21 +328,19 @@ export class CopilotSdkProvider implements Provider {
 
   // biome-ignore lint/suspicious/noExplicitAny: SDK session type is dynamically loaded
   private async sendWithTimeout(session: any, prompt: string, timeoutMs?: number): Promise<void> {
-    if (!timeoutMs) {
-      await session.sendAndWait({ prompt });
-      return;
-    }
+    const effectiveTimeoutMs = resolveCopilotTimeoutMs(timeoutMs);
+    const sendPromise = session.sendAndWait({ prompt }, effectiveTimeoutMs);
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
-        reject(new Error(`Copilot SDK timed out after ${Math.ceil(timeoutMs / 1000)}s`));
-      }, timeoutMs);
+        reject(new Error(`Copilot SDK timed out after ${Math.ceil(effectiveTimeoutMs / 1000)}s`));
+      }, effectiveTimeoutMs);
       timer.unref?.();
     });
 
     try {
-      await Promise.race([session.sendAndWait({ prompt }), timeoutPromise]);
+      await Promise.race([sendPromise, timeoutPromise]);
     } finally {
       if (timer) clearTimeout(timer);
     }
