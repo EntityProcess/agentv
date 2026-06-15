@@ -3,7 +3,7 @@
  * and SidebarShell (the <aside> visibility).
  */
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 interface SidebarContextValue {
   isOpen: boolean;
@@ -19,17 +19,11 @@ const SidebarContext = createContext<SidebarContextValue>({
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  return (
-    <SidebarContext.Provider
-      value={{
-        isOpen,
-        toggle: () => setIsOpen((o) => !o),
-        close: () => setIsOpen(false),
-      }}
-    >
-      {children}
-    </SidebarContext.Provider>
-  );
+  const toggle = useCallback(() => setIsOpen((o) => !o), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const value = useMemo(() => ({ isOpen, toggle, close }), [close, isOpen, toggle]);
+
+  return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
 }
 
 export function useSidebarContext() {

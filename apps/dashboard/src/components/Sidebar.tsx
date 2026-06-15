@@ -2,10 +2,11 @@
  * Context-aware sidebar navigation.
  *
  * Adapts its content based on the current route:
- * - At root or run detail: shows list of runs
- * - At eval detail: shows list of evals in the current run with pass/fail indicators
- * - At suite detail: shows evals filtered to that suite
- * - At experiment detail: shows list of experiments
+ * - At dashboard and project roots: shows global/project navigation
+ * - At run detail: shows nearby runs as local review context
+ * - At eval detail: shows evals in the current run with pass/fail indicators
+ * - At suite/category detail: shows the filtered review context
+ * - At experiment detail: shows nearby experiments
  *
  * Responsive behavior is handled by SidebarShell:
  * - md+ (≥768px): always-visible fixed left panel
@@ -22,7 +23,6 @@ import {
   isPassing,
   projectCategorySuitesOptions,
   projectExperimentsOptions,
-  useAllProjectRuns,
   useCategorySuites,
   useEvalRuns,
   useExperiments,
@@ -43,12 +43,12 @@ import { BrandName } from './BrandName';
 function SidebarShell({ children }: { children: ReactNode }) {
   const { isOpen, close } = useSidebarContext();
   const location = useLocation();
+  const navigationHref = location.href;
 
-  // Close sidebar on navigation (mobile UX)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: location.pathname is the intended trigger
+  // Close sidebar on navigation, including same-route tab changes.
   useEffect(() => {
-    close();
-  }, [close, location.pathname]);
+    if (navigationHref) close();
+  }, [close, navigationHref]);
 
   return (
     <>
@@ -65,7 +65,7 @@ function SidebarShell({ children }: { children: ReactNode }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-800 bg-gray-900/50 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-200 ease-in-out md:static md:z-auto md:translate-x-0 md:bg-gray-900/50 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -102,6 +102,158 @@ function SidebarRunText({ display }: { display: ReturnType<typeof formatRunDispl
 function useProjectDisplayName(projectId: string): string {
   const { data } = useProjectList();
   return resolveProjectDisplayName(projectId, data?.projects);
+}
+
+type ProjectTabId = 'runs' | 'experiments' | 'analytics' | 'targets';
+
+const projectNavItems: { id: ProjectTabId; label: string; description: string }[] = [
+  { id: 'runs', label: 'Recent Runs', description: 'Run review' },
+  { id: 'experiments', label: 'Experiments', description: 'Grouped runs' },
+  { id: 'analytics', label: 'Analytics', description: 'Compare scores' },
+  { id: 'targets', label: 'Targets', description: 'Target results' },
+];
+
+function sidebarLinkClass(isActive: boolean): string {
+  return `mb-0.5 flex min-h-9 items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm transition-colors ${
+    isActive
+      ? 'bg-gray-800 text-cyan-400'
+      : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+  }`;
+}
+
+function formatProjectStat(project: {
+  run_count: number;
+  pass_rate: number;
+  execution_error_count?: number;
+}): string {
+  if (project.run_count === 0) return 'No runs';
+  if ((project.execution_error_count ?? 0) > 0) {
+    return `${Math.round(project.pass_rate * 100)}% - ${project.execution_error_count} err`;
+  }
+  return `${Math.round(project.pass_rate * 100)}% - ${project.run_count} runs`;
+}
+
+function ProjectNavigationSidebar({ projectId }: { projectId?: string }) {
+  const location = useLocation();
+  const { data: projectData } = useProjectList();
+  const { data: evalRunsData } = useEvalRuns(projectId);
+  const projects = projectData?.projects ?? [];
+  const project = projectId ? projects.find((p) => p.id === projectId) : undefined;
+  const projectName = projectId ? resolveProjectDisplayName(projectId, projects) : undefined;
+  const search = location.search as Record<string, string>;
+  const activeTab = projectNavItems.some((item) => item.id === search.tab)
+    ? (search.tab as ProjectTabId)
+    : 'runs';
+  const activeRunCount = (evalRunsData?.runs ?? []).filter(
+    (run) => run.status === 'starting' || run.status === 'running',
+  ).length;
+  const showWorkspaceTabs = !projectId && projects.length === 0;
+
+  return (
+    <SidebarShell>
+      <BrandHeader projectId={projectId} />
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <div className="mb-4">
+          <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+            Navigate
+          </div>
+          <Link to="/" className={sidebarLinkClass(location.pathname === '/')}>
+            <span className="truncate">Projects</span>
+            {projects.length > 0 ? (
+              <span className="shrink-0 text-xs tabular-nums text-gray-500">{projects.length}</span>
+            ) : null}
+          </Link>
+          <Link to="/settings" className={sidebarLinkClass(location.pathname === '/settings')}>
+            <span className="truncate">Settings</span>
+          </Link>
+        </div>
+
+        {projectId ? (
+          <div className="mb-4">
+            <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+              Project
+            </div>
+            <div className="mb-2 rounded-md border border-gray-800 bg-gray-950/30 px-2 py-2">
+              <div className="truncate text-sm font-medium text-gray-200">{projectName}</div>
+              <div className="mt-1 truncate text-xs text-gray-500">
+                {project ? formatProjectStat(project) : projectId}
+              </div>
+              {activeRunCount > 0 ? (
+                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-cyan-900/40 px-2 py-0.5 text-xs text-cyan-400">
+                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
+                  {activeRunCount} running
+                </div>
+              ) : null}
+            </div>
+
+            {projectNavItems.map((item) => (
+              <Link
+                key={item.id}
+                to="/projects/$projectId"
+                params={{ projectId }}
+                search={{ tab: item.id } as Record<string, string>}
+                className={sidebarLinkClass(activeTab === item.id)}
+                title={item.description}
+              >
+                <span className="truncate">{item.label}</span>
+                <span className="shrink-0 text-xs text-gray-500">{item.description}</span>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+
+        {showWorkspaceTabs ? (
+          <div className="mb-4">
+            <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+              Workspace
+            </div>
+            {projectNavItems.map((item) => (
+              <Link
+                key={item.id}
+                to="/"
+                search={{ tab: item.id } as Record<string, string>}
+                className={sidebarLinkClass(activeTab === item.id)}
+                title={item.description}
+              >
+                <span className="truncate">{item.label}</span>
+                <span className="shrink-0 text-xs text-gray-500">{item.description}</span>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+
+        {!projectId && projects.length > 0 ? (
+          <div>
+            <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+              Projects
+            </div>
+            {projects.map((p) => {
+              const isActive = location.pathname.startsWith(`/projects/${p.id}`);
+              return (
+                <Link
+                  key={p.id}
+                  to="/projects/$projectId"
+                  params={{ projectId: p.id }}
+                  className={sidebarLinkClass(isActive)}
+                  title={p.path}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate">
+                      {resolveProjectDisplayName(p.id, projects)}
+                    </span>
+                    <span className="block truncate text-xs text-gray-600">
+                      {formatProjectStat(p)}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+      </nav>
+    </SidebarShell>
+  );
 }
 
 export function Sidebar() {
@@ -147,17 +299,6 @@ export function Sidebar() {
     return <ProjectEvalSidebar projectId={projectId} runId={runId} currentEvalId={evalId} />;
   }
 
-  // Project-scoped run detail
-  if (projectRunMatch && typeof projectRunMatch === 'object' && 'projectId' in projectRunMatch) {
-    const { projectId, runId } = projectRunMatch as { projectId: string; runId: string };
-    return <ProjectRunDetailSidebar projectId={projectId} currentRunId={runId} />;
-  }
-
-  if (projectJobMatch && typeof projectJobMatch === 'object' && 'projectId' in projectJobMatch) {
-    const { projectId } = projectJobMatch as { projectId: string };
-    return <ProjectRunDetailSidebar projectId={projectId} />;
-  }
-
   if (
     projectCategoryMatch &&
     typeof projectCategoryMatch === 'object' &&
@@ -184,6 +325,17 @@ export function Sidebar() {
     return <ProjectSuiteSidebar projectId={projectId} runId={runId} suite={suite} />;
   }
 
+  // Project-scoped run detail
+  if (projectRunMatch && typeof projectRunMatch === 'object' && 'projectId' in projectRunMatch) {
+    const { projectId, runId } = projectRunMatch as { projectId: string; runId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} currentRunId={runId} />;
+  }
+
+  if (projectJobMatch && typeof projectJobMatch === 'object' && 'projectId' in projectJobMatch) {
+    const { projectId } = projectJobMatch as { projectId: string };
+    return <ProjectRunDetailSidebar projectId={projectId} />;
+  }
+
   if (
     projectExperimentMatch &&
     typeof projectExperimentMatch === 'object' &&
@@ -199,10 +351,11 @@ export function Sidebar() {
   // Project home (runs/experiments/targets)
   if (projectMatch && typeof projectMatch === 'object' && 'projectId' in projectMatch) {
     const { projectId } = projectMatch as { projectId: string };
-    return <ProjectRunDetailSidebar projectId={projectId} />;
+    return <ProjectNavigationSidebar projectId={projectId} />;
   }
 
   // ── Unscoped route matching ──────────────────────────────────────────
+  const runMatch = matchRoute({ to: '/runs/$runId', fuzzy: true });
   const evalMatch = matchRoute({ to: '/evals/$runId/$evalId', fuzzy: true });
   const categoryMatch = matchRoute({
     to: '/runs/$runId/category/$category',
@@ -241,25 +394,17 @@ export function Sidebar() {
     return <ExperimentSidebar currentExperiment={experimentName} />;
   }
 
-  return <RunSidebar />;
+  if (runMatch && typeof runMatch === 'object' && 'runId' in runMatch) {
+    const { runId } = runMatch as { runId: string };
+    return <RunDetailSidebar currentRunId={runId} />;
+  }
+
+  return <ProjectNavigationSidebar />;
 }
 
-function RunSidebar() {
-  const matchRoute = useMatchRoute();
-  const { data: projectData } = useProjectList();
-  const hasProjects = (projectData?.projects.length ?? 0) > 0;
-
-  const isHome = matchRoute({ to: '/' });
-  const runMatch = matchRoute({ to: '/runs/$runId', fuzzy: true });
-
-  // On the projects landing page, show aggregated runs from all projects
-  const useAggregated = hasProjects && isHome !== false;
-
-  const { data: localData } = useRunList();
-  const { data: aggregatedData } = useAllProjectRuns();
-  const data = useAggregated ? aggregatedData : localData;
+function RunDetailSidebar({ currentRunId }: { currentRunId: string }) {
+  const { data } = useRunList();
   const { data: config } = useStudioConfig();
-
   const { data: evalRunsData } = useEvalRuns();
   const activeRunCount = (evalRunsData?.runs ?? []).filter(
     (r) => r.status === 'starting' || r.status === 'running',
@@ -281,32 +426,12 @@ function RunSidebar() {
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-          Runs
+          Run history
         </div>
 
         {data?.runs.map((run) => {
           const display = formatRunDisplay(run);
-          const isActive =
-            isHome === false &&
-            runMatch &&
-            typeof runMatch === 'object' &&
-            'runId' in runMatch &&
-            (runMatch as { runId: string }).runId === run.filename;
-
-          // Aggregated runs link to their project's run detail
-          if (run.project_id) {
-            return (
-              <Link
-                key={`${run.project_id}/${run.filename}`}
-                to="/projects/$projectId/runs/$runId"
-                params={{ projectId: run.project_id, runId: run.filename }}
-                className="mb-0.5 block rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
-                title={`${display.title}\nProject: ${run.project_name}`}
-              >
-                <SidebarRunText display={display} />
-              </Link>
-            );
-          }
+          const isActive = currentRunId === run.filename;
 
           return (
             <Link
