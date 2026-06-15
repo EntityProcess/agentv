@@ -10,7 +10,6 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
-import { ProjectChromeTitle } from '~/components/ProjectChromeTitle';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
@@ -31,11 +30,11 @@ import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
 type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
 
-const tabs: { id: TabId; label: string }[] = [
-  { id: 'runs', label: '🏃 Recent Runs' },
-  { id: 'experiments', label: '🧪 Experiments' },
-  { id: 'analytics', label: '📊 Analytics' },
-  { id: 'targets', label: '🤖 Targets' },
+const tabs: { id: TabId; label: string; title: string }[] = [
+  { id: 'runs', label: '🏃 Recent Runs', title: 'Recent Runs' },
+  { id: 'experiments', label: '🧪 Experiments', title: 'Experiments' },
+  { id: 'analytics', label: '📊 Analytics', title: 'Analytics' },
+  { id: 'targets', label: '🤖 Targets', title: 'Targets' },
 ];
 
 export const Route = createFileRoute('/projects/$projectId')({
@@ -55,11 +54,12 @@ function ProjectHomePage() {
   const projectName = resolveProjectDisplayName(projectId, projectData?.projects);
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
+  const activeTabTitle = tabs.find((t) => t.id === activeTab)?.title ?? 'Recent Runs';
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <ProjectChromeTitle projectId={projectId} displayName={projectName} />
+        <h1 className="text-2xl font-semibold text-white">{activeTabTitle}</h1>
         {!isReadOnly && (
           <button
             type="button"
