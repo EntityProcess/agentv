@@ -6,16 +6,13 @@
  * review surface.
  */
 
-import { useMatches, useNavigate } from '@tanstack/react-router';
-import type { ChangeEvent } from 'react';
+import { useMatches } from '@tanstack/react-router';
 
 import { DEFAULT_APP_NAME, useProjectList, useStudioConfig } from '~/lib/api';
 import { resolveProjectDisplayName } from '~/lib/project-display-name';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
 import { BrandName } from './BrandName';
-
-const ALL_PROJECTS_VALUE = '__all_projects__';
 
 function useCurrentProjectId(): string | undefined {
   const matches = useMatches();
@@ -42,7 +39,6 @@ function formatProjectStat(project: {
 }
 
 export function ProjectContextBar() {
-  const navigate = useNavigate();
   const { toggle } = useSidebarContext();
   const { data: projectsData } = useProjectList();
   const currentProjectId = useCurrentProjectId();
@@ -55,21 +51,6 @@ export function ProjectContextBar() {
     ? resolveProjectDisplayName(currentProjectId, projects)
     : 'All projects';
   const appName = config?.app_name ?? DEFAULT_APP_NAME;
-  const hasProjectSwitcher = projects.length > 0;
-
-  function handleProjectChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextProjectId = event.target.value;
-    if (nextProjectId === ALL_PROJECTS_VALUE) {
-      navigate({ to: '/' });
-      return;
-    }
-
-    navigate({
-      to: '/projects/$projectId',
-      params: { projectId: nextProjectId },
-      search: { tab: 'runs' } as Record<string, string>,
-    });
-  }
 
   return (
     <header className="flex min-h-14 items-center gap-3 border-b border-gray-800 bg-gray-950 px-4 py-2 md:px-6">
@@ -108,23 +89,7 @@ export function ProjectContextBar() {
             <div className="text-xs font-medium uppercase tracking-wider text-gray-500">
               Project
             </div>
-            {hasProjectSwitcher ? (
-              <select
-                value={currentProjectId ?? ALL_PROJECTS_VALUE}
-                onChange={handleProjectChange}
-                aria-label="Switch project"
-                className="mt-0.5 w-full max-w-full rounded-md border border-gray-700 bg-gray-950 px-2 py-1 text-sm font-medium text-gray-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 md:w-auto md:min-w-64"
-              >
-                <option value={ALL_PROJECTS_VALUE}>All projects</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {resolveProjectDisplayName(project.id, projects)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="mt-0.5 truncate text-sm font-medium text-gray-100">{projectName}</div>
-            )}
+            <div className="mt-0.5 truncate text-sm font-medium text-gray-100">{projectName}</div>
           </div>
         </div>
       </div>
