@@ -16,8 +16,7 @@
 
 import { readFile } from 'node:fs/promises';
 
-import { toCamelCaseDeep, toSnakeCaseDeep } from '../evaluation/case-conversion.js';
-import type { Message, ProviderTokenUsage } from '../evaluation/providers/types.js';
+import type { Message, ProviderTokenUsage, ToolCall } from '../evaluation/providers/types.js';
 import { type Trace, buildTraceFromMessages } from '../evaluation/trace.js';
 
 /**
@@ -101,6 +100,70 @@ export interface TranscriptReplayEntry {
   readonly source: TranscriptSource;
 }
 
+function dropUndefined(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
+}
+
+function toTranscriptTokenUsage(
+  usage: ProviderTokenUsage | undefined,
+): TranscriptJsonLine['token_usage'] | undefined {
+  if (!usage) {
+    return undefined;
+  }
+  return dropUndefined({
+    input: usage.input,
+    output: usage.output,
+    cached: usage.cached,
+    reasoning: usage.reasoning,
+  }) as TranscriptJsonLine['token_usage'];
+}
+
+function toTranscriptToolCall(toolCall: ToolCall): Record<string, unknown> {
+  return dropUndefined({
+    tool: toolCall.tool,
+    input: toolCall.input,
+    output: toolCall.output,
+    id: toolCall.id,
+    start_time: toolCall.startTime,
+    end_time: toolCall.endTime,
+    duration_ms: toolCall.durationMs,
+  });
+}
+
+function toTranscriptMessageFields(
+  message: Message,
+): Omit<
+  TranscriptJsonLine,
+  | 'test_id'
+  | 'target'
+  | 'message_index'
+  | 'source'
+  | 'transcript_token_usage'
+  | 'transcript_duration_ms'
+  | 'transcript_cost_usd'
+> {
+  return dropUndefined({
+    role: message.role,
+    name: message.name,
+    content: message.content,
+    tool_calls: message.toolCalls?.map(toTranscriptToolCall),
+    start_time: message.startTime,
+    end_time: message.endTime,
+    duration_ms: message.durationMs,
+    metadata: message.metadata,
+    token_usage: toTranscriptTokenUsage(message.tokenUsage),
+  }) as Omit<
+    TranscriptJsonLine,
+    | 'test_id'
+    | 'target'
+    | 'message_index'
+    | 'source'
+    | 'transcript_token_usage'
+    | 'transcript_duration_ms'
+    | 'transcript_cost_usd'
+  >;
+}
+
 /**
  * Convert a parsed TranscriptEntry to per-message JSONL rows.
  */
@@ -132,16 +195,7 @@ export function toTranscriptJsonLines(
     test_id: testId,
     target,
     message_index: index,
-    ...(toSnakeCaseDeep(message) as Omit<
-      TranscriptJsonLine,
-      | 'test_id'
-      | 'target'
-      | 'message_index'
-      | 'source'
-      | 'transcript_token_usage'
-      | 'transcript_duration_ms'
-      | 'transcript_cost_usd'
-    >),
+    ...toTranscriptMessageFields(message),
     transcript_token_usage: transcriptTokenUsage,
     transcript_duration_ms: entry.durationMs,
     transcript_cost_usd: entry.costUsd,
@@ -207,29 +261,59 @@ export function traceFromTranscriptJsonLines(lines: readonly TranscriptJsonLine[
   });
 }
 
-function buildReplayMessage(line: TranscriptJsonLine): Message {
-  const camelCased = toCamelCaseDeep(line) as {
-    role: string;
-    name?: string;
-    content?: Message['content'];
-    toolCalls?: Message['toolCalls'];
-    startTime?: string;
-    endTime?: string;
-    durationMs?: number;
-    metadata?: Record<string, unknown>;
-    tokenUsage?: ProviderTokenUsage;
-  };
-
+function fromTranscriptTokenUsage(
+  usage: TranscriptJsonLine['token_usage'],
+): ProviderTokenUsage | undefined {
+  if (!usage) {
+    return undefined;
+  }
   return {
-    role: camelCased.role,
-    name: camelCased.name,
-    content: camelCased.content,
-    toolCalls: camelCased.toolCalls,
-    startTime: camelCased.startTime,
-    endTime: camelCased.endTime,
-    durationMs: camelCased.durationMs,
-    metadata: camelCased.metadata,
-    tokenUsage: camelCased.tokenUsage,
+    input: usage.input,
+    output: usage.output,
+    cached: usage.cached,
+    reasoning: usage.reasoning,
+  };
+}
+
+function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readOptionalNumber(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function fromTranscriptToolCall(wire: Record<string, unknown>): ToolCall | undefined {
+  const tool = readOptionalString(wire, 'tool');
+  if (!tool) {
+    return undefined;
+  }
+  return {
+    tool,
+    input: wire.input,
+    output: wire.output,
+    id: readOptionalString(wire, 'id'),
+    startTime: readOptionalString(wire, 'start_time'),
+    endTime: readOptionalString(wire, 'end_time'),
+    durationMs: readOptionalNumber(wire, 'duration_ms'),
+  };
+}
+
+function buildReplayMessage(line: TranscriptJsonLine): Message {
+  return {
+    role: line.role,
+    name: line.name,
+    content: line.content as Message['content'],
+    toolCalls: line.tool_calls
+      ?.map(fromTranscriptToolCall)
+      .filter((toolCall): toolCall is ToolCall => toolCall !== undefined),
+    startTime: line.start_time,
+    endTime: line.end_time,
+    durationMs: line.duration_ms,
+    metadata: line.metadata,
+    tokenUsage: fromTranscriptTokenUsage(line.token_usage),
   };
 }
 
