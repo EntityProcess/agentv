@@ -1,9 +1,8 @@
 /**
- * App shell: sidebar + project context + breadcrumbs + main content area.
+ * App shell: sidebar + breadcrumbs + main content area.
  *
- * The sidebar provides app navigation, the top bar shows active project
- * context, breadcrumbs show the current location, and the main area renders
- * the active route via Outlet.
+ * The sidebar provides app navigation, breadcrumbs show the current location,
+ * and the main area renders the active route via Outlet.
  *
  * Responsive behavior:
  * - md+ (≥768px): sidebar always visible as a fixed left panel.
@@ -15,7 +14,6 @@ import { Outlet } from '@tanstack/react-router';
 import { SidebarProvider } from '~/lib/sidebar-context';
 
 import { Breadcrumbs } from './Breadcrumbs';
-import { ProjectContextBar } from './ProjectContextBar';
 import { Sidebar } from './Sidebar';
 
 export function Layout() {
@@ -32,7 +30,6 @@ function LayoutInner() {
       <Sidebar />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <ProjectContextBar />
         <Breadcrumbs />
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
