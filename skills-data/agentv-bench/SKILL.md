@@ -129,27 +129,30 @@ Each run produces a new `.agentv/results/runs/<timestamp>/` directory automatica
 
 **User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly.
 
-If the user has not specified a mode, default to `subagent`.
+If the user has not specified a mode, read `AGENT_EVAL_MODE` from `.env` at the project root. If it is absent or empty, default to `cli`. **User instruction always overrides `.env`.**
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |----------------------|------|-----|
-| `subagent` (default) | **Subagent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
-| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
+| absent, empty, or `cli` (default) | **AgentV CLI** | `agentv eval <path>` — end-to-end execution, grading, artifacts, multi-provider |
+| `subagent` | **Subagent mode** | Explicit opt-in fallback for special environments or providers where avoiding target-provider calls matters. |
 
-Set `AGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `subagent`. **User instruction always overrides this.**
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all configured providers and is the normal path for benchmarking.
 
-**`subagent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. Read `references/subagent-pipeline.md` for the detailed procedure.
-
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
+**`subagent`** — Read `references/subagent-pipeline.md` for the detailed procedure. Use only when explicitly requested or when the CLI/provider path is not usable for the environment.
 
 ### Running evaluations
 
-**AgentV CLI mode** (end-to-end, EVAL.yaml):
+**AgentV CLI mode** (default, end-to-end, EVAL.yaml):
+```bash
+agentv eval <eval-path>
+```
+
+To choose an output directory explicitly:
 ```bash
 agentv eval <eval-path> --output .agentv/artifacts/
 ```
 
-**Subagent mode** — read `references/subagent-pipeline.md` for the detailed procedure. In brief: use `pipeline input` to extract inputs, dispatch one `executor` subagent per test case (all in parallel), then proceed to grading below.
+**Subagent mode** — read `references/subagent-pipeline.md`. That reference owns the `pipeline input`, executor subagent, grader subagent, merge, and validation procedure.
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
 
@@ -169,82 +172,11 @@ Don't just wait for runs to finish — use this time productively. If assertions
 
 Good assertions are *discriminating* — they pass when the agent genuinely succeeds and fail when it doesn't. An assertion that passes for both good and bad outputs is worse than no assertion.
 
-### As runs complete, capture timing data
-
-When each subagent task completes, you receive a notification containing `total_tokens` and `duration_ms`. **Save this data immediately** to `timing.json` in the run directory. See `references/schemas.md` for the timing.json schema.
-
-This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
-
-### After all executors complete
-
-Once all executor subagent notifications arrive, **read `response.md` directly from disk**.
-Do NOT use `read_agent` to fetch executor results — they are already written to the run
-directory. Verify all responses exist before proceeding:
-
-```bash
-for d in <run-dir>/<evalset>/*/; do
-  echo "$(basename $d): $(ls "$d"/response.md 2>/dev/null && echo OK || echo MISSING)"
-done
-```
-
-If any `response.md` is MISSING, re-run that specific executor subagent. Do not proceed to
-grading until all responses are present.
-
 ### Grading
 
 **In CLI mode**, `agentv eval` handles all grading end-to-end — no manual phases needed.
 
-**In subagent mode**, grading has three phases. **All three are required — do not stop after phase 1.**
-
-**Phase 1: Code graders** (deterministic, zero-cost)
-
-```bash
-agentv pipeline grade <run-dir>
-```
-
-This evaluates all deterministic assertions against `response.md` files. Two types are handled:
-- **`code-grader` scripts** — external scripts executed against the response (arbitrary logic, any language)
-- **Built-in assertion types** — evaluated in-process: `contains`, `contains-any`, `contains-all`, `icontains`, `regex`, `equals`, `starts-with`, `ends-with`, `is-json`, and variants
-
-Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
-
-**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost. To detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json` config files — `pipeline input` only writes there for `llm-grader` assertions. Tests with an empty (or missing) `llm_graders/` directory are done after Phase 1.
-
-**Phase 2: LLM grading** (semantic — do NOT skip this phase)
-
-Dispatch one `grader` subagent per (test × LLM grader) pair, **all in parallel**. Do not write a script to call an LLM API instead — the grader subagents use their own reasoning, which IS the LLM grading.
-Example: 5 tests × 2 LLM graders = 10 grader subagents launched simultaneously.
-
-**Do NOT dispatch a single grader for multiple tests.** Each subagent grades exactly one (test, grader) pair.
-
-**Before dispatching graders, read `agents/grader.md` and embed its full content as the system instructions in every grader subagent prompt.** The grader is a `general-purpose` task agent — there is no auto-resolved "grader" type. Without `agents/grader.md` embedded verbatim, the subagent has no grading process, no output format, and no file-path knowledge, and will produce empty or incorrect output.
-
-Each grader subagent (operating under `agents/grader.md` instructions):
-1. Reads `<test-id>/llm_graders/<name>.json` for the grading prompt
-2. Reads `<test-id>/response.md` for the candidate output
-3. Grades the response against the prompt criteria
-4. **Writes its result to disk**: `<run-dir>/<evalset>/<test-id>/llm_grader_results/<name>.json`
-5. Returns score (0.0–1.0) and per-assertion evidence to the orchestrator
-
-**Writing to disk is critical.** Assertion arrays are lost if accumulated only in the orchestrator's context across multiple batches (context summarization drops detail). Writing per-test results to `llm_grader_results/<name>.json` makes grading resumable and assertion evidence durable.
-
-The result file format is:
-```json
-{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
-```
-
-After **all** grader subagents complete, run Phase 3 directly.
-
-**Phase 3: Merge and validate**
-
-```bash
-agentv pipeline bench <run-dir>
-agentv results validate <run-dir>
-```
-
-`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `benchmark.json`.
-
-> **Diagnosing `pass_rate=0`:** If `pipeline bench` reports `pass_rate=0` across the board, do **not** assume the tests genuinely failed. First verify the grading pipeline ran correctly: check that `<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each test. If these files are absent or empty, the grader subagents failed to produce output (most common cause: `agents/grader.md` was not embedded in the subagent prompts — see Phase 2). Treat `pass_rate=0` as a real signal only after confirming grader results exist.
+**In subagent mode**, follow `references/subagent-pipeline.md` through executor completion, deterministic grading, LLM grading, merge, and `agentv results validate`. Do not stop before validation succeeds.
 
 ### Artifacts
 

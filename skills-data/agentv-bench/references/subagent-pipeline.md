@@ -1,10 +1,16 @@
-# Subagent Pipeline — Running eval.yaml without CLI
+# Subagent Pipeline — Explicit Opt-In Eval Mode
 
 This reference documents the detailed procedure for running evaluations in subagent mode
-(`AGENT_EVAL_MODE=subagent`, the default). The orchestrating skill dispatches `executor`
-subagents to perform test cases and `grader` subagents to evaluate outputs.
+(`AGENT_EVAL_MODE=subagent`). The orchestrating skill dispatches `executor` subagents to
+perform test cases and `grader` subagents to evaluate outputs.
 
 Read this reference when executing Step 3 (Run and Grade) in subagent mode.
+
+## When to use
+
+- The user explicitly asks for subagent mode.
+- There is no usable CLI/provider path for the environment.
+- A special environment or provider needs isolation, or avoiding target-provider calls matters.
 
 ## Prerequisites
 
@@ -57,7 +63,7 @@ By default, `pipeline run` extracts inputs and invokes targets only. Pass `--gra
 to also run code-graders inline, or use `agentv pipeline grade <run-dir>` as a separate step.
 
 The run directory is printed to stdout. Then continue to the grading and merge phases
-described in SKILL.md Step 3.
+described below.
 
 ## Non-CLI Targets: Executor Subagents
 
@@ -91,6 +97,15 @@ Example: 5 tests = 5 executor subagents launched simultaneously.
 #   - Writes <run-dir>/<test-id>/response.md
 ```
 
+### Capture timing data
+
+When each subagent task completes, you receive a notification containing `total_tokens` and
+`duration_ms`. Save this data immediately to `timing.json` in the run directory. See
+`references/schemas.md` for the timing.json schema.
+
+This is the only opportunity to capture this data — it comes through the task notification
+and is not persisted elsewhere. Process each notification as it arrives.
+
 ### After executors complete: read results from disk
 
 When all executor subagents have finished, **read `response.md` directly from disk** — do
@@ -106,10 +121,67 @@ done
 If any `response.md` is MISSING, re-run that specific executor subagent. Do not proceed to
 grading until all responses are present.
 
-### Step 3 onward: Grade and merge
+### Step 3: Grade and merge
 
-See SKILL.md Step 3 "Grading" section for the three-phase grading process (code graders →
-LLM grading → merge and validate).
+Subagent-mode grading has three phases. All three are required.
+
+**Phase 1: Code graders** (deterministic)
+
+```bash
+agentv pipeline grade <run-dir>
+```
+
+This evaluates deterministic assertions against `response.md` files:
+- `code-grader` scripts — external scripts executed against the response
+- Built-in assertion types — `contains`, `contains-any`, `contains-all`, `icontains`, `regex`, `equals`, `starts-with`, `ends-with`, `is-json`, and variants
+
+Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by
+`pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`.
+Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
+
+Do not dispatch LLM grader subagents for tests that only have deterministic assertions. To
+detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json`
+config files. Tests with an empty or missing `llm_graders/` directory are done after Phase 1.
+
+**Phase 2: LLM grading**
+
+Dispatch one `grader` subagent per `(test, grader)` pair, all in parallel. Do not dispatch a
+single grader for multiple tests.
+
+Before dispatching graders, read `agents/grader.md` and embed its full content as the system
+instructions in every grader subagent prompt. The grader is a `general-purpose` task agent;
+there is no auto-resolved `grader` type.
+
+Each grader subagent:
+1. Reads `<test-id>/llm_graders/<name>.json`
+2. Reads `<test-id>/response.md`
+3. Grades the response against the prompt criteria
+4. Writes `<run-dir>/<evalset>/<test-id>/llm_grader_results/<name>.json`
+5. Returns score and per-assertion evidence to the orchestrator
+
+Writing per-test result files is required. It makes grading resumable and keeps assertion
+evidence durable across long runs.
+
+The result file format is:
+
+```json
+{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
+```
+
+**Phase 3: Merge and validate**
+
+```bash
+agentv pipeline bench <run-dir>
+agentv results validate <run-dir>
+```
+
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test,
+merges them with code-grader scores, computes weighted pass_rate, and writes `grading.json`,
+`index.jsonl`, and `benchmark.json`.
+
+If `pipeline bench` reports `pass_rate=0` across the board, first verify
+`<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each LLM-graded test.
+Treat `pass_rate=0` as a real signal only after confirming grader results exist.
 
 ## Step-by-Step Fine-Grained Control (CLI targets)
 
@@ -136,17 +208,10 @@ agentv results validate <run-dir>
 ## LLM Grading JSON Format
 
 The agent reads `llm_graders/<name>.json` for each test, grades the response using the prompt
-content, and produces a scores JSON:
+content, and writes one result file per grader:
 
 ```json
-{
-  "test-01": {
-    "relevance": {
-      "score": 0.85,
-      "assertions": [{"text": "Response is relevant", "passed": true, "evidence": "..."}]
-    }
-  }
-}
+{ "score": 0.85, "assertions": [{"text": "Response is relevant", "passed": true, "evidence": "..."}] }
 ```
 
 ## Pipeline Bench and Dashboard

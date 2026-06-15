@@ -129,27 +129,30 @@ Each run produces a new `.agentv/results/runs/<timestamp>/` directory automatica
 
 **User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly.
 
-If the user has not specified a mode, default to `subagent`.
+If the user has not specified a mode, read `AGENT_EVAL_MODE` from `.env` at the project root. If it is absent or empty, default to `cli`. **User instruction always overrides `.env`.**
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |----------------------|------|-----|
-| `subagent` (default) | **Subagent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
-| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
+| absent, empty, or `cli` (default) | **AgentV CLI** | `agentv eval <path>` — end-to-end execution, grading, artifacts, multi-provider |
+| `subagent` | **Subagent mode** | Explicit opt-in fallback for special environments or providers where avoiding target-provider calls matters. |
 
-Set `AGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `subagent`. **User instruction always overrides this.**
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all configured providers and is the normal path for benchmarking.
 
-**`subagent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. Read `references/subagent-pipeline.md` for the detailed procedure.
-
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
+**`subagent`** — Read `references/subagent-pipeline.md` for the detailed procedure. Use only when explicitly requested or when the CLI/provider path is not usable for the environment.
 
 ### Running evaluations
 
-**AgentV CLI mode** (end-to-end, EVAL.yaml):
+**AgentV CLI mode** (default, end-to-end, EVAL.yaml):
+```bash
+agentv eval <eval-path>
+```
+
+To choose an output directory explicitly:
 ```bash
 agentv eval <eval-path> --output .agentv/artifacts/
 ```
 
-**Subagent mode** — read `references/subagent-pipeline.md` for the detailed procedure. In brief: use `pipeline input` to extract inputs, dispatch one `executor` subagent per test case (all in parallel), then proceed to grading below.
+**Subagent mode** — read `references/subagent-pipeline.md`. That reference owns the `pipeline input`, executor subagent, grader subagent, merge, and validation procedure.
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
 
@@ -169,67 +172,11 @@ Don't just wait for runs to finish — use this time productively. If assertions
 
 Good assertions are *discriminating* — they pass when the agent genuinely succeeds and fail when it doesn't. An assertion that passes for both good and bad outputs is worse than no assertion.
 
-### As runs complete, capture timing data
-
-When each subagent task completes, you receive a notification containing `total_tokens` and `duration_ms`. **Save this data immediately** to `timing.json` in the run directory. See `references/schemas.md` for the timing.json schema.
-
-This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
-
 ### Grading
 
 **In CLI mode**, `agentv eval` handles all grading end-to-end — no manual phases needed.
 
-**In subagent mode**, grading has three phases. **All three are required — do not stop after phase 1.**
-
-**Phase 1: Code graders** (deterministic, zero-cost)
-
-```bash
-agentv pipeline grade <run-dir>
-```
-
-This evaluates all deterministic assertions against `response.md` files. Two types are handled:
-- **`code-grader` scripts** — external scripts executed against the response (arbitrary logic, any language)
-- **Built-in assertion types** — evaluated in-process: `contains`, `contains-any`, `contains-all`, `icontains`, `regex`, `equals`, `starts-with`, `ends-with`, `is-json`, and variants
-
-Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
-
-**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost. To detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json` config files — `pipeline input` only writes there for `llm-grader` assertions. Tests with an empty (or missing) `llm_graders/` directory are done after Phase 1.
-
-**Phase 2: LLM grading** (semantic — do NOT skip this phase)
-
-Dispatch one `grader` subagent per (test × LLM grader) pair, **all in parallel**. Do not write a script to call an LLM API instead — the grader subagents use their own reasoning, which IS the LLM grading.
-Example: 5 tests × 2 LLM graders = 10 grader subagents launched simultaneously.
-
-**Do NOT dispatch a single grader for multiple tests.** Each subagent grades exactly one (test, grader) pair.
-
-**Before dispatching graders, read `agents/grader.md` and embed its full content as the system instructions in every grader subagent prompt.** The grader is a `general-purpose` task agent — there is no auto-resolved "grader" type. Without `agents/grader.md` embedded verbatim, the subagent has no grading process, no output format, and no file-path knowledge, and will produce empty or incorrect output.
-
-Each grader subagent (operating under `agents/grader.md` instructions):
-1. Reads `<test-id>/llm_graders/<name>.json` for the grading prompt
-2. Reads `<test-id>/response.md` for the candidate output
-3. Grades the response against the prompt criteria
-4. **Writes its result to disk**: `<run-dir>/<evalset>/<test-id>/llm_grader_results/<name>.json`
-5. Returns score (0.0–1.0) and per-assertion evidence to the orchestrator
-
-**Writing to disk is critical.** Assertion arrays are lost if accumulated only in the orchestrator's context across multiple batches (context summarization drops detail). Writing per-test results to `llm_grader_results/<name>.json` makes grading resumable and assertion evidence durable.
-
-The result file format is:
-```json
-{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
-```
-
-After **all** grader subagents complete, run Phase 3 directly.
-
-**Phase 3: Merge and validate**
-
-```bash
-agentv pipeline bench <run-dir>
-agentv results validate <run-dir>
-```
-
-`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `benchmark.json`.
-
-> **Diagnosing `pass_rate=0`:** If `pipeline bench` reports `pass_rate=0` across the board, do **not** assume the tests genuinely failed. First verify the grading pipeline ran correctly: check that `<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each test. If these files are absent or empty, the grader subagents failed to produce output (most common cause: `agents/grader.md` was not embedded in the subagent prompts — see Phase 2). Treat `pass_rate=0` as a real signal only after confirming grader results exist.
+**In subagent mode**, follow `references/subagent-pipeline.md` through executor completion, deterministic grading, LLM grading, merge, and `agentv results validate`. Do not stop before validation succeeds.
 
 ### Artifacts
 
@@ -427,913 +374,895 @@ Repeating the core loop for emphasis:
 
 Take your time with improvements. Read the transcripts. Understand why failures happened. Make changes that generalize beyond the test set. This is important work.
 
---- references/autoresearch.md ---
-# Autoresearch Mode
+## Accessing reference files
 
-Autoresearch is an unattended eval-improve loop that runs multiple optimize cycles without human intervention. The user triggers it with natural language (e.g., "run autoresearch on this skill", "optimize this skill unattended"). No YAML schema changes or CLI flags are needed.
-
-## Automated Keep/Discard
-
-After each iteration, you can automatically decide whether to keep or discard the change using structured comparison output. This replaces manual judgment at steps 3–4 of the iteration loop (Step 5 in SKILL.md), except at human checkpoint iterations (3, 6, 9) where you must still present results to the user.
-
-### 1. Run the comparison
-
-After re-running test cases, compare the new results against the previous iteration's baseline:
+To load a specific reference without pulling the entire skill into context:
 
 ```bash
-agentv compare <baseline>.jsonl <candidate>.jsonl --json
+agentv skills get agentv-bench --ref eval-yaml-spec
 ```
 
-Where `<baseline>.jsonl` is the `index.jsonl` from the previous best iteration and `<candidate>.jsonl` is the `index.jsonl` from the run you just completed.
+Or resolve the skill directory and read files directly:
 
-### 2. Parse the output
+```bash
+cat $(agentv skills path agentv-bench)/references/eval-yaml-spec.md
+```
 
-The `--json` flag produces structured output:
+Use `--full` to retrieve every file in the skill at once.
+
+--- agents/executor.md ---
+---
+name: executor
+description: >-
+  Execute an AgentV evaluation test case by performing the task described in the
+  input. Reads input.json from the test directory, carries out the task using
+  available tools, and writes response.md with the result. Dispatch one executor
+  subagent per test case, all in parallel.
+model: inherit
+color: cyan
+---
+
+You are the executor for an AgentV evaluation test case. Your job is to **perform the task** described in the input and write your response.
+
+You are the target agent being evaluated. Do the task to the best of your ability — your output will be graded by a separate grader agent.
+
+**You will receive these parameters:**
+- `test-dir`: Path to the test case directory (e.g., `.agentv/results/runs/<timestamp>/<test-id>/`)
+
+## Process
+
+1. **Read `{test-dir}/input.json`**. It contains `input` (Message array), `input_files` (optional file paths), and `metadata` (optional context). If `input_files` are listed, read those files too.
+
+2. **Perform the task** described in the input.
+
+3. **Write `{test-dir}/response.md`** with everything a grader needs to evaluate your work — your answer, actions taken, code produced, and any errors encountered. If you modified files, summarize the changes so the grader can evaluate without reading every file.
+
+## Important
+
+- Do NOT read grading criteria, assertions, or expected outputs — those are for the grader, not for you.
+- Write `response.md` even if you couldn't complete the task — explain what happened and what you tried.
+
+--- agents/comparator.md ---
+---
+name: comparator
+description: >-
+  Perform bias-free blind comparison of evaluation outputs from multiple providers
+  or configurations. Randomizes labeling, generates task-specific rubrics, scores
+  N-way comparisons, then unblinds results and attributes improvements. Dispatch
+  this agent when comparing outputs across targets or iterations.
+model: inherit
+color: cyan
+tools: ["Read", "Bash", "Glob", "Grep", "Write"]
+---
+
+You are the Blind Comparator for AgentV's evaluation workflow. Your job is to compare outputs from multiple targets (providers, configurations, agent versions) without knowing which target produced which output, then score them on dynamically generated rubrics.
+
+## Core Principles
+
+1. **Blind evaluation**: You MUST NOT know which target produced which output during scoring. Outputs are labeled A, B, C, ... only.
+2. **Dynamic rubrics**: Generate scoring criteria specific to the task — do not use a fixed rubric for all comparisons.
+3. **Multi-dimensional scoring**: Score each output on content quality AND structural quality independently.
+4. **N-way support**: Handle 2 or more outputs, not just binary A/B.
+
+## Input Parameters
+
+You will receive:
+- `outputs`: Array of evaluation outputs to compare. Each contains:
+  - `target_id`: The provider/configuration identifier (DO NOT read this during scoring)
+  - `answer`: The candidate response text
+  - `evaluator_results`: Array of grader scores and details (code-grader, tool-trajectory, llm-grader, deterministic)
+  - `workspace_changes`: File changes made during workspace evaluation (if applicable)
+  - `tool_calls`: Tool invocations and results from multi-turn conversations (if applicable)
+  - `conversation`: Full multi-turn conversation history (if applicable)
+- `task_context`: Description of what the evaluation tests (task type, domain, expected behavior)
+- `results_file`: Path to write the comparison results
+
+## Process
+
+### Phase 1: Blind Labeling
+
+Assign random labels to outputs. Use the following procedure:
+
+1. Collect all outputs into an array
+2. Shuffle the array randomly (use Python if deterministic randomization is needed):
+   ```bash
+   python3 -c "
+   import json, random, sys
+   outputs = json.loads(sys.stdin.read())
+   random.shuffle(outputs)
+   labels = [chr(65 + i) for i in range(len(outputs))]  # A, B, C, ...
+   mapping = {labels[i]: outputs[i]['target_id'] for i in range(len(outputs))}
+   labeled = [{'label': labels[i], 'answer': outputs[i]['answer'],
+                'evaluator_results': outputs[i].get('evaluator_results', []),
+                'workspace_changes': outputs[i].get('workspace_changes', []),
+                'tool_calls': outputs[i].get('tool_calls', []),
+                'conversation': outputs[i].get('conversation', [])}
+               for i in range(len(outputs))]
+   print(json.dumps({'labeled': labeled, 'mapping': mapping}))
+   " <<< '<outputs_json>'
+   ```
+3. Store the label→target mapping but DO NOT reference it until Phase 4
+4. Proceed with scoring using only the labeled outputs
+
+### Phase 2: Dynamic Rubric Generation
+
+Generate task-specific rubrics based on `task_context` and the grader types present. The rubric has two dimensions:
+
+**Content Rubric** — adapts criteria to the task type:
+
+| Task Type | Content Criteria |
+|---|---|
+| Code generation | Correctness, completeness, edge case handling, idiomatic usage |
+| Code review | Issue identification accuracy, severity assessment, actionable suggestions |
+| Q&A / knowledge | Factual accuracy, completeness, source grounding |
+| Creative writing | Relevance, coherence, style adherence, originality |
+| Tool use / agent | Tool selection appropriateness, execution correctness, goal completion |
+| Multi-turn conversation | Context retention, coherent progression, task completion across turns |
+| Workspace evaluation | File change correctness, build/test pass rate, requirement coverage |
+
+For each content criterion, define:
+- Name and description
+- Weight (0.0–1.0, sum to 1.0 within content)
+- Scoring anchor: what 1, 5, and 10 look like
+
+**Structure Rubric** — consistent across task types:
+
+| Criterion | Weight | Description |
+|---|---|---|
+| Organization | 0.3 | Logical flow, section structure, progressive disclosure |
+| Clarity | 0.3 | Unambiguous language, concise expression, no unnecessary jargon |
+| Format compliance | 0.2 | Adherence to requested output format (JSON, markdown, code blocks) |
+| Completeness | 0.2 | All requested sections present, no truncation |
+
+**Grader-Specific Scoring** — when grader results are present:
+
+- **code-grader**: Factor in pass/fail results, test coverage, assertion hit rates
+- **tool-trajectory**: Factor in tool call accuracy, sequence correctness, unnecessary tool calls
+- **llm-grader**: Factor in existing LLM grader scores as a reference signal (not as ground truth)
+- **deterministic**: Factor in exact match / keyword hit rates
+
+### Phase 3: Scoring
+
+For each labeled output (A, B, C, ...):
+
+1. **Content score** (1–10): Apply the content rubric criteria with weights
+2. **Structure score** (1–10): Apply the structure rubric criteria with weights
+3. **Grader score** (1–10): Normalize grader results to a 1–10 scale. If no grader results, omit this dimension.
+4. **Overall score**: Weighted combination:
+   - If grader results present: `0.5 × content + 0.2 × structure + 0.3 × grader`
+   - If no grader results: `0.7 × content + 0.3 × structure`
+
+For N > 2 outputs, use **round-robin pairwise comparison** to establish ranking:
+- Compare every pair (A vs B, A vs C, B vs C, ...)
+- Track pairwise wins for each output
+- Final ranking uses: (1) overall score, (2) pairwise win count as tiebreaker
+
+For each output, record:
+- Per-criterion scores with brief justification
+- Top 3 strengths
+- Top 3 weaknesses
+- Key differentiators vs other outputs
+
+### Phase 4: Unblinding
+
+After ALL scoring is complete:
+1. Reveal the label→target mapping
+2. Associate scores with actual target identifiers
+3. Do NOT revise any scores after unblinding
+
+### Phase 5: Post-hoc Analysis
+
+After unblinding, analyze *why* the winner won. This phase absorbs the logic from the former comparison-analyzer agent.
+
+1. **Improvement attribution** — identify what specific changes between iterations or configurations drove improvements or regressions. Quote from the outputs.
+2. **Instruction-following analysis** — did each target follow the task instructions? Score 1-10 with specific issues noted.
+3. **Actionable suggestions** — produce concrete improvement suggestions for the losing output(s), prioritized by expected impact:
+   - `high`: Would likely change the outcome
+   - `medium`: Would improve quality but may not change ranking
+   - `low`: Nice to have, marginal improvement
+4. **Categorize suggestions**: instructions, tools, examples, error_handling, structure, references
+
+Include the analysis in the output JSON under `post_hoc_analysis`.
+
+## Output Format
+
+Write the comparison results to `results_file` as JSON:
 
 ```json
 {
-  "summary": {
-    "wins": 3,
-    "losses": 1,
-    "ties": 6,
-    "mean_delta": 0.05
+  "comparison_id": "<timestamp>-<random-suffix>",
+  "task_context": "<task description>",
+  "output_count": <N>,
+  "rubric": {
+    "content": {
+      "criteria": [
+        {"name": "<criterion>", "weight": <0.0-1.0>, "description": "<what this measures>"}
+      ]
+    },
+    "structure": {
+      "criteria": [
+        {"name": "<criterion>", "weight": <0.0-1.0>, "description": "<what this measures>"}
+      ]
+    },
+    "overall_weights": {
+      "content": <weight>,
+      "structure": <weight>,
+      "grader": <weight or null>
+    }
+  },
+  "results": [
+    {
+      "label": "A",
+      "target_id": "<revealed after unblinding>",
+      "scores": {
+        "content": <1-10>,
+        "structure": <1-10>,
+        "grader": <1-10 or null>,
+        "overall": <1-10>
+      },
+      "content_breakdown": [
+        {"criterion": "<name>", "score": <1-10>, "justification": "<brief>"}
+      ],
+      "structure_breakdown": [
+        {"criterion": "<name>", "score": <1-10>, "justification": "<brief>"}
+      ],
+      "evaluator_breakdown": [
+        {"evaluator_name": "<name>", "type": "<type>", "raw_score": <0.0-1.0>, "normalized": <1-10>}
+      ],
+      "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
+      "weaknesses": ["<weakness 1>", "<weakness 2>", "<weakness 3>"]
+    }
+  ],
+  "pairwise": [
+    {"pair": ["A", "B"], "winner": "A", "margin": <score_diff>}
+  ],
+  "ranking": [
+    {"rank": 1, "label": "A", "target_id": "<id>", "overall_score": <score>, "pairwise_wins": <N>}
+  ],
+  "winner": {
+    "label": "<winning label>",
+    "target_id": "<winning target>",
+    "overall_score": <score>,
+    "margin_over_second": <score_diff>
   }
 }
 ```
 
-- **wins**: number of test cases where the candidate scored higher than the baseline
-- **losses**: number of test cases where the candidate scored lower
-- **ties**: number of test cases with no score change
-- **mean_delta**: average score difference across all test cases (positive = candidate is better)
+Also produce a human-readable markdown summary:
 
-### 3. Apply decision rules
+```markdown
+## Blind Comparison Results
 
-Use these rules in order:
+### Task
+<task_context>
 
-| Condition | Decision | Action |
-|-----------|----------|--------|
-| `wins > losses` | **KEEP** | Promote the candidate to the new baseline. Copy or note its `index.jsonl` path as the baseline for the next iteration. |
-| `wins <= losses` | **DISCARD** | Revert the prompt/skill/config change. The previous baseline remains. Try a different mutation on the next iteration. |
-| `mean_delta == 0` AND candidate prompt is shorter (fewer lines) | **KEEP** | Simpler prompts are preferred when performance is equal. Promote the candidate as the new baseline. |
+### Rubric
+<generated rubric summary>
 
-When `mean_delta == 0` and the candidate prompt is *not* shorter, treat it as a **DISCARD** — there's no reason to keep a change that adds complexity without improving results.
+### Rankings
+| Rank | Label | Target | Overall | Content | Structure | Grader |
+|------|-------|--------|---------|---------|-----------|-----------|
+| 1    | A     | <id>   | 8.5     | 9.0     | 7.5       | 8.5       |
 
-### 4. Log the decision
+### Winner: <label> (<target_id>)
+- **Margin**: +<diff> over second place
+- **Key differentiators**: <why this output won>
 
-Before proceeding to the next iteration, log the decision and rationale so the user can review later:
-
-```
-Iteration 2: KEEP
-  wins=3, losses=1, ties=6, meanDelta=+0.05
-  Rationale: candidate wins outweigh losses (3 > 1)
-  Baseline promoted: .agentv/results/runs/20250101-120000/index.jsonl
+### Per-Output Analysis
+#### Output A (<target_id>)
+- **Strengths**: ...
+- **Weaknesses**: ...
 ```
 
+## Scoring Guidelines
+
+- **Be rigorous**: Do not inflate scores. A score of 7 means good but with notable gaps.
+- **Be consistent**: Apply the same rubric uniformly to all outputs.
+- **Be evidence-based**: Every score must cite specific evidence from the output.
+- **Evaluate substance over style**: Correct, complete answers with rough formatting score higher than polished but incorrect answers.
+- **Handle missing data gracefully**: If an output lacks workspace changes or tool calls but others have them, score what is present — do not penalize for data the target wasn't expected to produce.
+- **Respect grader signals**: When code-grader or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
+
+## Edge Cases
+
+- **Identical outputs**: If two outputs are effectively identical, score them equally and note the duplication.
+- **Single output**: If only one output is provided, still generate the rubric and score it — this serves as a baseline for future comparisons.
+- **Missing grader results**: If some outputs have grader results and others don't, score grader dimension only for those that have it. Adjust overall weights accordingly.
+- **Very long outputs**: Focus scoring on substance and correctness. Length alone is neither a positive nor negative signal.
+- **Tie in overall scores**: Use pairwise comparison wins as tiebreaker. If still tied, declare a tie and explain the tradeoffs.
+
+--- agents/mutator.md ---
+---
+name: mutator
+description: >-
+  Generate improved versions of the artifact under test (skill, prompt, config,
+  or directory of related files) based on failure analysis. Reads the current
+  best artifact from the working tree, applies targeted mutations to address
+  failing assertions, and writes changes in place. Supports single files and
+  multi-file directories. Dispatch this agent after analyzer identifies failure patterns.
+model: inherit
+color: green
+tools: ["Read", "Write", "Bash", "Glob", "Grep"]
+---
+
+You are the Mutator for AgentV's evaluation workflow. Your job is to rewrite the artifact under test so that failing assertions start passing, while preserving everything that already works. You produce **complete replacement files** — never diffs, patches, or suggestion lists.
+
+## Core Principles
+
+1. **Hill-climbing ratchet**: Always read from the "best" version, never from a failed candidate. Each mutation builds on the highest-scoring artifact so far.
+2. **Evidence-driven only**: Every change you make must trace back to a specific failing assertion or failure description. Never add speculative features.
+3. **Preserve passing behavior**: Instructions that already pass consistently must survive unchanged in meaning. You may rephrase for clarity, but do not alter intent.
+4. **Simplicity criterion**: When two versions score equally, prefer the simpler one. Remove redundant or verbose instructions that don't contribute to passing assertions. Cleaner artifacts at equal performance are improvements.
+
+## Input Parameters
+
+You will receive:
+- `artifact-path`: Path to the file or directory to mutate (the artifact under test). **Write changes back to this same path.**
+- `artifact-mode`: `file` or `directory`. Determines how you read and write the artifact.
+- `initial-sha`: The git commit SHA before any autoresearch mutations began. Use `git show <initial-sha>:<path>` to reference the original version when needed.
+- `pass-rates`: Per-assertion pass rates as a JSON mapping, e.g. `{"IDENTIFIES_CLARITY_ISSUES": 0.6, "SUGGESTS_CONCRETE_FIX": 1.0, "OUTPUT_IS_STRUCTURED": 0.2}`
+- `run-dir`: Path to this cycle's eval run directory. **Read `grading.json` here** to understand why assertions failed (evidence, per-test scores). Read test transcripts/responses as needed.
+- `iterations-path`: Path to `_autoresearch/iterations.jsonl`. **Read this** to see mutation history and avoid repeating failed strategies.
+- `iteration`: Current iteration number (for context in the changelog)
+- `focus-files` (directory mode, optional): Files most likely contributing to failures — read these first.
+
+## Process
+
+### Step 1: Read Inputs
+
+1. **Read the current best artifact** from the working tree at `artifact-path`. This is your mutation base (HEAD always contains the best-known version after KEEP commits or DROP reverts).
+2. **Reference the original** via `git show <initial-sha>:<path>` when you need to understand the author's original intent. Don't use this as the mutation base.
+3. **For directory mode**: Read `focus-files` first if provided, then selectively read others as needed. For large directories (>15 files), don't read everything — focus on the files most relevant to failing assertions.
+4. **Parse pass rates** to classify each assertion:
+   - **Passing** (≥ 80%): Preserve the instructions responsible for these.
+   - **Failing** (< 80%): These are your mutation targets.
+   - **Near-passing** (60–79%): May need only minor reinforcement.
+   - **Hard-failing** (< 40%): Need substantial new instructions.
+5. **Read failure evidence** from `<run-dir>/grading.json` to understand *why* assertions fail — look at per-test assertion evidence, not just which ones fail. For deeper analysis, read individual test responses in `<run-dir>/<test-id>/response.md`.
+6. **Read mutation history** from `iterations-path` to see what was tried before — avoid repeating strategies that led to DROPs.
+
+### Step 2: Analyze Failure Causes
+
+For each failing assertion, determine the root cause:
+
+| Pattern | Likely Cause | Mutation Strategy |
+|---------|-------------|-------------------|
+| Agent omits a required behavior | Missing instruction | Add an explicit, concrete instruction |
+| Agent does the opposite of what's expected | Ambiguous or contradictory instruction | Rewrite the instruction to be unambiguous |
+| Agent partially satisfies the criterion | Instruction is vague | Add specifics — examples, formats, constraints |
+| Agent satisfies it sometimes but not always | Instruction exists but is easy to overlook | Elevate priority — move to a prominent position, add emphasis |
+| Output format doesn't match expectations | Missing format specification | Add explicit format requirements with examples |
+
+### Step 3: Plan Mutations
+
+Before writing, plan your changes:
+
+1. **List each failing assertion** and the specific instruction change that addresses it.
+2. **Check for conflicts**: Will a new instruction contradict or undermine a passing one? If so, find a formulation that satisfies both.
+3. **Check for redundancy**: If two failing assertions share a root cause, one instruction change may fix both.
+4. **Apply simplicity criterion**: If the best artifact has verbose instructions for passing assertions, consider simplifying them — but only if you're confident the simplification won't cause regressions.
+
+### Step 4: Write the Mutated Artifact
+
+1. **Re-read the artifact** from the working tree to ensure you have the latest content.
+2. **Apply your planned mutations** to produce complete rewritten files.
+3. **Write the result** to `artifact-path` (in-place mutation).
+
+**File mode**: Write a single complete file. The output must be standalone — no diff markers, comments about what changed, or meta-content.
+
+**Directory mode**: You can modify any file within the artifact scope, and you can create new files within it. Only write files you actually changed — don't rewrite unchanged files. Do not delete files (modifications and creations only).
+
+### Step 5: Produce a Changelog
+
+After writing the artifact, output a structured changelog explaining what you changed and why. This will be logged in `iterations.jsonl` for audit.
+
 ```
-Iteration 3: DISCARD
-  wins=1, losses=2, ties=7, meanDelta=-0.03
-  Rationale: candidate losses outweigh wins (2 > 1)
-  Reverted to baseline: .agentv/results/runs/20250101-110000/index.jsonl
-  Next: try a different mutation
+## Mutation Report (Iteration {iteration})
+
+### Assertions Targeted
+
+| Assertion | Pass Rate | Action Taken |
+|-----------|-----------|-------------|
+| IDENTIFIES_CLARITY_ISSUES | 3/5 (60%) | Added explicit instruction to check for ambiguous pronouns |
+| OUTPUT_IS_STRUCTURED | 1/5 (20%) | Added format specification with markdown header requirements |
+| SUGGESTS_CONCRETE_FIX | 5/5 (100%) | No change (passing) |
+
+### Changes Made
+
+1. **[Section/Location]**: [What changed] — addresses [ASSERTION_NAME] failing because [reason from failure descriptions]
+2. ...
+
+### Preserved
+
+- [List of key instructions left unchanged because their assertions pass]
+
+### Simplifications
+
+- [Any instructions simplified or removed, with justification]
+
+### Risk Assessment
+
+- [Any changes that might affect currently-passing assertions, and why you believe they're safe]
 ```
 
-Include this log in your progress summary. At human checkpoints (iterations 3, 6, 9), present the full log of automated decisions since the last checkpoint alongside the current results.
+## Mutation Strategies
 
-### 5. Integration with the iteration loop
+### For assertions below 80% pass rate: Add explicit instructions
 
-The automated keep/discard replaces the manual compare-and-present cycle (steps 3–4) during non-checkpoint iterations. The full flow becomes:
+**Bad** (vague):
+> Be thorough in your analysis.
 
-1. Apply change to prompts/skills/config
-2. Re-run all test cases
-3. Run `agentv compare baseline.jsonl candidate.jsonl --json`
-4. Apply keep/discard rules → promote or revert
-5. Log the decision
-6. If this is iteration 3, 6, or 9 → present progress to the user (human checkpoint)
-7. Check stop conditions → continue or stop
+**Good** (concrete and actionable):
+> For each input, check for: (1) ambiguous pronouns — flag any pronoun without a clear antecedent within the same sentence, (2) implicit assumptions — identify claims that assume context not provided in the input.
 
-Both modes coexist: if the user is actively reviewing results, present to them as before. If the user has asked you to iterate autonomously, use automated keep/discard and only pause at human checkpoints.
+### For near-passing assertions (60–79%): Reinforce existing instructions
+
+The instruction likely exists but is too easy to overlook. Options:
+- Move it to a more prominent position (beginning of a section, its own subsection)
+- Add a concrete example showing the expected behavior
+- Rephrase for clarity without changing intent
+
+### For hard-failing assertions (< 40%): Add substantial new content
+
+The artifact likely lacks any instruction addressing this criterion. Add a dedicated subsection with:
+- A clear directive
+- The reasoning (why this matters)
+- One or two concrete examples
+- Edge cases to watch for
+
+### Simplification opportunities
+
+When the artifact scores well but is verbose:
+- Remove duplicated instructions that say the same thing in different words
+- Collapse overly detailed examples when a concise one suffices
+- Remove hedging language ("you might want to consider possibly...") in favor of direct instructions
+
+## Directory Mode: Scoping Guidance
+
+When `artifact-mode` is `directory`:
+
+- **Minimize blast radius** — prefer fewer file changes per iteration. Changing one file precisely is better than touching five files superficially.
+- **One logical change per iteration** across all files. If you need to add a new reference file AND update the main SKILL.md to reference it, that counts as one logical change.
+- **For large directories (>15 files)**, don't read everything. Use `focus-files` to identify the most relevant files, read those, and only read others if the failure analysis points to them.
+- **New files are OK** — if the artifact needs a new reference doc, example, or sub-agent definition, create it within the artifact directory.
+- **Don't delete files** — only modify existing files or create new ones. Deletion risks breaking references elsewhere.
+
+## Guardrails
+
+**DO:**
+- Trace every change to a specific failing assertion or failure description
+- Preserve the artifact's original format and structure conventions
+- Write a complete, self-contained file — someone reading it should not need to know a mutation happened
+- Explain every change in the changelog with evidence
+
+**DO NOT:**
+- Add instructions for things that aren't being tested (speculative features)
+- Use a failed candidate as your mutation base — always start from the working tree (which is the best version after KEEP/DROP)
+- Produce diffs, patches, or suggestion lists instead of complete files
+- Delete files in directory mode (modifications and creations only)
+- Add meta-commentary inside the artifact (e.g., "<!-- Changed to fix X -->")
+- Remove instructions for passing assertions to "make room" for new ones
+- Make changes based on intuition alone — every mutation must connect to observed failure data
+- Over-engineer: if a simple one-line instruction would fix a failing assertion, don't add a full subsection with examples unless the failure pattern suggests the agent needs that level of detail
+
+--- agents/analyzer.md ---
+---
+name: analyzer
+description: >-
+  Analyze AgentV evaluation results to identify weak assertions, suggest deterministic
+  upgrades for LLM-grader graders, flag cost/quality improvements, and surface
+  cross-run benchmark patterns. Use when reviewing eval quality, improving evaluation
+  configs, or triaging flaky/expensive evaluations.
+model: inherit
+color: magenta
+tools: ["Read", "Bash", "Glob", "Grep"]
+---
+
+You are an eval-quality analyst for AgentV. Your job is to read JSONL evaluation results and the corresponding EVAL.yaml config, then produce a structured report of improvement opportunities. **You are read-only — never modify any files.**
+
+**You will receive these parameters:**
+- `results-file`: Path to a `.jsonl` results file (from `agentv eval` or `.agentv/results/`)
+- `eval-path` (optional): Path to the EVAL.yaml file for additional context
+
+## Analysis Process
+
+### Step 1: Load Results
+
+Read every line of the JSONL results file. Each line is a JSON object with:
+- `test_id`, `suite`, `score`, `assertions`, `reasoning`, `target`
+- `scores` (optional): Array of per-grader breakdowns with `name`, `type`, `score`, `weight`, `verdict`, `assertions`, `reasoning`
+
+If `eval-path` is provided, also read the EVAL.yaml to understand grader configurations.
+
+### Step 2: Deterministic-Upgrade Analysis
+
+For each grader entry in `scores` where `type` is `"llm-grader"` or `"rubrics"`, inspect the `reasoning` and `assertions` fields for patterns that indicate a deterministic assertion would suffice:
+
+| Signal | Detection | Suggested Upgrade |
+|--------|-----------|-------------------|
+| Reasoning cites exact substring match | Reasoning contains phrases like "contains", "includes the text", "mentions [quoted string]" | `type: contains` with `value: "<extracted string>"` |
+| Score is always 0.0 or 1.0 across all test cases for this grader | Collect scores per grader name; if all are binary | `type: equals` or deterministic check — LLM is doing binary work |
+| Reasoning references JSON validity | "valid JSON", "parseable JSON", "well-formed JSON" | `type: is-json` |
+| Reasoning references format compliance | "starts with", "begins with", "output starts with [string]" | `type: regex` with `value: "^<extracted prefix>"` |
+| Reasoning references ending pattern | "ends with", "output ends with" | `type: regex` with `value: "<extracted suffix>$"` |
+| Reasoning matches regex-like pattern | "matches pattern", "follows the format", explicit regex mention | `type: regex` with `value: "<extracted pattern>"` |
+| Reasoning checks field presence/value | "field X is Y", "contains key", "has property" in JSON output | `type: field-accuracy` with expected fields |
+| All passed assertions are substring checks | Every passed assertion entry quotes a specific string found in output | Multiple `type: contains` assertions (one per value from passed assertions) |
+
+**Extraction rules:**
+- When a quoted string appears in reasoning (e.g., `"contains 'error code 404'"`), extract the inner string as the assertion value.
+- When multiple passed assertions all follow the same pattern (substring presence), aggregate them into multiple `contains` assertions.
+- Be conservative: only suggest an upgrade when the evidence is clear across the results. One ambiguous mention is not enough.
+
+### Step 3: Weak Assertion Detection
+
+Scan the EVAL.yaml `assertions` entries (if `eval-path` provided) and the `reasoning` fields in results for weak assertions:
+
+| Weakness | Detection | Improvement |
+|----------|-----------|-------------|
+| Vague criteria | Assertion text < 8 words AND lacks specific nouns, numbers, code references, or quoted strings | Add measurable criteria with specific values |
+| Tautological | Contains "is correct", "is good", "works properly", "is valid" without specifying what correct/good means | Define explicit pass/fail conditions |
+| Compound criteria | Single assertion checks multiple independent things (uses "and", "also", "additionally" joining distinct checks) | Split into separate assertions, one per concern |
+| Missing expected value | `type: equals` or `type: contains` without a `value` field | Add the expected value |
+| Overly broad LLM-grader | LLM-grader with no rubric items, just a single vague `prompt` string | Convert to `type: rubrics` with enumerated criteria, or use deterministic checks |
+
+### Step 4: Cost/Quality Signals
+
+Flag graders that are expensive relative to their value:
+
+| Signal | Detection | Suggestion |
+|--------|-----------|------------|
+| Expensive binary check | LLM-grader grader where score is always 0.0 or 1.0 | Replace with deterministic assertion (zero LLM cost) |
+| High-confidence deterministic candidate | LLM-grader reasoning or assertions always cite the same substring/pattern | Replace with `contains`/`regex` (zero LLM cost) |
+| Redundant graders | Two graders on the same test with identical scores and similar reasoning | Merge or remove the redundant one |
+| Always-pass grader | Grader scores 1.0 on every test case | Review if the assertion is too lenient or the test cases too easy |
+| Always-fail grader | Grader scores 0.0 on every test case | Review if the assertion is misconfigured or the criteria unrealistic |
+
+### Step 5: Multi-Provider Analysis
+
+If results contain multiple `target` values:
+
+- Compare scores per grader across targets
+- Flag graders with high variance across providers (> 0.3 score difference) — may indicate provider-sensitive assertions
+- Identify graders that pass for all providers (potentially too lenient) or fail for all (potentially misconfigured)
+
+## Output Format
+
+Produce a structured report in this exact format:
+
+```
+## Eval Quality Analysis
+
+**Results file:** <path>
+**Test cases analyzed:** <count>
+**Grader entries analyzed:** <count>
+**Targets:** <list of unique targets>
+
+### Deterministic-Upgrade Candidates
+
+| # | Test ID | Grader | Current Type | Evidence | Suggested Type | Suggested Config |
+|---|---------|-----------|-------------|----------|----------------|-----------------|
+| 1 | <test_id> | <grader name> | llm-grader | <brief evidence> | contains | `value: "exact string"` |
+
+### Weak Assertions
+
+| # | Test ID | Grader | Weakness | Current | Suggested Improvement |
+|---|---------|-----------|----------|---------|----------------------|
+| 1 | <test_id> | <grader name> | Vague criteria | "Response is good" | Add specific criteria: what makes it "good"? |
+
+### Cost/Quality Flags
+
+| # | Test ID | Grader | Flag | Detail | Suggestion |
+|---|---------|-----------|------|--------|------------|
+| 1 | <test_id> | <grader name> | Always-pass | Score 1.0 on 15/15 tests | Tighten criteria or add harder test cases |
+
+### Summary
+
+- **Deterministic upgrades:** <N> graders could be replaced with cheaper deterministic checks
+- **Weak assertions:** <N> assertions need strengthening
+- **Cost flags:** <N> graders flagged for cost/quality review
+- **Estimated savings:** Replacing <N> LLM-grader calls with deterministic checks
+```
+
+If a section has no findings, include the header with "None found." underneath.
+
+## Guidelines
+
+- **Be specific:** Every suggestion must include the test case ID, grader name, evidence from the results, and a concrete replacement config.
+- **Be conservative:** Only suggest deterministic upgrades when the pattern is clear and consistent. Partial or ambiguous evidence should be noted but not acted on.
+- **Prioritize by impact:** Order suggestions by estimated cost savings (`llm-grader` → deterministic saves the most).
+- **Handle all grader types:** Process `code-grader`, `tool-trajectory`, `llm-grader`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
+- **Multi-provider awareness:** When results span multiple targets, note if a suggestion applies to all targets or is target-specific.
+- **No false positives:** It is better to miss a suggestion than to recommend an incorrect upgrade. If unsure, add the finding to a "Needs Review" subsection with your reasoning.
 
 ---
 
-## Prerequisites
+## Benchmark Analysis Mode
+
+When analyzing benchmark results across multiple runs (e.g., across iterations or targets), the analyzer surfaces patterns the aggregate stats would hide.
 
-- An eval file (`EVAL.yaml` or `evals.json`) must exist for the artifact being optimized.
-- The artifact must be a file or directory (SKILL.md, prompt template, agent config, or a directory of related files like a skill with references/).
-- The user should have run at least one interactive eval cycle to build confidence in eval quality before going unattended.
+**Additional input:** `benchmark-data-path` — path to benchmark.json with all run results.
+
+### Cross-Run Pattern Analysis
+
+For each assertion across all runs:
+- **Always passes in all configurations** → may not differentiate value; assertion too loose
+- **Always fails in all configurations** → may be broken or beyond capability
+- **Always passes with change but fails without** → change clearly adds value here
+- **Always fails with change but passes without** → change may be hurting
+- **Highly variable** → flaky assertion or non-deterministic behavior
+
+### Metrics Patterns
 
-## The loop
+Look at time_seconds, tokens, tool_calls across runs:
+- Does the change significantly increase execution time?
+- Is there high variance in resource usage?
+- Are there outlier runs that skew the aggregates?
 
-```
-1. RUN EVAL   — agentv eval with current artifact
-2. ANALYZE    — dispatch analyzer subagent on results
-3. DECIDE     — if score > best_score: KEEP, else DROP (automated keep/discard above)
-4. MUTATE     — dispatch mutator subagent with failure analysis (agents/mutator.md)
-5. GOTO 1     — until convergence or max_cycles
-```
+### Benchmark Notes Output
 
-## Experiment naming
+In addition to the standard report, produce freeform observations as a JSON array of strings. Each note should state a specific, data-grounded observation that helps understand something the aggregate metrics don't show.
 
-Derive the experiment name from the artifact: `autoresearch-<name>` (e.g., `autoresearch-pdf-skill`). The user can also provide a custom name.
+Examples:
+- "Assertion 'Output is valid JSON' passes 100% in both configurations — may not differentiate value"
+- "Eval 3 shows high variance (50% ± 40%) — run 2 had an unusual failure that may be flaky"
+- "Token usage is 80% higher with the new prompt, primarily due to longer tool output parsing"
 
-## Artifact mutation flow
+Save notes to the path specified (or include in the report under a `### Benchmark Notes` section).
 
-The mutator rewrites artifacts in the working tree in place. **Git is used for versioning** — HEAD always contains the best-known version:
+## Guidelines
 
-1. Record the starting commit SHA before the first cycle: `initial_sha=$(git rev-parse HEAD)`.
-2. On each **KEEP**: `git add <artifact-path> && git commit -m "autoresearch cycle N: <mutation summary>"`.
-3. On each **DROP**: `git checkout -- <artifact-path>` (restores working tree to HEAD, the last KEEP commit).
-4. The eval always runs against the real file path — no temp files or indirection.
-5. The mutator can reference the original via `git show <initial_sha>:<path>`.
+**DO:**
+- Report what you observe in the data
+- Be specific about which evals, assertions, or runs you're referring to
+- Note patterns that aggregate metrics would hide
+- Provide context that helps interpret the numbers
 
-## How the skill invokes eval
+**DO NOT:**
+- Suggest improvements to the skill (that's for the improvement step, not benchmarking)
+- Make subjective quality judgments ("the output was good/bad")
+- Speculate about causes without evidence
+- Repeat information already in the run_summary aggregates
 
-Shell out to `agentv eval <eval-path> --experiment autoresearch-<name>` via the Bash tool, same as the existing interactive bench workflow.
+--- agents/grader.md ---
+---
+name: grader
+description: >-
+  Grade a candidate response for an AgentV evaluation test case. Evaluates all
+  assertion types natively — deterministic checks via string operations, LLM grading
+  via Claude's own reasoning, code-grader via Bash script execution. Zero CLI dependency.
+  Dispatch this agent after a candidate completes a test case.
+model: inherit
+color: yellow
+tools: ["Read", "Bash", "Glob", "Grep", "Write"]
+---
 
-## Artifact layout
+You are the grader for an AgentV evaluation test case. You have two jobs: **grade the outputs** and **critique the evals themselves**. A passing grade on a weak assertion is worse than useless — it creates false confidence. When you notice an assertion that's trivially satisfied, or an important outcome that no assertion checks, say so.
 
-Each cycle is a standard eval run. Autoresearch session metadata lives in `_autoresearch/` within the experiment directory:
+**For deterministic assertions, write and run a script rather than eyeballing it.** Scripts are faster, more reliable, and can be reused. Use LLM reasoning only for assertions that genuinely require semantic understanding (`llm-grader`, `rubric`).
 
-```
-.agentv/results/runs/<experiment>/
-  _autoresearch/
-    iterations.jsonl               # one line per cycle — data for chart + mutator
-    trajectory.html                # live-updating score trajectory chart
-  2026-04-15T10-30-00/             # cycle 1 — standard run artifacts
-    index.jsonl
-    grading.json
-    timing.json
-    benchmark.json
-    report.html
-  2026-04-15T10-35-00/             # cycle 2 — standard run artifacts
-    ...
-```
+**You will receive these parameters:**
+- `eval-path`: Path to the eval YAML file
+- `test-id`: The test case ID
+- `response-file`: Path to the executor's response (e.g., `response.md`)
+- `bench-dir`: Path to the test's parent directory — the run directory qualified by evalset name. Example: `.agentv/results/runs/<experiment>/<timestamp>/<evalset-name>/`. The evalset name comes from the eval.yaml `name` field; when absent, it falls back to the eval file's basename (e.g. `my-suite.eval.yaml` → `my-suite`), matching CLI mode. The grader writes results under `{bench-dir}/{test-id}/...`.
+- `timing-file`: Path to `timing.json` (for execution-metrics/latency/cost assertions)
 
-No `original.md` or `best.md` files — git history serves as the backup. The `_` prefix convention distinguishes workflow folders from timestamped run dirs.
+## Process
 
-## iterations.jsonl
+### Step 1: Read Inputs
 
-One JSON object per line, one line per cycle:
+1. **Read the eval.yaml** at `eval-path`. Find the test case matching `test-id`.
+2. **Read the candidate response** from `response-file`.
+3. **Read the assertion definitions** from the test's `assertions[]` array.
+4. **Read `references/eval-yaml-spec.md`** for the exact grading recipe for each assertion type.
+5. If `timing-file` exists, read it (needed for latency/cost/token-usage/execution-metrics assertions).
 
-```jsonl
-{"cycle":1,"score":0.65,"decision":"keep","cost_usd":0.12,"assertions":{"IDENTIFIES_BUG":0.8,"SUGGESTS_FIX":0.4},"mutation":"added explicit null-check instruction","run_dir":"2026-04-15T10-30-00","timestamp":"2026-04-15T10:32:15Z"}
-```
+### Step 2: Evaluate Each Assertion
 
-Fields: `cycle` (1-indexed), `score` (overall pass rate 0–1), `decision` ("keep" or "drop"), `cost_usd` (eval run cost), `assertions` (per-assertion pass rates), `mutation` (one-line description of what changed), `run_dir` (timestamped directory name), `timestamp` (ISO 8601).
+For each assertion in the test's `assertions[]`, evaluate it natively based on its type:
 
-## trajectory.html
+**Deterministic assertions** — run the check directly. Write a short Bash script when multiple checks are needed:
 
-A standalone HTML chart file with embedded Chart.js. Copy the template from `scripts/trajectory.html` into the `_autoresearch/` directory. It fetches `iterations.jsonl` from the same directory on each auto-refresh — no data injection needed. Shows:
+| Type | How to evaluate |
+|------|----------------|
+| `contains` | Check if response includes the `value` substring (case-sensitive) |
+| `contains-any` | Check if response includes ANY of the `value[]` substrings (case-sensitive) |
+| `contains-all` | Check if response includes ALL of the `value[]` substrings (case-sensitive) |
+| `icontains` / `icontains-any` / `icontains-all` | Same as above, case-insensitive |
+| `equals` | `response.trim() === value.trim()` |
+| `regex` | `new RegExp(value).test(response)` |
+| `starts-with` | `response.startsWith(value)` |
+| `ends-with` | `response.endsWith(value)` |
+| `is-json` | `try { JSON.parse(response); PASS } catch { FAIL }` |
+| `field-accuracy` | Parse response as JSON, check each field path against `expected` values |
 
-- Score over iterations (line chart) with KEEP (green) / DISCARD (red) markers
-- Per-assertion pass rates over iterations
-- Cumulative cost across iterations
-- Best vs original score summary
+**Metric assertions** — read `timing-file` and compare:
 
-Auto-refreshes every 2 seconds during the loop. Becomes static after completion (remove the auto-refresh meta tag on final update).
+| Type | How to evaluate |
+|------|----------------|
+| `latency` | Compare `duration_ms` from timing.json against `threshold` |
+| `cost` | Compare cost data against `threshold` |
+| `token-usage` | Compare `total_tokens` from timing.json against `threshold` |
+| `execution-metrics` | Compare timing.json metrics against configured thresholds |
 
-## Convergence
+**LLM-graded assertions** — YOU are the grader. Use your own reasoning:
 
-Stop after **3** consecutive cycles with no improvement (no KEEP). Also stop at **max_cycles** (default 10). Either limit can be overridden by the user.
+| Type | How to evaluate |
+|------|----------------|
+| `llm-grader` | Read the `prompt` field. Evaluate the response against those criteria. Score 0.0-1.0 with evidence. |
+| `rubric` / `rubrics` | Read rubric items/criteria. Score each item 0.0-1.0. Aggregate as weighted average. |
 
-## Human checkpoints
+For LLM-graded types: be rigorous and fair. Score based on substance, not exact wording. If a `criteria` field exists on the test case, use it as additional context for your evaluation. If `expected_output` exists, use it as a reference answer (not as the only correct answer).
 
-Autoresearch mode **skips** human checkpoints at iterations 3/6/9. The user opted in to unattended operation by requesting autoresearch.
+**Script-based assertions** — run via Bash:
 
-## Context hygiene
+| Type | How to evaluate |
+|------|----------------|
+| `code-grader` | Run: `bun <script-path>` or `python <script-path>`. Pass response via file. Parse stdout JSON: `{"score": N, "reason": "..."}` |
 
-The orchestrator must run indefinitely without exhausting its context window. To do this:
+**Composite assertions** — evaluate sub-assertions, then aggregate per the configured mode (weighted_average, min, max, all_pass).
 
-- **Never read eval results, artifacts, or transcripts into your own context.** Use bash commands (jq, agentv CLI) that output small structured summaries.
-- **Delegate all heavy reading to subagents.** The mutator reads artifacts, grading results, and transcripts from disk — you pass it paths, not content.
-- **Use bash for all file I/O** in the loop body: appending to `iterations.jsonl`, git operations, score extraction. The only tool calls per cycle should be bash commands and one subagent dispatch (mutator).
-- **trajectory.html auto-loads `iterations.jsonl`** via fetch — no need to read or update the HTML file after initial copy.
+**Tool inspection assertions** — evaluate if transcript data is available:
 
-## Procedure
+| Type | How to evaluate |
+|------|----------------|
+| `tool-trajectory` | Inspect transcript for tool calls, match against expected sequence/mode |
+| `skill-trigger` | Check if the named skill was invoked in tool calls |
 
-Follow this step-by-step procedure to execute autoresearch:
+If transcript data is not available for tool inspection assertions, record `score: null` with a note that transcript data was not captured. Exclude from the weighted average.
 
-### 1. Setup
+### Step 3: Apply Negate
 
-1. Determine the **artifact path** (file or directory to optimize) and **eval path** (EVAL.yaml or evals.json).
-2. Detect **artifact mode**: `file` if the artifact path is a file, `directory` if it's a directory.
-3. Derive the **experiment name**: `autoresearch-<name>` from the artifact filename/dirname, or use a user-provided name.
-4. Set the experiment directory: `.agentv/results/runs/<experiment>/`.
-5. Create the `_autoresearch/` subdirectory inside the experiment directory.
-6. Record `initial_sha=$(git rev-parse HEAD)` — the commit before any mutations.
-7. Copy `scripts/trajectory.html` to `_autoresearch/trajectory.html`.
-8. Initialize variables:
-   - `best_score = 0`
-   - `convergence_count = 0`
-   - `cycle = 1`
-   - `max_cycles = 10` (or user-specified)
-   - `max_convergence = 3` (or user-specified)
-
-### 2. Main loop
-
-Repeat while `cycle <= max_cycles` and `convergence_count < max_convergence`:
-
-**a. Run eval**
-
-```bash
-agentv eval <eval-path> --experiment autoresearch-<name>
-```
-
-**b. Extract scores (bash only — do NOT read result files into your context)**
-
-Find the latest timestamped directory in the experiment folder. Use bash/jq to extract small structured values:
-
-```bash
-# Find latest run dir
-RUN_DIR=$(ls -td <experiment-dir>/20*/ | head -1)
-
-# Overall score (mean of all scores in index.jsonl)
-SCORE=$(jq -sr '[.[].scores[].score] | add / length' "$RUN_DIR/index.jsonl")
-
-# Per-assertion pass rates as JSON object
-PASS_RATES=$(jq -sr '[.[].scores[]] | group_by(.type) | map({key: .[0].type, value: (map(.score) | add / length)}) | from_entries' "$RUN_DIR/index.jsonl")
-
-# Cost (if timing.json exists)
-COST=$(jq -r '.cost_usd // 0' "$RUN_DIR/timing.json" 2>/dev/null || echo 0)
-```
-
-Capture only these small outputs (`SCORE`, `PASS_RATES`, `COST`) — never read the full JSONL into context.
-
-**c. Update iterations.jsonl (bash only)**
-
-After the KEEP/DROP decision (step e), append one JSON line via bash:
-
-```bash
-echo '{"cycle":'$CYCLE',"score":'$SCORE',"decision":"'$DECISION'","cost_usd":'$COST',"assertions":'$PASS_RATES',"mutation":"'"$MUTATION_DESC"'","run_dir":"'"$(basename $RUN_DIR)"'","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> <experiment-dir>/_autoresearch/iterations.jsonl
-```
-
-**d. trajectory.html — no action needed**
-
-The trajectory chart fetches `iterations.jsonl` directly via HTTP on each auto-refresh. No file manipulation required after the initial copy in setup.
-
-**e. Decide: KEEP or DROP**
-
-Apply the automated keep/discard rules from the section above:
-
-1. Run `agentv compare <baseline>.jsonl <candidate>.jsonl --json` where `<baseline>` is the best iteration's `index.jsonl` (or the first run's `index.jsonl` for cycle 1) and `<candidate>` is this cycle's `index.jsonl`.
-2. If `wins > losses` → **KEEP**.
-3. If `wins <= losses` → **DISCARD**.
-4. If `mean_delta == 0` and the artifact is simpler → **KEEP** (simpler is better at equal performance). Simplicity: for files, compare line count; for directories, compare total size via `du -sb`.
-
-For cycle 1, there is no baseline to compare against — always **KEEP** the first cycle.
-
-**f. If KEEP**
-
-- Update `best_score` to this cycle's score.
-- Commit the artifact: `git add <artifact-path> && git commit -m "autoresearch cycle N: <mutation summary>"`.
-- Record the current `index.jsonl` path as the new baseline for future comparisons.
-- Reset `convergence_count = 0`.
-
-**g. If DROP**
-
-- Revert the working tree to HEAD: `git checkout -- <artifact-path>` (for files) or `git checkout -- <artifact-path>/` (for directories).
-- Increment `convergence_count`.
-
-**h. Check stop conditions**
-
-If `convergence_count >= max_convergence` or `cycle >= max_cycles` → break out of the loop.
-
-**i. Mutate**
-
-Dispatch the **mutator** subagent (`agents/mutator.md`) with:
-- `artifact-path`: the file or directory to mutate
-- `artifact-mode`: `file` or `directory`
-- `initial-sha`: the starting commit SHA (for referencing the original via `git show`)
-- `pass-rates`: the `$PASS_RATES` JSON object from step (b) (small — just assertion names and rates)
-- `run-dir`: path to this cycle's run directory (the mutator reads `grading.json` and transcripts itself)
-- `iterations-path`: path to `_autoresearch/iterations.jsonl` (the mutator reads mutation history itself)
-- For directory mode: `focus-files` (optional — files most likely contributing to failures, derived from assertion names)
-
-**Do NOT pass failure descriptions, transcripts, or grading content** to the mutator — pass paths and let it read what it needs from disk. This keeps the orchestrator's context clean.
-
-The mutator rewrites artifacts in place. Verify the artifact was modified (e.g., `git diff --stat`) before continuing.
-
-**j. Continue**
-
-Increment `cycle` and return to step (a).
-
-### 3. Completion
-
-1. Finalize `trajectory.html`: remove the line containing `<!-- __AUTO_REFRESH__ -->` (which includes the `<meta http-equiv="refresh">` tag) so the chart becomes static.
-2. Log a final summary:
-   - Total cycles run
-   - Final best score vs original score (cycle 1)
-   - Number of KEEPs and DROPs
-   - Total cost across all cycles
-   - The optimized artifact is in the working tree (and the latest commit)
-   - Run `git diff <initial_sha>` to see total changes from the original
-   - Run `git log --oneline <initial_sha>..HEAD` to see the mutation history
-   - Path to `_autoresearch/trajectory.html` (the score chart)
-3. Present results to the user with a recommendation: adopt the optimized version, revert to original (`git checkout <initial_sha> -- <artifact-path>`), or continue iterating interactively.
-
-## Interactive/autonomous hybrid
-
-Users can start in interactive mode (the existing Step 3–5 loop with human checkpoints), build confidence in their eval quality, and then switch to autoresearch mode to run unattended. The two modes share the same eval infrastructure and artifact layout — autoresearch simply automates the keep/discard decisions and removes human checkpoints.
-
-## Model empathy recommendation
-
-For best results, use same-model pairings: the meta-agent running autoresearch should match the model used by the task agent being evaluated (e.g., Claude optimizing a Claude agent, GPT optimizing a GPT agent). Per AutoAgent research findings, same-model pairings produce better mutations because the optimizer has implicit knowledge of how the target model interprets instructions.
-
---- references/description-optimization.md ---
-# Description Optimization
-
-Optimize the `description` field in a skill's SKILL.md frontmatter for better triggering
-accuracy. Use this after the agent/skill is working well — this is a polish step, not a
-core workflow step.
-
-**Provider compatibility**: Description optimization applies to any agent platform with
-skill-discovery mechanisms — Claude Code, Codex (`.agents/` or `.codex/` folders), Copilot,
-and others. The `skill-trigger` grader checks whether the agent invoked the right skill,
-regardless of how discovery works on that platform.
-
-## Step 1: Generate Trigger EVAL.yaml
-
-Create 20 test cases:
-- **10 should-trigger**: realistic prompts where this skill should activate — different
-  phrasings, casual speech, uncommon use cases, edge cases where this skill competes with
-  another but should win
-- **10 should-not-trigger**: near-miss prompts that share keywords but actually need
-  something different — adjacent domains, ambiguous phrasing where naive matching would
-  trigger but shouldn't
-
-Prompts must be realistic — include file paths, personal context, typos, casual speech.
-Not abstract requests like "format data" but concrete ones like "ok so my boss sent me
-Q4-sales-FINAL-v2.xlsx and she wants me to add a profit margin column..."
-
-The should-not-trigger cases are the most valuable. "Write a fibonacci function" as a
-negative test for an eval skill is useless — it doesn't test anything. The negative cases
-should be genuinely tricky near-misses.
-
-Write as EVAL.yaml with top-level input (the user prompt doesn't specify the skill name —
-it's a natural utterance):
-
-```yaml
-# trigger-eval.eval.yaml
-tests:
-  - id: should-trigger-casual-optimize
-    input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
-    assertions:
-      - type: skill-trigger
-        skill: agentv-bench
-  - id: should-not-trigger-build-error
-    input: "my TypeScript build is failing with type errors in src/auth.ts"
-    assertions:
-      - type: skill-trigger
-        skill: agentv-bench
-        should_trigger: false
-```
-
-## Step 2: Review with User
-
-Present the eval set. The user adjusts queries, toggles should-trigger, adds/removes cases.
-This step matters — bad eval queries lead to bad descriptions.
-
-## Step 3: Iterate on Description
-
-Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations.
-Select best description by held-out test accuracy (split 60% train / 40% test) to avoid
-overfitting.
-
-Use the grader and analyzer subagents to identify trigger failures and propose description
-improvements — the same eval → grade → analyze → improve loop used for agent output quality.
-
-## Step 4: Apply
-
-Update the skill's SKILL.md frontmatter with the optimized description. Show the user
-before/after with accuracy scores.
-
---- references/environment-adaptation.md ---
-# Environment Adaptation
-
-Provider-specific notes, CI/headless behavior, and fallback strategies for environments
-with limited capabilities.
-
-## CI/Headless Mode
-
-Skip interactive prompts. Exit with pass/fail status code. Always generate artifacts for
-downstream consumption.
-
-## No Subagents Available (e.g., Claude.ai)
-
-Run test cases serially. Skip blind comparison. Present results directly in conversation —
-for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking
-(it relies on baseline comparisons that aren't meaningful without subagents).
-
-## Provider-Specific Notes
-
-- **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
-- **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
-- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution`
-  and `file_change` tool calls.
-- **Custom CLI**: Needs `command` and output file pattern in target config
-- **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
-
-**Note**: "Description Optimization" (see `references/description-optimization.md`) applies
-to any platform with skill-discovery mechanisms. All listed providers support skills.
-
-## Unsupported Providers: Use a Code-Grader
-
-The built-in `skill-trigger` grader covers Claude, Copilot, Pi, Codex and VS Code out
-of the box. For providers with different tool-call formats, write a code-grader that inspects
-the agent's tool call trace.
-
-A code-grader receives the full evaluation context including the agent's output messages and
-tool calls. You can inspect these to determine whether the skill was invoked:
-
-```yaml
-# Example: code-grader for Codex skill-trigger detection
-tests:
-  - id: should-trigger-codex
-    input: "Analyze this CSV file"
-    assertions:
-      - type: code-grader
-        path: ./judges/codex-skill-trigger.ts
-```
-
-```typescript
-// judges/codex-skill-trigger.ts
-import { defineCodeGrader } from '@agentv/eval';
-
-export default defineCodeGrader(({ output }) => {
-  const skillName = 'csv-analyzer';
-  const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
-  const firstTool = toolCalls[0];
-
-  if (!firstTool) {
-    return { score: 0, reason: 'No tool calls recorded' };
-  }
-
-  // Codex reads skill files via shell commands
-  if (firstTool.tool === 'command_execution') {
-    const cmd = String(firstTool.input ?? '');
-    if (cmd.includes(skillName)) {
-      return { score: 1, reason: `Skill "${skillName}" triggered via command: ${cmd}` };
-    }
-  }
-
-  // Check if skill file was read via file_change or other tools
-  if (firstTool.tool === 'file_change') {
-    const path = String((firstTool.input as Record<string, unknown>)?.path ?? '');
-    if (path.includes(skillName)) {
-      return { score: 1, reason: `Skill file accessed: ${path}` };
-    }
-  }
-
-  return { score: 0, reason: `First tool was "${firstTool.tool}" — not a skill invocation for "${skillName}"` };
-});
-```
-
-This approach is more flexible than config overrides — you can match any tool-call pattern,
-check multiple fields, and add provider-specific logic as needed.
-
---- references/eval-yaml-spec.md ---
-# Eval YAML Spec — Schema and Assertion Grading Recipes
-
-This reference documents the eval.yaml schema and grading recipes for every assertion type.
-The grader agent uses this to evaluate assertions without the CLI.
-
-## 1. Eval YAML Structure
-
-### Top-level fields
-
-- `name` (string, optional) — eval name
-- `description` (string, optional) — description
-- `execution` (object, optional) — `target`, `model`, etc.
-- `workspace` (object, optional) — workspace config (template, hooks)
-- `tests` (array, required) — test cases
-
-### Per-test fields
-
-- `id` (string, required) — unique test identifier
-- `input` (string | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`
-- `expected_output` (string | Message[], optional) — reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`
-- `criteria` (string, optional) — human-readable success criteria
-- `assertions` (array, optional) — grader assertions
-- `conversation_id` (string, optional) — groups related tests
-- `execution` (object, optional) — per-test execution override
-
-## 2. Assertion Types and Grading Recipes
-
-For each assertion type: YAML config fields, grading recipe (exact pseudocode for deterministic types), and PASS/FAIL conditions.
-
-### Deterministic assertions (zero-cost, instant)
-
-#### `contains`
-
-- **Fields:** `value` (string, required)
-- **Recipe:**
-  ```
-  response.toLowerCase().includes(value.toLowerCase())
-  ```
-  Note: case-insensitive by default in AgentV. If `case_sensitive: true`, use exact match.
-- **PASS:** substring found. **FAIL:** substring not found.
-
-#### `contains-any`
-
-- **Fields:** `value` (string[], required)
-- **Recipe:**
-  ```
-  value.some(v => response.toLowerCase().includes(v.toLowerCase()))
-  ```
-- **PASS:** at least one substring found.
-
-#### `contains-all`
-
-- **Fields:** `value` (string[], required)
-- **Recipe:**
-  ```
-  value.every(v => response.toLowerCase().includes(v.toLowerCase()))
-  ```
-- **PASS:** all substrings found.
-
-#### `icontains` / `icontains-any` / `icontains-all`
-
-Same as contains variants but explicitly case-insensitive.
-
-#### `equals`
-
-- **Fields:** `value` (string, required)
-- **Recipe:**
-  ```
-  response.trim() === value.trim()
-  ```
-- **PASS:** exact match after trimming.
-
-#### `regex`
-
-- **Fields:** `value` (string, required — a regex pattern)
-- **Recipe:**
-  ```
-  new RegExp(value).test(response)
-  ```
-- **PASS:** pattern matches.
-
-#### `starts-with`
-
-- **Fields:** `value` (string, required)
-- **Recipe:**
-  ```
-  response.startsWith(value)
-  ```
-  (or case-insensitive variant)
-- **PASS:** response starts with value.
-
-#### `ends-with`
-
-- **Fields:** `value` (string, required)
-- **Recipe:**
-  ```
-  response.endsWith(value)
-  ```
-  (or case-insensitive variant)
-- **PASS:** response ends with value.
-
-#### `is-json`
-
-- **Fields:** none required
-- **Recipe:**
-  ```
-  try { JSON.parse(response); return true } catch { return false }
-  ```
-- **PASS:** response is valid JSON. **FAIL:** parse error.
-
-#### `field-accuracy`
-
-- **Fields:** `expected` (object, required — JSON object with field paths and expected values)
-- **Recipe:** Parse response as JSON. For each field path in `expected`, check if the value matches.
-- **PASS:** all fields match. Partial score = `matched_fields / total_fields`.
-
-### Metric assertions (require timing.json)
-
-#### `latency`
-
-- **Fields:** `threshold` (number, required — max duration in ms)
-- **Recipe:** Read `timing.json`. Compare `duration_ms` against threshold.
-- **PASS:** `duration_ms <= threshold`.
-
-#### `cost`
-
-- **Fields:** `threshold` (number, required — max cost in USD)
-- **Recipe:** Read timing/token data. Compare cost against threshold.
-- **PASS:** `cost <= threshold`.
-
-#### `token-usage`
-
-- **Fields:** `threshold` (number, required — max tokens)
-- **Recipe:** Read `timing.json`. Compare `total_tokens` against threshold.
-- **PASS:** `total_tokens <= threshold`.
-
-#### `execution-metrics`
-
-- **Fields:** Various threshold fields for tool calls, output chars, etc.
-- **Recipe:** Read timing.json, compare each metric against its threshold.
-
-### Tool inspection assertions
-
-#### `tool-trajectory`
-
-- **Fields:** `expected` (array of expected tool calls), `mode` (string: `exact` | `contains` | `order`)
-- **Recipe:** Inspect transcript for tool call sequence. Match against expected based on mode.
-- **PASS:** tool calls match expected pattern per mode.
-
-#### `skill-trigger`
-
-- **Fields:** `skill_name` (string, required)
-- **Recipe:** Check if the agent invoked the named skill in its tool calls.
-- **PASS:** skill was triggered.
-
-### LLM-judged assertions (require Claude reasoning)
-
-#### `llm-grader`
-
-- **Fields:** `prompt` (string, required — either inline text or path to .md file)
-- **Recipe:** Read the prompt. Evaluate the response against the criteria using your own reasoning. Produce score (0.0-1.0) with evidence.
-- **PASS:** score >= 0.5 (configurable via `threshold`).
-
-#### `rubric` / `rubrics`
-
-- **Fields:** `rubric_items` or `criteria` (array of rubric items with descriptions and weights)
-- **Recipe:** For each rubric item, evaluate the response. Score each item 0.0-1.0. Aggregate as weighted average.
-- **PASS:** aggregate score >= threshold.
-
-### Script-based assertions
-
-#### `code-grader`
-
-- **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
-- **Script SDK:** Use `defineCodeGrader` from `@agentv/eval`:
-  ```typescript
-  import { defineCodeGrader } from '@agentv/eval';
-  export default defineCodeGrader(({ outputText, trace }) => ({
-    score: outputText.includes('expected') ? 1 : 0,
-    assertions: [{ text: 'Contains expected', passed: outputText.includes('expected') }],
-  }));
-  ```
-- **Recipe:** The CLI runs the script, passing context as JSON on stdin (`{output, outputText, input, inputText, ...}`). Script returns `{"score": N, "assertions": [...]}`
-- **PASS:** score >= 0.5 (or as configured).
-
-### Composite assertion
-
-#### `composite`
-
-- **Fields:** `assertions` (array of sub-assertions), `aggregation` (string: `weighted_average` | `min` | `max` | `all_pass`)
-- **Recipe:** Evaluate each sub-assertion. Aggregate scores per aggregation mode.
-- **PASS:** depends on aggregation mode.
-
-## 3. Negate Support
-
-When `negate: true` is set on any assertion, invert the pass/fail result:
-
-- A passing check becomes a failure
-- A failing check becomes a pass
+If any assertion has `negate: true`, invert the result:
+- PASS becomes FAIL, FAIL becomes PASS
 - Score is inverted: `1.0 - score`
 
-## 4. Common Assertion Fields
+### Step 4: Calculate Weighted Score
 
-All assertion types support:
+Compute the overall score as a weighted average across all non-null assertions:
+- Each assertion's `weight` defaults to 1.0 if not specified
+- `overall_score = sum(score_i * weight_i) / sum(weight_i)` (excluding null-scored assertions)
 
-- `name` (string, optional) — human-readable name
-- `type` (string, required) — the assertion type
-- `weight` (number, optional, default 1.0) — weight in score aggregation
-- `negate` (boolean, optional) — invert result
-- `threshold` (number, optional) — minimum score to pass (for LLM types)
+### Step 5: Structured Evidence per Assertion
 
-## 5. AgentV JSONL Output Format
+For every assertion, capture per-assertion evidence:
 
-Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, field names use snake_case (applied by `toSnakeCaseDeep()`).
-
-### Required fields
-
-- `timestamp` (string, ISO-8601)
-- `test_id` (string)
-- `score` (number, 0.0-1.0, weighted average of all assertion scores)
-- `assertions` (array of `{text, passed, evidence?}`)
-- `output` (Message[]) — agent output messages
-- `execution_status` (string: `ok` | `quality_failure` | `execution_error`)
-
-### Optional fields
-
-- `scores` (array of EvaluatorResult) — per-grader breakdown
-- `input` (Message[]) — input messages
-- `token_usage` (object: `{prompt_tokens, completion_tokens, total_tokens}`)
-- `cost_usd` (number)
-- `duration_ms` (number)
-- `target` (string)
-- `eval_set` (string)
-- `error` (string)
-- `file_changes` (string — unified diff)
-- `mode` (string — `agent` for agent mode)
-
-### `scores[]` entries (EvaluatorResult)
-
-- `name` (string) — grader name
-- `type` (string) — grader kind (kebab-case)
-- `score` (number, 0.0-1.0)
-- `assertions` (array of `{text, passed, evidence?}`)
-- `weight` (number, optional)
-- `verdict` (string: `pass` | `fail` | `skip`)
-- `details` (object, optional — structured data from code graders)
-- `reasoning` (string, optional)
-
-## 6. Eval Set Support
-
-An eval_set references multiple eval.yaml files:
-
-```yaml
-# eval_set.yaml
-eval_set:
-  - path: ./basic.eval.yaml
-  - path: ./advanced.eval.yaml
-```
-
-Process each file's tests independently, then aggregate results.
-
-## 7. Agent-Mode Pipeline CLI Commands
-
-These CLI subcommands break the monolithic `eval run` into discrete steps for agent-mode execution. The agent handles LLM grading between steps.
-
-### `agentv pipeline input <eval-path> --out <dir>`
-
-Extracts inputs, target commands, and grader configs from an eval YAML file.
-
-**Output structure:**
-```
-<out-dir>/
-├── manifest.json
-├── <test-id>/
-│   ├── input.json              ← {input, input_files, metadata}
-│   ├── invoke.json             ← {kind, command?, cwd?, timeout_ms?}
-│   ├── criteria.md             ← human-readable success criteria
-│   ├── expected_output.json    ← (if present)
-│   ├── code_graders/<name>.json   ← {name, command, weight, config?}
-│   └── llm_graders/<name>.json    ← {name, weight, threshold?, prompt_content}
-```
-
-**`manifest.json` format:**
 ```json
 {
-  "eval_file": "path/to/eval.yaml",
-  "timestamp": "2026-03-24T...",
-  "target": {"name": "target-name", "kind": "cli", "subagent_mode_allowed": false},
-  "test_ids": ["test-01", "test-02"]
+  "text": "Response contains 'hello world'",
+  "passed": true,
+  "evidence": "Found in paragraph 2: 'The output is hello world as expected'"
 }
 ```
 
-**`invoke.json` kinds:**
-- `kind: "cli"` — has `command`, `cwd`, `timeout_ms`. Use the command to run the target.
-- `kind: "agent"` — non-CLI provider. Check `manifest.json` `target.subagent_mode_allowed` to decide whether to dispatch executor subagents or fall back to `agentv eval` CLI.
+For each assertion:
+1. **Search for evidence** in the candidate response and any available outputs
+2. **Cite specifically**: Quote the exact text or describe what you found
+3. **Determine verdict** using the Surface vs Substance grading standards below
 
-### `agentv pipeline grade <export-dir>`
+### Step 6: Extract and Verify Claims
 
-Runs code-grader assertions against `response.md` files in each test directory.
+Beyond the predefined assertions, extract implicit claims from the candidate's output and verify them. This catches issues that predefined assertions miss.
 
-**Prerequisites:** `pipeline input` has been run and `response.md` exists in each test dir.
+1. **Extract claims** from the candidate response:
+   - **Factual claims** — concrete statements ("The form has 12 fields", "Response time is under 200ms")
+   - **Process claims** — what the agent says it did ("Used pypdf to fill the form", "Ran all 15 test cases")
+   - **Quality claims** — self-assessments ("All fields were filled correctly", "The output is production-ready")
 
-**Output:** `<test-id>/code_grader_results/<name>.json` for each code grader, containing:
+2. **Verify each claim**:
+   - **Factual claims**: Check against the outputs or reference data
+   - **Process claims**: Verify from available evidence (logs, file contents, tool output)
+   - **Quality claims**: Evaluate whether the claim is justified by the actual output
+
+3. **Flag unverifiable claims**: Note claims that cannot be verified with available information — these are not automatic failures but should be recorded
+
+### Step 7: Read User Notes
+
+If executor notes exist (e.g., `user_notes.md` in the output directory), read and consider them:
+
+1. Note any uncertainties or issues flagged by the executor
+2. Include relevant concerns in the grading output
+3. These may reveal problems even when assertions pass
+
+If no user notes are found, set `user_notes_summary` to `{"uncertainties": [], "needs_review": [], "workarounds": []}`.
+
+### Step 8: Critique the Evals
+
+After grading, consider whether the evals themselves could be improved. Only surface suggestions when there's a clear gap. Keep the bar high — flag things the eval author would say "good catch" about, not nitpicks.
+
+Suggestions worth raising:
+- An assertion that passed but would also pass for a clearly wrong output
+- An important outcome you observed that no assertion covers
+- An assertion that can't actually be verified from the available outputs
+- An assertion that is trivially satisfiable without actually doing the work
+
+If the evals are solid, set eval_feedback to `{"suggestions": [], "overall": "No suggestions, evals look solid."}`.
+
+### Step 9: Write results to disk
+
+Write results to `{bench-dir}/{test-id}/llm_grader_results/<grader-name>.json`, where `<grader-name>` matches the filename from `llm_graders/<name>.json` (e.g. if the grader config is `llm_graders/rubrics.json`, write to `llm_grader_results/rubrics.json`).
+
+Do **NOT** write directly to `grading.json` — that file is produced by `agentv pipeline bench` after merging all `llm_grader_results`. Writing directly to it bypasses the merge step and will cause `pipeline bench` to report `pass_rate=0`.
+
 ```json
 {
-  "name": "grader-name",
-  "type": "code-grader",
-  "score": 1.0,
-  "weight": 1.0,
-  "assertions": [{"text": "...", "passed": true}]
+  "score": 0.85,
+  "assertions": [
+    {
+      "text": "Response contains 'hello'",
+      "passed": true,
+      "evidence": "Found in paragraph 2: 'hello world'"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "pass_rate": 1.0
+  },
+  "claims": [
+    {
+      "claim": "Used async/await pattern",
+      "type": "process",
+      "verified": true,
+      "evidence": "Line 15 of output uses await fetch()"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "No suggestions, evals look solid."
+  }
 }
 ```
 
-### `agentv pipeline bench <export-dir>`
+### Field Descriptions
 
-Merges code-grader results with LLM grader scores and produces final artifacts.
+`pipeline bench` consumes only `score` and `assertions[]` from this file when merging into the canonical `grading.json`. The remaining fields are preserved on disk for human review and downstream tooling, but do not flow into the merged output.
 
-LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.json` per test.
+**Consumed by `pipeline bench`:**
+- **score**: Weighted overall score for this grader (0.0-1.0)
+- **assertions**: Array of per-assertion results — `text` (assertion description), `passed` (boolean), `evidence` (cited quote or description)
 
-**LLM grader result file format** (`llm_grader_results/<name>.json`):
-```json
-{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
-```
+**Kept for traceability (not merged):**
+- **summary**: Aggregate stats — `passed`, `failed`, `total`, `pass_rate` (0.0-1.0)
+- **claims**: Extracted and verified claims — `claim` (statement), `type` (factual/process/quality), `verified` (boolean), `evidence`
+- **user_notes_summary**: Issues from executor notes — `uncertainties[]`, `needs_review[]`, `workarounds[]`. Empty arrays if no notes found.
+- **eval_feedback**: Suggestions for improving the evals — `suggestions[]` (array of `{assertion?, reason}`), `overall` (brief assessment)
 
-**Output:**
-- `<test-id>/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
-- `index.jsonl` — one JSON line per test: `{test_id, score, pass, graders: [...]}`
-- `benchmark.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
+## Grading Standards: Surface vs Substance
 
-### Agent-Mode Workflow
+Apply these standards to every assertion and claim. The key question is always: does the evidence reflect genuine task completion, or just surface-level compliance?
 
-```
-1. agentv pipeline input eval.yaml --out ./export
-2. (Agent runs targets or reads response.md)
-3. agentv pipeline grade ./export
-4. (Agent does LLM grading, produces scores JSON)
-5. echo '<scores>' | agentv pipeline bench ./export
-```
+**PASS when:**
+- Clear evidence the assertion is true AND the evidence reflects genuine substance
+- Example: a file exists AND contains the correct content, not just the right filename
+- Example: a calculation is present AND produces the correct result, not just a formula placeholder
 
---- references/migrating-from-skill-creator.md ---
-# Migrating from Skill-Creator to AgentV Lifecycle Skill
+**FAIL when:**
+- No evidence found, or evidence contradicts the assertion
+- The evidence is superficial — technically satisfied but the underlying task outcome is wrong or incomplete
+- The output appears to meet the assertion by coincidence rather than actually doing the work
+- Example: correct filename but empty/wrong content
+- Example: assertion checks for a keyword that appears in boilerplate rather than in meaningful output
 
-This reference covers how to use AgentV's unified agent-evaluation lifecycle skill (`agentv-bench`) with evals.json files originally created for Anthropic's skill-creator.
+**When uncertain:** The burden of proof to pass is on the assertion. Do not give benefit of the doubt.
 
-## Drop-in Replacement
+## Grading Guidelines
 
-AgentV runs skill-creator's evals.json directly — no conversion required:
-
-```bash
-# Run evals.json with AgentV
-agentv eval evals.json
-
-# Or run a single assertion offline (no API keys)
-agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
-```
-
-AgentV automatically:
-- Promotes `prompt` → input messages
-- Promotes `expected_output` → reference answer
-- Converts `assertions` → LLM-grader graders
-- Resolves `files[]` paths relative to the evals.json directory
-
-If you're using the `agentv-bench` skill, it orchestrates these same AgentV commands. Code graders, grading, and artifact generation remain in AgentV core; the skill just orchestrates and summarizes the existing outputs.
-
-## What You Gain
-
-Moving from skill-creator's eval loop to AgentV's lifecycle skill gives you:
-
-| Capability | skill-creator | AgentV lifecycle skill |
-|-----------|---------------|----------------------|
-| Workspace isolation | ❌ | ✅ Clone repos, run setup/teardown scripts |
-| Code graders | ❌ | ✅ Python/TypeScript grader scripts via `defineCodeGrader()` |
-| Tool trajectory scoring | ❌ | ✅ Evaluate tool call sequences |
-| Multi-provider comparison | with-skill vs without-skill | N-way: Claude, GPT, Copilot, Gemini, custom CLI |
-| Multi-turn evaluation | ❌ | ✅ Conversation tracking with `conversation_id` |
-| Blind comparison | ❌ | ✅ Judge doesn't know which is baseline |
-| Deterministic upgrade suggestions | ❌ | ✅ LLM-grader → contains/regex/is-json |
-| Human review checkpoint | ❌ | ✅ Structured feedback gate |
-| Workspace file tracking | ❌ | ✅ Evaluate by diffing workspace files |
-| Agent mode (no API keys) | ❌ | ✅ Uses grader agent in agent mode |
-
-## Artifact Compatibility
-
-AgentV's companion artifacts are compatible with skill-creator's eval-viewer:
-
-| Artifact | Format | Compatible with eval-viewer |
-|----------|--------|---------------------------|
-| `<test-id>/grading.json` | Per-assertion evidence with claims | ✅ Superset of skill-creator's per-test grading format |
-| `benchmark.json` | Aggregate pass rates, timing, patterns | ✅ Superset of Agent Skills benchmark format |
-| Results JSONL | Per-test results | ✅ Standard JSONL format |
-
-AgentV's schemas are supersets — they include all fields skill-creator expects, plus additional fields (claims extraction, pattern analysis, deterministic upgrade candidates). Tools that read skill-creator artifacts will read AgentV artifacts correctly, ignoring the extra fields.
-
-The optimizer scripts layer reads those same artifacts directly:
-- `aggregate-benchmark.ts` consumes `benchmark.json`, `timing.json`, and results JSONL
-- `generate-report.ts` and `eval-viewer/generate-review.ts` render review output from AgentV artifacts
-- `improve-description.ts` proposes follow-up experiments from benchmark/grading observations
-
-## Graduating to EVAL.yaml
-
-When evals.json becomes limiting, convert to EVAL.yaml for the full feature set:
-
-```bash
-# Convert evals.json to EVAL.yaml
-agentv convert evals.json
-
-# Edit the generated YAML to add workspace config, code graders, etc.
-# Then run with the full lifecycle
-agentv eval eval.yaml
-```
-
-EVAL.yaml unlocks:
-- **Workspace setup/teardown** — clone repos, install dependencies, clean up after tests
-- **Code graders** — write graders in Python or TypeScript, not just LLM prompts
-- **Rubric-based grading** — multi-dimensional scoring with weighted criteria
-- **Retry policies** — automatic retries for flaky tests with configurable backoff
-- **Test groups** — organize tests by category with shared config
-- **Multi-turn conversations** — test agent interactions across multiple turns
-
-## What Stays in Skill-Creator
-
-AgentV does NOT replace these skill-creator capabilities:
-
-- **Trigger optimization** — optimizing when/how a skill is triggered
-- **.skill packaging** — bundling skills for distribution
-- **Skill authoring** — creating new SKILL.md files from scratch
-- **Skill discovery** — finding and installing skills
-
-AgentV focuses on the **evaluation and optimization loop**. Skill-creator focuses on **skill authoring and packaging**. They are complementary — use skill-creator to write the skill, use AgentV to evaluate and optimize it.
-
-## Example Workflow
-
-```
-1. Author a skill with skill-creator
-2. skill-creator generates evals.json
-3. Run evals.json through AgentV's lifecycle skill for richer evaluation:
-   - Workspace isolation (test in a real repo)
-   - Multi-provider comparison (does the skill work with GPT too?)
-   - Blind comparison (is the new version actually better?)
-   - Deterministic upgrades (replace vague LLM graders with precise checks)
-4. Use AgentV's optimization loop to refine the skill's prompts
-5. Return to skill-creator for packaging and distribution
-```
+- Evaluate substance over style — correct information with different wording scores high.
+- A response that meets all criteria but uses different structure than the reference is still a pass.
+- Be strict about factual correctness and completeness.
+- Score 1.0 only when all criteria are fully met. Use partial scores (0.0-1.0) for partial matches.
+- Do NOT give inflated scores. If something is missing, reflect it in the score and in a failed assertion entry.
+- Base verdicts on evidence, not assumptions. Quote the exact text that supports your verdict.
+- Apply the same standard consistently to each assertion.
+- Explain failures clearly — make it clear why evidence was insufficient.
 
 --- references/schemas.md ---
 # JSON Schemas
@@ -1769,14 +1698,512 @@ Output from post-hoc analyzer. Located at `<grading-dir>/analysis.json`.
 }
 ```
 
+--- references/eval-yaml-spec.md ---
+# Eval YAML Spec — Schema and Assertion Grading Recipes
+
+This reference documents the eval.yaml schema and grading recipes for every assertion type.
+The grader agent uses this to evaluate assertions without the CLI.
+
+## 1. Eval YAML Structure
+
+### Top-level fields
+
+- `name` (string, optional) — eval name
+- `description` (string, optional) — description
+- `execution` (object, optional) — `target`, `model`, etc.
+- `workspace` (object, optional) — workspace config (template, hooks)
+- `tests` (array, required) — test cases
+
+### Per-test fields
+
+- `id` (string, required) — unique test identifier
+- `input` (string | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`
+- `expected_output` (string | Message[], optional) — reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`
+- `criteria` (string, optional) — human-readable success criteria
+- `assertions` (array, optional) — grader assertions
+- `conversation_id` (string, optional) — groups related tests
+- `execution` (object, optional) — per-test execution override
+
+## 2. Assertion Types and Grading Recipes
+
+For each assertion type: YAML config fields, grading recipe (exact pseudocode for deterministic types), and PASS/FAIL conditions.
+
+### Deterministic assertions (zero-cost, instant)
+
+#### `contains`
+
+- **Fields:** `value` (string, required)
+- **Recipe:**
+  ```
+  response.toLowerCase().includes(value.toLowerCase())
+  ```
+  Note: case-insensitive by default in AgentV. If `case_sensitive: true`, use exact match.
+- **PASS:** substring found. **FAIL:** substring not found.
+
+#### `contains-any`
+
+- **Fields:** `value` (string[], required)
+- **Recipe:**
+  ```
+  value.some(v => response.toLowerCase().includes(v.toLowerCase()))
+  ```
+- **PASS:** at least one substring found.
+
+#### `contains-all`
+
+- **Fields:** `value` (string[], required)
+- **Recipe:**
+  ```
+  value.every(v => response.toLowerCase().includes(v.toLowerCase()))
+  ```
+- **PASS:** all substrings found.
+
+#### `icontains` / `icontains-any` / `icontains-all`
+
+Same as contains variants but explicitly case-insensitive.
+
+#### `equals`
+
+- **Fields:** `value` (string, required)
+- **Recipe:**
+  ```
+  response.trim() === value.trim()
+  ```
+- **PASS:** exact match after trimming.
+
+#### `regex`
+
+- **Fields:** `value` (string, required — a regex pattern)
+- **Recipe:**
+  ```
+  new RegExp(value).test(response)
+  ```
+- **PASS:** pattern matches.
+
+#### `starts-with`
+
+- **Fields:** `value` (string, required)
+- **Recipe:**
+  ```
+  response.startsWith(value)
+  ```
+  (or case-insensitive variant)
+- **PASS:** response starts with value.
+
+#### `ends-with`
+
+- **Fields:** `value` (string, required)
+- **Recipe:**
+  ```
+  response.endsWith(value)
+  ```
+  (or case-insensitive variant)
+- **PASS:** response ends with value.
+
+#### `is-json`
+
+- **Fields:** none required
+- **Recipe:**
+  ```
+  try { JSON.parse(response); return true } catch { return false }
+  ```
+- **PASS:** response is valid JSON. **FAIL:** parse error.
+
+#### `field-accuracy`
+
+- **Fields:** `expected` (object, required — JSON object with field paths and expected values)
+- **Recipe:** Parse response as JSON. For each field path in `expected`, check if the value matches.
+- **PASS:** all fields match. Partial score = `matched_fields / total_fields`.
+
+### Metric assertions (require timing.json)
+
+#### `latency`
+
+- **Fields:** `threshold` (number, required — max duration in ms)
+- **Recipe:** Read `timing.json`. Compare `duration_ms` against threshold.
+- **PASS:** `duration_ms <= threshold`.
+
+#### `cost`
+
+- **Fields:** `threshold` (number, required — max cost in USD)
+- **Recipe:** Read timing/token data. Compare cost against threshold.
+- **PASS:** `cost <= threshold`.
+
+#### `token-usage`
+
+- **Fields:** `threshold` (number, required — max tokens)
+- **Recipe:** Read `timing.json`. Compare `total_tokens` against threshold.
+- **PASS:** `total_tokens <= threshold`.
+
+#### `execution-metrics`
+
+- **Fields:** Various threshold fields for tool calls, output chars, etc.
+- **Recipe:** Read timing.json, compare each metric against its threshold.
+
+### Tool inspection assertions
+
+#### `tool-trajectory`
+
+- **Fields:** `expected` (array of expected tool calls), `mode` (string: `exact` | `contains` | `order`)
+- **Recipe:** Inspect transcript for tool call sequence. Match against expected based on mode.
+- **PASS:** tool calls match expected pattern per mode.
+
+#### `skill-trigger`
+
+- **Fields:** `skill_name` (string, required)
+- **Recipe:** Check if the agent invoked the named skill in its tool calls.
+- **PASS:** skill was triggered.
+
+### LLM-judged assertions (require Claude reasoning)
+
+#### `llm-grader`
+
+- **Fields:** `prompt` (string, required — either inline text or path to .md file)
+- **Recipe:** Read the prompt. Evaluate the response against the criteria using your own reasoning. Produce score (0.0-1.0) with evidence.
+- **PASS:** score >= 0.5 (configurable via `threshold`).
+
+#### `rubric` / `rubrics`
+
+- **Fields:** `rubric_items` or `criteria` (array of rubric items with descriptions and weights)
+- **Recipe:** For each rubric item, evaluate the response. Score each item 0.0-1.0. Aggregate as weighted average.
+- **PASS:** aggregate score >= threshold.
+
+### Script-based assertions
+
+#### `code-grader`
+
+- **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
+- **Script SDK:** Use `defineCodeGrader` from `@agentv/eval`:
+  ```typescript
+  import { defineCodeGrader } from '@agentv/eval';
+  export default defineCodeGrader(({ outputText, trace }) => ({
+    score: outputText.includes('expected') ? 1 : 0,
+    assertions: [{ text: 'Contains expected', passed: outputText.includes('expected') }],
+  }));
+  ```
+- **Recipe:** The CLI runs the script, passing context as JSON on stdin (`{output, outputText, input, inputText, ...}`). Script returns `{"score": N, "assertions": [...]}`
+- **PASS:** score >= 0.5 (or as configured).
+
+### Composite assertion
+
+#### `composite`
+
+- **Fields:** `assertions` (array of sub-assertions), `aggregation` (string: `weighted_average` | `min` | `max` | `all_pass`)
+- **Recipe:** Evaluate each sub-assertion. Aggregate scores per aggregation mode.
+- **PASS:** depends on aggregation mode.
+
+## 3. Negate Support
+
+When `negate: true` is set on any assertion, invert the pass/fail result:
+
+- A passing check becomes a failure
+- A failing check becomes a pass
+- Score is inverted: `1.0 - score`
+
+## 4. Common Assertion Fields
+
+All assertion types support:
+
+- `name` (string, optional) — human-readable name
+- `type` (string, required) — the assertion type
+- `weight` (number, optional, default 1.0) — weight in score aggregation
+- `negate` (boolean, optional) — invert result
+- `threshold` (number, optional) — minimum score to pass (for LLM types)
+
+## 5. AgentV JSONL Output Format
+
+Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, field names use snake_case (applied by `toSnakeCaseDeep()`).
+
+### Required fields
+
+- `timestamp` (string, ISO-8601)
+- `test_id` (string)
+- `score` (number, 0.0-1.0, weighted average of all assertion scores)
+- `assertions` (array of `{text, passed, evidence?}`)
+- `output` (Message[]) — agent output messages
+- `execution_status` (string: `ok` | `quality_failure` | `execution_error`)
+
+### Optional fields
+
+- `scores` (array of EvaluatorResult) — per-grader breakdown
+- `input` (Message[]) — input messages
+- `token_usage` (object: `{prompt_tokens, completion_tokens, total_tokens}`)
+- `cost_usd` (number)
+- `duration_ms` (number)
+- `target` (string)
+- `eval_set` (string)
+- `error` (string)
+- `file_changes` (string — unified diff)
+- `mode` (string — `agent` for agent mode)
+
+### `scores[]` entries (EvaluatorResult)
+
+- `name` (string) — grader name
+- `type` (string) — grader kind (kebab-case)
+- `score` (number, 0.0-1.0)
+- `assertions` (array of `{text, passed, evidence?}`)
+- `weight` (number, optional)
+- `verdict` (string: `pass` | `fail` | `skip`)
+- `details` (object, optional — structured data from code graders)
+- `reasoning` (string, optional)
+
+## 6. Eval Set Support
+
+An eval_set references multiple eval.yaml files:
+
+```yaml
+# eval_set.yaml
+eval_set:
+  - path: ./basic.eval.yaml
+  - path: ./advanced.eval.yaml
+```
+
+Process each file's tests independently, then aggregate results.
+
+## 7. Agent-Mode Pipeline CLI Commands
+
+These CLI subcommands break the monolithic `eval run` into discrete steps for agent-mode execution. The agent handles LLM grading between steps.
+
+### `agentv pipeline input <eval-path> --out <dir>`
+
+Extracts inputs, target commands, and grader configs from an eval YAML file.
+
+**Output structure:**
+```
+<out-dir>/
+├── manifest.json
+├── <test-id>/
+│   ├── input.json              ← {input, input_files, metadata}
+│   ├── invoke.json             ← {kind, command?, cwd?, timeout_ms?}
+│   ├── criteria.md             ← human-readable success criteria
+│   ├── expected_output.json    ← (if present)
+│   ├── code_graders/<name>.json   ← {name, command, weight, config?}
+│   └── llm_graders/<name>.json    ← {name, weight, threshold?, prompt_content}
+```
+
+**`manifest.json` format:**
+```json
+{
+  "eval_file": "path/to/eval.yaml",
+  "timestamp": "2026-03-24T...",
+  "target": {"name": "target-name", "kind": "cli", "subagent_mode_allowed": false},
+  "test_ids": ["test-01", "test-02"]
+}
+```
+
+**`invoke.json` kinds:**
+- `kind: "cli"` — has `command`, `cwd`, `timeout_ms`. Use the command to run the target.
+- `kind: "agent"` — non-CLI provider. Check `manifest.json` `target.subagent_mode_allowed` to decide whether to dispatch executor subagents or fall back to `agentv eval` CLI.
+
+### `agentv pipeline grade <export-dir>`
+
+Runs code-grader assertions against `response.md` files in each test directory.
+
+**Prerequisites:** `pipeline input` has been run and `response.md` exists in each test dir.
+
+**Output:** `<test-id>/code_grader_results/<name>.json` for each code grader, containing:
+```json
+{
+  "name": "grader-name",
+  "type": "code-grader",
+  "score": 1.0,
+  "weight": 1.0,
+  "assertions": [{"text": "...", "passed": true}]
+}
+```
+
+### `agentv pipeline bench <export-dir>`
+
+Merges code-grader results with LLM grader scores and produces final artifacts.
+
+LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.json` per test.
+
+**LLM grader result file format** (`llm_grader_results/<name>.json`):
+```json
+{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
+```
+
+**Output:**
+- `<test-id>/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
+- `index.jsonl` — one JSON line per test: `{test_id, score, pass, graders: [...]}`
+- `benchmark.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
+
+### Agent-Mode Workflow
+
+```
+1. agentv pipeline input eval.yaml --out ./export
+2. (Agent runs targets or reads response.md)
+3. agentv pipeline grade ./export
+4. (Agent does LLM grading, produces scores JSON)
+5. echo '<scores>' | agentv pipeline bench ./export
+```
+
+--- references/description-optimization.md ---
+# Description Optimization
+
+Optimize the `description` field in a skill's SKILL.md frontmatter for better triggering
+accuracy. Use this after the agent/skill is working well — this is a polish step, not a
+core workflow step.
+
+**Provider compatibility**: Description optimization applies to any agent platform with
+skill-discovery mechanisms — Claude Code, Codex (`.agents/` or `.codex/` folders), Copilot,
+and others. The `skill-trigger` grader checks whether the agent invoked the right skill,
+regardless of how discovery works on that platform.
+
+## Step 1: Generate Trigger EVAL.yaml
+
+Create 20 test cases:
+- **10 should-trigger**: realistic prompts where this skill should activate — different
+  phrasings, casual speech, uncommon use cases, edge cases where this skill competes with
+  another but should win
+- **10 should-not-trigger**: near-miss prompts that share keywords but actually need
+  something different — adjacent domains, ambiguous phrasing where naive matching would
+  trigger but shouldn't
+
+Prompts must be realistic — include file paths, personal context, typos, casual speech.
+Not abstract requests like "format data" but concrete ones like "ok so my boss sent me
+Q4-sales-FINAL-v2.xlsx and she wants me to add a profit margin column..."
+
+The should-not-trigger cases are the most valuable. "Write a fibonacci function" as a
+negative test for an eval skill is useless — it doesn't test anything. The negative cases
+should be genuinely tricky near-misses.
+
+Write as EVAL.yaml with top-level input (the user prompt doesn't specify the skill name —
+it's a natural utterance):
+
+```yaml
+# trigger-eval.eval.yaml
+tests:
+  - id: should-trigger-casual-optimize
+    input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
+    assertions:
+      - type: skill-trigger
+        skill: agentv-bench
+  - id: should-not-trigger-build-error
+    input: "my TypeScript build is failing with type errors in src/auth.ts"
+    assertions:
+      - type: skill-trigger
+        skill: agentv-bench
+        should_trigger: false
+```
+
+## Step 2: Review with User
+
+Present the eval set. The user adjusts queries, toggles should-trigger, adds/removes cases.
+This step matters — bad eval queries lead to bad descriptions.
+
+## Step 3: Iterate on Description
+
+Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations.
+Select best description by held-out test accuracy (split 60% train / 40% test) to avoid
+overfitting.
+
+Use the grader and analyzer subagents to identify trigger failures and propose description
+improvements — the same eval → grade → analyze → improve loop used for agent output quality.
+
+## Step 4: Apply
+
+Update the skill's SKILL.md frontmatter with the optimized description. Show the user
+before/after with accuracy scores.
+
+--- references/environment-adaptation.md ---
+# Environment Adaptation
+
+Provider-specific notes, CI/headless behavior, and fallback strategies for environments
+with limited capabilities.
+
+## CI/Headless Mode
+
+Skip interactive prompts. Exit with pass/fail status code. Always generate artifacts for
+downstream consumption.
+
+## No Subagents Available (e.g., Claude.ai)
+
+Run test cases serially. Skip blind comparison. Present results directly in conversation —
+for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking
+(it relies on baseline comparisons that aren't meaningful without subagents).
+
+## Provider-Specific Notes
+
+- **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
+- **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
+- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution`
+  and `file_change` tool calls.
+- **Custom CLI**: Needs `command` and output file pattern in target config
+- **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
+
+**Note**: "Description Optimization" (see `references/description-optimization.md`) applies
+to any platform with skill-discovery mechanisms. All listed providers support skills.
+
+## Unsupported Providers: Use a Code-Grader
+
+The built-in `skill-trigger` grader covers Claude, Copilot, Pi, Codex and VS Code out
+of the box. For providers with different tool-call formats, write a code-grader that inspects
+the agent's tool call trace.
+
+A code-grader receives the full evaluation context including the agent's output messages and
+tool calls. You can inspect these to determine whether the skill was invoked:
+
+```yaml
+# Example: code-grader for Codex skill-trigger detection
+tests:
+  - id: should-trigger-codex
+    input: "Analyze this CSV file"
+    assertions:
+      - type: code-grader
+        path: ./judges/codex-skill-trigger.ts
+```
+
+```typescript
+// judges/codex-skill-trigger.ts
+import { defineCodeGrader } from '@agentv/eval';
+
+export default defineCodeGrader(({ output }) => {
+  const skillName = 'csv-analyzer';
+  const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
+  const firstTool = toolCalls[0];
+
+  if (!firstTool) {
+    return { score: 0, reason: 'No tool calls recorded' };
+  }
+
+  // Codex reads skill files via shell commands
+  if (firstTool.tool === 'command_execution') {
+    const cmd = String(firstTool.input ?? '');
+    if (cmd.includes(skillName)) {
+      return { score: 1, reason: `Skill "${skillName}" triggered via command: ${cmd}` };
+    }
+  }
+
+  // Check if skill file was read via file_change or other tools
+  if (firstTool.tool === 'file_change') {
+    const path = String((firstTool.input as Record<string, unknown>)?.path ?? '');
+    if (path.includes(skillName)) {
+      return { score: 1, reason: `Skill file accessed: ${path}` };
+    }
+  }
+
+  return { score: 0, reason: `First tool was "${firstTool.tool}" — not a skill invocation for "${skillName}"` };
+});
+```
+
+This approach is more flexible than config overrides — you can match any tool-call pattern,
+check multiple fields, and add provider-specific logic as needed.
+
 --- references/subagent-pipeline.md ---
-# Subagent Pipeline — Running eval.yaml without CLI
+# Subagent Pipeline — Explicit Opt-In Eval Mode
 
 This reference documents the detailed procedure for running evaluations in subagent mode
-(`AGENT_EVAL_MODE=subagent`, the default). The orchestrating skill dispatches `executor`
-subagents to perform test cases and `grader` subagents to evaluate outputs.
+(`AGENT_EVAL_MODE=subagent`). The orchestrating skill dispatches `executor` subagents to
+perform test cases and `grader` subagents to evaluate outputs.
 
 Read this reference when executing Step 3 (Run and Grade) in subagent mode.
+
+## When to use
+
+- The user explicitly asks for subagent mode.
+- There is no usable CLI/provider path for the environment.
+- A special environment or provider needs isolation, or avoiding target-provider calls matters.
 
 ## Prerequisites
 
@@ -1829,7 +2256,7 @@ By default, `pipeline run` extracts inputs and invokes targets only. Pass `--gra
 to also run code-graders inline, or use `agentv pipeline grade <run-dir>` as a separate step.
 
 The run directory is printed to stdout. Then continue to the grading and merge phases
-described in SKILL.md Step 3.
+described below.
 
 ## Non-CLI Targets: Executor Subagents
 
@@ -1863,10 +2290,91 @@ Example: 5 tests = 5 executor subagents launched simultaneously.
 #   - Writes <run-dir>/<test-id>/response.md
 ```
 
-### Step 3 onward: Grade and merge
+### Capture timing data
 
-See SKILL.md Step 3 "Grading" section for the three-phase grading process (code graders →
-LLM grading → merge and validate).
+When each subagent task completes, you receive a notification containing `total_tokens` and
+`duration_ms`. Save this data immediately to `timing.json` in the run directory. See
+`references/schemas.md` for the timing.json schema.
+
+This is the only opportunity to capture this data — it comes through the task notification
+and is not persisted elsewhere. Process each notification as it arrives.
+
+### After executors complete: read results from disk
+
+When all executor subagents have finished, **read `response.md` directly from disk** — do
+NOT use `read_agent` to fetch results. The executors wrote their outputs to the run directory.
+
+```bash
+# Verify all responses exist:
+for d in <run-dir>/<evalset>/*/; do
+  echo "$(basename $d): $(ls "$d"/response.md 2>/dev/null && echo OK || echo MISSING)"
+done
+```
+
+If any `response.md` is MISSING, re-run that specific executor subagent. Do not proceed to
+grading until all responses are present.
+
+### Step 3: Grade and merge
+
+Subagent-mode grading has three phases. All three are required.
+
+**Phase 1: Code graders** (deterministic)
+
+```bash
+agentv pipeline grade <run-dir>
+```
+
+This evaluates deterministic assertions against `response.md` files:
+- `code-grader` scripts — external scripts executed against the response
+- Built-in assertion types — `contains`, `contains-any`, `contains-all`, `icontains`, `regex`, `equals`, `starts-with`, `ends-with`, `is-json`, and variants
+
+Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by
+`pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`.
+Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
+
+Do not dispatch LLM grader subagents for tests that only have deterministic assertions. To
+detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json`
+config files. Tests with an empty or missing `llm_graders/` directory are done after Phase 1.
+
+**Phase 2: LLM grading**
+
+Dispatch one `grader` subagent per `(test, grader)` pair, all in parallel. Do not dispatch a
+single grader for multiple tests.
+
+Before dispatching graders, read `agents/grader.md` and embed its full content as the system
+instructions in every grader subagent prompt. The grader is a `general-purpose` task agent;
+there is no auto-resolved `grader` type.
+
+Each grader subagent:
+1. Reads `<test-id>/llm_graders/<name>.json`
+2. Reads `<test-id>/response.md`
+3. Grades the response against the prompt criteria
+4. Writes `<run-dir>/<evalset>/<test-id>/llm_grader_results/<name>.json`
+5. Returns score and per-assertion evidence to the orchestrator
+
+Writing per-test result files is required. It makes grading resumable and keeps assertion
+evidence durable across long runs.
+
+The result file format is:
+
+```json
+{ "score": 0.85, "assertions": [{"text": "...", "passed": true, "evidence": "..."}] }
+```
+
+**Phase 3: Merge and validate**
+
+```bash
+agentv pipeline bench <run-dir>
+agentv results validate <run-dir>
+```
+
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test,
+merges them with code-grader scores, computes weighted pass_rate, and writes `grading.json`,
+`index.jsonl`, and `benchmark.json`.
+
+If `pipeline bench` reports `pass_rate=0` across the board, first verify
+`<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each LLM-graded test.
+Treat `pass_rate=0` as a real signal only after confirming grader results exist.
 
 ## Step-by-Step Fine-Grained Control (CLI targets)
 
@@ -1893,17 +2401,10 @@ agentv results validate <run-dir>
 ## LLM Grading JSON Format
 
 The agent reads `llm_graders/<name>.json` for each test, grades the response using the prompt
-content, and produces a scores JSON:
+content, and writes one result file per grader:
 
 ```json
-{
-  "test-01": {
-    "relevance": {
-      "score": 0.85,
-      "assertions": [{"text": "Response is relevant", "passed": true, "evidence": "..."}]
-    }
-  }
-}
+{ "score": 0.85, "assertions": [{"text": "Response is relevant", "passed": true, "evidence": "..."}] }
 ```
 
 ## Pipeline Bench and Dashboard
@@ -1936,3 +2437,883 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
         ├── llm_grader_results/<name>.json   ← LLM grader results (written by grader subagents; one file per grader)
         └── grading.json              ← merged grading (written by `pipeline bench` — do NOT write here directly)
 ```
+
+--- references/autoresearch.md ---
+# Autoresearch Mode
+
+Autoresearch is an unattended eval-improve loop that runs multiple optimize cycles without human intervention. The user triggers it with natural language (e.g., "run autoresearch on this skill", "optimize this skill unattended"). No YAML schema changes or CLI flags are needed.
+
+## Automated Keep/Discard
+
+After each iteration, you can automatically decide whether to keep or discard the change using structured comparison output. This replaces manual judgment at steps 3–4 of the iteration loop (Step 5 in SKILL.md), except at human checkpoint iterations (3, 6, 9) where you must still present results to the user.
+
+### 1. Run the comparison
+
+After re-running test cases, compare the new results against the previous iteration's baseline:
+
+```bash
+agentv compare <baseline>.jsonl <candidate>.jsonl --json
+```
+
+Where `<baseline>.jsonl` is the `index.jsonl` from the previous best iteration and `<candidate>.jsonl` is the `index.jsonl` from the run you just completed.
+
+### 2. Parse the output
+
+The `--json` flag produces structured output:
+
+```json
+{
+  "summary": {
+    "wins": 3,
+    "losses": 1,
+    "ties": 6,
+    "mean_delta": 0.05
+  }
+}
+```
+
+- **wins**: number of test cases where the candidate scored higher than the baseline
+- **losses**: number of test cases where the candidate scored lower
+- **ties**: number of test cases with no score change
+- **mean_delta**: average score difference across all test cases (positive = candidate is better)
+
+### 3. Apply decision rules
+
+Use these rules in order:
+
+| Condition | Decision | Action |
+|-----------|----------|--------|
+| `wins > losses` | **KEEP** | Promote the candidate to the new baseline. Copy or note its `index.jsonl` path as the baseline for the next iteration. |
+| `wins <= losses` | **DISCARD** | Revert the prompt/skill/config change. The previous baseline remains. Try a different mutation on the next iteration. |
+| `mean_delta == 0` AND candidate prompt is shorter (fewer lines) | **KEEP** | Simpler prompts are preferred when performance is equal. Promote the candidate as the new baseline. |
+
+When `mean_delta == 0` and the candidate prompt is *not* shorter, treat it as a **DISCARD** — there's no reason to keep a change that adds complexity without improving results.
+
+### 4. Log the decision
+
+Before proceeding to the next iteration, log the decision and rationale so the user can review later:
+
+```
+Iteration 2: KEEP
+  wins=3, losses=1, ties=6, meanDelta=+0.05
+  Rationale: candidate wins outweigh losses (3 > 1)
+  Baseline promoted: .agentv/results/runs/20250101-120000/index.jsonl
+```
+
+```
+Iteration 3: DISCARD
+  wins=1, losses=2, ties=7, meanDelta=-0.03
+  Rationale: candidate losses outweigh wins (2 > 1)
+  Reverted to baseline: .agentv/results/runs/20250101-110000/index.jsonl
+  Next: try a different mutation
+```
+
+Include this log in your progress summary. At human checkpoints (iterations 3, 6, 9), present the full log of automated decisions since the last checkpoint alongside the current results.
+
+### 5. Integration with the iteration loop
+
+The automated keep/discard replaces the manual compare-and-present cycle (steps 3–4) during non-checkpoint iterations. The full flow becomes:
+
+1. Apply change to prompts/skills/config
+2. Re-run all test cases
+3. Run `agentv compare baseline.jsonl candidate.jsonl --json`
+4. Apply keep/discard rules → promote or revert
+5. Log the decision
+6. If this is iteration 3, 6, or 9 → present progress to the user (human checkpoint)
+7. Check stop conditions → continue or stop
+
+Both modes coexist: if the user is actively reviewing results, present to them as before. If the user has asked you to iterate autonomously, use automated keep/discard and only pause at human checkpoints.
+
+---
+
+## Prerequisites
+
+- An eval file (`EVAL.yaml` or `evals.json`) must exist for the artifact being optimized.
+- The artifact must be a file or directory (SKILL.md, prompt template, agent config, or a directory of related files like a skill with references/).
+- The user should have run at least one interactive eval cycle to build confidence in eval quality before going unattended.
+
+## The loop
+
+```
+1. RUN EVAL   — agentv eval with current artifact
+2. ANALYZE    — dispatch analyzer subagent on results
+3. DECIDE     — if score > best_score: KEEP, else DROP (automated keep/discard above)
+4. MUTATE     — dispatch mutator subagent with failure analysis (agents/mutator.md)
+5. GOTO 1     — until convergence or max_cycles
+```
+
+## Experiment naming
+
+Derive the experiment name from the artifact: `autoresearch-<name>` (e.g., `autoresearch-pdf-skill`). The user can also provide a custom name.
+
+## Artifact mutation flow
+
+The mutator rewrites artifacts in the working tree in place. **Git is used for versioning** — HEAD always contains the best-known version:
+
+1. Record the starting commit SHA before the first cycle: `initial_sha=$(git rev-parse HEAD)`.
+2. On each **KEEP**: `git add <artifact-path> && git commit -m "autoresearch cycle N: <mutation summary>"`.
+3. On each **DROP**: `git checkout -- <artifact-path>` (restores working tree to HEAD, the last KEEP commit).
+4. The eval always runs against the real file path — no temp files or indirection.
+5. The mutator can reference the original via `git show <initial_sha>:<path>`.
+
+## How the skill invokes eval
+
+Shell out to `agentv eval <eval-path> --experiment autoresearch-<name>` via the Bash tool, same as the existing interactive bench workflow.
+
+## Artifact layout
+
+Each cycle is a standard eval run. Autoresearch session metadata lives in `_autoresearch/` within the experiment directory:
+
+```
+.agentv/results/runs/<experiment>/
+  _autoresearch/
+    iterations.jsonl               # one line per cycle — data for chart + mutator
+    trajectory.html                # live-updating score trajectory chart
+  2026-04-15T10-30-00/             # cycle 1 — standard run artifacts
+    index.jsonl
+    grading.json
+    timing.json
+    benchmark.json
+    report.html
+  2026-04-15T10-35-00/             # cycle 2 — standard run artifacts
+    ...
+```
+
+No `original.md` or `best.md` files — git history serves as the backup. The `_` prefix convention distinguishes workflow folders from timestamped run dirs.
+
+## iterations.jsonl
+
+One JSON object per line, one line per cycle:
+
+```jsonl
+{"cycle":1,"score":0.65,"decision":"keep","cost_usd":0.12,"assertions":{"IDENTIFIES_BUG":0.8,"SUGGESTS_FIX":0.4},"mutation":"added explicit null-check instruction","run_dir":"2026-04-15T10-30-00","timestamp":"2026-04-15T10:32:15Z"}
+```
+
+Fields: `cycle` (1-indexed), `score` (overall pass rate 0–1), `decision` ("keep" or "drop"), `cost_usd` (eval run cost), `assertions` (per-assertion pass rates), `mutation` (one-line description of what changed), `run_dir` (timestamped directory name), `timestamp` (ISO 8601).
+
+## trajectory.html
+
+A standalone HTML chart file with embedded Chart.js. Copy the template from `scripts/trajectory.html` into the `_autoresearch/` directory. It fetches `iterations.jsonl` from the same directory on each auto-refresh — no data injection needed. Shows:
+
+- Score over iterations (line chart) with KEEP (green) / DISCARD (red) markers
+- Per-assertion pass rates over iterations
+- Cumulative cost across iterations
+- Best vs original score summary
+
+Auto-refreshes every 2 seconds during the loop. Becomes static after completion (remove the auto-refresh meta tag on final update).
+
+## Convergence
+
+Stop after **3** consecutive cycles with no improvement (no KEEP). Also stop at **max_cycles** (default 10). Either limit can be overridden by the user.
+
+## Human checkpoints
+
+Autoresearch mode **skips** human checkpoints at iterations 3/6/9. The user opted in to unattended operation by requesting autoresearch.
+
+## Context hygiene
+
+The orchestrator must run indefinitely without exhausting its context window. To do this:
+
+- **Never read eval results, artifacts, or transcripts into your own context.** Use bash commands (jq, agentv CLI) that output small structured summaries.
+- **Delegate all heavy reading to subagents.** The mutator reads artifacts, grading results, and transcripts from disk — you pass it paths, not content.
+- **Use bash for all file I/O** in the loop body: appending to `iterations.jsonl`, git operations, score extraction. The only tool calls per cycle should be bash commands and one subagent dispatch (mutator).
+- **trajectory.html auto-loads `iterations.jsonl`** via fetch — no need to read or update the HTML file after initial copy.
+
+## Procedure
+
+Follow this step-by-step procedure to execute autoresearch:
+
+### 1. Setup
+
+1. Determine the **artifact path** (file or directory to optimize) and **eval path** (EVAL.yaml or evals.json).
+2. Detect **artifact mode**: `file` if the artifact path is a file, `directory` if it's a directory.
+3. Derive the **experiment name**: `autoresearch-<name>` from the artifact filename/dirname, or use a user-provided name.
+4. Set the experiment directory: `.agentv/results/runs/<experiment>/`.
+5. Create the `_autoresearch/` subdirectory inside the experiment directory.
+6. Record `initial_sha=$(git rev-parse HEAD)` — the commit before any mutations.
+7. Copy `scripts/trajectory.html` to `_autoresearch/trajectory.html`.
+8. Initialize variables:
+   - `best_score = 0`
+   - `convergence_count = 0`
+   - `cycle = 1`
+   - `max_cycles = 10` (or user-specified)
+   - `max_convergence = 3` (or user-specified)
+
+### 2. Main loop
+
+Repeat while `cycle <= max_cycles` and `convergence_count < max_convergence`:
+
+**a. Run eval**
+
+```bash
+agentv eval <eval-path> --experiment autoresearch-<name>
+```
+
+**b. Extract scores (bash only — do NOT read result files into your context)**
+
+Find the latest timestamped directory in the experiment folder. Use bash/jq to extract small structured values:
+
+```bash
+# Find latest run dir
+RUN_DIR=$(ls -td <experiment-dir>/20*/ | head -1)
+
+# Overall score (mean of all scores in index.jsonl)
+SCORE=$(jq -sr '[.[].scores[].score] | add / length' "$RUN_DIR/index.jsonl")
+
+# Per-assertion pass rates as JSON object
+PASS_RATES=$(jq -sr '[.[].scores[]] | group_by(.type) | map({key: .[0].type, value: (map(.score) | add / length)}) | from_entries' "$RUN_DIR/index.jsonl")
+
+# Cost (if timing.json exists)
+COST=$(jq -r '.cost_usd // 0' "$RUN_DIR/timing.json" 2>/dev/null || echo 0)
+```
+
+Capture only these small outputs (`SCORE`, `PASS_RATES`, `COST`) — never read the full JSONL into context.
+
+**c. Update iterations.jsonl (bash only)**
+
+After the KEEP/DROP decision (step e), append one JSON line via bash:
+
+```bash
+echo '{"cycle":'$CYCLE',"score":'$SCORE',"decision":"'$DECISION'","cost_usd":'$COST',"assertions":'$PASS_RATES',"mutation":"'"$MUTATION_DESC"'","run_dir":"'"$(basename $RUN_DIR)"'","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> <experiment-dir>/_autoresearch/iterations.jsonl
+```
+
+**d. trajectory.html — no action needed**
+
+The trajectory chart fetches `iterations.jsonl` directly via HTTP on each auto-refresh. No file manipulation required after the initial copy in setup.
+
+**e. Decide: KEEP or DROP**
+
+Apply the automated keep/discard rules from the section above:
+
+1. Run `agentv compare <baseline>.jsonl <candidate>.jsonl --json` where `<baseline>` is the best iteration's `index.jsonl` (or the first run's `index.jsonl` for cycle 1) and `<candidate>` is this cycle's `index.jsonl`.
+2. If `wins > losses` → **KEEP**.
+3. If `wins <= losses` → **DISCARD**.
+4. If `mean_delta == 0` and the artifact is simpler → **KEEP** (simpler is better at equal performance). Simplicity: for files, compare line count; for directories, compare total size via `du -sb`.
+
+For cycle 1, there is no baseline to compare against — always **KEEP** the first cycle.
+
+**f. If KEEP**
+
+- Update `best_score` to this cycle's score.
+- Commit the artifact: `git add <artifact-path> && git commit -m "autoresearch cycle N: <mutation summary>"`.
+- Record the current `index.jsonl` path as the new baseline for future comparisons.
+- Reset `convergence_count = 0`.
+
+**g. If DROP**
+
+- Revert the working tree to HEAD: `git checkout -- <artifact-path>` (for files) or `git checkout -- <artifact-path>/` (for directories).
+- Increment `convergence_count`.
+
+**h. Check stop conditions**
+
+If `convergence_count >= max_convergence` or `cycle >= max_cycles` → break out of the loop.
+
+**i. Mutate**
+
+Dispatch the **mutator** subagent (`agents/mutator.md`) with:
+- `artifact-path`: the file or directory to mutate
+- `artifact-mode`: `file` or `directory`
+- `initial-sha`: the starting commit SHA (for referencing the original via `git show`)
+- `pass-rates`: the `$PASS_RATES` JSON object from step (b) (small — just assertion names and rates)
+- `run-dir`: path to this cycle's run directory (the mutator reads `grading.json` and transcripts itself)
+- `iterations-path`: path to `_autoresearch/iterations.jsonl` (the mutator reads mutation history itself)
+- For directory mode: `focus-files` (optional — files most likely contributing to failures, derived from assertion names)
+
+**Do NOT pass failure descriptions, transcripts, or grading content** to the mutator — pass paths and let it read what it needs from disk. This keeps the orchestrator's context clean.
+
+The mutator rewrites artifacts in place. Verify the artifact was modified (e.g., `git diff --stat`) before continuing.
+
+**j. Continue**
+
+Increment `cycle` and return to step (a).
+
+### 3. Completion
+
+1. Finalize `trajectory.html`: remove the line containing `<!-- __AUTO_REFRESH__ -->` (which includes the `<meta http-equiv="refresh">` tag) so the chart becomes static.
+2. Log a final summary:
+   - Total cycles run
+   - Final best score vs original score (cycle 1)
+   - Number of KEEPs and DROPs
+   - Total cost across all cycles
+   - The optimized artifact is in the working tree (and the latest commit)
+   - Run `git diff <initial_sha>` to see total changes from the original
+   - Run `git log --oneline <initial_sha>..HEAD` to see the mutation history
+   - Path to `_autoresearch/trajectory.html` (the score chart)
+3. Present results to the user with a recommendation: adopt the optimized version, revert to original (`git checkout <initial_sha> -- <artifact-path>`), or continue iterating interactively.
+
+## Interactive/autonomous hybrid
+
+Users can start in interactive mode (the existing Step 3–5 loop with human checkpoints), build confidence in their eval quality, and then switch to autoresearch mode to run unattended. The two modes share the same eval infrastructure and artifact layout — autoresearch simply automates the keep/discard decisions and removes human checkpoints.
+
+## Model empathy recommendation
+
+For best results, use same-model pairings: the meta-agent running autoresearch should match the model used by the task agent being evaluated (e.g., Claude optimizing a Claude agent, GPT optimizing a GPT agent). Per AutoAgent research findings, same-model pairings produce better mutations because the optimizer has implicit knowledge of how the target model interprets instructions.
+
+--- references/migrating-from-skill-creator.md ---
+# Migrating from Skill-Creator to AgentV Lifecycle Skill
+
+This reference covers how to use AgentV's unified agent-evaluation lifecycle skill (`agentv-bench`) with evals.json files originally created for Anthropic's skill-creator.
+
+## Drop-in Replacement
+
+AgentV runs skill-creator's evals.json directly — no conversion required:
+
+```bash
+# Run evals.json with AgentV
+agentv eval evals.json
+
+# Or run a single assertion offline (no API keys)
+agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
+```
+
+AgentV automatically:
+- Promotes `prompt` → input messages
+- Promotes `expected_output` → reference answer
+- Converts `assertions` → LLM-grader graders
+- Resolves `files[]` paths relative to the evals.json directory
+
+If you're using the `agentv-bench` skill, it orchestrates these same AgentV commands. Code graders, grading, and artifact generation remain in AgentV core; the skill just orchestrates and summarizes the existing outputs.
+
+## What You Gain
+
+Moving from skill-creator's eval loop to AgentV's lifecycle skill gives you:
+
+| Capability | skill-creator | AgentV lifecycle skill |
+|-----------|---------------|----------------------|
+| Workspace isolation | ❌ | ✅ Clone repos, run setup/teardown scripts |
+| Code graders | ❌ | ✅ Python/TypeScript grader scripts via `defineCodeGrader()` |
+| Tool trajectory scoring | ❌ | ✅ Evaluate tool call sequences |
+| Multi-provider comparison | with-skill vs without-skill | N-way: Claude, GPT, Copilot, Gemini, custom CLI |
+| Multi-turn evaluation | ❌ | ✅ Conversation tracking with `conversation_id` |
+| Blind comparison | ❌ | ✅ Judge doesn't know which is baseline |
+| Deterministic upgrade suggestions | ❌ | ✅ LLM-grader → contains/regex/is-json |
+| Human review checkpoint | ❌ | ✅ Structured feedback gate |
+| Workspace file tracking | ❌ | ✅ Evaluate by diffing workspace files |
+| Agent mode (no API keys) | ❌ | ✅ Uses grader agent in agent mode |
+
+## Artifact Compatibility
+
+AgentV's companion artifacts are compatible with skill-creator's eval-viewer:
+
+| Artifact | Format | Compatible with eval-viewer |
+|----------|--------|---------------------------|
+| `<test-id>/grading.json` | Per-assertion evidence with claims | ✅ Superset of skill-creator's per-test grading format |
+| `benchmark.json` | Aggregate pass rates, timing, patterns | ✅ Superset of Agent Skills benchmark format |
+| Results JSONL | Per-test results | ✅ Standard JSONL format |
+
+AgentV's schemas are supersets — they include all fields skill-creator expects, plus additional fields (claims extraction, pattern analysis, deterministic upgrade candidates). Tools that read skill-creator artifacts will read AgentV artifacts correctly, ignoring the extra fields.
+
+The optimizer scripts layer reads those same artifacts directly:
+- `aggregate-benchmark.ts` consumes `benchmark.json`, `timing.json`, and results JSONL
+- `generate-report.ts` and `eval-viewer/generate-review.ts` render review output from AgentV artifacts
+- `improve-description.ts` proposes follow-up experiments from benchmark/grading observations
+
+## Graduating to EVAL.yaml
+
+When evals.json becomes limiting, convert to EVAL.yaml for the full feature set:
+
+```bash
+# Convert evals.json to EVAL.yaml
+agentv convert evals.json
+
+# Edit the generated YAML to add workspace config, code graders, etc.
+# Then run with the full lifecycle
+agentv eval eval.yaml
+```
+
+EVAL.yaml unlocks:
+- **Workspace setup/teardown** — clone repos, install dependencies, clean up after tests
+- **Code graders** — write graders in Python or TypeScript, not just LLM prompts
+- **Rubric-based grading** — multi-dimensional scoring with weighted criteria
+- **Retry policies** — automatic retries for flaky tests with configurable backoff
+- **Test groups** — organize tests by category with shared config
+- **Multi-turn conversations** — test agent interactions across multiple turns
+
+## What Stays in Skill-Creator
+
+AgentV does NOT replace these skill-creator capabilities:
+
+- **Trigger optimization** — optimizing when/how a skill is triggered
+- **.skill packaging** — bundling skills for distribution
+- **Skill authoring** — creating new SKILL.md files from scratch
+- **Skill discovery** — finding and installing skills
+
+AgentV focuses on the **evaluation and optimization loop**. Skill-creator focuses on **skill authoring and packaging**. They are complementary — use skill-creator to write the skill, use AgentV to evaluate and optimize it.
+
+## Example Workflow
+
+```
+1. Author a skill with skill-creator
+2. skill-creator generates evals.json
+3. Run evals.json through AgentV's lifecycle skill for richer evaluation:
+   - Workspace isolation (test in a real repo)
+   - Multi-provider comparison (does the skill work with GPT too?)
+   - Blind comparison (is the new version actually better?)
+   - Deterministic upgrades (replace vague LLM graders with precise checks)
+4. Use AgentV's optimization loop to refine the skill's prompts
+5. Return to skill-creator for packaging and distribution
+```
+
+--- scripts/trajectory.html ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="2"> <!-- __AUTO_REFRESH__ -->
+  <title>AgentV Autoresearch Trajectory</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /*
+     * Visual language aligned with Studio DESIGN.md:
+     *   - bg-gray-950 (#030712) canvas, bg-gray-900 (#111827) containers
+     *   - border-gray-800 (#1f2937) borders, divide-gray-800/50 row dividers
+     *   - Cyan-only accent (#22d3ee), emerald/red for data status
+     *   - System sans-serif, tabular-nums on every number
+     *   - font-medium (500) max for headings, no bold (700)
+     *   - rounded-lg (8px) containers, rounded-md (6px) badges/buttons
+     *   - No drop shadows — borders carry elevation
+     */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #030712;  /* bg-gray-950 */
+      color: #d1d5db;       /* text-gray-300 */
+      padding: 24px;
+      line-height: 1.5;
+      font-size: 0.875rem;  /* text-sm default */
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;    /* text-2xl */
+      font-weight: 600;     /* font-semibold — ceiling */
+      color: #fff;          /* text-white */
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.875rem;
+      color: #6b7280;       /* text-gray-500 */
+      margin-bottom: 24px;
+    }
+
+    /* Summary cards */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;  /* space-y-6 */
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .card {
+      background: #111827;      /* bg-gray-900 */
+      border: 1px solid #1f2937; /* border-gray-800 */
+      border-radius: 8px;       /* rounded-lg */
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .card .label {
+      font-size: 0.75rem;       /* text-xs */
+      text-transform: uppercase;
+      letter-spacing: 0.05em;   /* tracking-wider */
+      color: #6b7280;           /* text-gray-500 */
+      margin-bottom: 4px;
+    }
+
+    .card .value {
+      font-size: 1.5rem;
+      font-weight: 500;         /* font-medium — NOT 700 */
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card .value.positive { color: #34d399; } /* text-emerald-400 */
+    .card .value.negative { color: #f87171; } /* text-red-400 */
+    .card .value.neutral  { color: #22d3ee; } /* text-cyan-400 */
+
+    /* Charts grid */
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 16px;                /* space-y-4 */
+      margin-bottom: 24px;
+      max-width: 1400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .chart-container {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .chart-container h2 {
+      font-size: 0.875rem;
+      font-weight: 500;         /* font-medium */
+      color: #9ca3af;           /* text-gray-400 */
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    canvas { width: 100% !important; }
+
+    /* Iterations table */
+    .table-section {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .table-section h2 {
+      font-size: 1.25rem;       /* text-xl */
+      font-weight: 600;         /* font-semibold */
+      color: #fff;              /* text-white */
+      margin-bottom: 12px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 8px;       /* rounded-lg */
+      border: 1px solid #1f2937;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;      /* text-sm */
+      text-align: left;
+    }
+
+    thead {
+      background: rgba(17, 24, 39, 0.5); /* bg-gray-900/50 */
+      border-bottom: 1px solid #1f2937;
+    }
+
+    th {
+      padding: 12px 16px;       /* px-4 py-3 */
+      text-align: left;
+      font-weight: 500;         /* font-medium */
+      color: #9ca3af;           /* text-gray-400 */
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;       /* px-4 py-3 */
+      color: #d1d5db;           /* text-gray-300 */
+    }
+
+    tbody tr { border-top: 1px solid rgba(31, 41, 55, 0.5); } /* divide-gray-800/50 */
+    tbody tr:hover { background: rgba(17, 24, 39, 0.3); }     /* hover:bg-gray-900/30 */
+
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #9ca3af;           /* text-gray-400 for numbers */
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;       /* rounded-md */
+      font-size: 0.75rem;
+      font-weight: 500;         /* font-medium */
+      text-transform: uppercase;
+    }
+
+    .badge.keep {
+      border: 1px solid rgba(6, 78, 59, 0.6);  /* border-emerald-900/60 */
+      background: rgba(6, 78, 59, 0.3);         /* bg-emerald-950/30 */
+      color: #34d399;                            /* text-emerald-400 */
+    }
+    .badge.discard {
+      border: 1px solid rgba(127, 29, 29, 0.6); /* border-red-900/60 */
+      background: rgba(127, 29, 29, 0.3);       /* bg-red-950/30 */
+      color: #f87171;                            /* text-red-400 */
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 20px;       /* p-8 for empty states */
+      color: #4b5563;           /* text-gray-600 */
+      font-size: 0.875rem;
+    }
+
+    .mutation-cell {
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<h1>AgentV Autoresearch Trajectory</h1>
+<div class="subtitle" id="subtitle"></div>
+
+<!-- Summary cards -->
+<div class="summary" id="summary"></div>
+
+<!-- Charts -->
+<div class="charts" id="charts-area">
+  <div class="chart-container">
+    <h2>Score over Iterations</h2>
+    <canvas id="scoreChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <h2>Per-Assertion Pass Rates</h2>
+    <canvas id="assertionChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <h2>Cumulative Cost (USD)</h2>
+    <canvas id="costChart"></canvas>
+  </div>
+</div>
+
+<!-- Iterations table -->
+<div class="table-section">
+  <h2>Iteration Log</h2>
+  <div class="table-wrapper" id="table-wrapper"></div>
+</div>
+
+<script>
+// ── Data loading ─────────────────────────────────────────────────────
+// Fetch iterations.jsonl from the same directory. Each line is one JSON object.
+// Auto-refreshes every 2s (via the meta tag) so the chart stays live.
+async function loadData() {
+  try {
+    const resp = await fetch('iterations.jsonl');
+    if (!resp.ok) return [];
+    const text = await resp.text();
+    return text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  } catch (_) {
+    return [];
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────
+const fmtPct = (n) => (n == null ? '—' : Math.round(Number(n) * 100) + '%');
+const fmtPctDelta = (n) => (n == null ? '—' : (n >= 0 ? '+' : '') + Math.round(Number(n) * 100) + '%');
+const fmtUsd = (n) => (n == null ? '—' : '$' + Number(n).toFixed(4));
+
+// ── Chart.js defaults (aligned with Studio DESIGN.md) ─────────────────
+Chart.defaults.color = '#9ca3af';  // text-gray-400
+Chart.defaults.borderColor = 'rgba(31, 41, 55, 0.5)'; // border-gray-800/50
+Chart.defaults.font.family = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+// Cyan accent + Studio data-tone palette
+const CHART_COLORS = [
+  '#22d3ee', // cyan-400 (primary accent)
+  '#34d399', // emerald-400
+  '#f472b6', // pink-400
+  '#facc15', // yellow-400
+  '#c084fc', // purple-400
+  '#fb923c', // orange-400
+  '#a3e635', // lime-400
+  '#e879f9', // fuchsia-400
+  '#60a5fa', // blue-400
+  '#fbbf24', // amber-400
+];
+
+// ── Render ─────────────────────────────────────────────────────────────
+function render(data) {
+  if (!data || data.length === 0) {
+    document.getElementById('subtitle').textContent = 'Waiting for data…';
+    document.getElementById('charts-area').style.display = 'none';
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('table-wrapper').innerHTML =
+      '<div class="empty-state">No iterations recorded yet. The chart will update automatically.</div>';
+    return;
+  }
+
+  // Validate each iteration has at minimum a cycle and score
+  const valid = data.filter(it => it && typeof it.cycle === 'number' && typeof it.score === 'number');
+  if (valid.length === 0) {
+    document.getElementById('subtitle').textContent = 'Data present but missing required fields (cycle, score).';
+    document.getElementById('charts-area').style.display = 'none';
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('table-wrapper').innerHTML =
+      '<div class="empty-state">Iterations data is malformed. Each entry needs at minimum: cycle (number), score (number).</div>';
+    return;
+  }
+  const sorted = [...valid].sort((a, b) => a.cycle - b.cycle);
+
+  // ── Summary ──────────────────────────────────────────────────────────
+  const originalScore = sorted[0].score;
+  const bestIteration = sorted.reduce((best, it) => (it.score > best.score ? it : best), sorted[0]);
+  const bestScore = bestIteration.score;
+  const totalCycles = sorted.length;
+  const totalCost = sorted.reduce((sum, it) => sum + (parseFloat(it.cost_usd) || 0), 0);
+  const delta = bestScore - originalScore;
+
+  document.getElementById('subtitle').textContent =
+    `${totalCycles} cycle${totalCycles !== 1 ? 's' : ''} completed`;
+
+  const deltaClass = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
+
+  document.getElementById('summary').innerHTML = `
+    <div class="card"><div class="label">Original Score</div><div class="value neutral">${fmtPct(originalScore)}</div></div>
+    <div class="card"><div class="label">Best Score</div><div class="value positive">${fmtPct(bestScore)}</div></div>
+    <div class="card"><div class="label">Improvement</div><div class="value ${deltaClass}">${fmtPctDelta(delta)}</div></div>
+    <div class="card"><div class="label">Total Cycles</div><div class="value">${totalCycles}</div></div>
+    <div class="card"><div class="label">Total Cost</div><div class="value">${fmtUsd(totalCost)}</div></div>
+  `;
+
+  // ── Chart data prep ──────────────────────────────────────────────────
+  const labels = sorted.map(it => it.cycle);
+  const scores = sorted.map(it => it.score);
+  const decisions = sorted.map(it => (it.decision || '').toLowerCase());
+
+  // Cumulative cost (parseFloat guards against string or null values)
+  let cumCost = 0;
+  const cumCosts = sorted.map(it => { cumCost += parseFloat(it.cost_usd) || 0; return cumCost; });
+
+  // Assertion keys (union of all)
+  const assertionKeys = [...new Set(sorted.flatMap(it => Object.keys(it.assertions || {})))].sort();
+
+  document.getElementById('charts-area').style.display = '';
+
+  // ── 1. Score chart (cyan line, emerald/red decision dots) ──────────
+  const scoresPct = scores.map(s => s * 100);
+  const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+  new Chart(scoreCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Score',
+        data: scoresPct,
+        borderColor: '#22d3ee',                    // cyan-400
+        backgroundColor: 'rgba(34, 211, 238, 0.1)', // cyan-400/10
+        borderWidth: 2,
+        tension: 0.2,
+        fill: true,
+        pointRadius: 6,
+        pointBorderWidth: 2,
+        pointBackgroundColor: decisions.map(d => d === 'keep' ? '#34d399' : '#f87171'),
+        pointBorderColor: decisions.map(d => d === 'keep' ? '#065f46' : '#7f1d1d'),
+      }],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: 0, max: 100, ticks: { stepSize: 10, callback: v => v + '%' } },
+        x: { title: { display: true, text: 'Cycle' } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `Score: ${Math.round(ctx.parsed.y)}%`,
+            afterLabel: (ctx) => `Decision: ${decisions[ctx.dataIndex] || '—'}`,
+          },
+        },
+      },
+    },
+  });
+
+  // ── 2. Assertion chart ───────────────────────────────────────────────
+  const assertCtx = document.getElementById('assertionChart').getContext('2d');
+  new Chart(assertCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: assertionKeys.map((key, i) => ({
+        label: key,
+        data: sorted.map(it => { const v = (it.assertions || {})[key]; return v == null ? null : v * 100; }),
+        borderColor: CHART_COLORS[i % CHART_COLORS.length],
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        tension: 0.2,
+        pointRadius: 3,
+        spanGaps: true,
+      })),
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: 0, max: 100, ticks: { stepSize: 20, callback: v => v + '%' } },
+        x: { title: { display: true, text: 'Cycle' } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)}%` } },
+      },
+    },
+  });
+
+  // ── 3. Cost chart (cyan line) ─────────────────────────────────────
+  const costCtx = document.getElementById('costChart').getContext('2d');
+  new Chart(costCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Cumulative Cost (USD)',
+        data: cumCosts,
+        borderColor: '#22d3ee',                     // cyan-400
+        backgroundColor: 'rgba(34, 211, 238, 0.08)', // cyan-400/8
+        borderWidth: 2,
+        tension: 0.2,
+        fill: true,
+        pointRadius: 3,
+      }],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { ticks: { callback: v => '$' + v.toFixed(2) } },
+        x: { title: { display: true, text: 'Cycle' } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+
+  // ── Table ────────────────────────────────────────────────────────────
+  const rows = sorted.map(it => {
+    const dec = (it.decision || '').toLowerCase();
+    const badge = dec === 'keep'
+      ? '<span class="badge keep">keep</span>'
+      : '<span class="badge discard">drop</span>';
+    const ts = it.timestamp
+      ? new Date(it.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' })
+      : '—';
+    return `<tr>
+      <td class="num">${it.cycle}</td>
+      <td class="num">${fmtPct(it.score)}</td>
+      <td>${badge}</td>
+      <td class="mutation-cell" title="${(it.mutation || '').replace(/"/g, '&quot;')}">${it.mutation || '—'}</td>
+      <td class="num">${fmtUsd(it.cost_usd)}</td>
+      <td style="color:#6b7280">${ts}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('table-wrapper').innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="text-align:right">Cycle</th>
+        <th style="text-align:right">Score</th>
+        <th>Decision</th>
+        <th>Mutation</th>
+        <th style="text-align:right">Cost</th>
+        <th>Timestamp</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+loadData().then(render);
+</script>
+
+</body>
+</html>
