@@ -1,16 +1,17 @@
-# Subagent Pipeline — Explicit Opt-In Eval Mode
+# Subagent Pipeline — Explicit Opt-In Subagent Mode
 
 This reference documents the detailed procedure for running evaluations in subagent mode
-(`AGENT_EVAL_MODE=subagent`). The orchestrating skill dispatches `executor` subagents to
-perform test cases and `grader` subagents to evaluate outputs.
+when the user explicitly asks for it. The orchestrating skill dispatches `executor`
+subagents to perform test cases and `grader` subagents to evaluate outputs.
 
 Read this reference when executing Step 3 (Run and Grade) in subagent mode.
 
 ## When to use
 
 - The user explicitly asks for subagent mode.
-- There is no usable CLI/provider path for the environment.
-- A special environment or provider needs isolation, or avoiding target-provider calls matters.
+
+Do not switch to subagent mode just because the CLI path is unavailable. Explain the CLI
+blocker first, then use this reference only if the user explicitly chooses subagent mode.
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
 description: >-
   Tests whether agent-produced output is structurally and factually correct
-  given a bundled-skill fixture as ground truth — covers eval YAML structure,
+  given bundled-skill content as ground truth — covers eval YAML structure,
   CLI command syntax, fixture-content accuracy, and grader configuration.
 
 tags: [agent, skills]
@@ -67,7 +67,7 @@ tests:
       - role: user
         content:
           - type: file
-            value: fixtures/agentv-bench.txt
+            value: /skills-data/agentv-bench/SKILL.md
           - type: text
             value: |
               Give me three shell commands, one per line, that exercise the
