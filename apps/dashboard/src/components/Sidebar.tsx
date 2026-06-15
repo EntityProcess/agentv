@@ -2,7 +2,7 @@
  * Context-aware sidebar navigation.
  *
  * Adapts its content based on the current route:
- * - At dashboard and project roots: shows global/project navigation
+ * - At dashboard and project roots: shows global navigation
  * - At run detail: shows nearby runs as local review context
  * - At eval detail: shows evals in the current run with pass/fail indicators
  * - At suite/category detail: shows the filtered review context
@@ -121,32 +121,14 @@ function sidebarLinkClass(isActive: boolean): string {
   }`;
 }
 
-function formatProjectStat(project: {
-  run_count: number;
-  pass_rate: number;
-  execution_error_count?: number;
-}): string {
-  if (project.run_count === 0) return 'No runs';
-  if ((project.execution_error_count ?? 0) > 0) {
-    return `${Math.round(project.pass_rate * 100)}% - ${project.execution_error_count} err`;
-  }
-  return `${Math.round(project.pass_rate * 100)}% - ${project.run_count} runs`;
-}
-
 function ProjectNavigationSidebar({ projectId }: { projectId?: string }) {
   const location = useLocation();
   const { data: projectData } = useProjectList();
-  const { data: evalRunsData } = useEvalRuns(projectId);
   const projects = projectData?.projects ?? [];
-  const project = projectId ? projects.find((p) => p.id === projectId) : undefined;
-  const projectName = projectId ? resolveProjectDisplayName(projectId, projects) : undefined;
   const search = location.search as Record<string, string>;
   const activeTab = projectNavItems.some((item) => item.id === search.tab)
     ? (search.tab as ProjectTabId)
     : 'runs';
-  const activeRunCount = (evalRunsData?.runs ?? []).filter(
-    (run) => run.status === 'starting' || run.status === 'running',
-  ).length;
   const showWorkspaceTabs = !projectId && projects.length === 0;
 
   return (
@@ -169,40 +151,6 @@ function ProjectNavigationSidebar({ projectId }: { projectId?: string }) {
           </Link>
         </div>
 
-        {projectId ? (
-          <div className="mb-4">
-            <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-              Project
-            </div>
-            <div className="mb-2 rounded-md border border-gray-800 bg-gray-950/30 px-2 py-2">
-              <div className="truncate text-sm font-medium text-gray-200">{projectName}</div>
-              <div className="mt-1 truncate text-xs text-gray-500">
-                {project ? formatProjectStat(project) : projectId}
-              </div>
-              {activeRunCount > 0 ? (
-                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-cyan-900/40 px-2 py-0.5 text-xs text-cyan-400">
-                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
-                  {activeRunCount} running
-                </div>
-              ) : null}
-            </div>
-
-            {projectNavItems.map((item) => (
-              <Link
-                key={item.id}
-                to="/projects/$projectId"
-                params={{ projectId }}
-                search={{ tab: item.id } as Record<string, string>}
-                className={sidebarLinkClass(activeTab === item.id)}
-                title={item.description}
-              >
-                <span className="truncate">{item.label}</span>
-                <span className="shrink-0 text-xs text-gray-500">{item.description}</span>
-              </Link>
-            ))}
-          </div>
-        ) : null}
-
         {showWorkspaceTabs ? (
           <div className="mb-4">
             <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -220,35 +168,6 @@ function ProjectNavigationSidebar({ projectId }: { projectId?: string }) {
                 <span className="shrink-0 text-xs text-gray-500">{item.description}</span>
               </Link>
             ))}
-          </div>
-        ) : null}
-
-        {!projectId && projects.length > 0 ? (
-          <div>
-            <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-              Projects
-            </div>
-            {projects.map((p) => {
-              const isActive = location.pathname.startsWith(`/projects/${p.id}`);
-              return (
-                <Link
-                  key={p.id}
-                  to="/projects/$projectId"
-                  params={{ projectId: p.id }}
-                  className={sidebarLinkClass(isActive)}
-                  title={p.path}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate">
-                      {resolveProjectDisplayName(p.id, projects)}
-                    </span>
-                    <span className="block truncate text-xs text-gray-600">
-                      {formatProjectStat(p)}
-                    </span>
-                  </span>
-                </Link>
-              );
-            })}
           </div>
         ) : null}
       </nav>
