@@ -122,6 +122,37 @@ describe('validateTargetsFile', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('accepts custom_provider on copilot SDK and CLI targets', async () => {
+    const filePath = path.join(tempDir, 'copilot-custom-provider.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: copilot-sdk-custom
+    provider: copilot-sdk
+    custom_provider:
+      type: openai
+      base_url: \${{ OPENAI_ENDPOINT }}
+      api_key: \${{ OPENAI_API_KEY }}
+  - name: copilot-cli-custom
+    provider: copilot-cli
+    custom_provider:
+      type: openai
+      base_url: \${{ OPENAI_ENDPOINT }}
+      api_key: \${{ OPENAI_API_KEY }}
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.message.includes("Unknown setting 'custom_provider'"),
+      ),
+    ).toBe(false);
+  });
+
   it('accepts env-templated use_target values without resolving the env during validation', async () => {
     const filePath = path.join(tempDir, 'templated-use-target.yaml');
     await writeFile(

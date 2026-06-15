@@ -140,7 +140,24 @@ targets:
 |-------|----------|-------------|
 | `model` | No | Model to use (defaults to copilot's default) |
 | `cwd` | No | Working directory |
+| `custom_provider` | No | OpenAI-compatible provider endpoint for `copilot`, `copilot-cli`, or `copilot-sdk` |
 | `grader_target` | Yes | LLM target for evaluation |
+
+Route Copilot through an OpenAI-compatible endpoint:
+
+```yaml
+targets:
+  - name: copilot-openai
+    provider: copilot-cli
+    custom_provider:
+      type: openai
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}
+      wire_api: responses
+    grader_target: azure-base
+```
+
+`copilot-sdk` also accepts `bearer_token` and `api_version` in the same block. For `copilot-cli`, AgentV maps `type`, `base_url`, and `api_key` to the CLI's provider environment variables before spawning `copilot`.
 
 ## Pi Coding Agent
 

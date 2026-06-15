@@ -784,6 +784,44 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.executable).toBe('copilot');
   });
 
+  it('resolves copilot-cli with custom_provider openai config', () => {
+    const env = {
+      OPENAI_ENDPOINT: 'https://api.openai.example/v1',
+      OPENAI_API_KEY: 'openai-secret',
+      OPTIONAL_BEARER_TOKEN: 'bearer-secret',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-cli-openai',
+        provider: 'copilot-cli',
+        custom_provider: {
+          type: 'openai',
+          base_url: '${{ OPENAI_ENDPOINT }}',
+          api_key: '${{ OPENAI_API_KEY }}',
+          bearer_token: '${{ OPTIONAL_BEARER_TOKEN }}',
+          wire_api: 'responses',
+          api_version: '2024-10-21',
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('copilot-cli');
+    if (target.kind !== 'copilot-cli') {
+      throw new Error('expected copilot-cli target');
+    }
+
+    expect(target.config.customProvider).toEqual({
+      type: 'openai',
+      baseUrl: 'https://api.openai.example/v1',
+      apiKey: 'openai-secret',
+      bearerToken: 'bearer-secret',
+      wireApi: 'responses',
+      apiVersion: '2024-10-21',
+    });
+  });
+
   it('resolves copilot-sdk with byok azure config', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://my-resource.openai.azure.com',
@@ -845,6 +883,44 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.byokType).toBe('openai');
     expect(target.config.byokBaseUrl).toBe('https://api.openai.com/v1');
     expect(target.config.byokApiKey).toBe('openai-secret');
+  });
+
+  it('resolves copilot-sdk with custom_provider openai config', () => {
+    const env = {
+      OPENAI_ENDPOINT: 'https://api.openai.example/v1',
+      OPENAI_API_KEY: 'openai-secret',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-sdk-openai-custom-provider',
+        provider: 'copilot-sdk',
+        model: 'gpt-5',
+        custom_provider: {
+          type: 'openai',
+          base_url: '${{ OPENAI_ENDPOINT }}',
+          api_key: '${{ OPENAI_API_KEY }}',
+          wire_api: 'responses',
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('copilot-sdk');
+    if (target.kind !== 'copilot-sdk') {
+      throw new Error('expected copilot-sdk target');
+    }
+
+    expect(target.config.customProvider).toEqual({
+      type: 'openai',
+      baseUrl: 'https://api.openai.example/v1',
+      apiKey: 'openai-secret',
+      wireApi: 'responses',
+    });
+    expect(target.config.byokType).toBe('openai');
+    expect(target.config.byokBaseUrl).toBe('https://api.openai.example/v1');
+    expect(target.config.byokApiKey).toBe('openai-secret');
+    expect(target.config.byokWireApi).toBe('responses');
   });
 
   it('copilot-sdk byok defaults type to undefined when not specified', () => {
@@ -994,6 +1070,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.byokType).toBeUndefined();
     expect(target.config.byokBaseUrl).toBeUndefined();
     expect(target.config.byokApiKey).toBeUndefined();
+    expect(target.config.customProvider).toBeUndefined();
   });
 
   it('rejects camelCase target fields', () => {

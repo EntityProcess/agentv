@@ -52,6 +52,7 @@ export type {
   ClaudeResolvedConfig,
   CliResolvedConfig,
   CopilotCliResolvedConfig,
+  CopilotCustomProviderConfig,
   CopilotLogResolvedConfig,
   CopilotSdkResolvedConfig,
   GeminiResolvedConfig,

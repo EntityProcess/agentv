@@ -21,7 +21,7 @@ import {
 } from './copilot-utils.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
-import type { CopilotCliResolvedConfig } from './targets.js';
+import type { CopilotCliResolvedConfig, CopilotCustomProviderConfig } from './targets.js';
 import type {
   Message,
   Provider,
@@ -82,6 +82,7 @@ export class CopilotCliProvider implements Provider {
 
     // Spawn the CLI process
     const agentProcess = spawn(executable, args, {
+      env: buildCopilotCliProviderEnv(process.env, this.config.customProvider),
       stdio: ['pipe', 'pipe', 'inherit'],
     });
     trackChild(agentProcess);
@@ -463,6 +464,24 @@ export class CopilotCliProvider implements Provider {
       return undefined;
     }
   }
+}
+
+export function buildCopilotCliProviderEnv(
+  baseEnv: NodeJS.ProcessEnv,
+  customProvider: CopilotCustomProviderConfig | undefined,
+): NodeJS.ProcessEnv {
+  const env = { ...baseEnv };
+  if (!customProvider) {
+    return env;
+  }
+  if (customProvider.type) {
+    env.COPILOT_PROVIDER_TYPE = customProvider.type;
+  }
+  env.COPILOT_PROVIDER_BASE_URL = customProvider.baseUrl;
+  if (customProvider.apiKey) {
+    env.COPILOT_PROVIDER_API_KEY = customProvider.apiKey;
+  }
+  return env;
 }
 
 async function waitForProcessSpawn(

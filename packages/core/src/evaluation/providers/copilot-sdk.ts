@@ -13,7 +13,7 @@ import {
 } from './copilot-utils.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
-import type { CopilotSdkResolvedConfig } from './targets.js';
+import type { CopilotCustomProviderConfig, CopilotSdkResolvedConfig } from './targets.js';
 import type {
   Message,
   Provider,
@@ -117,25 +117,24 @@ export class CopilotSdkProvider implements Provider {
       };
     }
 
-    // BYOK — pass a provider block to route requests through a user-provided endpoint
-    // instead of GitHub's Copilot infrastructure. See copilot-sdk docs/auth/byok.md.
-    if (this.config.byokBaseUrl) {
-      const byokType = this.config.byokType ?? 'openai';
+    const customProvider = resolveCustomProviderConfig(this.config);
+    if (customProvider) {
+      const providerType = customProvider.type ?? 'openai';
       // biome-ignore lint/suspicious/noExplicitAny: SDK provider config shape is dynamic
       const provider: any = {
-        type: byokType,
-        baseUrl: normalizeByokBaseUrl(this.config.byokBaseUrl, byokType),
+        type: providerType,
+        baseUrl: normalizeByokBaseUrl(customProvider.baseUrl, providerType),
       };
-      if (this.config.byokBearerToken) {
-        provider.bearerToken = this.config.byokBearerToken;
-      } else if (this.config.byokApiKey) {
-        provider.apiKey = this.config.byokApiKey;
+      if (customProvider.bearerToken) {
+        provider.bearerToken = customProvider.bearerToken;
+      } else if (customProvider.apiKey) {
+        provider.apiKey = customProvider.apiKey;
       }
-      if (this.config.byokWireApi) {
-        provider.wireApi = this.config.byokWireApi;
+      if (customProvider.wireApi) {
+        provider.wireApi = customProvider.wireApi;
       }
-      if (this.config.byokType === 'azure' && this.config.byokApiVersion) {
-        provider.azure = { apiVersion: this.config.byokApiVersion };
+      if (providerType === 'azure' && customProvider.apiVersion) {
+        provider.azure = { apiVersion: customProvider.apiVersion };
       }
       sessionOptions.provider = provider;
     }
@@ -411,6 +410,25 @@ export class CopilotSdkProvider implements Provider {
       return undefined;
     }
   }
+}
+
+function resolveCustomProviderConfig(
+  config: CopilotSdkResolvedConfig,
+): CopilotCustomProviderConfig | undefined {
+  if (config.customProvider) {
+    return config.customProvider;
+  }
+  if (!config.byokBaseUrl) {
+    return undefined;
+  }
+  return {
+    ...(config.byokType ? { type: config.byokType } : {}),
+    baseUrl: config.byokBaseUrl,
+    ...(config.byokApiKey ? { apiKey: config.byokApiKey } : {}),
+    ...(config.byokBearerToken ? { bearerToken: config.byokBearerToken } : {}),
+    ...(config.byokApiVersion ? { apiVersion: config.byokApiVersion } : {}),
+    ...(config.byokWireApi ? { wireApi: config.byokWireApi } : {}),
+  };
 }
 
 /**
