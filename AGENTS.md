@@ -2,10 +2,6 @@
 
 This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
-## Local Overrides
-
-If `AGENTS.md.local` exists in the repository root, read it after this file and follow it for machine-local workflow details. `AGENTS.md.local` is intentionally ignored by git; it is for local paths, private asset repositories, and environment-specific verification requirements.
-
 ## High-Level Goals
 
 AgentV aims to provide a robust, declarative framework for evaluating AI agents.
@@ -117,7 +113,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 ### Task Tracking and Orchestration
 - Treat task tracking instructions as operator-supplied context. If the operator prompt provides an external tracker database, path, or environment variable, use that exact tracker for assignment, status, dependencies, handoff notes, decomposition, and resumability.
 - If no external tracker is supplied, work from the user's prompt and the current branch/PR. Do not create, sync, stage, or commit repo-local task tracker state unless the user explicitly requests it.
-- Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details in `AGENTS.md.local` or outside this public repository.
+- Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details outside this public repository.
 - GitHub remains the PR, CI, review, and merge surface. Use GitHub Issues or Projects for external collaboration only when the user or operator prompt asks for that workflow.
 
 ### Tracker Ownership
@@ -129,7 +125,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ### Coordination and Shared Checkouts
 - Use the operator-supplied tracker for ownership, handoff notes, blockers, and evidence.
-- If the operator provides a separate coordination or reservation system, keep its server URLs, startup commands, bearer tokens, and project keys in `AGENTS.md.local` or operator workspace docs.
+- If the operator provides a separate coordination or reservation system, keep its server URLs, startup commands, bearer tokens, and project keys outside this public repository.
 - Do not commit project-local coordination config files; they may contain bearer tokens and are ignored by `.gitignore`.
 
 ### Worktree Setup
@@ -425,7 +421,7 @@ Before marking any branch as ready for review, complete this checklist:
 
 6. **Dashboard UX verification**: For changes affecting config, scoring display, or dashboard API, use `agent-browser` to verify the Dashboard UI still renders and functions correctly (settings page loads, pass/fail indicators are correct, config saves work).
 
-7. **Save visual evidence when required by local overrides:** If `AGENTS.md.local` specifies a private evidence repository or asset location, save Dashboard/docs/browser E2E screenshots there and include the resulting paths/commit in the handoff.
+7. **Save visual evidence when required by operator instructions:** If local or operator-provided instructions specify a private evidence repository or asset location, save Dashboard/docs/browser E2E screenshots there and include the resulting paths/commit in the handoff.
 
 8. **Mark PR as ready** only after steps 1-7 have been completed AND red/green UAT evidence is included in the PR.
 
@@ -472,7 +468,7 @@ Use the operator-supplied tracker, when present, for live ownership and GitHub f
 
 Exception: if the tracker item is part of an epic/worktree continuation and the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the parent tracker item. In that case, keep the child/task item open or in progress rather than closing it as completed until the PR is merged or the parent explicitly supersedes it.
 
-If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches and artifact/documentation branches. For private asset repositories, follow the relevant untracked local override. It does not override the rule against pushing directly to `main` in this repository.
+If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This applies to feature branches and artifact/documentation branches. For private asset repositories, follow the relevant operator-provided instructions. It does not override the rule against pushing directly to `main` in this repository.
 
 When working from a GitHub issue instead of an operator-supplied tracker item, use GitHub project state to avoid duplicate work before branching:
 
