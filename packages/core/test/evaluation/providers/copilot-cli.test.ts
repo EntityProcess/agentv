@@ -16,7 +16,6 @@ describe('buildCopilotCliProviderEnv', () => {
         type: 'openai',
         baseUrl: 'https://api.openai.example/v1',
         apiKey: 'new-key',
-        bearerToken: 'bearer-token',
         wireApi: 'responses',
         apiVersion: '2024-10-21',
       },
@@ -26,9 +25,24 @@ describe('buildCopilotCliProviderEnv', () => {
     expect(env.COPILOT_PROVIDER_TYPE).toBe('openai');
     expect(env.COPILOT_PROVIDER_BASE_URL).toBe('https://api.openai.example/v1');
     expect(env.COPILOT_PROVIDER_API_KEY).toBe('new-key');
-    expect(env.COPILOT_PROVIDER_WIRE_API).toBe('ambient-wire-api');
-    expect(env.COPILOT_PROVIDER_BEARER_TOKEN).toBeUndefined();
-    expect(env.COPILOT_PROVIDER_API_VERSION).toBeUndefined();
+    expect(env.COPILOT_PROVIDER_WIRE_API).toBe('responses');
+    expect(env.COPILOT_PROVIDER_AZURE_API_VERSION).toBe('2024-10-21');
+  });
+
+  it('maps bearer token without overwriting ambient API key', () => {
+    const env = buildCopilotCliProviderEnv(
+      {
+        COPILOT_PROVIDER_API_KEY: 'ambient-key',
+      },
+      {
+        type: 'openai',
+        baseUrl: 'https://api.openai.example/v1',
+        bearerToken: 'bearer-token',
+      },
+    );
+
+    expect(env.COPILOT_PROVIDER_API_KEY).toBe('ambient-key');
+    expect(env.COPILOT_PROVIDER_BEARER_TOKEN).toBe('bearer-token');
   });
 
   it('preserves ambient Copilot provider env vars without a target override', () => {
@@ -37,6 +51,8 @@ describe('buildCopilotCliProviderEnv', () => {
         COPILOT_PROVIDER_TYPE: 'openai',
         COPILOT_PROVIDER_BASE_URL: 'https://ambient.example/v1',
         COPILOT_PROVIDER_API_KEY: 'ambient-key',
+        COPILOT_PROVIDER_WIRE_API: 'responses',
+        COPILOT_PROVIDER_AZURE_API_VERSION: '2024-10-21',
       },
       undefined,
     );
@@ -44,5 +60,7 @@ describe('buildCopilotCliProviderEnv', () => {
     expect(env.COPILOT_PROVIDER_TYPE).toBe('openai');
     expect(env.COPILOT_PROVIDER_BASE_URL).toBe('https://ambient.example/v1');
     expect(env.COPILOT_PROVIDER_API_KEY).toBe('ambient-key');
+    expect(env.COPILOT_PROVIDER_WIRE_API).toBe('responses');
+    expect(env.COPILOT_PROVIDER_AZURE_API_VERSION).toBe('2024-10-21');
   });
 });

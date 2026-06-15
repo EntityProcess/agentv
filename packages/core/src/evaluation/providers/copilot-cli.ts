@@ -478,8 +478,16 @@ export function buildCopilotCliProviderEnv(
     env.COPILOT_PROVIDER_TYPE = customProvider.type;
   }
   env.COPILOT_PROVIDER_BASE_URL = customProvider.baseUrl;
-  if (customProvider.apiKey) {
+  if (customProvider.bearerToken) {
+    env.COPILOT_PROVIDER_BEARER_TOKEN = customProvider.bearerToken;
+  } else if (customProvider.apiKey) {
     env.COPILOT_PROVIDER_API_KEY = customProvider.apiKey;
+  }
+  if (customProvider.wireApi) {
+    env.COPILOT_PROVIDER_WIRE_API = customProvider.wireApi;
+  }
+  if (customProvider.apiVersion) {
+    env.COPILOT_PROVIDER_AZURE_API_VERSION = customProvider.apiVersion;
   }
   return env;
 }

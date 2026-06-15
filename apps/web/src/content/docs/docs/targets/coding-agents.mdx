@@ -153,11 +153,11 @@ targets:
       type: openai
       base_url: ${{ OPENAI_ENDPOINT }}
       api_key: ${{ OPENAI_API_KEY }}
-      wire_api: responses
+      wire_api: ${{ COPILOT_PROVIDER_WIRE_API }}
     grader_target: azure-base
 ```
 
-`copilot-sdk` also accepts `bearer_token` and `api_version` in the same block. For `copilot-cli`, AgentV maps `type`, `base_url`, and `api_key` to the CLI's provider environment variables before spawning `copilot`.
+Values can come from environment variables through `${{ ... }}` interpolation. For `copilot-cli`, AgentV maps this shared block to Copilot's documented provider environment variables before spawning `copilot`; omitted fields leave existing ambient `COPILOT_PROVIDER_*` values unchanged.
 
 ## Pi Coding Agent
 
