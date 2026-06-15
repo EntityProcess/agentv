@@ -21,14 +21,13 @@ skill evals: invocation (does the agent reach for the tool), selection
 
 `fixtures/` holds frozen snapshots of CLI output. They are checked in
 so eval runs are deterministic and don't require network or build
-state. Two flavours per skill:
+state.
 
 - `agentv-<name>.txt` — bare `SKILL.md` content (`agentv skills get <name>`).
   Used in most tests; small (1.5–25 KB).
-- `agentv-<name>-full.txt` — same plus every file under `references/`
-  and `templates/` (`agentv skills get <name> --full`). Only used in
-  tests that specifically validate `--full` behaviour, since these can
-  be hundreds of KB.
+- `agentv-<name>-full.txt` — optional full output (`agentv skills get <name> --full`).
+  Only check these in when a test consumes the full output directly. Prefer
+  workspace setup hooks for large generated skill copies.
 
 Plus two single-purpose fixtures:
 
@@ -50,8 +49,8 @@ for skill in agentv-bench agentv-eval-review agentv-eval-writer \
     > "fixtures/${skill}.txt" 2>&1
 done
 
-# --full variants (with references/ + templates/)
-for skill in agentv-bench agentv-eval-review agentv-eval-writer \
+# --full variants only for checked-in full fixtures used by tests
+for skill in agentv-eval-review agentv-eval-writer \
              agentv-governance agentv-onboarding agentv-trace-analyst; do
   node ../../../apps/cli/dist/cli.js skills get "$skill" --full \
     > "fixtures/${skill}-full.txt" 2>&1
