@@ -414,7 +414,12 @@ export class CopilotCliProvider implements Provider {
         timeoutMs: resolveCopilotTimeoutMs(this.config.timeoutMs),
         env,
         signal: request.signal,
-        onStdoutChunk: logger ? (chunk) => logger.handleEvent('stdout', { chunk }) : undefined,
+        onStdoutChunk: logger
+          ? (chunk) =>
+              logger.handleEvent('stdout', {
+                chunk: sanitizeSensitiveText(chunk, this.config.customProvider),
+              })
+          : undefined,
         onStderrChunk: logger
           ? (chunk) =>
               logger.handleEvent('stderr', {

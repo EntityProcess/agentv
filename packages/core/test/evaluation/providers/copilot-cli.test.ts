@@ -1,16 +1,17 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 import type { ChildProcess } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { DEFAULT_COPILOT_TIMEOUT_MS } from '../../../src/evaluation/providers/copilot-utils.js';
 import { extractLastAssistantContent } from '../../../src/evaluation/providers/types.js';
 
-let CopilotCliProvider: typeof import(
-  '../../../src/evaluation/providers/copilot-cli.js',
-).CopilotCliProvider;
-let buildCopilotCliProviderEnv: typeof import(
-  '../../../src/evaluation/providers/copilot-cli.js',
-).buildCopilotCliProviderEnv;
+type CopilotCliModule = typeof import('../../../src/evaluation/providers/copilot-cli.js');
+
+let CopilotCliProvider: CopilotCliModule['CopilotCliProvider'];
+let buildCopilotCliProviderEnv: CopilotCliModule['buildCopilotCliProviderEnv'];
 let originalLogEnv: string | undefined;
 
 beforeAll(async () => {
@@ -208,6 +209,51 @@ describe('CopilotCliProvider custom provider prompt mode', () => {
 
     expect(message).toContain('[redacted]');
     expect(message).not.toContain('secret-key');
+  });
+
+  it('redacts custom provider credentials from prompt-mode stream logs', async () => {
+    const logDir = await mkdtemp(path.join(tmpdir(), 'agentv-copilot-cli-logs-'));
+    Reflect.deleteProperty(process.env, 'AGENTV_COPILOT_CLI_STREAM_LOGS');
+
+    try {
+      const runner = mock(
+        async (options: {
+          readonly onStdoutChunk?: (chunk: string) => void;
+          readonly onStderrChunk?: (chunk: string) => void;
+        }) => {
+          options.onStdoutChunk?.('stdout included test-api-key');
+          options.onStderrChunk?.('stderr included test-api-key');
+          return {
+            stdout: 'done',
+            stderr: '',
+            exitCode: 0,
+          };
+        },
+      );
+      const provider = new CopilotCliProvider(
+        'copilot-cli-custom',
+        {
+          executable: '/usr/bin/copilot',
+          logDir,
+          customProvider: {
+            type: 'openai',
+            baseUrl: 'https://api.openai.example/v1',
+            apiKey: 'test-api-key',
+          },
+        },
+        runner,
+      );
+
+      const response = await provider.invoke({ question: 'Return done' });
+      const logFile = (response.raw as Record<string, unknown>).logFile;
+      expect(typeof logFile).toBe('string');
+
+      const log = await readFile(logFile as string, 'utf8');
+      expect(log).toContain('[redacted]');
+      expect(log).not.toContain('test-api-key');
+    } finally {
+      await rm(logDir, { recursive: true, force: true });
+    }
   });
 });
 
