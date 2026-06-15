@@ -298,11 +298,8 @@ tests:
     workspace:
       repos:
         - path: /testbed
-          source:
-            type: git
-            url: https://github.com/sympy/sympy.git
-          checkout:
-            base_commit: "abc123"
+          repo: https://github.com/sympy/sympy.git
+          base_commit: "abc123"
       docker:
         image: swebench/sweb.eval.django__django:latest
 ```
@@ -311,7 +308,7 @@ tests:
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].checkout.base_commit`; treat `metadata.base_commit` as informational only.
+For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].base_commit`; treat `metadata.base_commit` as informational only.
 
 ### Repository Lifecycle
 
@@ -321,14 +318,9 @@ Clone repos into workspace automatically. For shared repo workspaces, pooling is
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: main
-        ancestor: 1       # parent commit
-      clone:
-        depth: 10
+      repo: https://github.com/org/repo.git
+      commit: main
+      ancestor: 1       # parent commit
   hooks:
     after_each:
       reset: fast          # none | fast | strict
@@ -338,11 +330,11 @@ workspace:
     enabled: true            # set false to skip all hooks
 ```
 
-- `source.type`: `git` (URL) or `local` (path)
-- `checkout.resolve`: `remote` (ls-remote) or `local`
-- `clone.depth`: shallow clone depth
-- `clone.filter`: partial clone filter (e.g., `blob:none`)
-- `clone.sparse`: sparse checkout paths array
+- `repo`: full clone URL or GitHub `org/name` shorthand
+- `commit`: branch, tag, or SHA to check out
+- `base_commit`: alias for `commit` for SWE-bench-style datasets
+- `ancestor`: walk N commits back from the checked-out ref
+- `sparse`: sparse checkout paths array
 - `mode`: `pooled` (default for shared repos), `temp`, or `static`
 - `path`: workspace path used when `mode: static`; when empty/missing the workspace is auto-materialised (template copied + repos cloned); populated dirs are reused as-is
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks

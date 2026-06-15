@@ -16,12 +16,8 @@ description: |
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/EntityProcess/agentv
-      checkout:
-        base_commit: "6e446b722627e9df017b22e391fa63320362d8c7"
-        resolve: local
+      repo: https://github.com/EntityProcess/agentv
+      base_commit: "6e446b722627e9df017b22e391fa63320362d8c7"
   hooks:
     before_each:
       reset: fast

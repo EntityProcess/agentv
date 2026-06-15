@@ -536,54 +536,60 @@ function validateWorkspaceRepoConfig(
 
   const docker = workspace.docker;
 
-  // Depth vs ancestor warning
   if (Array.isArray(repos)) {
     for (const repo of repos) {
       if (!isObject(repo)) continue;
-      const source = repo.source;
-      const checkout = repo.checkout;
-      const clone = repo.clone;
 
-      // Source-less repos are only valid with Docker (repo exists inside container)
-      if (!isObject(source) && !isObject(docker)) {
+      if ('source' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'workspace.repos[].source has been removed. Use workspace.repos[].repo.',
+        });
+      }
+
+      if ('checkout' in repo) {
         errors.push({
           severity: 'error',
           filePath,
           location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
           message:
-            'repos[].source is required for non-Docker workspaces. ' +
-            'Source-less repos are only valid when workspace.docker is configured (repo exists inside the container).',
+            'workspace.repos[].checkout has been removed. Use top-level commit, base_commit, and ancestor.',
         });
       }
 
-      if (isObject(source) && isObject(checkout)) {
-        const sourceType = source.type;
-        const resolve = checkout.resolve;
-        if (sourceType === 'local' && typeof resolve === 'string') {
-          errors.push({
-            severity: 'warning',
-            filePath,
-            location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
-            message:
-              'checkout.resolve has no effect for a local source. ' +
-              'Use source.type to choose where the repo comes from; keep checkout.ref, checkout.base_commit, or checkout.ancestor only when pinning a local source.',
-          });
-        }
+      if ('clone' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'workspace.repos[].clone has been removed. Use top-level sparse if needed.',
+        });
       }
 
-      if (isObject(checkout) && isObject(clone)) {
-        const ancestor = checkout.ancestor;
-        const depth = clone.depth;
-        if (typeof ancestor === 'number' && typeof depth === 'number' && depth < ancestor + 1) {
-          errors.push({
-            severity: 'warning',
-            filePath,
-            location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
-            message:
-              `clone.depth (${depth}) may be insufficient for checkout.ancestor (${ancestor}). ` +
-              `Recommend depth >= ${ancestor + 1}.`,
-          });
-        }
+      if (!repo.repo && !isObject(docker)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          message:
+            'repos[].repo is required for non-Docker workspaces. ' +
+            'Repo-less entries are only valid when workspace.docker is configured.',
+        });
+      }
+
+      if (
+        typeof repo.commit === 'string' &&
+        typeof repo.base_commit === 'string' &&
+        repo.commit !== repo.base_commit
+      ) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'repos[].commit and repos[].base_commit must match when both are set.',
+        });
       }
     }
   }

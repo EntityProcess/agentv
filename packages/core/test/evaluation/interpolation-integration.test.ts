@@ -15,7 +15,7 @@ describe('env interpolation in YAML loading', () => {
     savedEnv.AGENTV_TEST_CRITERIA = process.env.AGENTV_TEST_CRITERIA;
     savedEnv.AGENTV_TEST_PATH = process.env.AGENTV_TEST_PATH;
     process.env.AGENTV_TEST_CRITERIA = 'Must return correct answer';
-    process.env.AGENTV_TEST_PATH = '/abs/path/to/repo';
+    process.env.AGENTV_TEST_PATH = 'https://github.com/org/from-env.git';
   });
 
   afterAll(async () => {
@@ -44,9 +44,7 @@ describe('env interpolation in YAML loading', () => {
         'workspace:',
         '  repos:',
         '    - path: ./RepoA',
-        '      source:',
-        '        type: local',
-        '        path: "${{ AGENTV_TEST_PATH }}"',
+        '      repo: "${{ AGENTV_TEST_PATH }}"',
         'tests:',
         '  - id: test-1',
         '    input: "hello"',
@@ -57,13 +55,10 @@ describe('env interpolation in YAML loading', () => {
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('Must return correct answer');
-    expect(cases[0].workspace?.repos?.[0]?.source).toEqual({
-      type: 'local',
-      path: '/abs/path/to/repo',
-    });
+    expect(cases[0].workspace?.repos?.[0]?.repo).toBe('https://github.com/org/from-env.git');
   });
 
-  it('interpolates ${{ VAR }} in workspace repo source path', async () => {
+  it('interpolates ${{ VAR }} in workspace repo identity', async () => {
     const evalFile = path.join(testDir, 'interp-workspace.eval.yaml');
     await writeFile(
       evalFile,
@@ -71,9 +66,7 @@ describe('env interpolation in YAML loading', () => {
         'workspace:',
         '  repos:',
         '    - path: ./RepoA',
-        '      source:',
-        '        type: local',
-        '        path: "${{ AGENTV_TEST_PATH }}"',
+        '      repo: "${{ AGENTV_TEST_PATH }}"',
         'tests:',
         '  - id: test-1',
         '    input: "hello"',
@@ -82,24 +75,14 @@ describe('env interpolation in YAML loading', () => {
       ].join('\n'),
     );
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.repos?.[0]?.source).toEqual({
-      type: 'local',
-      path: '/abs/path/to/repo',
-    });
+    expect(cases[0].workspace?.repos?.[0]?.repo).toBe('https://github.com/org/from-env.git');
   });
 
   it('interpolates ${{ VAR }} in external workspace YAML file', async () => {
     const workspaceFile = path.join(testDir, 'workspace.yaml');
     await writeFile(
       workspaceFile,
-      [
-        'repos:',
-        '  - path: ./RepoB',
-        '    source:',
-        '      type: local',
-        '      path: "${{ AGENTV_TEST_PATH }}"',
-        '',
-      ].join('\n'),
+      ['repos:', '  - path: ./RepoB', '    repo: "${{ AGENTV_TEST_PATH }}"', ''].join('\n'),
     );
     const evalFile = path.join(testDir, 'interp-ext-workspace.eval.yaml');
     await writeFile(
@@ -114,10 +97,7 @@ describe('env interpolation in YAML loading', () => {
       ].join('\n'),
     );
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.repos?.[0]?.source).toEqual({
-      type: 'local',
-      path: '/abs/path/to/repo',
-    });
+    expect(cases[0].workspace?.repos?.[0]?.repo).toBe('https://github.com/org/from-env.git');
   });
 
   it('interpolates ${{ VAR }} in external YAML case files', async () => {

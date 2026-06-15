@@ -6,14 +6,8 @@ workspace:
   mode: pooled
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/EntityProcess/agentv.git
-      checkout:
-        ref: main
-        resolve: local
-      clone:
-        depth: 1
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: main
 
 execution:
   workers: 2

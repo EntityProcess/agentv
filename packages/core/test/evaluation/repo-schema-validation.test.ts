@@ -10,15 +10,17 @@ describe('repo lifecycle schema validation', () => {
     ],
   };
 
-  it('accepts workspace with repos (git source)', () => {
+  it('accepts workspace repos with provenance fields', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
         repos: [
           {
             path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
-            checkout: { ref: 'main' },
+            repo: 'https://github.com/org/repo.git',
+            commit: 'main',
+            ancestor: 1,
+            sparse: ['src', 'package.json'],
           },
         ],
       },
@@ -26,15 +28,15 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts workspace with repos (local source)', () => {
+  it('accepts GitHub org/name shorthand', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
         repos: [
           {
-            path: './repo-b',
-            source: { type: 'local', path: '/opt/mirrors/repo-b' },
-            checkout: { ref: '4a1b2c3d' },
+            path: './repo-a',
+            repo: 'org/repo',
+            base_commit: '4a1b2c3d',
           },
         ],
       },
@@ -42,7 +44,18 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts workspace with full clone options', () => {
+  it('accepts Docker repo hints without repo identity', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        docker: { image: 'swebench/sweb.eval.django__django:latest' },
+        repos: [{ path: '/testbed', base_commit: 'abc123' }],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects legacy source field', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
@@ -50,13 +63,76 @@ describe('repo lifecycle schema validation', () => {
           {
             path: './repo-a',
             source: { type: 'git', url: 'https://github.com/org/repo.git' },
-            checkout: { ref: 'main', resolve: 'remote', ancestor: 1 },
-            clone: { depth: 2, filter: 'blob:none', sparse: ['src/**', 'package.json'] },
           },
         ],
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects legacy checkout field', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+            checkout: { resolve: 'remote' },
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects legacy clone field', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+            clone: { depth: 1 },
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects negative ancestor', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+            ancestor: -1,
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects conflicting commit aliases', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+            commit: 'abc',
+            base_commit: 'def',
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
   });
 
   it('accepts workspace with hooks after_each reset config', () => {
@@ -66,7 +142,7 @@ describe('repo lifecycle schema validation', () => {
         repos: [
           {
             path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
+            repo: 'https://github.com/org/repo.git',
           },
         ],
         hooks: { after_each: { reset: 'fast' } },
@@ -83,7 +159,7 @@ describe('repo lifecycle schema validation', () => {
         repos: [
           {
             path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
+            repo: 'https://github.com/org/repo.git',
           },
         ],
       },
@@ -112,63 +188,6 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects invalid source type', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            source: { type: 'svn', url: 'https://example.com' },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid hooks after_each reset mode', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        hooks: { after_each: { reset: 'invalid' } },
-      },
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects negative ancestor', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
-            checkout: { ancestor: -1 },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects clone depth of 0', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
-            clone: { depth: 0 },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
-  });
-
   it('rejects removed workspace.static_path field', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
@@ -188,25 +207,5 @@ describe('repo lifecycle schema validation', () => {
       },
     });
     expect(result.success).toBe(false);
-  });
-
-  it('preserves existing workspace fields (template, hooks)', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        template: './fixtures',
-        hooks: {
-          before_all: { command: ['bash', 'setup.sh'] },
-          after_each: { reset: 'fast' },
-        },
-        repos: [
-          {
-            path: './repo-a',
-            source: { type: 'git', url: 'https://github.com/org/repo.git' },
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(true);
   });
 });

@@ -39,8 +39,8 @@ export const depsCommand = command({
       repos: result.repos.map((r) => ({
         url: r.url,
         ...(r.ref !== undefined && { ref: r.ref }),
-        ...(r.clone !== undefined && { clone: r.clone }),
-        ...(r.checkout !== undefined && { checkout: r.checkout }),
+        ...(r.sparse !== undefined && { sparse: r.sparse }),
+        ...(r.ancestor !== undefined && { ancestor: r.ancestor }),
         ...(usedBy && { used_by: r.usedBy.map((p) => path.relative(cwd, p)) }),
       })),
     };

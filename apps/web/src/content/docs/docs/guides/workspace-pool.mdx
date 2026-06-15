@@ -50,9 +50,8 @@ workspace:
   mode: temp
   repos:
     - path: ./my-repo
-      source:
-        type: git
-        url: https://github.com/org/my-repo.git
+      repo: https://github.com/org/my-repo.git
+      commit: main
 ```
 
 `workspace.mode` controls materialization behavior directly (`pooled`, `temp`, or `static`).
@@ -97,11 +96,8 @@ tests:
 template: ./workspace-template
 repos:
   - path: ./my-repo
-    source:
-      type: git
-      url: https://github.com/org/my-repo.git
-    checkout:
-      ref: main
+    repo: https://github.com/org/my-repo.git
+    commit: main
 hooks:
   after_each:
     reset: fast

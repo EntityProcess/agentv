@@ -70,7 +70,7 @@ Benchmark task packs map cleanly onto AgentV fields at authoring time:
 | Task artifact | AgentV pattern |
 |---------------|----------------|
 | Prompt or instruction | `input`, usually with `type: file` blocks for long prompts |
-| Source checkout | `workspace.repos[].source` and `workspace.repos[].checkout` |
+| Source checkout | `workspace.repos[].repo` and `workspace.repos[].commit` |
 | Per-case setup | `workspace.hooks.before_each` reading `case_metadata` |
 | Gold answer | `expected_output` when the answer is passive reference data |
 | Active verification | `assertions`, especially `code-grader` for commands or artifact checks |
@@ -101,13 +101,8 @@ workspace:
   isolation: per_test
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/example/widget.git
-      checkout:
-        ref: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
-      clone:
-        depth: 1
+      repo: https://github.com/example/widget.git
+      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
   hooks:
     before_each:
       command: ["python", "./scripts/apply-test-patch.py"]
@@ -136,7 +131,7 @@ tests:
         - tests/parser.test.ts::preserves-widget-id
 ```
 
-In this example, `workspace.repos[].checkout.ref` is the actual checkout. The
+In this example, `workspace.repos[].commit` is the actual checkout. The
 matching `metadata.source_commit` is audit data that gets recorded with the case
 and is available to scripts. `apply-test-patch.py` can read
 `case_metadata.test_patch` and `case_metadata.fail_to_pass_tests`, then apply
@@ -226,8 +221,8 @@ name: swe-benchmark
 workspace:
   repos:
     - path: ./repo
-      source: { type: git, url: https://github.com/example/widget.git }
-      checkout: { ref: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123 }
+      repo: https://github.com/example/widget.git
+      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
 tests: ./cases/
 ```
 

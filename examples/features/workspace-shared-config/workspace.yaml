@@ -5,11 +5,5 @@ hooks:
     reset: fast
 repos:
   - path: ./agentv
-    source:
-      type: git
-      url: https://github.com/EntityProcess/agentv.git
-    checkout:
-      ref: main
-      resolve: remote
-    clone:
-      depth: 1
+    repo: https://github.com/EntityProcess/agentv.git
+    commit: main

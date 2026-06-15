@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -43,15 +43,31 @@ describe('RepoManager', () => {
   let tmpDir: string;
   let workspaceDir: string;
   let manager: RepoManager;
+  let savedAgentvHome: string | undefined;
+  let savedAgentvDataDir: string | undefined;
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'repo-manager-test-'));
     workspaceDir = path.join(tmpDir, 'workspace');
     mkdirSync(workspaceDir, { recursive: true });
-    manager = new RepoManager();
+    savedAgentvHome = process.env.AGENTV_HOME;
+    savedAgentvDataDir = process.env.AGENTV_DATA_DIR;
+    process.env.AGENTV_HOME = path.join(tmpDir, 'agentv-home');
+    process.env.AGENTV_DATA_DIR = path.join(tmpDir, 'agentv-data');
+    manager = new RepoManager(false, { progress: false });
   });
 
   afterEach(async () => {
+    if (savedAgentvHome === undefined) {
+      process.env.AGENTV_HOME = undefined;
+    } else {
+      process.env.AGENTV_HOME = savedAgentvHome;
+    }
+    if (savedAgentvDataDir === undefined) {
+      process.env.AGENTV_DATA_DIR = undefined;
+    } else {
+      process.env.AGENTV_DATA_DIR = savedAgentvDataDir;
+    }
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -63,7 +79,7 @@ describe('RepoManager', () => {
       await manager.materialize(
         {
           path: './my-repo',
-          source: { type: 'local', path: repoDir },
+          repo: `file://${repoDir}`,
         },
         workspaceDir,
       );
@@ -86,8 +102,8 @@ describe('RepoManager', () => {
       await manager.materialize(
         {
           path: './my-repo',
-          source: { type: 'local', path: repoDir },
-          checkout: { ref: secondSha },
+          repo: `file://${repoDir}`,
+          commit: secondSha,
         },
         workspaceDir,
       );
@@ -99,7 +115,7 @@ describe('RepoManager', () => {
       expect(existsSync(path.join(targetDir, 'third.txt'))).toBe(false);
     }, 30_000);
 
-    it('checks out raw base_commit SHAs from git sources without resolve: local', async () => {
+    it('checks out raw base_commit SHAs', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir);
       writeFileSync(path.join(repoDir, 'second.txt'), 'second');
@@ -114,8 +130,8 @@ describe('RepoManager', () => {
       await manager.materialize(
         {
           path: './my-repo',
-          source: { type: 'git', url: remoteDir },
-          checkout: { base_commit: secondSha },
+          repo: `file://${remoteDir}`,
+          base_commit: secondSha,
         },
         workspaceDir,
       );
@@ -136,8 +152,9 @@ describe('RepoManager', () => {
       await manager.materialize(
         {
           path: './my-repo',
-          source: { type: 'local', path: repoDir },
-          checkout: { ref: 'HEAD', ancestor: 1 },
+          repo: `file://${repoDir}`,
+          commit: 'HEAD',
+          ancestor: 1,
         },
         workspaceDir,
       );
@@ -147,27 +164,132 @@ describe('RepoManager', () => {
       expect(headSha).toBe(firstSha);
     }, 30_000);
 
-    it('supports shallow clone with depth', async () => {
+    it('supports sparse checkout', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
-      createTestRepo(repoDir);
-      for (let i = 0; i < 5; i++) {
-        writeFileSync(path.join(repoDir, `file-${i}.txt`), `content-${i}`);
-        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, ...EXEC_OPTS });
-      }
+      createTestRepo(repoDir, {
+        'src/main.ts': 'console.log("hello")',
+        'docs/readme.md': 'docs',
+      });
 
       await manager.materialize(
         {
           path: './my-repo',
-          source: { type: 'local', path: repoDir },
-          clone: { depth: 2 },
+          repo: `file://${repoDir}`,
+          sparse: ['src'],
         },
         workspaceDir,
       );
 
       const targetDir = path.join(workspaceDir, 'my-repo');
-      const logCount = gitExec('git rev-list --count HEAD', targetDir);
-      expect(Number(logCount)).toBe(2);
+      expect(existsSync(path.join(targetDir, 'src', 'main.ts'))).toBe(true);
+      expect(existsSync(path.join(targetDir, 'docs', 'readme.md'))).toBe(false);
     }, 30_000);
+
+    it('auto-adopts a registered project whose origin matches repo', async () => {
+      const repoDir = path.join(tmpDir, 'registered-repo');
+      createTestRepo(repoDir, { 'hello.txt': 'hello world' });
+      execSync('git remote add origin https://github.com/example/registered.git', {
+        cwd: repoDir,
+        ...EXEC_OPTS,
+      });
+      const homeDir = process.env.AGENTV_HOME;
+      if (!homeDir) throw new Error('AGENTV_HOME not set');
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        [
+          'projects:',
+          '  - id: registered',
+          '    name: Registered',
+          `    path: ${repoDir}`,
+          '    added_at: "2026-01-01T00:00:00Z"',
+          '    last_opened_at: "2026-01-01T00:00:00Z"',
+          '',
+        ].join('\n'),
+      );
+
+      await manager.materialize(
+        {
+          path: './my-repo',
+          repo: 'https://github.com/example/registered.git',
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'my-repo');
+      const alternatesPath = path.join(targetDir, '.git', 'objects', 'info', 'alternates');
+      expect(readFileSync(alternatesPath, 'utf-8')).toContain(
+        path.join(repoDir, '.git', 'objects'),
+      );
+      expect(gitExec('git remote get-url origin', targetDir)).toBe(
+        'https://github.com/example/registered.git',
+      );
+    }, 30_000);
+
+    it('surfaces an actionable timeout when clone hangs', async () => {
+      const binDir = path.join(tmpDir, 'bin');
+      mkdirSync(binDir, { recursive: true });
+      const logPath = path.join(tmpDir, 'git.log');
+      const fakeGit = path.join(binDir, 'git');
+      writeFileSync(
+        fakeGit,
+        [
+          '#!/usr/bin/env bun',
+          "import { appendFileSync } from 'node:fs';",
+          'const args = process.argv.slice(2);',
+          "if (args[0] === 'clone') {",
+          "  appendFileSync(process.env.REPO_MANAGER_TEST_GIT_LOG ?? '', `${args.join(' ')}\\n`);",
+          '  setInterval(() => {}, 1000);',
+          '} else {',
+          '  const child = Bun.spawnSync([process.env.REAL_GIT_PATH ?? "git", ...args], {',
+          "  stdin: 'inherit',",
+          "  stdout: 'inherit',",
+          "  stderr: 'inherit',",
+          '  });',
+          '  process.exit(child.exitCode ?? 0);',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      chmodSync(fakeGit, 0o755);
+
+      const savedPath = process.env.PATH;
+      const savedRealGitPath = process.env.REAL_GIT_PATH;
+      const savedGitLog = process.env.REPO_MANAGER_TEST_GIT_LOG;
+      process.env.PATH = `${binDir}:${process.env.PATH ?? ''}`;
+      process.env.REAL_GIT_PATH = execSync('command -v git').toString().trim();
+      process.env.REPO_MANAGER_TEST_GIT_LOG = logPath;
+
+      try {
+        const timeoutManager = new RepoManager(false, { progress: false, timeoutMs: 50 });
+        await expect(
+          timeoutManager.materialize(
+            {
+              path: './my-repo',
+              repo: 'https://github.com/example/slow.git',
+            },
+            workspaceDir,
+          ),
+        ).rejects.toThrow(
+          /git clone https:\/\/github\.com\/example\/slow\.git exceeded 0s.*Register a matching local checkout.*git_cache\.mirrors.*network connectivity/s,
+        );
+
+        const log = readFileSync(logPath, 'utf-8');
+        expect(log).toContain('clone --progress --no-checkout https://github.com/example/slow.git');
+      } finally {
+        process.env.PATH = savedPath;
+        if (savedRealGitPath === undefined) {
+          process.env.REAL_GIT_PATH = undefined;
+        } else {
+          process.env.REAL_GIT_PATH = savedRealGitPath;
+        }
+        if (savedGitLog === undefined) {
+          process.env.REPO_MANAGER_TEST_GIT_LOG = undefined;
+        } else {
+          process.env.REPO_MANAGER_TEST_GIT_LOG = savedGitLog;
+        }
+      }
+    }, 10_000);
   });
 
   describe('materializeAll', () => {
@@ -179,8 +301,8 @@ describe('RepoManager', () => {
 
       await manager.materializeAll(
         [
-          { path: './repo-a', source: { type: 'local', path: repoA } },
-          { path: './repo-b', source: { type: 'local', path: repoB } },
+          { path: './repo-a', repo: `file://${repoA}` },
+          { path: './repo-b', repo: `file://${repoB}` },
         ],
         workspaceDir,
       );
@@ -190,115 +312,11 @@ describe('RepoManager', () => {
     }, 30_000);
   });
 
-  describe('validateLocalPaths', () => {
-    it('returns empty array when all local paths exist', () => {
-      const repoDir = path.join(tmpDir, 'valid-repo');
-      mkdirSync(repoDir, { recursive: true });
-
-      const errors = RepoManager.validateLocalPaths([
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ]);
-
-      expect(errors).toEqual([]);
-    });
-
-    it('returns not_found error for non-existent local path', () => {
-      const missingPath = path.join(tmpDir, 'does-not-exist');
-
-      const errors = RepoManager.validateLocalPaths([
-        { path: './my-repo', source: { type: 'local', path: missingPath } },
-      ]);
-
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toEqual({
-        repoPath: './my-repo',
-        resolvedSourcePath: missingPath,
-        reason: 'not_found',
-      });
-    });
-
-    it('returns empty_path error when source path is empty string', () => {
-      const errors = RepoManager.validateLocalPaths([
-        { path: './my-repo', source: { type: 'local', path: '' } },
-      ]);
-
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toEqual({
-        repoPath: './my-repo',
-        resolvedSourcePath: '',
-        reason: 'empty_path',
-      });
-    });
-
-    it('returns empty_path error when source path is whitespace-only', () => {
-      const errors = RepoManager.validateLocalPaths([
-        { path: './my-repo', source: { type: 'local', path: '   ' } },
-      ]);
-
-      expect(errors).toHaveLength(1);
-      expect(errors[0].reason).toBe('empty_path');
-    });
-
-    it('skips git source repos', () => {
-      const errors = RepoManager.validateLocalPaths([
-        { path: './my-repo', source: { type: 'git', url: 'https://github.com/org/repo' } },
-      ]);
-
-      expect(errors).toEqual([]);
-    });
-
-    it('reports multiple errors for multiple invalid repos', () => {
-      const errors = RepoManager.validateLocalPaths([
-        { path: './repo-a', source: { type: 'local', path: '/nonexistent/path-a' } },
-        { path: './repo-b', source: { type: 'local', path: '' } },
-      ]);
-
-      expect(errors).toHaveLength(2);
-      expect(errors[0].reason).toBe('not_found');
-      expect(errors[1].reason).toBe('empty_path');
-    });
-
-    it('validates mix of valid and invalid repos', () => {
-      const validDir = path.join(tmpDir, 'valid-repo');
-      mkdirSync(validDir, { recursive: true });
-
-      const errors = RepoManager.validateLocalPaths([
-        { path: './valid', source: { type: 'local', path: validDir } },
-        { path: './invalid', source: { type: 'local', path: '/nonexistent' } },
-      ]);
-
-      expect(errors).toHaveLength(1);
-      expect(errors[0].repoPath).toBe('./invalid');
-    });
-  });
-
-  describe('formatValidationErrors', () => {
-    it('formats not_found error with path', () => {
-      const message = RepoManager.formatValidationErrors([
-        { repoPath: './my-repo', resolvedSourcePath: '/missing/path', reason: 'not_found' },
-      ]);
-
-      expect(message).toContain('my-repo');
-      expect(message).toContain('/missing/path');
-      expect(message).toContain('not found');
-    });
-
-    it('formats empty_path error with env var hint', () => {
-      const message = RepoManager.formatValidationErrors([
-        { repoPath: './my-repo', resolvedSourcePath: '', reason: 'empty_path' },
-      ]);
-
-      expect(message).toContain('my-repo');
-      expect(message).toContain('empty');
-      expect(message).toContain('env var');
-    });
-  });
-
   describe('reset', () => {
     it('hard reset restores repo to checkout state', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir, { 'original.txt': 'original' });
-      const repo = { path: './my-repo', source: { type: 'local' as const, path: repoDir } };
+      const repo = { path: './my-repo', repo: `file://${repoDir}` };
 
       await manager.materialize(repo, workspaceDir);
 

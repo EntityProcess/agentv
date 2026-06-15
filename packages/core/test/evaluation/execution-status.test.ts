@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
@@ -261,22 +264,25 @@ describe('execution status classification', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Local repo path validation through orchestrator
+// Repo materialization failures through orchestrator
 // ---------------------------------------------------------------------------
 
-describe('local repo path validation (e2e through runEvalCase)', () => {
-  it('returns execution_error when local repo source path does not exist', async () => {
+describe('repo materialization failure (e2e through runEvalCase)', () => {
+  it('returns execution_error when repo materialization fails', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'agentv-exec-status-'));
+    const savedAgentvHome = process.env.AGENTV_HOME;
+    const savedAgentvDataDir = process.env.AGENTV_DATA_DIR;
+    process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+    process.env.AGENTV_DATA_DIR = path.join(tempDir, 'agentv-data');
+
     const testCase: EvalTest = {
       ...baseTestCase,
-      id: 'local-path-missing',
+      id: 'repo-materialization-fails',
       workspace: {
         repos: [
           {
             path: './MyRepo',
-            source: {
-              type: 'local' as const,
-              path: `/tmp/agentv-nonexistent-path-${randomUUID()}`,
-            },
+            repo: `file:///tmp/agentv-nonexistent-path-${randomUUID()}`,
           },
         ],
       },
@@ -284,84 +290,24 @@ describe('local repo path validation (e2e through runEvalCase)', () => {
 
     const provider = new FixedResponseProvider('irrelevant');
 
-    const result = await runEvalCase({
-      evalCase: testCase,
-      provider,
-      target: baseTarget,
-      evaluators: highScoreEvaluators,
-      evalRunId: randomUUID(),
-    });
+    try {
+      const result = await runEvalCase({
+        evalCase: testCase,
+        provider,
+        target: baseTarget,
+        evaluators: highScoreEvaluators,
+        evalRunId: randomUUID(),
+      });
 
-    expect(result.executionStatus).toBe('execution_error');
-    expect(result.failureStage).toBe('repo_setup');
-    expect(result.failureReasonCode).toBe('local_path_not_found');
-    expect(result.error).toContain('local source path not found');
-    expect(result.score).toBe(0);
-  });
-
-  it('returns execution_error when local repo source path is empty (unresolved env var)', async () => {
-    const testCase: EvalTest = {
-      ...baseTestCase,
-      id: 'local-path-empty',
-      workspace: {
-        repos: [
-          {
-            path: './MyRepo',
-            source: {
-              type: 'local' as const,
-              path: '',
-            },
-          },
-        ],
-      },
-    };
-
-    const provider = new FixedResponseProvider('irrelevant');
-
-    const result = await runEvalCase({
-      evalCase: testCase,
-      provider,
-      target: baseTarget,
-      evaluators: highScoreEvaluators,
-      evalRunId: randomUUID(),
-    });
-
-    expect(result.executionStatus).toBe('execution_error');
-    expect(result.failureStage).toBe('repo_setup');
-    expect(result.failureReasonCode).toBe('local_path_not_found');
-    expect(result.error).toContain('empty');
-    expect(result.score).toBe(0);
-  });
-
-  it('proceeds normally when local repo source path exists', async () => {
-    const testCase: EvalTest = {
-      ...baseTestCase,
-      id: 'local-path-valid',
-      workspace: {
-        repos: [
-          {
-            path: './MyRepo',
-            source: {
-              type: 'local' as const,
-              path: '/tmp', // /tmp always exists
-            },
-          },
-        ],
-      },
-    };
-
-    const provider = new FixedResponseProvider('Add structured logging and avoid global state.');
-
-    const result = await runEvalCase({
-      evalCase: testCase,
-      provider,
-      target: baseTarget,
-      evaluators: highScoreEvaluators,
-      evalRunId: randomUUID(),
-    });
-
-    // Should NOT be local_path_not_found — it may fail at materialization (not a git repo)
-    // but the path validation itself should pass
-    expect(result.failureReasonCode).not.toBe('local_path_not_found');
+      expect(result.executionStatus).toBe('execution_error');
+      expect(result.failureStage).toBe('repo_setup');
+      expect(result.failureReasonCode).toBe('clone_error');
+      expect(result.error).toContain('Failed to materialize repos');
+      expect(result.score).toBe(0);
+    } finally {
+      process.env.AGENTV_HOME = savedAgentvHome;
+      process.env.AGENTV_DATA_DIR = savedAgentvDataDir;
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

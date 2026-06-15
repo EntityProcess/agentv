@@ -1,27 +1,47 @@
-import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFile, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import type { RepoConfig, RepoSource } from '../types.js';
+import { getAgentvConfigDir, getAgentvDataDir } from '../../paths.js';
+import { loadProjectRegistry } from '../../projects.js';
+import type { RepoConfig } from '../types.js';
+import { parseYamlValue } from '../yaml-loader.js';
 import { getRepoCheckoutRef } from './repo-checkout.js';
-
-/**
- * Validation error for a local repo source path that doesn't exist or is unresolved.
- */
-export interface LocalPathValidationError {
-  readonly repoPath: string;
-  readonly resolvedSourcePath: string;
-  readonly reason: 'not_found' | 'empty_path';
-}
+import { normalizeRepoIdentity, resolveRepoCloneUrl } from './repo-identity.js';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
+const DEFAULT_HEARTBEAT_MS = 30_000;
+const ERROR_OUTPUT_LIMIT = 1024 * 1024;
 
-/** Environment vars to force non-interactive git, stripped of hook-injected vars */
+interface GitRunOptions {
+  cwd?: string;
+  timeout?: number;
+}
+
+interface GitStreamingOptions extends GitRunOptions {
+  description: string;
+}
+
+interface RepoManagerOptions {
+  readonly progress?: boolean;
+  readonly heartbeatMs?: number;
+  readonly timeoutMs?: number;
+}
+
+interface AcquisitionSource {
+  readonly kind: 'configured-mirror' | 'registered-project' | 'mirror-cache' | 'remote';
+  readonly sourceUrl: string;
+  readonly referencePath?: string;
+  readonly originUrl: string;
+}
+
+/** Environment vars to force non-interactive git, stripped of hook-injected vars. */
 function gitEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
-  // Remove git hook environment variables that interfere with subprocess git operations
   for (const key of Object.keys(env)) {
     if (key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND') {
       delete env[key];
@@ -35,79 +55,65 @@ function gitEnv(): Record<string, string | undefined> {
   };
 }
 
-function getSourceUrl(source: RepoSource): string {
-  return source.type === 'git' ? source.url : source.path;
+function appendLimited(current: string, chunk: Buffer): string {
+  if (current.length >= ERROR_OUTPUT_LIMIT) return current;
+  const next = current + chunk.toString();
+  return next.length > ERROR_OUTPUT_LIMIT ? next.slice(-ERROR_OUTPUT_LIMIT) : next;
+}
+
+function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder === 0 ? `${minutes}m` : `${minutes}m ${remainder}s`;
 }
 
 function isFullCommitSha(ref: string | undefined): boolean {
   return typeof ref === 'string' && /^[0-9a-f]{40}$/i.test(ref);
 }
 
-async function git(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
+function configPath(): string {
+  return path.join(getAgentvConfigDir(), 'config.yaml');
+}
+
+function expandHome(value: string): string {
+  if (value === '~') return process.env.HOME ?? value;
+  if (value.startsWith('~/')) return path.join(process.env.HOME ?? '~', value.slice(2));
+  return value;
+}
+
+async function git(args: string[], opts?: GitRunOptions): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd: opts?.cwd,
     timeout: opts?.timeout ?? DEFAULT_TIMEOUT_MS,
     env: gitEnv(),
-    maxBuffer: 50 * 1024 * 1024, // 50MB
+    maxBuffer: 50 * 1024 * 1024,
   });
   return stdout.trim();
 }
 
 export class RepoManager {
   private readonly verbose: boolean;
+  private readonly progress: boolean;
+  private readonly heartbeatMs: number;
+  private readonly timeoutMs: number;
 
-  constructor(verbose = false) {
+  constructor(verbose = false, options: RepoManagerOptions = {}) {
     this.verbose = verbose;
+    this.progress = options.progress ?? true;
+    this.heartbeatMs = options.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
-  /**
-   * Validate that all local repo source paths exist before attempting materialization.
-   * Returns an array of validation errors (empty if all paths are valid).
-   */
-  static validateLocalPaths(repos: readonly RepoConfig[]): readonly LocalPathValidationError[] {
-    const errors: LocalPathValidationError[] = [];
-    for (const repo of repos) {
-      if (!repo.source || repo.source.type !== 'local') continue;
-
-      const sourcePath = repo.source.path;
-      if (!sourcePath || sourcePath.trim() === '') {
-        errors.push({
-          repoPath: repo.path ?? '(none)',
-          resolvedSourcePath: sourcePath ?? '',
-          reason: 'empty_path',
-        });
-      } else if (!existsSync(sourcePath)) {
-        errors.push({
-          repoPath: repo.path ?? '(none)',
-          resolvedSourcePath: sourcePath,
-          reason: 'not_found',
-        });
-      }
-    }
-    return errors;
-  }
-
-  /**
-   * Format validation errors into a human-readable warning message.
-   */
-  static formatValidationErrors(errors: readonly LocalPathValidationError[]): string {
-    const lines = errors.map((e) => {
-      if (e.reason === 'empty_path') {
-        return `  - repo "${e.repoPath}": local source path is empty (check that the env var is set)`;
-      }
-      return `  - repo "${e.repoPath}": local source path not found: ${e.resolvedSourcePath}`;
-    });
-    return `Local repo path validation failed:\n${lines.join('\n')}`;
-  }
-
-  private async runGit(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
+  private async runGit(args: string[], opts?: GitRunOptions): Promise<string> {
     const startedAt = Date.now();
     if (this.verbose) {
       console.log(`[repo] git start cwd=${opts?.cwd ?? process.cwd()} args=${args.join(' ')}`);
     }
 
     try {
-      const output = await git(args, opts);
+      const output = await git(args, { ...opts, timeout: opts?.timeout ?? this.timeoutMs });
       if (this.verbose) {
         console.log(`[repo] git ok durationMs=${Date.now() - startedAt} args=${args.join(' ')}`);
       }
@@ -123,91 +129,276 @@ export class RepoManager {
     }
   }
 
+  private runGitStreaming(args: string[], opts: GitStreamingOptions): Promise<void> {
+    const startedAt = Date.now();
+    const timeout = opts.timeout ?? this.timeoutMs;
+
+    if (this.verbose) {
+      console.log(`[repo] git start cwd=${opts.cwd ?? process.cwd()} args=${args.join(' ')}`);
+    }
+
+    return new Promise((resolve, reject) => {
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+      let timedOut = false;
+
+      const child = spawn('git', args, {
+        cwd: opts.cwd,
+        env: gitEnv(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      const timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeout);
+
+      const heartbeatHandle =
+        this.progress && this.heartbeatMs > 0
+          ? setInterval(() => {
+              const elapsed = formatDuration(Date.now() - startedAt);
+              console.error(`[repo] ${opts.description} still running after ${elapsed}`);
+            }, this.heartbeatMs)
+          : undefined;
+
+      const finish = (error?: Error): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutHandle);
+        if (heartbeatHandle) clearInterval(heartbeatHandle);
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+
+      child.stdout.on('data', (chunk: Buffer) => {
+        stdout = appendLimited(stdout, chunk);
+        if (this.progress) process.stdout.write(chunk);
+      });
+
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderr = appendLimited(stderr, chunk);
+        if (this.progress) process.stderr.write(chunk);
+      });
+
+      child.on('error', (error) => finish(error));
+      child.on('close', (code, signal) => {
+        const durationMs = Date.now() - startedAt;
+        if (this.verbose) {
+          console.log(
+            `[repo] git ${code === 0 ? 'ok' : 'fail'} durationMs=${durationMs} args=${args.join(' ')}`,
+          );
+        }
+
+        if (timedOut) {
+          finish(
+            new Error(
+              `${opts.description} exceeded ${formatDuration(timeout)}. ` +
+                `Register a matching local checkout, configure git_cache.mirrors in ${configPath()}, or check network connectivity.`,
+            ),
+          );
+          return;
+        }
+
+        if (code !== 0) {
+          const output = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n');
+          finish(
+            new Error(
+              `git ${args.join(' ')} failed with code ${code ?? 'unknown'}${signal ? ` (signal ${signal})` : ''}${output ? `:\n${output}` : ''}`,
+            ),
+          );
+          return;
+        }
+
+        finish();
+      });
+    });
+  }
+
+  private loadConfiguredMirrors(): Record<string, string> {
+    const filePath = configPath();
+    if (!existsSync(filePath)) return {};
+    try {
+      const parsed = parseYamlValue(readFileSync(filePath, 'utf-8')) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      const config = parsed as Record<string, unknown>;
+      const gitCache = config.git_cache;
+      if (!gitCache || typeof gitCache !== 'object' || Array.isArray(gitCache)) return {};
+      const mirrors = (gitCache as Record<string, unknown>).mirrors;
+      if (!mirrors || typeof mirrors !== 'object' || Array.isArray(mirrors)) return {};
+      const result: Record<string, string> = {};
+      for (const [repo, localPath] of Object.entries(mirrors as Record<string, unknown>)) {
+        if (typeof localPath === 'string' && localPath.trim().length > 0) {
+          result[repo] = expandHome(localPath.trim());
+        }
+      }
+      return result;
+    } catch {
+      return {};
+    }
+  }
+
+  private findConfiguredMirror(repoIdentity: string): string | undefined {
+    const mirrors = this.loadConfiguredMirrors();
+    for (const [repo, localPath] of Object.entries(mirrors)) {
+      if (normalizeRepoIdentity(repo) !== repoIdentity) continue;
+      if (!existsSync(localPath)) {
+        console.warn(`[repo] configured mirror not found, falling back: ${localPath}`);
+        continue;
+      }
+      return localPath;
+    }
+    return undefined;
+  }
+
+  private async findRegisteredProject(repoIdentity: string): Promise<string | undefined> {
+    for (const project of loadProjectRegistry().projects) {
+      if (!existsSync(project.path)) continue;
+      try {
+        const origin = await this.runGit(['remote', 'get-url', 'origin'], {
+          cwd: project.path,
+          timeout: 10_000,
+        });
+        if (normalizeRepoIdentity(origin) === repoIdentity) {
+          return project.path;
+        }
+      } catch {
+        if (project.repoUrl && normalizeRepoIdentity(project.repoUrl) === repoIdentity) {
+          return project.path;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private gitCachePath(repoIdentity: string): string {
+    const hash = createHash('sha256').update(repoIdentity).digest('hex');
+    return path.join(getAgentvDataDir(), 'git-cache', hash);
+  }
+
+  private async prepareMirrorCache(
+    cloneUrl: string,
+    repoIdentity: string,
+  ): Promise<string | undefined> {
+    const mirrorPath = this.gitCachePath(repoIdentity);
+    const mirrorExists = existsSync(path.join(mirrorPath, 'HEAD'));
+    try {
+      if (mirrorExists) {
+        await this.runGitStreaming(['fetch', '--prune', '--progress', 'origin'], {
+          cwd: mirrorPath,
+          description: `git fetch cache for ${cloneUrl}`,
+        });
+      } else {
+        await mkdir(path.dirname(mirrorPath), { recursive: true });
+        await this.runGitStreaming(['clone', '--mirror', '--progress', cloneUrl, mirrorPath], {
+          description: `git mirror clone ${cloneUrl}`,
+        });
+      }
+      return mirrorPath;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (mirrorExists) {
+        console.warn(`[repo] mirror cache fetch failed; using existing cache: ${message}`);
+        return mirrorPath;
+      }
+      console.warn(`[repo] mirror cache unavailable; falling back to remote clone: ${message}`);
+      return undefined;
+    }
+  }
+
+  private async resolveAcquisition(repo: RepoConfig): Promise<AcquisitionSource> {
+    const declaredRepo = repo.repo;
+    if (!declaredRepo) {
+      throw new Error(`repo is required for workspace repo at path ${repo.path ?? '(none)'}`);
+    }
+
+    const originUrl = resolveRepoCloneUrl(declaredRepo);
+    const repoIdentity = normalizeRepoIdentity(declaredRepo);
+
+    const registeredProject = await this.findRegisteredProject(repoIdentity);
+    if (registeredProject) {
+      return {
+        kind: 'registered-project',
+        sourceUrl: registeredProject,
+        referencePath: registeredProject,
+        originUrl,
+      };
+    }
+
+    const configuredMirror = this.findConfiguredMirror(repoIdentity);
+    if (configuredMirror) {
+      return {
+        kind: 'configured-mirror',
+        sourceUrl: configuredMirror,
+        referencePath: configuredMirror,
+        originUrl,
+      };
+    }
+
+    const mirrorCache = await this.prepareMirrorCache(originUrl, repoIdentity);
+    if (mirrorCache) {
+      return {
+        kind: 'mirror-cache',
+        sourceUrl: mirrorCache,
+        referencePath: mirrorCache,
+        originUrl,
+      };
+    }
+
+    return { kind: 'remote', sourceUrl: originUrl, originUrl };
+  }
+
   /**
-   * Clone a repo directly from source into the workspace at the configured path.
-   * Handles checkout, ref resolution, ancestor walking, shallow clone, sparse checkout.
+   * Clone a repo into the workspace at the configured path.
+   * Handles acquisition resolution, sparse checkout, commit checkout, and ancestor walking.
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
-    if (!repo.source || !repo.path) {
+    if (!repo.repo || !repo.path) {
       if (this.verbose) {
-        console.log(`[repo] materialize skip path=${repo.path ?? '(none)'} (no source or path)`);
+        console.log(`[repo] materialize skip path=${repo.path ?? '(none)'} (no repo or path)`);
       }
       return;
     }
+
     const targetDir = path.join(workspacePath, repo.path);
-    const sourceUrl = getSourceUrl(repo.source);
+    const acquisition = await this.resolveAcquisition(repo);
     const startedAt = Date.now();
+
     if (this.verbose) {
       console.log(
-        `[repo] materialize start path=${repo.path} source=${sourceUrl} workspace=${workspacePath}`,
+        `[repo] materialize start path=${repo.path} repo=${repo.repo} acquisition=${acquisition.kind} workspace=${workspacePath}`,
       );
     }
 
-    // Build clone args — clone directly from source
-    const cloneArgs = ['clone'];
-
-    if (repo.clone?.depth) {
-      cloneArgs.push('--depth', String(repo.clone.depth));
+    const cloneArgs = ['clone', '--progress', '--no-checkout'];
+    if (acquisition.referencePath) {
+      cloneArgs.push('--reference', acquisition.referencePath);
     }
-    if (repo.clone?.filter) {
-      cloneArgs.push('--filter', repo.clone.filter);
+    cloneArgs.push(acquisition.sourceUrl, targetDir);
+
+    await this.runGitStreaming(cloneArgs, {
+      description: `git clone ${repo.repo}`,
+    });
+
+    if (acquisition.sourceUrl !== acquisition.originUrl) {
+      await this.runGit(['remote', 'set-url', 'origin', acquisition.originUrl], { cwd: targetDir });
     }
 
-    // Clone with no checkout so we can control the checkout step
-    cloneArgs.push('--no-checkout');
-    // Use file:// protocol for local sources with depth/filter (required for smart transport)
-    const cloneUrl =
-      (repo.clone?.depth || repo.clone?.filter) && repo.source.type === 'local'
-        ? `file://${sourceUrl}`
-        : sourceUrl;
-    cloneArgs.push(cloneUrl, targetDir);
-
-    await this.runGit(cloneArgs);
-
-    // Sparse checkout setup (before actual checkout)
-    if (repo.clone?.sparse?.length) {
+    if (repo.sparse?.length) {
       await this.runGit(['sparse-checkout', 'init', '--cone'], { cwd: targetDir });
-      await this.runGit(['sparse-checkout', 'set', ...repo.clone.sparse], { cwd: targetDir });
+      await this.runGit(['sparse-checkout', 'set', ...repo.sparse], { cwd: targetDir });
     }
 
-    // Resolve ref
-    const ref = getRepoCheckoutRef(repo.checkout);
-    const resolve = repo.checkout?.resolve ?? 'remote';
-    const baseCommit = repo.checkout?.base_commit;
-    const shouldResolveLocally =
-      resolve === 'local' || (repo.source.type === 'git' && isFullCommitSha(baseCommit));
-
-    let resolvedSha: string;
-    if (!shouldResolveLocally && repo.source.type === 'git') {
-      // Resolve via ls-remote for remote refs
-      const url = getSourceUrl(repo.source);
-      try {
-        const lsOutput = await this.runGit(['ls-remote', url, ref]);
-        const match = lsOutput.split('\t')[0];
-        if (!match) {
-          throw new Error(`Ref '${ref}' not found on remote ${url}`);
-        }
-        resolvedSha = match;
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('not found')) throw err;
-        // Might be a SHA already — try direct checkout
-        resolvedSha = ref;
-      }
-    } else {
-      // Resolve locally from the cloned repo
-      resolvedSha = ref;
-    }
-
-    // Checkout
+    const ref = getRepoCheckoutRef(repo);
     if (this.verbose) {
-      console.log(
-        `[repo] checkout path=${repo.path} ref=${ref} resolved=${resolvedSha} resolve=${resolve}`,
-      );
+      console.log(`[repo] checkout path=${repo.path} ref=${ref}`);
     }
-    await this.runGit(['checkout', resolvedSha], { cwd: targetDir });
+    await this.runGit(['checkout', ref], { cwd: targetDir });
 
-    // Walk ancestors if requested
-    const ancestor = repo.checkout?.ancestor ?? 0;
+    const ancestor = repo.ancestor ?? 0;
     if (ancestor > 0) {
       try {
         const ancestorSha = await this.runGit(['rev-parse', `HEAD~${ancestor}`], {
@@ -215,19 +406,10 @@ export class RepoManager {
         });
         await this.runGit(['checkout', ancestorSha], { cwd: targetDir });
       } catch {
-        // Try to deepen if shallow
-        if (repo.clone?.depth) {
-          await this.runGit(['fetch', '--deepen', String(ancestor)], { cwd: targetDir });
-          const ancestorSha = await this.runGit(['rev-parse', `HEAD~${ancestor}`], {
-            cwd: targetDir,
-          });
-          await this.runGit(['checkout', ancestorSha], { cwd: targetDir });
-        } else {
-          throw new Error(
-            `Cannot resolve ancestor ${ancestor} of ref '${ref}'. ` +
-              `If using shallow clone, increase clone.depth to at least ${ancestor + 1}.`,
-          );
-        }
+        const shallowHint = isFullCommitSha(ref)
+          ? ''
+          : ' Ensure the declared commit has enough reachable history in the selected repo.';
+        throw new Error(`Cannot resolve ancestor ${ancestor} of ref '${ref}'.${shallowHint}`);
       }
     }
 
@@ -238,12 +420,12 @@ export class RepoManager {
     }
   }
 
-  /** Materialize all repos into the workspace. Skips repos without source (Docker-only repos). */
+  /** Materialize all repos into the workspace. Skips repos without repo (Docker-only repos). */
   async materializeAll(repos: readonly RepoConfig[], workspacePath: string): Promise<void> {
-    const materializableRepos = repos.filter((r) => r.source);
+    const materializableRepos = repos.filter((r) => r.repo);
     if (this.verbose) {
       console.log(
-        `[repo] materializeAll count=${materializableRepos.length} (${repos.length - materializableRepos.length} skipped, no source) workspace=${workspacePath}`,
+        `[repo] materializeAll count=${materializableRepos.length} (${repos.length - materializableRepos.length} skipped, no repo) workspace=${workspacePath}`,
       );
     }
     for (const repo of materializableRepos) {
@@ -254,7 +436,7 @@ export class RepoManager {
     }
   }
 
-  /** Reset repos in workspace to their checkout state. Skips repos without path or source. */
+  /** Reset repos in workspace to their checkout state. Skips repos without path or repo. */
   async reset(
     repos: readonly RepoConfig[],
     workspacePath: string,
@@ -262,9 +444,10 @@ export class RepoManager {
   ): Promise<void> {
     const cleanFlag = reset === 'strict' ? '-fdx' : '-fd';
     for (const repo of repos) {
-      if (!repo.path || !repo.source) continue;
+      if (!repo.path || !repo.repo) continue;
       const targetDir = path.join(workspacePath, repo.path);
-      await this.runGit(['reset', '--hard', 'HEAD'], { cwd: targetDir });
+      const ref = getRepoCheckoutRef(repo);
+      await this.runGit(['reset', '--hard', ref], { cwd: targetDir });
       await this.runGit(['clean', cleanFlag], { cwd: targetDir });
     }
   }

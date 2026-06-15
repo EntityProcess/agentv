@@ -202,8 +202,7 @@ tests:
         image: swebench/sweb.eval.django__django:latest
       repos:
         - path: /testbed
-          checkout:
-            base_commit: abc123def
+          base_commit: abc123def
 `,
     );
 
@@ -214,13 +213,11 @@ tests:
     });
     expect(cases[0].workspace?.repos).toHaveLength(1);
     expect(cases[0].workspace?.repos?.[0].path).toBe('/testbed');
-    expect(cases[0].workspace?.repos?.[0].source).toBeUndefined();
-    expect(cases[0].workspace?.repos?.[0].checkout).toEqual({
-      base_commit: 'abc123def',
-    });
+    expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
+    expect(cases[0].workspace?.repos?.[0].base_commit).toBe('abc123def');
   });
 
-  it('should parse repos with path + checkout but no source', async () => {
+  it('should parse Docker repos with path + commit but no repo', async () => {
     const evalFile = path.join(testDir, 'workspace-repo-path-checkout-only.yaml');
     await writeFile(
       evalFile,
@@ -234,19 +231,18 @@ tests:
         image: myimage:latest
       repos:
         - path: /workspace/project
-          checkout:
-            ref: v2.0.0
+          commit: v2.0.0
 `,
     );
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace?.repos?.[0].path).toBe('/workspace/project');
-    expect(cases[0].workspace?.repos?.[0].source).toBeUndefined();
-    expect(cases[0].workspace?.repos?.[0].checkout?.ref).toBe('v2.0.0');
+    expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
+    expect(cases[0].workspace?.repos?.[0].commit).toBe('v2.0.0');
   });
 
-  it('should parse repo checkout base_commit', async () => {
+  it('should parse repo base_commit alias', async () => {
     const evalFile = path.join(testDir, 'workspace-repo-base-commit.yaml');
     await writeFile(
       evalFile,
@@ -258,19 +254,14 @@ tests:
     workspace:
       repos:
         - path: /testbed
-          source:
-            type: git
-            url: https://github.com/org/repo.git
-          checkout:
-            base_commit: abc123def
+          repo: https://github.com/org/repo.git
+          base_commit: abc123def
 `,
     );
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.repos?.[0].checkout).toEqual({
-      base_commit: 'abc123def',
-    });
+    expect(cases[0].workspace?.repos?.[0].base_commit).toBe('abc123def');
   });
 
   it('parses workspace repos from YAML', async () => {
@@ -282,18 +273,11 @@ description: test
 workspace:
   repos:
     - path: ./repo-a
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: main
-        resolve: remote
-        ancestor: 1
-      clone:
-        depth: 2
-        filter: blob:none
-        sparse:
-          - src/**
+      repo: https://github.com/org/repo.git
+      commit: main
+      ancestor: 1
+      sparse:
+        - src/**
 tests:
   - id: test-1
     input: "hello"
@@ -305,16 +289,10 @@ tests:
     const workspace = cases[0].workspace;
     expect(workspace?.repos).toHaveLength(1);
     expect(workspace?.repos?.[0].path).toBe('./repo-a');
-    expect(workspace?.repos?.[0].source).toEqual({
-      type: 'git',
-      url: 'https://github.com/org/repo.git',
-    });
-    expect(workspace?.repos?.[0].checkout?.ref).toBe('main');
-    expect(workspace?.repos?.[0].checkout?.resolve).toBe('remote');
-    expect(workspace?.repos?.[0].checkout?.ancestor).toBe(1);
-    expect(workspace?.repos?.[0].clone?.depth).toBe(2);
-    expect(workspace?.repos?.[0].clone?.filter).toBe('blob:none');
-    expect(workspace?.repos?.[0].clone?.sparse).toEqual(['src/**']);
+    expect(workspace?.repos?.[0].repo).toBe('https://github.com/org/repo.git');
+    expect(workspace?.repos?.[0].commit).toBe('main');
+    expect(workspace?.repos?.[0].ancestor).toBe(1);
+    expect(workspace?.repos?.[0].sparse).toEqual(['src/**']);
   });
 
   it('parses workspace hooks after_each reset config', async () => {
@@ -348,9 +326,7 @@ workspace:
   isolation: per_test
   repos:
     - path: ./repo-a
-      source:
-        type: git
-        url: https://github.com/org/repo.git
+      repo: https://github.com/org/repo.git
 tests:
   - id: test-1
     input: "hello"
@@ -476,12 +452,8 @@ tests:
 template: ./workspace-template
 repos:
   - path: ./my-repo
-    source:
-      type: git
-      url: https://github.com/org/repo.git
-    checkout:
-      ref: main
-      resolve: remote
+    repo: https://github.com/org/repo.git
+    commit: main
 hooks:
   after_each:
     reset: fast
@@ -513,11 +485,8 @@ tests:
         // template resolved relative to workspace file's directory
         expect(c.workspace?.template).toBe(path.join(wsDir, 'workspace-template'));
         expect(c.workspace?.repos).toHaveLength(1);
-        expect(c.workspace?.repos?.[0].source).toEqual({
-          type: 'git',
-          url: 'https://github.com/org/repo.git',
-        });
-        expect(c.workspace?.repos?.[0].checkout?.ref).toBe('main');
+        expect(c.workspace?.repos?.[0].repo).toBe('https://github.com/org/repo.git');
+        expect(c.workspace?.repos?.[0].commit).toBe('main');
         expect(c.workspace?.hooks?.after_each?.reset).toBe('fast');
       }
     });

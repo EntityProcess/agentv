@@ -3299,8 +3299,8 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
         repos: [
           {
             path: 'repo-a',
-            source: { type: 'git', url: 'https://github.com/example/repo.git' },
-            checkout: { ref: 'main' },
+            repo: 'https://github.com/example/repo.git',
+            commit: 'main',
           },
         ],
       },
@@ -3343,10 +3343,9 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     const missingRepoBSource = path.join(testDir, 'missing-repo-b-source');
 
     // Use YAML workspace.path (not CLI --workspace) with mixed repo states.
-    // repo-a exists → should be reused. repo-b is missing and points to a missing local source
-    // → should fail immediately. Since repo-a is reused (skipped) and repo-b materialization
-    // fails fast, this proves the per-repo existence check works without depending on network
-    // timeouts from cloning fake remotes.
+    // repo-a exists → should be reused. repo-b points to a missing file:// repo and fails
+    // during materialization. This proves the per-repo existence check skips repo-a without
+    // depending on network timeouts from cloning fake remotes.
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
@@ -3355,30 +3354,38 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
         repos: [
           {
             path: 'repo-a',
-            source: { type: 'git', url: 'https://github.com/example/repo-a.git' },
-            checkout: { ref: 'main' },
+            repo: 'https://github.com/example/repo-a.git',
+            commit: 'main',
           },
           {
             path: 'repo-b',
-            source: { type: 'local', path: missingRepoBSource },
+            repo: `file://${missingRepoBSource}`,
           },
         ],
       },
     };
 
-    // repo-b materialization fails immediately, which proves repo-a was skipped
-    // and only repo-b was attempted.
-    await expect(
-      runEvaluation({
-        testFilePath: 'in-memory.yaml',
-        repoRoot: 'in-memory',
-        target: baseTarget,
-        providerFactory: () => provider,
-        evaluators: evaluatorRegistry,
-        evalCases: [evalCase],
-        keepWorkspaces: true,
-      }),
-    ).rejects.toThrow('Local repo path validation failed');
+    // repo-b materialization fails, which proves repo-a was skipped and only repo-b was attempted.
+    const savedAgentvHome = process.env.AGENTV_HOME;
+    const savedAgentvDataDir = process.env.AGENTV_DATA_DIR;
+    process.env.AGENTV_HOME = path.join(testDir, 'agentv-home');
+    process.env.AGENTV_DATA_DIR = path.join(testDir, 'agentv-data');
+    try {
+      await expect(
+        runEvaluation({
+          testFilePath: 'in-memory.yaml',
+          repoRoot: 'in-memory',
+          target: baseTarget,
+          providerFactory: () => provider,
+          evaluators: evaluatorRegistry,
+          evalCases: [evalCase],
+          keepWorkspaces: true,
+        }),
+      ).rejects.toThrow('Failed to materialize repos');
+    } finally {
+      process.env.AGENTV_HOME = savedAgentvHome;
+      process.env.AGENTV_DATA_DIR = savedAgentvDataDir;
+    }
 
     // repo-a marker should still exist (not deleted by static workspace cleanup)
     await fsAccess(path.join(repoADir, 'marker.txt'));
@@ -3407,13 +3414,13 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
         repos: [
           {
             path: 'repo-a',
-            source: { type: 'git', url: 'https://github.com/example/repo-a.git' },
-            checkout: { ref: 'main' },
+            repo: 'https://github.com/example/repo-a.git',
+            commit: 'main',
           },
           {
             path: 'repo-b',
-            source: { type: 'git', url: 'https://github.com/example/repo-b.git' },
-            checkout: { ref: 'main' },
+            repo: 'https://github.com/example/repo-b.git',
+            commit: 'main',
           },
         ],
       },
@@ -3460,7 +3467,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     const evalCase = {
       ...baseTestCase,
       workspace: {
-        repos: [{ source: { type: 'git' as const, url: 'https://example.com/repo.git' } }],
+        repos: [{ repo: 'https://example.com/repo.git' }],
       },
     };
 

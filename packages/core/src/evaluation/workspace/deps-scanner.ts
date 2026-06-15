@@ -1,70 +1,51 @@
 /**
- * Lightweight scanner that extracts git repo dependencies from eval YAML files
+ * Lightweight scanner that extracts repo dependencies from eval YAML files
  * without performing full test/grader parsing.
  *
- * Used by `agentv workspace deps` to determine which repos CI needs to clone
+ * Used by `agentv workspace deps` to determine which repos CI needs to fetch
  * before running evals.
  *
  * How it works:
  * 1. Reads each eval YAML file and parses it
  * 2. Extracts `workspace.repos` at suite-level and per-test level
- * 3. Resolves external workspace file references (string → file path)
- * 4. Deduplicates git repos by (url, ref)
+ * 3. Resolves external workspace file references (string -> file path)
+ * 4. Deduplicates repos by (canonical repo identity, ref)
  * 5. Returns a flat list of unique repo dependencies
- *
- * To extend: add support for new workspace source types by adding a branch
- * in `extractReposFromWorkspaceRaw()`.
  */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { interpolateEnv } from '../interpolation.js';
-import type { RepoCheckout, RepoClone, RepoSource } from '../types.js';
+import type { RepoConfig } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
-import { parseRepoCheckout, parseRepoClone, parseRepoSource } from './repo-config-parser.js';
+import { getRepoCheckoutRef } from './repo-checkout.js';
+import { parseRepoConfig } from './repo-config-parser.js';
+import { normalizeRepoIdentity, resolveRepoCloneUrl } from './repo-identity.js';
 
-/** A single git repo dependency discovered from eval files. */
+/** A single repo dependency discovered from eval files. */
 export interface RepoDep {
   /** Git clone URL */
   readonly url: string;
   /** Checkout ref (branch, tag, SHA). undefined means HEAD. */
   readonly ref: string | undefined;
-  /** Clone options (depth, filter, sparse) — first-wins on dedup collision */
-  readonly clone: RepoClone | undefined;
-  /** Checkout options (resolve, ancestor) — first-wins on dedup collision */
-  readonly checkout: Omit<RepoCheckout, 'ref'> | undefined;
-  /** Eval files that reference this repo */
+  /** Optional sparse-checkout paths. */
+  readonly sparse: readonly string[] | undefined;
+  /** Optional ancestor walk after checkout. */
+  readonly ancestor: number | undefined;
+  /** Eval files that reference this repo. */
   readonly usedBy: string[];
 }
 
 /** Full output of the deps scanner. */
 export interface DepsScanResult {
   readonly repos: readonly RepoDep[];
-  /** Files that failed to parse (non-fatal) */
+  /** Files that failed to parse (non-fatal). */
   readonly errors: readonly { file: string; message: string }[];
 }
 
-/** Normalize a git URL for dedup: strip trailing .git and lowercase the host. */
-function normalizeGitUrl(url: string): string {
-  let normalized = url.replace(/\.git$/, '');
-  // Lowercase the host portion of https:// URLs
-  try {
-    const parsed = new URL(normalized);
-    parsed.hostname = parsed.hostname.toLowerCase();
-    normalized = parsed.toString().replace(/\/$/, '');
-  } catch {
-    // Not a valid URL (e.g., SSH shorthand) — use as-is
-  }
-  return normalized;
-}
-
 /**
- * Scan eval YAML files and collect unique git repo dependencies.
+ * Scan eval YAML files and collect unique repo dependencies.
  * Non-YAML files and parse errors are collected in `errors` but don't stop scanning.
- *
- * Dedup strategy: repos are keyed by (normalized URL, ref). On collision,
- * clone/checkout options from the first occurrence win — this is intentional
- * since the manifest is advisory (CI can override clone options).
  */
 export async function scanRepoDeps(evalFilePaths: readonly string[]): Promise<DepsScanResult> {
   const seen = new Map<string, RepoDep & { usedBy: string[] }>();
@@ -74,20 +55,19 @@ export async function scanRepoDeps(evalFilePaths: readonly string[]): Promise<De
     try {
       const repos = await extractReposFromEvalFile(filePath);
       for (const repo of repos) {
-        if (!repo.source || repo.source.type !== 'git') continue;
-        const ref = repo.checkout?.ref;
-        const key = `${normalizeGitUrl(repo.source.url)}\0${ref ?? ''}`;
+        if (!repo.repo) continue;
+        const checkoutRef = getRepoCheckoutRef(repo);
+        const ref = checkoutRef === 'HEAD' ? undefined : checkoutRef;
+        const key = `${normalizeRepoIdentity(repo.repo)}\0${ref ?? ''}`;
         const existing = seen.get(key);
         if (existing) {
           existing.usedBy.push(filePath);
         } else {
-          const { ref: _ref, ...checkoutRest } = repo.checkout ?? {};
-          const hasCheckout = Object.keys(checkoutRest).length > 0;
           seen.set(key, {
-            url: repo.source.url,
+            url: resolveRepoCloneUrl(repo.repo),
             ref,
-            clone: repo.clone,
-            checkout: hasCheckout ? checkoutRest : undefined,
+            sparse: repo.sparse,
+            ancestor: repo.ancestor,
             usedBy: [filePath],
           });
         }
@@ -107,26 +87,18 @@ export async function scanRepoDeps(evalFilePaths: readonly string[]): Promise<De
 // Internal helpers — lightweight YAML extraction, no full test parsing
 // ---------------------------------------------------------------------------
 
-interface RawRepo {
-  source: RepoSource;
-  checkout?: RepoCheckout;
-  clone?: RepoClone;
-}
-
-async function extractReposFromEvalFile(filePath: string): Promise<RawRepo[]> {
+async function extractReposFromEvalFile(filePath: string): Promise<RepoConfig[]> {
   const content = await readFile(filePath, 'utf8');
   const parsed = interpolateEnv(parseYamlValue(content), process.env);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
   const obj = parsed as Record<string, unknown>;
   const evalFileDir = path.dirname(path.resolve(filePath));
 
-  const repos: RawRepo[] = [];
+  const repos: RepoConfig[] = [];
 
-  // Suite-level workspace
   const suiteRepos = await extractReposFromWorkspaceRaw(obj.workspace, evalFileDir);
   repos.push(...suiteRepos);
 
-  // Per-test workspace
   const tests = Array.isArray(obj.tests) ? obj.tests : [];
   for (const test of tests) {
     if (test && typeof test === 'object' && !Array.isArray(test)) {
@@ -143,9 +115,11 @@ async function extractReposFromEvalFile(filePath: string): Promise<RawRepo[]> {
  * Extract repos from a raw workspace value.
  * Handles both inline objects and string references to external workspace files.
  */
-async function extractReposFromWorkspaceRaw(raw: unknown, evalFileDir: string): Promise<RawRepo[]> {
+async function extractReposFromWorkspaceRaw(
+  raw: unknown,
+  evalFileDir: string,
+): Promise<RepoConfig[]> {
   if (typeof raw === 'string') {
-    // External workspace file reference
     const workspaceFilePath = path.resolve(evalFileDir, raw);
     const content = await readFile(workspaceFilePath, 'utf8');
     const parsed = interpolateEnv(parseYamlValue(content), process.env);
@@ -158,19 +132,14 @@ async function extractReposFromWorkspaceRaw(raw: unknown, evalFileDir: string): 
   return [];
 }
 
-function extractReposFromObject(obj: Record<string, unknown>): RawRepo[] {
+function extractReposFromObject(obj: Record<string, unknown>): RepoConfig[] {
   const rawRepos = Array.isArray(obj.repos) ? obj.repos : [];
-  const result: RawRepo[] = [];
+  const result: RepoConfig[] = [];
   for (const r of rawRepos) {
-    if (!r || typeof r !== 'object' || Array.isArray(r)) continue;
-    const repo = r as Record<string, unknown>;
-    const source = parseRepoSource(repo.source);
-    if (!source) continue;
-    result.push({
-      source,
-      checkout: parseRepoCheckout(repo.checkout),
-      clone: parseRepoClone(repo.clone),
-    });
+    const parsed = parseRepoConfig(r);
+    if (parsed?.repo) {
+      result.push(parsed);
+    }
   }
   return result;
 }
