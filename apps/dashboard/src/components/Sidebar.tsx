@@ -33,7 +33,6 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
-import { resolveProjectDisplayName } from '~/lib/project-display-name';
 import { formatRunDisplay } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
@@ -97,11 +96,6 @@ function SidebarRunText({ display }: { display: ReturnType<typeof formatRunDispl
       ) : null}
     </>
   );
-}
-
-function useProjectDisplayName(projectId: string): string {
-  const { data } = useProjectList();
-  return resolveProjectDisplayName(projectId, data?.projects);
 }
 
 type ProjectTabId = 'runs' | 'experiments' | 'analytics' | 'targets';
@@ -541,21 +535,10 @@ function ProjectRunDetailSidebar({
   currentRunId?: string;
 }) {
   const { data } = useProjectRunList(projectId);
-  const projectName = useProjectDisplayName(projectId);
 
   return (
     <SidebarShell>
       <BrandHeader projectId={projectId} />
-
-      <div className="border-b border-gray-800 px-4 py-2">
-        <Link to="/" className="text-xs text-gray-400 hover:text-cyan-400">
-          &larr; All Projects
-        </Link>
-        <p className="mt-1 truncate text-sm font-medium text-gray-300">{projectName}</p>
-        {projectName !== projectId ? (
-          <p className="truncate text-xs text-gray-600">{projectId}</p>
-        ) : null}
-      </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -597,7 +580,6 @@ function ProjectEvalSidebar({
   const { data } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
-  const projectName = useProjectDisplayName(projectId);
 
   return (
     <SidebarShell>
@@ -611,7 +593,6 @@ function ProjectEvalSidebar({
         >
           &larr; Back to run
         </Link>
-        <p className="mt-1 truncate text-xs text-gray-500">{projectName}</p>
         <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
       </div>
 
@@ -658,7 +639,6 @@ function ProjectSuiteSidebar({
   const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
   const suiteResults = (data?.results ?? []).filter((r) => (r.suite ?? 'Uncategorized') === suite);
-  const projectName = useProjectDisplayName(projectId);
 
   return (
     <SidebarShell>
@@ -672,7 +652,6 @@ function ProjectSuiteSidebar({
         >
           &larr; Back to run
         </Link>
-        <p className="mt-1 truncate text-xs text-gray-500">{projectName}</p>
         <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
         <p className="truncate text-xs text-gray-500">{suite}</p>
       </div>
@@ -713,7 +692,6 @@ function ProjectCategorySidebar({
 }) {
   const { data } = useQuery(projectCategorySuitesOptions(projectId, runId, category));
   const suites = data?.suites ?? [];
-  const projectName = useProjectDisplayName(projectId);
 
   return (
     <SidebarShell>
@@ -727,7 +705,6 @@ function ProjectCategorySidebar({
         >
           &larr; Back to run
         </Link>
-        <p className="mt-1 truncate text-xs text-gray-500">{projectName}</p>
         <p className="mt-1 truncate text-sm font-medium text-gray-300">{runId}</p>
         <p className="truncate text-xs text-gray-500">{category}</p>
       </div>
@@ -766,7 +743,6 @@ function ProjectExperimentSidebar({
 }) {
   const { data } = useQuery(projectExperimentsOptions(projectId));
   const experiments = data?.experiments ?? [];
-  const projectName = useProjectDisplayName(projectId);
 
   return (
     <SidebarShell>
@@ -781,10 +757,6 @@ function ProjectExperimentSidebar({
         >
           &larr; All experiments
         </Link>
-        <p className="mt-1 truncate text-sm font-medium text-gray-300">{projectName}</p>
-        {projectName !== projectId ? (
-          <p className="truncate text-xs text-gray-600">{projectId}</p>
-        ) : null}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
