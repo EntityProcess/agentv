@@ -9,11 +9,12 @@ import {
   type Message,
   type TargetDefinition,
   type TraceSummary,
+  buildTraceEnvelopeFromEvaluationResult,
   buildTraceFromMessages,
   extractLastAssistantContent,
+  toTraceEnvelopeWire,
   traceToTranscriptJsonLines,
 } from '@agentv/core';
-import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 import {
   type MaterializedTaskBundlePaths,
@@ -330,6 +331,76 @@ function buildEvaluators(scores: readonly GraderResult[] | undefined): GradingAr
     assertions: s.assertions,
     details: s.details,
   }));
+}
+
+function toIndexAssertion(
+  assertion: EvaluationResult['assertions'][number],
+): Record<string, unknown> {
+  return {
+    text: assertion.text,
+    passed: assertion.passed,
+    evidence: assertion.evidence,
+  };
+}
+
+function toIndexScore(score: GraderResult): Record<string, unknown> {
+  return {
+    name: score.name,
+    type: score.type,
+    score: score.score,
+    weight: score.weight,
+    verdict: score.verdict,
+    assertions: score.assertions.map(toIndexAssertion),
+    raw_request: score.rawRequest,
+    input: score.input,
+    target: score.target,
+    scores: score.scores?.map(toIndexScore),
+    details: score.details,
+    token_usage: score.tokenUsage,
+    duration_ms: score.durationMs,
+    started_at: score.startedAt,
+    ended_at: score.endedAt,
+  };
+}
+
+function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifactEntry['scores'] {
+  return scores?.map(toIndexScore) as IndexArtifactEntry['scores'];
+}
+
+function dropUndefined(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
+}
+
+function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  return dropUndefined({
+    mode: value.mode,
+    source_run_dir: value.sourceRunDir,
+    source_index_path: value.sourceIndexPath,
+    source_artifact_dir: value.sourceArtifactDir,
+    source_task_dir: value.sourceTaskDir,
+    source_test_id: value.sourceTestId,
+    source_target: value.sourceTarget,
+    source_timestamp: value.sourceTimestamp,
+  });
+}
+
+function toIndexMetadata(
+  metadata: EvaluationResult['metadata'] | undefined,
+): IndexArtifactEntry['metadata'] {
+  if (!metadata) {
+    return undefined;
+  }
+  const rerunSource = toIndexRerunSource(metadata.rerunSource);
+  if (!rerunSource) {
+    return { ...metadata };
+  }
+  return {
+    ...Object.fromEntries(Object.entries(metadata).filter(([key]) => key !== 'rerunSource')),
+    rerun_source: rerunSource,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -649,6 +720,49 @@ function buildTaskBundleIndexFields(
   };
 }
 
+function findResultSourceTest(
+  result: EvaluationResult,
+  testByTestId: ReadonlyMap<string, EvalTest>,
+): EvalTest | undefined {
+  return testByTestId.get(result.testId ?? 'unknown');
+}
+
+function resolveEnvelopeEvalPath(
+  result: EvaluationResult,
+  testByTestId: ReadonlyMap<string, EvalTest>,
+  fallbackEvalFile?: string,
+): string | undefined {
+  const source = findResultSourceTest(result, testByTestId)?.source;
+  return source?.evalFileRepoPath ?? source?.evalFilePath ?? fallbackEvalFile;
+}
+
+async function writeTraceEnvelopeSidecar(params: {
+  readonly result: EvaluationResult;
+  readonly outputDir: string;
+  readonly outputsDir: string;
+  readonly evalPath?: string;
+  readonly experiment?: string;
+}): Promise<void> {
+  const hasTranscript = params.result.output.length > 0 || params.result.trace.messages.length > 0;
+  const envelope = buildTraceEnvelopeFromEvaluationResult(params.result, {
+    evalPath: params.evalPath,
+    runId: path.basename(params.outputDir),
+    experiment: params.experiment,
+    source: { path: RESULT_INDEX_FILENAME },
+    artifacts: {
+      envelope_path: 'outputs/trace-envelope.json',
+      answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
+      response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
+      transcript_path: hasTranscript ? 'outputs/transcript.jsonl' : undefined,
+    },
+  });
+  await writeFile(
+    path.join(params.outputsDir, 'trace-envelope.json'),
+    `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
+    'utf8',
+  );
+}
+
 export function buildIndexArtifactEntry(
   result: EvaluationResult,
   options: {
@@ -677,9 +791,7 @@ export function buildIndexArtifactEntry(
     duration_ms: result.durationMs,
     start_time: result.startTime,
     end_time: result.endTime,
-    scores: result.scores
-      ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
-      : undefined,
+    scores: toIndexScores(result.scores),
     execution_status: result.executionStatus,
     error: result.error,
     failure_stage: result.failureStage,
@@ -706,7 +818,7 @@ export function buildIndexArtifactEntry(
       ? toRelativeArtifactPath(options.outputDir, options.responsePath)
       : undefined,
     ...buildTaskBundleIndexFields(options.outputDir, options.taskBundle),
-    metadata: result.metadata,
+    metadata: toIndexMetadata(result.metadata),
   };
 }
 
@@ -732,9 +844,7 @@ export function buildResultIndexArtifact(
     duration_ms: result.durationMs,
     start_time: result.startTime,
     end_time: result.endTime,
-    scores: result.scores
-      ? (toSnakeCaseDeep(result.scores) as IndexArtifactEntry['scores'])
-      : undefined,
+    scores: toIndexScores(result.scores),
     execution_status: result.executionStatus,
     error: result.error,
     failure_stage: result.failureStage,
@@ -765,15 +875,13 @@ export function buildResultIndexArtifact(
             : {}),
         }
       : {}),
-    metadata: result.metadata,
+    metadata: toIndexMetadata(result.metadata),
   };
 }
 
 async function writeJsonlFile(filePath: string, records: readonly unknown[]): Promise<void> {
   const content =
-    records.length === 0
-      ? ''
-      : `${records.map((record) => JSON.stringify(toSnakeCaseDeep(record))).join('\n')}\n`;
+    records.length === 0 ? '' : `${records.map((record) => JSON.stringify(record)).join('\n')}\n`;
   await writeFile(filePath, content, 'utf8');
 }
 
@@ -1140,17 +1248,24 @@ export async function writePerTestArtifacts(
     if (input) {
       await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
     }
+    const outputsDir = path.join(testDir, 'outputs');
+    await mkdir(outputsDir, { recursive: true });
+    if (result.output.length > 0) {
+      await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
+      // Deprecated compatibility alias. New consumers should use answer.md
+      // for scored output or transcript.jsonl for the full execution record.
+      await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
+    }
     if (result.output.length > 0 || result.trace.messages.length > 0) {
-      const outputsDir = path.join(testDir, 'outputs');
-      await mkdir(outputsDir, { recursive: true });
-      if (result.output.length > 0) {
-        await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
-        // Deprecated compatibility alias. New consumers should use answer.md
-        // for scored output or transcript.jsonl for the full execution record.
-        await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
-      }
       await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result);
     }
+    await writeTraceEnvelopeSidecar({
+      result,
+      outputDir,
+      outputsDir,
+      evalPath: resolveEnvelopeEvalPath(result, testByTestId),
+      experiment: options?.experiment,
+    });
 
     const taskBundle = await materializeTaskBundleForResult({
       result,
@@ -1213,17 +1328,24 @@ export async function writeArtifactsFromResults(
       await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
     }
 
+    const outputsDir = path.join(testDir, 'outputs');
+    await mkdir(outputsDir, { recursive: true });
+    if (result.output.length > 0) {
+      await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
+      // Deprecated compatibility alias. New consumers should use answer.md
+      // for scored output or transcript.jsonl for the full execution record.
+      await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
+    }
     if (result.output.length > 0 || result.trace.messages.length > 0) {
-      const outputsDir = path.join(testDir, 'outputs');
-      await mkdir(outputsDir, { recursive: true });
-      if (result.output.length > 0) {
-        await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
-        // Deprecated compatibility alias. New consumers should use answer.md
-        // for scored output or transcript.jsonl for the full execution record.
-        await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
-      }
       await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result);
     }
+    await writeTraceEnvelopeSidecar({
+      result,
+      outputDir,
+      outputsDir,
+      evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
+      experiment: options?.experiment,
+    });
 
     const taskBundle = await materializeTaskBundleForResult({
       result,

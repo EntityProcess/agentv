@@ -93,4 +93,73 @@ describe('TranscriptProvider', () => {
     const provider = await TranscriptProvider.fromFile(transcriptPath);
     expect(provider.lineCount).toBe(2);
   });
+
+  it('preserves opaque content, metadata, and tool payload keys', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-transcript-provider-'));
+    tempDirs.push(dir);
+    const transcriptPath = path.join(dir, 'transcript.jsonl');
+    const content = [
+      {
+        type: 'image',
+        media_type: 'image/png',
+        providerCamelKey: 'content stays camelCase',
+      },
+    ];
+    const metadata = {
+      snake_value: 'metadata stays snake_case',
+      providerCamelKey: 'metadata stays camelCase',
+    };
+    const input = {
+      file_path: 'src/config.ts',
+      providerCamelKey: 'input stays camelCase',
+    };
+    const output = {
+      snake_value: 'output stays snake_case',
+      providerCamelKey: 'output stays camelCase',
+    };
+    const transcript: TranscriptEntry = {
+      messages: [
+        {
+          role: 'assistant',
+          content: content as TranscriptEntry['messages'][number]['content'],
+          metadata,
+          toolCalls: [{ tool: 'Inspect', id: 'call-inspect', input, output }],
+        },
+      ],
+      source: {
+        provider: 'codex',
+        sessionId: 'opaque-session',
+      },
+    };
+
+    const lines = toTranscriptJsonLines(transcript, {
+      testId: 'opaque-case',
+      target: 'offline-codex',
+    });
+    await writeFile(
+      transcriptPath,
+      `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+      'utf8',
+    );
+
+    const row = lines[0] as unknown as {
+      content: Array<Record<string, unknown>>;
+      metadata: Record<string, unknown>;
+      tool_calls: Array<{ input: Record<string, unknown>; output: Record<string, unknown> }>;
+    };
+    expect(row.content[0]).toMatchObject(content[0]);
+    expect(row.metadata).toMatchObject(metadata);
+    expect(row.tool_calls[0].input).toMatchObject(input);
+    expect(row.tool_calls[0].output).toMatchObject(output);
+    expect(row.content[0]).not.toHaveProperty('provider_camel_key');
+    expect(row.metadata).not.toHaveProperty('snakeValue');
+
+    const provider = await TranscriptProvider.fromFile(transcriptPath);
+    const response = await provider.invoke({ question: 'ignored' });
+    const message = response.output?.[0];
+    expect(message?.content).toEqual(content);
+    expect(message?.metadata).toEqual(metadata);
+    expect(message?.toolCalls?.[0]?.input).toEqual(input);
+    expect(message?.toolCalls?.[0]?.output).toEqual(output);
+  });
 });
