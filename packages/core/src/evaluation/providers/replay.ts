@@ -1,10 +1,11 @@
 /**
  * Replay provider — substitutes recorded target outputs for live target calls.
  *
- * Configure it in targets.yaml with `provider: replay`, a `fixtures` JSONL path,
- * and the `source_target` whose live outputs were recorded. The provider does
- * not invoke the source target; it only performs strict fixture lookup and
- * returns the recorded ProviderResponse so graders can run fresh.
+ * Configure it in targets.yaml with `provider: replay`, the `source_target`
+ * whose live outputs were recorded, and exactly one replay source: `fixtures`
+ * JSONL or `trace_envelopes`. The provider does not invoke the source target;
+ * it only performs strict replay lookup and returns the recorded
+ * ProviderResponse so graders can run fresh.
  */
 
 import {
@@ -12,6 +13,11 @@ import {
   readReplayFixtureRecords,
   replayFixtureRecordToProviderResponse,
 } from '../replay-fixtures.js';
+import {
+  findTraceEnvelopeReplayRecord,
+  readTraceEnvelopeReplayRecords,
+  traceEnvelopeReplayRecordToProviderResponse,
+} from '../replay-trace-envelopes.js';
 import type { ReplayResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -30,33 +36,70 @@ export class ReplayProvider implements Provider {
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-    const records = await readReplayFixtureRecords(this.config.fixturesPath);
-    return this.responseForRequest(records, request);
+    const source = resolveReplaySource(this.config);
+    switch (source.kind) {
+      case 'fixtures': {
+        const records = await readReplayFixtureRecords(source.path);
+        const record = findReplayFixtureRecord(records, this.lookupForRequest(request));
+        return replayFixtureRecordToProviderResponse(record);
+      }
+      case 'trace_envelopes': {
+        const records = await readTraceEnvelopeReplayRecords(source.path);
+        const record = findTraceEnvelopeReplayRecord(records, this.lookupForRequest(request));
+        return traceEnvelopeReplayRecordToProviderResponse(record);
+      }
+    }
   }
 
   async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
-    const records = await readReplayFixtureRecords(this.config.fixturesPath);
-    return requests.map((request) => this.responseForRequest(records, request));
+    const source = resolveReplaySource(this.config);
+    switch (source.kind) {
+      case 'fixtures': {
+        const records = await readReplayFixtureRecords(source.path);
+        return requests.map((request) =>
+          replayFixtureRecordToProviderResponse(
+            findReplayFixtureRecord(records, this.lookupForRequest(request)),
+          ),
+        );
+      }
+      case 'trace_envelopes': {
+        const records = await readTraceEnvelopeReplayRecords(source.path);
+        return requests.map((request) =>
+          traceEnvelopeReplayRecordToProviderResponse(
+            findTraceEnvelopeReplayRecord(records, this.lookupForRequest(request)),
+          ),
+        );
+      }
+    }
   }
 
-  private responseForRequest(
-    records: Awaited<ReturnType<typeof readReplayFixtureRecords>>,
-    request: ProviderRequest,
-  ): ProviderResponse {
+  private lookupForRequest(request: ProviderRequest) {
     const testId = request.evalCaseId;
     if (!testId) {
       throw new Error('Replay provider requires evalCaseId on provider requests');
     }
 
-    const record = findReplayFixtureRecord(records, {
+    return {
       suite: this.config.suite ?? request.suite,
       evalPath: this.config.evalPath ?? request.evalFilePath,
       testId,
       sourceTarget: this.config.sourceTarget,
       attempt: request.attempt ?? 0,
       variant: this.config.variant,
-    });
-
-    return replayFixtureRecordToProviderResponse(record);
+    };
   }
+}
+
+function resolveReplaySource(
+  config: ReplayResolvedConfig,
+): NonNullable<ReplayResolvedConfig['source']> {
+  if (config.source) {
+    return config.source;
+  }
+  if (config.fixturesPath) {
+    return { kind: 'fixtures', path: config.fixturesPath };
+  }
+  throw new Error(
+    'Replay provider requires exactly one replay source: fixtures or trace_envelopes',
+  );
 }

@@ -223,4 +223,50 @@ describe('validateTargetsFile', () => {
       ),
     ).toBe(true);
   });
+
+  it('accepts replay targets backed by trace envelopes', async () => {
+    const filePath = path.join(tempDir, 'replay-trace-envelopes.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: replay-envelope
+    provider: replay
+    trace_envelopes: ./fixtures/trace-envelopes.jsonl
+    source_target: live-agent
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some((error) => error.message.includes("Unknown setting 'trace_envelopes'")),
+    ).toBe(false);
+  });
+
+  it('rejects replay targets with ambiguous source configuration', async () => {
+    const filePath = path.join(tempDir, 'replay-ambiguous-source.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: replay-ambiguous
+    provider: replay
+    fixtures: ./fixtures/target-output.jsonl
+    trace_envelopes: ./fixtures/trace-envelopes.jsonl
+    source_target: live-agent
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0]' &&
+          /exactly one replay source/i.test(error.message),
+      ),
+    ).toBe(true);
+  });
 });

@@ -569,12 +569,17 @@ export interface AgentVResolvedConfig {
 }
 
 export interface ReplayResolvedConfig {
-  readonly fixturesPath: string;
+  readonly source?: ReplayResolvedSource;
+  readonly fixturesPath?: string;
   readonly sourceTarget: string;
   readonly suite?: string;
   readonly evalPath?: string;
   readonly variant?: string;
 }
+
+export type ReplayResolvedSource =
+  | { readonly kind: 'fixtures'; readonly path: string }
+  | { readonly kind: 'trace_envelopes'; readonly path: string };
 
 export interface TargetDeprecationWarning {
   readonly location: string;
@@ -2025,11 +2030,29 @@ function resolveReplayConfig(
   env: EnvLookup,
   evalFilePath?: string,
 ): ReplayResolvedConfig {
-  const fixtures = resolveString(target.fixtures, env, `${target.name} replay fixtures`, true);
-  const fixturesPath =
-    evalFilePath && !path.isAbsolute(fixtures)
-      ? path.resolve(path.dirname(path.resolve(evalFilePath)), fixtures)
-      : path.resolve(fixtures);
+  const fixtures = resolveOptionalString(target.fixtures, env, `${target.name} replay fixtures`, {
+    allowLiteral: true,
+  });
+  const traceEnvelopes = resolveOptionalString(
+    target.trace_envelopes,
+    env,
+    `${target.name} replay trace_envelopes`,
+    {
+      allowLiteral: true,
+    },
+  );
+  if ((fixtures ? 1 : 0) + (traceEnvelopes ? 1 : 0) !== 1) {
+    throw new Error(
+      `Target "${target.name}" (provider: replay) requires exactly one replay source: "fixtures" or "trace_envelopes"`,
+    );
+  }
+  const fixturesPath = fixtures ? resolveReplaySourcePath(fixtures, evalFilePath) : undefined;
+  const traceEnvelopesPath = traceEnvelopes
+    ? resolveReplaySourcePath(traceEnvelopes, evalFilePath)
+    : undefined;
+  const source: ReplayResolvedSource = fixturesPath
+    ? { kind: 'fixtures', path: fixturesPath }
+    : { kind: 'trace_envelopes', path: traceEnvelopesPath as string };
   const sourceTarget = resolveString(
     target.source_target,
     env,
@@ -2050,12 +2073,19 @@ function resolveReplayConfig(
   });
 
   return {
+    source,
     fixturesPath,
     sourceTarget,
     suite,
     evalPath,
     variant,
   };
+}
+
+function resolveReplaySourcePath(sourcePath: string, evalFilePath?: string): string {
+  return evalFilePath && !path.isAbsolute(sourcePath)
+    ? path.resolve(path.dirname(path.resolve(evalFilePath)), sourcePath)
+    : path.resolve(sourcePath);
 }
 
 function resolveVSCodeConfig(
