@@ -125,24 +125,15 @@ This section is one continuous sequence — don't stop partway through.
 
 Each run produces a new `.agentv/results/runs/<timestamp>/` directory automatically. Use timestamps to identify iterations when comparing runs.
 
-### Choosing a run mode
+### Run path
 
-**User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly.
+Use the AgentV CLI by default. Do not read an environment variable or infer a different mode from the environment.
 
-If the user has not specified a mode, read `AGENT_EVAL_MODE` from `.env` at the project root. If it is absent or empty, default to `cli`. **User instruction always overrides `.env`.**
-
-| `AGENT_EVAL_MODE` | Mode | How |
-|----------------------|------|-----|
-| absent, empty, or `cli` (default) | **AgentV CLI** | `agentv eval <path>` — end-to-end execution, grading, artifacts, multi-provider |
-| `subagent` | **Subagent mode** | Explicit opt-in fallback for special environments or providers where avoiding target-provider calls matters. |
-
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all configured providers and is the normal path for benchmarking.
-
-**`subagent`** — Read `references/subagent-pipeline.md` for the detailed procedure. Use only when explicitly requested or when the CLI/provider path is not usable for the environment.
+Only use subagent mode when the user explicitly asks for "subagent mode" or "use subagents". If the CLI path cannot run, explain the blocker and ask before switching approaches.
 
 ### Running evaluations
 
-**AgentV CLI mode** (default, end-to-end, EVAL.yaml):
+**AgentV CLI** (default, end-to-end, EVAL.yaml):
 ```bash
 agentv eval <eval-path>
 ```
@@ -152,7 +143,7 @@ To choose an output directory explicitly:
 agentv eval <eval-path> --output .agentv/artifacts/
 ```
 
-**Subagent mode** — read `references/subagent-pipeline.md`. That reference owns the `pipeline input`, executor subagent, grader subagent, merge, and validation procedure.
+If the user explicitly asked for subagent mode, read `references/subagent-pipeline.md`. That reference owns the `pipeline input`, executor subagent, grader subagent, merge, and validation procedure.
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
 
@@ -174,9 +165,9 @@ Good assertions are *discriminating* — they pass when the agent genuinely succ
 
 ### Grading
 
-**In CLI mode**, `agentv eval` handles all grading end-to-end — no manual phases needed.
+In the default CLI path, `agentv eval` handles all grading end-to-end — no manual phases needed.
 
-**In subagent mode**, follow `references/subagent-pipeline.md` through executor completion, deterministic grading, LLM grading, merge, and `agentv results validate`. Do not stop before validation succeeds.
+Only when the user explicitly requested subagent mode, follow `references/subagent-pipeline.md` through executor completion, deterministic grading, LLM grading, merge, and `agentv results validate`. Do not stop before validation succeeds.
 
 ### Artifacts
 
