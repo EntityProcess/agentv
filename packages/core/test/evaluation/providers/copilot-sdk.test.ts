@@ -8,6 +8,7 @@ import {
   consumeCopilotSdkLogEntries,
   subscribeToCopilotSdkLogEntries,
 } from '../../../src/evaluation/providers/copilot-sdk-log-tracker.js';
+import { DEFAULT_COPILOT_TIMEOUT_MS } from '../../../src/evaluation/providers/copilot-utils.js';
 import type { ProviderRequest } from '../../../src/evaluation/providers/types.js';
 import { extractLastAssistantContent } from '../../../src/evaluation/providers/types.js';
 
@@ -162,7 +163,7 @@ describe('CopilotSdkProvider', () => {
   it('handles timeout', async () => {
     const session = createMockSession();
     // Override sendAndWait to be slow
-    session.sendAndWait = mock(async () => new Promise((resolve) => setTimeout(resolve, 5000)));
+    session.sendAndWait = mock(async () => new Promise(() => {}));
     const client = createMockClient(session);
     const sdkMock = mockCopilotSdk(client);
 
@@ -174,6 +175,43 @@ describe('CopilotSdkProvider', () => {
     });
 
     await expect(provider.invoke({ question: 'Slow' })).rejects.toThrow(/timed out/i);
+    expect(session.sendAndWait.mock.calls[0][1]).toBe(100);
+  });
+
+  it('passes the 90-minute default timeout to sendAndWait when none is configured', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {});
+
+    await provider.invoke({ question: 'Test' });
+
+    expect(session.sendAndWait.mock.calls[0][1]).toBe(DEFAULT_COPILOT_TIMEOUT_MS);
+  });
+
+  it('passes configured timeout to sendAndWait', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      timeoutMs: 1_800_000,
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    expect(session.sendAndWait.mock.calls[0][1]).toBe(1_800_000);
   });
 
   it('handles abort signal', async () => {
@@ -437,6 +475,36 @@ describe('CopilotSdkProvider', () => {
 
     const sessionOptions = client.createSession.mock.calls[0][0];
     expect(sessionOptions.provider.wireApi).toBe('responses');
+  });
+
+  it('passes customProvider block to createSession for openai-compatible endpoints', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      customProvider: {
+        type: 'openai',
+        baseUrl: 'https://api.openai.example/v1',
+        apiKey: 'key',
+        wireApi: 'responses',
+      },
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.provider).toEqual({
+      type: 'openai',
+      baseUrl: 'https://api.openai.example/v1',
+      apiKey: 'key',
+      wireApi: 'responses',
+    });
   });
 
   it('does not set provider when byok is not configured', async () => {

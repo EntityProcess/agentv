@@ -446,6 +446,16 @@ export interface CopilotCliResolvedConfig {
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
+  readonly customProvider?: CopilotCustomProviderConfig;
+}
+
+export interface CopilotCustomProviderConfig {
+  readonly type?: string;
+  readonly baseUrl: string;
+  readonly apiKey?: string;
+  readonly bearerToken?: string;
+  readonly apiVersion?: string;
+  readonly wireApi?: string;
 }
 
 export interface CopilotSdkResolvedConfig {
@@ -460,6 +470,7 @@ export interface CopilotSdkResolvedConfig {
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
+  readonly customProvider?: CopilotCustomProviderConfig;
   /** BYOK provider type: "azure", "openai", or "anthropic". */
   readonly byokType?: string;
   /** BYOK base URL for the provider endpoint. */
@@ -1495,63 +1506,9 @@ function resolveCopilotSdkConfig(
       ? systemPromptSource.trim()
       : undefined;
 
-  // BYOK (Bring Your Own Key) — allows routing through a user-provided endpoint
-  // instead of GitHub's Copilot infrastructure. The byok block maps to the SDK's
-  // `provider` option on createSession(). See copilot-sdk docs/auth/byok.md.
-  const byok = target.byok as Record<string, unknown> | undefined;
-  let byokType: string | undefined;
-  let byokBaseUrl: string | undefined;
-  let byokApiKey: string | undefined;
-  let byokBearerToken: string | undefined;
-  let byokApiVersion: string | undefined;
-  let byokWireApi: string | undefined;
-
-  if (byok && typeof byok === 'object') {
-    byokType = resolveOptionalString(byok.type, env, `${target.name} byok type`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    });
-
-    byokBaseUrl = resolveOptionalString(byok.base_url, env, `${target.name} byok base URL`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    });
-
-    byokApiKey = resolveOptionalString(byok.api_key, env, `${target.name} byok API key`, {
-      allowLiteral: false,
-      optionalEnv: true,
-    });
-
-    byokBearerToken = resolveOptionalString(
-      byok.bearer_token,
-      env,
-      `${target.name} byok bearer token`,
-      {
-        allowLiteral: false,
-        optionalEnv: true,
-      },
-    );
-
-    byokApiVersion = resolveOptionalString(
-      byok.api_version,
-      env,
-      `${target.name} byok API version`,
-      {
-        allowLiteral: true,
-        optionalEnv: true,
-      },
-    );
-
-    byokWireApi = resolveOptionalString(byok.wire_api, env, `${target.name} byok wire API`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    });
-
-    // base_url is required when byok is specified
-    if (!byokBaseUrl) {
-      throw new Error(`${target.name}: 'byok.base_url' is required when 'byok' is specified`);
-    }
-  }
+  const customProvider = resolveCopilotCustomProviderConfig(target, env, {
+    includeByokAlias: true,
+  });
 
   return {
     cliUrl,
@@ -1564,12 +1521,108 @@ function resolveCopilotSdkConfig(
     logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
-    byokType,
-    byokBaseUrl,
-    byokApiKey,
-    byokBearerToken,
-    byokApiVersion,
-    byokWireApi,
+    ...(customProvider
+      ? {
+          customProvider,
+          byokType: customProvider.type,
+          byokBaseUrl: customProvider.baseUrl,
+          byokApiKey: customProvider.apiKey,
+          byokBearerToken: customProvider.bearerToken,
+          byokApiVersion: customProvider.apiVersion,
+          byokWireApi: customProvider.wireApi,
+        }
+      : {}),
+  };
+}
+
+function resolveCopilotCustomProviderConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  options: { readonly includeByokAlias?: boolean } = {},
+): CopilotCustomProviderConfig | undefined {
+  const hasCustomProvider = target.custom_provider !== undefined;
+  const hasByokAlias = options.includeByokAlias === true && target.byok !== undefined;
+  if (!hasCustomProvider && !hasByokAlias) {
+    return undefined;
+  }
+
+  const sourceName = hasCustomProvider ? 'custom_provider' : 'byok';
+  const raw =
+    sourceName === 'custom_provider'
+      ? (target.custom_provider as unknown)
+      : (target.byok as unknown);
+
+  if (raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`${target.name}: '${sourceName}' must be an object`);
+  }
+
+  const provider = raw as Record<string, unknown>;
+  const type = resolveOptionalString(provider.type, env, `${target.name} ${sourceName} type`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const baseUrl = resolveOptionalString(
+    provider.base_url,
+    env,
+    `${target.name} ${sourceName} base URL`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+  const apiKey = resolveOptionalString(
+    provider.api_key,
+    env,
+    `${target.name} ${sourceName} API key`,
+    {
+      allowLiteral: false,
+      optionalEnv: true,
+    },
+  );
+  const bearerToken = resolveOptionalString(
+    provider.bearer_token,
+    env,
+    `${target.name} ${sourceName} bearer token`,
+    {
+      allowLiteral: false,
+      optionalEnv: true,
+    },
+  );
+  const apiVersion = resolveOptionalString(
+    provider.api_version,
+    env,
+    `${target.name} ${sourceName} API version`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+  const wireApi = resolveOptionalString(
+    provider.wire_api,
+    env,
+    `${target.name} ${sourceName} wire API`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  if (!baseUrl) {
+    throw new Error(
+      `${target.name}: '${sourceName}.base_url' is required when '${sourceName}' is specified`,
+    );
+  }
+
+  return {
+    ...(type ? { type } : {}),
+    baseUrl,
+    ...(apiKey ? { apiKey } : {}),
+    ...(bearerToken ? { bearerToken } : {}),
+    ...(apiVersion ? { apiVersion } : {}),
+    ...(wireApi ? { wireApi } : {}),
   };
 }
 
@@ -1628,6 +1681,7 @@ function resolveCopilotCliConfig(
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
       : undefined;
+  const customProvider = resolveCopilotCustomProviderConfig(target, env);
 
   return {
     executable,
@@ -1639,6 +1693,7 @@ function resolveCopilotCliConfig(
     logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
+    ...(customProvider ? { customProvider } : {}),
   };
 }
 

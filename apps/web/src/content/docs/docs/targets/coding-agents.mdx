@@ -140,7 +140,24 @@ targets:
 |-------|----------|-------------|
 | `model` | No | Model to use (defaults to copilot's default) |
 | `cwd` | No | Working directory |
+| `custom_provider` | No | OpenAI-compatible provider endpoint for `copilot`, `copilot-cli`, or `copilot-sdk` |
 | `grader_target` | Yes | LLM target for evaluation |
+
+Route Copilot through an OpenAI-compatible endpoint:
+
+```yaml
+targets:
+  - name: copilot-openai
+    provider: copilot-cli
+    custom_provider:
+      type: openai
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}
+      wire_api: ${{ COPILOT_PROVIDER_WIRE_API }}
+    grader_target: azure-base
+```
+
+Values can come from environment variables through `${{ ... }}` interpolation. For `copilot-cli`, AgentV maps this shared block to Copilot's documented provider environment variables before spawning `copilot`; omitted fields leave existing ambient `COPILOT_PROVIDER_*` values unchanged.
 
 ## Pi Coding Agent
 

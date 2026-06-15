@@ -126,6 +126,7 @@ const COPILOT_SDK_SETTINGS = new Set([
   'log_format',
   'stream_log',
   'system_prompt',
+  'custom_provider',
   'byok',
 ]);
 
@@ -143,6 +144,7 @@ const COPILOT_CLI_SETTINGS = new Set([
   'log_format',
   'stream_log',
   'system_prompt',
+  'custom_provider',
 ]);
 
 const VSCODE_SETTINGS = new Set([

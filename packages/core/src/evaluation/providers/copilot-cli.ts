@@ -17,11 +17,12 @@ import {
   buildLogFilename,
   isLogStreamingDisabled,
   killProcess,
+  resolveCopilotTimeoutMs,
   resolvePlatformCliPath,
 } from './copilot-utils.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
-import type { CopilotCliResolvedConfig } from './targets.js';
+import type { CopilotCliResolvedConfig, CopilotCustomProviderConfig } from './targets.js';
 import type {
   Message,
   Provider,
@@ -38,6 +39,28 @@ interface ToolCallInProgress {
   readonly startTime: string;
   readonly startMs: number;
 }
+
+interface CopilotCliPromptRunOptions {
+  readonly executable: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+  readonly timeoutMs: number;
+  readonly env: NodeJS.ProcessEnv;
+  readonly signal?: AbortSignal;
+  readonly onStdoutChunk?: (chunk: string) => void;
+  readonly onStderrChunk?: (chunk: string) => void;
+}
+
+interface CopilotCliPromptRunResult {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+  readonly timedOut?: boolean;
+}
+
+type CopilotCliPromptRunner = (
+  options: CopilotCliPromptRunOptions,
+) => Promise<CopilotCliPromptRunResult>;
 
 /**
  * Copilot CLI provider using the Agent Client Protocol (ACP).
@@ -59,11 +82,17 @@ export class CopilotCliProvider implements Provider {
   readonly supportsBatch = false;
 
   private readonly config: CopilotCliResolvedConfig;
+  private readonly runPromptMode: CopilotCliPromptRunner;
 
-  constructor(targetName: string, config: CopilotCliResolvedConfig) {
+  constructor(
+    targetName: string,
+    config: CopilotCliResolvedConfig,
+    promptRunner: CopilotCliPromptRunner = defaultCopilotCliPromptRunner,
+  ) {
     this.id = `copilot-cli:${targetName}`;
     this.targetName = targetName;
     this.config = config;
+    this.runPromptMode = promptRunner;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -74,7 +103,11 @@ export class CopilotCliProvider implements Provider {
     const startTime = new Date().toISOString();
     const startMs = Date.now();
 
-    const logger = await this.createStreamLogger(request).catch(() => undefined);
+    if (this.config.customProvider) {
+      return await this.invokePromptMode(request, startTime, startMs);
+    }
+
+    const logger = await this.createStreamLogger(request, 'acp').catch(() => undefined);
 
     // Build command args
     const executable = this.resolveExecutable();
@@ -82,6 +115,7 @@ export class CopilotCliProvider implements Provider {
 
     // Spawn the CLI process
     const agentProcess = spawn(executable, args, {
+      env: buildCopilotCliProviderEnv(process.env, this.config.customProvider),
       stdio: ['pipe', 'pipe', 'inherit'],
     });
     trackChild(agentProcess);
@@ -357,6 +391,104 @@ export class CopilotCliProvider implements Provider {
     return args;
   }
 
+  private async invokePromptMode(
+    request: ProviderRequest,
+    startTime: string,
+    startMs: number,
+  ): Promise<ProviderResponse> {
+    const logger = await this.createStreamLogger(request, 'prompt').catch(() => undefined);
+    const executable = this.resolveExecutable();
+    const inputFiles = normalizeInputFiles(request.inputFiles);
+    const prompt = buildPromptDocument(request, inputFiles);
+    const systemPrompt = this.resolveSystemPrompt(request);
+    const promptText = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+    const args = this.buildPromptModeArgs(promptText);
+    const cwd = this.resolveCwd(request.cwd) ?? process.cwd();
+    const env = buildCopilotCliProviderEnv(process.env, this.config.customProvider);
+
+    try {
+      const result = await this.runPromptMode({
+        executable,
+        args,
+        cwd,
+        timeoutMs: resolveCopilotTimeoutMs(this.config.timeoutMs),
+        env,
+        signal: request.signal,
+        onStdoutChunk: logger
+          ? (chunk) =>
+              logger.handleEvent('stdout', {
+                chunk: sanitizeSensitiveText(chunk, this.config.customProvider),
+              })
+          : undefined,
+        onStderrChunk: logger
+          ? (chunk) =>
+              logger.handleEvent('stderr', {
+                chunk: sanitizeSensitiveText(chunk, this.config.customProvider),
+              })
+          : undefined,
+      });
+
+      const sanitizedStderr = sanitizeSensitiveText(result.stderr, this.config.customProvider);
+      if (result.timedOut) {
+        throw new Error(
+          `Copilot CLI timed out after ${Math.ceil(resolveCopilotTimeoutMs(this.config.timeoutMs) / 1000)}s`,
+        );
+      }
+
+      if (result.exitCode !== 0) {
+        const detail = pickPromptModeDetail(
+          sanitizeSensitiveText(result.stderr, this.config.customProvider),
+          sanitizeSensitiveText(result.stdout, this.config.customProvider),
+        );
+        const prefix = `Copilot CLI exited with code ${result.exitCode}`;
+        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
+      }
+
+      const assistantText = extractCopilotPromptResponse(result.stdout);
+      const endTime = new Date().toISOString();
+
+      return {
+        raw: {
+          model: this.config.model,
+          executable,
+          args,
+          stdout: result.stdout,
+          stderr: sanitizedStderr,
+          exitCode: result.exitCode,
+          logFile: logger?.filePath,
+        },
+        output: [{ role: 'assistant', content: assistantText }],
+        durationMs: Date.now() - startMs,
+        startTime,
+        endTime,
+      };
+    } catch (error) {
+      const err = error as Error & { code?: string };
+      if (err.code === 'ENOENT' || err.code === 'EINVAL') {
+        throw new Error(formatCopilotSpawnError(err, executable, this.targetName));
+      }
+      throw error;
+    } finally {
+      await logger?.close();
+    }
+  }
+
+  private buildPromptModeArgs(prompt: string): string[] {
+    const args = ['-s', '--allow-all-tools', '--no-color'];
+
+    if (this.config.model) {
+      args.push('--model', this.config.model);
+    }
+
+    if (this.config.args) {
+      args.push(...this.config.args);
+    }
+
+    args.push('-p', prompt);
+
+    return args;
+  }
+
   private resolveSystemPrompt(_request: ProviderRequest): string | undefined {
     return this.config.systemPrompt;
   }
@@ -365,10 +497,7 @@ export class CopilotCliProvider implements Provider {
     sendPromise: Promise<T>,
     agentProcess: ChildProcess,
   ): Promise<T> {
-    const timeoutMs = this.config.timeoutMs;
-    if (!timeoutMs) {
-      return sendPromise;
-    }
+    const timeoutMs = resolveCopilotTimeoutMs(this.config.timeoutMs);
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -422,6 +551,7 @@ export class CopilotCliProvider implements Provider {
 
   private async createStreamLogger(
     request: ProviderRequest,
+    mode: 'acp' | 'prompt',
   ): Promise<CopilotStreamLogger | undefined> {
     const logDir = this.resolveLogDirectory();
     if (!logDir) {
@@ -445,10 +575,10 @@ export class CopilotCliProvider implements Provider {
           evalCaseId: request.evalCaseId,
           attempt: request.attempt,
           format: this.config.logFormat ?? 'summary',
-          headerLabel: 'Copilot CLI (ACP)',
-          chunkExtractor: extractAcpChunk,
+          headerLabel: mode === 'acp' ? 'Copilot CLI (ACP)' : 'Copilot CLI (prompt)',
+          chunkExtractor: mode === 'acp' ? extractAcpChunk : undefined,
         },
-        summarizeAcpEvent,
+        mode === 'acp' ? summarizeAcpEvent : summarizePromptModeEvent,
       );
       recordCopilotCliLogEntry({
         filePath,
@@ -463,6 +593,32 @@ export class CopilotCliProvider implements Provider {
       return undefined;
     }
   }
+}
+
+export function buildCopilotCliProviderEnv(
+  baseEnv: NodeJS.ProcessEnv,
+  customProvider: CopilotCustomProviderConfig | undefined,
+): NodeJS.ProcessEnv {
+  const env = { ...baseEnv };
+  if (!customProvider) {
+    return env;
+  }
+  if (customProvider.type) {
+    env.COPILOT_PROVIDER_TYPE = customProvider.type;
+  }
+  env.COPILOT_PROVIDER_BASE_URL = customProvider.baseUrl;
+  if (customProvider.bearerToken) {
+    env.COPILOT_PROVIDER_BEARER_TOKEN = customProvider.bearerToken;
+  } else if (customProvider.apiKey) {
+    env.COPILOT_PROVIDER_API_KEY = customProvider.apiKey;
+  }
+  if (customProvider.wireApi) {
+    env.COPILOT_PROVIDER_WIRE_API = customProvider.wireApi;
+  }
+  if (customProvider.apiVersion) {
+    env.COPILOT_PROVIDER_AZURE_API_VERSION = customProvider.apiVersion;
+  }
+  return env;
 }
 
 async function waitForProcessSpawn(
@@ -572,4 +728,133 @@ function summarizeAcpEvent(eventType: string, data: unknown): string | undefined
     default:
       return undefined;
   }
+}
+
+function summarizePromptModeEvent(eventType: string, data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') {
+    return eventType;
+  }
+  const chunk = (data as Record<string, unknown>).chunk;
+  if (typeof chunk !== 'string') {
+    return undefined;
+  }
+  const trimmed = chunk.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return `${trimmed.slice(0, 200)}${trimmed.length > 200 ? '...' : ''}`;
+}
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape stripping requires matching control characters
+const ANSI_ESCAPE_RE = /\x1B\[[0-9;]*[A-Za-z]/g;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: OSC sequence stripping requires matching control characters
+const ANSI_OSC_RE = /\x1B\][^\x07]*\x07/g;
+
+function stripAnsiEscapes(text: string): string {
+  return text.replace(ANSI_ESCAPE_RE, '').replace(ANSI_OSC_RE, '');
+}
+
+function extractCopilotPromptResponse(stdout: string): string {
+  const cleaned = stripAnsiEscapes(stdout).trim();
+  if (cleaned.length === 0) {
+    throw new Error('Copilot CLI produced no output');
+  }
+  return cleaned;
+}
+
+function pickPromptModeDetail(stderr: string, stdout: string): string | undefined {
+  const errorText = stderr.trim();
+  if (errorText.length > 0) {
+    return errorText;
+  }
+  const stdoutText = stdout.trim();
+  return stdoutText.length > 0 ? stdoutText : undefined;
+}
+
+function sanitizeSensitiveText(
+  text: string,
+  customProvider: CopilotCustomProviderConfig | undefined,
+): string {
+  if (!customProvider) {
+    return text;
+  }
+  const secrets = [customProvider.apiKey, customProvider.bearerToken].filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  );
+  let sanitized = text;
+  for (const secret of secrets) {
+    sanitized = sanitized.split(secret).join('[redacted]');
+  }
+  return sanitized;
+}
+
+async function defaultCopilotCliPromptRunner(
+  options: CopilotCliPromptRunOptions,
+): Promise<CopilotCliPromptRunResult> {
+  return await new Promise<CopilotCliPromptRunResult>((resolve, reject) => {
+    const child = spawn(options.executable, options.args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    trackChild(child);
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
+    const onAbort = (): void => {
+      killProcess(child);
+    };
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        onAbort();
+      } else {
+        options.signal.addEventListener('abort', onAbort, { once: true });
+      }
+    }
+
+    const timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      killProcess(child);
+    }, options.timeoutMs);
+    timeoutHandle.unref?.();
+
+    child.stdout?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk: string) => {
+      stdout += chunk;
+      options.onStdoutChunk?.(chunk);
+    });
+
+    child.stderr?.setEncoding('utf8');
+    child.stderr?.on('data', (chunk: string) => {
+      stderr += chunk;
+      options.onStderrChunk?.(chunk);
+    });
+
+    child.stdin?.end();
+
+    const cleanup = (): void => {
+      clearTimeout(timeoutHandle);
+      if (options.signal) {
+        options.signal.removeEventListener('abort', onAbort);
+      }
+    };
+
+    child.on('error', (error) => {
+      cleanup();
+      reject(error);
+    });
+
+    child.on('close', (code) => {
+      cleanup();
+      resolve({
+        stdout,
+        stderr,
+        exitCode: typeof code === 'number' ? code : -1,
+        timedOut,
+      });
+    });
+  });
 }

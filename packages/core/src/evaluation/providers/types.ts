@@ -433,7 +433,9 @@ export interface TargetDefinition {
   readonly cli_url?: string | unknown | undefined;
   readonly cli_path?: string | unknown | undefined;
   readonly github_token?: string | unknown | undefined;
-  // Copilot SDK BYOK (Bring Your Own Key) — routes through a user-provided endpoint
+  // Copilot custom provider fields
+  readonly custom_provider?: Record<string, unknown> | undefined;
+  // Copilot SDK BYOK compatibility alias
   readonly byok?: Record<string, unknown> | undefined;
   // Retry configuration fields
   readonly max_retries?: number | unknown | undefined;
