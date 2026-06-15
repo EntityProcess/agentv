@@ -43,12 +43,12 @@ import { BrandName } from './BrandName';
 function SidebarShell({ children }: { children: ReactNode }) {
   const { isOpen, close } = useSidebarContext();
   const location = useLocation();
+  const navigationHref = location.href;
 
-  // Close sidebar on navigation (mobile UX)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: location.pathname is the intended trigger
+  // Close sidebar on navigation, including same-route tab changes.
   useEffect(() => {
-    close();
-  }, [close, location.pathname]);
+    if (navigationHref) close();
+  }, [close, navigationHref]);
 
   return (
     <>
