@@ -1169,6 +1169,53 @@ describe('resolveTargetDefinition', () => {
       ),
     ).toThrow(/model/i);
   });
+
+  it('resolves replay targets from trace envelope sources', () => {
+    const evalFilePath = '/workspace/evals/sample.eval.yaml';
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'replay-from-envelope',
+        provider: 'replay',
+        trace_envelopes: '../fixtures/trace-envelopes.jsonl',
+        source_target: 'live-agent',
+        suite: 'suite-a',
+        eval_path: 'evals/sample.eval.yaml',
+        variant: 'legal-v1',
+      },
+      {},
+      evalFilePath,
+    );
+
+    expect(resolved.kind).toBe('replay');
+    if (resolved.kind !== 'replay') {
+      throw new Error('expected replay target');
+    }
+    expect(resolved.config.source).toEqual({
+      kind: 'trace_envelopes',
+      path: '/workspace/fixtures/trace-envelopes.jsonl',
+    });
+    expect(resolved.config.fixturesPath).toBeUndefined();
+    expect(resolved.config.sourceTarget).toBe('live-agent');
+    expect(resolved.config.suite).toBe('suite-a');
+    expect(resolved.config.evalPath).toBe('evals/sample.eval.yaml');
+    expect(resolved.config.variant).toBe('legal-v1');
+  });
+
+  it('rejects replay targets with multiple replay sources', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'ambiguous-replay',
+          provider: 'replay',
+          fixtures: './target-output.jsonl',
+          trace_envelopes: './trace-envelopes.jsonl',
+          source_target: 'live-agent',
+        },
+        {},
+        '/workspace/evals/sample.eval.yaml',
+      ),
+    ).toThrow(/exactly one replay source/i);
+  });
 });
 
 describe('createProvider', () => {

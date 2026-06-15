@@ -62,6 +62,7 @@ export type {
   PiCliResolvedConfig,
   PiCodingAgentResolvedConfig,
   ReplayResolvedConfig,
+  ReplayResolvedSource,
   ResolvedTarget,
   VSCodeResolvedConfig,
 } from './targets.js';

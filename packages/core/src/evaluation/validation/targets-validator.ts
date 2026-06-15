@@ -165,6 +165,7 @@ const MOCK_SETTINGS = new Set([
 const REPLAY_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'fixtures',
+  'trace_envelopes',
   'source_target',
   'suite',
   'eval_path',
@@ -594,12 +595,15 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       validateCliSettings(target, absolutePath, location, errors);
     }
     if (providerValue === 'replay') {
-      if (!isNonEmptyString(target.fixtures)) {
+      const hasFixtures = isNonEmptyString(target.fixtures);
+      const hasTraceEnvelopes = isNonEmptyString(target.trace_envelopes);
+      if (hasFixtures === hasTraceEnvelopes) {
         errors.push({
           severity: 'error',
           filePath: absolutePath,
-          location: `${location}.fixtures`,
-          message: "Replay provider requires 'fixtures' as a non-empty string",
+          location,
+          message:
+            "Replay provider requires exactly one replay source: 'fixtures' or 'trace_envelopes'",
         });
       }
       if (!isNonEmptyString(target.source_target)) {

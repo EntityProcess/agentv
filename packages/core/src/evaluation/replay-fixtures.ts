@@ -114,6 +114,15 @@ export interface ReplayFixtureLookup {
   readonly variant?: string;
 }
 
+export interface ReplayLookupIdentity {
+  readonly suite?: string;
+  readonly evalPath?: string;
+  readonly testId: string;
+  readonly sourceTarget: string;
+  readonly attempt?: number;
+  readonly variant?: string | null;
+}
+
 export interface ReplayRecordingOptions {
   readonly fixturesPath: string;
   readonly sourceTarget?: string;
@@ -322,7 +331,7 @@ export function findReplayFixtureRecord(
     return matches[0];
   }
 
-  const key = formatLookupKey(lookup);
+  const key = formatReplayLookupKey(lookup);
   if (matches.length === 0) {
     throw new Error(`Replay fixture lookup found no record for ${key}`);
   }
@@ -330,23 +339,34 @@ export function findReplayFixtureRecord(
 }
 
 function replayRecordMatches(record: ReplayFixtureRecord, lookup: ReplayFixtureLookup): boolean {
-  if (lookup.suite && record.suite !== lookup.suite) {
+  return replayLookupIdentityMatches(record, lookup);
+}
+
+export function replayLookupIdentityMatches(
+  identity: ReplayLookupIdentity,
+  lookup: ReplayFixtureLookup,
+): boolean {
+  if (lookup.suite && identity.suite !== lookup.suite) {
     return false;
   }
   if (!lookup.suite && !lookup.evalPath) {
     throw new Error('Replay fixture lookup requires suite or eval_path identity');
   }
-  if (record.evalPath && !lookup.evalPath) {
+  if (identity.evalPath && !lookup.evalPath) {
     return false;
   }
-  if (record.evalPath && lookup.evalPath && !sameEvalPath(record.evalPath, lookup.evalPath)) {
+  if (
+    identity.evalPath &&
+    lookup.evalPath &&
+    !sameReplayEvalPath(identity.evalPath, lookup.evalPath)
+  ) {
     return false;
   }
   return (
-    record.testId === lookup.testId &&
-    record.sourceTarget === lookup.sourceTarget &&
-    record.attempt === (lookup.attempt ?? 0) &&
-    (record.variant ?? null) === (lookup.variant ?? null)
+    identity.testId === lookup.testId &&
+    identity.sourceTarget === lookup.sourceTarget &&
+    (identity.attempt ?? 0) === (lookup.attempt ?? 0) &&
+    (identity.variant ?? null) === (lookup.variant ?? null)
   );
 }
 
@@ -354,7 +374,7 @@ function normalizeEvalPath(value: string): string {
   return value.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+/g, '/');
 }
 
-function sameEvalPath(recordPath: string, lookupPath: string): boolean {
+export function sameReplayEvalPath(recordPath: string, lookupPath: string): boolean {
   const record = normalizeEvalPath(recordPath);
   const lookup = normalizeEvalPath(lookupPath);
   if (record === lookup) {
@@ -363,7 +383,7 @@ function sameEvalPath(recordPath: string, lookupPath: string): boolean {
   return path.isAbsolute(lookupPath) && lookup.endsWith(`/${record}`);
 }
 
-function formatLookupKey(lookup: ReplayFixtureLookup): string {
+export function formatReplayLookupKey(lookup: ReplayFixtureLookup): string {
   const parts = [
     lookup.suite ? `suite=${lookup.suite}` : undefined,
     lookup.evalPath ? `eval_path=${lookup.evalPath}` : undefined,

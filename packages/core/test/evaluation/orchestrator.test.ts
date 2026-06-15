@@ -24,7 +24,12 @@ import {
   serializeReplayFixtureRecord,
 } from '../../src/evaluation/replay-fixtures.js';
 import { RunBudgetTracker } from '../../src/evaluation/run-budget-tracker.js';
-import type { EvalTest, TrialsConfig } from '../../src/evaluation/types.js';
+import {
+  buildTraceEnvelopeFromEvaluationResult,
+  toTraceEnvelopeWire,
+} from '../../src/evaluation/trace-envelope.js';
+import { buildTraceFromMessages } from '../../src/evaluation/trace.js';
+import type { EvalTest, EvaluationResult, TrialsConfig } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
   readonly id: string;
@@ -445,6 +450,107 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(results[0]?.tokenUsage).toEqual({ input: 12, output: 4 });
     expect(results[0]?.costUsd).toBe(0.003);
     expect(results[0]?.durationMs).toBe(222);
+  });
+
+  it('replays trace envelope target output without invoking the live target and still runs graders', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-envelope-replay-run-'));
+    const envelopePath = path.join(tempDir, 'trace-envelope.json');
+    const output: readonly Message[] = [
+      { role: 'assistant', content: 'Envelope replay target answer' },
+    ];
+    const input: readonly Message[] = [{ role: 'user', content: 'Replay from envelope' }];
+    const replayResult = {
+      timestamp: '2026-06-15T12:00:00.000Z',
+      testId: 'case-envelope-replay',
+      suite: 'replay-suite',
+      category: 'replay',
+      score: 1,
+      assertions: [{ text: 'ok', passed: true }],
+      target: 'live_coding_agent',
+      input,
+      output: 'Envelope replay target answer',
+      trace: buildTraceFromMessages({
+        input,
+        output,
+        finalOutput: 'Envelope replay target answer',
+        target: 'live_coding_agent',
+        testId: 'case-envelope-replay',
+        tokenUsage: { input: 13, output: 5 },
+        costUsd: 0.004,
+        durationMs: 333,
+      }),
+      tokenUsage: { input: 13, output: 5 },
+      costUsd: 0.004,
+      durationMs: 333,
+      executionStatus: 'ok',
+    } as EvaluationResult;
+    const envelope = buildTraceEnvelopeFromEvaluationResult(replayResult, {
+      evalPath: 'evals/replay.eval.yaml',
+      sourceTarget: 'live_coding_agent',
+      capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
+      now: () => new Date('2026-06-15T12:00:05.000Z'),
+    });
+    writeFileSync(envelopePath, `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`);
+
+    let liveTargetCalls = 0;
+    let graderRuns = 0;
+    const replayTarget: ResolvedTarget = {
+      kind: 'replay',
+      name: 'replay_coding_agent',
+      config: {
+        source: { kind: 'trace_envelopes', path: envelopePath },
+        sourceTarget: 'live_coding_agent',
+      },
+    };
+    const liveProvider: Provider = {
+      id: 'live:agent',
+      kind: 'mock' as const,
+      targetName: 'live_coding_agent',
+      async invoke(): Promise<ProviderResponse> {
+        liveTargetCalls += 1;
+        return { output: [{ role: 'assistant', content: 'live response' }] };
+      },
+    };
+    const replayProvider = new ReplayProvider('replay_coding_agent', replayTarget.config);
+    const freshEvaluatorRegistry = {
+      'llm-grader': {
+        kind: 'llm-grader',
+        async evaluate() {
+          graderRuns += 1;
+          return {
+            score: 1,
+            verdict: 'pass' as const,
+            assertions: [{ text: 'fresh grader', passed: true }],
+            expectedAspectCount: 1,
+          };
+        },
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: path.join(tempDir, 'evals', 'replay.eval.yaml'),
+      repoRoot: tempDir,
+      target: replayTarget,
+      targets: [{ name: 'live_coding_agent', provider: 'mock' }],
+      providerFactory: (target) =>
+        target.name === 'live_coding_agent' ? liveProvider : replayProvider,
+      evaluators: freshEvaluatorRegistry,
+      evalCases: [
+        {
+          ...baseTestCase,
+          id: 'case-envelope-replay',
+          suite: 'replay-suite',
+          evaluator: 'llm-grader',
+        },
+      ],
+    });
+
+    expect(liveTargetCalls).toBe(0);
+    expect(graderRuns).toBe(1);
+    expect(results[0]?.output).toBe('Envelope replay target answer');
+    expect(results[0]?.tokenUsage).toEqual({ input: 13, output: 5 });
+    expect(results[0]?.costUsd).toBe(0.004);
+    expect(results[0]?.durationMs).toBe(333);
   });
 
   it('preserves workspace cwd across retry attempts', async () => {
