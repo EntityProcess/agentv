@@ -19,9 +19,10 @@ skill evals: invocation (does the agent reach for the tool), selection
 
 ## Fixtures
 
-`fixtures/` holds frozen snapshots of CLI output. They are checked in
-so eval runs are deterministic and don't require network or build
-state.
+`fixtures/` holds frozen snapshots of CLI output for skills whose content is
+not under active self-evaluation here. They are checked in so eval runs are
+deterministic and don't require network or build state. Two flavours per
+fixture-backed skill:
 
 - `agentv-<name>.txt` — bare `SKILL.md` content (`agentv skills get <name>`).
   Used in most tests; small (1.5–25 KB).
@@ -34,16 +35,21 @@ Plus two single-purpose fixtures:
 - `skills-list-all.txt` — output of `agentv skills list --json`.
 - `skills-get-nonexistent.txt` — error output of `agentv skills get does-not-exist`.
 
+`agentv-bench` is intentionally not fixture-backed. Tests that need its content
+read `/skills-data/agentv-bench/SKILL.md` directly through AgentV's normal
+`type: file` resolver, so the self-eval covers the current source skill instead
+of a copied snapshot.
+
 ### Regenerating fixtures
 
 After any change to bundled skill content or the `agentv skills` CLI,
-regenerate fixtures from the worktree root:
+regenerate fixture-backed skills from the worktree root:
 
 ```bash
 cd evals/self/skills
 
 # Bare SKILL.md per skill
-for skill in agentv-bench agentv-eval-review agentv-eval-writer \
+for skill in agentv-eval-review agentv-eval-writer \
              agentv-governance agentv-onboarding agentv-trace-analyst; do
   node ../../../apps/cli/dist/cli.js skills get "$skill" \
     > "fixtures/${skill}.txt" 2>&1
