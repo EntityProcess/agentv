@@ -411,10 +411,15 @@ The value is a **semver range** using standard npm syntax (e.g., `>=2.12.0`, `^2
 | Condition | Interactive (TTY) | Non-interactive (CI) |
 |-----------|-------------------|---------------------|
 | Version satisfies range | Runs silently | Runs silently |
-| Version below range | Warns + prompts to continue | Warns to stderr, continues |
+| Version below range | Warns to stderr, continues | Warns to stderr, continues |
 | `--strict` flag + mismatch | Warns + exits 1 | Warns + exits 1 |
 | No `required_version` set | Runs silently | Runs silently |
 | Malformed semver range | Error + exits 1 | Error + exits 1 |
+
+By default, `required_version` is advisory: AgentV never prompts, self-updates,
+or blocks a run just because the installed version is outside the range. If an
+eval fails or has execution errors while the range is unsatisfied, the summary
+includes a note that the version mismatch may be the cause.
 
 Use `--strict` in CI pipelines to enforce version requirements:
 

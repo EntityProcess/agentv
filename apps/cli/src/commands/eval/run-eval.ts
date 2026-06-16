@@ -31,7 +31,11 @@ import {
   subscribeToPiLogEntries,
 } from '@agentv/core';
 
-import { enforceRequiredVersion } from '../../version-check.js';
+import {
+  type VersionCheckResult,
+  enforceRequiredVersion,
+  formatRequiredVersionFailureNote,
+} from '../../version-check.js';
 import {
   type RemoteExportStatus,
   getRelativeRunPath,
@@ -1107,9 +1111,11 @@ export async function runEvalCommand(
   // Pass a dummy file in cwd so the search starts from the working directory.
   const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
 
-  // Check required_version before proceeding with eval
+  // Check required_version before proceeding with eval. A mismatch is advisory
+  // unless the user explicitly opts into --strict.
+  let requiredVersionCheck: VersionCheckResult | undefined;
   if (yamlConfig?.required_version) {
-    await enforceRequiredVersion(yamlConfig.required_version, {
+    requiredVersionCheck = await enforceRequiredVersion(yamlConfig.required_version, {
       strict: normalizeBoolean(input.rawOptions.strict),
     });
   }
@@ -1774,6 +1780,13 @@ export async function runEvalCommand(
       resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
     const summary = calculateEvaluationSummary(summaryResults, thresholdOpts);
     console.log(formatEvaluationSummary(summary, thresholdOpts));
+    if (
+      requiredVersionCheck &&
+      !requiredVersionCheck.satisfied &&
+      (summary.qualityFailureCount > 0 || summary.executionErrorCount > 0)
+    ) {
+      console.log(`\n${formatRequiredVersionFailureNote(requiredVersionCheck)}`);
+    }
 
     // Exit code: 2 when all tests are execution errors (no evaluation performed),
     // 1 when any test scored below threshold.

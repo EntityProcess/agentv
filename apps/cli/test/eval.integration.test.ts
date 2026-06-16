@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
+import packageJson from '../package.json' with { type: 'json' };
 import { assertCoreBuild } from './setup-core-build.js';
 
 assertCoreBuild();
@@ -215,6 +216,17 @@ async function writeTsOutputConfig(fixture: EvalFixture, outputDir: string): Pro
   );
 }
 
+async function writeRequiredVersionConfig(
+  fixture: EvalFixture,
+  requiredVersion: string,
+): Promise<void> {
+  await writeFile(
+    path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
+    `required_version: "${requiredVersion}"\n`,
+    'utf8',
+  );
+}
+
 async function expectFileExists(filePath: string): Promise<void> {
   await access(filePath);
 }
@@ -257,6 +269,58 @@ describe('agentv eval CLI', () => {
       });
 
       // Prompt dump feature has been removed, so we no longer check for it
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('surfaces required_version mismatch note when the eval fails', async () => {
+    const fixture = await createFixture();
+    try {
+      await writeRequiredVersionConfig(fixture, '>=999.0.0');
+
+      const { stdout, stderr, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--threshold',
+        '0.8',
+      ]);
+
+      expect(exitCode).toBe(1);
+      expect(stdout).toContain('RESULT: FAIL');
+      expect(stdout).toContain(
+        `note: agentv ${packageJson.version} does not satisfy this project's required_version >=999.0.0 - this may be the cause. Run \`agentv self update\`.`,
+      );
+      expect(stderr).toContain(
+        `Warning: agentv ${packageJson.version} does not satisfy this project's required_version >=999.0.0. Run \`agentv self update\`.`,
+      );
+      expect(`${stdout}\n${stderr}`).not.toContain('Update now?');
+      expect(`${stdout}\n${stderr}`).not.toContain('Update complete');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('keeps required_version mismatch low-noise when the eval passes', async () => {
+    const fixture = await createFixture();
+    try {
+      await writeRequiredVersionConfig(fixture, '>=999.0.0');
+
+      const { stdout, stderr, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--threshold',
+        '0.5',
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('RESULT: PASS');
+      expect(stdout).not.toContain('note: agentv');
+      expect(stderr).toContain(
+        `Warning: agentv ${packageJson.version} does not satisfy this project's required_version >=999.0.0. Run \`agentv self update\`.`,
+      );
+      expect(`${stdout}\n${stderr}`).not.toContain('Update now?');
+      expect(`${stdout}\n${stderr}`).not.toContain('Update complete');
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }

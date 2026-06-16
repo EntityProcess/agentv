@@ -1,11 +1,9 @@
-import { coerce, major, satisfies, validRange } from 'semver';
+import { coerce, satisfies, validRange } from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
-import { performSelfUpdate } from './self-update.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
-const ANSI_GREEN = '\u001b[32m';
 const ANSI_RESET = '\u001b[0m';
 
 export interface VersionCheckResult {
@@ -15,8 +13,12 @@ export interface VersionCheckResult {
 }
 
 /**
- * Validate and check the installed version against a required semver range.
- * Throws on malformed range strings.
+ * Advisory version checks for project `required_version`.
+ *
+ * A mismatched installed version never prompts, self-updates, or exits by
+ * default. Commands may print the returned warning to help users diagnose
+ * failures, while explicit `--strict` callers can still opt into a hard gate.
+ * Malformed ranges remain configuration errors.
  */
 export function checkVersion(requiredVersion: string): VersionCheckResult {
   const currentVersion = packageJson.version;
@@ -34,23 +36,30 @@ export function checkVersion(requiredVersion: string): VersionCheckResult {
   };
 }
 
+function formatVersionMismatch(result: VersionCheckResult): string {
+  return `agentv ${result.currentVersion} does not satisfy this project's required_version ${result.requiredRange}`;
+}
+
+export function formatRequiredVersionWarning(result: VersionCheckResult): string {
+  return `${ANSI_YELLOW}Warning: ${formatVersionMismatch(result)}. Run \`agentv self update\`.${ANSI_RESET}`;
+}
+
+export function formatRequiredVersionFailureNote(result: VersionCheckResult): string {
+  return `note: ${formatVersionMismatch(result)} - this may be the cause. Run \`agentv self update\`.`;
+}
+
 /**
- * Run the version compatibility check and handle user interaction.
+ * Run the version compatibility check.
  *
- * - If the version satisfies the range, returns silently.
+ * - If the version satisfies the range, returns the satisfied result silently.
  * - If the range is malformed, prints an error and exits with code 1.
- * - If the version is below the range:
- *   - Interactive (TTY): warns and prompts "Update now? (Y/n)".
- *     Y → runs self-update inline (constrained to the config range),
- *         then exits with a message to re-run the command.
- *     N → continues the command as-is.
- *   - Non-interactive: warns to stderr, continues (unless strict).
- *   - Strict mode: warns and exits with code 1.
+ * - If the version is below the range, warns to stderr and continues.
+ * - Strict mode remains an explicit opt-in hard failure.
  */
-export async function enforceRequiredVersion(
+export function enforceRequiredVersion(
   requiredVersion: string,
   options?: { strict?: boolean },
-): Promise<void> {
+): VersionCheckResult {
   let result: VersionCheckResult;
   try {
     result = checkVersion(requiredVersion);
@@ -60,59 +69,19 @@ export async function enforceRequiredVersion(
   }
 
   if (result.satisfied) {
-    return;
+    return result;
   }
 
-  const warning = `${ANSI_YELLOW}Warning: This project requires agentv ${result.requiredRange} but you have ${result.currentVersion}.${ANSI_RESET}`;
+  const warning = formatRequiredVersionWarning(result);
 
   if (options?.strict) {
-    console.error(`${warning}\n  Run \`agentv self update\` to upgrade.`);
+    console.error(warning);
     console.error(
       `${ANSI_RED}Aborting: --strict mode requires the installed version to satisfy the required range.${ANSI_RESET}`,
     );
     process.exit(1);
   }
 
-  if (process.stdin.isTTY && process.stdout.isTTY) {
-    console.warn(warning);
-    const shouldUpdate = await promptUpdate();
-    if (shouldUpdate) {
-      await runInlineUpdate(result.currentVersion, result.requiredRange);
-    }
-    // N → continue the command without interruption
-  } else {
-    // Non-interactive: warn to stderr and continue
-    process.stderr.write(`${warning}\n  Run \`agentv self update\` to upgrade.\n`);
-  }
-}
-
-async function promptUpdate(): Promise<boolean> {
-  const { confirm } = await import('@inquirer/prompts');
-  return confirm({ message: 'Update now?', default: true });
-}
-
-async function runInlineUpdate(currentVersion: string, versionRange: string): Promise<void> {
-  // Cap at the current major version to avoid unintended breaking changes.
-  // e.g., if current is 4.14.2 and range is ">=4.1.0", install ">=4.1.0 <5.0.0"
-  // so that a hypothetical 5.0.0 is never pulled in by auto-update.
-  const currentMajor = major(coerce(currentVersion) ?? currentVersion);
-  const safeRange = `${versionRange} <${currentMajor + 1}.0.0`;
-
-  console.log('');
-  const result = await performSelfUpdate({ currentVersion, versionRange: safeRange });
-
-  if (!result.success) {
-    console.error(`${ANSI_RED}Update failed. Run \`agentv self update\` manually.${ANSI_RESET}`);
-    process.exit(1);
-  }
-
-  if (result.newVersion) {
-    console.log(
-      `\n${ANSI_GREEN}Update complete: ${currentVersion} → ${result.newVersion}${ANSI_RESET}`,
-    );
-  } else {
-    console.log(`\n${ANSI_GREEN}Update complete.${ANSI_RESET}`);
-  }
-  console.log('Please re-run your command.');
-  process.exit(0);
+  process.stderr.write(`${warning}\n`);
+  return result;
 }
