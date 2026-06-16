@@ -1,0 +1,4 @@
+AGENTV_REPO_FILE_SUBSTITUTION_READY
+
+This file is injected through a type:file input so the release contract covers
+prompt file substitution while the code-grader verifies workspace state.

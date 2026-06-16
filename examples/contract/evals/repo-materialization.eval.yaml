@@ -1,0 +1,32 @@
+name: repo-materialization-contract
+description: Release gate for public repo materialization, ancestor checkout, and file input substitution.
+
+workspace:
+  repos:
+    - path: ./git-consortium
+      repo: https://github.com/octocat/git-consortium.git
+      commit: b33a9c7c02ad93f621fa38f0e9fc9e867e12fa0e
+      ancestor: 1
+
+execution:
+  target: github-models-contract
+  workers: 1
+
+tests:
+  - id: repo-materializes-previous-commit
+    criteria: The workspace materializes a pinned public repo and checks out the expected previous commit.
+    input:
+      - role: system
+        content: Reply with exactly the uppercase word READY.
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/repo-materialization-note.txt
+          - type: text
+            value: Reply READY after reading the attached contract file.
+    assertions:
+      - type: contains
+        value: READY
+      - name: repo-materialized-previous-commit
+        type: code-grader
+        command: ["bun", "../scripts/check-repo-materialization.ts"]

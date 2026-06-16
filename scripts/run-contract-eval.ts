@@ -9,22 +9,33 @@
 
 process.env.CONTRACT_EVAL_MODEL ||= 'openai/gpt-4.1-mini';
 
-const proc = Bun.spawn(
-  [
-    'bun',
-    'apps/cli/src/cli.ts',
-    'eval',
-    'examples/contract/evals/release-gate.eval.yaml',
-    '--target',
-    'github-models-contract',
-    '--threshold',
-    '1',
-  ],
-  {
-    env: process.env,
-    stdout: 'inherit',
-    stderr: 'inherit',
-  },
-);
+const evalFiles = [
+  'examples/contract/evals/release-gate.eval.yaml',
+  'examples/contract/evals/repo-materialization.eval.yaml',
+];
 
-process.exit(await proc.exited);
+for (const evalFile of evalFiles) {
+  console.log(`\n=== Contract eval: ${evalFile} ===`);
+  const proc = Bun.spawn(
+    [
+      'bun',
+      'apps/cli/src/cli.ts',
+      'eval',
+      evalFile,
+      '--target',
+      'github-models-contract',
+      '--threshold',
+      '1',
+    ],
+    {
+      env: process.env,
+      stdout: 'inherit',
+      stderr: 'inherit',
+    },
+  );
+
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    process.exit(exitCode);
+  }
+}

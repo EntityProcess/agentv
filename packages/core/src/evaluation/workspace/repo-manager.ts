@@ -428,6 +428,24 @@ export class RepoManager {
     throw new Error(`Cannot resolve ref '${ref}' to a commit.`);
   }
 
+  private async resolveCheckoutCommit(repo: RepoConfig, targetDir: string): Promise<string> {
+    const ref = getRepoCheckoutRef(repo);
+    const checkoutSha = await this.resolveCommit(ref, targetDir);
+    const ancestor = repo.ancestor ?? 0;
+    if (ancestor === 0) {
+      return checkoutSha;
+    }
+
+    try {
+      return await this.resolveCommit(`${checkoutSha}~${ancestor}`, targetDir);
+    } catch {
+      const shallowHint = isFullCommitSha(ref)
+        ? ''
+        : ' Ensure the declared commit has enough reachable history in the selected repo.';
+      throw new Error(`Cannot resolve ancestor ${ancestor} of ref '${ref}'.${shallowHint}`);
+    }
+  }
+
   private assertNoUserOwnedAlternates(targetDir: string, acquisition: AcquisitionSource): void {
     const alternatesPath = path.join(targetDir, '.git', 'objects', 'info', 'alternates');
     if (!existsSync(alternatesPath)) return;
@@ -534,21 +552,8 @@ export class RepoManager {
     if (this.verbose) {
       console.log(`[repo] checkout path=${repo.path} ref=${ref}`);
     }
-    const checkoutSha = await this.resolveCommit(ref, targetDir);
+    const checkoutSha = await this.resolveCheckoutCommit(repo, targetDir);
     await this.runGit(['checkout', '--detach', checkoutSha], { cwd: targetDir });
-
-    const ancestor = repo.ancestor ?? 0;
-    if (ancestor > 0) {
-      try {
-        const ancestorSha = await this.resolveCommit(`HEAD~${ancestor}`, targetDir);
-        await this.runGit(['checkout', '--detach', ancestorSha], { cwd: targetDir });
-      } catch {
-        const shallowHint = isFullCommitSha(ref)
-          ? ''
-          : ' Ensure the declared commit has enough reachable history in the selected repo.';
-        throw new Error(`Cannot resolve ancestor ${ancestor} of ref '${ref}'.${shallowHint}`);
-      }
-    }
 
     if (this.verbose) {
       console.log(
@@ -583,8 +588,7 @@ export class RepoManager {
     for (const repo of repos) {
       if (!repo.path || !repo.repo) continue;
       const targetDir = path.join(workspacePath, repo.path);
-      const ref = getRepoCheckoutRef(repo);
-      const resetSha = await this.resolveCommit(ref, targetDir);
+      const resetSha = await this.resolveCheckoutCommit(repo, targetDir);
       await this.runGit(['reset', '--hard', resetSha], { cwd: targetDir });
       await this.runGit(['clean', cleanFlag], { cwd: targetDir });
     }
