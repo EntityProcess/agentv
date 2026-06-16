@@ -147,18 +147,23 @@ Pass arbitrary key-value pairs to lifecycle commands via the `metadata` field. T
 tests:
   - id: sympy-20590
     criteria: Bug should be fixed
-    input: Fix the diophantine equation bug
+    input: Fix the diophantine equation bug in repo/.
     metadata:
-      repo: sympy/sympy
-      base_commit: "abc123def"
+      source_repo: sympy/sympy
+      source_commit: "abc123def"
+      test_patch: cases/sympy-20590/test.patch
     workspace:
+      repos:
+        - path: ./repo
+          repo: sympy/sympy
+          base_commit: "abc123def"
       hooks:
-        before_all:
-          command: ["python", "checkout_repo.py"]
+        before_each:
+          command: ["python", "apply_test_patch.py"]
 ```
 
 The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
-Operational checkout state belongs under `workspace.repos[].base_commit`; `metadata.base_commit` is informational only.
+Operational checkout state belongs under `workspace.repos[].base_commit`; matching metadata fields such as `source_commit` are informational only.
 For benchmark task packs with source pins, patches, generated rows, and
 supporting files, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 

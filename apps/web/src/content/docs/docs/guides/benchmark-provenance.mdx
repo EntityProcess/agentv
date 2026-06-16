@@ -25,7 +25,7 @@ Use this split when deciding where a benchmark key belongs:
 
 | Field area | Operational? | What AgentV does |
 |------------|--------------|------------------|
-| `workspace.repos[]` | Yes | Clones or copies repositories and checks out the configured refs. |
+| `workspace.repos[]` | Yes | Declares repo identity and checkout refs; AgentV resolves acquisition and materializes the checkout. |
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
 | `workspace.hooks` | Yes | Runs lifecycle commands with workspace and case context on stdin. |
 | `workspace.isolation`, `workspace.mode`, `workspace.path` | Yes | Controls workspace reuse and materialization. |
@@ -136,7 +136,10 @@ matching `metadata.source_commit` is audit data that gets recorded with the case
 and is available to scripts. `apply-test-patch.py` can read
 `case_metadata.test_patch` and `case_metadata.fail_to_pass_tests`, then apply
 the patch and write the selected test list into the workspace. The code grader
-can read that workspace file through its `workspace_path` payload.
+can read that workspace file through its `workspace_path` payload. Repo
+acquisition remains outside the eval; use registered projects or
+`git_cache.mirrors` when a local machine needs faster large-repo setup. See
+[Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition).
 
 ## Finance-Style Generated Dataset
 

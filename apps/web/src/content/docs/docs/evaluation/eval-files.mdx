@@ -39,7 +39,7 @@ tests:
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
 | `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
-| `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config) |
+| `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `tests` | Array of individual tests, or a string path to an external file or directory |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
