@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -16,6 +16,7 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
 const DEFAULT_HEARTBEAT_MS = 30_000;
 const ERROR_OUTPUT_LIMIT = 1024 * 1024;
+const LOCK_POLL_MS = 100;
 
 interface GitRunOptions {
   cwd?: string;
@@ -71,6 +72,22 @@ function formatDuration(ms: number): string {
 
 function isFullCommitSha(ref: string | undefined): boolean {
   return typeof ref === 'string' && /^[0-9a-f]{40}$/i.test(ref);
+}
+
+function assertSafeGitOperand(value: string, label: string): void {
+  if (value.length === 0) {
+    throw new Error(`${label} must not be empty.`);
+  }
+  if (value.includes('\0')) {
+    throw new Error(`${label} must not contain NUL bytes.`);
+  }
+  if (value.startsWith('-')) {
+    throw new Error(`${label} must not start with '-'.`);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function configPath(): string {
@@ -279,33 +296,139 @@ export class RepoManager {
     return path.join(getAgentvDataDir(), 'git-cache', hash);
   }
 
+  private async withMirrorCacheLock<T>(mirrorPath: string, action: () => Promise<T>): Promise<T> {
+    const lockPath = `${mirrorPath}.lock`;
+    const startedAt = Date.now();
+
+    while (true) {
+      try {
+        await mkdir(lockPath);
+        break;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'EEXIST') throw error;
+        if (Date.now() - startedAt > this.timeoutMs) {
+          throw new Error(`Timed out waiting for git cache lock: ${lockPath}`);
+        }
+        await sleep(LOCK_POLL_MS);
+      }
+    }
+
+    try {
+      return await action();
+    } finally {
+      await rm(lockPath, { recursive: true, force: true });
+    }
+  }
+
+  private async isValidBareRepo(repoPath: string): Promise<boolean> {
+    if (!existsSync(path.join(repoPath, 'HEAD'))) return false;
+    try {
+      return (
+        (await this.runGit(['rev-parse', '--is-bare-repository'], {
+          cwd: repoPath,
+          timeout: 10_000,
+        })) === 'true'
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private async removeInvalidMirrorCache(mirrorPath: string): Promise<void> {
+    if (!existsSync(mirrorPath)) return;
+    const quarantinePath = `${mirrorPath}.invalid-${process.pid}-${Date.now()}-${randomUUID()}`;
+    try {
+      await rename(mirrorPath, quarantinePath);
+      await rm(quarantinePath, { recursive: true, force: true });
+    } catch {
+      await rm(mirrorPath, { recursive: true, force: true });
+    }
+  }
+
   private async prepareMirrorCache(
     cloneUrl: string,
     repoIdentity: string,
   ): Promise<string | undefined> {
+    assertSafeGitOperand(cloneUrl, 'repo clone URL');
     const mirrorPath = this.gitCachePath(repoIdentity);
-    const mirrorExists = existsSync(path.join(mirrorPath, 'HEAD'));
     try {
-      if (mirrorExists) {
-        await this.runGitStreaming(['fetch', '--prune', '--progress', 'origin'], {
-          cwd: mirrorPath,
-          description: `git fetch cache for ${cloneUrl}`,
-        });
-      } else {
-        await mkdir(path.dirname(mirrorPath), { recursive: true });
-        await this.runGitStreaming(['clone', '--mirror', '--progress', cloneUrl, mirrorPath], {
-          description: `git mirror clone ${cloneUrl}`,
-        });
-      }
-      return mirrorPath;
+      await mkdir(path.dirname(mirrorPath), { recursive: true });
+      return await this.withMirrorCacheLock(mirrorPath, async () => {
+        if (await this.isValidBareRepo(mirrorPath)) {
+          try {
+            await this.runGitStreaming(['fetch', '--prune', '--progress', 'origin'], {
+              cwd: mirrorPath,
+              description: `git fetch cache for ${cloneUrl}`,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(`[repo] mirror cache fetch failed; using existing cache: ${message}`);
+          }
+          return mirrorPath;
+        }
+
+        await this.removeInvalidMirrorCache(mirrorPath);
+        const tempPath = path.join(
+          path.dirname(mirrorPath),
+          `${path.basename(mirrorPath)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`,
+        );
+        try {
+          await this.runGitStreaming(
+            ['clone', '--mirror', '--progress', '--', cloneUrl, tempPath],
+            {
+              description: `git mirror clone ${cloneUrl}`,
+            },
+          );
+          if (!(await this.isValidBareRepo(tempPath))) {
+            throw new Error(`git mirror clone did not create a valid bare repo at ${tempPath}`);
+          }
+          await rename(tempPath, mirrorPath);
+          return mirrorPath;
+        } finally {
+          await rm(tempPath, { recursive: true, force: true });
+        }
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (mirrorExists) {
-        console.warn(`[repo] mirror cache fetch failed; using existing cache: ${message}`);
-        return mirrorPath;
-      }
       console.warn(`[repo] mirror cache unavailable; falling back to remote clone: ${message}`);
       return undefined;
+    }
+  }
+
+  private async resolveCommit(ref: string, cwd: string): Promise<string> {
+    assertSafeGitOperand(ref, 'repo checkout ref');
+    const candidates = [ref];
+    if (!ref.startsWith('refs/') && !ref.startsWith('origin/') && !isFullCommitSha(ref)) {
+      candidates.push(`refs/remotes/origin/${ref}`);
+    }
+
+    for (const candidate of candidates) {
+      try {
+        return await this.runGit(
+          ['rev-parse', '--verify', '--end-of-options', `${candidate}^{commit}`],
+          { cwd: cwd },
+        );
+      } catch {
+        // Try the next safe spelling. `git checkout <branch>` can DWIM remote
+        // branches; resolving to a SHA first needs that remote-ref fallback.
+      }
+    }
+
+    throw new Error(`Cannot resolve ref '${ref}' to a commit.`);
+  }
+
+  private assertNoUserOwnedAlternates(targetDir: string, acquisition: AcquisitionSource): void {
+    if (acquisition.kind !== 'registered-project' && acquisition.kind !== 'configured-mirror') {
+      return;
+    }
+    const alternatesPath = path.join(targetDir, '.git', 'objects', 'info', 'alternates');
+    if (!existsSync(alternatesPath)) return;
+    const alternates = readFileSync(alternatesPath, 'utf-8').trim();
+    if (alternates.length > 0) {
+      throw new Error(
+        `git clone for ${acquisition.kind} left an alternates dependency at ${alternatesPath}`,
+      );
     }
   }
 
@@ -343,7 +466,6 @@ export class RepoManager {
       return {
         kind: 'mirror-cache',
         sourceUrl: mirrorCache,
-        referencePath: mirrorCache,
         originUrl,
       };
     }
@@ -376,35 +498,43 @@ export class RepoManager {
     const cloneArgs = ['clone', '--progress', '--no-checkout'];
     if (acquisition.referencePath) {
       cloneArgs.push('--reference', acquisition.referencePath);
+      if (acquisition.kind === 'registered-project' || acquisition.kind === 'configured-mirror') {
+        cloneArgs.push('--dissociate');
+      }
     }
-    cloneArgs.push(acquisition.sourceUrl, targetDir);
+    assertSafeGitOperand(acquisition.sourceUrl, 'repo clone source');
+    cloneArgs.push('--', acquisition.sourceUrl, targetDir);
 
     await this.runGitStreaming(cloneArgs, {
       description: `git clone ${repo.repo}`,
     });
+    this.assertNoUserOwnedAlternates(targetDir, acquisition);
 
     if (acquisition.sourceUrl !== acquisition.originUrl) {
+      assertSafeGitOperand(acquisition.originUrl, 'repo origin URL');
       await this.runGit(['remote', 'set-url', 'origin', acquisition.originUrl], { cwd: targetDir });
     }
 
     if (repo.sparse?.length) {
+      for (const sparsePath of repo.sparse) {
+        assertSafeGitOperand(sparsePath, 'repo sparse path');
+      }
       await this.runGit(['sparse-checkout', 'init', '--cone'], { cwd: targetDir });
-      await this.runGit(['sparse-checkout', 'set', ...repo.sparse], { cwd: targetDir });
+      await this.runGit(['sparse-checkout', 'set', '--', ...repo.sparse], { cwd: targetDir });
     }
 
     const ref = getRepoCheckoutRef(repo);
     if (this.verbose) {
       console.log(`[repo] checkout path=${repo.path} ref=${ref}`);
     }
-    await this.runGit(['checkout', ref], { cwd: targetDir });
+    const checkoutSha = await this.resolveCommit(ref, targetDir);
+    await this.runGit(['checkout', '--detach', checkoutSha], { cwd: targetDir });
 
     const ancestor = repo.ancestor ?? 0;
     if (ancestor > 0) {
       try {
-        const ancestorSha = await this.runGit(['rev-parse', `HEAD~${ancestor}`], {
-          cwd: targetDir,
-        });
-        await this.runGit(['checkout', ancestorSha], { cwd: targetDir });
+        const ancestorSha = await this.resolveCommit(`HEAD~${ancestor}`, targetDir);
+        await this.runGit(['checkout', '--detach', ancestorSha], { cwd: targetDir });
       } catch {
         const shallowHint = isFullCommitSha(ref)
           ? ''
@@ -447,7 +577,8 @@ export class RepoManager {
       if (!repo.path || !repo.repo) continue;
       const targetDir = path.join(workspacePath, repo.path);
       const ref = getRepoCheckoutRef(repo);
-      await this.runGit(['reset', '--hard', ref], { cwd: targetDir });
+      const resetSha = await this.resolveCommit(ref, targetDir);
+      await this.runGit(['reset', '--hard', resetSha], { cwd: targetDir });
       await this.runGit(['clean', cleanFlag], { cwd: targetDir });
     }
   }
