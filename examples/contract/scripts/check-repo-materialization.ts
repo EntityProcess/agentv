@@ -2,20 +2,19 @@
 /**
  * Deterministic code grader for the repo materialization release contract.
  *
- * It verifies that AgentV cloned a public repo, checked out the declared
- * commit's first parent through `ancestor: 1`, and resolved a type:file input
- * into the prompt payload.
+ * It verifies that AgentV cloned the owned public fixture repo, checked out a
+ * specific historical commit, and resolved a type:file input into the prompt
+ * payload.
  */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const REPO_DIR = 'git-consortium';
-const PINNED_COMMIT = 'b33a9c7c02ad93f621fa38f0e9fc9e867e12fa0e';
-const EXPECTED_HEAD = '6b9b40ef57b03d5c48ac5ca96ce80dade0949350';
-const EXPECTED_README_SNIPPET =
-  'This repository is meant to provide an example for editing lists in Markdown.';
+const REPO_DIR = 'fixture';
+const EXPECTED_COMMIT = '21a34daed7ebcfe36cbed053607622a55e5e94cb';
+const VERSION_FILE = 'VERSION';
+const SECOND_ONLY_FILE = 'SECOND_ONLY.txt';
 const FILE_INPUT_MARKER = 'AGENTV_REPO_FILE_SUBSTITUTION_READY';
 
 interface GraderPayload {
@@ -75,15 +74,40 @@ if (repoExists) {
     const head = runGit(repoPath, ['rev-parse', 'HEAD']);
     push(
       'materialized repo HEAD is the expected previous commit',
-      head === EXPECTED_HEAD,
-      head === EXPECTED_HEAD
-        ? `HEAD ${head} == ${EXPECTED_HEAD} after ancestor: 1 from ${PINNED_COMMIT}`
-        : `Expected HEAD ${EXPECTED_HEAD}, got ${head}`,
+      head === EXPECTED_COMMIT,
+      head === EXPECTED_COMMIT
+        ? `HEAD ${head} == ${EXPECTED_COMMIT}`
+        : `Expected HEAD ${EXPECTED_COMMIT}, got ${head}`,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     push('materialized repo HEAD is readable', false, message);
   }
+
+  const versionPath = path.join(repoPath, VERSION_FILE);
+  const versionExists = existsSync(versionPath);
+  push(
+    'VERSION file from previous commit exists',
+    versionExists,
+    versionExists ? undefined : `${VERSION_FILE} missing`,
+  );
+
+  if (versionExists) {
+    const version = readFileSync(versionPath, 'utf8').trim();
+    push(
+      'VERSION content is exactly 1',
+      version === '1',
+      version === '1' ? 'VERSION=1' : `Expected VERSION=1, got ${JSON.stringify(version)}`,
+    );
+  }
+
+  const secondOnlyPath = path.join(repoPath, SECOND_ONLY_FILE);
+  const secondOnlyAbsent = !existsSync(secondOnlyPath);
+  push(
+    'SECOND_ONLY.txt is absent at the previous commit',
+    secondOnlyAbsent,
+    secondOnlyAbsent ? undefined : `${SECOND_ONLY_FILE} exists, which indicates the v2 HEAD state`,
+  );
 
   const readmePath = path.join(repoPath, 'README.md');
   const readmeExists = existsSync(readmePath);
@@ -92,17 +116,6 @@ if (repoExists) {
     readmeExists,
     readmeExists ? undefined : 'README missing',
   );
-
-  if (readmeExists) {
-    const readme = readFileSync(readmePath, 'utf8');
-    push(
-      'README content matches expected previous commit',
-      readme.includes(EXPECTED_README_SNIPPET),
-      readme.includes(EXPECTED_README_SNIPPET)
-        ? undefined
-        : `Expected README to include ${JSON.stringify(EXPECTED_README_SNIPPET)}`,
-    );
-  }
 }
 
 const strings: string[] = [];
