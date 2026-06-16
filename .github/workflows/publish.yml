@@ -22,7 +22,6 @@ concurrency:
 permissions:
   contents: read
   id-token: write
-  models: read
 
 jobs:
   publish:
@@ -61,13 +60,13 @@ jobs:
             fi
           fi
 
-      # Latest promotion is blocked on a tiny live contract eval. Next-channel
-      # publishes stay fast; failures here stop before npm publish runs.
+      # Latest promotion is blocked on a tiny live contract eval. The gate uses
+      # a Models-capable PAT secret, while npm publish still uses NPM_TOKEN.
       - name: Run contract eval gate
         if: steps.channel.outputs.action == 'publish-latest'
         run: bun run contract-eval
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
           CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
 
       - name: Publish to npm

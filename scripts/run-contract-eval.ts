@@ -5,6 +5,9 @@
  * The CLI source imports workspace packages through their built dist outputs,
  * so callers should run the root `contract-eval` package script rather than
  * invoking this file directly.
+ *
+ * Local usage:
+ * GH_MODELS_TOKEN=$(gh auth token) bun run contract-eval
  */
 
 process.env.CONTRACT_EVAL_MODEL ||= 'openai/gpt-4.1-mini';

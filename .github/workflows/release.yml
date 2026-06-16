@@ -52,6 +52,16 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Finalize/stable releases promote to latest, so block before any version
+      # bump/tag if the live contract eval fails. The gate uses a Models-capable
+      # PAT secret and does not override the workflow GITHUB_TOKEN.
+      - name: Contract eval gate
+        if: inputs.channel == 'finalize' || inputs.channel == 'stable'
+        run: bun run contract-eval
+        env:
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
+
       - name: Bump version, commit, and tag
         run: |
           if [ "${{ inputs.channel }}" = "next" ]; then
