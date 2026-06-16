@@ -1,8 +1,8 @@
 /**
- * Validate all eval YAML files under examples/features.
+ * Validate all eval YAML files under examples/features and examples/contract.
  *
- * Finds files matching examples/features/** /*.eval.yaml (and .EVAL.yaml)
- * and runs AgentV schema validation on each one.
+ * Finds files matching the public examples/contract eval patterns and runs
+ * AgentV schema validation on each one.
  *
  * Used by CI and local verification to catch invalid eval files before merge.
  *
@@ -26,6 +26,8 @@ function findEvalFiles(): string[] {
     'examples/features/**/evals/*.eval.yaml',
     'examples/features/**/evals/*.EVAL.yaml',
     'examples/features/**/*.EVAL.yaml',
+    'examples/contract/**/evals/*.eval.yaml',
+    'examples/contract/**/evals/*.EVAL.yaml',
   ];
 
   const files = new Set<string>();

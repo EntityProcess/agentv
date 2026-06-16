@@ -1,0 +1,5 @@
+{
+  "gate": "agentv-release-contract",
+  "check": "workspace-template",
+  "version": 1
+}

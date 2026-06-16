@@ -1,0 +1,44 @@
+name: release-contract
+description: Lightweight release gate for npm latest promotion.
+
+workspace:
+  template: ../workspace-template
+
+execution:
+  target: github-models-contract
+  workers: 1
+
+tests:
+  - id: json-contract
+    criteria: The target returns a small valid JSON object with the release gate markers.
+    input:
+      - role: system
+        content: >-
+          You are a deterministic JSON endpoint. Reply only with raw JSON.
+          Do not include markdown, prose, code fences, or trailing commentary.
+      - role: user
+        content: >-
+          Return this exact JSON object:
+          {"status":"ok","gate":"agentv-contract","checks":2}
+    assertions:
+      - type: is-json
+        required: true
+      - type: regex
+        value: '"status"\s*:\s*"ok"'
+      - type: regex
+        value: '"gate"\s*:\s*"agentv-contract"'
+
+  - id: workspace-contract
+    criteria: The local workspace template is materialized and deterministic grading can inspect it.
+    input:
+      - role: system
+        content: >-
+          Reply with exactly the lowercase words: workspace ready
+      - role: user
+        content: Confirm the release contract workspace is ready.
+    assertions:
+      - type: contains
+        value: workspace ready
+      - name: workspace-template-materialized
+        type: code-grader
+        command: ["bun", "../scripts/check-workspace.ts"]
