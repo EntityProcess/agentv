@@ -11,7 +11,7 @@ Workspace pooling keeps materialized workspaces on disk between eval runs. Inste
 
 ## How it works
 
-AgentV computes a **SHA-256 fingerprint** of your repo materialization inputs (source, checkout, and clone options) and stores the materialized workspace in a persistent slot:
+AgentV computes a **SHA-256 fingerprint** of your repo materialization inputs (repo identity, checkout ref, sparse paths, and ancestor offset) and stores the materialized workspace in a persistent slot:
 
 ```
 ~/.agentv/workspace-pool/
@@ -50,9 +50,8 @@ workspace:
   mode: temp
   repos:
     - path: ./my-repo
-      source:
-        type: git
-        url: https://github.com/org/my-repo.git
+      repo: https://github.com/org/my-repo.git
+      commit: main
 ```
 
 `workspace.mode` controls materialization behavior directly (`pooled`, `temp`, or `static`).
@@ -97,11 +96,8 @@ tests:
 template: ./workspace-template
 repos:
   - path: ./my-repo
-    source:
-      type: git
-      url: https://github.com/org/my-repo.git
-    checkout:
-      ref: main
+    repo: https://github.com/org/my-repo.git
+    commit: main
 hooks:
   after_each:
     reset: fast
@@ -113,12 +109,14 @@ Both eval files resolve to the same repos configuration, producing the same fing
 
 The fingerprint captures **repo materialization inputs only** — the fields that affect cloned checkout state. Template path is excluded because template files are re-copied on every pool reuse and don't affect the cloned repos.
 
+Acquisition choices are excluded. A run that acquires `https://github.com/org/my-repo.git` from a registered project, a configured mirror, the AgentV mirror cache, or the remote URL still maps to the same pool if the declared repo identity and checkout inputs are the same. See [Workspace Architecture](/docs/guides/workspace-architecture/#acquisition-resolver) for the resolver order.
+
 | Field | Normalization |
 |-------|--------------|
 | Repo path | As configured (e.g., `./my-repo`) |
-| Repo source URL | Lowercased, `.git` suffix stripped |
-| Checkout ref | As configured, defaults to `HEAD` |
-| Clone depth/filter | Included if set |
+| Repo identity | Normalized from full clone URL or GitHub `org/name` shorthand |
+| Checkout ref | `commit`, `base_commit`, or `HEAD` |
+| Ancestor | Included when set |
 | Sparse checkout paths | Sorted alphabetically |
 
 Two configs produce different fingerprints if **any** of these fields differ. For example, changing the checkout ref from `main` to `v2.0` creates a new pool entry. Changing the template path or template contents does **not** create a new pool entry.
@@ -171,7 +169,7 @@ workspace: ./path/to/workspace.yaml
 
 The external file should contain the workspace config object directly, not a nested `workspace:` key.
 
-The path is resolved relative to the eval file's directory. Relative paths **inside** the workspace file (template, repo source paths) resolve from the workspace file's own directory.
+The path is resolved relative to the eval file's directory. Relative paths **inside** the workspace file (template paths, hook `cwd` values, and repo paths) resolve from the workspace file's own directory.
 
 This pattern is especially valuable with pooling: a single `workspace.yaml` guarantees all eval files that reference it produce the same fingerprint and share the same pool.
 

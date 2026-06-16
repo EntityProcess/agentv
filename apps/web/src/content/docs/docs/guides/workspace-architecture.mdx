@@ -1,11 +1,18 @@
 ---
 title: Workspace Architecture
-description: How AgentV clones and materializes working trees for eval runs, with performance guidance for large repos.
+description: How AgentV materializes eval workspaces, resolves repo acquisition, and keeps target comparisons fair.
 sidebar:
   order: 7
 ---
 
-AgentV evaluations that use `workspace.repos` clone repositories directly from their source (git URL or local path) into a workspace directory. [Workspace pooling](/docs/guides/workspace-pool/) (enabled by default) eliminates repeated clone costs by reusing materialized workspaces across runs.
+AgentV workspaces are the shared substrate an eval runs against: templates,
+fixtures, repositories, and lifecycle hooks. Targets run inside that substrate.
+When `workspace.repos` is present, the eval declares repository identity and
+checkout pins; AgentV decides how to acquire the bytes.
+
+[Workspace pooling](/docs/guides/workspace-pool/) is enabled by default for
+shared repo workspaces, so the first run pays materialization cost and later
+runs reset existing pool slots in place.
 
 ## Eval setup lifecycle
 
@@ -27,28 +34,133 @@ eval start
   v
 +---------------------------+
 | 3. Repo materialization   |  For each workspace.repos entry:
-|    a. git clone (source)  |    - clone directly from source URL or local path
-|    b. git checkout <ref>  |    - check out the specified ref
+|    a. resolve acquisition |    - registered project, configured mirror,
+|    b. git clone/fetch     |      AgentV cache, or remote fallback
+|    c. git checkout <ref>  |    - check out commit/base_commit/HEAD
 +---------------------------+
   |
   v
 +---------------------------+
-| 4. before_all hook        |  workspace.before_all script executes
+| 4. before_all hooks       |  workspace hook, then target hook
 +---------------------------+
   |
   v
 +---------------------------+
 | 5. Test loop              |  For each test case:
-|    before_each -> run ->  |    agent executes -> capture changes -> after_each
+|    before_each -> run ->  |    workspace hook, target hook, agent,
+|    after_each             |    target hook, workspace hook
 +---------------------------+
   |
   v
 +---------------------------+
-| 6. after_all / cleanup    |  workspace.after_all -> workspace cleanup
+| 6. after_all / cleanup    |  target hook, workspace hook, cleanup
 +---------------------------+
 ```
 
 With workspace pooling (the default), steps 2-3 only happen on the first run. Subsequent runs reset the pool slot in-place, skipping clone and checkout entirely.
+
+## Repo provenance vs acquisition
+
+A `workspace.repos[]` entry declares **identity**, not acquisition policy:
+
+```yaml
+workspace:
+  repos:
+    - path: ./repo
+      repo: https://github.com/org/repo.git
+      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+      sparse: [packages/core]
+      ancestor: 0
+```
+
+Supported repo fields:
+
+| Field | Meaning |
+|-------|---------|
+| `path` | Directory inside the workspace where the repo is materialized |
+| `repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
+| `commit` | Branch, tag, or SHA to check out after clone |
+| `base_commit` | Alias for `commit`, useful for SWE-bench-style datasets |
+| `sparse` | Optional sparse-checkout paths |
+| `ancestor` | Walk N parents back after resolving `commit` / `base_commit` |
+
+`source`, `type`, `checkout`, `checkout.resolve`, and `clone` are not part of
+the repo schema. Acquisition settings are deliberately outside eval YAML so the
+same benchmark can run against the same repository identity on every machine
+while each harness uses the fastest safe local source available.
+
+## Acquisition resolver
+
+AgentV normalizes `repo` identity before acquisition. For example,
+`org/repo`, `https://github.com/org/repo.git`, and
+`git@github.com:org/repo.git` resolve to the same identity key.
+
+For each materialized repo, AgentV resolves acquisition in this order:
+
+| Order | Source | How it is used |
+|-------|--------|----------------|
+| 1 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV clones from that local checkout with `--reference <path> --dissociate`, then resets `origin` to the declared repo URL. |
+| 2 | Configured mirror | A path listed under `git_cache.mirrors` in `$AGENTV_HOME/config.yaml`. AgentV uses the same `--reference <path> --dissociate` flow. |
+| 3 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
+| 4 | Remote clone | The normalized clone URL from the eval's `repo` field. |
+
+`--dissociate` copies the objects needed by the workspace clone and removes the
+long-lived alternates dependency on the user-owned checkout or mirror. That
+keeps preserved workspaces and pool slots from breaking later if a local
+checkout is moved, deleted, or garbage-collected. Local checkouts and mirrors
+still provide clone speed, but the resulting workspace has its own required Git
+objects and full reachable history for pinned commits and `ancestor` checks.
+
+### Configured mirrors
+
+Use `git_cache.mirrors` when you want AgentV to prefer a known local checkout or
+bare mirror for a repository identity:
+
+```yaml
+# $AGENTV_HOME/config.yaml
+git_cache:
+  mirrors:
+    "https://github.com/WiseTechGlobal/CargoWise.git": ~/src/CargoWise
+    "sympy/sympy": /mnt/git-mirrors/sympy.git
+```
+
+Mirror keys use the same identity normalization as `workspace.repos[].repo`, so
+full URLs and GitHub `org/name` shorthand can match the same eval repo. If a
+configured mirror path is missing, AgentV warns and continues down the resolver
+chain.
+
+The mirror setting is machine-local configuration. Keep it out of eval YAML so
+the eval remains a portable statement of what repository and checkout are being
+tested.
+
+## World vs player boundary
+
+The eval workspace is the **world**: the same repos, fixtures, template files,
+and workspace hooks are shared by every target in the run. A target is the
+**player**: the harness under evaluation, plus provider configuration and
+target-specific setup hooks.
+
+Targets do **not** declare `repos`. Keeping repo provenance in the shared eval
+workspace is what makes multi-target comparison valid: every target sees the
+same substrate, and differences in results come from the harness, not from a
+different checkout.
+
+Use target hooks for per-harness setup:
+
+```yaml
+execution:
+  targets:
+    - baseline
+    - name: with-skills
+      use_target: baseline
+      hooks:
+        before_each:
+          command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.claude/skills\""]
+```
+
+Workspace hooks run first on setup, then target hooks. Teardown runs in the
+opposite order. See [Target Hooks](/docs/targets/configuration/#target-hooks)
+for the command schema and full lifecycle order.
 
 ## Windows performance guidance
 
@@ -92,7 +204,14 @@ git config core.longpaths true
 
 ## Troubleshooting: eval appears stuck at startup
 
-When evaluating large repos, the eval run may appear to hang before the agent starts. This is typically the checkout phase materializing files on the first run.
+Large repo setup is visible now: git clone/fetch progress streams by default,
+and long-running git operations emit heartbeat messages. If an acquisition
+times out, the error points to the durable fix: register a matching local
+checkout, configure `git_cache.mirrors`, or fix network access.
+
+The old symptom where AgentV looked silent while doing a full remote clone has
+been fixed. A first run can still take time, especially when a large working
+tree is checked out, but the active phase should be visible in the terminal.
 
 ### Enable verbose logging
 
@@ -105,18 +224,38 @@ Verbose mode logs each setup phase with timestamps. Look for:
 ```
 [workspace] Creating shared workspace...
 [workspace] Materializing repo ./repo...
-[workspace] Checkout complete (182000ms)
+[repo] materialize start path=./repo repo=https://github.com/org/repo.git acquisition=registered-project ...
+Cloning into '.../repo'...
+[repo] git clone https://github.com/org/repo.git still running after 30s
+[workspace] Repo materialization complete
 [workspace] Running before_all script...
 [workspace] Setup complete, starting test loop
 ```
 
-If the log stalls at checkout for minutes, the working-tree write is the bottleneck — not a hang. With pooling enabled, this only happens on the first run.
+If the log shows clone or fetch progress, git is still acquiring objects. If it
+shows checkout progress or a long gap after clone completes, the working-tree
+write is likely the bottleneck. With pooling enabled, this usually only happens
+on the first run for a given repo fingerprint.
+
+### Speed up large repo acquisition
+
+The durable fix for large repos is to make the resolver hit a local source:
+
+1. Register an existing checkout as an AgentV project so its `origin` matches
+   `workspace.repos[].repo`.
+2. Or add a matching entry under `git_cache.mirrors` in
+   `$AGENTV_HOME/config.yaml`.
+
+Both paths use local Git objects for speed and full history, then dissociate the
+workspace clone from user-owned storage.
 
 ### Common causes and fixes
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| Stuck at checkout for 2+ minutes | Large repo file materialization (first run) | Expected for 100k+ files; use Dev Drive on Windows. Subsequent runs use pool. |
+| Clone progress runs for minutes on first run | Large repo acquired from remote | Register a matching local project or configure `git_cache.mirrors`; subsequent pooled runs skip clone. |
+| Heartbeat ends with a clone/fetch timeout | Remote network or missing local cache | Use the timeout guidance in the error: local checkout, configured mirror, or network fix. |
+| Stuck at checkout for 2+ minutes | Large repo file materialization after objects are present | Expected for 100k+ files; use Dev Drive on Windows. Subsequent runs use pool. |
 | `Filename too long` during checkout | Missing `core.longpaths` | `git config --global core.longpaths true` |
 | Slow every run despite pooling | Pool not matching (config drift) | Check with `agentv workspace list`; ensure workspace config is stable |
 | Before_all timeout | Setup script exceeds default 60s | Increase `timeout_ms` in workspace config |

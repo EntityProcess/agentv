@@ -29,9 +29,11 @@ export const depsCommand = command({
     const resolvedPaths = await resolveEvalPaths(evalPaths, cwd);
     const result = await scanRepoDeps(resolvedPaths);
 
-    // Print errors to stderr
     for (const err of result.errors) {
-      console.error(`warning: ${path.relative(cwd, err.file)}: ${err.message}`);
+      console.error(`error: ${path.relative(cwd, err.file)}: ${err.message}`);
+    }
+    if (result.errors.length > 0) {
+      process.exit(1);
     }
 
     // Output JSON manifest to stdout (snake_case per wire format convention)
@@ -39,8 +41,8 @@ export const depsCommand = command({
       repos: result.repos.map((r) => ({
         url: r.url,
         ...(r.ref !== undefined && { ref: r.ref }),
-        ...(r.clone !== undefined && { clone: r.clone }),
-        ...(r.checkout !== undefined && { checkout: r.checkout }),
+        ...(r.sparse !== undefined && { sparse: r.sparse }),
+        ...(r.ancestor !== undefined && { ancestor: r.ancestor }),
         ...(usedBy && { used_by: r.usedBy.map((p) => path.relative(cwd, p)) }),
       })),
     };

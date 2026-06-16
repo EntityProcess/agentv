@@ -23,20 +23,17 @@ describe('scanRepoDeps', () => {
     return filePath;
   }
 
-  it('extracts git repos from suite-level workspace', async () => {
+  it('extracts repos from suite-level workspace', async () => {
     const file = await writeYaml(
       'suite-level.eval.yaml',
       `
 workspace:
   repos:
     - path: ./repo-a
-      source:
-        type: git
-        url: https://github.com/org/repo-a.git
-      checkout:
-        ref: main
-      clone:
-        depth: 1
+      repo: https://github.com/org/repo-a.git
+      commit: main
+      sparse:
+        - src
 tests:
   - id: test-1
     input: hello
@@ -50,12 +47,12 @@ tests:
     expect(result.repos[0]).toMatchObject({
       url: 'https://github.com/org/repo-a.git',
       ref: 'main',
-      clone: { depth: 1 },
+      sparse: ['src'],
     });
     expect(result.repos[0].usedBy).toEqual([file]);
   });
 
-  it('extracts git repos from per-test workspace', async () => {
+  it('extracts repos from per-test workspace', async () => {
     const file = await writeYaml(
       'per-test.eval.yaml',
       `
@@ -66,11 +63,8 @@ tests:
     workspace:
       repos:
         - path: ./repo-b
-          source:
-            type: git
-            url: https://github.com/org/repo-b.git
-          checkout:
-            ref: v2.0
+          repo: https://github.com/org/repo-b.git
+          commit: v2.0
 `,
     );
 
@@ -83,35 +77,15 @@ tests:
     });
   });
 
-  it('deduplicates repos by (url, ref)', async () => {
-    const file1 = await writeYaml(
-      'dedup-1.eval.yaml',
+  it('resolves GitHub org/name shorthand to a URL', async () => {
+    const file = await writeYaml(
+      'shorthand.eval.yaml',
       `
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/shared.git
-      checkout:
-        ref: main
-tests:
-  - id: test-1
-    input: hello
-    criteria: world
-`,
-    );
-    const file2 = await writeYaml(
-      'dedup-2.eval.yaml',
-      `
-workspace:
-  repos:
-    - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/shared.git
-      checkout:
-        ref: main
+      repo: org/repo
+      commit: main
 tests:
   - id: test-1
     input: hello
@@ -119,9 +93,57 @@ tests:
 `,
     );
 
-    const result = await scanRepoDeps([file1, file2]);
+    const result = await scanRepoDeps([file]);
+    expect(result.errors).toHaveLength(0);
+    expect(result.repos[0]).toMatchObject({
+      url: 'https://github.com/org/repo.git',
+      ref: 'main',
+    });
+  });
+
+  it('uses base_commit as a commit alias', async () => {
+    const file = await writeYaml(
+      'base-commit.eval.yaml',
+      `
+workspace:
+  repos:
+    - path: ./repo
+      repo: https://github.com/org/repo.git
+      base_commit: abc123
+tests:
+  - id: test-1
+    input: hello
+    criteria: world
+`,
+    );
+
+    const result = await scanRepoDeps([file]);
+    expect(result.errors).toHaveLength(0);
+    expect(result.repos[0].ref).toBe('abc123');
+  });
+
+  it('deduplicates repos by canonical identity and ref', async () => {
+    const file = await writeYaml(
+      'dedup.eval.yaml',
+      `
+workspace:
+  repos:
+    - path: ./repo-a
+      repo: https://GitHub.com/Org/Shared.git
+      commit: main
+    - path: ./repo-b
+      repo: org/shared
+      commit: main
+tests:
+  - id: test-1
+    input: hello
+    criteria: world
+`,
+    );
+
+    const result = await scanRepoDeps([file]);
+    expect(result.errors).toHaveLength(0);
     expect(result.repos).toHaveLength(1);
-    expect(result.repos[0].usedBy).toEqual([file1, file2]);
   });
 
   it('treats different refs as different deps', async () => {
@@ -131,17 +153,11 @@ tests:
 workspace:
   repos:
     - path: ./repo-main
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: main
+      repo: https://github.com/org/repo.git
+      commit: main
     - path: ./repo-dev
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: develop
+      repo: https://github.com/org/repo.git
+      commit: develop
 tests:
   - id: test-1
     input: hello
@@ -156,46 +172,15 @@ tests:
     expect(urls).toContain('https://github.com/org/repo.git@develop');
   });
 
-  it('skips local source repos', async () => {
-    const file = await writeYaml(
-      'local-source.eval.yaml',
-      `
-workspace:
-  repos:
-    - path: ./local-repo
-      source:
-        type: local
-        path: /tmp/some-repo
-    - path: ./git-repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-tests:
-  - id: test-1
-    input: hello
-    criteria: world
-`,
-    );
-
-    const result = await scanRepoDeps([file]);
-    expect(result.repos).toHaveLength(1);
-    expect(result.repos[0].url).toBe('https://github.com/org/repo.git');
-  });
-
   it('resolves external workspace file references', async () => {
     await writeYaml(
       'shared/workspace.yaml',
       `
 repos:
   - path: ./external-repo
-    source:
-      type: git
-      url: https://github.com/org/external.git
-    checkout:
-      ref: v1.0
-    clone:
-      depth: 2
-      filter: blob:none
+    repo: https://github.com/org/external.git
+    commit: v1.0
+    ancestor: 2
 `,
     );
 
@@ -216,7 +201,7 @@ tests:
     expect(result.repos[0]).toMatchObject({
       url: 'https://github.com/org/external.git',
       ref: 'v1.0',
-      clone: { depth: 2, filter: 'blob:none' },
+      ancestor: 2,
     });
   });
 
@@ -243,9 +228,7 @@ tests:
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/good.git
+      repo: https://github.com/org/good.git
 tests:
   - id: test-1
     input: hello
@@ -260,16 +243,14 @@ tests:
     expect(result.errors[0].file).toBe(badFile);
   });
 
-  it('handles repos with no ref (defaults to undefined)', async () => {
+  it('handles repos with no ref', async () => {
     const file = await writeYaml(
       'no-ref.eval.yaml',
       `
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
+      repo: https://github.com/org/repo.git
 tests:
   - id: test-1
     input: hello
@@ -282,93 +263,6 @@ tests:
     expect(result.repos[0].ref).toBeUndefined();
   });
 
-  it('includes clone sparse config', async () => {
-    const file = await writeYaml(
-      'sparse.eval.yaml',
-      `
-workspace:
-  repos:
-    - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      clone:
-        sparse:
-          - src/**
-          - tests/**
-tests:
-  - id: test-1
-    input: hello
-    criteria: world
-`,
-    );
-
-    const result = await scanRepoDeps([file]);
-    expect(result.repos[0].clone).toEqual({ sparse: ['src/**', 'tests/**'] });
-  });
-
-  it('includes checkout resolve and ancestor', async () => {
-    const file = await writeYaml(
-      'checkout-opts.eval.yaml',
-      `
-workspace:
-  repos:
-    - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: main
-        resolve: remote
-        ancestor: 3
-tests:
-  - id: test-1
-    input: hello
-    criteria: world
-`,
-    );
-
-    const result = await scanRepoDeps([file]);
-    expect(result.repos[0]).toMatchObject({
-      ref: 'main',
-      checkout: { resolve: 'remote', ancestor: 3 },
-    });
-  });
-
-  it('collects repos from both suite-level and per-test workspaces', async () => {
-    const file = await writeYaml(
-      'both-levels.eval.yaml',
-      `
-workspace:
-  repos:
-    - path: ./suite-repo
-      source:
-        type: git
-        url: https://github.com/org/suite.git
-      checkout:
-        ref: main
-tests:
-  - id: test-1
-    input: hello
-    criteria: world
-    workspace:
-      repos:
-        - path: ./test-repo
-          source:
-            type: git
-            url: https://github.com/org/test-only.git
-          checkout:
-            ref: v1
-`,
-    );
-
-    const result = await scanRepoDeps([file]);
-    expect(result.repos).toHaveLength(2);
-    const urls = result.repos.map((r) => r.url);
-    expect(urls).toContain('https://github.com/org/suite.git');
-    expect(urls).toContain('https://github.com/org/test-only.git');
-  });
-
   it('interpolates env vars in repo URLs', async () => {
     const originalEnv = process.env.TEST_REPO_URL;
     process.env.TEST_REPO_URL = 'https://github.com/org/from-env.git';
@@ -379,9 +273,7 @@ tests:
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: \${{ TEST_REPO_URL }}
+      repo: \${{ TEST_REPO_URL }}
 tests:
   - id: test-1
     input: hello
@@ -393,11 +285,7 @@ tests:
       expect(result.repos).toHaveLength(1);
       expect(result.repos[0].url).toBe('https://github.com/org/from-env.git');
     } finally {
-      if (originalEnv === undefined) {
-        process.env.TEST_REPO_URL = undefined;
-      } else {
-        process.env.TEST_REPO_URL = originalEnv;
-      }
+      process.env.TEST_REPO_URL = originalEnv;
     }
   });
 
@@ -428,24 +316,16 @@ tests:
     expect(result.errors[0].file).toBe(file);
   });
 
-  it('deduplicates URLs with and without trailing .git', async () => {
+  it('reports legacy source schema as an error', async () => {
     const file = await writeYaml(
-      'url-normalize.eval.yaml',
+      'legacy-source.eval.yaml',
       `
 workspace:
   repos:
-    - path: ./repo-a
+    - path: ./repo
       source:
         type: git
         url: https://github.com/org/repo.git
-      checkout:
-        ref: main
-    - path: ./repo-b
-      source:
-        type: git
-        url: https://github.com/org/repo
-      checkout:
-        ref: main
 tests:
   - id: test-1
     input: hello
@@ -454,6 +334,7 @@ tests:
     );
 
     const result = await scanRepoDeps([file]);
-    expect(result.repos).toHaveLength(1);
+    expect(result.repos).toHaveLength(0);
+    expect(result.errors[0].message).toContain('workspace.repos[].source has been removed');
   });
 });

@@ -283,66 +283,58 @@ Run scripts before/after each test. Define at suite level or override per case:
 ```yaml
 workspace:
   template: ./workspace-templates/my-project
-  setup:
-    command: ["bun", "run", "setup.ts"]
-    timeout_ms: 120000
-  teardown:
-    command: ["bun", "run", "teardown.ts"]
+  repos:
+    - path: ./repo
+      repo: sympy/sympy
+      base_commit: "abc123"
+  hooks:
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+      timeout_ms: 120000
+    after_each:
+      reset: fast
+    after_all:
+      command: ["bun", "run", "teardown.ts"]
 
 tests:
   - id: case-1
     input: Fix the bug
     criteria: Bug is fixed
     metadata:
-      repo: sympy/sympy
-    workspace:
-      repos:
-        - path: /testbed
-          source:
-            type: git
-            url: https://github.com/sympy/sympy.git
-          checkout:
-            base_commit: "abc123"
-      docker:
-        image: swebench/sweb.eval.django__django:latest
+      source_repo: sympy/sympy
+      source_commit: "abc123"
 ```
 
-**Lifecycle:** template copy → repo clone → setup → git baseline → agent → file changes → teardown → repo reset → cleanup
+**Lifecycle:** template copy → repo materialization → workspace before_all → target before_all → git baseline → before_each hooks → agent → file changes → after_each hooks → after_all hooks → cleanup
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].checkout.base_commit`; treat `metadata.base_commit` as informational only.
+For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].base_commit`; treat `metadata.source_commit` as informational only.
 
 ### Repository Lifecycle
 
-Clone repos into workspace automatically. For shared repo workspaces, pooling is the default:
+Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from registered projects, `git_cache.mirrors`, its mirror cache, then remote clone. For shared repo workspaces, pooling is the default:
 
 ```yaml
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: main
-        ancestor: 1       # parent commit
-      clone:
-        depth: 10
+      repo: https://github.com/org/repo.git
+      commit: main
+      ancestor: 1       # parent commit
   hooks:
     after_each:
       reset: fast          # none | fast | strict
   isolation: shared        # shared | per_test
   mode: pooled             # pooled | temp | static
-  hooks:
-    enabled: true            # set false to skip all hooks
 ```
 
-- `source.type`: `git` (URL) or `local` (path)
-- `checkout.resolve`: `remote` (ls-remote) or `local`
-- `clone.depth`: shallow clone depth
-- `clone.filter`: partial clone filter (e.g., `blob:none`)
-- `clone.sparse`: sparse checkout paths array
+- `repo`: full clone URL or GitHub `org/name` shorthand
+- `commit`: branch, tag, or SHA to check out
+- `base_commit`: alias for `commit` for SWE-bench-style datasets
+- `ancestor`: walk N commits back from the checked-out ref
+- `sparse`: sparse checkout paths array
+- Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
 - `mode`: `pooled` (default for shared repos), `temp`, or `static`
 - `path`: workspace path used when `mode: static`; when empty/missing the workspace is auto-materialised (template copied + repos cloned); populated dirs are reused as-is
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
@@ -504,6 +496,7 @@ Binary check: is the output valid JSON?
       weight: 3.0
 ```
 LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
+Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
 ### rubrics (inline, deprecated)
 Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assertions` instead.
@@ -543,6 +536,10 @@ agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run] [--thresh
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
+# Record live target output for later target substitution
+agentv eval <file.yaml> --target live_agent --record-replay fixtures/target-output.jsonl
+agentv eval <file.yaml> --target replay_agent
+
 # Run a single assertion in isolation (no API keys needed)
 agentv eval assert <grader-name> --agent-output "..." --agent-input "..."
 
@@ -565,6 +562,8 @@ agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/res
 # Prefer simple assertions when they fit the criteria; use deterministic or LLM-based graders when needed
 agentv validate <file.yaml>
 ```
+
+**Replay targets:** Add `provider: replay`, `fixtures: <jsonl>`, and `source_target: <live target name>` in `.agentv/targets.yaml`. Optional `suite`, `eval_path`, and `variant` tighten lookup. The eval YAML and graders stay unchanged; replay only substitutes recorded target output, and graders run fresh.
 
 ## Code Judge SDK
 
@@ -640,7 +639,7 @@ import { defineConfig } from '@agentv/core';
 
 export default defineConfig({
   execution: { workers: 5, maxRetries: 2 },
-  output: { format: 'jsonl', dir: './results' },
+  output: { dir: './results' },
   limits: { maxCostUsd: 10.0 },
 });
 ```
@@ -689,6 +688,22 @@ Full guide: https://agentv.dev/guides/human-review/
 
 - Eval file: `references/eval-schema.json`
 - Config: `references/config-schema.json`
+
+## Accessing reference files
+
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-eval-writer --ref eval-schema.json
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-eval-writer)/references/eval-schema.json
+```
+
+Use `--full` to retrieve every file in the skill at once.
 
 --- references/config-schema.json ---
 {
@@ -985,6 +1000,11 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                     "type": "string",
                     "minLength": 1
                   },
+                  "vars": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
                   "criteria": {
                     "type": "string"
                   },
@@ -1046,6 +1066,7 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                       },
                       {
                         "type": "object",
+                        "properties": {},
                         "additionalProperties": {}
                       },
                       {
@@ -1297,6 +1318,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -2171,6 +2196,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -2437,6 +2466,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   "outcome": {
                                     "type": "string"
                                   },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
+                                  },
                                   "weight": {
                                     "type": "number"
                                   },
@@ -3310,6 +3343,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -3797,6 +3834,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -4670,6 +4711,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       },
                                       "outcome": {
                                         "type": "string"
+                                      },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
                                       },
                                       "weight": {
                                         "type": "number"
@@ -4936,6 +4981,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -5810,6 +5859,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -5934,78 +5987,27 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                             "path": {
                               "type": "string"
                             },
-                            "source": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "git"
-                                    },
-                                    "url": {
-                                      "type": "string",
-                                      "format": "uri"
-                                    }
-                                  },
-                                  "required": ["type", "url"],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "local"
-                                    },
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": ["type", "path"],
-                                  "additionalProperties": false
-                                }
-                              ]
+                            "repo": {
+                              "type": "string",
+                              "minLength": 1
                             },
-                            "checkout": {
-                              "type": "object",
-                              "properties": {
-                                "ref": {
-                                  "type": "string"
-                                },
-                                "base_commit": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "resolve": {
-                                  "type": "string",
-                                  "enum": ["remote", "local"]
-                                },
-                                "ancestor": {
-                                  "type": "integer",
-                                  "minimum": 0
-                                }
-                              },
-                              "additionalProperties": false
+                            "commit": {
+                              "type": "string",
+                              "minLength": 1
                             },
-                            "clone": {
-                              "type": "object",
-                              "properties": {
-                                "depth": {
-                                  "type": "integer",
-                                  "minimum": 1
-                                },
-                                "filter": {
-                                  "type": "string"
-                                },
-                                "sparse": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "additionalProperties": false
+                            "base_commit": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "ancestor": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "sparse": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
                             }
                           },
                           "additionalProperties": false
@@ -6536,6 +6538,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -7416,6 +7422,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -7513,6 +7523,11 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                     "type": "string",
                     "minLength": 1
                   },
+                  "vars": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
                   "criteria": {
                     "type": "string"
                   },
@@ -7574,6 +7589,7 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                       },
                       {
                         "type": "object",
+                        "properties": {},
                         "additionalProperties": {}
                       },
                       {
@@ -7825,6 +7841,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -8699,6 +8719,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -8965,6 +8989,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   "outcome": {
                                     "type": "string"
                                   },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
+                                  },
                                   "weight": {
                                     "type": "number"
                                   },
@@ -9838,6 +9866,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                   },
                                   "outcome": {
                                     "type": "string"
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                    "enum": ["correctness", "contradiction"]
                                   },
                                   "weight": {
                                     "type": "number"
@@ -10325,6 +10357,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -11198,6 +11234,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       },
                                       "outcome": {
                                         "type": "string"
+                                      },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
                                       },
                                       "weight": {
                                         "type": "number"
@@ -11464,6 +11504,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -12338,6 +12382,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                       "outcome": {
                                         "type": "string"
                                       },
+                                      "operator": {
+                                        "type": "string",
+                                        "enum": ["correctness", "contradiction"]
+                                      },
                                       "weight": {
                                         "type": "number"
                                       },
@@ -12462,78 +12510,27 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                             "path": {
                               "type": "string"
                             },
-                            "source": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "git"
-                                    },
-                                    "url": {
-                                      "type": "string",
-                                      "format": "uri"
-                                    }
-                                  },
-                                  "required": ["type", "url"],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "type": "string",
-                                      "const": "local"
-                                    },
-                                    "path": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": ["type", "path"],
-                                  "additionalProperties": false
-                                }
-                              ]
+                            "repo": {
+                              "type": "string",
+                              "minLength": 1
                             },
-                            "checkout": {
-                              "type": "object",
-                              "properties": {
-                                "ref": {
-                                  "type": "string"
-                                },
-                                "base_commit": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "resolve": {
-                                  "type": "string",
-                                  "enum": ["remote", "local"]
-                                },
-                                "ancestor": {
-                                  "type": "integer",
-                                  "minimum": 0
-                                }
-                              },
-                              "additionalProperties": false
+                            "commit": {
+                              "type": "string",
+                              "minLength": 1
                             },
-                            "clone": {
-                              "type": "object",
-                              "properties": {
-                                "depth": {
-                                  "type": "integer",
-                                  "minimum": 1
-                                },
-                                "filter": {
-                                  "type": "string"
-                                },
-                                "sparse": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "additionalProperties": false
+                            "base_commit": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "ancestor": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "sparse": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
                             }
                           },
                           "additionalProperties": false
@@ -13064,6 +13061,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -13944,6 +13945,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                                             },
                                             "outcome": {
                                               "type": "string"
+                                            },
+                                            "operator": {
+                                              "type": "string",
+                                              "enum": ["correctness", "contradiction"]
                                             },
                                             "weight": {
                                               "type": "number"
@@ -14464,6 +14469,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                             "outcome": {
                               "type": "string"
                             },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
+                            },
                             "weight": {
                               "type": "number"
                             },
@@ -15337,6 +15346,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                             },
                             "outcome": {
                               "type": "string"
+                            },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
                             },
                             "weight": {
                               "type": "number"
@@ -15603,6 +15616,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                             "outcome": {
                               "type": "string"
                             },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
+                            },
                             "weight": {
                               "type": "number"
                             },
@@ -16476,6 +16493,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                             },
                             "outcome": {
                               "type": "string"
+                            },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
                             },
                             "weight": {
                               "type": "number"
@@ -16792,6 +16813,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                         },
                         "outcome": {
                           "type": "string"
+                        },
+                        "operator": {
+                          "type": "string",
+                          "enum": ["correctness", "contradiction"]
                         },
                         "weight": {
                           "type": "number"
@@ -17667,6 +17692,10 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                         "outcome": {
                           "type": "string"
                         },
+                        "operator": {
+                          "type": "string",
+                          "enum": ["correctness", "contradiction"]
+                        },
                         "weight": {
                           "type": "number"
                         },
@@ -17769,78 +17798,27 @@ Markdown templates use `{{variable}}` syntax. TypeScript templates receive conte
                       "path": {
                         "type": "string"
                       },
-                      "source": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "const": "git"
-                              },
-                              "url": {
-                                "type": "string",
-                                "format": "uri"
-                              }
-                            },
-                            "required": ["type", "url"],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "const": "local"
-                              },
-                              "path": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["type", "path"],
-                            "additionalProperties": false
-                          }
-                        ]
+                      "repo": {
+                        "type": "string",
+                        "minLength": 1
                       },
-                      "checkout": {
-                        "type": "object",
-                        "properties": {
-                          "ref": {
-                            "type": "string"
-                          },
-                          "base_commit": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "resolve": {
-                            "type": "string",
-                            "enum": ["remote", "local"]
-                          },
-                          "ancestor": {
-                            "type": "integer",
-                            "minimum": 0
-                          }
-                        },
-                        "additionalProperties": false
+                      "commit": {
+                        "type": "string",
+                        "minLength": 1
                       },
-                      "clone": {
-                        "type": "object",
-                        "properties": {
-                          "depth": {
-                            "type": "integer",
-                            "minimum": 1
-                          },
-                          "filter": {
-                            "type": "string"
-                          },
-                          "sparse": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "additionalProperties": false
+                      "base_commit": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "ancestor": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "sparse": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
                       }
                     },
                     "additionalProperties": false
@@ -18097,6 +18075,7 @@ Rubrics are defined as `assertions` entries with `type: rubrics`. They support b
 |-------|------|---------|-------------|
 | `id` | string | auto-generated | Unique identifier |
 | `outcome` | string | required* | Criterion being evaluated (*optional if `score_ranges` used) |
+| `operator` | string | - | Optional intent: `correctness` or `contradiction` |
 | `weight` | number | 1.0 | Relative importance |
 | `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
 | `min_score` | number | - | Minimum score (0–1) to pass this criterion |
@@ -18142,6 +18121,25 @@ assertions:
         weight: 1.0
         required: false
 ```
+
+### Criterion Operators
+
+Use `operator` when outcome text should carry grading intent without embedding words like "must not contradict" in the outcome itself:
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: supported-fact
+        operator: correctness
+        outcome: States revenue increased to $10M
+      - id: no-conflicting-fact
+        operator: contradiction
+        outcome: Revenue increased to $10M
+```
+
+- `correctness`: answer must positively support or fulfill the outcome.
+- `contradiction`: answer may omit the outcome, but must not make an incompatible claim.
 
 ## Score-Range Mode
 

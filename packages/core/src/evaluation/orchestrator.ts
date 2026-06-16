@@ -721,35 +721,6 @@ export async function runEvaluation(
     }
   };
 
-  // Validate local repo source paths upfront before any materialization attempt.
-  // Collect repos from all test cases (suite-level + per-case) and check that local paths exist.
-  const allRepos = new Map<string, import('./types.js').RepoConfig>();
-  for (const ec of filteredEvalCases) {
-    if (ec.workspace?.repos) {
-      for (const repo of ec.workspace.repos) {
-        // Deduplicate by repo path + source path (skip source-less Docker repos)
-        if (!repo.source) continue;
-        const key = `${repo.path ?? ''}::${repo.source.type === 'local' ? repo.source.path : ''}`;
-        if (!allRepos.has(key)) {
-          allRepos.set(key, repo);
-        }
-      }
-    }
-  }
-  if (allRepos.size > 0) {
-    const localPathErrors = RepoManager.validateLocalPaths([...allRepos.values()]);
-    if (localPathErrors.length > 0) {
-      const message = RepoManager.formatValidationErrors(localPathErrors);
-      console.warn(`Warning: ${message}`);
-      // Store invalid repo paths so affected tests can be failed with execution_error
-      const invalidLocalRepoPaths = new Set(localPathErrors.map((e) => e.repoPath));
-      // If suite-level repos have invalid paths, fail the entire run early
-      if (suiteWorkspace?.repos?.some((r) => r.path && invalidLocalRepoPaths.has(r.path))) {
-        throw new Error(message);
-      }
-    }
-  }
-
   // Resolve worker count and pool mode
   const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
 
@@ -944,7 +915,7 @@ export async function runEvaluation(
         if (needsPerRepoCheck) {
           // Static workspace with existing content: materialize only missing repos
           for (const repo of suiteWorkspace.repos) {
-            if (!repo.path || !repo.source) continue;
+            if (!repo.path || !repo.repo) continue;
             const targetDir = path.join(sharedWorkspacePath, repo.path);
             if (existsSync(targetDir)) {
               setupLog(`reusing existing repo at: ${targetDir}`);
@@ -2040,26 +2011,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     ) {
       workspacePath = getWorkspacePath(evalRunId, evalCase.id);
       await mkdir(workspacePath, { recursive: true });
-    }
-
-    // Validate local repo paths before per-case materialization
-    if (evalCase.workspace?.repos?.length && workspacePath) {
-      const localPathErrors = RepoManager.validateLocalPaths(evalCase.workspace.repos);
-      if (localPathErrors.length > 0) {
-        const message = RepoManager.formatValidationErrors(localPathErrors);
-        console.warn(`Warning: test=${evalCase.id} ${message}`);
-        return buildErrorResult(
-          evalCase,
-          target.name,
-          nowFn(),
-          new Error(message),
-          promptInputs,
-          provider,
-          'repo_setup',
-          'local_path_not_found',
-          verbose,
-        );
-      }
     }
 
     // Materialize repos into per-case workspace

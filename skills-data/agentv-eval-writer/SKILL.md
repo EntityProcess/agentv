@@ -283,66 +283,58 @@ Run scripts before/after each test. Define at suite level or override per case:
 ```yaml
 workspace:
   template: ./workspace-templates/my-project
-  setup:
-    command: ["bun", "run", "setup.ts"]
-    timeout_ms: 120000
-  teardown:
-    command: ["bun", "run", "teardown.ts"]
+  repos:
+    - path: ./repo
+      repo: sympy/sympy
+      base_commit: "abc123"
+  hooks:
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+      timeout_ms: 120000
+    after_each:
+      reset: fast
+    after_all:
+      command: ["bun", "run", "teardown.ts"]
 
 tests:
   - id: case-1
     input: Fix the bug
     criteria: Bug is fixed
     metadata:
-      repo: sympy/sympy
-    workspace:
-      repos:
-        - path: /testbed
-          source:
-            type: git
-            url: https://github.com/sympy/sympy.git
-          checkout:
-            base_commit: "abc123"
-      docker:
-        image: swebench/sweb.eval.django__django:latest
+      source_repo: sympy/sympy
+      source_commit: "abc123"
 ```
 
-**Lifecycle:** template copy → repo clone → setup → git baseline → agent → file changes → teardown → repo reset → cleanup
+**Lifecycle:** template copy → repo materialization → workspace before_all → target before_all → git baseline → before_each hooks → agent → file changes → after_each hooks → after_all hooks → cleanup
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].checkout.base_commit`; treat `metadata.base_commit` as informational only.
+For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].base_commit`; treat `metadata.source_commit` as informational only.
 
 ### Repository Lifecycle
 
-Clone repos into workspace automatically. For shared repo workspaces, pooling is the default:
+Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from registered projects, `git_cache.mirrors`, its mirror cache, then remote clone. For shared repo workspaces, pooling is the default:
 
 ```yaml
 workspace:
   repos:
     - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/repo.git
-      checkout:
-        ref: main
-        ancestor: 1       # parent commit
-      clone:
-        depth: 10
+      repo: https://github.com/org/repo.git
+      commit: main
+      ancestor: 1       # parent commit
   hooks:
     after_each:
       reset: fast          # none | fast | strict
   isolation: shared        # shared | per_test
   mode: pooled             # pooled | temp | static
-  hooks:
-    enabled: true            # set false to skip all hooks
 ```
 
-- `source.type`: `git` (URL) or `local` (path)
-- `checkout.resolve`: `remote` (ls-remote) or `local`
-- `clone.depth`: shallow clone depth
-- `clone.filter`: partial clone filter (e.g., `blob:none`)
-- `clone.sparse`: sparse checkout paths array
+- `repo`: full clone URL or GitHub `org/name` shorthand
+- `commit`: branch, tag, or SHA to check out
+- `base_commit`: alias for `commit` for SWE-bench-style datasets
+- `ancestor`: walk N commits back from the checked-out ref
+- `sparse`: sparse checkout paths array
+- Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
 - `mode`: `pooled` (default for shared repos), `temp`, or `static`
 - `path`: workspace path used when `mode: static`; when empty/missing the workspace is auto-materialised (template copied + repos cloned); populated dirs are reused as-is
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks

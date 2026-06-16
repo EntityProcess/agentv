@@ -235,31 +235,19 @@ export type WorkspaceScriptConfig = {
  * - before_each: runs before each test (optional)
  * - after_each: runs after each test (e.g., reset git state)
  */
-export type RepoSource =
-  | { readonly type: 'git'; readonly url: string }
-  | { readonly type: 'local'; readonly path: string };
-
-export type RepoCheckout = {
-  readonly ref?: string;
-  /** SWE-bench-friendly alias for ref when pinning a dataset snapshot commit */
-  readonly base_commit?: string;
-  readonly resolve?: 'remote' | 'local';
-  readonly ancestor?: number;
-};
-
-export type RepoClone = {
-  readonly depth?: number;
-  readonly filter?: string;
-  readonly sparse?: readonly string[];
-};
-
 export type RepoConfig = {
   /** Target path inside the workspace. Optional for Docker repos targeting the container's working directory. */
   readonly path?: string;
-  /** Clone source. Optional for Docker prebuilt images where repos exist inside the container. */
-  readonly source?: RepoSource;
-  readonly checkout?: RepoCheckout;
-  readonly clone?: RepoClone;
+  /** Canonical repository identity. Accepts a full clone URL or GitHub org/name shorthand. */
+  readonly repo?: string;
+  /** Commit, branch, or tag to check out after materialization. */
+  readonly commit?: string;
+  /** SWE-bench-friendly alias for commit when pinning a dataset snapshot commit. */
+  readonly base_commit?: string;
+  /** Walk this many ancestors back after checking out commit/base_commit. */
+  readonly ancestor?: number;
+  /** Optional sparse-checkout paths. */
+  readonly sparse?: readonly string[];
 };
 
 export type WorkspaceHookConfig = {

@@ -8,7 +8,11 @@ import { getWorkspacePoolRoot } from '@agentv/core';
 interface PoolMetadata {
   fingerprint: string;
   templatePath: string | null;
-  repos: readonly { path: string; source: { type: string; url?: string; path?: string } }[];
+  repos: readonly {
+    path?: string;
+    repo?: string;
+    source?: { type: string; url?: string; path?: string };
+  }[];
   createdAt: string;
 }
 
@@ -87,8 +91,8 @@ export const listCommand = command({
           console.log(`    Template: ${metadata.templatePath}`);
         }
         if (metadata.repos && metadata.repos.length > 0) {
-          const repoSources = metadata.repos.map((r) =>
-            r.source.type === 'git' ? r.source.url : r.source.path,
+          const repoSources = metadata.repos.map(
+            (r) => r.repo ?? (r.source?.type === 'git' ? r.source.url : r.source?.path),
           );
           console.log(`    Repos: ${repoSources.join(', ')}`);
         }

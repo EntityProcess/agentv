@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { getWorkspacePoolRoot } from '../../paths.js';
 import type { RepoConfig } from '../types.js';
 import { getRepoCheckoutRef } from './repo-checkout.js';
+import { normalizeRepoIdentity } from './repo-identity.js';
 import type { RepoManager } from './repo-manager.js';
 
 const execFileAsync = promisify(execFile);
@@ -64,7 +65,8 @@ interface PoolMetadata {
 
 /**
  * Normalize a repo config into a canonical form for fingerprinting.
- * Git URLs are lowercased with .git suffix stripped; local paths are kept as-is.
+ * Acquisition choices are intentionally excluded; only declared provenance
+ * and checkout content selection affect the workspace pool key.
  */
 function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> {
   const result: Record<string, unknown> = {};
@@ -73,23 +75,17 @@ function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> 
     result.path = repo.path;
   }
 
-  if (repo.source) {
-    result.source =
-      repo.source.type === 'git'
-        ? { type: 'git', url: repo.source.url.toLowerCase().replace(/\.git$/, '') }
-        : { type: 'local', path: repo.source.path };
+  if (repo.repo) {
+    result.repo = normalizeRepoIdentity(repo.repo);
   }
 
-  result.ref = getRepoCheckoutRef(repo.checkout);
+  result.ref = getRepoCheckoutRef(repo);
 
-  if (repo.clone?.depth !== undefined) {
-    result.depth = repo.clone.depth;
+  if (repo.ancestor !== undefined) {
+    result.ancestor = repo.ancestor;
   }
-  if (repo.clone?.filter !== undefined) {
-    result.filter = repo.clone.filter;
-  }
-  if (repo.clone?.sparse?.length) {
-    result.sparse = [...repo.clone.sparse].sort();
+  if (repo.sparse?.length) {
+    result.sparse = [...repo.sparse].sort();
   }
 
   return result;
@@ -97,7 +93,7 @@ function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> 
 
 /**
  * Compute a deterministic SHA-256 fingerprint for a workspace configuration.
- * The fingerprint captures only repo materialization inputs (source, checkout, clone options)
+ * The fingerprint captures only repo materialization inputs (repo, commit, sparse, ancestor)
  * in a canonical order. Template path is excluded because template files are re-copied on
  * every pool reuse and don't affect the cloned checkout state.
  */
@@ -361,7 +357,7 @@ export class WorkspacePoolManager {
 
   /**
    * Reset an existing slot for reuse:
-   * 1. Reset repos (fetch from origin when resolve=remote, then git reset --hard && git clean per repo)
+   * 1. Reset repos to their declared checkout, then git clean per repo
    * 2. Re-copy template files (skip repo directories)
    */
   private async resetSlot(
@@ -370,9 +366,9 @@ export class WorkspacePoolManager {
     repos: readonly RepoConfig[],
     poolReset: 'none' | 'fast' | 'strict' = 'fast',
   ): Promise<void> {
-    // Reset each repo (skip source-less repos — they live inside Docker only)
+    // Reset each repo (skip repo-less entries — they live inside Docker only)
     for (const repo of repos) {
-      if (!repo.path || !repo.source) continue;
+      if (!repo.path || !repo.repo) continue;
       const repoDir = path.join(slotPath, repo.path);
       if (!existsSync(repoDir)) {
         continue;
@@ -380,21 +376,8 @@ export class WorkspacePoolManager {
       if (poolReset === 'none') {
         continue;
       }
-      const ref = getRepoCheckoutRef(repo.checkout);
-      const resolve = repo.checkout?.resolve ?? 'remote';
-
-      // When resolve is 'remote', fetch latest from origin before resetting
-      // so the pool slot reflects the current remote state at eval start.
-      if (resolve === 'remote') {
-        const fetchArgs = ['fetch', 'origin', ref];
-        if (repo.clone?.depth) {
-          fetchArgs.splice(1, 0, '--depth', String(repo.clone.depth));
-        }
-        await git(fetchArgs, { cwd: repoDir });
-        await git(['reset', '--hard', 'FETCH_HEAD'], { cwd: repoDir });
-      } else {
-        await git(['reset', '--hard', ref], { cwd: repoDir });
-      }
+      const ref = getRepoCheckoutRef(repo);
+      await git(['reset', '--hard', ref], { cwd: repoDir });
       // strict removes .gitignored files (node_modules, build outputs).
       // fast preserves .gitignored files, letting before_all
       // build steps survive across pool reuse cycles and avoiding expensive rebuilds.

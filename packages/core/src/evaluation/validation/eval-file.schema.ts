@@ -267,30 +267,19 @@ const WorkspaceScriptSchema = z.object({
 // Repo lifecycle
 // ---------------------------------------------------------------------------
 
-const RepoSourceSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('git'), url: z.string().url() }),
-  z.object({ type: z.literal('local'), path: z.string() }),
-]);
-
-const RepoCheckoutSchema = z.object({
-  ref: z.string().optional(),
-  base_commit: z.string().min(1).optional(),
-  resolve: z.enum(['remote', 'local']).optional(),
-  ancestor: z.number().int().min(0).optional(),
-});
-
-const RepoCloneSchema = z.object({
-  depth: z.number().int().min(1).optional(),
-  filter: z.string().optional(),
-  sparse: z.array(z.string()).optional(),
-});
-
-const RepoSchema = z.object({
-  path: z.string().optional(),
-  source: RepoSourceSchema.optional(),
-  checkout: RepoCheckoutSchema.optional(),
-  clone: RepoCloneSchema.optional(),
-});
+const RepoSchema = z
+  .object({
+    path: z.string().optional(),
+    repo: z.string().min(1).optional(),
+    commit: z.string().min(1).optional(),
+    base_commit: z.string().min(1).optional(),
+    ancestor: z.number().int().min(0).optional(),
+    sparse: z.array(z.string()).optional(),
+  })
+  .strict()
+  .refine((repo) => !repo.commit || !repo.base_commit || repo.commit === repo.base_commit, {
+    message: 'commit and base_commit must match when both are set',
+  });
 
 const WorkspaceHookSchema = z.object({
   command: z.union([z.string(), z.array(z.string())]).optional(),
