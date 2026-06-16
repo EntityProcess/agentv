@@ -1,0 +1,31 @@
+name: repo-materialization-contract
+description: Release gate for public repo materialization, previous-commit checkout, and file input substitution.
+
+workspace:
+  repos:
+    - path: ./fixture
+      repo: EntityProcess/agentv-contract-fixture
+      commit: 21a34daed7ebcfe36cbed053607622a55e5e94cb
+
+execution:
+  target: github-models-contract
+  workers: 1
+
+tests:
+  - id: repo-materializes-previous-commit
+    criteria: The workspace materializes an owned public fixture repo at a pinned previous commit.
+    input:
+      - role: system
+        content: Reply with exactly the uppercase word READY.
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/repo-materialization-note.txt
+          - type: text
+            value: Reply READY after reading the attached contract file.
+    assertions:
+      - type: contains
+        value: READY
+      - name: repo-materialized-previous-commit
+        type: code-grader
+        command: ["bun", "../scripts/check-repo-materialization.ts"]

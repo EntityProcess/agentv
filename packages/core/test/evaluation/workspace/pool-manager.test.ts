@@ -704,6 +704,39 @@ describe('WorkspacePoolManager', () => {
   });
 
   describe('pool reset policy', () => {
+    it('preserves ancestor checkout on reuse', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      const firstSha = createTestRepo(repoDir, { 'state.txt': 'first' });
+      writeFileSync(path.join(repoDir, 'state.txt'), 'second');
+      execSync('git add -A && git commit -m "second"', { cwd: repoDir, ...EXEC_OPTS });
+      const secondSha = gitExec('git rev-parse HEAD', repoDir);
+
+      const manager = new WorkspacePoolManager(poolRoot);
+      const repos: RepoConfig[] = [
+        { path: './my-repo', repo: fileRepoUrl(repoDir), commit: secondSha, ancestor: 1 },
+      ];
+
+      const slot1 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+
+      expect(gitExec('git rev-parse HEAD', path.join(slot1.path, 'my-repo'))).toBe(firstSha);
+      await manager.releaseSlot(slot1);
+
+      const slot2 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+
+      expect(slot2.path).toBe(slot1.path);
+      expect(gitExec('git rev-parse HEAD', path.join(slot2.path, 'my-repo'))).toBe(firstSha);
+
+      await manager.releaseSlot(slot2);
+    }, 30_000);
+
     it('strict reset removes gitignored files on reuse', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       // Create a repo with a .gitignore that ignores build/

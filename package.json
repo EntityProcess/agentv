@@ -25,6 +25,7 @@
     "examples:install": "bun scripts/install-examples.ts",
     "publish": "bun run build && bun scripts/publish.ts",
     "publish:next": "bun run build && bun scripts/publish.ts next",
+    "contract-eval": "bun run build && bun scripts/run-contract-eval.ts",
     "phoenix:dry-run": "bun --filter @agentv/phoenix-adapter phoenix:dry-run",
     "phoenix:assert-smoke": "bun --filter @agentv/phoenix-adapter phoenix:assert-smoke"
   },

@@ -1,43 +1,13 @@
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { cp, mkdir, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import { getWorkspacePoolRoot } from '../../paths.js';
 import type { RepoConfig } from '../types.js';
 import { getRepoCheckoutRef } from './repo-checkout.js';
 import { normalizeRepoIdentity } from './repo-identity.js';
 import type { RepoManager } from './repo-manager.js';
-
-const execFileAsync = promisify(execFile);
-
-/** Environment vars to force non-interactive git, stripped of hook-injected vars */
-function gitEnv(): Record<string, string | undefined> {
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) {
-    if (key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND') {
-      delete env[key];
-    }
-  }
-  return {
-    ...env,
-    GIT_TERMINAL_PROMPT: '0',
-    GIT_ASKPASS: '',
-    GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
-  };
-}
-
-async function git(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, {
-    cwd: opts?.cwd,
-    timeout: opts?.timeout ?? 300_000,
-    env: gitEnv(),
-    maxBuffer: 50 * 1024 * 1024,
-  });
-  return stdout.trim();
-}
 
 export interface AcquireWorkspaceOptions {
   templatePath?: string;
@@ -199,7 +169,7 @@ export class WorkspacePoolManager {
 
       if (slotExists) {
         // Reuse existing slot: reset repos and re-copy template
-        await this.resetSlot(slotPath, templatePath, repos, poolReset);
+        await this.resetSlot(slotPath, templatePath, repos, options.repoManager, poolReset);
         return {
           index: i,
           path: slotPath,
@@ -364,25 +334,11 @@ export class WorkspacePoolManager {
     slotPath: string,
     templatePath: string | undefined,
     repos: readonly RepoConfig[],
+    repoManager: RepoManager,
     poolReset: 'none' | 'fast' | 'strict' = 'fast',
   ): Promise<void> {
-    // Reset each repo (skip repo-less entries — they live inside Docker only)
-    for (const repo of repos) {
-      if (!repo.path || !repo.repo) continue;
-      const repoDir = path.join(slotPath, repo.path);
-      if (!existsSync(repoDir)) {
-        continue;
-      }
-      if (poolReset === 'none') {
-        continue;
-      }
-      const ref = getRepoCheckoutRef(repo);
-      await git(['reset', '--hard', ref], { cwd: repoDir });
-      // strict removes .gitignored files (node_modules, build outputs).
-      // fast preserves .gitignored files, letting before_all
-      // build steps survive across pool reuse cycles and avoiding expensive rebuilds.
-      const cleanFlag = poolReset === 'strict' ? '-fdx' : '-fd';
-      await git(['clean', cleanFlag], { cwd: repoDir });
+    if (poolReset !== 'none') {
+      await repoManager.reset(repos, slotPath, poolReset);
     }
 
     // Re-copy template files, skipping repo directories

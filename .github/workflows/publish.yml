@@ -22,6 +22,7 @@ concurrency:
 permissions:
   contents: read
   id-token: write
+  models: read
 
 jobs:
   publish:
@@ -59,6 +60,15 @@ jobs:
               echo "action=publish-latest" >> $GITHUB_OUTPUT
             fi
           fi
+
+      # Latest promotion is blocked on a tiny live contract eval. Next-channel
+      # publishes stay fast; failures here stop before npm publish runs.
+      - name: Run contract eval gate
+        if: steps.channel.outputs.action == 'publish-latest'
+        run: bun run contract-eval
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
 
       - name: Publish to npm
         run: |
