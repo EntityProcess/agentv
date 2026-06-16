@@ -3,7 +3,7 @@ targets:
     provider: openai
     api_format: chat
     base_url: https://models.github.ai/inference
-    api_key: ${{ GITHUB_TOKEN }}
+    api_key: ${{ GH_MODELS_TOKEN }}
     model: ${{ CONTRACT_EVAL_MODEL }}
     temperature: 0
     max_output_tokens: 512
