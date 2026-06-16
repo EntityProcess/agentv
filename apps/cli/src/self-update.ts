@@ -1,16 +1,12 @@
 /**
  * Shared self-update logic for agentv.
  *
- * Used by both `agentv self update` and the version-check prompt
- * when the installed version doesn't satisfy `required_version`.
+ * Used only by the explicit `agentv self update` command. Project
+ * `required_version` checks are advisory and never invoke this module.
  *
- * When called from the version-check prompt, a `versionRange` (from the
- * project's `required_version` config) is passed through as the npm/bun
- * version specifier (e.g., `agentv@">=4.1.0"`). This ensures the update
- * respects the project's constraints and avoids unintended major-version jumps.
- *
- * When called from `agentv self update` (no range), it installs `@latest` for stable
- * versions or `@next` when the current version has a prerelease identifier.
+ * By default it installs `@latest` for stable versions or `@next` when the
+ * current version has a prerelease identifier. Callers may pass a
+ * `versionRange`/dist tag when they need a specific install specifier.
  *
  * Install scope detection: if `process.argv[1]` contains `node_modules`,
  * agentv was invoked from a local project dependency (e.g. `npx agentv` or
