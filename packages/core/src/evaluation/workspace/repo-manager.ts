@@ -36,7 +36,6 @@ interface RepoManagerOptions {
 interface AcquisitionSource {
   readonly kind: 'configured-mirror' | 'registered-project' | 'mirror-cache' | 'remote';
   readonly sourceUrl: string;
-  readonly referencePath?: string;
   readonly originUrl: string;
 }
 
@@ -166,10 +165,15 @@ export class RepoManager {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
-      const timeoutHandle = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-      }, timeout);
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      const resetIdleTimeout = (): void => {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        timeoutHandle = setTimeout(() => {
+          timedOut = true;
+          child.kill('SIGTERM');
+        }, timeout);
+      };
+      resetIdleTimeout();
 
       const heartbeatHandle =
         this.progress && this.heartbeatMs > 0
@@ -182,7 +186,7 @@ export class RepoManager {
       const finish = (error?: Error): void => {
         if (settled) return;
         settled = true;
-        clearTimeout(timeoutHandle);
+        if (timeoutHandle) clearTimeout(timeoutHandle);
         if (heartbeatHandle) clearInterval(heartbeatHandle);
         if (error) {
           reject(error);
@@ -193,11 +197,13 @@ export class RepoManager {
 
       child.stdout.on('data', (chunk: Buffer) => {
         stdout = appendLimited(stdout, chunk);
+        if (!timedOut) resetIdleTimeout();
         if (this.progress) process.stdout.write(chunk);
       });
 
       child.stderr.on('data', (chunk: Buffer) => {
         stderr = appendLimited(stderr, chunk);
+        if (!timedOut) resetIdleTimeout();
         if (this.progress) process.stderr.write(chunk);
       });
 
@@ -213,7 +219,7 @@ export class RepoManager {
         if (timedOut) {
           finish(
             new Error(
-              `${opts.description} exceeded ${formatDuration(timeout)}. ` +
+              `${opts.description} made no progress for ${formatDuration(timeout)}. ` +
                 `Register a matching local checkout, configure git_cache.mirrors in ${configPath()}, or check network connectivity.`,
             ),
           );
@@ -347,19 +353,23 @@ export class RepoManager {
   }
 
   private async prepareMirrorCache(
-    cloneUrl: string,
+    seedSource: string,
     repoIdentity: string,
   ): Promise<string | undefined> {
-    assertSafeGitOperand(cloneUrl, 'repo clone URL');
+    assertSafeGitOperand(seedSource, 'repo clone source');
     const mirrorPath = this.gitCachePath(repoIdentity);
     try {
       await mkdir(path.dirname(mirrorPath), { recursive: true });
       return await this.withMirrorCacheLock(mirrorPath, async () => {
         if (await this.isValidBareRepo(mirrorPath)) {
           try {
+            await this.runGit(['remote', 'set-url', 'origin', seedSource], {
+              cwd: mirrorPath,
+              timeout: 10_000,
+            });
             await this.runGitStreaming(['fetch', '--prune', '--progress', 'origin'], {
               cwd: mirrorPath,
-              description: `git fetch cache for ${cloneUrl}`,
+              description: `git fetch cache for ${seedSource}`,
             });
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -375,9 +385,9 @@ export class RepoManager {
         );
         try {
           await this.runGitStreaming(
-            ['clone', '--mirror', '--progress', '--', cloneUrl, tempPath],
+            ['clone', '--mirror', '--progress', '--', seedSource, tempPath],
             {
-              description: `git mirror clone ${cloneUrl}`,
+              description: `git mirror clone ${seedSource}`,
             },
           );
           if (!(await this.isValidBareRepo(tempPath))) {
@@ -391,7 +401,7 @@ export class RepoManager {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[repo] mirror cache unavailable; falling back to remote clone: ${message}`);
+      console.warn(`[repo] mirror cache unavailable; trying next acquisition source: ${message}`);
       return undefined;
     }
   }
@@ -419,9 +429,6 @@ export class RepoManager {
   }
 
   private assertNoUserOwnedAlternates(targetDir: string, acquisition: AcquisitionSource): void {
-    if (acquisition.kind !== 'registered-project' && acquisition.kind !== 'configured-mirror') {
-      return;
-    }
     const alternatesPath = path.join(targetDir, '.git', 'objects', 'info', 'alternates');
     if (!existsSync(alternatesPath)) return;
     const alternates = readFileSync(alternatesPath, 'utf-8').trim();
@@ -443,22 +450,26 @@ export class RepoManager {
 
     const registeredProject = await this.findRegisteredProject(repoIdentity);
     if (registeredProject) {
-      return {
-        kind: 'registered-project',
-        sourceUrl: registeredProject,
-        referencePath: registeredProject,
-        originUrl,
-      };
+      const mirrorCache = await this.prepareMirrorCache(registeredProject, repoIdentity);
+      if (mirrorCache) {
+        return {
+          kind: 'registered-project',
+          sourceUrl: mirrorCache,
+          originUrl,
+        };
+      }
     }
 
     const configuredMirror = this.findConfiguredMirror(repoIdentity);
     if (configuredMirror) {
-      return {
-        kind: 'configured-mirror',
-        sourceUrl: configuredMirror,
-        referencePath: configuredMirror,
-        originUrl,
-      };
+      const mirrorCache = await this.prepareMirrorCache(configuredMirror, repoIdentity);
+      if (mirrorCache) {
+        return {
+          kind: 'configured-mirror',
+          sourceUrl: mirrorCache,
+          originUrl,
+        };
+      }
     }
 
     const mirrorCache = await this.prepareMirrorCache(originUrl, repoIdentity);
@@ -495,13 +506,9 @@ export class RepoManager {
       );
     }
 
+    // Plain local clones hardlink objects on the same filesystem and copy
+    // otherwise; unlike --reference, neither path leaves alternates behind.
     const cloneArgs = ['clone', '--progress', '--no-checkout'];
-    if (acquisition.referencePath) {
-      cloneArgs.push('--reference', acquisition.referencePath);
-      if (acquisition.kind === 'registered-project' || acquisition.kind === 'configured-mirror') {
-        cloneArgs.push('--dissociate');
-      }
-    }
     assertSafeGitOperand(acquisition.sourceUrl, 'repo clone source');
     cloneArgs.push('--', acquisition.sourceUrl, targetDir);
 

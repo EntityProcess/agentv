@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -51,6 +52,16 @@ function createTestRepo(dir: string, files?: Record<string, string>): string {
 function readAlternates(repoDir: string): string {
   const alternatesPath = path.join(repoDir, '.git', 'objects', 'info', 'alternates');
   return existsSync(alternatesPath) ? readFileSync(alternatesPath, 'utf-8').trim() : '';
+}
+
+function objectPath(gitDir: string, sha: string): string {
+  return path.join(gitDir, 'objects', sha.slice(0, 2), sha.slice(2));
+}
+
+function expectHardlinkedObject(leftPath: string, rightPath: string): void {
+  const left = statSync(leftPath);
+  const right = statSync(rightPath);
+  expect(`${left.dev}:${left.ino}`).toBe(`${right.dev}:${right.ino}`);
 }
 
 function cachePathFor(repo: string): string {
@@ -235,7 +246,7 @@ describe('RepoManager', () => {
 
     it('auto-adopts a registered project whose origin matches repo', async () => {
       const repoDir = path.join(tmpDir, 'registered-repo');
-      createTestRepo(repoDir, { 'hello.txt': 'hello world' });
+      const commitSha = createTestRepo(repoDir, { 'hello.txt': 'hello world' });
       execSync('git remote add origin https://github.com/example/registered.git', {
         cwd: repoDir,
         ...EXEC_OPTS,
@@ -265,15 +276,23 @@ describe('RepoManager', () => {
       );
 
       const targetDir = path.join(workspaceDir, 'my-repo');
+      const cachePath = cachePathFor('https://github.com/example/registered.git');
+      expect(gitExec('git rev-parse --is-bare-repository', cachePath)).toBe('true');
+      expect(gitExec('git rev-parse HEAD', targetDir)).toBe(commitSha);
+      expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
       expect(readAlternates(targetDir)).toBe('');
       expect(gitExec('git remote get-url origin', targetDir)).toBe(
         'https://github.com/example/registered.git',
       );
+      expectHardlinkedObject(
+        objectPath(cachePath, commitSha),
+        objectPath(path.join(targetDir, '.git'), commitSha),
+      );
     }, 30_000);
 
-    it('dissociates configured mirrors from workspace clones', async () => {
+    it('materializes configured mirrors through the mirror cache without alternates', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
-      createTestRepo(repoDir, { 'hello.txt': 'hello world' });
+      const commitSha = createTestRepo(repoDir, { 'hello.txt': 'hello world' });
       const mirrorDir = path.join(tmpDir, 'mirror.git');
       execSync(`git clone --bare "${repoDir}" "${mirrorDir}"`, { env: cleanGitEnv() });
 
@@ -300,10 +319,164 @@ describe('RepoManager', () => {
       );
 
       const targetDir = path.join(workspaceDir, 'my-repo');
+      const cachePath = cachePathFor('https://github.com/example/mirror.git');
+      expect(gitExec('git rev-parse --is-bare-repository', cachePath)).toBe('true');
+      expect(gitExec('git rev-parse HEAD', targetDir)).toBe(commitSha);
       expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
       expect(readAlternates(targetDir)).toBe('');
       expect(gitExec('git remote get-url origin', targetDir)).toBe(
         'https://github.com/example/mirror.git',
+      );
+      expectHardlinkedObject(
+        objectPath(cachePath, commitSha),
+        objectPath(path.join(targetDir, '.git'), commitSha),
+      );
+    }, 30_000);
+
+    it('routes registered projects and configured mirrors through mirror-cache clones', async () => {
+      const registeredRepo = path.join(tmpDir, 'registered-repo');
+      createTestRepo(registeredRepo, { 'registered.txt': 'registered' });
+      execSync('git remote add origin https://github.com/example/registered-cache.git', {
+        cwd: registeredRepo,
+        ...EXEC_OPTS,
+      });
+
+      const configuredRepo = path.join(tmpDir, 'configured-repo');
+      createTestRepo(configuredRepo, { 'configured.txt': 'configured' });
+      const configuredMirror = path.join(tmpDir, 'configured-mirror.git');
+      execSync(`git clone --bare "${configuredRepo}" "${configuredMirror}"`, {
+        env: cleanGitEnv(),
+      });
+
+      const homeDir = process.env.AGENTV_HOME;
+      if (!homeDir) throw new Error('AGENTV_HOME not set');
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        [
+          'projects:',
+          '  - id: registered',
+          '    name: Registered',
+          `    path: ${registeredRepo}`,
+          '    added_at: "2026-01-01T00:00:00Z"',
+          '    last_opened_at: "2026-01-01T00:00:00Z"',
+          'git_cache:',
+          '  mirrors:',
+          '    "https://github.com/example/configured-cache.git":',
+          `      ${configuredMirror}`,
+          '',
+        ].join('\n'),
+      );
+
+      const binDir = path.join(tmpDir, 'bin');
+      mkdirSync(binDir, { recursive: true });
+      const logPath = path.join(tmpDir, 'git-routing.log');
+      const fakeGit = path.join(binDir, 'git');
+      writeFileSync(
+        fakeGit,
+        [
+          '#!/usr/bin/env bun',
+          "import { appendFileSync } from 'node:fs';",
+          'const args = process.argv.slice(2);',
+          "appendFileSync(process.env.REPO_MANAGER_TEST_GIT_LOG ?? '', `${args.join(' ')}\\n`);",
+          'const child = Bun.spawnSync([process.env.REAL_GIT_PATH ?? "git", ...args], {',
+          "  stdin: 'inherit',",
+          "  stdout: 'inherit',",
+          "  stderr: 'inherit',",
+          '});',
+          'process.exit(child.exitCode ?? 0);',
+          '',
+        ].join('\n'),
+      );
+      chmodSync(fakeGit, 0o755);
+
+      const savedPath = process.env.PATH;
+      const savedRealGitPath = process.env.REAL_GIT_PATH;
+      const savedGitLog = process.env.REPO_MANAGER_TEST_GIT_LOG;
+      const realGitPath = execSync('command -v git').toString().trim();
+      process.env.PATH = `${binDir}:${process.env.PATH ?? ''}`;
+      process.env.REAL_GIT_PATH = realGitPath;
+      process.env.REPO_MANAGER_TEST_GIT_LOG = logPath;
+
+      try {
+        await manager.materialize(
+          {
+            path: './registered',
+            repo: 'https://github.com/example/registered-cache.git',
+          },
+          workspaceDir,
+        );
+        await manager.materialize(
+          {
+            path: './configured',
+            repo: 'https://github.com/example/configured-cache.git',
+          },
+          workspaceDir,
+        );
+
+        const registeredCache = cachePathFor('https://github.com/example/registered-cache.git');
+        const configuredCache = cachePathFor('https://github.com/example/configured-cache.git');
+        const log = readFileSync(logPath, 'utf-8');
+        expect(log).toContain(`clone --mirror --progress -- ${registeredRepo} `);
+        expect(log).toContain(`clone --mirror --progress -- ${configuredMirror} `);
+        expect(log).toContain(`clone --progress --no-checkout -- ${registeredCache} `);
+        expect(log).toContain(`clone --progress --no-checkout -- ${configuredCache} `);
+        expect(log).not.toContain('--reference');
+        expect(log).not.toContain('--dissociate');
+      } finally {
+        process.env.PATH = savedPath;
+        if (savedRealGitPath === undefined) {
+          process.env.REAL_GIT_PATH = undefined;
+        } else {
+          process.env.REAL_GIT_PATH = savedRealGitPath;
+        }
+        if (savedGitLog === undefined) {
+          process.env.REPO_MANAGER_TEST_GIT_LOG = undefined;
+        } else {
+          process.env.REPO_MANAGER_TEST_GIT_LOG = savedGitLog;
+        }
+      }
+    }, 30_000);
+
+    it('hardlinks large mirror-cache objects into materialized workspaces', async () => {
+      const repoDir = path.join(tmpDir, 'large-source-repo');
+      const largeContent = 'x'.repeat(2 * 1024 * 1024);
+      createTestRepo(repoDir, { 'large.bin': largeContent });
+      const largeBlobSha = gitExec('git hash-object large.bin', repoDir);
+      const mirrorDir = path.join(tmpDir, 'large-mirror.git');
+      execSync(`git clone --bare "${repoDir}" "${mirrorDir}"`, { env: cleanGitEnv() });
+
+      const homeDir = process.env.AGENTV_HOME;
+      if (!homeDir) throw new Error('AGENTV_HOME not set');
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        [
+          'git_cache:',
+          '  mirrors:',
+          '    "https://github.com/example/large.git":',
+          `      ${mirrorDir}`,
+          '',
+        ].join('\n'),
+      );
+
+      await manager.materialize(
+        {
+          path: './large-repo',
+          repo: 'https://github.com/example/large.git',
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'large-repo');
+      const cachePath = cachePathFor('https://github.com/example/large.git');
+      expect(readAlternates(targetDir)).toBe('');
+      expect(readFileSync(path.join(targetDir, 'large.bin'), 'utf-8')).toHaveLength(
+        largeContent.length,
+      );
+      expectHardlinkedObject(
+        objectPath(cachePath, largeBlobSha),
+        objectPath(path.join(targetDir, '.git'), largeBlobSha),
       );
     }, 30_000);
 
@@ -427,7 +600,7 @@ describe('RepoManager', () => {
           },
           workspaceDir,
         ),
-      ).rejects.toThrow("repo clone URL must not start with '-'");
+      ).rejects.toThrow("repo clone source must not start with '-'");
 
       await expect(
         manager.materialize(
@@ -452,71 +625,56 @@ describe('RepoManager', () => {
       ).rejects.toThrow("repo sparse path must not start with '-'");
     }, 30_000);
 
-    it('surfaces an actionable timeout when clone hangs', async () => {
+    it('uses an idle timeout that resets when streaming git emits progress', async () => {
       const binDir = path.join(tmpDir, 'bin');
       mkdirSync(binDir, { recursive: true });
-      const logPath = path.join(tmpDir, 'git.log');
       const fakeGit = path.join(binDir, 'git');
       writeFileSync(
         fakeGit,
         [
           '#!/usr/bin/env bun',
-          "import { appendFileSync } from 'node:fs';",
           'const args = process.argv.slice(2);',
-          "if (args[0] === 'clone') {",
-          "  appendFileSync(process.env.REPO_MANAGER_TEST_GIT_LOG ?? '', `${args.join(' ')}\\n`);",
-          '  setInterval(() => {}, 1000);',
-          '} else {',
-          '  const child = Bun.spawnSync([process.env.REAL_GIT_PATH ?? "git", ...args], {',
-          "  stdin: 'inherit',",
-          "  stdout: 'inherit',",
-          "  stderr: 'inherit',",
-          '  });',
-          '  process.exit(child.exitCode ?? 0);',
+          "if (args[0] === 'progressing') {",
+          '  for (let i = 0; i < 4; i += 1) {',
+          '    console.error(`progress ${i}`);',
+          '    await Bun.sleep(30);',
+          '  }',
+          '  process.exit(0);',
           '}',
+          "if (args[0] === 'stalled') {",
+          '  await new Promise(() => {});',
+          '}',
+          'process.exit(2);',
           '',
         ].join('\n'),
       );
       chmodSync(fakeGit, 0o755);
 
       const savedPath = process.env.PATH;
-      const savedRealGitPath = process.env.REAL_GIT_PATH;
-      const savedGitLog = process.env.REPO_MANAGER_TEST_GIT_LOG;
-      const realGitPath = execSync('command -v git').toString().trim();
       process.env.PATH = `${binDir}:${process.env.PATH ?? ''}`;
-      process.env.REAL_GIT_PATH = realGitPath;
-      process.env.REPO_MANAGER_TEST_GIT_LOG = logPath;
 
       try {
         const timeoutManager = new RepoManager(false, { progress: false, timeoutMs: 50 });
-        await expect(
-          timeoutManager.materialize(
-            {
-              path: './my-repo',
-              repo: 'https://github.com/example/slow.git',
-            },
-            workspaceDir,
-          ),
-        ).rejects.toThrow(
-          /git clone https:\/\/github\.com\/example\/slow\.git exceeded 0s.*Register a matching local checkout.*git_cache\.mirrors.*network connectivity/s,
-        );
+        const runGitStreaming = (
+          timeoutManager as unknown as {
+            runGitStreaming(
+              args: string[],
+              opts: { description: string; cwd?: string },
+            ): Promise<void>;
+          }
+        ).runGitStreaming.bind(timeoutManager);
 
-        const log = readFileSync(logPath, 'utf-8');
-        expect(log).toContain(
-          'clone --progress --no-checkout -- https://github.com/example/slow.git',
+        await expect(
+          runGitStreaming(['progressing'], { description: 'git clone progressing' }),
+        ).resolves.toBeUndefined();
+
+        await expect(
+          runGitStreaming(['stalled'], { description: 'git clone stalled' }),
+        ).rejects.toThrow(
+          /git clone stalled made no progress for 0s.*Register a matching local checkout.*git_cache\.mirrors.*network connectivity/s,
         );
       } finally {
         process.env.PATH = savedPath;
-        if (savedRealGitPath === undefined) {
-          process.env.REAL_GIT_PATH = undefined;
-        } else {
-          process.env.REAL_GIT_PATH = savedRealGitPath;
-        }
-        if (savedGitLog === undefined) {
-          process.env.REPO_MANAGER_TEST_GIT_LOG = undefined;
-        } else {
-          process.env.REPO_MANAGER_TEST_GIT_LOG = savedGitLog;
-        }
       }
     }, 10_000);
   });
