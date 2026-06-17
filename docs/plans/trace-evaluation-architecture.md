@@ -78,7 +78,7 @@ The best-practice direction is clear: larger players own trace stores, dashboard
 - **Start from realistic characterization evals:** The first implementation phase should collect a small set of real trace fixtures and write evals that answer useful agent-quality questions. The derived trajectory contract should be pressure-tested by those evals before broad schema or adapter work expands.
 - **Normalize first, grade second:** Graders should consume AgentV's trajectory contract. Importers translate raw sources into the contract; exporters translate the contract into OTLP/OpenInference/Phoenix shapes. This avoids coupling graders to Phoenix, Pi, VS Code, or provider-specific logs.
 - **OTel is an interchange layer, not the canonical model:** VS Code and industry tooling make OTLP/HTTP and GenAI span semantics important, but entireio-style logs and Pi sessions prove valuable traces are often transcript or lifecycle JSON. AgentV should support OTel strongly without making it mandatory.
-- **Tool trajectory is turn-centric, not span-centric:** The canonical object should model sessions, turns, messages, tool calls, tool results, and selected branches. Spans are one source and export view of those facts.
+- **Tool trajectory is turn-centric, not span-centric:** The derived trajectory object should model sessions, turns, messages, tool calls, tool results, and selected branches as a projection over the canonical trace artifact.
 - **Coding-agent transcripts are trace sources:** `agentv import claude`, `agentv import codex`, `agentv import copilot`, and `agentv eval --transcript` already establish transcript import as offline grading infrastructure. The architecture should extend that path into trajectory normalization instead of creating a separate trace-only mechanism.
 - **Replay fixtures are not cached grader results:** AgentV replay should return previously recorded target output and then run graders fresh. This is closer to curated transcript replay than result-cache reuse, and it preserves realistic partial or failed behavior for evaluator development.
 - **Replay is target substitution, not only eval mode:** `agentv eval --transcript` is useful, but the showcase should prove a replay target can replace a live target in the same eval configuration. That keeps replay aligned with AgentV's target composition model.
@@ -118,7 +118,7 @@ flowchart TB
 The derived trajectory model should stay a projection over the canonical
 `agentv.trace.v1` sidecar plus derived read models:
 
-- The full trajectory is the canonical artifact for grading, replay, and explanation: ordered model turns, tool calls/results, branch metadata, source event IDs, content redaction state, and raw evidence handles.
+- The full trajectory is the derived artifact for grading, replay, and explanation: ordered model turns, tool calls/results, branch metadata, source event IDs, content redaction state, and raw evidence handles.
 - The compact summary is a derived compatibility/read model for cheap result storage and dashboard aggregation: counts, durations, token usage, cost, error count, and tool-call counts. It must be recomputable from a full trajectory and should not be authored as separate trace state when the trajectory is available.
 
 Directional wire shape:
