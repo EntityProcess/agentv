@@ -2,10 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { resolveRunManifestPath } from '../../../src/commands/eval/result-layout.js';
 import { loadManifestResults } from '../../../src/commands/results/manifest.js';
 import { resolveSourceFile } from '../../../src/commands/results/shared.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('results shared source resolution', () => {
   let tempDir: string;
@@ -63,10 +66,7 @@ describe('results shared source resolution', () => {
   });
 
   it('normalizes historical camelCase replay rows when loading manifests', () => {
-    const fixturePath = path.join(
-      process.cwd(),
-      'apps/cli/test/fixtures/results/camel-replay/index.jsonl',
-    );
+    const fixturePath = path.join(__dirname, '../../fixtures/results/camel-replay/index.jsonl');
 
     const results = loadManifestResults(fixturePath);
 

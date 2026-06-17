@@ -143,6 +143,29 @@ function buildSchemaError(context: {
   return new ResultRowSchemaError(`Unsupported result row${location}. ${MIGRATION_GUIDANCE}`);
 }
 
+function buildInvalidScoreError(context: {
+  lineNumber?: number;
+  sourceLabel?: string;
+}): ResultRowSchemaError {
+  const location = [
+    context.sourceLabel ? ` in ${context.sourceLabel}` : '',
+    context.lineNumber !== undefined ? ` at line ${context.lineNumber}` : '',
+  ].join('');
+  return new ResultRowSchemaError(`Missing or invalid score in result row${location}.`);
+}
+
+function looksLikeResultRow(value: Record<string, unknown>): boolean {
+  return (
+    typeof value.test_id === 'string' ||
+    Object.hasOwn(value, 'score') ||
+    Object.hasOwn(value, 'trace') ||
+    Object.hasOwn(value, 'spans') ||
+    Object.hasOwn(value, 'target') ||
+    Object.hasOwn(value, 'grading_path') ||
+    Object.hasOwn(value, 'timing_path')
+  );
+}
+
 export function normalizeResultRow(
   value: unknown,
   context: { lineNumber?: number; sourceLabel?: string } = {},
@@ -152,10 +175,17 @@ export function normalizeResultRow(
   }
 
   const normalized = normalizeKnownAliases(value, RESULT_ROW_ALIASES);
-  normalized.trace = normalizeTraceSummary(normalized.trace);
-  normalized.output = normalizeOutput(normalized.output);
+  if (normalized.trace !== undefined) {
+    normalized.trace = normalizeTraceSummary(normalized.trace);
+  }
+  if (normalized.output !== undefined) {
+    normalized.output = normalizeOutput(normalized.output);
+  }
 
   if (typeof normalized.score !== 'number' || !Number.isFinite(normalized.score)) {
+    if (looksLikeResultRow(normalized)) {
+      throw buildInvalidScoreError(context);
+    }
     throw buildSchemaError(context);
   }
 
