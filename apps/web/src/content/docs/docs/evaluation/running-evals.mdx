@@ -159,7 +159,7 @@ OpenTelemetry-compatible backend.
 Stream traces directly to an observability backend during evaluation using `--export-otel`:
 
 ```bash
-# Use a backend preset (braintrust, langfuse, confident)
+# Use a built-in CLI backend resolver (braintrust, langfuse, confident)
 agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust
 
 # Include message content and tool I/O in spans (disabled by default for privacy)
@@ -213,9 +213,31 @@ export LANGFUSE_SECRET_KEY=sk-...
 agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse --otel-capture-content
 ```
 
+#### Local Backend Resolvers
+
+For project-specific backend routing, create `.agentv/otel-backends/<name>.ts` and select it
+with `--otel-backend <name>`:
+
+```ts
+export default {
+  name: 'my-backend',
+  resolve: ({ env }) => ({
+    endpoint: env.MY_OTEL_ENDPOINT ?? 'https://otel.example.com/v1/traces',
+    headers: { Authorization: `Bearer ${env.MY_OTEL_TOKEN ?? ''}` },
+  }),
+};
+```
+
+```bash
+agentv eval evals/my-eval.yaml --export-otel --otel-backend my-backend
+```
+
+Backend resolvers keep platform-specific endpoint, header, and project-routing logic outside
+AgentV core.
+
 #### Custom OTLP Endpoint
 
-For backends not covered by presets, configure via environment variables:
+For generic OTLP export without a backend resolver, configure via environment variables:
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://your-backend/v1/traces

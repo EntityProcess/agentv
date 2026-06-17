@@ -51,6 +51,7 @@ import {
   writeInitialBenchmarkArtifact,
 } from './artifact-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
+import { resolveOtelBackend } from './otel-backends.js';
 import { type OutputWriter, createOutputWriter } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { buildDefaultRunDir, normalizeExperimentName } from './result-layout.js';
@@ -1267,19 +1268,28 @@ export async function runEvalCommand(
 
   if (options.exportOtel || useFileExport) {
     try {
-      const { OtelTraceExporter, OTEL_BACKEND_PRESETS } = await import('@agentv/core');
+      const { OtelTraceExporter } = await import('@agentv/core');
 
       // Resolve endpoint and headers
       let endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
       let headers: Record<string, string> = {};
+      let resourceAttributes: Record<string, string | number | boolean> = {};
 
       if (options.otelBackend) {
-        const preset = OTEL_BACKEND_PRESETS[options.otelBackend];
-        if (preset) {
-          endpoint = preset.endpoint;
-          headers = preset.headers(process.env);
+        const resolvedBackend = await resolveOtelBackend(options.otelBackend, {
+          env: process.env,
+          cwd,
+        });
+
+        if (resolvedBackend) {
+          endpoint = resolvedBackend.endpoint;
+          headers = { ...headers, ...resolvedBackend.headers };
+          resourceAttributes = { ...resourceAttributes, ...resolvedBackend.resourceAttributes };
+          for (const warning of resolvedBackend.warnings ?? []) {
+            console.warn(warning);
+          }
         } else {
-          console.warn(`Unknown OTel backend preset: ${options.otelBackend}`);
+          console.warn(`Unknown OTel backend resolver: ${options.otelBackend}`);
         }
       }
 
@@ -1297,6 +1307,7 @@ export async function runEvalCommand(
       otelExporter = new OtelTraceExporter({
         endpoint,
         headers,
+        resourceAttributes,
         captureContent,
         groupTurns: options.otelGroupTurns,
         otlpFilePath: options.otelFile ? path.resolve(options.otelFile) : undefined,

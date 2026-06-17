@@ -4,52 +4,9 @@ import type {
   ProviderTokenUsage,
 } from '../evaluation/providers/types.js';
 import type { EvaluationResult } from '../evaluation/types.js';
-import type { OtelBackendPreset, OtelExportOptions } from './types.js';
+import type { OtelExportOptions } from './types.js';
 
-export type { OtelExportOptions, OtelBackendPreset };
-
-// ---------------------------------------------------------------------------
-// Backend presets
-// ---------------------------------------------------------------------------
-
-export const OTEL_BACKEND_PRESETS: Record<string, OtelBackendPreset> = {
-  langfuse: {
-    name: 'langfuse',
-    endpoint: process.env.LANGFUSE_HOST
-      ? `${process.env.LANGFUSE_HOST}/api/public/otel/v1/traces`
-      : 'https://cloud.langfuse.com/api/public/otel/v1/traces',
-    headers: (env) => {
-      const pub = env.LANGFUSE_PUBLIC_KEY ?? '';
-      const secret = env.LANGFUSE_SECRET_KEY ?? '';
-      return { Authorization: `Basic ${Buffer.from(`${pub}:${secret}`).toString('base64')}` };
-    },
-  },
-  braintrust: {
-    name: 'braintrust',
-    endpoint: 'https://api.braintrust.dev/otel/v1/traces',
-    headers: (env) => {
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${env.BRAINTRUST_API_KEY ?? ''}`,
-      };
-      // x-bt-parent is required by Braintrust to associate traces with a project
-      const parent =
-        env.BRAINTRUST_PARENT ??
-        (env.BRAINTRUST_PROJECT_ID ? `project_id:${env.BRAINTRUST_PROJECT_ID}` : undefined) ??
-        (env.BRAINTRUST_PROJECT ? `project_name:${env.BRAINTRUST_PROJECT}` : undefined);
-      if (parent) {
-        headers['x-bt-parent'] = parent;
-      }
-      return headers;
-    },
-  },
-  confident: {
-    name: 'confident',
-    endpoint: 'https://otel.confident-ai.com/v1/traces',
-    headers: (env) => ({
-      'x-confident-api-key': env.CONFIDENT_API_KEY ?? '',
-    }),
-  },
-};
+export type { OtelExportOptions };
 
 // ---------------------------------------------------------------------------
 // OTel type aliases (resolved dynamically at init)
@@ -92,6 +49,7 @@ export class OtelTraceExporter {
 
       const resource = resourceFromAttributes({
         [ATTR_SERVICE_NAME]: this.options.serviceName ?? 'agentv',
+        ...this.options.resourceAttributes,
       });
 
       // biome-ignore lint/suspicious/noExplicitAny: OTel processor types loaded dynamically
