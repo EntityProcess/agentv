@@ -10,7 +10,7 @@ import {
   buildTraceFromMessages,
   fromTraceEnvelopeWire,
   parseYamlValue,
-  traceEnvelopeToMessages,
+  traceEnvelopeToTranscriptMessages,
   traceToTranscriptJsonLines,
 } from '@agentv/core';
 
@@ -825,27 +825,49 @@ describe('writeArtifactsFromResults', () => {
     const projectedTranscript = traceToTranscriptJsonLines(
       {
         ...results[0].trace,
-        messages: traceEnvelopeToMessages(projectedEnvelope),
+        messages: traceEnvelopeToTranscriptMessages(projectedEnvelope),
       },
       { testId: 'transcript-case', target: 'codex' },
     );
 
     expect(transcriptLines).toEqual(JSON.parse(JSON.stringify(projectedTranscript)));
-    expect(transcriptLines).toHaveLength(1);
-    expect(transcriptLines[0]).toMatchObject({
-      test_id: 'transcript-case',
-      target: 'codex',
-      message_index: 0,
-      role: 'assistant',
-      tool_calls: [{ tool: 'Read' }],
-      transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
-      transcript_duration_ms: 4200,
-      transcript_cost_usd: 0.25,
-      source: {
-        provider: 'codex',
-        session_id: 'session-123',
+    expect(transcriptLines).toEqual([
+      {
+        test_id: 'transcript-case',
+        target: 'codex',
+        message_index: 0,
+        role: 'user',
+        content: 'Inspect artifact output',
+        transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        transcript_duration_ms: 4200,
+        transcript_cost_usd: 0.25,
+        source: {
+          provider: 'codex',
+          session_id: 'session-123',
+        },
       },
-    });
+      {
+        test_id: 'transcript-case',
+        target: 'codex',
+        message_index: 1,
+        role: 'assistant',
+        content: 'Reading artifact-writer.ts',
+        tool_calls: [
+          {
+            tool: 'Read',
+            input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+            output: 'file contents',
+          },
+        ],
+        transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
+        transcript_duration_ms: 4200,
+        transcript_cost_usd: 0.25,
+        source: {
+          provider: 'codex',
+          session_id: 'session-123',
+        },
+      },
+    ]);
     expect(envelope.schema_version).toBe('agentv.execution_trace.v1');
     expect(envelope.artifact_id).toMatch(/^execution-trace-/);
     expect(envelope.eval.test_id).toBe('transcript-case');
@@ -859,6 +881,36 @@ describe('writeArtifactsFromResults', () => {
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('execution_trace_path');
+  });
+
+  it('omits per-test transcript links when the execution trace has no transcript rows', async () => {
+    const results = [
+      makeResult({
+        testId: 'no-transcript-case',
+        output: '',
+        trace: buildTraceFromMessages(),
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const transcriptPath = path.join(testDir, 'no-transcript-case', 'outputs', 'transcript.jsonl');
+    await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
+
+    const indexLine = JSON.parse(
+      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
+    );
+    expect(indexLine).not.toHaveProperty('transcript_path');
+
+    const envelope = TraceEnvelopeWireSchema.parse(
+      JSON.parse(
+        await readFile(
+          path.join(testDir, 'no-transcript-case', 'outputs', 'execution-trace.json'),
+          'utf8',
+        ),
+      ),
+    );
+    expect(envelope.artifacts).not.toHaveProperty('transcript_path');
   });
 
   it('sanitizes test IDs for directory names', async () => {

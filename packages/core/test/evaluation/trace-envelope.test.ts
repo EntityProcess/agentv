@@ -16,6 +16,7 @@ import {
   traceEnvelopeToToolTrajectoryView,
   traceEnvelopeToTraceArtifact,
   traceEnvelopeToTraceSummary,
+  traceEnvelopeToTranscriptMessages,
 } from '../../src/evaluation/trace-envelope.js';
 import { buildTraceFromMessages, computeTraceSummary } from '../../src/evaluation/trace.js';
 import type { EvaluationResult } from '../../src/evaluation/types.js';
@@ -369,6 +370,60 @@ describe('execution trace artifact v1', () => {
     expect(otlpRead?.parentSpanId).toBe(
       envelope.trace.spans.find((span) => span.name === 'chat replay_coding_agent')?.spanId,
     );
+  });
+
+  it('projects transcript rows from canonical transcript events without changing replay messages', () => {
+    const input: readonly Message[] = [
+      { role: 'system', content: 'Stay terse.' },
+      { role: 'user', content: 'Read the config.' },
+    ];
+    const output: readonly Message[] = [
+      {
+        role: 'assistant',
+        content: 'Read config.',
+        toolCalls: [
+          {
+            tool: 'Read',
+            input: { file_path: 'src/config.ts', providerCamelKey: 'kept' },
+            output: { line_count: 12, providerCamelKey: 'kept' },
+          },
+        ],
+      },
+    ];
+    const envelope = buildTraceEnvelopeFromEvaluationResult(
+      makeResult({
+        output: 'Read config.',
+        trace: buildTraceFromMessages({
+          input,
+          output,
+          finalOutput: 'Read config.',
+          target: 'codex',
+          testId: 'transcript-projection-case',
+        }),
+      }),
+      { capture: { content: 'full', redactionLevel: 'none', redactedFields: [] } },
+    );
+
+    expect(traceEnvelopeToMessages(envelope).map((message) => message.role)).toEqual(['assistant']);
+    expect(traceEnvelopeToTranscriptMessages(envelope).map((message) => message.role)).toEqual([
+      'system',
+      'user',
+      'assistant',
+    ]);
+    expect(traceEnvelopeToTranscriptMessages(envelope)[2]?.toolCalls?.[0]).toMatchObject({
+      tool: 'Read',
+      input: { file_path: 'src/config.ts', providerCamelKey: 'kept' },
+      output: { line_count: 12, providerCamelKey: 'kept' },
+    });
+
+    const root = envelope.trace.spans.find((span) => span.spanId === envelope.trace.rootSpanId);
+    const transcriptEvent = root?.events?.find(
+      (event) => event.name === 'agentv.transcript.message',
+    );
+    expect(transcriptEvent?.attributes?.['agentv.transcript.message']).toMatchObject({
+      role: 'system',
+      content: 'Stay terse.',
+    });
   });
 
   it('orders span projections by numeric nanosecond timestamps', () => {

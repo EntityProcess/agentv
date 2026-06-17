@@ -14,7 +14,7 @@ import {
   buildTraceFromMessages,
   extractLastAssistantContent,
   toTraceEnvelopeWire,
-  traceEnvelopeToMessages,
+  traceEnvelopeToTranscriptMessages,
   traceToTranscriptJsonLines,
 } from '@agentv/core';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
@@ -739,10 +739,7 @@ function resolveEnvelopeEvalPath(
 }
 
 function resultHasExecutionTraceTranscript(result: EvaluationResult): boolean {
-  return (
-    result.output.length > 0 ||
-    result.trace.messages.some((message) => message.role === 'assistant')
-  );
+  return result.output.length > 0 || result.trace.messages.length > 0;
 }
 
 async function writeTraceEnvelopeSidecar(params: {
@@ -758,6 +755,7 @@ async function writeTraceEnvelopeSidecar(params: {
     runId: path.basename(params.outputDir),
     experiment: params.experiment,
     source: { path: RESULT_INDEX_FILENAME },
+    capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
       execution_trace_path: 'outputs/execution-trace.json',
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
@@ -839,7 +837,7 @@ export function buildResultIndexArtifact(
   const artifactSubdir = buildArtifactSubdir(result);
   const input = extractInput(result);
   const hasAnswer = result.output.length > 0;
-  const hasTranscript = result.trace.messages.length > 0 || result.trace.events.length > 0;
+  const hasTranscript = resultHasExecutionTraceTranscript(result);
 
   return {
     timestamp: result.timestamp,
@@ -898,12 +896,12 @@ async function writeJsonlFile(filePath: string, records: readonly unknown[]): Pr
 function traceProjectionForTranscript(result: EvaluationResult, envelope: TraceEnvelope) {
   return {
     ...result.trace,
-    messages: traceEnvelopeToMessages(envelope),
+    messages: traceEnvelopeToTranscriptMessages(envelope),
   };
 }
 
 function hasTranscriptProjection(result: EvaluationResult, envelope: TraceEnvelope): boolean {
-  return result.output.length > 0 || traceEnvelopeToMessages(envelope).length > 0;
+  return result.output.length > 0 || traceEnvelopeToTranscriptMessages(envelope).length > 0;
 }
 
 async function writeTranscriptJsonl(

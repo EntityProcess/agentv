@@ -10,8 +10,11 @@
  *
  * Derived views such as Provider `Message[]`, `outputs/transcript.jsonl`,
  * `TraceSummary`, compact tool trajectories, replay provider responses, and
- * OTLP JSON export bodies must project from this artifact. Do not introduce a
- * second canonical graph for those compatibility/read models.
+ * OTLP JSON export bodies must project from this artifact. Transcript JSONL
+ * uses AgentV transcript events on the root span so compatibility rows can
+ * include input/system turns without changing replay's assistant-only view.
+ * Do not introduce a second canonical graph for those compatibility/read
+ * models.
  *
  * To extend the wire shape, add snake_case fields to the focused Zod schema,
  * convert them explicitly in the matching to/from helper, and keep opaque maps
@@ -35,6 +38,7 @@ import type { EvaluationResult, EvaluationVerdict, GraderKind } from './types.js
 export const EXECUTION_TRACE_SCHEMA_VERSION = 'agentv.execution_trace.v1' as const;
 
 const TRACE_ENVELOPE_FORMAT = 'otlp_openinference_spans' as const;
+const TRANSCRIPT_MESSAGE_EVENT_NAME = 'agentv.transcript.message' as const;
 
 const CAPTURE_CONTENT_VALUES = ['none', 'metadata', 'full'] as const;
 const REDACTION_LEVEL_VALUES = ['none', 'partial', 'full'] as const;
@@ -418,8 +422,40 @@ export type TraceEnvelopeOtlpAnyValue =
   | { readonly boolValue: boolean }
   | { readonly arrayValue: { readonly values: readonly TraceEnvelopeOtlpAnyValue[] } };
 
+interface TraceEnvelopeTranscriptToolCallWire {
+  readonly tool: string;
+  readonly input?: unknown;
+  readonly output?: unknown;
+  readonly id?: string;
+  readonly start_time?: string;
+  readonly end_time?: string;
+  readonly duration_ms?: number;
+}
+
+interface TraceEnvelopeTranscriptMessageWire {
+  readonly role: string;
+  readonly name?: string;
+  readonly content?: Message['content'];
+  readonly tool_calls?: readonly TraceEnvelopeTranscriptToolCallWire[];
+  readonly start_time?: string;
+  readonly end_time?: string;
+  readonly duration_ms?: number;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly token_usage?: TokenUsage;
+}
+
+interface TraceEnvelopeMessageEntry {
+  readonly index: number;
+  readonly timeUnixNano?: string;
+  readonly message: Message;
+}
+
 function dropUndefined<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function definedStringRecord(
@@ -603,6 +639,54 @@ function maybeToolContentAttributes(
   });
 }
 
+function toTranscriptToolCallWire(
+  toolCall: ToolCall,
+  capture: TraceEnvelopeCapture,
+): TraceEnvelopeTranscriptToolCallWire {
+  return dropUndefined({
+    tool: toolCall.tool,
+    input: capture.content === 'full' ? toolCall.input : undefined,
+    output: capture.content === 'full' ? toolCall.output : undefined,
+    id: toolCall.id,
+    start_time: toolCall.startTime,
+    end_time: toolCall.endTime,
+    duration_ms: toolCall.durationMs,
+  });
+}
+
+function toTranscriptMessageWire(
+  message: Message,
+  capture: TraceEnvelopeCapture,
+): TraceEnvelopeTranscriptMessageWire {
+  return dropUndefined({
+    role: message.role,
+    name: message.name,
+    content: capture.content === 'full' ? message.content : undefined,
+    tool_calls: message.toolCalls?.map((toolCall) => toTranscriptToolCallWire(toolCall, capture)),
+    start_time: message.startTime,
+    end_time: message.endTime,
+    duration_ms: message.durationMs,
+    metadata: message.metadata,
+    token_usage: message.tokenUsage,
+  });
+}
+
+function transcriptMessageEvent(
+  message: Message,
+  index: number,
+  capture: TraceEnvelopeCapture,
+): TraceEnvelopeSpanEvent {
+  const startMs = parseTimeMs(message.startTime);
+  return {
+    name: TRANSCRIPT_MESSAGE_EVENT_NAME,
+    timeUnixNano: startMs !== undefined ? msToUnixNano(startMs) : undefined,
+    attributes: dropUndefined({
+      'agentv.transcript.message.index': index,
+      'agentv.transcript.message': toTranscriptMessageWire(message, capture),
+    }),
+  };
+}
+
 function spanStatusFromResult(result: EvaluationResult): TraceEnvelopeSpanStatus {
   if (result.executionStatus === 'execution_error' || result.error) {
     return { code: 'ERROR', message: result.error };
@@ -677,6 +761,9 @@ export function buildTraceEnvelopeFromEvaluationResult(
   const rootStatus = spanStatusFromResult(result);
   const conversionWarnings: TraceEnvelopeConversionWarning[] = [];
   const spans: TraceEnvelopeSpan[] = [];
+  const rootEvents: TraceEnvelopeSpanEvent[] = result.trace.messages.map((message, index) =>
+    transcriptMessageEvent(message, index, capture),
+  );
 
   const rootAttributes = dropUndefined({
     'gen_ai.operation.name': 'invoke_agent',
@@ -711,13 +798,14 @@ export function buildTraceEnvelopeFromEvaluationResult(
     attributes: rootAttributes,
     events: result.error
       ? [
+          ...rootEvents,
           {
             name: 'exception',
             timeUnixNano: msToUnixNano(Math.max(rootStartMs, rootEndMs)),
             attributes: { 'exception.message': result.error },
           },
         ]
-      : [],
+      : rootEvents,
   });
 
   const assistantEntries = assistantMessages(result.trace.messages);
@@ -1255,7 +1343,53 @@ function nearestAncestorToolCallId(
   return undefined;
 }
 
-export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Message[] {
+function fromTranscriptToolCallWire(wire: unknown): ToolCall | undefined {
+  if (!isRecord(wire) || typeof wire.tool !== 'string') {
+    return undefined;
+  }
+  return {
+    tool: wire.tool,
+    input: wire.input,
+    output: wire.output,
+    id: typeof wire.id === 'string' ? wire.id : undefined,
+    startTime: typeof wire.start_time === 'string' ? wire.start_time : undefined,
+    endTime: typeof wire.end_time === 'string' ? wire.end_time : undefined,
+    durationMs: numberAttribute(wire, 'duration_ms'),
+  };
+}
+
+function fromTranscriptMessageWire(wire: unknown): Message | undefined {
+  if (!isRecord(wire) || typeof wire.role !== 'string') {
+    return undefined;
+  }
+  const toolCalls = Array.isArray(wire.tool_calls)
+    ? wire.tool_calls
+        .map(fromTranscriptToolCallWire)
+        .filter((toolCall): toolCall is ToolCall => toolCall !== undefined)
+    : undefined;
+  return dropUndefined({
+    role: wire.role,
+    name: typeof wire.name === 'string' ? wire.name : undefined,
+    content: wire.content as Message['content'],
+    toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
+    startTime: typeof wire.start_time === 'string' ? wire.start_time : undefined,
+    endTime: typeof wire.end_time === 'string' ? wire.end_time : undefined,
+    durationMs: numberAttribute(wire, 'duration_ms'),
+    metadata: isRecord(wire.metadata) ? wire.metadata : undefined,
+    tokenUsage: isRecord(wire.token_usage)
+      ? tokenUsageFromAttributes({
+          'gen_ai.usage.input_tokens': wire.token_usage.input,
+          'gen_ai.usage.output_tokens': wire.token_usage.output,
+          'gen_ai.usage.cache_read.input_tokens': wire.token_usage.cached,
+          'gen_ai.usage.reasoning.output_tokens': wire.token_usage.reasoning,
+        })
+      : undefined,
+  });
+}
+
+function traceEnvelopeToMessageEntries(
+  envelope: TraceEnvelope,
+): readonly TraceEnvelopeMessageEntry[] {
   const spans = orderedSpans(envelope.trace.spans);
   const spansById = buildSpanMap(spans);
   const toolSpansByParent = new Map<string, TraceEnvelopeSpan[]>();
@@ -1266,21 +1400,70 @@ export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Messa
     toolSpansByParent.set(parentSpanId, existing);
   }
 
-  return spans.filter(isChatSpan).map((span) => ({
-    role: 'assistant',
-    content: span.attributes['gen_ai.output.messages'] as Message['content'],
-    toolCalls: toolSpansByParent.get(span.spanId)?.map(toolCallFromSpan),
-    startTime: unixNanoToIso(span.startTimeUnixNano),
-    endTime: unixNanoToIso(span.endTimeUnixNano),
-    durationMs: durationMsFromSpan(span),
-    tokenUsage: tokenUsageFromAttributes(span.attributes),
-    metadata: dropUndefined({
-      span_id: span.spanId,
-      trace_id: span.traceId,
-      parent_span_id: span.parentSpanId ?? undefined,
-      parent_tool_call_id: nearestAncestorToolCallId(ancestorSpanIds(span, spansById), spansById),
-    }),
+  return spans.filter(isChatSpan).map((span, fallbackIndex) => ({
+    index: numberAttribute(span.attributes, 'agentv.message.index') ?? fallbackIndex,
+    timeUnixNano: span.startTimeUnixNano,
+    message: {
+      role: 'assistant',
+      content: span.attributes['gen_ai.output.messages'] as Message['content'],
+      toolCalls: toolSpansByParent.get(span.spanId)?.map(toolCallFromSpan),
+      startTime: unixNanoToIso(span.startTimeUnixNano),
+      endTime: unixNanoToIso(span.endTimeUnixNano),
+      durationMs: durationMsFromSpan(span),
+      tokenUsage: tokenUsageFromAttributes(span.attributes),
+      metadata: dropUndefined({
+        span_id: span.spanId,
+        trace_id: span.traceId,
+        parent_span_id: span.parentSpanId ?? undefined,
+        parent_tool_call_id: nearestAncestorToolCallId(ancestorSpanIds(span, spansById), spansById),
+      }),
+    },
   }));
+}
+
+export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Message[] {
+  return traceEnvelopeToMessageEntries(envelope).map((entry) => entry.message);
+}
+
+function transcriptMessageEntries(envelope: TraceEnvelope): readonly TraceEnvelopeMessageEntry[] {
+  const entries: TraceEnvelopeMessageEntry[] = [];
+  for (const span of orderedSpans(envelope.trace.spans)) {
+    for (const event of span.events ?? []) {
+      if (event.name !== TRANSCRIPT_MESSAGE_EVENT_NAME) {
+        continue;
+      }
+      const attributes = event.attributes ?? {};
+      const message = fromTranscriptMessageWire(attributes['agentv.transcript.message']);
+      if (!message) {
+        continue;
+      }
+      entries.push({
+        index: numberAttribute(attributes, 'agentv.transcript.message.index') ?? entries.length,
+        timeUnixNano: event.timeUnixNano,
+        message,
+      });
+    }
+  }
+  return entries;
+}
+
+export function traceEnvelopeToTranscriptMessages(envelope: TraceEnvelope): readonly Message[] {
+  const entries = transcriptMessageEntries(envelope);
+  if (entries.length === 0) {
+    return traceEnvelopeToMessages(envelope);
+  }
+  return [...entries]
+    .sort((first, second) => {
+      const byIndex = first.index - second.index;
+      if (byIndex !== 0) {
+        return byIndex;
+      }
+      if (first.timeUnixNano && second.timeUnixNano) {
+        return compareUnixNanoStrings(first.timeUnixNano, second.timeUnixNano);
+      }
+      return 0;
+    })
+    .map((entry) => entry.message);
 }
 
 export function traceEnvelopeToToolTrajectoryView(
