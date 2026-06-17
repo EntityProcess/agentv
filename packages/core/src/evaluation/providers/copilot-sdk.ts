@@ -89,7 +89,8 @@ export class CopilotSdkProvider implements Provider {
     }
 
     const sdk = await loadCopilotSdk();
-    const client = await this.getOrCreateClient(sdk);
+    const evalCwd = this.resolveCwd(request.cwd);
+    const client = await this.getOrCreateClient(sdk, evalCwd ?? undefined);
 
     const startTime = new Date().toISOString();
     const startMs = Date.now();
@@ -106,12 +107,11 @@ export class CopilotSdkProvider implements Provider {
       sessionOptions.model = this.config.model;
     }
 
-    const cwd = this.resolveCwd(request.cwd);
-    if (cwd) {
-      sessionOptions.workingDirectory = cwd;
+    if (evalCwd) {
+      sessionOptions.workingDirectory = evalCwd;
       // Auto-discover skill directories from the workspace so the SDK loads
       // SKILL.md files into the session context (see copilot-sdk docs/features/skills.md).
-      sessionOptions.skillDirectories = resolveSkillDirectories(cwd);
+      sessionOptions.skillDirectories = resolveSkillDirectories(evalCwd);
     }
 
     const systemPrompt = this.config.systemPrompt;
@@ -304,7 +304,7 @@ export class CopilotSdkProvider implements Provider {
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: SDK client type is dynamically loaded
-  private async getOrCreateClient(sdk: any): Promise<any> {
+  private async getOrCreateClient(sdk: any, evalCwd?: string): Promise<any> {
     if (!this.client) {
       // biome-ignore lint/suspicious/noExplicitAny: SDK constructor options are dynamic
       const clientOptions: any = {};
@@ -322,8 +322,14 @@ export class CopilotSdkProvider implements Provider {
           clientOptions.cliPath = nativePath;
         }
       }
+      // Set the subprocess cwd so --plugin-dir ./relative resolves from the eval workspace.
+      const resolvedCwd = evalCwd ?? process.cwd();
+      clientOptions.cwd = resolvedCwd;
+
       if (this.config.args && this.config.args.length > 0) {
-        clientOptions.cliArgs = [...this.config.args];
+        clientOptions.cliArgs = this.config.args.map((arg) =>
+          arg.startsWith('./') || arg.startsWith('../') ? path.resolve(resolvedCwd, arg) : arg,
+        );
       }
       if (this.config.githubToken) {
         clientOptions.githubToken = this.config.githubToken;

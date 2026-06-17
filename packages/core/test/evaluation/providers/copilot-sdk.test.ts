@@ -176,13 +176,46 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      args: ['--plugin-dir', './plugins'],
+      args: ['--verbose', 'enabled'],
     });
 
     await provider.invoke({ question: 'Test' });
 
     const constructorArgs = CopilotClientMock.mock.calls[0][0];
-    expect(constructorArgs.cliArgs).toEqual(['--plugin-dir', './plugins']);
+    expect(constructorArgs.cliArgs).toEqual(['--verbose', 'enabled']);
+  });
+
+  it('resolves relative args paths against eval cwd', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+
+    const CopilotClientMock = mock(function CopilotClient() {
+      return client;
+    });
+    mock.module('@github/copilot-sdk', () => ({
+      CopilotClient: CopilotClientMock,
+    }));
+
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      args: ['--plugin-dir', './plugins', '--shared-dir', '../shared', '--mode', 'agent'],
+    });
+
+    await provider.invoke({ question: 'Test', cwd: fixturesRoot });
+
+    const constructorArgs = CopilotClientMock.mock.calls[0][0];
+    expect(constructorArgs.cwd).toBe(path.resolve(fixturesRoot));
+    expect(constructorArgs.cliArgs).toEqual([
+      '--plugin-dir',
+      path.resolve(fixturesRoot, './plugins'),
+      '--shared-dir',
+      path.resolve(fixturesRoot, '../shared'),
+      '--mode',
+      'agent',
+    ]);
   });
 
   it('handles timeout', async () => {
