@@ -84,10 +84,29 @@ Supported repo fields:
 | `sparse` | Optional sparse-checkout paths |
 | `ancestor` | Walk N parents back after resolving `commit` / `base_commit` |
 
+`commit` is the canonical AgentV checkout pin. `base_commit` exists only as a
+SWE-Bench-friendly alias for the same value; when both fields are present they
+must match. Prefer `commit` in new AgentV-authored evals unless preserving an
+upstream dataset column name makes the eval easier to audit.
+
 `source`, `type`, `checkout`, `checkout.resolve`, and `clone` are not part of
 the repo schema. Acquisition settings are deliberately outside eval YAML so the
 same benchmark can run against the same repository identity on every machine
 while each harness uses the fastest safe local source available.
+
+## Native workspace boundary
+
+Use native AgentV workspaces when AgentV owns the run lifecycle: custom internal
+suites, CI gates, target comparisons, pooled workspaces, local setup hooks,
+Docker workspaces, and generic repository acquisition. In that path,
+`workspace.repos` declares the repos and checkout pins while AgentV materializes
+the workspace, runs targets and graders, and writes AgentV run bundles.
+
+Use a Harbor-backed runner boundary for standard benchmark suites whose
+acquisition, packaging, verifier layout, Docker or Compose adapters, and trace
+export are already owned by Harbor. In that path, AgentV should launch, import,
+and gate Harbor jobs and link Opik traces. It should not copy Harbor `task.toml`
+or suite-specific adapter fields into AgentV core workspace schema.
 
 ## Acquisition resolver
 

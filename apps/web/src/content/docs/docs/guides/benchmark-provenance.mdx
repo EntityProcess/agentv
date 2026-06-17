@@ -141,6 +141,62 @@ acquisition remains outside the eval; use registered projects or
 `git_cache.mirrors` when a local machine needs faster large-repo setup. See
 [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition).
 
+## Native AgentV vs Harbor-backed Benchmarks
+
+Use native AgentV workspaces for repo-backed evals where AgentV should own the
+run lifecycle: materialize generic repos, run targets, execute hooks and graders,
+gate CI, and write AgentV result bundles. This fits custom internal suites,
+target comparisons, narrow regression suites, and CI checks built from AgentV
+primitives.
+
+```yaml
+name: repo-regressions
+
+workspace:
+  isolation: per_test
+  repos:
+    - path: ./repo
+      repo: https://github.com/example/widget.git
+      commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
+  hooks:
+    before_each:
+      command: ["python", "./scripts/apply-case-fixtures.py"]
+
+execution:
+  targets: [codex, claude]
+
+assertions:
+  - name: tests-pass
+    type: code-grader
+    command: ["python", "./graders/run-tests.py"]
+    required: true
+```
+
+Use a Harbor-backed runner for standard benchmark suites Harbor owns, such as
+SWE-Bench Verified, Multi-SWE-Bench, Terminal-Bench, or suites with Harbor-owned
+Docker and Compose adapters. In that path AgentV should stay at the
+orchestration boundary: launch or import the Harbor job, apply AgentV gates to
+the imported results, and link Opik traces when Harbor uploads them.
+
+```yaml
+# Proposed runner boundary, not a current AgentV task schema.
+name: swebench-verified-codex
+
+execution:
+  runner: harbor
+  harbor:
+    dataset: swebench-verified
+    agent: codex
+    model: openai/gpt-5-mini
+    opik:
+      enabled: true
+```
+
+Do not translate Harbor `task.toml`, verifier packaging, or suite-specific
+Docker/Compose adapter fields into AgentV core eval schema. If the benchmark's
+runtime contract is already owned by Harbor, keep those details in Harbor and
+let AgentV consume the job metadata, rewards, artifacts, and trace links.
+
 ## Finance-Style Generated Dataset
 
 Generated datasets often need stable row provenance more than workspace setup.
