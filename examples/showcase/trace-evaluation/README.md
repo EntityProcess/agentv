@@ -41,7 +41,7 @@ The replay target looks up records by `suite`, `eval_path` when present, `test_i
 `source_target`, `attempt`, and `variant` when configured. Missing or duplicate
 records fail before grading.
 
-Replay can also read `agentv.execution_trace.v1` artifacts by using
+Replay can also read `agentv.trace.v1` artifacts by using
 `execution_traces` instead of `fixtures` on the replay target. Configure exactly
 one source field:
 

@@ -206,7 +206,7 @@ describe('trace utils', () => {
       expect(results).toHaveLength(1);
       expect(results[0].test_id).toBe('test-2');
       expect(results[0].trace).toMatchObject({
-        schema_version: 'agentv.trace.v1',
+        schema_version: 'agentv.trajectory.v1',
         event_count: 0,
         messages: [],
         events: [],
@@ -222,7 +222,7 @@ describe('trace utils', () => {
       expect(results).toHaveLength(1);
       expect(results[0].test_id).toBe('test-2');
       expect(results[0].trace).toMatchObject({
-        schema_version: 'agentv.trace.v1',
+        schema_version: 'agentv.trajectory.v1',
         event_count: 0,
         messages: [],
         events: [],

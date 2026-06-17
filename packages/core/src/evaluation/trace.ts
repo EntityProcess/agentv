@@ -1,9 +1,9 @@
 /**
- * Trace read models for evaluation-time agent behavior.
+ * Derived trace read models for evaluation-time agent behavior.
  *
- * `Trace` is the result-local compatibility/read model attached to evaluation
- * results. The canonical exported execution trace sidecar is
- * `agentv.execution_trace.v1` in `trace-envelope.ts`; result JSONL keeps
+ * `Trace` is the result-local projection attached to evaluation results. The
+ * canonical exported trace sidecar is `agentv.trace.v1` in
+ * `trace-envelope.ts`; result JSONL keeps
  * `output` as the final answer/scored result only, while the full transcript,
  * tool calls/results, errors, timing, usage, provider/session provenance, and
  * replay/eval metrics live in this read model.
@@ -19,7 +19,7 @@
 import { z } from 'zod';
 import type { Message } from './providers/types.js';
 
-export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trace.v1' as const;
+export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trajectory.v1' as const;
 
 export const NORMALIZED_TRACE_SOURCE_KINDS = [
   'agentv_run',
@@ -173,7 +173,7 @@ export interface TraceEvent {
 }
 
 /**
- * Legacy imported trace artifact shape used by older import/replay helpers.
+ * Derived trajectory artifact shape used by import/replay helpers.
  *
  * New evaluation results use `Trace` below: final answer in `output`, full
  * transcript under `trace.messages`, structured spans under `trace.events`, and
@@ -194,8 +194,8 @@ export interface TraceArtifact {
 }
 
 /**
- * @deprecated Use `Trace` for evaluation results or `TraceArtifact` for legacy
- * import/replay artifacts.
+ * @deprecated Use `Trace` for evaluation results or `TraceArtifact` for
+ * derived import/replay trajectory artifacts.
  */
 export type NormalizedTrajectory = TraceArtifact;
 
@@ -724,18 +724,18 @@ export interface TraceSummary {
 }
 
 /**
- * Result-local trace attached to every evaluation result.
+ * Result-local derived trace attached to every evaluation result.
  *
  * The compact TraceSummary fields are mirrored for existing
  * metric graders; `messages` and `events` are the complete execution record for
  * result JSONL compatibility. Result `output` is only the
  * final answer; tools, intermediate assistant text, timing, usage, provider
  * provenance, and replay metadata live here. Full export/import work should use
- * the execution trace artifact and derive this shape from it.
+ * the canonical trace artifact and derive this shape from it.
  */
 export interface Trace extends TraceSummary {
   readonly schemaVersion: typeof TRACE_SCHEMA_VERSION;
-  /** Complete normalized chat transcript used for transcript-aware graders. */
+  /** Complete chat transcript used for transcript-aware graders. */
   readonly messages: readonly Message[];
   /** Structured event stream derived from the same messages and metrics. */
   readonly events: readonly TraceEvent[];

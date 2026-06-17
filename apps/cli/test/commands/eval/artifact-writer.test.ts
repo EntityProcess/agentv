@@ -897,7 +897,7 @@ describe('writeArtifactsFromResults', () => {
         },
       },
     ]);
-    expect(envelope.schema_version).toBe('agentv.execution_trace.v1');
+    expect(envelope.schema_version).toBe('agentv.trace.v1');
     expect(envelope.artifact_id).toMatch(/^execution-trace-/);
     expect(envelope.eval.test_id).toBe('transcript-case');
     expect(envelope.trace.spans.map((span) => span.attributes['gen_ai.operation.name'])).toEqual([

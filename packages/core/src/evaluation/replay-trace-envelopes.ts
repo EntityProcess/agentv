@@ -1,7 +1,7 @@
 /**
  * Execution-trace replay source for target-output substitution.
  *
- * This module lets the replay provider read `agentv.execution_trace.v1`
+ * This module lets the replay provider read `agentv.trace.v1`
  * artifacts as the target-output source. Lookup uses the same replay identity
  * dimensions as JSONL fixtures, then projects the matched artifact to the
  * existing ProviderResponse shape with traceEnvelopeToMessages(). Opaque

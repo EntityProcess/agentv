@@ -85,7 +85,7 @@ function payload(projectDir: string, runDir: string) {
         target: 'mock',
         timestamp: '2026-06-13T00:00:00.000Z',
         trace: {
-          schemaVersion: 'agentv.trace.v1',
+          schemaVersion: 'agentv.trajectory.v1',
           messages: [],
           events: [],
           eventCount: 0,
