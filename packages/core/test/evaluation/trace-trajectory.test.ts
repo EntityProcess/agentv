@@ -135,13 +135,13 @@ function buildTrajectory(): NormalizedTrajectory {
   };
 }
 
-describe('normalized trajectory contract', () => {
+describe('derived trajectory contract', () => {
   it('round-trips between internal camelCase and snake_case wire format', () => {
     const trajectory = buildTrajectory();
 
     const wire = toNormalizedTrajectoryWire(trajectory);
 
-    expect(wire.schema_version).toBe('agentv.trace.v1');
+    expect(wire.schema_version).toBe('agentv.trajectory.v1');
     expect(wire.source.kind).toBe('pi_session');
     expect(wire.session.session_id).toBe('session-123');
     expect(wire.branch?.selected_leaf_id).toBe('leaf-success');

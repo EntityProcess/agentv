@@ -1,7 +1,7 @@
 /**
- * AgentV execution trace v1: AgentV-owned metadata around an OTel/OpenInference span graph.
+ * AgentV trace v1: AgentV-owned metadata around an OTel/OpenInference span graph.
  *
- * The `agentv.execution_trace.v1` artifact is the canonical full trace sidecar
+ * The `agentv.trace.v1` artifact is the canonical full trace sidecar
  * for eval artifacts. AgentV owns the outer structure, eval/replay identity,
  * capture policy, warnings, artifact pointers, and score provenance. The trace
  * body is a standards-shaped span graph, so attribute keys such as
@@ -35,7 +35,7 @@ import {
 } from './trace.js';
 import type { EvaluationResult, EvaluationVerdict, GraderKind } from './types.js';
 
-export const EXECUTION_TRACE_SCHEMA_VERSION = 'agentv.execution_trace.v1' as const;
+export const EXECUTION_TRACE_SCHEMA_VERSION = 'agentv.trace.v1' as const;
 
 const TRACE_ENVELOPE_FORMAT = 'otlp_openinference_spans' as const;
 const TRANSCRIPT_MESSAGE_EVENT_NAME = 'agentv.transcript.message' as const;
@@ -367,7 +367,7 @@ export interface TraceEnvelopeToolTrajectoryItem {
 }
 
 export interface TraceEnvelopeToolTrajectoryView {
-  readonly schemaVersion: typeof EXECUTION_TRACE_SCHEMA_VERSION;
+  readonly schemaVersion: typeof NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
   readonly traceId: string;
   readonly rootSpanId: string;
   readonly tools: readonly TraceEnvelopeToolTrajectoryItem[];
@@ -1494,7 +1494,7 @@ export function traceEnvelopeToToolTrajectoryView(
   });
 
   return {
-    schemaVersion: envelope.schemaVersion,
+    schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
     traceId: envelope.trace.traceId,
     rootSpanId: envelope.trace.rootSpanId,
     tools,

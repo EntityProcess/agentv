@@ -10,7 +10,7 @@ date: 2026-06-15
 ## Decision And Scope
 
 AgentV stores and interchanges full execution traces as an
-`agentv.execution_trace.v1` artifact. The canonical trace body is an
+`agentv.trace.v1` artifact. The canonical trace body is an
 OpenTelemetry span graph with GenAI semantic convention attributes and
 OpenInference attributes where they cover the concept. AgentV owns only the
 small artifact wrapper around that graph: eval and replay identity, source
@@ -18,9 +18,9 @@ metadata, capture/redaction policy, conversion warnings, artifact pointers, and
 score provenance.
 
 This supersedes the older wording in `docs/plans/trace-evaluation-architecture.md`
-that treats AgentV's normalized `Trace` or `NormalizedTrajectory` object as the
-canonical artifact. Those objects can remain, but they must be documented and
-implemented as derived read/projection views over the canonical span graph.
+that treats AgentV's result-local `Trace` or trajectory object as the canonical
+artifact. Those objects can remain, but they must be documented and implemented
+as derived read/projection views over the canonical span graph.
 
 Source of truth:
 
@@ -29,11 +29,11 @@ Source of truth:
 - Official OTLP JSON is a boundary format generated from, or imported into, that
   span body. Attribute names remain exact standard names such as
   `gen_ai.operation.name` and `openinference.span.kind`.
-- `Message[]`, `outputs/transcript.jsonl`, `TraceSummary`,
-  `TraceArtifact`/`NormalizedTrajectory`, replay target output, and compact
-  grader inputs are derived compatibility/read views.
+- `Message[]`, `outputs/transcript.jsonl`, `TraceSummary`, `TraceArtifact`,
+  replay target output, and compact grader inputs are derived compatibility/read
+  views.
 - Derived views must be named and treated as projections over
-  `agentv.execution_trace.v1`, not as separate canonical graphs:
+  `agentv.trace.v1`, not as separate canonical graphs:
   `traceEnvelopeToMessages()` for Provider `Message[]` and replay provider
   responses, `traceEnvelopeToTranscriptMessages()` for
   `outputs/transcript.jsonl`, `traceEnvelopeToTraceSummary()` for metrics
@@ -61,7 +61,7 @@ their source keys exactly.
 Directional v1 shape:
 
 ```yaml
-schema_version: agentv.execution_trace.v1
+schema_version: agentv.trace.v1
 artifact_id: execution-trace-01j...
 created_at: "2026-06-15T12:00:00.000Z"
 
@@ -210,7 +210,7 @@ Implementation pattern:
 
 ```ts
 interface TraceEnvelopeWire {
-  readonly schema_version: 'agentv.execution_trace.v1';
+  readonly schema_version: 'agentv.trace.v1';
   readonly artifact_id: string;
   readonly created_at: string;
   readonly eval: TraceEnvelopeEvalWire;
@@ -219,7 +219,7 @@ interface TraceEnvelopeWire {
 }
 
 interface TraceEnvelope {
-  readonly schemaVersion: 'agentv.execution_trace.v1';
+  readonly schemaVersion: 'agentv.trace.v1';
   readonly artifactId: string;
   readonly createdAt: string;
   readonly eval: TraceEnvelopeEval;
@@ -305,8 +305,8 @@ Minimal code slices:
 
 4. Envelope -> derived views.
    Implement projections from envelope spans to `Message[]`, `TraceSummary`,
-   `TraceArtifact`/`NormalizedTrajectory` if still needed, and
-   `outputs/transcript.jsonl`. Existing artifacts should be produced by these
+   `TraceArtifact` if still needed, and `outputs/transcript.jsonl`. Existing
+   artifacts should be produced by these
    projections once tests prove parity.
 
 5. Artifact sidecar wiring.
@@ -381,9 +381,9 @@ bun run test
 
 Red/green UAT scenario:
 
-1. Red on `origin/main` (`0ac6b294`): run the replay showcase and confirm the
-   run writes current result artifacts and `outputs/transcript.jsonl`, but no
-   canonical `agentv.execution_trace.v1` sidecar exists.
+1. Red before this namespace change: run the replay showcase and confirm the run
+   writes current result artifacts and `outputs/transcript.jsonl`, but the
+   execution trace sidecar does not validate as canonical `agentv.trace.v1`.
 
    ```bash
    bun apps/cli/src/cli.ts eval \
@@ -394,7 +394,7 @@ Red/green UAT scenario:
 
 2. Green on the implementation branch: run the identical command with a new
    output directory. Confirm each test artifact has the execution trace sidecar, the
-   sidecar validates against `agentv.execution_trace.v1`, spans export to OTLP
+   sidecar validates against `agentv.trace.v1`, spans export to OTLP
    JSON, and regenerated transcript rows match the existing transcript artifact
    except for any documented additive pointer fields.
 

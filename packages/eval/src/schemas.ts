@@ -46,7 +46,7 @@ export const TraceSummarySchema = z.object({
   llmCallCount: z.number().optional(),
 });
 
-export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trace.v1' as const;
+export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trajectory.v1' as const;
 
 export const NORMALIZED_TRACE_SOURCE_KINDS = [
   'agentv_run',
@@ -188,7 +188,7 @@ export const NormalizedTraceEventSchema = z.object({
 });
 
 /**
- * Canonical trajectory schema exposed to custom graders.
+ * Derived trajectory schema exposed to custom graders.
  *
  * AgentV-owned persisted trajectory artifacts use the snake_case wire schemas
  * and converters in @agentv/core. This SDK schema mirrors the internal
@@ -291,7 +291,7 @@ export const MessageSchema = z.object({
 });
 
 /**
- * Canonical evaluation trace exposed to custom graders.
+ * Derived evaluation trace read model exposed to custom graders.
  *
  * Top-level summary fields (`eventCount`, `toolCalls`, `errorCount`) remain
  * available for existing metric graders; full transcript/tool evidence is under

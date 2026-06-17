@@ -72,7 +72,7 @@ function evalCaseIds(evalCases: ReadonlyArray<unknown> | undefined): readonly st
 function buildTrace(targetName: string, testId: string, output: string): Record<string, unknown> {
   const message = { role: 'assistant', content: output };
   return {
-    schemaVersion: 'agentv.trace.v1',
+    schemaVersion: 'agentv.trajectory.v1',
     eventCount: 2,
     toolCalls: {},
     errorCount: 0,

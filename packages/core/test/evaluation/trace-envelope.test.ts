@@ -18,7 +18,11 @@ import {
   traceEnvelopeToTraceSummary,
   traceEnvelopeToTranscriptMessages,
 } from '../../src/evaluation/trace-envelope.js';
-import { buildTraceFromMessages, computeTraceSummary } from '../../src/evaluation/trace.js';
+import {
+  NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
+  buildTraceFromMessages,
+  computeTraceSummary,
+} from '../../src/evaluation/trace.js';
 import type { EvaluationResult } from '../../src/evaluation/types.js';
 
 function jsonComparable(value: unknown): unknown {
@@ -348,6 +352,7 @@ describe('execution trace artifact v1', () => {
       'tool_call',
       'tool_call',
     ]);
+    expect(compact.schemaVersion).toBe(NORMALIZED_TRAJECTORY_SCHEMA_VERSION);
     expect(compact.tools.map((tool) => [tool.position, tool.tool, tool.toolCallId])).toEqual([
       [0, 'Read', 'call-read'],
       [1, 'Edit', 'call-edit'],
