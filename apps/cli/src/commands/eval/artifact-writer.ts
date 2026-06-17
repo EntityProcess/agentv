@@ -8,11 +8,13 @@ import {
   type GraderResult,
   type Message,
   type TargetDefinition,
+  type TraceEnvelope,
   type TraceSummary,
   buildTraceEnvelopeFromEvaluationResult,
   buildTraceFromMessages,
   extractLastAssistantContent,
   toTraceEnvelopeWire,
+  traceEnvelopeToMessages,
   traceToTranscriptJsonLines,
 } from '@agentv/core';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
@@ -736,14 +738,21 @@ function resolveEnvelopeEvalPath(
   return source?.evalFileRepoPath ?? source?.evalFilePath ?? fallbackEvalFile;
 }
 
+function resultHasExecutionTraceTranscript(result: EvaluationResult): boolean {
+  return (
+    result.output.length > 0 ||
+    result.trace.messages.some((message) => message.role === 'assistant')
+  );
+}
+
 async function writeTraceEnvelopeSidecar(params: {
   readonly result: EvaluationResult;
   readonly outputDir: string;
   readonly outputsDir: string;
   readonly evalPath?: string;
   readonly experiment?: string;
-}): Promise<void> {
-  const hasTranscript = params.result.output.length > 0 || params.result.trace.messages.length > 0;
+}): Promise<TraceEnvelope> {
+  const hasTranscript = resultHasExecutionTraceTranscript(params.result);
   const envelope = buildTraceEnvelopeFromEvaluationResult(params.result, {
     evalPath: params.evalPath,
     runId: path.basename(params.outputDir),
@@ -761,6 +770,7 @@ async function writeTraceEnvelopeSidecar(params: {
     `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
     'utf8',
   );
+  return envelope;
 }
 
 export function buildIndexArtifactEntry(
@@ -885,8 +895,23 @@ async function writeJsonlFile(filePath: string, records: readonly unknown[]): Pr
   await writeFile(filePath, content, 'utf8');
 }
 
-async function writeTranscriptJsonl(filePath: string, result: EvaluationResult): Promise<void> {
-  const lines = traceToTranscriptJsonLines(result.trace, {
+function traceProjectionForTranscript(result: EvaluationResult, envelope: TraceEnvelope) {
+  return {
+    ...result.trace,
+    messages: traceEnvelopeToMessages(envelope),
+  };
+}
+
+function hasTranscriptProjection(result: EvaluationResult, envelope: TraceEnvelope): boolean {
+  return result.output.length > 0 || traceEnvelopeToMessages(envelope).length > 0;
+}
+
+async function writeTranscriptJsonl(
+  filePath: string,
+  result: EvaluationResult,
+  envelope: TraceEnvelope,
+): Promise<void> {
+  const lines = traceToTranscriptJsonLines(traceProjectionForTranscript(result, envelope), {
     testId: result.testId,
     target: result.target,
   });
@@ -1256,16 +1281,16 @@ export async function writePerTestArtifacts(
       // for scored output or transcript.jsonl for the full execution record.
       await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
     }
-    if (result.output.length > 0 || result.trace.messages.length > 0) {
-      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result);
-    }
-    await writeTraceEnvelopeSidecar({
+    const envelope = await writeTraceEnvelopeSidecar({
       result,
       outputDir,
       outputsDir,
       evalPath: resolveEnvelopeEvalPath(result, testByTestId),
       experiment: options?.experiment,
     });
+    if (hasTranscriptProjection(result, envelope)) {
+      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result, envelope);
+    }
 
     const taskBundle = await materializeTaskBundleForResult({
       result,
@@ -1336,16 +1361,16 @@ export async function writeArtifactsFromResults(
       // for scored output or transcript.jsonl for the full execution record.
       await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
     }
-    if (result.output.length > 0 || result.trace.messages.length > 0) {
-      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result);
-    }
-    await writeTraceEnvelopeSidecar({
+    const envelope = await writeTraceEnvelopeSidecar({
       result,
       outputDir,
       outputsDir,
       evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
       experiment: options?.experiment,
     });
+    if (hasTranscriptProjection(result, envelope)) {
+      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result, envelope);
+    }
 
     const taskBundle = await materializeTaskBundleForResult({
       result,

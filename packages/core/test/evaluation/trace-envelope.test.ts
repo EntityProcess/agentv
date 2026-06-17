@@ -6,6 +6,7 @@ import { ToolTrajectoryGrader } from '../../src/evaluation/graders/tool-trajecto
 import type { Message } from '../../src/evaluation/providers/types.js';
 import {
   EXECUTION_TRACE_SCHEMA_VERSION,
+  type TraceEnvelopeSpan,
   TraceEnvelopeWireSchema,
   buildTraceEnvelopeFromEvaluationResult,
   fromTraceEnvelopeWire,
@@ -21,6 +22,15 @@ import type { EvaluationResult } from '../../src/evaluation/types.js';
 
 function jsonComparable(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value));
+}
+
+function requireSpan(
+  spans: readonly TraceEnvelopeSpan[],
+  predicate: (span: TraceEnvelopeSpan) => boolean,
+): TraceEnvelopeSpan {
+  const span = spans.find(predicate);
+  expect(span).toBeDefined();
+  return span as TraceEnvelopeSpan;
 }
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
@@ -271,8 +281,14 @@ describe('execution trace artifact v1', () => {
     const envelope = buildTraceEnvelopeFromEvaluationResult(result);
     const root = envelope.trace.spans.find((span) => span.spanId === envelope.trace.rootSpanId);
     const summary = traceEnvelopeToTraceSummary(envelope);
+    const otlp = traceEnvelopeToOtlpJson(envelope);
+    const otlpRoot = otlp.resourceSpans[0]?.scopeSpans[0]?.spans.find(
+      (span) => span.spanId === envelope.trace.rootSpanId,
+    );
 
     expect(root?.status).toEqual({ code: 'ERROR', message: 'Provider timed out' });
+    expect(otlpRoot?.kind).toBe(0);
+    expect(otlpRoot?.status).toEqual({ code: 2, message: 'Provider timed out' });
     expect(root?.attributes['gen_ai.usage.input_tokens']).toBe(100);
     expect(root?.attributes['agentv.trace.cost_usd']).toBe(0.012);
     expect(summary.tokenUsage).toEqual({ input: 100, output: 20, cached: 5, reasoning: 3 });
@@ -348,9 +364,97 @@ describe('execution trace artifact v1', () => {
     const otlpRead = otlp.resourceSpans[0]?.scopeSpans[0]?.spans.find(
       (span) => span.name === 'execute_tool Read',
     );
+    expect(otlpRead?.kind).toBe(0);
+    expect(otlpRead?.status).toEqual({ code: 1 });
     expect(otlpRead?.parentSpanId).toBe(
       envelope.trace.spans.find((span) => span.name === 'chat replay_coding_agent')?.spanId,
     );
+  });
+
+  it('orders span projections by numeric nanosecond timestamps', () => {
+    const output: readonly Message[] = [
+      {
+        role: 'assistant',
+        content: 'early',
+        toolCalls: [{ tool: 'EarlyTool', id: 'call-early' }],
+      },
+      {
+        role: 'assistant',
+        content: 'late',
+        toolCalls: [{ tool: 'LateTool', id: 'call-late' }],
+      },
+    ];
+    const envelope = buildTraceEnvelopeFromEvaluationResult(
+      makeResult({
+        trace: buildTraceFromMessages({
+          input: [{ role: 'user', content: 'Sort non-padded nanoseconds' }],
+          output,
+          finalOutput: 'late',
+          target: 'codex',
+          testId: 'timestamp-ordering-case',
+        }),
+      }),
+      { capture: { content: 'full', redactionLevel: 'none', redactedFields: [] } },
+    );
+    const root = requireSpan(
+      envelope.trace.spans,
+      (span) => span.spanId === envelope.trace.rootSpanId,
+    );
+    const earlyChat = requireSpan(
+      envelope.trace.spans,
+      (span) => span.attributes['gen_ai.output.messages'] === 'early',
+    );
+    const earlyTool = requireSpan(
+      envelope.trace.spans,
+      (span) => span.name === 'execute_tool EarlyTool',
+    );
+    const lateChat = requireSpan(
+      envelope.trace.spans,
+      (span) => span.attributes['gen_ai.output.messages'] === 'late',
+    );
+    const lateTool = requireSpan(
+      envelope.trace.spans,
+      (span) => span.name === 'execute_tool LateTool',
+    );
+    const retime = (
+      span: TraceEnvelopeSpan,
+      startTimeUnixNano: string,
+      endTimeUnixNano: string,
+    ) => ({
+      ...span,
+      startTimeUnixNano,
+      endTimeUnixNano,
+    });
+    const shuffled = {
+      ...envelope,
+      trace: {
+        ...envelope.trace,
+        spans: [
+          retime(root, '0', '2000000000'),
+          retime(lateTool, '1010000000', '1020000000'),
+          retime(lateChat, '1000000000', '1100000000'),
+          retime(earlyTool, '910000000', '920000000'),
+          retime(earlyChat, '900000000', '990000000'),
+        ],
+      },
+    };
+
+    expect(traceEnvelopeToMessages(shuffled).map((message) => message.content)).toEqual([
+      'early',
+      'late',
+    ]);
+    expect(traceEnvelopeToToolTrajectoryView(shuffled).tools.map((tool) => tool.tool)).toEqual([
+      'EarlyTool',
+      'LateTool',
+    ]);
+    expect(
+      traceEnvelopeToTraceArtifact(shuffled).events.map((event) => event.sourceRef?.spanId),
+    ).toEqual([earlyChat.spanId, earlyTool.spanId, lateChat.spanId, lateTool.spanId]);
+    expect(
+      traceEnvelopeToOtlpJson(shuffled).resourceSpans[0]?.scopeSpans[0]?.spans.map(
+        (span) => span.spanId,
+      ),
+    ).toEqual([root.spanId, earlyChat.spanId, earlyTool.spanId, lateChat.spanId, lateTool.spanId]);
   });
 
   it('keeps nested subagent parent-child spans visible in golden projections', () => {

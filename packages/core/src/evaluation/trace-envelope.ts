@@ -389,16 +389,21 @@ export interface TraceEnvelopeOtlpSpan {
   readonly spanId: string;
   readonly parentSpanId?: string;
   readonly name: string;
-  readonly kind: string;
+  readonly kind: number;
   readonly startTimeUnixNano: string;
   readonly endTimeUnixNano: string;
   readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
-  readonly status: TraceEnvelopeSpanStatus;
+  readonly status: TraceEnvelopeOtlpSpanStatus;
   readonly events?: readonly {
     readonly name: string;
     readonly timeUnixNano?: string;
     readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
   }[];
+}
+
+export interface TraceEnvelopeOtlpSpanStatus {
+  readonly code: number;
+  readonly message?: string;
 }
 
 export interface TraceEnvelopeOtlpAttribute {
@@ -446,6 +451,35 @@ function parseTimeMs(timestamp: string | undefined): number | undefined {
 
 function msToUnixNano(ms: number): string {
   return String(BigInt(Math.round(ms)) * 1_000_000n);
+}
+
+function compareUnixNanoStrings(first: string, second: string): number {
+  try {
+    const left = BigInt(first);
+    const right = BigInt(second);
+    return left < right ? -1 : left > right ? 1 : 0;
+  } catch {
+    return first.localeCompare(second);
+  }
+}
+
+function compareSpanTime(first: TraceEnvelopeSpan, second: TraceEnvelopeSpan): number {
+  const byStart = compareUnixNanoStrings(first.startTimeUnixNano, second.startTimeUnixNano);
+  if (byStart !== 0) {
+    return byStart;
+  }
+  if (first.spanId === second.parentSpanId) {
+    return -1;
+  }
+  if (second.spanId === first.parentSpanId) {
+    return 1;
+  }
+  const byEnd = compareUnixNanoStrings(first.endTimeUnixNano, second.endTimeUnixNano);
+  return byEnd !== 0 ? byEnd : first.spanId.localeCompare(second.spanId);
+}
+
+function orderedSpans(spans: readonly TraceEnvelopeSpan[]): TraceEnvelopeSpan[] {
+  return [...spans].sort(compareSpanTime);
 }
 
 function unixNanoToIso(value: string | undefined): string | undefined {
@@ -1222,9 +1256,7 @@ function nearestAncestorToolCallId(
 }
 
 export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Message[] {
-  const spans = [...envelope.trace.spans].sort((first, second) =>
-    first.startTimeUnixNano.localeCompare(second.startTimeUnixNano),
-  );
+  const spans = orderedSpans(envelope.trace.spans);
   const spansById = buildSpanMap(spans);
   const toolSpansByParent = new Map<string, TraceEnvelopeSpan[]>();
   for (const span of spans.filter(isToolSpan)) {
@@ -1254,9 +1286,7 @@ export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Messa
 export function traceEnvelopeToToolTrajectoryView(
   envelope: TraceEnvelope,
 ): TraceEnvelopeToolTrajectoryView {
-  const spans = [...envelope.trace.spans].sort((first, second) =>
-    first.startTimeUnixNano.localeCompare(second.startTimeUnixNano),
-  );
+  const spans = orderedSpans(envelope.trace.spans);
   const spansById = buildSpanMap(spans);
   const tools = spans.filter(isToolSpan).map((span, position) => {
     const toolCall = toolCallFromSpan(span);
@@ -1351,7 +1381,7 @@ export function traceEnvelopeToTraceSummary(envelope: TraceEnvelope): TraceCompu
 export function traceEnvelopeToTraceArtifact(envelope: TraceEnvelope): TraceArtifact {
   const events: TraceEvent[] = [];
   let ordinal = 0;
-  for (const span of envelope.trace.spans) {
+  for (const span of orderedSpans(envelope.trace.spans)) {
     if (isChatSpan(span)) {
       events.push({
         eventId: `span-${span.spanId}`,
@@ -1438,17 +1468,17 @@ export function traceEnvelopeToOtlpJson(envelope: TraceEnvelope): TraceEnvelopeO
               name: envelope.trace.scope?.name,
               version: envelope.trace.scope?.version,
             }),
-            spans: envelope.trace.spans.map((span) =>
+            spans: orderedSpans(envelope.trace.spans).map((span) =>
               dropUndefined({
                 traceId: span.traceId,
                 spanId: span.spanId,
                 parentSpanId: span.parentSpanId ?? undefined,
                 name: span.name,
-                kind: span.kind,
+                kind: spanKindToOtlp(span.kind),
                 startTimeUnixNano: span.startTimeUnixNano,
                 endTimeUnixNano: span.endTimeUnixNano,
                 attributes: attributesToOtlp(span.attributes),
-                status: span.status,
+                status: spanStatusToOtlp(span.status),
                 events: span.events?.map((event) =>
                   dropUndefined({
                     name: event.name,
@@ -1463,6 +1493,27 @@ export function traceEnvelopeToOtlpJson(envelope: TraceEnvelope): TraceEnvelopeO
       },
     ],
   };
+}
+
+function spanKindToOtlp(kind: string): number {
+  if (kind === 'SERVER') {
+    return 1;
+  }
+  if (kind === 'CLIENT') {
+    return 2;
+  }
+  if (kind === 'PRODUCER') {
+    return 3;
+  }
+  if (kind === 'CONSUMER') {
+    return 4;
+  }
+  return 0;
+}
+
+function spanStatusToOtlp(status: TraceEnvelopeSpanStatus): TraceEnvelopeOtlpSpanStatus {
+  const code = status.code === 'OK' ? 1 : status.code === 'ERROR' ? 2 : 0;
+  return dropUndefined({ code, message: status.message });
 }
 
 function attributesToOtlp(
