@@ -80,7 +80,7 @@ def main():
         input_data = json.loads(sys.stdin.read())
         
         # Extract the generated output
-        output = input_data.get("output_text", "")
+        output = input_data.get("output") or input_data.get("answer", "")
         
         # Extract code from markdown if present
         code = extract_code_from_markdown(output)

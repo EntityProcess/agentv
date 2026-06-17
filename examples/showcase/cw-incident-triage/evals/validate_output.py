@@ -81,7 +81,7 @@ def main():
         sys.exit(1)
     
     # Extract candidate answer
-    candidate_answer = eval_data.get("output_text", "")
+    candidate_answer = eval_data.get("output") or eval_data.get("answer", "")
     
     # Required keys for CargoWise criticality rating
     required_keys = ["criticalityRating", "reasoning"]

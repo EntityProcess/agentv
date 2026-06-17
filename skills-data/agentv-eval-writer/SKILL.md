@@ -372,7 +372,7 @@ See docs at https://agentv.dev/graders/code-graders/
   config:                       # passed to prompt templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
+Variables: `{{criteria}}`, `{{answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 - Use `target:` to run different `llm-grader` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)

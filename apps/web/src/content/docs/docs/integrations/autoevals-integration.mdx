@@ -77,9 +77,9 @@ import { Factuality } from "autoevals";
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
 
 const result = await Factuality({
-  input: input.input_text,
-  output: input.output_text,
-  expected: input.reference_answer,
+  input: input.input,
+  output: input.output ?? input.answer,
+  expected: input.expected_output,
 });
 
 const score = result.score ?? 0;
@@ -94,7 +94,7 @@ console.log(
 );
 ```
 
-The code grader reads the AgentV input from stdin (`input_text`, `output_text`, `expected_output_text`), maps the fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format (with `assertions` array) to stdout.
+The code grader reads the AgentV input from stdin (`input`, `output`, `expected_output`), maps the fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format (with `assertions` array) to stdout.
 
 ## Python Example
 
@@ -127,9 +127,9 @@ data = json.load(sys.stdin)
 
 grader = Faithfulness()
 result = grader(
-    input=data.get("input_text", ""),
-    output=data.get("output_text", ""),
-    expected=data.get("reference_answer", ""),
+    input=data.get("input", ""),
+    output=data.get("output") or data.get("answer", ""),
+    expected=data.get("expected_output", ""),
 )
 
 score = result.score or 0
@@ -218,9 +218,9 @@ import {
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
 
 const scorerArgs = {
-  input: input.input_text,
-  output: input.output_text,
-  expected: input.reference_answer,
+  input: input.input,
+  output: input.output ?? input.answer,
+  expected: input.expected_output,
 };
 
 // Run all scorers in parallel

@@ -67,7 +67,7 @@ All code graders receive a JSON object on stdin with:
 {
   "question": "User's question/task",
   "criteria": "Expected behavior description",
-  "reference_answer": "Gold standard answer (from expected_output)",
+  "expected_output": "Gold standard answer",
   "answer": "Agent's final response",
   "output": [
     {

@@ -107,7 +107,6 @@ export async function runCodeGraders(
   const executeCodeGrader = async (graderConfig: Record<string, unknown>, task: GraderTask) => {
     const { testId, resultsDir, responseText, inputData } = task;
     const graderName = graderConfig.name as string;
-    const inputText = extractInputText(inputData.input);
     const messages = [{ role: 'assistant' as const, content: responseText }];
     const trace = buildTraceFromMessages({
       input: inputData.input,
@@ -133,9 +132,6 @@ export async function runCodeGraders(
       workspace_path: null,
       config: graderConfig.config ?? null,
       metadata: inputData.metadata ?? {},
-      input_text: inputText,
-      output_text: responseText,
-      expected_output_text: '',
     });
 
     try {

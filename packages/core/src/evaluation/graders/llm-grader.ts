@@ -11,7 +11,7 @@ import type { ContentImage } from '../content.js';
 import { isContentArray } from '../content.js';
 import type { Message, Provider, ProviderResponse, ProviderTool } from '../providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
-import { DEPRECATED_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from '../template-variables.js';
+import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
 import type { AssertionEntry, JsonObject, RubricItem } from '../types.js';
 import { formatRubricOperatorGuidance, formatRubricOperatorLabel } from './rubric-operators.js';
@@ -181,10 +181,6 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
     [TEMPLATE_VARIABLES.RUBRICS_JSON]: stringifyCompact(rubrics),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
-    // Deprecated aliases — same values as the primary variables above
-    [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
-    [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
-    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
   };
 }
 
@@ -300,9 +296,6 @@ export class LlmGrader implements Grader {
     // Build user prompt based on custom template or default template
     const graderTemplate =
       context.graderTemplateOverride ?? this.graderTemplate ?? DEFAULT_GRADER_TEMPLATE;
-
-    // Warn once per run when custom templates use deprecated _text variable names
-    warnDeprecatedTemplateVars(graderTemplate);
 
     let userPrompt = substituteVariables(graderTemplate, variables);
 
@@ -713,7 +706,6 @@ export class LlmGrader implements Grader {
 
     const template = context.graderTemplateOverride ?? this.graderTemplate;
     if (template) {
-      warnDeprecatedTemplateVars(template);
       return substituteVariables(template, variables);
     }
 
@@ -781,7 +773,6 @@ export class LlmGrader implements Grader {
     const template = context.graderTemplateOverride ?? this.graderTemplate;
     if (template) {
       const variables = buildTemplateVariables(context);
-      warnDeprecatedTemplateVars(template);
       const customPrompt = substituteVariables(template, variables);
 
       const outputSchema =
@@ -987,7 +978,6 @@ export class LlmGrader implements Grader {
 
   private buildCustomPrompt(context: EvaluationContext): string {
     const template = context.graderTemplateOverride ?? this.graderTemplate ?? '';
-    warnDeprecatedTemplateVars(template);
     return substituteVariables(template, buildTemplateVariables(context));
   }
 
@@ -1224,34 +1214,6 @@ export function substituteVariables(template: string, variables: Record<string, 
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
-}
-
-const ANSI_YELLOW = '\u001b[33m';
-const ANSI_RESET = '\u001b[0m';
-
-/** Set of templates that have already emitted a deprecation warning (one-time per template). */
-const warnedTemplateStrings = new Set<string>();
-
-/**
- * Emit a one-time stderr warning when a template uses deprecated _text variable names.
- * Skips the default template (which uses the new names and should never trigger warnings).
- */
-export function warnDeprecatedTemplateVars(template: string): void {
-  if (warnedTemplateStrings.has(template)) return;
-
-  const used: string[] = [];
-  for (const [deprecated, replacement] of DEPRECATED_TEMPLATE_VARIABLES) {
-    if (new RegExp(`\\{\\{\\s*${deprecated}\\s*\\}\\}`).test(template)) {
-      used.push(`{{ ${deprecated} }} → {{ ${replacement} }}`);
-    }
-  }
-
-  if (used.length > 0) {
-    warnedTemplateStrings.add(template);
-    console.warn(
-      `${ANSI_YELLOW}⚠ Deprecated template variables detected (they still work but will be removed in a future version):\n  ${used.join('\n  ')}\n  Update your custom grader template to use the new names.${ANSI_RESET}`,
-    );
-  }
 }
 
 export function calculateRubricScore(

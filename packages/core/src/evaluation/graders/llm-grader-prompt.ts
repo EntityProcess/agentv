@@ -50,9 +50,6 @@ function buildTemplateVariables(input: {
     [TEMPLATE_VARIABLES.RUBRICS_JSON]: stringifyCompact(input.rubrics),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: input.fileChanges ?? '',
     [TEMPLATE_VARIABLES.TOOL_CALLS]: input.toolCalls ?? '',
-    [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
-    [TEMPLATE_VARIABLES.OUTPUT_TEXT]: input.candidate.trim(),
-    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (input.evalCase.reference_answer ?? '').trim(),
   };
 }
 

@@ -35,7 +35,7 @@ Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. Ty
 | Raw stdin key | SDK field | Meaning |
 |---------------|-----------|---------|
 | `output` | `output` | Final answer / scored result as a string |
-| `answer` | `answer` | Deprecated alias for the same final answer string |
+| `answer` | `answer` | Same final answer string, exposed for ergonomic handler code |
 | `messages` | `messages` | Transcript messages for transcript-aware graders |
 | `expected_output` | `expectedOutput` | Reference answer messages |
 | `output_path` | `outputPath` | Temp file containing large final answer JSON, when used |

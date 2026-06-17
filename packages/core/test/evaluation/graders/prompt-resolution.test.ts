@@ -41,12 +41,9 @@ describe('containsTemplateVariables', () => {
     ).toBe(true);
   });
 
-  it('returns true for deprecated {{output_text}} variable', () => {
-    expect(containsTemplateVariables('Grade the {{output_text}}')).toBe(true);
-  });
-
-  it('returns true for deprecated {{input_text}} variable', () => {
-    expect(containsTemplateVariables('Evaluate {{input_text}}')).toBe(true);
+  it('returns false for removed deprecated _text variables', () => {
+    expect(containsTemplateVariables('Grade the {{output_text}}')).toBe(false);
+    expect(containsTemplateVariables('Evaluate {{input_text}}')).toBe(false);
   });
 
   it('returns true with whitespace in braces', () => {
