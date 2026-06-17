@@ -11,7 +11,7 @@ import resultsReportDetails from '../../../../assets/screenshots/results-report-
 
 The `results` command family works on existing local AgentV run workspaces and `index.jsonl` manifests. Use it after an eval run to inspect failures, validate manifests, export artifact layouts, combine/delete local run workspaces, or generate a shareable HTML report.
 
-Remote result repository exchange is intentionally not part of `agentv results`. New eval runs can auto-export to a configured results repo when `auto_push: true`; manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/tools/dashboard/#remote-results) for configuration and sync behavior, and [WIP checkpoints](/docs/tools/wip-checkpoints/) for recovering in-progress runs before final publish.
+Remote result repository exchange is intentionally not part of `agentv results`. New eval runs publish completed artifacts to a configured results repo or branch; `sync.auto_push: true` additionally pushes that branch to the remote. Manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/tools/dashboard/#remote-results) for configuration and sync behavior, and [WIP checkpoints](/docs/tools/wip-checkpoints/) for recovering in-progress runs before final publish.
 
 ## Subcommands
 
@@ -115,7 +115,7 @@ The CLI contract is deliberately narrow: `agentv results` manages local result a
 
 Use these supported remote workflows instead:
 
-- **Automatic publishing:** configure `projects[].results.sync.auto_push: true`; new `agentv eval` and `agentv pipeline bench` runs push their artifacts after the run completes. Add `projects[].results.branch` when the results repo stores artifacts on a non-default branch. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/inflight/...` branches.
+- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo_path: .` with `branch: agentv/results/v1` to store results on a dedicated branch of the source repo. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/inflight/...` branches when auto-push is enabled.
 - **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
 - **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
 - **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.path` clone with `git` directly, then sync again.

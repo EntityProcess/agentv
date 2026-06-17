@@ -287,7 +287,7 @@ describe('parseResultsConfig', () => {
     });
   });
 
-  it('returns undefined when mode is missing', () => {
+  it('accepts missing mode for current results config', () => {
     const result = parseResultsConfig(
       {
         repo: 'EntityProcess/agentv-evals',
@@ -295,7 +295,36 @@ describe('parseResultsConfig', () => {
       '/tmp/.agentv/config.yaml',
     );
 
-    expect(result).toBeUndefined();
+    expect(result).toEqual({
+      mode: 'github',
+      repo: 'EntityProcess/agentv-evals',
+    });
+  });
+
+  it('parses repo_path and nested sync config', () => {
+    const result = parseResultsConfig(
+      {
+        repo_path: '.',
+        branch: 'agentv/results/v1',
+        remote: 'upstream',
+        sync: {
+          auto_push: false,
+          require_push: true,
+        },
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      mode: 'github',
+      repo_path: '.',
+      branch: 'agentv/results/v1',
+      remote: 'upstream',
+      sync: {
+        auto_push: false,
+        require_push: true,
+      },
+    });
   });
 
   it('returns undefined when mode is not github', () => {
@@ -341,6 +370,18 @@ describe('parseResultsConfig', () => {
       {
         mode: 'github',
         repo: '',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when repo_url and repo_path are both set', () => {
+    const result = parseResultsConfig(
+      {
+        repo_url: 'https://github.com/example/results.git',
+        repo_path: '.',
       },
       '/tmp/.agentv/config.yaml',
     );

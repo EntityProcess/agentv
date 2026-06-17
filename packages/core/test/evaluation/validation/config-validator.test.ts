@@ -106,6 +106,30 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts branch-backed repo_path results in global project config', async () => {
+    const filePath = path.join(tempDir, 'global-config-repo-path.yaml');
+    await writeFile(
+      filePath,
+      `projects:
+  - id: agentv
+    name: AgentV
+    path: /srv/agentv
+    results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: origin
+      sync:
+        auto_push: false
+        require_push: true
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('infers AGENTV_HOME config.yaml as global even when the home dir is named .agentv', async () => {
     const fakeHome = path.join(tempDir, 'fake-user-home');
     const homeConfigDir = path.join(fakeHome, '.agentv');
@@ -168,6 +192,7 @@ describe('validateConfigFile', () => {
     results:
       repo_url: EntityProcess/results
       branch: ""
+      remote: ""
       path: repo/subdir
       sync:
         auto_push: yes
@@ -188,6 +213,7 @@ describe('validateConfigFile', () => {
         expect.objectContaining({ severity: 'error', location: 'projects[0].ref' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo_url' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].results.branch' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].results.remote' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].results.path' }),
         expect.objectContaining({
           severity: 'error',
@@ -323,7 +349,7 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('errors on missing results.mode', async () => {
+  it('accepts top-level results without mode', async () => {
     const filePath = path.join(tempDir, 'config-results-no-mode.yaml');
     await writeFile(
       filePath,
@@ -334,10 +360,8 @@ describe('validateConfigFile', () => {
 
     const result = await validateConfigFile(filePath);
 
-    const fieldErrors = result.errors.filter(
-      (e) => e.severity === 'error' && e.location === 'results.mode',
-    );
-    expect(fieldErrors).toHaveLength(1);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 
   it('errors on old-style subdirectory path', async () => {

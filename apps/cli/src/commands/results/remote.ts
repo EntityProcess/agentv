@@ -6,6 +6,7 @@ import {
   type EvaluationResult,
   type GitListedRun,
   type NormalizedResultsConfig,
+  type ResultsConfig,
   type ResultsRepoStatus,
   directPushResults,
   directorySizeBytes,
@@ -42,7 +43,7 @@ const gitRunsCache = new Map<string, { data: Promise<GitListedRun[]>; expiresAt:
 const GIT_RUNS_CACHE_TTL_MS = 60_000;
 
 function getResultsStorageRef(config: NormalizedResultsConfig): string | undefined {
-  return config.branch ? `origin/${config.branch}` : undefined;
+  return config.branch;
 }
 
 function cachedListGitRuns(repoDir: string, ref?: string) {
@@ -100,12 +101,23 @@ export interface RemoteExportPayload {
   readonly results: readonly EvaluationResult[];
   readonly eval_summaries: readonly RemoteEvalSummary[];
   readonly experiment?: string;
+  readonly results_overrides?: ResultsPublishOverrides;
 }
 
 export type RemoteExportStatus = 'disabled' | 'published' | 'already_published' | 'failed';
 
 export interface RemoteResultsStatus extends ResultsRepoStatus {
   readonly run_count: number;
+}
+
+export interface ResultsPublishOverrides {
+  readonly repo?: string;
+  readonly repo_url?: string;
+  readonly repo_path?: string;
+  readonly branch?: string;
+  readonly remote?: string;
+  readonly auto_push?: boolean;
+  readonly require_push?: boolean;
 }
 
 const REMOTE_RUN_PREFIX = 'remote::';
@@ -155,6 +167,7 @@ async function maybeWarnLargeArtifact(runDir: string): Promise<void> {
 export async function loadNormalizedResultsConfig(
   cwd: string,
   projectId?: string,
+  overrides?: ResultsPublishOverrides,
 ): Promise<NormalizedResultsConfig | undefined> {
   const repoRoot = (await findRepoRoot(cwd)) ?? cwd;
   const config = await loadConfig(path.join(cwd, '_'), repoRoot);
@@ -163,20 +176,92 @@ export async function loadNormalizedResultsConfig(
       ? getProject(projectId)
       : (getProjectForPath(repoRoot) ?? getProjectForPath(cwd));
   const projectResults = project?.results
-    ? {
+    ? ({
         mode: 'github' as const,
-        repo: project.results.repoUrl,
-        branch: project.results.branch,
-        path: project.results.path,
-        auto_push: project.results.sync?.autoPush,
-        branch_prefix: project.results.branchPrefix,
-      }
+        ...(project.results.repoUrl !== undefined && {
+          repo: project.results.repoUrl,
+          repo_url: project.results.repoUrl,
+        }),
+        ...(project.results.repoPath !== undefined && { repo_path: project.results.repoPath }),
+        ...(project.results.branch !== undefined && { branch: project.results.branch }),
+        ...(project.results.remote !== undefined && { remote: project.results.remote }),
+        ...(project.results.path !== undefined && { path: project.results.path }),
+        ...((project.results.sync?.autoPush !== undefined ||
+          project.results.sync?.requirePush !== undefined) && {
+          sync: {
+            ...(project.results.sync?.autoPush !== undefined && {
+              auto_push: project.results.sync.autoPush,
+            }),
+            ...(project.results.sync?.requirePush !== undefined && {
+              require_push: project.results.sync.requirePush,
+            }),
+          },
+        }),
+        ...(project.results.branchPrefix !== undefined && {
+          branch_prefix: project.results.branchPrefix,
+        }),
+      } satisfies ResultsConfig)
     : undefined;
   const resultsConfig = projectResults ?? resolveResultsConfigForProject(config, project?.id);
-  if (!resultsConfig) {
+  if (!resultsConfig && !overrides) {
     return undefined;
   }
-  return normalizeResultsConfig(resultsConfig);
+  const baseConfig = resultsConfig
+    ? normalizeResultsConfig(resultsConfig, { baseDir: project?.path ?? repoRoot })
+    : undefined;
+  const repoOverride = overrides?.repo ?? overrides?.repo_url ?? overrides?.repo_path;
+  if (!baseConfig && !repoOverride) {
+    return undefined;
+  }
+  if (!overrides) {
+    return baseConfig;
+  }
+
+  const merged: ResultsConfig = {
+    mode: 'github',
+    ...(overrides.repo !== undefined
+      ? { repo: overrides.repo }
+      : overrides.repo_url !== undefined
+        ? { repo_url: overrides.repo_url }
+        : overrides.repo_path !== undefined
+          ? { repo_path: overrides.repo_path }
+          : baseConfig?.repo_path
+            ? { repo_path: baseConfig.repo_path }
+            : baseConfig?.repo_url
+              ? { repo_url: baseConfig.repo_url }
+              : baseConfig?.repo
+                ? { repo: baseConfig.repo }
+                : {}),
+    ...(overrides.branch !== undefined
+      ? { branch: overrides.branch }
+      : baseConfig?.branch
+        ? { branch: baseConfig.branch }
+        : {}),
+    ...(overrides.remote !== undefined
+      ? { remote: overrides.remote }
+      : baseConfig?.remote
+        ? { remote: baseConfig.remote }
+        : {}),
+    ...(repoOverride === undefined && baseConfig?.repo_path === undefined && baseConfig?.path
+      ? { path: baseConfig.path }
+      : {}),
+    ...((overrides.auto_push !== undefined ||
+      overrides.require_push !== undefined ||
+      baseConfig?.auto_push !== undefined ||
+      baseConfig?.require_push !== undefined) && {
+      sync: {
+        ...((overrides.auto_push ?? baseConfig?.auto_push) !== undefined && {
+          auto_push: overrides.auto_push ?? baseConfig?.auto_push,
+        }),
+        ...((overrides.require_push ?? baseConfig?.require_push) !== undefined && {
+          require_push: overrides.require_push ?? baseConfig?.require_push,
+        }),
+      },
+    }),
+    ...(baseConfig?.branch_prefix ? { branch_prefix: baseConfig.branch_prefix } : {}),
+  };
+
+  return normalizeResultsConfig(merged, { baseDir: project?.path ?? repoRoot });
 }
 
 export function encodeRemoteRunId(filename: string): string {
@@ -432,8 +517,12 @@ export async function clearRemoteRunTags(
 export async function maybeAutoExportRunArtifacts(
   payload: RemoteExportPayload,
 ): Promise<RemoteExportStatus> {
-  const config = await loadNormalizedResultsConfig(payload.cwd);
-  if (!config?.auto_push) {
+  const config = await loadNormalizedResultsConfig(
+    payload.cwd,
+    undefined,
+    payload.results_overrides,
+  );
+  if (!config) {
     return 'disabled';
   }
 
@@ -451,13 +540,19 @@ export async function maybeAutoExportRunArtifacts(
     });
 
     if (!pushed) {
-      console.warn('Warning: results export produced no git changes. Skipping push.');
+      console.warn('Warning: results export produced no git changes.');
       return 'already_published';
     }
 
-    console.log(`Results pushed to ${config.repo} (${config.path}/${relativeRunPath})`);
+    const pushLabel = config.auto_push || config.require_push ? 'pushed' : 'published locally';
+    console.log(
+      `Results ${pushLabel} to ${config.repo} (${config.branch ?? 'default branch'}:${relativeRunPath})`,
+    );
     return 'published';
   } catch (error) {
+    if (config.require_push) {
+      throw error;
+    }
     console.warn(`Warning: skipping results export: ${getStatusMessage(error)}`);
     console.warn("Warning: Run 'gh auth login' if GitHub authentication is missing.");
     return 'failed';

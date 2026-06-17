@@ -38,6 +38,7 @@ import {
 } from '../../version-check.js';
 import {
   type RemoteExportStatus,
+  type ResultsPublishOverrides,
   getRelativeRunPath,
   loadNormalizedResultsConfig,
   maybeAutoExportRunArtifacts,
@@ -138,6 +139,7 @@ interface NormalizedOptions {
   readonly experiment?: string;
   readonly budgetUsd?: number;
   readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
+  readonly resultsOverrides?: ResultsPublishOverrides;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -150,6 +152,27 @@ function normalizeString(value: unknown): string | undefined {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resultsRepoOverride(
+  value: string | undefined,
+): Pick<ResultsPublishOverrides, 'repo' | 'repo_path'> {
+  if (!value) {
+    return {};
+  }
+  if (
+    value === 'current' ||
+    value === '.' ||
+    value.startsWith('./') ||
+    value.startsWith('../') ||
+    value.startsWith('/') ||
+    value.startsWith('~/') ||
+    value.startsWith('~\\') ||
+    /^[A-Za-z]:[/\\]/.test(value)
+  ) {
+    return { repo_path: value === 'current' ? '.' : value };
+  }
+  return { repo: value };
 }
 
 export function resolveTimestampPlaceholder(value: string): string {
@@ -393,6 +416,21 @@ function normalizeOptions(
   const yamlWorkspacePath = normalizeString(yamlExecutionRecord?.workspace_path);
   const workspacePath = cliWorkspacePath ?? yamlWorkspacePath;
   const workspaceMode = cliWorkspacePath ? 'static' : (cliWorkspaceMode ?? yamlWorkspaceMode);
+  const resultsRepo = normalizeString(rawOptions.resultsRepo);
+  const resultsPush = normalizeBoolean(rawOptions.resultsPush);
+  const resultsNoPush = normalizeBoolean(rawOptions.noResultsPush);
+  const resultsRequirePush = normalizeBoolean(rawOptions.resultsRequirePush);
+  const resultsOverrides: ResultsPublishOverrides = {
+    ...resultsRepoOverride(resultsRepo),
+    ...(normalizeString(rawOptions.resultsBranch) !== undefined && {
+      branch: normalizeString(rawOptions.resultsBranch),
+    }),
+    ...(normalizeString(rawOptions.resultsRemote) !== undefined && {
+      remote: normalizeString(rawOptions.resultsRemote),
+    }),
+    ...(resultsPush || resultsNoPush ? { auto_push: resultsPush && !resultsNoPush } : {}),
+    ...(resultsRequirePush ? { require_push: true } : {}),
+  };
 
   return {
     target: singleTarget,
@@ -462,6 +500,7 @@ function normalizeOptions(
     sourceMetadataByEvalFile: normalizeSourceMetadataByEvalFile(
       rawOptions.sourceMetadataByEvalFile,
     ),
+    resultsOverrides: Object.keys(resultsOverrides).length > 0 ? resultsOverrides : undefined,
   } satisfies NormalizedOptions;
 }
 
@@ -1588,7 +1627,11 @@ export async function runEvalCommand(
   let wipCleanedUp = false;
   let finalExportStatus: RemoteExportStatus = 'disabled';
   {
-    const wipConfig = await loadNormalizedResultsConfig(cwd).catch(() => undefined);
+    const wipConfig = await loadNormalizedResultsConfig(
+      cwd,
+      undefined,
+      options.resultsOverrides,
+    ).catch(() => undefined);
     if (wipConfig?.auto_push) {
       wipLoop = new WipCheckpointLoop({
         config: wipConfig,
@@ -1914,6 +1957,7 @@ export async function runEvalCommand(
           })),
         })),
         experiment: normalizeExperimentName(options.experiment),
+        results_overrides: options.resultsOverrides,
       });
     }
 

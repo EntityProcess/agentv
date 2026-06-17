@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { cp, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { cp, lstat, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -21,6 +21,8 @@ const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
 const RESULTS_REPO_RUNS_DIR = `${RESULTS_REPO_RESULTS_DIR}/runs`;
 const RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
 const RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
+export const DEFAULT_RESULTS_BRANCH = 'agentv/results/v1';
+const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -42,8 +44,10 @@ export interface ResultsRepoStatus {
   readonly configured: boolean;
   readonly available: boolean;
   readonly repo?: string;
+  readonly repo_path?: string;
   readonly path?: string;
   readonly auto_push?: boolean;
+  readonly require_push?: boolean;
   readonly branch_prefix?: string;
   readonly local_dir?: string;
   readonly last_synced_at?: string;
@@ -67,11 +71,17 @@ export interface ResultsRepoStatus {
 export interface NormalizedResultsConfig {
   readonly mode: 'github';
   readonly repo: string;
+  readonly repo_url?: string;
+  readonly repo_path?: string;
   readonly branch?: string;
+  readonly remote: string;
   readonly path: string;
   readonly auto_push: boolean;
+  readonly require_push: boolean;
   readonly branch_prefix: string;
 }
+
+type StorageBranchResultsConfig = NormalizedResultsConfig & { readonly branch: string };
 
 export interface CheckedOutResultsRepoBranch {
   readonly branchName: string;
@@ -127,18 +137,35 @@ function expandHome(p: string): string {
   return p;
 }
 
-export function normalizeResultsConfig(config: ResultsConfig): NormalizedResultsConfig {
-  const repo = config.repo.trim();
-  const branch = config.branch?.trim();
+export function normalizeResultsConfig(
+  config: ResultsConfig,
+  options?: { baseDir?: string },
+): NormalizedResultsConfig {
+  const repoUrl = (config.repo_url ?? config.repo)?.trim();
+  const repoPath = config.repo_path?.trim();
+  const repo = repoUrl ?? repoPath ?? '';
+  const branch = config.branch?.trim() || (repoPath ? DEFAULT_RESULTS_BRANCH : undefined);
+  const remote = config.remote?.trim() || 'origin';
+  const autoPush = config.sync?.auto_push ?? config.auto_push === true;
+  const requirePush = config.sync?.require_push === true;
+  const resolvedRepoPath = repoPath
+    ? path.resolve(options?.baseDir ?? process.cwd(), expandHome(repoPath))
+    : undefined;
   const resolvedPath = config.path
     ? expandHome(config.path.trim())
-    : path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repo));
+    : repoUrl
+      ? path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repoUrl))
+      : (resolvedRepoPath ?? path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repo)));
   return {
     mode: 'github',
     repo,
+    ...(repoUrl ? { repo_url: repoUrl } : {}),
+    ...(resolvedRepoPath ? { repo_path: resolvedRepoPath } : {}),
     ...(branch ? { branch } : {}),
+    remote,
     path: resolvedPath,
-    auto_push: config.auto_push === true,
+    auto_push: autoPush,
+    require_push: requirePush,
     branch_prefix: config.branch_prefix?.trim() || 'eval-results',
   };
 }
@@ -206,14 +233,15 @@ function getGitEnv(): NodeJS.ProcessEnv {
       env[key] = value;
     }
   }
+  env.GIT_TERMINAL_PROMPT = '0';
   return env;
 }
 
 async function runGit(
   args: readonly string[],
-  options?: { cwd?: string; check?: boolean },
+  options?: { cwd?: string; check?: boolean; env?: NodeJS.ProcessEnv },
 ): Promise<{ stdout: string; stderr: string }> {
-  return runCommand('git', args, { ...options, env: getGitEnv() });
+  return runCommand('git', args, { ...options, env: { ...getGitEnv(), ...options?.env } });
 }
 
 async function runGh(
@@ -252,47 +280,44 @@ async function resolveDefaultBranch(repoDir: string): Promise<string> {
   return 'main';
 }
 
-async function fetchResultsRepo(repoDir: string): Promise<void> {
-  await runGit(['fetch', 'origin', '--prune'], { cwd: repoDir });
+async function fetchResultsRepo(repoDir: string, remote = 'origin'): Promise<void> {
+  await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
 }
 
-function remoteBranchRef(branch: string): string {
-  return `origin/${branch}`;
+function remoteBranchRef(branch: string, remote = 'origin'): string {
+  return `${remote}/${branch}`;
 }
 
-function missingConfiguredBranchError(config: NormalizedResultsConfig): Error {
-  const branch = config.branch ?? '<unknown>';
-  return new Error(
-    [
-      `Results repo remote branch '${branch}' does not exist in ${config.repo}.`,
-      'Create the storage branch once, then retry. Example:',
-      `  git clone ${resolveResultsRepoUrl(config.repo)} /tmp/agentv-results-init`,
-      '  cd /tmp/agentv-results-init',
-      `  git switch --orphan ${branch}`,
-      '  git rm -rf .',
-      '  git commit --allow-empty -m "chore(results): initialize AgentV results branch"',
-      `  git push origin HEAD:${branch}`,
-    ].join('\n'),
-  );
+async function gitRefExists(repoDir: string, ref: string): Promise<boolean> {
+  const { stdout } = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  return stdout.trim().length > 0;
 }
 
-async function assertConfiguredResultsBranchExists(
+async function configuredResultsBranchRef(
   repoDir: string,
   config: NormalizedResultsConfig,
 ): Promise<string | undefined> {
   if (!config.branch) {
     return undefined;
   }
-
-  const ref = remoteBranchRef(config.branch);
-  const { stdout } = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], {
-    cwd: repoDir,
-    check: false,
-  });
-  if (!stdout.trim()) {
-    throw missingConfiguredBranchError(config);
+  const remoteRef = remoteBranchRef(config.branch, config.remote);
+  if (await gitRefExists(repoDir, remoteRef)) {
+    return remoteRef;
   }
-  return ref;
+  if (await gitRefExists(repoDir, config.branch)) {
+    return config.branch;
+  }
+  return undefined;
+}
+
+async function assertConfiguredResultsBranchExists(
+  repoDir: string,
+  config: NormalizedResultsConfig,
+): Promise<string | undefined> {
+  return configuredResultsBranchRef(repoDir, config);
 }
 
 async function localBranchExists(repoDir: string, branch: string): Promise<boolean> {
@@ -307,25 +332,42 @@ async function checkoutConfiguredResultsBranch(
   repoDir: string,
   config: NormalizedResultsConfig,
 ): Promise<string | undefined> {
+  const branch = config.branch;
+  if (!branch) {
+    return undefined;
+  }
   const remoteRef = await assertConfiguredResultsBranchExists(repoDir, config);
-  if (!config.branch || !remoteRef) {
+  if (!remoteRef) {
+    await createOrphanResultsBranch(repoDir, branch);
+    await runGit(['checkout', branch], { cwd: repoDir });
     return undefined;
   }
 
   const currentBranch = await getCurrentBranch(repoDir);
-  if (currentBranch !== config.branch) {
-    if (await localBranchExists(repoDir, config.branch)) {
-      await runGit(['checkout', config.branch], { cwd: repoDir });
+  if (currentBranch !== branch) {
+    if (await localBranchExists(repoDir, branch)) {
+      await runGit(['checkout', branch], { cwd: repoDir });
     } else {
-      await runGit(['checkout', '--track', '-b', config.branch, remoteRef], { cwd: repoDir });
+      await runGit(['checkout', '--track', '-b', branch, remoteRef], { cwd: repoDir });
     }
   }
-  await runGit(['branch', '--set-upstream-to', remoteRef, config.branch], {
-    cwd: repoDir,
-    check: false,
-  });
+  if (remoteRef === remoteBranchRef(branch, config.remote)) {
+    await runGit(['branch', '--set-upstream-to', remoteRef, branch], {
+      cwd: repoDir,
+      check: false,
+    });
+  }
 
   return remoteRef;
+}
+
+async function createOrphanResultsBranch(repoDir: string, branch: string): Promise<void> {
+  await ensureResultsRepoCommitIdentity(repoDir);
+  const { stdout } = await runGit(
+    ['commit-tree', GIT_EMPTY_TREE, '-m', 'chore(results): initialize AgentV results branch'],
+    { cwd: repoDir },
+  );
+  await runGit(['update-ref', `refs/heads/${branch}`, stdout.trim()], { cwd: repoDir });
 }
 
 async function isGitRepository(repoDir: string): Promise<boolean> {
@@ -337,8 +379,18 @@ async function isGitRepository(repoDir: string): Promise<boolean> {
   }
 }
 
-function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
-  const cachePaths = getResultsRepoLocalPaths(config.repo);
+async function resolveGitTopLevel(repoDir: string): Promise<string> {
+  const { stdout } = await runGit(['rev-parse', '--show-toplevel'], { cwd: repoDir });
+  return stdout.trim() || repoDir;
+}
+
+function updateStatusFile(
+  config: ResultsConfig | NormalizedResultsConfig,
+  patch: PersistedStatus,
+): void {
+  const repo =
+    typeof config.repo === 'string' ? config.repo : (config.repo_url ?? config.repo_path ?? '');
+  const cachePaths = getResultsRepoLocalPaths(repo);
   const current = readPersistedStatus(cachePaths.statusFile);
   writePersistedStatus(cachePaths.statusFile, {
     ...current,
@@ -348,6 +400,13 @@ function updateStatusFile(config: ResultsConfig, patch: PersistedStatus): void {
 
 export async function ensureResultsRepoClone(config: ResultsConfig): Promise<string> {
   const normalized = normalizeResultsConfig(config);
+  if (normalized.repo_path) {
+    if (!(await isGitRepository(normalized.repo_path))) {
+      throw new Error(`Results repo_path is not a git repository: ${normalized.repo_path}`);
+    }
+    return resolveGitTopLevel(normalized.repo_path);
+  }
+
   const cachePaths = getResultsRepoLocalPaths(normalized.repo);
   const cloneDir = normalized.path;
   mkdirSync(cachePaths.rootDir, { recursive: true });
@@ -362,7 +421,7 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
       await runGit([
         'clone',
         '--filter=blob:none',
-        resolveResultsRepoUrl(normalized.repo),
+        resolveResultsRepoUrl(normalized.repo_url ?? normalized.repo),
         cloneDir,
       ]);
       return cloneDir;
@@ -398,8 +457,10 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
     configured: true,
     available: existsSync(normalized.path),
     repo: normalized.repo,
+    ...(normalized.repo_path !== undefined && { repo_path: normalized.repo_path }),
     path: normalized.path,
     auto_push: normalized.auto_push,
+    require_push: normalized.require_push,
     branch_prefix: normalized.branch_prefix,
     local_dir: normalized.path,
     last_synced_at: persisted.last_synced_at,
@@ -468,7 +529,7 @@ async function resolveComparisonRef(
   }
 
   const baseBranch = await resolveDefaultBranch(repoDir);
-  const fallback = `origin/${baseBranch}`;
+  const fallback = `${config?.remote ?? 'origin'}/${baseBranch}`;
   const { stdout: fallbackSha } = await runGit(['rev-parse', '--verify', fallback], {
     cwd: repoDir,
     check: false,
@@ -495,6 +556,71 @@ async function getAheadBehind(
   return {
     ...(Number.isFinite(ahead) && { ahead }),
     ...(Number.isFinite(behind) && { behind }),
+  };
+}
+
+async function getAheadBehindForRefs(
+  repoDir: string,
+  leftRef: string,
+  rightRef: string,
+): Promise<{ ahead?: number; behind?: number }> {
+  const { stdout } = await runGit(
+    ['rev-list', '--left-right', '--count', `${leftRef}...${rightRef}`],
+    {
+      cwd: repoDir,
+      check: false,
+    },
+  );
+  const [aheadText, behindText] = stdout.trim().split(/\s+/);
+  const ahead = Number.parseInt(aheadText ?? '', 10);
+  const behind = Number.parseInt(behindText ?? '', 10);
+
+  return {
+    ...(Number.isFinite(ahead) && { ahead }),
+    ...(Number.isFinite(behind) && { behind }),
+  };
+}
+
+async function inspectResultsStorageBranchGit(
+  repoDir: string,
+  config: NormalizedResultsConfig,
+): Promise<ResultsRepoGitInspection> {
+  if (!config.branch) {
+    return {
+      syncStatus: 'clean',
+      dirtyPaths: [],
+      conflictedPaths: [],
+    };
+  }
+  const localRef = `refs/heads/${config.branch}`;
+  const upstream = remoteBranchRef(config.branch, config.remote);
+  const localExists = await gitRefExists(repoDir, localRef);
+  const remoteExists = await gitRefExists(repoDir, upstream);
+  const { ahead = 0, behind = 0 } =
+    localExists && remoteExists
+      ? await getAheadBehindForRefs(repoDir, localRef, upstream)
+      : {
+          ahead: localExists && !remoteExists ? 1 : 0,
+          behind: !localExists && remoteExists ? 1 : 0,
+        };
+
+  let syncStatus: ResultsRepoSyncStatus = 'clean';
+  if (ahead > 0 && behind > 0) {
+    syncStatus = 'diverged';
+  } else if (behind > 0) {
+    syncStatus = 'behind';
+  } else if (ahead > 0) {
+    syncStatus = 'ahead';
+  }
+
+  return {
+    syncStatus,
+    branch: config.branch,
+    ...(remoteExists && { upstream }),
+    ahead,
+    behind,
+    dirtyPaths: [],
+    conflictedPaths: [],
   };
 }
 
@@ -671,11 +797,12 @@ function areSafeResultsRepoPaths(paths: readonly string[]): boolean {
 async function getAheadPaths(
   repoDir: string,
   upstream: string | undefined,
+  branch = 'HEAD',
 ): Promise<readonly string[]> {
   if (!upstream) {
     return [];
   }
-  const { stdout } = await runGit(['diff', '--name-only', `${upstream}..HEAD`], {
+  const { stdout } = await runGit(['diff', '--name-only', `${upstream}..${branch}`], {
     cwd: repoDir,
     check: false,
   });
@@ -686,8 +813,13 @@ async function getAheadPaths(
     .sort();
 }
 
-function getPushTargetBranch(upstream: string | undefined, baseBranch: string): string {
-  return upstream?.startsWith('origin/') ? upstream.slice('origin/'.length) : baseBranch;
+function getPushTargetBranch(
+  upstream: string | undefined,
+  baseBranch: string,
+  remote = 'origin',
+): string {
+  const prefix = `${remote}/`;
+  return upstream?.startsWith(prefix) ? upstream.slice(prefix.length) : baseBranch;
 }
 
 async function statusFromInspection(
@@ -722,8 +854,15 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
   }
 
   try {
+    if (normalized.repo_path) {
+      await fetchResultsRepo(normalized.path, normalized.remote).catch(() => undefined);
+      return withGitInspection(
+        baseStatus,
+        await inspectResultsStorageBranchGit(normalized.path, normalized),
+      );
+    }
     if (normalized.branch) {
-      await fetchResultsRepo(normalized.path);
+      await fetchResultsRepo(normalized.path, normalized.remote).catch(() => undefined);
       await checkoutConfiguredResultsBranch(normalized.path, normalized);
     }
     return withGitInspection(baseStatus, await inspectResultsRepoGit(normalized.path, normalized));
@@ -742,8 +881,10 @@ export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRep
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
-    await fetchResultsRepo(repoDir);
-    await checkoutConfiguredResultsBranch(repoDir, normalized);
+    await fetchResultsRepo(repoDir, normalized.remote);
+    if (!normalized.repo_path) {
+      await checkoutConfiguredResultsBranch(repoDir, normalized);
+    }
     updateStatusFile(normalized, {
       last_synced_at: new Date().toISOString(),
       last_error: undefined,
@@ -781,7 +922,59 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
-    await fetchResultsRepo(repoDir);
+    if (normalized.repo_path) {
+      try {
+        await fetchResultsRepo(repoDir, normalized.remote);
+      } catch (error) {
+        if (normalized.require_push) {
+          throw error;
+        }
+      }
+      if (normalized.auto_push || normalized.require_push) {
+        if (normalized.branch) {
+          const localRef = `refs/heads/${normalized.branch}`;
+          if (await gitRefExists(repoDir, localRef)) {
+            try {
+              await runGit(
+                [
+                  'push',
+                  '--porcelain',
+                  normalized.remote,
+                  `${localRef}:refs/heads/${normalized.branch}`,
+                ],
+                { cwd: repoDir },
+              );
+              pushPerformed = true;
+            } catch (error) {
+              updateStatusFile(normalized, { last_error: getStatusMessage(error) });
+              if (normalized.require_push) {
+                throw error;
+              }
+              const status = await getResultsRepoSyncStatus(normalized);
+              return withBlockedStatus(
+                status,
+                `Results repo push was rejected: ${getStatusMessage(error)}`,
+                {
+                  pullPerformed,
+                  pushPerformed,
+                  commitCreated,
+                },
+              );
+            }
+          }
+        }
+      }
+      updateStatusFile(normalized, {
+        last_synced_at: new Date().toISOString(),
+        last_error: undefined,
+      });
+      return withActionFlags(await getResultsRepoSyncStatus(normalized), {
+        pullPerformed,
+        pushPerformed,
+        commitCreated,
+      });
+    }
+    await fetchResultsRepo(repoDir, normalized.remote);
     await checkoutConfiguredResultsBranch(repoDir, normalized);
     let inspection = await inspectResultsRepoGit(repoDir, normalized);
 
@@ -931,14 +1124,14 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       }
 
       const baseBranch = normalized.branch ?? (await resolveDefaultBranch(repoDir));
-      const targetBranch = getPushTargetBranch(inspection.upstream, baseBranch);
+      const targetBranch = getPushTargetBranch(inspection.upstream, baseBranch, normalized.remote);
       try {
-        await runGit(['push', 'origin', `HEAD:${targetBranch}`], { cwd: repoDir });
+        await runGit(['push', normalized.remote, `HEAD:${targetBranch}`], { cwd: repoDir });
         pushPerformed = true;
-        await fetchResultsRepo(repoDir);
+        await fetchResultsRepo(repoDir, normalized.remote);
         inspection = await inspectResultsRepoGit(repoDir, normalized);
       } catch (error) {
-        await fetchResultsRepo(repoDir).catch(() => undefined);
+        await fetchResultsRepo(repoDir, normalized.remote).catch(() => undefined);
         inspection = await inspectResultsRepoGit(repoDir, normalized);
         const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
         const reason = `Results repo push was rejected: ${getStatusMessage(error)}`;
@@ -978,8 +1171,10 @@ export async function checkoutResultsRepoBranch(
   const normalized = normalizeResultsConfig(config);
   const repoDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(repoDir);
-  await fetchResultsRepo(repoDir);
-  await runGit(['checkout', '-B', branchName, `origin/${baseBranch}`], { cwd: repoDir });
+  await fetchResultsRepo(repoDir, normalized.remote);
+  await runGit(['checkout', '-B', branchName, `${normalized.remote}/${baseBranch}`], {
+    cwd: repoDir,
+  });
   updateStatusFile(normalized, { last_error: undefined });
   return {
     branchName,
@@ -995,13 +1190,16 @@ export async function prepareResultsRepoBranch(
   const normalized = normalizeResultsConfig(config);
   const cloneDir = await ensureResultsRepoClone(normalized);
   const baseBranch = await resolveDefaultBranch(cloneDir);
-  await fetchResultsRepo(cloneDir);
+  await fetchResultsRepo(cloneDir, normalized.remote);
 
   const worktreeRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-repo-'));
   const worktreeDir = path.join(worktreeRoot, 'repo');
-  await runGit(['worktree', 'add', '-B', branchName, worktreeDir, `origin/${baseBranch}`], {
-    cwd: cloneDir,
-  });
+  await runGit(
+    ['worktree', 'add', '-B', branchName, worktreeDir, `${normalized.remote}/${baseBranch}`],
+    {
+      cwd: cloneDir,
+    },
+  );
 
   return {
     branchName,
@@ -1072,7 +1270,7 @@ export async function pushResultsRepoBranch(
   cwd?: string,
 ): Promise<void> {
   const normalized = normalizeResultsConfig(config);
-  await runGit(['push', '-u', 'origin', branchName], {
+  await runGit(['push', '-u', normalized.remote, branchName], {
     cwd: cwd ?? normalized.path,
   });
   updateStatusFile(normalized, {
@@ -1112,33 +1310,330 @@ export async function createDraftResultsPr(params: {
 
 const DIRECT_PUSH_MAX_RETRIES = 3;
 
-async function hasUnpushedCommits(repoDir: string, upstreamRef: string): Promise<boolean> {
-  const { stdout } = await runGit(['rev-list', '--count', `${upstreamRef}..HEAD`], {
+async function hasUnpushedCommits(
+  repoDir: string,
+  upstreamRef: string,
+  branch: string,
+): Promise<boolean> {
+  const { stdout } = await runGit(['rev-list', '--count', `${upstreamRef}..refs/heads/${branch}`], {
     cwd: repoDir,
     check: false,
   });
   return Number.parseInt(stdout.trim(), 10) > 0;
 }
 
+async function countUnpushedCommits(
+  repoDir: string,
+  upstreamRef: string,
+  branch: string,
+): Promise<number> {
+  const { stdout } = await runGit(['rev-list', '--count', `${upstreamRef}..refs/heads/${branch}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  const count = Number.parseInt(stdout.trim(), 10);
+  return Number.isFinite(count) ? count : 0;
+}
+
+async function assertValidResultsBranchName(repoDir: string, branch: string): Promise<void> {
+  if (
+    branch.length === 0 ||
+    branch.includes('..') ||
+    branch.startsWith('/') ||
+    branch.endsWith('/') ||
+    branch.endsWith('.lock') ||
+    [...branch].some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
+  ) {
+    throw new Error(`Invalid results branch name: ${branch}`);
+  }
+  await runGit(['check-ref-format', '--branch', branch], { cwd: repoDir });
+}
+
+function normalizeDestinationPath(destinationPath: string): string {
+  const normalized = destinationPath.split(path.sep).join('/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (
+    segments.length === 0 ||
+    normalized.startsWith('/') ||
+    segments.some((segment) => segment === '..')
+  ) {
+    throw new Error(`Invalid results destination path: ${destinationPath}`);
+  }
+  return segments.join('/');
+}
+
+async function listSourceFiles(sourceDir: string): Promise<string[]> {
+  const entries: string[] = [];
+  async function visit(dir: string): Promise<void> {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const absolutePath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await visit(absolutePath);
+      } else if (entry.isFile() || entry.isSymbolicLink()) {
+        entries.push(absolutePath);
+      }
+    }
+  }
+  await visit(sourceDir);
+  entries.sort();
+  return entries;
+}
+
+async function getExistingRunTreePaths(
+  repoDir: string,
+  ref: string | undefined,
+  destinationTreePath: string,
+): Promise<string[]> {
+  if (!ref) {
+    return [];
+  }
+  const { stdout } = await runGit(['ls-tree', '-r', '--name-only', ref, destinationTreePath], {
+    cwd: repoDir,
+    check: false,
+  });
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+async function resolveStorageBranchBase(params: {
+  readonly repoDir: string;
+  readonly normalized: StorageBranchResultsConfig;
+  readonly preferRemote?: boolean;
+}): Promise<{
+  readonly baseRef?: string;
+  readonly baseCommit?: string;
+  readonly baseTree?: string;
+  readonly localRef: string;
+  readonly localExists: boolean;
+  readonly remoteRef: string;
+  readonly remoteExists: boolean;
+}> {
+  const localRef = `refs/heads/${params.normalized.branch}`;
+  const remoteRef = `refs/remotes/${params.normalized.remote}/${params.normalized.branch}`;
+  const localExists = await gitRefExists(params.repoDir, localRef);
+  const remoteExists = await gitRefExists(params.repoDir, remoteRef);
+  const baseRef = params.preferRemote
+    ? remoteExists
+      ? remoteRef
+      : localExists
+        ? localRef
+        : undefined
+    : localExists
+      ? localRef
+      : remoteExists
+        ? remoteRef
+        : undefined;
+  const baseCommit = baseRef
+    ? (
+        await runGit(['rev-parse', `${baseRef}^{commit}`], {
+          cwd: params.repoDir,
+        })
+      ).stdout.trim()
+    : undefined;
+  const baseTree = baseRef
+    ? (
+        await runGit(['rev-parse', `${baseRef}^{tree}`], {
+          cwd: params.repoDir,
+        })
+      ).stdout.trim()
+    : undefined;
+  return { baseRef, baseCommit, baseTree, localRef, localExists, remoteRef, remoteExists };
+}
+
+async function ensureResultsBranchNotCheckedOut(
+  repoDir: string,
+  normalized: StorageBranchResultsConfig,
+): Promise<void> {
+  const currentBranch = await getCurrentBranch(repoDir);
+  if (currentBranch !== normalized.branch) {
+    return;
+  }
+  if (normalized.repo_path) {
+    throw new Error(
+      `Refusing to publish results while '${normalized.branch}' is checked out in ${repoDir}`,
+    );
+  }
+  await runGit(['checkout', '--detach'], { cwd: repoDir });
+}
+
+async function commitResultsRunWithTemporaryIndex(params: {
+  readonly normalized: StorageBranchResultsConfig;
+  readonly repoDir: string;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly commitMessage: string;
+  readonly targetRunId: string;
+  readonly preferRemoteBase?: boolean;
+}): Promise<{
+  readonly commitCreated: boolean;
+  readonly branchUpdated: boolean;
+  readonly upstreamRef?: string;
+}> {
+  const { normalized } = params;
+  await assertValidResultsBranchName(params.repoDir, normalized.branch);
+  await ensureResultsBranchNotCheckedOut(params.repoDir, normalized);
+
+  const destinationRunPath = normalizeDestinationPath(params.destinationPath);
+  const destinationTreePath = path.posix.join(RESULTS_REPO_RUNS_DIR, destinationRunPath);
+  const base = await resolveStorageBranchBase({
+    repoDir: params.repoDir,
+    normalized,
+    preferRemote: params.preferRemoteBase,
+  });
+
+  const indexRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-index-'));
+  const indexFile = path.join(indexRoot, 'index');
+  const indexEnv = { GIT_INDEX_FILE: indexFile };
+
+  try {
+    if (base.baseRef) {
+      await runGit(['read-tree', base.baseRef], { cwd: params.repoDir, env: indexEnv });
+    } else {
+      await runGit(['read-tree', '--empty'], { cwd: params.repoDir, env: indexEnv });
+    }
+
+    const existingPaths = await getExistingRunTreePaths(
+      params.repoDir,
+      base.baseRef,
+      destinationTreePath,
+    );
+    for (const existingPath of existingPaths) {
+      await runGit(['update-index', '--force-remove', '--', existingPath], {
+        cwd: params.repoDir,
+        env: indexEnv,
+        check: false,
+      });
+    }
+
+    const sourceFiles = await listSourceFiles(params.sourceDir);
+    for (const sourceFile of sourceFiles) {
+      const relativeFile = path.relative(params.sourceDir, sourceFile).split(path.sep).join('/');
+      const destinationFile = path.posix.join(destinationTreePath, relativeFile);
+      const fileStat = await lstat(sourceFile);
+      let mode = fileStat.mode & 0o111 ? '100755' : '100644';
+      let hashInputPath = sourceFile;
+      if (fileStat.isSymbolicLink()) {
+        mode = '120000';
+        hashInputPath = sourceFile;
+      }
+      const { stdout: blob } = await runGit(['hash-object', '-w', '--no-filters', hashInputPath], {
+        cwd: params.repoDir,
+      });
+      await runGit(
+        ['update-index', '--add', '--cacheinfo', `${mode},${blob.trim()},${destinationFile}`],
+        {
+          cwd: params.repoDir,
+          env: indexEnv,
+        },
+      );
+    }
+
+    const { stdout: newTreeStdout } = await runGit(['write-tree'], {
+      cwd: params.repoDir,
+      env: indexEnv,
+    });
+    const newTree = newTreeStdout.trim();
+    if (base.baseTree && newTree === base.baseTree) {
+      return {
+        commitCreated: false,
+        branchUpdated: false,
+        upstreamRef: base.remoteExists ? base.remoteRef : undefined,
+      };
+    }
+
+    await ensureResultsRepoCommitIdentity(params.repoDir);
+    const commitArgs = [
+      'commit-tree',
+      newTree,
+      ...(base.baseCommit ? ['-p', base.baseCommit] : []),
+      '-m',
+      params.commitMessage,
+      '-m',
+      `AgentV-Run: ${params.targetRunId}`,
+    ];
+    const { stdout: commitStdout } = await runGit(commitArgs, { cwd: params.repoDir });
+    const commitSha = commitStdout.trim();
+    await runGit(
+      [
+        'update-ref',
+        `refs/heads/${normalized.branch}`,
+        commitSha,
+        ...(base.localExists && !params.preferRemoteBase ? [base.baseCommit ?? ''] : []),
+      ].filter(Boolean),
+      { cwd: params.repoDir },
+    );
+
+    if (base.remoteExists) {
+      await runGit(['branch', '--set-upstream-to', base.remoteRef, normalized.branch], {
+        cwd: params.repoDir,
+        check: false,
+      });
+    }
+
+    return {
+      commitCreated: true,
+      branchUpdated: true,
+      upstreamRef: base.remoteExists ? base.remoteRef : undefined,
+    };
+  } finally {
+    await rm(indexRoot, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
 async function pushDirectResultsToStorageBranch(params: {
-  readonly normalized: NormalizedResultsConfig;
+  readonly normalized: StorageBranchResultsConfig;
   readonly repoDir: string;
   readonly storageBranch: string;
-  readonly upstreamRef: string;
+  readonly upstreamRef?: string;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly commitMessage: string;
+  readonly targetRunId: string;
 }): Promise<void> {
   for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
     try {
-      await runGit(['push', 'origin', `HEAD:${params.storageBranch}`], { cwd: params.repoDir });
+      await runGit(
+        [
+          'push',
+          '--porcelain',
+          params.normalized.remote,
+          `refs/heads/${params.storageBranch}:refs/heads/${params.storageBranch}`,
+        ],
+        { cwd: params.repoDir },
+      );
       updateStatusFile(params.normalized, {
         last_synced_at: new Date().toISOString(),
         last_error: undefined,
       });
+      await fetchResultsRepo(params.repoDir, params.normalized.remote).catch(() => undefined);
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
-        await fetchResultsRepo(params.repoDir);
-        await runGit(['rebase', params.upstreamRef], { cwd: params.repoDir });
+        await fetchResultsRepo(params.repoDir, params.normalized.remote);
+        const remoteRef = remoteBranchRef(params.storageBranch, params.normalized.remote);
+        const localOnlyCount = (await gitRefExists(params.repoDir, remoteRef))
+          ? await countUnpushedCommits(params.repoDir, remoteRef, params.storageBranch)
+          : 0;
+        if (localOnlyCount > 1) {
+          throw new Error(
+            `Results branch has ${localOnlyCount} local commits and remote advanced; push manually after reconciling ${params.storageBranch}`,
+          );
+        }
+        await commitResultsRunWithTemporaryIndex({
+          normalized: params.normalized,
+          repoDir: params.repoDir,
+          sourceDir: params.sourceDir,
+          destinationPath: params.destinationPath,
+          commitMessage: params.commitMessage,
+          targetRunId: params.targetRunId,
+          preferRemoteBase: true,
+        });
       } else {
         throw error;
       }
@@ -1159,47 +1654,71 @@ export async function directPushResults(params: {
 }): Promise<boolean> {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
-  await fetchResultsRepo(repoDir);
-  const configuredRef = await checkoutConfiguredResultsBranch(repoDir, normalized);
+  await fetchResultsRepo(repoDir, normalized.remote).catch((error) => {
+    if (normalized.require_push) {
+      throw error;
+    }
+  });
   const storageBranch = normalized.branch ?? (await resolveDefaultBranch(repoDir));
-  const upstreamRef = configuredRef ?? remoteBranchRef(storageBranch);
+  const storageConfig: StorageBranchResultsConfig = {
+    ...normalized,
+    branch: storageBranch,
+  };
   const targetRunId = buildGitRunId(params.destinationPath);
 
-  const destinationDir = path.join(
-    repoDir,
-    RESULTS_REPO_RESULTS_DIR,
-    'runs',
-    params.destinationPath,
-  );
-  await stageResultsArtifacts({
+  const result = await commitResultsRunWithTemporaryIndex({
+    normalized: storageConfig,
     repoDir,
     sourceDir: params.sourceDir,
-    destinationDir,
+    destinationPath: params.destinationPath,
+    commitMessage: params.commitMessage,
+    targetRunId,
   });
 
-  await runGit(['add', '--all'], { cwd: repoDir });
-  const { stdout: status } = await runGit(['status', '--porcelain'], {
-    cwd: repoDir,
-    check: false,
-  });
-  if (status.trim().length === 0) {
-    if (await hasUnpushedCommits(repoDir, upstreamRef)) {
-      const aheadPaths = await getAheadPaths(repoDir, upstreamRef);
-      if (!areSafeResultsRepoPaths(aheadPaths)) {
-        throw new Error('Results repo has non-results committed changes');
+  const shouldPush = normalized.auto_push || normalized.require_push;
+  if (!shouldPush) {
+    updateStatusFile(storageConfig, { last_error: undefined });
+    return result.commitCreated;
+  }
+
+  if (!result.commitCreated) {
+    const hasUnpushed = result.upstreamRef
+      ? await hasUnpushedCommits(repoDir, result.upstreamRef, storageBranch)
+      : true;
+    if (hasUnpushed) {
+      const aheadPaths = result.upstreamRef
+        ? await getAheadPaths(repoDir, result.upstreamRef, `refs/heads/${storageBranch}`)
+        : [];
+      if (result.upstreamRef && !areSafeResultsRepoPaths(aheadPaths)) {
+        const error = new Error('Results repo has non-results committed changes');
+        updateStatusFile(storageConfig, { last_error: error.message });
+        throw error;
       }
-      await pushDirectResultsToStorageBranch({ normalized, repoDir, storageBranch, upstreamRef });
+      await pushDirectResultsToStorageBranch({
+        normalized: storageConfig,
+        repoDir,
+        storageBranch,
+        upstreamRef: result.upstreamRef,
+        sourceDir: params.sourceDir,
+        destinationPath: params.destinationPath,
+        commitMessage: params.commitMessage,
+        targetRunId,
+      });
       return true;
     }
     return false;
   }
 
-  await ensureResultsRepoCommitIdentity(repoDir);
-  await runGit(['commit', '-m', params.commitMessage, '-m', `Agentv-Run: ${targetRunId}`], {
-    cwd: repoDir,
+  await pushDirectResultsToStorageBranch({
+    normalized: storageConfig,
+    repoDir,
+    storageBranch,
+    upstreamRef: result.upstreamRef,
+    sourceDir: params.sourceDir,
+    destinationPath: params.destinationPath,
+    commitMessage: params.commitMessage,
+    targetRunId,
   });
-
-  await pushDirectResultsToStorageBranch({ normalized, repoDir, storageBranch, upstreamRef });
   return true;
 }
 
@@ -1394,6 +1913,7 @@ export interface WipWorktreeHandle {
   readonly wipBranch: string;
   readonly worktreeDir: string;
   readonly cloneDir: string;
+  readonly remote: string;
   readonly cleanup: () => Promise<void>;
 }
 
@@ -1403,12 +1923,20 @@ export async function setupWipWorktree(params: {
 }): Promise<WipWorktreeHandle> {
   const normalized = normalizeResultsConfig(params.config);
   const cloneDir = await ensureResultsRepoClone(normalized);
-  await fetchResultsRepo(cloneDir);
-  const baseRef = normalized.branch
-    ? await assertConfiguredResultsBranchExists(cloneDir, normalized)
-    : remoteBranchRef(await resolveDefaultBranch(cloneDir));
+  await fetchResultsRepo(cloneDir, normalized.remote).catch((error) => {
+    if (normalized.require_push) {
+      throw error;
+    }
+  });
+  let baseRef = normalized.branch
+    ? await configuredResultsBranchRef(cloneDir, normalized)
+    : remoteBranchRef(await resolveDefaultBranch(cloneDir), normalized.remote);
+  if (!baseRef && normalized.branch) {
+    await createOrphanResultsBranch(cloneDir, normalized.branch);
+    baseRef = normalized.branch;
+  }
   if (!baseRef) {
-    throw missingConfiguredBranchError(normalized);
+    throw new Error('Could not resolve a base ref for the WIP results branch');
   }
   const worktreeRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-wip-'));
   const worktreeDir = path.join(worktreeRoot, 'repo');
@@ -1422,6 +1950,7 @@ export async function setupWipWorktree(params: {
     wipBranch: params.wipBranch,
     worktreeDir,
     cloneDir,
+    remote: normalized.remote,
     cleanup: async () => {
       try {
         await runGit(['worktree', 'remove', '--force', worktreeDir], { cwd: cloneDir });
@@ -1469,7 +1998,7 @@ export async function pushWipCheckpoint(params: {
     ['commit', '--amend', '-m', `wip(results): checkpoint ${params.handle.wipBranch} ${timestamp}`],
     { cwd: params.handle.worktreeDir },
   );
-  await runGit(['push', '--force', 'origin', params.handle.wipBranch], {
+  await runGit(['push', '--force', params.handle.remote, params.handle.wipBranch], {
     cwd: params.handle.worktreeDir,
   });
   return true;
@@ -1481,7 +2010,7 @@ export async function deleteWipBranch(params: {
 }): Promise<void> {
   const normalized = normalizeResultsConfig(params.config);
   const cloneDir = await ensureResultsRepoClone(normalized);
-  await runGit(['push', 'origin', '--delete', params.wipBranch], { cwd: cloneDir });
+  await runGit(['push', normalized.remote, '--delete', params.wipBranch], { cwd: cloneDir });
 }
 
 export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {

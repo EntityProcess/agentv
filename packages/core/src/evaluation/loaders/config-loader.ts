@@ -38,13 +38,23 @@ export type ExecutionDefaults = {
 };
 
 export type ResultsConfig = {
-  readonly mode: 'github';
-  readonly repo: string;
+  readonly mode?: 'github';
+  /** Legacy shorthand or Git remote URL for a managed results clone. */
+  readonly repo?: string;
+  /** Git remote URL for a managed results clone. Preferred in YAML wire config. */
+  readonly repo_url?: string;
+  /** Local Git repository path. `.` means the current project/source repository. */
+  readonly repo_path?: string;
   /** Optional remote branch used as the canonical git-backed results store. */
   readonly branch?: string;
+  readonly remote?: string;
   /** Local filesystem path for the results clone. Optional; defaults to ~/.agentv/results/<slug>/. */
   readonly path?: string;
   readonly auto_push?: boolean;
+  readonly sync?: {
+    readonly auto_push?: boolean;
+    readonly require_push?: boolean;
+  };
   readonly branch_prefix?: string;
 };
 
@@ -601,14 +611,21 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
 
   const obj = raw as Record<string, unknown>;
 
-  if (obj.mode !== 'github') {
+  if (obj.mode !== undefined && obj.mode !== 'github') {
     logWarning(`Invalid results.mode in ${configPath}, expected 'github'`);
     return undefined;
   }
 
-  const repo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
-  if (!repo) {
-    logWarning(`Invalid results.repo in ${configPath}, expected non-empty string`);
+  const legacyRepo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
+  const repoUrl = typeof obj.repo_url === 'string' ? obj.repo_url.trim() : '';
+  const repoPath = typeof obj.repo_path === 'string' ? obj.repo_path.trim() : '';
+  const repo = legacyRepo || repoUrl;
+  if (!repo && !repoPath) {
+    logWarning(`Invalid results in ${configPath}, expected repo_url/repo or repo_path`);
+    return undefined;
+  }
+  if (repo && repoPath) {
+    logWarning(`Invalid results in ${configPath}, set only one of repo_url/repo or repo_path`);
     return undefined;
   }
 
@@ -619,6 +636,15 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
       return undefined;
     }
     branch = obj.branch.trim();
+  }
+
+  let remote: string | undefined;
+  if (obj.remote !== undefined) {
+    if (typeof obj.remote !== 'string' || obj.remote.trim().length === 0) {
+      logWarning(`Invalid results.remote in ${configPath}, expected non-empty string`);
+      return undefined;
+    }
+    remote = obj.remote.trim();
   }
 
   let resultsPath: string | undefined;
@@ -642,6 +668,27 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     return undefined;
   }
 
+  let sync: ResultsConfig['sync'];
+  if (obj.sync !== undefined) {
+    if (typeof obj.sync !== 'object' || obj.sync === null || Array.isArray(obj.sync)) {
+      logWarning(`Invalid results.sync in ${configPath}, expected object`);
+      return undefined;
+    }
+    const syncObj = obj.sync as Record<string, unknown>;
+    if (syncObj.auto_push !== undefined && typeof syncObj.auto_push !== 'boolean') {
+      logWarning(`Invalid results.sync.auto_push in ${configPath}, expected boolean`);
+      return undefined;
+    }
+    if (syncObj.require_push !== undefined && typeof syncObj.require_push !== 'boolean') {
+      logWarning(`Invalid results.sync.require_push in ${configPath}, expected boolean`);
+      return undefined;
+    }
+    sync = {
+      ...(typeof syncObj.auto_push === 'boolean' && { auto_push: syncObj.auto_push }),
+      ...(typeof syncObj.require_push === 'boolean' && { require_push: syncObj.require_push }),
+    };
+  }
+
   let branchPrefix: string | undefined;
   if (obj.branch_prefix !== undefined) {
     if (typeof obj.branch_prefix !== 'string' || obj.branch_prefix.trim().length === 0) {
@@ -653,10 +700,14 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
 
   return {
     mode: 'github',
-    repo,
+    ...(repo && { repo }),
+    ...(repoUrl && { repo_url: repoUrl }),
+    ...(repoPath && { repo_path: repoPath }),
     ...(branch !== undefined && { branch }),
+    ...(remote !== undefined && { remote }),
     ...(resultsPath !== undefined && { path: resultsPath }),
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
+    ...(sync && { sync }),
     ...(branchPrefix && { branch_prefix: branchPrefix }),
   };
 }

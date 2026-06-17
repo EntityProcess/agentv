@@ -284,7 +284,27 @@ function validateProjectResultsConfig(
     }
   }
 
-  validateGitRemoteUrl(errors, filePath, resultsRecord.repo_url, `${location}.repo_url`);
+  const hasRepoUrl = resultsRecord.repo_url !== undefined;
+  const hasRepoPath = resultsRecord.repo_path !== undefined;
+  if (hasRepoUrl && hasRepoPath) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must set only one of repo_url or repo_path`,
+    });
+  } else if (hasRepoUrl) {
+    validateGitRemoteUrl(errors, filePath, resultsRecord.repo_url, `${location}.repo_url`);
+  } else if (hasRepoPath) {
+    validateRequiredString(errors, filePath, resultsRecord.repo_path, `${location}.repo_path`);
+  } else {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must set repo_url or repo_path`,
+    });
+  }
 
   if (
     resultsRecord.branch !== undefined &&
@@ -295,6 +315,18 @@ function validateProjectResultsConfig(
       filePath,
       location: `${location}.branch`,
       message: `Field '${location}.branch' must be a non-empty string`,
+    });
+  }
+
+  if (
+    resultsRecord.remote !== undefined &&
+    (typeof resultsRecord.remote !== 'string' || resultsRecord.remote.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.remote`,
+      message: `Field '${location}.remote' must be a non-empty string`,
     });
   }
 
@@ -338,6 +370,14 @@ function validateProjectResultsConfig(
           message: `Field '${location}.sync.auto_push' must be a boolean`,
         });
       }
+      if (syncRecord.require_push !== undefined && typeof syncRecord.require_push !== 'boolean') {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.sync.require_push`,
+          message: `Field '${location}.sync.require_push' must be a boolean`,
+        });
+      }
     }
   }
 
@@ -376,7 +416,7 @@ function validateResultsConfig(
   }
 
   const resultsRecord = rawResults as Record<string, unknown>;
-  if (resultsRecord.mode !== 'github') {
+  if (resultsRecord.mode !== undefined && resultsRecord.mode !== 'github') {
     errors.push({
       severity: 'error',
       filePath,
@@ -384,7 +424,31 @@ function validateResultsConfig(
       message: `Field '${location}.mode' must be 'github'`,
     });
   }
-  validateRequiredString(errors, filePath, resultsRecord.repo, `${location}.repo`);
+  const hasLegacyRepo = resultsRecord.repo !== undefined;
+  const hasRepoUrl = resultsRecord.repo_url !== undefined;
+  const hasRepoPath = resultsRecord.repo_path !== undefined;
+  const sourceCount = [hasLegacyRepo, hasRepoUrl, hasRepoPath].filter(Boolean).length;
+  if (sourceCount === 0) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must set repo_url/repo or repo_path`,
+    });
+  } else if (sourceCount > 1) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Field '${location}' must set only one of repo_url/repo or repo_path`,
+    });
+  } else if (hasLegacyRepo) {
+    validateRequiredString(errors, filePath, resultsRecord.repo, `${location}.repo`);
+  } else if (hasRepoUrl) {
+    validateGitRemoteUrl(errors, filePath, resultsRecord.repo_url, `${location}.repo_url`);
+  } else {
+    validateRequiredString(errors, filePath, resultsRecord.repo_path, `${location}.repo_path`);
+  }
 
   if (
     resultsRecord.branch !== undefined &&
@@ -395,6 +459,18 @@ function validateResultsConfig(
       filePath,
       location: `${location}.branch`,
       message: `Field '${location}.branch' must be a non-empty string`,
+    });
+  }
+
+  if (
+    resultsRecord.remote !== undefined &&
+    (typeof resultsRecord.remote !== 'string' || resultsRecord.remote.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.remote`,
+      message: `Field '${location}.remote' must be a non-empty string`,
     });
   }
 
@@ -426,6 +502,39 @@ function validateResultsConfig(
       location: `${location}.auto_push`,
       message: `Field '${location}.auto_push' must be a boolean`,
     });
+  }
+
+  if (resultsRecord.sync !== undefined) {
+    if (
+      typeof resultsRecord.sync !== 'object' ||
+      resultsRecord.sync === null ||
+      Array.isArray(resultsRecord.sync)
+    ) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.sync`,
+        message: `Field '${location}.sync' must be an object`,
+      });
+    } else {
+      const syncRecord = resultsRecord.sync as Record<string, unknown>;
+      if (syncRecord.auto_push !== undefined && typeof syncRecord.auto_push !== 'boolean') {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.sync.auto_push`,
+          message: `Field '${location}.sync.auto_push' must be a boolean`,
+        });
+      }
+      if (syncRecord.require_push !== undefined && typeof syncRecord.require_push !== 'boolean') {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.sync.require_push`,
+          message: `Field '${location}.sync.require_push' must be a boolean`,
+        });
+      }
+    }
   }
 
   if (
