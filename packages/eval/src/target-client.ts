@@ -106,8 +106,12 @@ export class TargetInvocationError extends Error {
  * ```typescript
  * import { createTargetClient, defineCodeGrader } from '@agentv/eval';
  *
- * export default defineCodeGrader(async ({ question, criteria }) => {
+ * export default defineCodeGrader(async ({ input, criteria, output }) => {
  *   const target = createTargetClient();
+ *   const question = input
+ *     .filter((message) => message.role === 'user')
+ *     .map((message) => typeof message.content === 'string' ? message.content : '')
+ *     .join('\n');
  *
  *   if (!target) {
  *     // Target not available - no target config on this evaluator
@@ -115,7 +119,7 @@ export class TargetInvocationError extends Error {
  *   }
  *
  *   const response = await target.invoke({
- *     question: `Is this answer correct? Question: ${question}, Expected: ${criteria}`,
+ *     question: `Is this answer correct? Question: ${question}, Expected: ${criteria}, Answer: ${output ?? ''}`,
  *     systemPrompt: 'You are an expert grader. Respond with JSON: { "correct": true/false }'
  *   });
  *

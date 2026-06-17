@@ -6,15 +6,23 @@
 
 ```json
 {
-  "question": "string",
   "criteria": "string",
-  "reference_answer": "string",
-  "answer": "string",
   "input_files": ["path"],
   "input": [{"role": "user", "content": "..."}],
   "expected_output": [{"role": "assistant", "content": "..."}],
-  "output": [{"role": "assistant", "content": "..."}],
+  "output": "final answer text",
+  "answer": "deprecated alias for output",
+  "messages": [{"role": "assistant", "content": "final answer text"}],
   "trace": {
+    "schema_version": "agentv.trace.v1",
+    "event_count": 5,
+    "tool_calls": {"fetch": 1},
+    "error_count": 0,
+    "llm_call_count": 2,
+    "messages": [],
+    "events": []
+  },
+  "trace_summary": {
     "event_count": 5,
     "tool_calls": {"fetch": 1},
     "error_count": 0,
@@ -54,7 +62,8 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
-  - Context fields: `question`, `answer`, `referenceAnswer`, `criteria`, `expectedOutput`, `output`, `config`, `trace`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
+  - Raw stdin uses `snake_case`; SDK handlers receive `camelCase`
+  - Context fields: `input`, `expectedOutput`, `output`, `answer`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
 
 ## Python Example
 
@@ -87,7 +96,8 @@ if __name__ == "__main__":
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer, criteria }) => {
+export default defineCodeGrader(({ output, criteria }) => {
+  const answer = output ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
   if (answer.includes(criteria)) {
     assertions.push({ text: 'Matches expected outcome', passed: true });
@@ -108,12 +118,11 @@ Derived from test fields (users never author these directly):
 
 | Variable | Source |
 |----------|--------|
-| `question` | First user message in `input` |
 | `criteria` | Test `criteria` field |
-| `reference_answer` | Last entry in `expected_output` |
-| `answer` | Last entry in `output` (runtime) |
 | `input` | Full resolved input array (JSON) |
 | `expected_output` | Full resolved expected array (JSON) |
-| `output` | Full provider output array (JSON) |
+| `output` | Final answer / scored result string |
+| `answer` | Deprecated alias for `output` |
+| `messages` | Transcript messages from target execution |
 
 Markdown templates use `{{variable}}` syntax. TypeScript templates receive context object.

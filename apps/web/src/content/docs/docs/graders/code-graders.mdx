@@ -11,15 +11,41 @@ Code graders are scripts that evaluate agent responses deterministically. Write 
 
 Code graders receive eval context via stdin JSON and return a result via stdout.
 
-**Input (stdin):**
+**Input (stdin, raw wire format):**
 ```json
 {
-  "input": "What is 15 + 27?",
+  "input": [{ "role": "user", "content": "What is 15 + 27?" }],
+  "input_files": [],
   "criteria": "Correctly calculates 15 + 27 = 42",
   "output": "The answer is 42.",
-  "expected_output": "42"
+  "answer": "The answer is 42.",
+  "expected_output": [{ "role": "assistant", "content": "42" }],
+  "messages": [{ "role": "assistant", "content": "The answer is 42." }],
+  "trace_summary": {
+    "event_count": 1,
+    "tool_calls": {},
+    "error_count": 0,
+    "llm_call_count": 1
+  }
 }
 ```
+
+Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. TypeScript and JavaScript graders that use `@agentv/eval` receive the same payload converted to `camelCase`.
+
+| Raw stdin key | SDK field | Meaning |
+|---------------|-----------|---------|
+| `output` | `output` | Final answer / scored result as a string |
+| `answer` | `answer` | Deprecated alias for the same final answer string |
+| `messages` | `messages` | Transcript messages for transcript-aware graders |
+| `expected_output` | `expectedOutput` | Reference answer messages |
+| `output_path` | `outputPath` | Temp file containing large final answer JSON, when used |
+| `trace_summary` | `traceSummary` | Lightweight metrics summary |
+| `token_usage` | `tokenUsage` | Token usage metrics |
+| `cost_usd` | `costUsd` | Estimated cost in USD |
+| `duration_ms` | `durationMs` | Total execution duration |
+| `workspace_path` | `workspacePath` | Temp workspace path, when configured |
+
+Do not treat `output` as a message array. Use `output` / `answer` for answer-text checks, and use `messages`, `trace.messages`, or `trace.events` only when the grader intentionally evaluates transcript or tool behavior.
 
 ### JSON output (full protocol)
 
@@ -82,7 +108,7 @@ Scripts that write to stderr and exit non-zero surface as execution errors rathe
 # validators/check_answer.py
 import json, sys
 data = json.load(sys.stdin)
-output_text = data.get("output", "")
+output_text = data.get("output") or data.get("answer") or ""
 
 assertions = []
 
@@ -107,7 +133,7 @@ print(json.dumps({
 import { readFileSync } from "fs";
 
 const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
-const outputText: string = data.output ?? "";
+const outputText: string = data.output ?? data.answer ?? "";
 
 const assertions: Array<{ text: string; passed: boolean }> = [];
 
@@ -144,7 +170,7 @@ The `@agentv/eval` package provides a declarative API with automatic stdin/stdou
 import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ output, criteria }) => {
-  const outputText = output?.[0]?.content ?? '';
+  const outputText = output ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (outputText.includes(criteria)) {
@@ -161,7 +187,7 @@ export default defineCodeGrader(({ output, criteria }) => {
 });
 ```
 
-**SDK exports:** `defineCodeGrader`, `Message`, `ToolCall`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`
+**SDK exports:** `defineCodeGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`
 
 ## Target Access
 
@@ -189,8 +215,11 @@ Use `createTargetClient` from the SDK:
 import { createTargetClient, defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(async ({ input, output }) => {
-  const inputText = input?.[0]?.content ?? '';
-  const outputText = output?.[0]?.content ?? '';
+  const inputText = input
+    .filter((message) => message.role === 'user')
+    .map((message) => typeof message.content === 'string' ? message.content : '')
+    .join('\n');
+  const outputText = output ?? '';
   const target = createTargetClient();
   if (!target) return { score: 0, assertions: [{ text: 'Target not configured', passed: false }] };
 
@@ -215,15 +244,19 @@ Use `target.invokeBatch(requests)` for multiple calls in parallel.
 
 ## Advanced Input Fields
 
-Beyond the basic text fields (`input`, `output`, `expected_output`, `criteria`), code graders receive additional structured context:
+Beyond the basic fields (`input`, `output`, `expected_output`, `criteria`), code graders receive additional structured context:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `input` | `string \| Message[]` | Input text or full resolved input message array |
-| `output` | `string \| Message[]` | Agent output text or full execution trace with tool calls |
-| `expected_output` | `string \| Message[]` | Expected output text or expected agent behavior including tool calls |
+| `input` | `Message[]` | Full resolved input message array |
+| `output` | `string \| null` | Final answer / scored result only |
+| `answer` | `string` | Deprecated alias for `output` |
+| `messages` | `Message[]` | Transcript messages from the target execution |
+| `expected_output` | `Message[]` | Expected/reference output messages |
+| `output_path` | `string` | Temp file containing large final answer JSON, when `output` is omitted |
 | `input_files` | `string[]` | Paths to input files referenced in the eval |
-| `trace` | `TraceSummary` | Lightweight execution metrics (tool calls, errors) |
+| `trace` | `Trace` | Full execution trace with messages, events, metrics, and provenance |
+| `trace_summary` | `TraceSummary` | Lightweight execution metrics summary |
 | `token_usage` | `{input, output}` | Token consumption |
 | `cost_usd` | `number` | Estimated cost in USD |
 | `duration_ms` | `number` | Total execution duration |
@@ -232,13 +265,12 @@ Beyond the basic text fields (`input`, `output`, `expected_output`, `criteria`),
 | `file_changes` | `string \| null` | Unified diff of workspace file changes (populated when `workspace` is configured; includes files at workspace root, changes inside nested repos, and Copilot session-state artifacts) |
 | `workspace_path` | `string \| null` | Absolute path to the temp workspace directory (populated when `workspace` is configured) |
 
-### trace structure
+### trace_summary structure
 
 ```json
 {
   "event_count": 5,
-  "tool_names": ["fetch", "search"],
-  "tool_calls_by_name": { "search": 2, "fetch": 1 },
+  "tool_calls": { "search": 2, "fetch": 1 },
   "error_count": 0,
   "llm_call_count": 2
 }
@@ -247,12 +279,11 @@ Beyond the basic text fields (`input`, `output`, `expected_output`, `criteria`),
 | Field | Type | Description |
 |-------|------|-------------|
 | `event_count` | `number` | Total tool invocations |
-| `tool_names` | `string[]` | Unique tool names used |
-| `tool_calls_by_name` | `Record<string, number>` | Count per tool |
+| `tool_calls` | `Record<string, number>` | Count per tool |
 | `error_count` | `number` | Failed tool calls |
 | `llm_call_count` | `number` | Number of LLM calls (assistant messages) |
 
-Use `expected_output` for retrieval context in RAG evals (tool calls with outputs) and `output` for the actual agent execution trace from live runs.
+Use `expected_output` for reference answers and `output` for the actual final answer from live runs. Use `messages` or `trace` when you need tool calls, intermediate messages, or replay/provenance data.
 
 ## Workspace Access
 
@@ -363,5 +394,5 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 Pipe JSON directly to the grader script for full control:
 
 ```bash
-echo '{"input":"What is 2+2?","criteria":"4","output":"4","expected_output":"4"}' | python validators/check_answer.py
+echo '{"input":[{"role":"user","content":"What is 2+2?"}],"input_files":[],"criteria":"4","output":"4","expected_output":[{"role":"assistant","content":"4"}]}' | python validators/check_answer.py
 ```

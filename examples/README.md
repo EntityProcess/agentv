@@ -108,8 +108,8 @@ Then write type-safe code graders:
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer, criteria }) => ({
-  score: answer.includes('expected') ? 1.0 : 0.0,
-  assertions: [{ text: 'Found expected content', passed: answer.includes('expected') }],
+export default defineCodeGrader(({ output }) => ({
+  score: (output ?? '').includes('expected') ? 1.0 : 0.0,
+  assertions: [{ text: 'Found expected content', passed: (output ?? '').includes('expected') }],
 }));
 ```

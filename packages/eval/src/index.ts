@@ -9,9 +9,10 @@
  * import { defineAssertion } from '@agentv/eval';
  *
  * export default defineAssertion(({ output, criteria }) => {
+ *   const answer = output ?? '';
  *   return {
- *     pass: output.includes('hello'),
- *     assertions: [{ text: 'Checks greeting', passed: output.includes('hello') }],
+ *     pass: answer.includes('hello'),
+ *     assertions: [{ text: 'Checks greeting', passed: answer.includes('hello') }],
  *   };
  * }));
  * ```
@@ -21,10 +22,13 @@
  * #!/usr/bin/env bun
  * import { defineCodeGrader } from '@agentv/eval';
  *
- * export default defineCodeGrader(({ trace, output }) => {
+ * export default defineCodeGrader(({ output, traceSummary }) => {
  *   return {
- *     score: trace?.eventCount <= 5 ? 1.0 : 0.5,
- *     assertions: [{ text: 'Efficient tool usage', passed: trace?.eventCount <= 5 }],
+ *     score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
+ *     assertions: [
+ *       { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
+ *       { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
+ *     ],
  *   };
  * }));
  * ```
@@ -212,8 +216,11 @@ export function defineCodeGrader(handler: CodeGraderHandler): void {
  * import { definePromptTemplate } from '@agentv/eval';
  *
  * export default definePromptTemplate((ctx) => {
- *   const question = ctx.input.map(m => String(m.content ?? '')).join('\n');
- *   const answer = ctx.output?.map(m => String(m.content ?? '')).join('\n') ?? '';
+ *   const question = ctx.input
+ *     .filter((message) => message.role === 'user')
+ *     .map((message) => typeof message.content === 'string' ? message.content : '')
+ *     .join('\n');
+ *   const answer = ctx.output ?? ctx.answer ?? '';
  *   return `Question: ${question}\nAnswer: ${answer}`;
  * });
  * ```
@@ -245,7 +252,7 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * import { defineAssertion } from '@agentv/eval';
  *
  * export default defineAssertion(({ output }) => {
- *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
+ *   const text = output ?? '';
  *   return {
  *     pass: text.toLowerCase().includes('hello'),
  *     assertions: [{ text: 'Checks for greeting', passed: text.toLowerCase().includes('hello') }],
@@ -257,10 +264,10 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * ```typescript
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ output, trace }) => {
- *   const text = output?.map(m => String(m.content ?? '')).join(' ') ?? '';
+ * export default defineAssertion(({ output, traceSummary }) => {
+ *   const text = output ?? '';
  *   const hasContent = text.length > 0 ? 0.5 : 0;
- *   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
+ *   const isEfficient = (traceSummary?.eventCount ?? 0) <= 5 ? 0.5 : 0;
  *   return {
  *     score: hasContent + isEfficient,
  *     assertions: [

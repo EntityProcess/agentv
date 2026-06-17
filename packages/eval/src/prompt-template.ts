@@ -69,11 +69,13 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  * @example
  * ```typescript
  * import { definePromptTemplate, type CodeGraderInput } from '@agentv/eval';
- * import { getTextContent } from '@agentv/core';
  *
  * export default definePromptTemplate((ctx: CodeGraderInput) => {
- *   const question = ctx.input.map(m => getTextContent(m.content)).join('\n');
- *   const answer = ctx.output?.map(m => getTextContent(m.content)).join('\n') ?? '';
+ *   const question = ctx.input
+ *     .filter((message) => message.role === 'user')
+ *     .map((message) => typeof message.content === 'string' ? message.content : '')
+ *     .join('\n');
+ *   const answer = ctx.output ?? ctx.answer ?? '';
  *   return `Question: ${question}\nAnswer: ${answer}`;
  * });
  * ```
