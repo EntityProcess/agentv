@@ -1,6 +1,12 @@
 # Dolt database (managed by Dolt, not git)
+embeddeddolt/
 dolt/
 dolt-access.lock
+
+# Generated local docs/export snapshots
+README.md
+issues.jsonl
+events.jsonl
 
 # Runtime files
 bd.sock
