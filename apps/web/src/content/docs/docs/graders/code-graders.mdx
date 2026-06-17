@@ -108,11 +108,11 @@ Scripts that write to stderr and exit non-zero surface as execution errors rathe
 # validators/check_answer.py
 import json, sys
 data = json.load(sys.stdin)
-output_text = data.get("output") or data.get("answer") or ""
+output = data.get("output") or data.get("answer") or ""
 
 assertions = []
 
-if "42" in output_text:
+if "42" in output:
     assertions.append({"text": "Output contains correct value (42)", "passed": True})
 else:
     assertions.append({"text": "Output does not contain expected value (42)", "passed": False})
@@ -133,11 +133,11 @@ print(json.dumps({
 import { readFileSync } from "fs";
 
 const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
-const outputText: string = data.output ?? data.answer ?? "";
+const output: string = data.output ?? data.answer ?? "";
 
 const assertions: Array<{ text: string; passed: boolean }> = [];
 
-if (outputText.includes("42")) {
+if (output.includes("42")) {
   assertions.push({ text: "Output contains correct value (42)", passed: true });
 } else {
   assertions.push({ text: "Output does not contain expected value (42)", passed: false });
@@ -148,7 +148,6 @@ const passed = assertions.filter(a => a.passed).length;
 console.log(JSON.stringify({
   score: passed > 0 ? 1.0 : 0.0,
   assertions,
-  reasoning: `Passed ${passed} check(s)`,
 }));
 ```
 

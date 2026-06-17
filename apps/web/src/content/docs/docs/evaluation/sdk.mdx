@@ -32,9 +32,10 @@ import { defineAssertion } from '@agentv/eval';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
+  const pass = wordCount >= 3;
   return {
-    pass: wordCount >= 3,
-    reasoning: `Output has ${wordCount} words`,
+    pass,
+    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
   };
 });
 ```
@@ -47,10 +48,13 @@ Return a `score` (0–1) instead of `pass` for graded evaluation:
 // .agentv/assertions/efficiency.ts
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ output, traceSummary }) => ({
-  pass: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 10,
-  reasoning: 'Checks content exists and is efficient',
-}));
+export default defineAssertion(({ output, traceSummary }) => {
+  const pass = (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 10;
+  return {
+    pass,
+    assertions: [{ text: 'Checks content exists and is efficient', passed: pass }],
+  };
+});
 ```
 
 If only `pass` is given, score is `1` (pass) or `0` (fail).

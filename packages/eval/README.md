@@ -16,10 +16,13 @@ npm install @agentv/eval
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer }) => ({
-  pass: answer.toLowerCase().includes('hello'),
-  reasoning: 'Checks for greeting',
-}));
+export default defineAssertion(({ output }) => {
+  const hasGreeting = (output ?? '').toLowerCase().includes('hello');
+  return {
+    pass: hasGreeting,
+    assertions: [{ text: 'Checks for greeting', passed: hasGreeting }],
+  };
+});
 ```
 
 Assertions support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.

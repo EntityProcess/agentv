@@ -57,7 +57,7 @@ assertions:
 
 ## Pass/Fail Pattern
 
-The simplest pattern returns `pass` (boolean) and `reasoning` (string):
+The simplest pattern returns `pass` (boolean) and an optional `assertions` array:
 
 ```typescript
 // .agentv/assertions/word-count.ts
@@ -65,9 +65,10 @@ import { defineAssertion } from '@agentv/eval';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
+  const pass = wordCount >= 3;
   return {
-    pass: wordCount >= 3,
-    reasoning: `Output has ${wordCount} words`,
+    pass,
+    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
   };
 });
 ```
@@ -106,7 +107,6 @@ The handler must return an `AssertionScore` object:
 | `pass` | `boolean` | Explicit pass/fail. If omitted, derived from `score` (>= 0.5 = pass). |
 | `score` | `number` | Numeric score between 0 and 1. Defaults to 1 if `pass=true`, 0 if `pass=false`. |
 | `assertions` | `Array<{ text: string, passed: boolean, evidence?: string }>` | Per-aspect results. Each entry describes one check with its verdict and optional evidence. |
-| `reasoning` | `string` | Human-readable explanation. |
 | `details` | `Record<string, unknown>` | Optional structured data for domain-specific metrics. |
 
 ## Context Available to Assertions
@@ -140,8 +140,9 @@ Expected output:
 ```json
 {
   "score": 1,
-  "assertions": [],
-  "reasoning": "Output has 6 words (>= 3 required)"
+  "assertions": [
+    { "text": "Output has 6 words", "passed": true }
+  ]
 }
 ```
 
@@ -201,9 +202,14 @@ export default defineAssertion(({ output }) => {
   return {
     pass,
     score: pass ? 1.0 : Math.min(wordCount / minWords, 0.9),
-    reasoning: pass
-      ? `Output has ${wordCount} words (>= ${minWords} required)`
-      : `Output has only ${wordCount} words (need >= ${minWords})`,
+    assertions: [
+      {
+        text: pass
+          ? `Output has ${wordCount} words (>= ${minWords} required)`
+          : `Output has only ${wordCount} words (need >= ${minWords})`,
+        passed: pass,
+      },
+    ],
   };
 });
 ```
