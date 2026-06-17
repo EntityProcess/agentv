@@ -30,8 +30,8 @@ Use `defineAssertion` from `@agentv/eval` to create reusable assertion types. Pl
 // .agentv/assertions/word-count.ts
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ outputText }) => {
-  const wordCount = outputText.trim().split(/\s+/).length;
+export default defineAssertion(({ output }) => {
+  const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
   return {
     pass: wordCount >= 3,
     reasoning: `Output has ${wordCount} words`,
@@ -47,8 +47,8 @@ Return a `score` (0–1) instead of `pass` for graded evaluation:
 // .agentv/assertions/efficiency.ts
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ outputText, trace }) => ({
-  pass: outputText.length > 0 && (trace?.eventCount ?? 0) <= 10,
+export default defineAssertion(({ output, traceSummary }) => ({
+  pass: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 10,
   reasoning: 'Checks content exists and is efficient',
 }));
 ```
@@ -80,10 +80,11 @@ Use `defineCodeGrader` from `@agentv/eval` for full control over scoring with an
 ```typescript
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ trace, outputText }) => ({
-  score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+export default defineCodeGrader(({ output, traceSummary }) => ({
+  score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
   assertions: [
-    { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
+    { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
+    { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
   ],
 }));
 ```
@@ -91,6 +92,22 @@ export default defineCodeGrader(({ trace, outputText }) => ({
 `defineCodeGrader` graders are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
 For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/graders/code-graders/).
+
+## Wire Format vs SDK Format
+
+Raw grader stdin uses `snake_case` because it crosses a process boundary and may be consumed by Python, shell, jq, or external dashboards. The `@agentv/eval` SDK converts that payload to idiomatic TypeScript `camelCase` before calling your handler.
+
+| Raw stdin | SDK handler field |
+|-----------|-------------------|
+| `expected_output` | `expectedOutput` |
+| `output_path` | `outputPath` |
+| `trace_summary` | `traceSummary` |
+| `token_usage` | `tokenUsage` |
+| `cost_usd` | `costUsd` |
+| `duration_ms` | `durationMs` |
+| `workspace_path` | `workspacePath` |
+
+`output` is already the final answer string in both formats. Transcript-aware code should read `messages`, `trace.messages`, or `trace.events`; answer-text graders should read `output` or the deprecated `answer` alias.
 
 ## Programmatic API
 

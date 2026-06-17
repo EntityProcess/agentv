@@ -27,12 +27,11 @@ Test the SDK-based code grader directly with a mock payload:
 cd examples/features/code-grader-sdk
 cat << 'EOF' | bun run scripts/verify-attachments.ts
 {
-  "question": "Please echo this request",
   "criteria": "The CLI echoes the prompt and lists attachment names.",
-  "expected_output": [{"role": "assistant", "content": "Attachments detected (2): example.txt, python.instructions.md."}],
-  "answer": "Attachments detected (2): example.txt, python.instructions.md.",
+  "input": [{"role": "user", "content": "Please echo this request"}],
   "input_files": ["evals/python.instructions.md", "evals/example.txt"],
-  "input": []
+  "expected_output": [{"role": "assistant", "content": "Attachments detected (2): example.txt, python.instructions.md."}],
+  "output": "Attachments detected (2): example.txt, python.instructions.md."
 }
 EOF
 ```
@@ -59,8 +58,8 @@ The `defineCodeGrader` helper:
 ```typescript
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer, criteria }) => ({
-  score: answer.includes(criteria) ? 1.0 : 0.0,
-  assertions: [{ text: 'Check passed', passed: answer.includes(criteria) }],
+export default defineCodeGrader(({ output, criteria }) => ({
+  score: (output ?? '').includes(criteria) ? 1.0 : 0.0,
+  assertions: [{ text: 'Check passed', passed: (output ?? '').includes(criteria) }],
 }));
 ```

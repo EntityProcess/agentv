@@ -66,7 +66,7 @@ Score the response from 0.0 to 1.0 based on:
 | Variable | Source |
 |----------|--------|
 | `input_text` | First user message content |
-| `output_text` | Last candidate response content |
+| `output_text` | Candidate final answer text |
 | `expected_output_text` | Last expected message content |
 | `criteria` | Test `criteria` field |
 | `input` | Resolved input text |
@@ -133,18 +133,28 @@ For dynamic prompt generation, use the `definePromptTemplate` function from `@ag
 #!/usr/bin/env bun
 import { definePromptTemplate } from '@agentv/eval';
 
+function textFromMessages(messages: Array<{ content?: unknown }>): string {
+  return messages
+    .map((message) => typeof message.content === 'string' ? message.content : '')
+    .filter(Boolean)
+    .join('\n');
+}
+
 export default definePromptTemplate((ctx) => {
   const rubric = ctx.config?.rubric as string | undefined;
+  const question = textFromMessages(ctx.input.filter((message) => message.role === 'user'));
+  const referenceAnswer = textFromMessages(ctx.expectedOutput);
+  const candidateAnswer = ctx.output ?? ctx.answer ?? '';
 
   return `You are evaluating an AI assistant's response.
 
 ## Question
-${ctx.inputText}
+${question}
 
 ## Candidate Answer
-${ctx.outputText}
+${candidateAnswer}
 
-${ctx.expectedOutputText ? `## Reference Answer\n${ctx.expectedOutputText}` : ''}
+${referenceAnswer ? `## Reference Answer\n${referenceAnswer}` : ''}
 
 ${rubric ? `## Evaluation Criteria\n${rubric}` : ''}
 
@@ -218,15 +228,18 @@ TypeScript templates receive a context object with these fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `inputText` | `string` | First user message content |
-| `outputText` | `string` | Last entry in `output` |
-| `expectedOutputText` | `string` | Last entry in `expected_output` |
+| `input` | `Message[]` | Full resolved input messages |
+| `output` | `string \| null` | Candidate final answer / scored result |
+| `answer` | `string` | Deprecated alias for `output` |
+| `messages` | `Message[]` | Transcript messages from the target execution |
 | `criteria` | `string` | Test `criteria` field |
 | `expectedOutput` | `Message[]` | Full resolved expected output |
-| `output` | `Message[]` | Full provider output messages |
-| `trace` | `TraceSummary` | Execution metrics summary |
+| `trace` | `Trace` | Full execution trace with messages, events, metrics, and provenance |
+| `traceSummary` | `TraceSummary` | Lightweight execution metrics summary |
 | `metadata` | `object` | Test metadata after suite defaults are merged |
 | `config` | `object` | Custom config from YAML |
+
+The raw prompt-template stdin uses `snake_case` keys such as `expected_output`, `trace_summary`, and `token_usage`. `definePromptTemplate()` converts them to SDK `camelCase` fields before calling your handler.
 
 ## Template Variable Derivation
 
@@ -257,7 +270,7 @@ Derived strings injected into grader prompts:
 | `input_text` | Content of the first `user` role entry in `input` |
 | `criteria` | Passed through from the test field |
 | `expected_output_text` | Content of the last entry in `expected_output` |
-| `output_text` | Content of the last entry in `output` |
+| `output_text` | Candidate final answer text |
 | `input` | Resolved input text |
 | `expected_output` | Reference answer text |
 | `output` | Candidate answer text |

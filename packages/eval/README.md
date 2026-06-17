@@ -30,9 +30,12 @@ Assertions support `pass: boolean` for simple checks and `score: number` (0-1) f
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer, trace }) => ({
-  score: answer.length > 0 ? 1.0 : 0.0,
-  assertions: [{ text: 'Output received', passed: answer.length > 0 }],
+export default defineCodeGrader(({ output, traceSummary }) => ({
+  score: (output ?? '').length > 0 ? 1.0 : 0.0,
+  assertions: [
+    { text: 'Output received', passed: (output ?? '').length > 0 },
+    { text: 'Trace summary available', passed: traceSummary !== null },
+  ],
 }));
 ```
 
