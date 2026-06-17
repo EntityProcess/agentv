@@ -175,12 +175,12 @@ Same as contains variants but explicitly case-insensitive.
 - **Script SDK:** Use `defineCodeGrader` from `@agentv/eval`:
   ```typescript
   import { defineCodeGrader } from '@agentv/eval';
-  export default defineCodeGrader(({ outputText, trace }) => ({
-    score: outputText.includes('expected') ? 1 : 0,
-    assertions: [{ text: 'Contains expected', passed: outputText.includes('expected') }],
+  export default defineCodeGrader(({ output, trace }) => ({
+    score: (output ?? '').includes('expected') ? 1 : 0,
+    assertions: [{ text: 'Contains expected', passed: (output ?? '').includes('expected') }],
   }));
   ```
-- **Recipe:** The CLI runs the script, passing context as JSON on stdin (`{output, outputText, input, inputText, ...}`). Script returns `{"score": N, "assertions": [...]}`
+- **Recipe:** The CLI runs the script, passing canonical JSON on stdin (`{output, input, expected_output, ...}`). Script returns `{"score": N, "assertions": [...]}`
 - **PASS:** score >= 0.5 (or as configured).
 
 ### Composite assertion

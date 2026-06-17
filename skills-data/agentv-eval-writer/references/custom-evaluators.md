@@ -63,29 +63,29 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
   - Raw stdin uses `snake_case`; SDK handlers receive `camelCase`
   - Context fields: `input`, `expectedOutput`, `output`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
 
+For Python, the repo-local helper example in `examples/features/sdk-python/` keeps canonical `snake_case` fields and rejects deprecated wire aliases like `output_text`, `input_text`, and `reference_answer`. It is not a separate Python runner; generated evals still run through the AgentV CLI.
+
 ## Python Example
 
 ```python
 #!/usr/bin/env python3
-import json, sys
+from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
 
-def evaluate(data: dict) -> dict:
-    candidate = data.get("output", "")
+
+def evaluate(context):
+    candidate = context.output or ""
     assertions = []
     for kw in ["async", "await"]:
-        assertions.append({"text": f"Keyword '{kw}'", "passed": kw in candidate})
-    passed = sum(1 for a in assertions if a["passed"])
-    return {
-        "score": passed / max(len(assertions), 1),
-        "assertions": assertions,
-    }
+        assertions.append(Assertion(text=f"Keyword '{kw}'", passed=kw in candidate))
+    passed = sum(1 for item in assertions if item.passed)
+    return CodeGraderResult(
+        score=passed / max(len(assertions), 1),
+        assertions=assertions,
+    )
+
 
 if __name__ == "__main__":
-    try:
-        print(json.dumps(evaluate(json.loads(sys.stdin.read()))))
-    except Exception as e:
-        print(json.dumps({"score": 0, "assertions": [{"text": str(e), "passed": False}]}))
-        sys.exit(1)
+    define_code_grader(evaluate)
 ```
 
 ## TypeScript Example
