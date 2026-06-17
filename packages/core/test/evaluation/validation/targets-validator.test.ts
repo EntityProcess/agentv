@@ -224,14 +224,14 @@ describe('validateTargetsFile', () => {
     ).toBe(true);
   });
 
-  it('accepts replay targets backed by trace envelopes', async () => {
-    const filePath = path.join(tempDir, 'replay-trace-envelopes.yaml');
+  it('accepts replay targets backed by execution traces', async () => {
+    const filePath = path.join(tempDir, 'replay-execution-traces.yaml');
     await writeFile(
       filePath,
       `targets:
-  - name: replay-envelope
+  - name: replay-execution-trace
     provider: replay
-    trace_envelopes: ./fixtures/trace-envelopes.jsonl
+    execution_traces: ./fixtures/execution-traces.jsonl
     source_target: live-agent
 `,
     );
@@ -240,7 +240,7 @@ describe('validateTargetsFile', () => {
 
     expect(result.valid).toBe(true);
     expect(
-      result.errors.some((error) => error.message.includes("Unknown setting 'trace_envelopes'")),
+      result.errors.some((error) => error.message.includes("Unknown setting 'execution_traces'")),
     ).toBe(false);
   });
 
@@ -252,7 +252,7 @@ describe('validateTargetsFile', () => {
   - name: replay-ambiguous
     provider: replay
     fixtures: ./fixtures/target-output.jsonl
-    trace_envelopes: ./fixtures/trace-envelopes.jsonl
+    execution_traces: ./fixtures/execution-traces.jsonl
     source_target: live-agent
 `,
     );

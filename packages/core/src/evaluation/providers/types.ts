@@ -413,7 +413,7 @@ export interface TargetDefinition {
   readonly response?: string | unknown | undefined;
   // Replay fixture fields
   readonly fixtures?: string | unknown | undefined;
-  readonly trace_envelopes?: string | unknown | undefined;
+  readonly execution_traces?: string | unknown | undefined;
   readonly source_target?: string | unknown | undefined;
   readonly eval_path?: string | unknown | undefined;
   // VSCode fields

@@ -130,7 +130,7 @@ const OTLP_TRACE = JSON.stringify({
               startTimeUnixNano: '2500000000',
               endTimeUnixNano: '3000000000',
               attributes: [{ key: 'gen_ai.tool.name', value: { stringValue: 'read_file' } }],
-              status: { code: 1 },
+              status: { code: 2, message: 'tool failed' },
             },
           ],
         },
@@ -257,6 +257,7 @@ describe('trace utils', () => {
       expect(results[0].trace?.event_count).toBe(1);
       expect(results[0].trace?.llm_call_count).toBe(1);
       expect(results[0].trace?.tool_calls).toEqual({ read_file: 1 });
+      expect(results[0].trace?.error_count).toBe(1);
     });
   });
 

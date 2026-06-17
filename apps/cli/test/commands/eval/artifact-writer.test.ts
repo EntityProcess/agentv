@@ -8,7 +8,10 @@ import {
   type GraderResult,
   TraceEnvelopeWireSchema,
   buildTraceFromMessages,
+  fromTraceEnvelopeWire,
   parseYamlValue,
+  traceEnvelopeToTranscriptMessages,
+  traceToTranscriptJsonLines,
 } from '@agentv/core';
 
 import {
@@ -832,11 +835,31 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptLines = (await readFile(path.join(testDir, 'transcript.jsonl'), 'utf8'))
+    const transcriptLines = (
+      await readFile(path.join(testDir, 'transcript-case', 'outputs', 'transcript.jsonl'), 'utf8')
+    )
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
 
+    const envelope = TraceEnvelopeWireSchema.parse(
+      JSON.parse(
+        await readFile(
+          path.join(testDir, 'transcript-case', 'outputs', 'execution-trace.json'),
+          'utf8',
+        ),
+      ),
+    );
+    const projectedEnvelope = fromTraceEnvelopeWire(envelope);
+    const projectedTranscript = traceToTranscriptJsonLines(
+      {
+        ...results[0].trace,
+        messages: traceEnvelopeToTranscriptMessages(projectedEnvelope),
+      },
+      { testId: 'transcript-case', target: 'codex' },
+    );
+
+    expect(transcriptLines).toEqual(JSON.parse(JSON.stringify(projectedTranscript)));
     expect(transcriptLines).toEqual([
       {
         test_id: 'transcript-case',
@@ -874,16 +897,8 @@ describe('writeArtifactsFromResults', () => {
         },
       },
     ]);
-
-    const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(
-        await readFile(
-          path.join(testDir, 'transcript-case', 'outputs', 'trace-envelope.json'),
-          'utf8',
-        ),
-      ),
-    );
-    expect(envelope.schema_version).toBe('agentv.trace_envelope.v1');
+    expect(envelope.schema_version).toBe('agentv.execution_trace.v1');
+    expect(envelope.artifact_id).toMatch(/^execution-trace-/);
     expect(envelope.eval.test_id).toBe('transcript-case');
     expect(envelope.trace.spans.map((span) => span.attributes['gen_ai.operation.name'])).toEqual([
       'invoke_agent',
@@ -894,7 +909,37 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine).not.toHaveProperty('trace_envelope_path');
+    expect(indexLine).not.toHaveProperty('execution_trace_path');
+  });
+
+  it('omits per-test transcript links when the execution trace has no transcript rows', async () => {
+    const results = [
+      makeResult({
+        testId: 'no-transcript-case',
+        output: '',
+        trace: buildTraceFromMessages(),
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const transcriptPath = path.join(testDir, 'no-transcript-case', 'outputs', 'transcript.jsonl');
+    await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
+
+    const indexLine = JSON.parse(
+      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
+    );
+    expect(indexLine).not.toHaveProperty('transcript_path');
+
+    const envelope = TraceEnvelopeWireSchema.parse(
+      JSON.parse(
+        await readFile(
+          path.join(testDir, 'no-transcript-case', 'outputs', 'execution-trace.json'),
+          'utf8',
+        ),
+      ),
+    );
+    expect(envelope.artifacts).not.toHaveProperty('transcript_path');
   });
 
   it('sanitizes test IDs for directory names', async () => {

@@ -1,0 +1,194 @@
+{
+  "schema_version": "agentv.execution_trace.v1",
+  "artifact_id": "execution-trace-nested-subagent",
+  "created_at": "2026-06-15T12:00:05.000Z",
+  "eval": {
+    "eval_path": "examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml",
+    "suite": "trace-evaluation",
+    "test_id": "nested-subagent",
+    "target": "codex",
+    "source_target": "codex",
+    "attempt": 0,
+    "run_id": "run-nested-subagent",
+    "category": "showcase",
+    "experiment": "execution-trace-v1"
+  },
+  "trace": {
+    "format": "otlp_openinference_spans",
+    "trace_id": "11111111111111111111111111111111",
+    "root_span_id": "root000000000001",
+    "resource": {
+      "attributes": {
+        "service.name": "agentv",
+        "providerCamelKey": "resource kept"
+      }
+    },
+    "scope": {
+      "name": "agentv",
+      "version": "1.0.0"
+    },
+    "spans": [
+      {
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "root000000000001",
+        "parent_span_id": null,
+        "name": "invoke_agent codex",
+        "kind": "INTERNAL",
+        "start_time_unix_nano": "1781524800000000000",
+        "end_time_unix_nano": "1781524800500000000",
+        "status": { "code": "OK" },
+        "attributes": {
+          "gen_ai.operation.name": "invoke_agent",
+          "gen_ai.provider.name": "agentv",
+          "gen_ai.agent.name": "codex",
+          "openinference.span.kind": "AGENT",
+          "agentv.test_id": "nested-subagent",
+          "agentv.target": "codex"
+        },
+        "events": []
+      },
+      {
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "chat000000000001",
+        "parent_span_id": "root000000000001",
+        "name": "chat gpt-5",
+        "kind": "INTERNAL",
+        "start_time_unix_nano": "1781524800010000000",
+        "end_time_unix_nano": "1781524800200000000",
+        "status": { "code": "OK" },
+        "attributes": {
+          "gen_ai.operation.name": "chat",
+          "gen_ai.provider.name": "codex",
+          "gen_ai.request.model": "gpt-5",
+          "gen_ai.response.model": "gpt-5",
+          "gen_ai.output.messages": "Delegating to a subagent.",
+          "openinference.span.kind": "LLM",
+          "agentv.message.index": 0,
+          "agentv.turn_index": 0
+        },
+        "events": []
+      },
+      {
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "tool000000000001",
+        "parent_span_id": "chat000000000001",
+        "name": "execute_tool runSubagent",
+        "kind": "INTERNAL",
+        "start_time_unix_nano": "1781524800020000000",
+        "end_time_unix_nano": "1781524800450000000",
+        "status": { "code": "OK" },
+        "attributes": {
+          "gen_ai.operation.name": "execute_tool",
+          "gen_ai.tool.name": "runSubagent",
+          "gen_ai.tool.call.id": "call-subagent",
+          "gen_ai.tool.call.arguments": {
+            "task": "Inspect src/config.ts",
+            "providerCamelKey": "arguments kept"
+          },
+          "gen_ai.tool.call.result": {
+            "summary": "Subagent inspected config",
+            "providerCamelKey": "result kept"
+          },
+          "openinference.span.kind": "TOOL",
+          "tool.name": "runSubagent",
+          "tool.id": "call-subagent"
+        },
+        "events": []
+      },
+      {
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "agent00000000001",
+        "parent_span_id": "tool000000000001",
+        "name": "invoke_agent config-inspector",
+        "kind": "INTERNAL",
+        "start_time_unix_nano": "1781524800030000000",
+        "end_time_unix_nano": "1781524800440000000",
+        "status": { "code": "OK" },
+        "attributes": {
+          "gen_ai.operation.name": "invoke_agent",
+          "gen_ai.provider.name": "agentv",
+          "gen_ai.agent.name": "config-inspector",
+          "openinference.span.kind": "AGENT",
+          "agentv.subagent": true,
+          "agentv.parent_tool_call_id": "call-subagent"
+        },
+        "events": []
+      },
+      {
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "chat000000000002",
+        "parent_span_id": "agent00000000001",
+        "name": "chat gpt-5-mini",
+        "kind": "INTERNAL",
+        "start_time_unix_nano": "1781524800040000000",
+        "end_time_unix_nano": "1781524800400000000",
+        "status": { "code": "OK" },
+        "attributes": {
+          "gen_ai.operation.name": "chat",
+          "gen_ai.provider.name": "codex",
+          "gen_ai.request.model": "gpt-5-mini",
+          "gen_ai.response.model": "gpt-5-mini",
+          "gen_ai.output.messages": "I read the config file.",
+          "openinference.span.kind": "LLM",
+          "agentv.message.index": 1,
+          "agentv.turn_index": 1
+        },
+        "events": []
+      },
+      {
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "tool000000000002",
+        "parent_span_id": "chat000000000002",
+        "name": "execute_tool Read",
+        "kind": "INTERNAL",
+        "start_time_unix_nano": "1781524800050000000",
+        "end_time_unix_nano": "1781524800065000000",
+        "status": { "code": "OK" },
+        "attributes": {
+          "gen_ai.operation.name": "execute_tool",
+          "gen_ai.tool.name": "Read",
+          "gen_ai.tool.call.id": "call-nested-read",
+          "gen_ai.tool.call.arguments": {
+            "file_path": "src/config.ts",
+            "providerCamelKey": "input kept"
+          },
+          "gen_ai.tool.call.result": {
+            "line_count": 12,
+            "providerCamelKey": "output kept"
+          },
+          "openinference.span.kind": "TOOL",
+          "tool.name": "Read",
+          "tool.id": "call-nested-read"
+        },
+        "events": []
+      }
+    ]
+  },
+  "source": {
+    "kind": "agentv_run",
+    "path": ".agentv/results/runs/run-nested-subagent/index.jsonl",
+    "provider": "codex",
+    "format": "agentv_result",
+    "version": "1",
+    "metadata": {
+      "source_provider": "codex",
+      "providerCamelKey": "kept"
+    }
+  },
+  "capture": {
+    "content": "full",
+    "redaction_level": "none",
+    "redacted_fields": [],
+    "policy": {
+      "tool_arguments": "full",
+      "tool_results": "full",
+      "message_text": "full",
+      "screenshots": "none",
+      "thinking": "none"
+    }
+  },
+  "artifacts": {
+    "execution_trace_path": "outputs/execution-trace.json",
+    "transcript_path": "outputs/transcript.jsonl"
+  }
+}

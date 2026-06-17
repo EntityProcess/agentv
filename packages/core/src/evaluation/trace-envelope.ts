@@ -1,11 +1,20 @@
 /**
- * Trace envelope v1: AgentV-owned metadata around an OTel/OpenInference span graph.
+ * AgentV execution trace v1: AgentV-owned metadata around an OTel/OpenInference span graph.
  *
- * The envelope is the canonical full trace sidecar for eval artifacts. AgentV
- * owns the outer structure, eval/replay identity, capture policy, warnings,
- * artifact pointers, and score provenance. The trace body is a standards-shaped
- * span graph, so attribute keys such as `gen_ai.operation.name` and
- * `openinference.span.kind` are copied exactly and never case-converted.
+ * The `agentv.execution_trace.v1` artifact is the canonical full trace sidecar
+ * for eval artifacts. AgentV owns the outer structure, eval/replay identity,
+ * capture policy, warnings, artifact pointers, and score provenance. The trace
+ * body is a standards-shaped span graph, so attribute keys such as
+ * `gen_ai.operation.name` and `openinference.span.kind` are copied exactly and
+ * never case-converted.
+ *
+ * Derived views such as Provider `Message[]`, `outputs/transcript.jsonl`,
+ * `TraceSummary`, compact tool trajectories, replay provider responses, and
+ * OTLP JSON export bodies must project from this artifact. Transcript JSONL
+ * uses AgentV transcript events on the root span so compatibility rows can
+ * include input/system turns without changing replay's assistant-only view.
+ * Do not introduce a second canonical graph for those compatibility/read
+ * models.
  *
  * To extend the wire shape, add snake_case fields to the focused Zod schema,
  * convert them explicitly in the matching to/from helper, and keep opaque maps
@@ -26,9 +35,10 @@ import {
 } from './trace.js';
 import type { EvaluationResult, EvaluationVerdict, GraderKind } from './types.js';
 
-export const TRACE_ENVELOPE_SCHEMA_VERSION = 'agentv.trace_envelope.v1' as const;
+export const EXECUTION_TRACE_SCHEMA_VERSION = 'agentv.execution_trace.v1' as const;
 
 const TRACE_ENVELOPE_FORMAT = 'otlp_openinference_spans' as const;
+const TRANSCRIPT_MESSAGE_EVENT_NAME = 'agentv.transcript.message' as const;
 
 const CAPTURE_CONTENT_VALUES = ['none', 'metadata', 'full'] as const;
 const REDACTION_LEVEL_VALUES = ['none', 'partial', 'full'] as const;
@@ -147,8 +157,8 @@ export interface TraceEnvelopeScore {
 }
 
 export interface TraceEnvelope {
-  readonly schemaVersion: typeof TRACE_ENVELOPE_SCHEMA_VERSION;
-  readonly envelopeId: string;
+  readonly schemaVersion: typeof EXECUTION_TRACE_SCHEMA_VERSION;
+  readonly artifactId: string;
   readonly createdAt: string;
   readonly eval: TraceEnvelopeEval;
   readonly replay?: TraceEnvelopeReplay;
@@ -298,8 +308,8 @@ export const TraceEnvelopeScoreWireSchema = z
 
 export const TraceEnvelopeWireSchema = z
   .object({
-    schema_version: z.literal(TRACE_ENVELOPE_SCHEMA_VERSION),
-    envelope_id: z.string(),
+    schema_version: z.literal(EXECUTION_TRACE_SCHEMA_VERSION),
+    artifact_id: z.string(),
     created_at: z.string(),
     eval: TraceEnvelopeEvalWireSchema,
     replay: TraceEnvelopeReplayWireSchema.optional(),
@@ -339,8 +349,113 @@ export interface BuildTraceEnvelopeOptions {
   readonly now?: () => Date;
 }
 
+export interface TraceEnvelopeToolTrajectoryItem {
+  readonly position: number;
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId?: string;
+  readonly ancestorSpanIds: readonly string[];
+  readonly tool: string;
+  readonly toolCallId: string;
+  readonly parentToolCallId?: string;
+  readonly input?: unknown;
+  readonly output?: unknown;
+  readonly status: 'ok' | 'error';
+  readonly startTime?: string;
+  readonly endTime?: string;
+  readonly durationMs?: number;
+}
+
+export interface TraceEnvelopeToolTrajectoryView {
+  readonly schemaVersion: typeof EXECUTION_TRACE_SCHEMA_VERSION;
+  readonly traceId: string;
+  readonly rootSpanId: string;
+  readonly tools: readonly TraceEnvelopeToolTrajectoryItem[];
+}
+
+export interface TraceEnvelopeOtlpJson {
+  readonly resourceSpans: readonly {
+    readonly resource: {
+      readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
+    };
+    readonly scopeSpans: readonly {
+      readonly scope: {
+        readonly name?: string;
+        readonly version?: string;
+      };
+      readonly spans: readonly TraceEnvelopeOtlpSpan[];
+    }[];
+  }[];
+}
+
+export interface TraceEnvelopeOtlpSpan {
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId?: string;
+  readonly name: string;
+  readonly kind: number;
+  readonly startTimeUnixNano: string;
+  readonly endTimeUnixNano: string;
+  readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
+  readonly status: TraceEnvelopeOtlpSpanStatus;
+  readonly events?: readonly {
+    readonly name: string;
+    readonly timeUnixNano?: string;
+    readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
+  }[];
+}
+
+export interface TraceEnvelopeOtlpSpanStatus {
+  readonly code: number;
+  readonly message?: string;
+}
+
+export interface TraceEnvelopeOtlpAttribute {
+  readonly key: string;
+  readonly value: TraceEnvelopeOtlpAnyValue;
+}
+
+export type TraceEnvelopeOtlpAnyValue =
+  | { readonly stringValue: string }
+  | { readonly intValue: number }
+  | { readonly doubleValue: number }
+  | { readonly boolValue: boolean }
+  | { readonly arrayValue: { readonly values: readonly TraceEnvelopeOtlpAnyValue[] } };
+
+interface TraceEnvelopeTranscriptToolCallWire {
+  readonly tool: string;
+  readonly input?: unknown;
+  readonly output?: unknown;
+  readonly id?: string;
+  readonly start_time?: string;
+  readonly end_time?: string;
+  readonly duration_ms?: number;
+}
+
+interface TraceEnvelopeTranscriptMessageWire {
+  readonly role: string;
+  readonly name?: string;
+  readonly content?: Message['content'];
+  readonly tool_calls?: readonly TraceEnvelopeTranscriptToolCallWire[];
+  readonly start_time?: string;
+  readonly end_time?: string;
+  readonly duration_ms?: number;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly token_usage?: TokenUsage;
+}
+
+interface TraceEnvelopeMessageEntry {
+  readonly index: number;
+  readonly timeUnixNano?: string;
+  readonly message: Message;
+}
+
 function dropUndefined<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function definedStringRecord(
@@ -372,6 +487,35 @@ function parseTimeMs(timestamp: string | undefined): number | undefined {
 
 function msToUnixNano(ms: number): string {
   return String(BigInt(Math.round(ms)) * 1_000_000n);
+}
+
+function compareUnixNanoStrings(first: string, second: string): number {
+  try {
+    const left = BigInt(first);
+    const right = BigInt(second);
+    return left < right ? -1 : left > right ? 1 : 0;
+  } catch {
+    return first.localeCompare(second);
+  }
+}
+
+function compareSpanTime(first: TraceEnvelopeSpan, second: TraceEnvelopeSpan): number {
+  const byStart = compareUnixNanoStrings(first.startTimeUnixNano, second.startTimeUnixNano);
+  if (byStart !== 0) {
+    return byStart;
+  }
+  if (first.spanId === second.parentSpanId) {
+    return -1;
+  }
+  if (second.spanId === first.parentSpanId) {
+    return 1;
+  }
+  const byEnd = compareUnixNanoStrings(first.endTimeUnixNano, second.endTimeUnixNano);
+  return byEnd !== 0 ? byEnd : first.spanId.localeCompare(second.spanId);
+}
+
+function orderedSpans(spans: readonly TraceEnvelopeSpan[]): TraceEnvelopeSpan[] {
+  return [...spans].sort(compareSpanTime);
 }
 
 function unixNanoToIso(value: string | undefined): string | undefined {
@@ -495,6 +639,54 @@ function maybeToolContentAttributes(
   });
 }
 
+function toTranscriptToolCallWire(
+  toolCall: ToolCall,
+  capture: TraceEnvelopeCapture,
+): TraceEnvelopeTranscriptToolCallWire {
+  return dropUndefined({
+    tool: toolCall.tool,
+    input: capture.content === 'full' ? toolCall.input : undefined,
+    output: capture.content === 'full' ? toolCall.output : undefined,
+    id: toolCall.id,
+    start_time: toolCall.startTime,
+    end_time: toolCall.endTime,
+    duration_ms: toolCall.durationMs,
+  });
+}
+
+function toTranscriptMessageWire(
+  message: Message,
+  capture: TraceEnvelopeCapture,
+): TraceEnvelopeTranscriptMessageWire {
+  return dropUndefined({
+    role: message.role,
+    name: message.name,
+    content: capture.content === 'full' ? message.content : undefined,
+    tool_calls: message.toolCalls?.map((toolCall) => toTranscriptToolCallWire(toolCall, capture)),
+    start_time: message.startTime,
+    end_time: message.endTime,
+    duration_ms: message.durationMs,
+    metadata: message.metadata,
+    token_usage: message.tokenUsage,
+  });
+}
+
+function transcriptMessageEvent(
+  message: Message,
+  index: number,
+  capture: TraceEnvelopeCapture,
+): TraceEnvelopeSpanEvent {
+  const startMs = parseTimeMs(message.startTime);
+  return {
+    name: TRANSCRIPT_MESSAGE_EVENT_NAME,
+    timeUnixNano: startMs !== undefined ? msToUnixNano(startMs) : undefined,
+    attributes: dropUndefined({
+      'agentv.transcript.message.index': index,
+      'agentv.transcript.message': toTranscriptMessageWire(message, capture),
+    }),
+  };
+}
+
 function spanStatusFromResult(result: EvaluationResult): TraceEnvelopeSpanStatus {
   if (result.executionStatus === 'execution_error' || result.error) {
     return { code: 'ERROR', message: result.error };
@@ -550,7 +742,14 @@ export function buildTraceEnvelopeFromEvaluationResult(
   const capture = capturePolicy(options);
   const source = sourceFromResult(result, options);
   const traceId = hashHex(
-    ['trace-envelope', result.timestamp, result.suite, result.testId, result.target, options.runId],
+    [
+      'execution-trace',
+      result.timestamp,
+      result.suite,
+      result.testId,
+      result.target,
+      options.runId,
+    ],
     32,
   );
   const rootSpanId = hashHex([traceId, 'root'], 16);
@@ -562,6 +761,9 @@ export function buildTraceEnvelopeFromEvaluationResult(
   const rootStatus = spanStatusFromResult(result);
   const conversionWarnings: TraceEnvelopeConversionWarning[] = [];
   const spans: TraceEnvelopeSpan[] = [];
+  const rootEvents: TraceEnvelopeSpanEvent[] = result.trace.messages.map((message, index) =>
+    transcriptMessageEvent(message, index, capture),
+  );
 
   const rootAttributes = dropUndefined({
     'gen_ai.operation.name': 'invoke_agent',
@@ -596,13 +798,14 @@ export function buildTraceEnvelopeFromEvaluationResult(
     attributes: rootAttributes,
     events: result.error
       ? [
+          ...rootEvents,
           {
             name: 'exception',
             timeUnixNano: msToUnixNano(Math.max(rootStartMs, rootEndMs)),
             attributes: { 'exception.message': result.error },
           },
         ]
-      : [],
+      : rootEvents,
   });
 
   const assistantEntries = assistantMessages(result.trace.messages);
@@ -709,7 +912,7 @@ export function buildTraceEnvelopeFromEvaluationResult(
     }
   }
 
-  const envelopeId = `trace-env-${hashHex([traceId, result.timestamp, result.score], 20)}`;
+  const artifactId = `execution-trace-${hashHex([traceId, result.timestamp, result.score], 20)}`;
   const evalIdentity: TraceEnvelopeEval = {
     evalId: options.evalId,
     evalPath: options.evalPath,
@@ -725,8 +928,8 @@ export function buildTraceEnvelopeFromEvaluationResult(
   };
 
   return {
-    schemaVersion: TRACE_ENVELOPE_SCHEMA_VERSION,
-    envelopeId,
+    schemaVersion: EXECUTION_TRACE_SCHEMA_VERSION,
+    artifactId,
     createdAt: now.toISOString(),
     eval: evalIdentity,
     replay: options.replay,
@@ -750,7 +953,7 @@ export function toTraceEnvelopeWire(envelope: TraceEnvelope): TraceEnvelopeWire 
   return TraceEnvelopeWireSchema.parse(
     dropUndefined({
       schema_version: envelope.schemaVersion,
-      envelope_id: envelope.envelopeId,
+      artifact_id: envelope.artifactId,
       created_at: envelope.createdAt,
       eval: toTraceEnvelopeEvalWire(envelope.eval),
       replay: envelope.replay ? toTraceEnvelopeReplayWire(envelope.replay) : undefined,
@@ -768,7 +971,7 @@ export function fromTraceEnvelopeWire(input: unknown): TraceEnvelope {
   const wire = TraceEnvelopeWireSchema.parse(input);
   return {
     schemaVersion: wire.schema_version,
-    envelopeId: wire.envelope_id,
+    artifactId: wire.artifact_id,
     createdAt: wire.created_at,
     eval: fromTraceEnvelopeEvalWire(wire.eval),
     replay: wire.replay ? fromTraceEnvelopeReplayWire(wire.replay) : undefined,
@@ -1106,10 +1309,89 @@ function toolCallFromSpan(span: TraceEnvelopeSpan): ToolCall {
   };
 }
 
-export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Message[] {
-  const spans = [...envelope.trace.spans].sort((first, second) =>
-    first.startTimeUnixNano.localeCompare(second.startTimeUnixNano),
-  );
+function buildSpanMap(spans: readonly TraceEnvelopeSpan[]): ReadonlyMap<string, TraceEnvelopeSpan> {
+  return new Map(spans.map((span) => [span.spanId, span]));
+}
+
+function ancestorSpanIds(
+  span: TraceEnvelopeSpan,
+  spansById: ReadonlyMap<string, TraceEnvelopeSpan>,
+): readonly string[] {
+  const ancestors: string[] = [];
+  const seen = new Set<string>();
+  let parentSpanId = span.parentSpanId ?? undefined;
+
+  while (parentSpanId && !seen.has(parentSpanId)) {
+    seen.add(parentSpanId);
+    ancestors.push(parentSpanId);
+    parentSpanId = spansById.get(parentSpanId)?.parentSpanId ?? undefined;
+  }
+
+  return ancestors;
+}
+
+function nearestAncestorToolCallId(
+  ancestorIds: readonly string[],
+  spansById: ReadonlyMap<string, TraceEnvelopeSpan>,
+): string | undefined {
+  for (const ancestorId of ancestorIds) {
+    const ancestor = spansById.get(ancestorId);
+    if (ancestor && isToolSpan(ancestor)) {
+      return toolCallFromSpan(ancestor).id;
+    }
+  }
+  return undefined;
+}
+
+function fromTranscriptToolCallWire(wire: unknown): ToolCall | undefined {
+  if (!isRecord(wire) || typeof wire.tool !== 'string') {
+    return undefined;
+  }
+  return {
+    tool: wire.tool,
+    input: wire.input,
+    output: wire.output,
+    id: typeof wire.id === 'string' ? wire.id : undefined,
+    startTime: typeof wire.start_time === 'string' ? wire.start_time : undefined,
+    endTime: typeof wire.end_time === 'string' ? wire.end_time : undefined,
+    durationMs: numberAttribute(wire, 'duration_ms'),
+  };
+}
+
+function fromTranscriptMessageWire(wire: unknown): Message | undefined {
+  if (!isRecord(wire) || typeof wire.role !== 'string') {
+    return undefined;
+  }
+  const toolCalls = Array.isArray(wire.tool_calls)
+    ? wire.tool_calls
+        .map(fromTranscriptToolCallWire)
+        .filter((toolCall): toolCall is ToolCall => toolCall !== undefined)
+    : undefined;
+  return dropUndefined({
+    role: wire.role,
+    name: typeof wire.name === 'string' ? wire.name : undefined,
+    content: wire.content as Message['content'],
+    toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
+    startTime: typeof wire.start_time === 'string' ? wire.start_time : undefined,
+    endTime: typeof wire.end_time === 'string' ? wire.end_time : undefined,
+    durationMs: numberAttribute(wire, 'duration_ms'),
+    metadata: isRecord(wire.metadata) ? wire.metadata : undefined,
+    tokenUsage: isRecord(wire.token_usage)
+      ? tokenUsageFromAttributes({
+          'gen_ai.usage.input_tokens': wire.token_usage.input,
+          'gen_ai.usage.output_tokens': wire.token_usage.output,
+          'gen_ai.usage.cache_read.input_tokens': wire.token_usage.cached,
+          'gen_ai.usage.reasoning.output_tokens': wire.token_usage.reasoning,
+        })
+      : undefined,
+  });
+}
+
+function traceEnvelopeToMessageEntries(
+  envelope: TraceEnvelope,
+): readonly TraceEnvelopeMessageEntry[] {
+  const spans = orderedSpans(envelope.trace.spans);
+  const spansById = buildSpanMap(spans);
   const toolSpansByParent = new Map<string, TraceEnvelopeSpan[]>();
   for (const span of spans.filter(isToolSpan)) {
     const parentSpanId = span.parentSpanId ?? envelope.trace.rootSpanId;
@@ -1118,19 +1400,105 @@ export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Messa
     toolSpansByParent.set(parentSpanId, existing);
   }
 
-  return spans.filter(isChatSpan).map((span) => ({
-    role: 'assistant',
-    content: span.attributes['gen_ai.output.messages'] as Message['content'],
-    toolCalls: toolSpansByParent.get(span.spanId)?.map(toolCallFromSpan),
-    startTime: unixNanoToIso(span.startTimeUnixNano),
-    endTime: unixNanoToIso(span.endTimeUnixNano),
-    durationMs: durationMsFromSpan(span),
-    tokenUsage: tokenUsageFromAttributes(span.attributes),
-    metadata: {
-      span_id: span.spanId,
-      trace_id: span.traceId,
+  return spans.filter(isChatSpan).map((span, fallbackIndex) => ({
+    index: numberAttribute(span.attributes, 'agentv.message.index') ?? fallbackIndex,
+    timeUnixNano: span.startTimeUnixNano,
+    message: {
+      role: 'assistant',
+      content: span.attributes['gen_ai.output.messages'] as Message['content'],
+      toolCalls: toolSpansByParent.get(span.spanId)?.map(toolCallFromSpan),
+      startTime: unixNanoToIso(span.startTimeUnixNano),
+      endTime: unixNanoToIso(span.endTimeUnixNano),
+      durationMs: durationMsFromSpan(span),
+      tokenUsage: tokenUsageFromAttributes(span.attributes),
+      metadata: dropUndefined({
+        span_id: span.spanId,
+        trace_id: span.traceId,
+        parent_span_id: span.parentSpanId ?? undefined,
+        parent_tool_call_id: nearestAncestorToolCallId(ancestorSpanIds(span, spansById), spansById),
+      }),
     },
   }));
+}
+
+export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Message[] {
+  return traceEnvelopeToMessageEntries(envelope).map((entry) => entry.message);
+}
+
+function transcriptMessageEntries(envelope: TraceEnvelope): readonly TraceEnvelopeMessageEntry[] {
+  const entries: TraceEnvelopeMessageEntry[] = [];
+  for (const span of orderedSpans(envelope.trace.spans)) {
+    for (const event of span.events ?? []) {
+      if (event.name !== TRANSCRIPT_MESSAGE_EVENT_NAME) {
+        continue;
+      }
+      const attributes = event.attributes ?? {};
+      const message = fromTranscriptMessageWire(attributes['agentv.transcript.message']);
+      if (!message) {
+        continue;
+      }
+      entries.push({
+        index: numberAttribute(attributes, 'agentv.transcript.message.index') ?? entries.length,
+        timeUnixNano: event.timeUnixNano,
+        message,
+      });
+    }
+  }
+  return entries;
+}
+
+export function traceEnvelopeToTranscriptMessages(envelope: TraceEnvelope): readonly Message[] {
+  const entries = transcriptMessageEntries(envelope);
+  if (entries.length === 0) {
+    return traceEnvelopeToMessages(envelope);
+  }
+  return [...entries]
+    .sort((first, second) => {
+      const byIndex = first.index - second.index;
+      if (byIndex !== 0) {
+        return byIndex;
+      }
+      if (first.timeUnixNano && second.timeUnixNano) {
+        return compareUnixNanoStrings(first.timeUnixNano, second.timeUnixNano);
+      }
+      return 0;
+    })
+    .map((entry) => entry.message);
+}
+
+export function traceEnvelopeToToolTrajectoryView(
+  envelope: TraceEnvelope,
+): TraceEnvelopeToolTrajectoryView {
+  const spans = orderedSpans(envelope.trace.spans);
+  const spansById = buildSpanMap(spans);
+  const tools = spans.filter(isToolSpan).map((span, position) => {
+    const toolCall = toolCallFromSpan(span);
+    const toolCallId = toolCall.id ?? span.spanId;
+    const ancestorIds = ancestorSpanIds(span, spansById);
+    return {
+      position,
+      traceId: span.traceId,
+      spanId: span.spanId,
+      parentSpanId: span.parentSpanId ?? undefined,
+      ancestorSpanIds: ancestorIds,
+      tool: toolCall.tool,
+      toolCallId,
+      parentToolCallId: nearestAncestorToolCallId(ancestorIds, spansById),
+      input: toolCall.input,
+      output: toolCall.output,
+      status: span.status.code === 'ERROR' ? 'error' : 'ok',
+      startTime: toolCall.startTime,
+      endTime: toolCall.endTime,
+      durationMs: toolCall.durationMs,
+    } satisfies TraceEnvelopeToolTrajectoryItem;
+  });
+
+  return {
+    schemaVersion: envelope.schemaVersion,
+    traceId: envelope.trace.traceId,
+    rootSpanId: envelope.trace.rootSpanId,
+    tools,
+  };
 }
 
 export function traceEnvelopeToTraceSummary(envelope: TraceEnvelope): TraceComputeResult {
@@ -1196,7 +1564,7 @@ export function traceEnvelopeToTraceSummary(envelope: TraceEnvelope): TraceCompu
 export function traceEnvelopeToTraceArtifact(envelope: TraceEnvelope): TraceArtifact {
   const events: TraceEvent[] = [];
   let ordinal = 0;
-  for (const span of envelope.trace.spans) {
+  for (const span of orderedSpans(envelope.trace.spans)) {
     if (isChatSpan(span)) {
       events.push({
         eventId: `span-${span.spanId}`,
@@ -1268,4 +1636,101 @@ export function traceEnvelopeToTraceArtifact(envelope: TraceEnvelope): TraceArti
 
 export function getTraceEnvelopeSummary(envelope: TraceEnvelope): TraceSummary {
   return traceEnvelopeToTraceSummary(envelope).trace;
+}
+
+export function traceEnvelopeToOtlpJson(envelope: TraceEnvelope): TraceEnvelopeOtlpJson {
+  return {
+    resourceSpans: [
+      {
+        resource: {
+          attributes: attributesToOtlp(envelope.trace.resource?.attributes),
+        },
+        scopeSpans: [
+          {
+            scope: dropUndefined({
+              name: envelope.trace.scope?.name,
+              version: envelope.trace.scope?.version,
+            }),
+            spans: orderedSpans(envelope.trace.spans).map((span) =>
+              dropUndefined({
+                traceId: span.traceId,
+                spanId: span.spanId,
+                parentSpanId: span.parentSpanId ?? undefined,
+                name: span.name,
+                kind: spanKindToOtlp(span.kind),
+                startTimeUnixNano: span.startTimeUnixNano,
+                endTimeUnixNano: span.endTimeUnixNano,
+                attributes: attributesToOtlp(span.attributes),
+                status: spanStatusToOtlp(span.status),
+                events: span.events?.map((event) =>
+                  dropUndefined({
+                    name: event.name,
+                    timeUnixNano: event.timeUnixNano,
+                    attributes: attributesToOtlp(event.attributes),
+                  }),
+                ),
+              }),
+            ),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function spanKindToOtlp(kind: string): number {
+  if (kind === 'SERVER') {
+    return 1;
+  }
+  if (kind === 'CLIENT') {
+    return 2;
+  }
+  if (kind === 'PRODUCER') {
+    return 3;
+  }
+  if (kind === 'CONSUMER') {
+    return 4;
+  }
+  return 0;
+}
+
+function spanStatusToOtlp(status: TraceEnvelopeSpanStatus): TraceEnvelopeOtlpSpanStatus {
+  const code = status.code === 'OK' ? 1 : status.code === 'ERROR' ? 2 : 0;
+  return dropUndefined({ code, message: status.message });
+}
+
+function attributesToOtlp(
+  attributes: Readonly<Record<string, unknown>> | undefined,
+): readonly TraceEnvelopeOtlpAttribute[] {
+  return Object.entries(attributes ?? {}).map(([key, value]) => ({
+    key,
+    value: toOtlpAnyValue(value),
+  }));
+}
+
+function toOtlpAnyValue(value: unknown): TraceEnvelopeOtlpAnyValue {
+  if (typeof value === 'string') {
+    return { stringValue: value };
+  }
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? { intValue: value } : { doubleValue: value };
+  }
+  if (typeof value === 'boolean') {
+    return { boolValue: value };
+  }
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map(toOtlpAnyValue) } };
+  }
+  return { stringValue: stringifyOtlpAttribute(value) };
+}
+
+function stringifyOtlpAttribute(value: unknown): string {
+  if (value === undefined) {
+    return '';
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }

@@ -382,10 +382,10 @@ describe('replay fixtures', () => {
     }
   });
 
-  it('replays target output from trace envelope sources', async () => {
+  it('replays target output from execution trace sources', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-replay-envelopes-'));
     try {
-      const envelopePath = path.join(dir, 'trace-envelope.json');
+      const envelopePath = path.join(dir, 'execution-trace.json');
       const wire = fullContentEnvelopeWire(
         envelopeResult([{ role: 'assistant', content: 'Envelope replay answer' }]),
       );
@@ -405,7 +405,7 @@ describe('replay fixtures', () => {
       expect(response.costUsd).toBe(0.0042);
       expect(response.durationMs).toBe(123);
       expect(response.raw).toMatchObject({
-        replay_trace_envelope: {
+        replay_execution_trace: {
           suite: 'suite-a',
           eval_path: 'evals/sample.eval.yaml',
           test_id: 'case-a',
@@ -417,10 +417,10 @@ describe('replay fixtures', () => {
     }
   });
 
-  it('fails clearly when a trace envelope lacks replayable assistant output', async () => {
+  it('fails clearly when an execution trace lacks replayable assistant output', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-replay-envelopes-'));
     try {
-      const envelopePath = path.join(dir, 'trace-envelope.json');
+      const envelopePath = path.join(dir, 'execution-trace.json');
       const wire = toTraceEnvelopeWire(
         buildTraceEnvelopeFromEvaluationResult(
           envelopeResult([{ role: 'assistant', content: 'Redacted answer' }]),
@@ -446,7 +446,7 @@ describe('replay fixtures', () => {
     }
   });
 
-  it('fails loudly for duplicate trace envelope replay identities', async () => {
+  it('fails loudly for duplicate execution trace replay identities', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-replay-envelopes-'));
     try {
       const envelopePath = path.join(dir, 'trace-envelopes.jsonl');
@@ -470,7 +470,7 @@ describe('replay fixtures', () => {
     }
   });
 
-  it('preserves opaque payload keys through trace envelope replay projection', async () => {
+  it('preserves opaque payload keys through execution trace replay projection', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-replay-envelopes-'));
     try {
       const envelopePath = path.join(dir, 'payloads.json');

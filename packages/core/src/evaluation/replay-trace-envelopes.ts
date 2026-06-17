@@ -1,11 +1,11 @@
 /**
- * Trace-envelope replay source for target-output substitution.
+ * Execution-trace replay source for target-output substitution.
  *
- * This module lets the replay provider read `agentv.trace_envelope.v1`
+ * This module lets the replay provider read `agentv.execution_trace.v1`
  * artifacts as the target-output source. Lookup uses the same replay identity
- * dimensions as JSONL fixtures, then projects the matched envelope to the
+ * dimensions as JSONL fixtures, then projects the matched artifact to the
  * existing ProviderResponse shape with traceEnvelopeToMessages(). Opaque
- * message, tool, provider, and source payloads stay inside the envelope
+ * message, tool, provider, and source payloads stay inside the execution trace
  * projection without recursive key conversion.
  */
 
@@ -40,7 +40,7 @@ export async function readTraceEnvelopeReplayRecords(
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Trace envelope replay source not found or unreadable: ${sourcePath}: ${reason}`,
+      `Execution trace replay source not found or unreadable: ${sourcePath}: ${reason}`,
     );
   }
 
@@ -65,10 +65,10 @@ export function findTraceEnvelopeReplayRecord(
 
   const key = formatReplayLookupKey(lookup);
   if (matches.length === 0) {
-    throw new Error(`Trace envelope replay lookup found no record for ${key}`);
+    throw new Error(`Execution trace replay lookup found no record for ${key}`);
   }
   throw new Error(
-    `Trace envelope replay lookup found ${matches.length} duplicate records for ${key}`,
+    `Execution trace replay lookup found ${matches.length} duplicate records for ${key}`,
   );
 }
 
@@ -89,8 +89,8 @@ export function traceEnvelopeReplayRecordToProviderResponse(
     startTime: summary.startTime,
     endTime: summary.endTime,
     raw: {
-      replay_trace_envelope: dropUndefined({
-        envelope_id: record.envelope.envelopeId,
+      replay_execution_trace: dropUndefined({
+        artifact_id: record.envelope.artifactId,
         source_path: record.sourcePath,
         line_number: record.lineNumber,
         suite: identity.suite,
@@ -138,7 +138,7 @@ function parseTraceEnvelopeDocuments(
         documents.push({ value: JSON.parse(line), lineNumber: i + 1 });
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`Invalid trace envelope JSONL at ${sourcePath}:${i + 1}: ${reason}`);
+        throw new Error(`Invalid execution trace JSONL at ${sourcePath}:${i + 1}: ${reason}`);
       }
     }
     return documents;
@@ -155,7 +155,7 @@ function parseTraceEnvelopeDocument(
   } catch (error) {
     const location = lineNumber === undefined ? sourcePath : `${sourcePath}:${lineNumber}`;
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid trace envelope replay record at ${location}: ${reason}`);
+    throw new Error(`Invalid execution trace replay record at ${location}: ${reason}`);
   }
 }
 
@@ -196,14 +196,14 @@ function assertReplayableMessages(
 ): void {
   if (output.length === 0) {
     throw new Error(
-      `Trace envelope replay source ${formatRecordLocation(record)} cannot project to provider Message[]: no chat spans found`,
+      `Execution trace replay source ${formatRecordLocation(record)} cannot project to provider Message[]: no chat spans found`,
     );
   }
 
   const lastAssistant = [...output].reverse().find((message) => message.role === 'assistant');
   if (!lastAssistant || lastAssistant.content === undefined) {
     throw new Error(
-      `Trace envelope replay source ${formatRecordLocation(record)} is missing assistant output content; replay requires a full-content trace envelope before grading`,
+      `Execution trace replay source ${formatRecordLocation(record)} is missing assistant output content; replay requires a full-content execution trace before grading`,
     );
   }
 }

@@ -37,7 +37,7 @@ export interface EvaluationContext {
   readonly evaluator?: GraderConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly output?: readonly Message[];
-  /** Canonical execution trace with messages, events, metrics, and provenance. */
+  /** Result-local trace read model with messages, events, metrics, and provenance. */
   readonly trace?: Trace;
   /** Token usage from provider execution (promoted from TraceSummary) */
   readonly tokenUsage?: TokenUsage;

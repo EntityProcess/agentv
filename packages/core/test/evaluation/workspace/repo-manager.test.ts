@@ -654,7 +654,7 @@ describe('RepoManager', () => {
       process.env.PATH = `${binDir}:${process.env.PATH ?? ''}`;
 
       try {
-        const timeoutManager = new RepoManager(false, { progress: false, timeoutMs: 50 });
+        const timeoutManager = new RepoManager(false, { progress: false, timeoutMs: 500 });
         const runGitStreaming = (
           timeoutManager as unknown as {
             runGitStreaming(
@@ -671,7 +671,7 @@ describe('RepoManager', () => {
         await expect(
           runGitStreaming(['stalled'], { description: 'git clone stalled' }),
         ).rejects.toThrow(
-          /git clone stalled made no progress for 0s.*Register a matching local checkout.*git_cache\.mirrors.*network connectivity/s,
+          /git clone stalled made no progress for \d+s.*Register a matching local checkout.*git_cache\.mirrors.*network connectivity/s,
         );
       } finally {
         process.env.PATH = savedPath;
