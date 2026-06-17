@@ -1,0 +1,1 @@
+{"testId":"wtg-replay-fail","target":"codex","score":0.4,"executionStatus":"quality_failure","durationMs":1234,"tokenUsage":{"input":10,"output":5},"costUsd":0.012,"trace":{"eventCount":1,"toolCalls":{"rg":1},"errorCount":0}}

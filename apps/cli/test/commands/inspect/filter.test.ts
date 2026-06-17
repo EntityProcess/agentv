@@ -109,6 +109,25 @@ describe('inspect filter', () => {
       expect(records[0].tool_names).toContain('read_file');
     });
 
+    it('normalizes historical camelCase trace tool summaries', () => {
+      const record = JSON.stringify({
+        testId: 'wtg-replay-fail',
+        target: 'codex',
+        score: 0.4,
+        executionStatus: 'quality_failure',
+        trace: { toolCalls: { rg: 1 } },
+      });
+      const filePath = path.join(tempDir, 'index.jsonl');
+      writeFileSync(filePath, `${record}\n`);
+
+      const records = parseFilterableRecords(filePath);
+
+      expect(records).toHaveLength(1);
+      expect(records[0].test_id).toBe('wtg-replay-fail');
+      expect(records[0].execution_status).toBe('quality_failure');
+      expect(records[0].tool_names).toContain('rg');
+    });
+
     it('returns empty array for unreadable files', () => {
       const records = parseFilterableRecords(path.join(tempDir, 'nonexistent.jsonl'));
 
@@ -153,6 +172,13 @@ describe('inspect filter', () => {
 
       expect(records).toHaveLength(1);
       expect(records[0].test_id).toBe('unknown');
+    });
+
+    it('rejects eval-case-only rows with migration guidance', () => {
+      const filePath = path.join(tempDir, 'index.jsonl');
+      writeFileSync(filePath, '{"id":"case-a","prompt":"What is 2 + 2?"}\n');
+
+      expect(() => parseFilterableRecords(filePath)).toThrow(/Eval-case JSONL is input data/);
     });
   });
 

@@ -3,8 +3,10 @@ import path from 'node:path';
 
 import {
   type EvaluationResult,
+  type TraceSummary,
   type TranscriptJsonLine,
   buildTraceFromMessages,
+  toCamelCaseDeep,
   traceFromTranscriptJsonLines,
 } from '@agentv/core';
 
@@ -14,6 +16,7 @@ import {
   isDirectoryPath,
   resolveRunManifestPath,
 } from '../eval/result-layout.js';
+import { normalizeResultRow } from './result-row-schema.js';
 
 export interface ResultManifestRecord {
   readonly timestamp?: string;
@@ -33,6 +36,7 @@ export interface ResultManifestRecord {
     readonly output?: number;
     readonly reasoning?: number;
   };
+  readonly trace?: Record<string, unknown>;
   readonly grading_path?: string;
   readonly timing_path?: string;
   readonly input_path?: string;
@@ -55,6 +59,20 @@ function parseJsonlLines<T>(content: string): T[] {
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line) as T);
+}
+
+function parseResultRows(content: string, sourceLabel?: string): ResultManifestRecord[] {
+  return content
+    .split(/\r?\n/)
+    .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
+    .filter(({ line }) => line.length > 0)
+    .map(
+      ({ line, lineNumber }) =>
+        normalizeResultRow(JSON.parse(line), {
+          lineNumber,
+          sourceLabel,
+        }) as unknown as ResultManifestRecord,
+    );
 }
 
 function parseMarkdownMessages(content: string): { role: string; content: string }[] {
@@ -138,6 +156,7 @@ function hydrateTrace(baseDir: string, record: ResultManifestRecord): Evaluation
   return buildTraceFromMessages({
     input: hydrateInput(baseDir, record),
     output: output ? [{ role: 'assistant', content: output }] : [],
+    summary: record.trace ? (toCamelCaseDeep(record.trace) as TraceSummary) : undefined,
     finalOutput: output,
     target: record.target,
     testId: record.test_id,
@@ -205,7 +224,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
 }
 
 export function parseResultManifest(content: string): ResultManifestRecord[] {
-  return parseJsonlLines<ResultManifestRecord>(content);
+  return parseResultRows(content);
 }
 
 export function resolveResultSourcePath(source: string, cwd?: string): string {
@@ -219,7 +238,7 @@ export function resolveResultSourcePath(source: string, cwd?: string): string {
 export function loadManifestResults(sourceFile: string): EvaluationResult[] {
   const resolvedSourceFile = resolveRunManifestPath(sourceFile);
   const content = readFileSync(resolvedSourceFile, 'utf8');
-  const records = parseResultManifest(content);
+  const records = parseResultRows(content, resolvedSourceFile);
   const baseDir = path.dirname(resolvedSourceFile);
   return records.map((record) => hydrateManifestRecord(baseDir, record));
 }

@@ -9,6 +9,7 @@ import {
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
 import { loadManifestResults } from '../results/manifest.js';
+import { normalizeResultRow } from '../results/result-row-schema.js';
 
 // ANSI color codes (no dependency needed)
 const colors = {
@@ -133,11 +134,10 @@ function loadJsonlRecords(filePath: string): RawResult[] {
     .filter((line) => line.trim());
 
   return lines.map((line, i) => {
-    const record = JSON.parse(line) as RawResult;
-    if (typeof record.score !== 'number') {
-      throw new Error(`Missing or invalid score in result at line ${i + 1}: ${line.slice(0, 100)}`);
-    }
-    return record;
+    return normalizeResultRow(JSON.parse(line), {
+      lineNumber: i + 1,
+      sourceLabel: filePath,
+    }) as unknown as RawResult;
   });
 }
 

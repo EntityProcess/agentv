@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { resolveRunManifestPath } from '../../../src/commands/eval/result-layout.js';
+import { loadManifestResults } from '../../../src/commands/results/manifest.js';
 import { resolveSourceFile } from '../../../src/commands/results/shared.js';
 
 describe('results shared source resolution', () => {
@@ -59,5 +60,31 @@ describe('results shared source resolution', () => {
     expect(() => resolveRunManifestPath(flatFile)).toThrow(
       'Expected a run workspace directory or index.jsonl manifest',
     );
+  });
+
+  it('normalizes historical camelCase replay rows when loading manifests', () => {
+    const fixturePath = path.join(
+      process.cwd(),
+      'apps/cli/test/fixtures/results/camel-replay/index.jsonl',
+    );
+
+    const results = loadManifestResults(fixturePath);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].testId).toBe('wtg-replay-fail');
+    expect(results[0].executionStatus).toBe('quality_failure');
+    expect(results[0].durationMs).toBe(1234);
+    expect(results[0].tokenUsage).toEqual({ input: 10, output: 5 });
+    expect(results[0].costUsd).toBe(0.012);
+    expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
+  });
+
+  it('rejects eval-case-only rows with migration guidance', () => {
+    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', '2026-03-25T10-00-00-000Z');
+    mkdirSync(runDir, { recursive: true });
+    const indexPath = path.join(runDir, 'index.jsonl');
+    writeFileSync(indexPath, '{"id":"case-a","prompt":"What is 2 + 2?"}\n');
+
+    expect(() => loadManifestResults(indexPath)).toThrow(/Eval-case JSONL is input data/);
   });
 });
