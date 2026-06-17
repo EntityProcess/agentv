@@ -42,8 +42,14 @@ cline.mcp.json
 factory.mcp.json
 windsurf.mcp.json
 
-# Local task tracker and orchestrator state
-.beads/
+# Local task tracker and orchestrator state. Runtime/database files remain
+# ignored, but Beads team defaults are tracked so fresh clones can discover the
+# project id, embedded Dolt mode, and shared sync remote.
+.beads/*
+!.beads/
+!.beads/.gitignore
+!.beads/config.yaml
+!.beads/metadata.json
 .runtime/
 .logs/
 state.json

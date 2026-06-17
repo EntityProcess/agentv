@@ -118,7 +118,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ### Tracker Ownership
 - External tracker state belongs to the operator-provided tracker, not this repository.
-- Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
+- Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts. The only repo-local Beads files intentionally tracked are safe team defaults: `.beads/config.yaml`, `.beads/metadata.json`, and `.beads/.gitignore`; never commit the embedded Dolt database, JSONL exports, backups, locks, logs, or runtime state.
 - If external research discovers AgentV implementation work, capture the public code/docs change in a focused branch/PR and keep private research or orchestration records outside this repository.
 - When an external tracker is supplied, keep it updated with user-visible decisions, verification evidence, blockers, and handoff state. Run sync or flush commands only against that supplied tracker and keep exported tracker state out of AgentV commits unless explicitly requested.
 - Do not use `git stash` on shared checkouts. Other agents may be editing the same worktree, and stashing can hide or replay their changes in the wrong branch. If you need to isolate work, inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes. If a stash is genuinely unavoidable, immediately record it in the supplied tracker or orchestrator handoff with the stash name, affected paths, reason, and recovery plan.
@@ -126,7 +126,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 ### Coordination and Shared Checkouts
 - Use the operator-supplied tracker for ownership, handoff notes, blockers, and evidence.
 - If the operator provides a separate coordination or reservation system, keep its server URLs, startup commands, bearer tokens, and project keys outside this public repository.
-- Do not commit project-local coordination config files; they may contain bearer tokens and are ignored by `.gitignore`.
+- Do not commit project-local coordination config files; they may contain bearer tokens and are ignored by `.gitignore`. The safe Beads team-default files listed above are the exception and exist so fresh clones can discover the AgentV Beads Dolt remote.
 
 ### Worktree Setup
 - Start every repo change by running `git fetch origin` and inspecting `git status --short --branch`.
