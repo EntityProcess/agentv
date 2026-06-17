@@ -968,7 +968,7 @@ describe('serve app', () => {
       });
     }, 15000);
 
-    it('does not fall back to checked-out default branch runs when the configured storage branch is missing', async () => {
+    it('auto-creates a missing storage branch without falling back to checked-out default branch runs', async () => {
       const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
       const runId = writeRemoteRunArtifact(
         cloneDir,
@@ -994,18 +994,20 @@ describe('serve app', () => {
       expect(statusRes.status).toBe(200);
       const statusData = (await statusRes.json()) as {
         available: boolean;
+        branch?: string;
         sync_status?: string;
         run_count: number;
         last_error?: string;
       };
       expect(statusData).toMatchObject({
-        available: false,
-        sync_status: 'unavailable',
+        available: true,
+        branch: 'agentv-results',
+        sync_status: 'clean',
         run_count: 0,
       });
-      expect(statusData.last_error ?? '').toContain(
-        "Results repo remote branch 'agentv-results' does not exist",
-      );
+      expect(statusData.last_error).toBeUndefined();
+      expect(git('git branch --show-current', cloneDir)).toBe('agentv-results');
+      expect(git('git ls-tree -r --name-only agentv-results', cloneDir)).toBe('');
 
       const listRes = await app.request('/api/runs');
       expect(listRes.status).toBe(200);

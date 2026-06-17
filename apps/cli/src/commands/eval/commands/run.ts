@@ -65,6 +65,34 @@ export const evalRunCommand = command({
       long: 'experiment',
       description: 'Experiment label for canonical run output (default: default)',
     }),
+    resultsRepo: option({
+      type: optional(string),
+      long: 'results-repo',
+      description:
+        'Results Git repo override: current/. for the source repo, a local path, Git URL, or owner/repo',
+    }),
+    resultsBranch: option({
+      type: optional(string),
+      long: 'results-branch',
+      description: 'Results storage branch (default: agentv/results/v1)',
+    }),
+    resultsRemote: option({
+      type: optional(string),
+      long: 'results-remote',
+      description: 'Git remote name for results push/fetch (default: origin)',
+    }),
+    resultsPush: flag({
+      long: 'results-push',
+      description: 'Push the results branch after publishing the completed local run',
+    }),
+    noResultsPush: flag({
+      long: 'no-results-push',
+      description: 'Publish to the local results branch without pushing to the remote',
+    }),
+    resultsRequirePush: flag({
+      long: 'results-require-push',
+      description: 'Fail the eval command if the completed results branch cannot be pushed',
+    }),
     dryRun: flag({
       long: 'dry-run',
       description: 'Use mock provider responses instead of real LLM calls',
@@ -248,6 +276,10 @@ export const evalRunCommand = command({
       console.error('Error: --budget-usd must be a positive number.');
       process.exit(2);
     }
+    if (args.resultsPush && args.noResultsPush) {
+      console.error('Error: --results-push and --no-results-push cannot be used together.');
+      process.exit(2);
+    }
     const rawOptions: Record<string, unknown> = {
       target: args.target,
       targets: args.targets,
@@ -257,6 +289,12 @@ export const evalRunCommand = command({
       output: args.output,
       outputFormat: args.outputFormat,
       experiment: args.experiment,
+      resultsRepo: args.resultsRepo,
+      resultsBranch: args.resultsBranch,
+      resultsRemote: args.resultsRemote,
+      resultsPush: args.resultsPush,
+      noResultsPush: args.noResultsPush,
+      resultsRequirePush: args.resultsRequirePush,
       dryRun: args.dryRun,
       dryRunDelay: args.dryRunDelay,
       dryRunDelayMin: args.dryRunDelayMin,

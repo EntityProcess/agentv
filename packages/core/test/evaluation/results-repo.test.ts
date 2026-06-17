@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.js';
 import {
+  DEFAULT_RESULTS_BRANCH,
   buildWipBranchName,
   deleteWipBranch,
   directPushResults,
@@ -14,6 +15,7 @@ import {
   getResultsRepoSyncStatus,
   listGitRuns,
   materializeGitRun,
+  normalizeResultsConfig,
   pushWipCheckpoint,
   setupWipWorktree,
   syncResultsRepo,
@@ -348,6 +350,97 @@ describe('results repo write path', () => {
     rmSync(rootDir, { recursive: true, force: true });
   });
 
+  it('defaults the storage branch to agentv/results/v1', () => {
+    const normalized = normalizeResultsConfig(
+      {
+        repo_path: '.',
+        sync: { auto_push: false },
+      },
+      { baseDir: '/tmp/source-project' },
+    );
+
+    expect(DEFAULT_RESULTS_BRANCH).toBe('agentv/results/v1');
+    expect(normalized.branch).toBe('agentv/results/v1');
+    expect(normalized.repo_path).toBe('/tmp/source-project');
+    expect(normalized.auto_push).toBe(false);
+  });
+
+  it('publishes current-repo results to an auto-created branch without switching source checkout', async () => {
+    const projectDir = path.join(rootDir, 'source-project');
+    mkdirSync(projectDir, { recursive: true });
+    git('git init --initial-branch=main --quiet', projectDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+    writeFileSync(path.join(projectDir, 'README.md'), '# source project\n');
+    git('git add README.md && git commit --quiet -m "seed source"', projectDir);
+
+    const runTimestamp = '2026-06-17T10-00-00-000Z';
+    const runDir = path.join(
+      projectDir,
+      '.agentv',
+      'results',
+      'runs',
+      'current-repo',
+      runTimestamp,
+    );
+    writeRunArtifacts(runDir, 'current-repo', '2026-06-17T10:00:00.000Z');
+    writeFileSync(path.join(projectDir, 'UNRELATED.txt'), 'do not publish\n');
+
+    const published = await directPushResults({
+      config: {
+        repo_path: projectDir,
+        branch: DEFAULT_RESULTS_BRANCH,
+        sync: { auto_push: false },
+      },
+      sourceDir: runDir,
+      destinationPath: path.join('current-repo', runTimestamp),
+      commitMessage: 'feat(results): current-repo - 1/1 PASS (1.000)',
+    });
+
+    expect(published).toBe(true);
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+    const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, projectDir);
+    expect(branchFiles).toContain(
+      `.agentv/results/runs/current-repo/${runTimestamp}/benchmark.json`,
+    );
+    expect(branchFiles).not.toContain('README.md');
+    expect(branchFiles).not.toContain('UNRELATED.txt');
+    expect(git('git status --short --branch', projectDir)).toContain('## main');
+  }, 20000);
+
+  it('publishes to an explicit external local repo path', async () => {
+    const projectDir = path.join(rootDir, 'project');
+    const resultsRepoDir = path.join(rootDir, 'local-results-repo');
+    mkdirSync(projectDir, { recursive: true });
+    mkdirSync(resultsRepoDir, { recursive: true });
+    git('git init --initial-branch=main --quiet', resultsRepoDir);
+    git('git config user.email "test@example.com"', resultsRepoDir);
+    git('git config user.name "Test User"', resultsRepoDir);
+    writeFileSync(path.join(resultsRepoDir, 'README.md'), '# result repo main\n');
+    git('git add README.md && git commit --quiet -m "seed results repo"', resultsRepoDir);
+
+    const runTimestamp = '2026-06-17T11-00-00-000Z';
+    const runDir = path.join(projectDir, '.agentv', 'results', 'runs', 'external', runTimestamp);
+    writeRunArtifacts(runDir, 'external', '2026-06-17T11:00:00.000Z');
+
+    const published = await directPushResults({
+      config: {
+        repo_path: resultsRepoDir,
+        branch: DEFAULT_RESULTS_BRANCH,
+        sync: { auto_push: false },
+      },
+      sourceDir: runDir,
+      destinationPath: path.join('external', runTimestamp),
+      commitMessage: 'feat(results): external - 1/1 PASS (1.000)',
+    });
+
+    expect(published).toBe(true);
+    expect(git('git branch --show-current', resultsRepoDir)).toBe('main');
+    const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, resultsRepoDir);
+    expect(branchFiles).toContain(`.agentv/results/runs/external/${runTimestamp}/index.jsonl`);
+    expect(branchFiles).not.toContain('README.md');
+  }, 20000);
+
   it('retries an interrupted direct push without dropping the committed run', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
@@ -373,7 +466,7 @@ describe('results repo write path', () => {
         commitMessage: 'feat(results): retry - 1/1 PASS (1.000)',
       }),
     ).rejects.toThrow(/simulated interrupted push/);
-    expect(git('git rev-list --count origin/main..HEAD', cloneDir)).toBe('1');
+    expect(git('git rev-list --count origin/main..main', cloneDir)).toBe('1');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
       `.agentv/results/runs/retry/${runTimestamp}/benchmark.json`,
     );
@@ -389,16 +482,16 @@ describe('results repo write path', () => {
       }),
     ).resolves.toBe(true);
 
-    expect(git('git rev-list --count origin/main..HEAD', cloneDir)).toBe('0');
+    expect(git('git rev-list --count origin/main..main', cloneDir)).toBe('0');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
       `.agentv/results/runs/retry/${runTimestamp}/benchmark.json`,
     );
     expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
-      `Agentv-Run: retry::${runTimestamp}`,
+      `AgentV-Run: retry::${runTimestamp}`,
     );
   }, 20000);
 
-  it('commits pushed runs into the configured clone with an Agentv-Run trailer', async () => {
+  it('commits pushed runs into the configured clone with an AgentV-Run trailer', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
@@ -420,28 +513,17 @@ describe('results repo write path', () => {
 
     expect(pushed).toBe(true);
     expect(git('git rev-parse --show-toplevel', cloneDir)).toBe(cloneDir);
-    expect(git('git log -1 --pretty=%B', cloneDir)).toContain(
-      `Agentv-Run: with-skills::${runTimestamp}`,
+    expect(git('git log -1 --pretty=%B main', cloneDir)).toContain(
+      `AgentV-Run: with-skills::${runTimestamp}`,
     );
     expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
-      `Agentv-Run: with-skills::${runTimestamp}`,
+      `AgentV-Run: with-skills::${runTimestamp}`,
     );
-    expect(
-      readFileSync(
-        path.join(
-          cloneDir,
-          '.agentv',
-          'results',
-          'runs',
-          'with-skills',
-          runTimestamp,
-          'index.jsonl',
-        ),
-        'utf8',
-      ),
-    ).toContain('"test_id":"alpha"');
+    expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
+      `.agentv/results/runs/with-skills/${runTimestamp}/index.jsonl`,
+    );
 
-    const runs = await listGitRuns(cloneDir, 'HEAD');
+    const runs = await listGitRuns(cloneDir, 'main');
     expect(runs).toHaveLength(1);
     expect(runs[0].run_id).toBe(`with-skills::${runTimestamp}`);
   }, 20000);
@@ -471,7 +553,7 @@ describe('results repo write path', () => {
     });
 
     expect(pushed).toBe(true);
-    expect(git('git branch --show-current', cloneDir)).toBe(storageBranch);
+    expect(git('git branch --show-current', cloneDir)).toBe('main');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
       `.agentv/results/runs/branch-storage/${runTimestamp}/benchmark.json`,
     );
@@ -480,10 +562,10 @@ describe('results repo write path', () => {
     ).toContain(`.agentv/results/runs/branch-storage/${runTimestamp}/benchmark.json`);
     expect(
       git(`git --git-dir "${remoteDir}" log -1 --pretty=%B ${storageBranch}`, rootDir),
-    ).toContain(`Agentv-Run: branch-storage::${runTimestamp}`);
+    ).toContain(`AgentV-Run: branch-storage::${runTimestamp}`);
   }, 20000);
 
-  it('fails clearly when a configured storage branch is missing', async () => {
+  it('auto-creates a missing configured storage branch', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
@@ -500,7 +582,13 @@ describe('results repo write path', () => {
         destinationPath: path.join('missing-branch', '2026-06-12T11-00-00-000Z'),
         commitMessage: 'feat(results): missing branch',
       }),
-    ).rejects.toThrow(/git switch --orphan agentv-results/);
+    ).resolves.toBe(true);
+    expect(git(`git --git-dir "${remoteDir}" branch --list agentv-results`, rootDir)).toContain(
+      'agentv-results',
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only agentv-results`, rootDir),
+    ).toContain('.agentv/results/runs/missing-branch/2026-06-12T11-00-00-000Z/benchmark.json');
   }, 20000);
 
   it('syncResultsRepo refreshes refs without checking out the base branch', async () => {

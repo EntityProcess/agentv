@@ -20,11 +20,13 @@
  *       path: /home/user/projects/my-app
  *       ref: main
  *       results:
- *         repo_url: git@github.com:example/my-app-results.git
- *         branch: agentv-results
+ *         repo_path: .
+ *         branch: agentv/results/v1
+ *         remote: origin
  *         path: /srv/agentv/results/my-app
  *         sync:
  *           auto_push: true
+ *           require_push: false
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *
@@ -59,11 +61,14 @@ import { getAgentvConfigDir } from './paths.js';
 
 export interface ProjectResultsSyncConfig {
   autoPush?: boolean;
+  requirePush?: boolean;
 }
 
 export interface ProjectResultsConfig {
-  repoUrl: string;
+  repoUrl?: string;
+  repoPath?: string;
   branch?: string;
+  remote?: string;
   path?: string;
   sync?: ProjectResultsSyncConfig;
   branchPrefix?: string;
@@ -97,11 +102,14 @@ export function getProjectsRegistryPath(): string {
 
 interface ProjectResultsSyncYaml {
   auto_push?: boolean;
+  require_push?: boolean;
 }
 
 interface ProjectResultsYaml {
-  repo_url: string;
+  repo_url?: string;
+  repo_path?: string;
   branch?: string;
+  remote?: string;
   path?: string;
   sync?: ProjectResultsSyncYaml;
   branch_prefix?: string;
@@ -139,16 +147,35 @@ function fromYaml(raw: unknown): ProjectEntry | null {
   }
   if (e.results && typeof e.results === 'object') {
     const r = e.results as Partial<ProjectResultsYaml>;
-    if (typeof r.repo_url === 'string' && r.repo_url.trim().length > 0) {
+    const repoUrl =
+      typeof r.repo_url === 'string' && r.repo_url.trim().length > 0
+        ? r.repo_url.trim()
+        : undefined;
+    const repoPath =
+      typeof r.repo_path === 'string' && r.repo_path.trim().length > 0
+        ? r.repo_path.trim()
+        : undefined;
+    if (repoUrl || repoPath) {
       const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
       entry.results = {
-        repoUrl: r.repo_url.trim(),
+        ...(repoUrl ? { repoUrl } : {}),
+        ...(repoPath ? { repoPath } : {}),
         ...(typeof r.branch === 'string' && r.branch.trim().length > 0
           ? { branch: r.branch.trim() }
           : {}),
+        ...(typeof r.remote === 'string' && r.remote.trim().length > 0
+          ? { remote: r.remote.trim() }
+          : {}),
         ...(typeof r.path === 'string' && r.path.trim().length > 0 ? { path: r.path.trim() } : {}),
-        ...(sync && typeof sync.auto_push === 'boolean'
-          ? { sync: { autoPush: sync.auto_push } }
+        ...(sync && (typeof sync.auto_push === 'boolean' || typeof sync.require_push === 'boolean')
+          ? {
+              sync: {
+                ...(typeof sync.auto_push === 'boolean' ? { autoPush: sync.auto_push } : {}),
+                ...(typeof sync.require_push === 'boolean'
+                  ? { requirePush: sync.require_push }
+                  : {}),
+              },
+            }
           : {}),
         ...(typeof r.branch_prefix === 'string' && r.branch_prefix.trim().length > 0
           ? { branchPrefix: r.branch_prefix.trim() }
@@ -171,11 +198,21 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   };
   if (entry.results) {
     yaml.results = {
-      repo_url: entry.results.repoUrl,
+      ...(entry.results.repoUrl !== undefined && { repo_url: entry.results.repoUrl }),
+      ...(entry.results.repoPath !== undefined && { repo_path: entry.results.repoPath }),
       ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
+      ...(entry.results.remote !== undefined && { remote: entry.results.remote }),
       ...(entry.results.path !== undefined && { path: entry.results.path }),
-      ...(entry.results.sync?.autoPush !== undefined && {
-        sync: { auto_push: entry.results.sync.autoPush },
+      ...((entry.results.sync?.autoPush !== undefined ||
+        entry.results.sync?.requirePush !== undefined) && {
+        sync: {
+          ...(entry.results.sync?.autoPush !== undefined && {
+            auto_push: entry.results.sync.autoPush,
+          }),
+          ...(entry.results.sync?.requirePush !== undefined && {
+            require_push: entry.results.sync.requirePush,
+          }),
+        },
       }),
       ...(entry.results.branchPrefix !== undefined && {
         branch_prefix: entry.results.branchPrefix,

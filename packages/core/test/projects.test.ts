@@ -176,6 +176,47 @@ describe('projects registry', () => {
     expect(yamlOnDisk).not.toContain('branchPrefix:');
   });
 
+  it('round-trips branch-backed current-repo results config through YAML', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `projects:
+  - id: branch-results
+    name: Branch Results
+    path: /srv/agentv/repo
+    results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: origin
+      sync:
+        auto_push: false
+        require_push: true
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadProjectRegistry();
+    expect(registry.projects[0].results).toEqual({
+      repoPath: '.',
+      branch: 'agentv/results/v1',
+      remote: 'origin',
+      sync: { autoPush: false, requirePush: true },
+    });
+
+    saveProjectRegistry(registry);
+    const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('repo_path: .');
+    expect(yamlOnDisk).toContain('branch: agentv/results/v1');
+    expect(yamlOnDisk).toContain('remote: origin');
+    expect(yamlOnDisk).toContain('auto_push: false');
+    expect(yamlOnDisk).toContain('require_push: true');
+    expect(yamlOnDisk).not.toContain('repoPath:');
+    expect(yamlOnDisk).not.toContain('requirePush:');
+  });
+
   it('preserves unrelated global config keys when saving projects', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });

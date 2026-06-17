@@ -191,7 +191,7 @@ describe('maybeAutoExportRunArtifacts', () => {
     }
   }, 20_000);
 
-  it('returns disabled when auto-push is not configured', async () => {
+  it('publishes locally without pushing when auto-push is disabled', async () => {
     const remoteDir = initializeRemoteRepo(rootDir);
     const runDir = writeRunArtifacts(projectDir);
     writeProjectConfig(projectDir, {
@@ -202,6 +202,12 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     const status = await maybeAutoExportRunArtifacts(payload(projectDir, runDir));
 
-    expect(status).toBe('disabled');
+    expect(status).toBe('published');
+    expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
+      '.agentv/results/runs/default/run-001/index.jsonl',
+    );
+    expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
+      '.agentv/results/runs/default/run-001/index.jsonl',
+    );
   });
 });

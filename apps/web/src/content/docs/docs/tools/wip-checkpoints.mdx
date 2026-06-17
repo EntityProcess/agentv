@@ -14,9 +14,9 @@ They are **not** a second results mode. They reuse the existing run workspace fo
 WIP checkpoints are active only when AgentV can resolve a results repo configuration with auto-push enabled:
 
 - In a registered project: `projects[].results.sync.auto_push: true` in `$AGENTV_HOME/config.yaml`.
-- In the top-level fallback config: `results.auto_push: true`.
+- In the top-level fallback config: `results.sync.auto_push: true`.
 
-If no results repo is configured, or auto-push is disabled, `agentv eval` still writes the local run workspace but does not create WIP branches.
+If no results repo is configured, or auto-push is disabled, `agentv eval` still writes the local run workspace and publishes completed runs to the configured local results branch, but does not create WIP branches.
 
 ## What gets written
 
@@ -25,13 +25,13 @@ If no results repo is configured, or auto-push is disabled, `agentv eval` still 
 | Local project | `.agentv/results/runs/<experiment>/<run-id>/benchmark.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
 | Local project | `.agentv/results/runs/<experiment>/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
 | Results repo remote | `agentv/inflight/<hostname>/<run-dir-basename>` | A forced-updated branch containing the checkpointed run under `.agentv/results/runs/<same-relative-run-path>/`. |
-| Results repo storage branch | Configured `results.branch`, or the repo default branch | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
+| Results repo storage branch | Configured `results.branch`; `repo_path` configs default to `agentv/results/v1` | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
 
 The WIP branch name is derived from the current host and the run directory basename. Non-branch-safe characters are replaced with `-`; the host component is capped at 40 characters and the run component at 60 characters.
 
 ## Lifecycle
 
-1. **Run start** — AgentV creates the local run directory and writes the initial `benchmark.json` stub. If auto-push is enabled, it creates a temporary git worktree for a branch named `agentv/inflight/<hostname>/<run-dir-basename>`, based on the configured results storage branch when `results.branch` is set.
+1. **Run start** — AgentV creates the local run directory and writes the initial `benchmark.json` stub. If auto-push is enabled, it creates a temporary git worktree for a branch named `agentv/inflight/<hostname>/<run-dir-basename>`, based on the configured results storage branch. Missing storage branches are initialized automatically.
 2. **While running** — about every 30 seconds, AgentV copies the current run directory into the WIP worktree, amends a single checkpoint commit, and force-pushes the WIP branch. If nothing changed, it skips the push.
 3. **Successful completion** — AgentV publishes the completed run to the normal results branch. After that publish is confirmed as `published` or `already_published`, it deletes the remote WIP branch.
 4. **Failure, interrupt, or final export failure** — AgentV stops the checkpoint loop and removes the temporary local worktree, but leaves the remote WIP branch intact for recovery.
@@ -87,7 +87,7 @@ git push origin --delete agentv/inflight/<hostname>/<run-dir-basename>
 - The WIP branch is force-pushed and keeps one snapshot commit. Do not treat it as an audit log.
 - Checkpoint contents can include prompts, outputs, grader evidence, traces, and generated task bundles. Protect the results repo like any other eval artifact store.
 - Authentication and branch permissions are the same as normal results auto-push. If git or GitHub authentication is missing, AgentV warns and keeps evaluating locally.
-- If `results.branch` is configured, create that remote storage branch before running evals. WIP worktrees are based on it.
+- WIP worktrees are based on the configured storage branch. Missing storage branches are initialized automatically; missing remotes or authentication still prevent WIP pushes until Git credentials are available.
 - Failed or interrupted runs intentionally leave WIP branches behind. Periodically delete old `agentv/inflight/...` branches once recovered or obsolete.
 
 See also: [Resume an Interrupted Run](/docs/evaluation/running-evals/#resume-an-interrupted-run), [Results](/docs/tools/results/), and [Dashboard Remote Results](/docs/tools/dashboard/#remote-results).
