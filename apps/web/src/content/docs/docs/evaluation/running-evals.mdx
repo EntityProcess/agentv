@@ -154,6 +154,8 @@ agentv inspect show traces/eval.otlp.json --tree
 trace counters. `--otel-file` writes standard OTLP JSON that can be imported into any
 OpenTelemetry-compatible backend.
 
+For Opik specifically, use `--otel-file` for post-run import or provide your own local backend resolver. AgentV does not currently ship a built-in `opik` backend name.
+
 ### Live OTel Export
 
 Stream traces directly to an observability backend during evaluation using `--export-otel`:

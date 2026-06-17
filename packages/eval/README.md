@@ -1,6 +1,6 @@
 # @agentv/eval
 
-Evaluation SDK for AgentV - build custom graders with zero boilerplate.
+Evaluation SDK for AgentV - build custom graders and prompt templates around the canonical AgentV eval model.
 
 ## Installation
 
@@ -16,13 +16,10 @@ npm install @agentv/eval
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ output }) => {
-  const hasGreeting = (output ?? '').toLowerCase().includes('hello');
-  return {
-    pass: hasGreeting,
-    assertions: [{ text: 'Checks for greeting', passed: hasGreeting }],
-  };
-});
+export default defineAssertion(({ output }) => ({
+  pass: (output ?? '').toLowerCase().includes('hello'),
+  reasoning: 'Checks for greeting',
+}));
 ```
 
 Assertions support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
@@ -63,7 +60,7 @@ For complete documentation including:
 - Execution metrics usage
 - Best practices
 
-See the [Custom Graders Guide](../../apps/web/src/content/docs/docs/graders/custom-graders.mdx) or run AgentV's `/agentv-eval-builder` skill.
+See the docs site guides under `apps/web/src/content/docs/docs/graders/` or run `agentv skills get agentv-eval-writer`.
 
 ## Repository
 

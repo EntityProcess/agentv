@@ -18,7 +18,6 @@ Code graders receive eval context via stdin JSON and return a result via stdout.
   "input_files": [],
   "criteria": "Correctly calculates 15 + 27 = 42",
   "output": "The answer is 42.",
-  "answer": "The answer is 42.",
   "expected_output": [{ "role": "assistant", "content": "42" }],
   "messages": [{ "role": "assistant", "content": "The answer is 42." }],
   "trace_summary": {
@@ -45,7 +44,7 @@ Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. Ty
 | `duration_ms` | `durationMs` | Total execution duration |
 | `workspace_path` | `workspacePath` | Temp workspace path, when configured |
 
-Do not treat `output` as a message array. Use `output` / `answer` for answer-text checks, and use `messages`, `trace.messages`, or `trace.events` only when the grader intentionally evaluates transcript or tool behavior.
+Do not treat `output` as a message array. Use `output` for answer-text checks, and use `messages`, `trace.messages`, or `trace.events` only when the grader intentionally evaluates transcript or tool behavior.
 
 ### JSON output (full protocol)
 
@@ -249,7 +248,6 @@ Beyond the basic fields (`input`, `output`, `expected_output`, `criteria`), code
 |-------|------|-------------|
 | `input` | `Message[]` | Full resolved input message array |
 | `output` | `string \| null` | Final answer / scored result only |
-| `answer` | `string` | Deprecated alias for `output` |
 | `messages` | `Message[]` | Transcript messages from the target execution |
 | `expected_output` | `Message[]` | Expected/reference output messages |
 | `output_path` | `string` | Temp file containing large final answer JSON, when `output` is omitted |
