@@ -2,7 +2,7 @@
 
 Demonstrates exporting eval traces to [Langfuse](https://langfuse.com) via OpenTelemetry.
 
-AgentV uses OTLP/HTTP — no Langfuse SDK required. The `langfuse` backend preset handles endpoint and auth automatically.
+AgentV uses OTLP/HTTP — no Langfuse SDK required. The `langfuse` backend resolver handles endpoint and auth automatically.
 
 ## Setup
 

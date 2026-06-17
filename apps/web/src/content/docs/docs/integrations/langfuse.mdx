@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-AgentV streams evaluation traces to [Langfuse](https://langfuse.com) using standard OTLP/HTTP — no Langfuse SDK required. The `langfuse` backend preset handles endpoint construction and authentication automatically.
+AgentV streams evaluation traces to [Langfuse](https://langfuse.com) using standard OTLP/HTTP — no Langfuse SDK required. The `langfuse` backend resolver handles endpoint construction and authentication automatically.
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ Langfuse dashboards recognize the `gen_ai.*` semantic conventions and display to
 | Flag | Description |
 |------|-------------|
 | `--export-otel` | Enable live OTel export |
-| `--otel-backend langfuse` | Use the Langfuse endpoint and auth preset |
+| `--otel-backend langfuse` | Use the Langfuse endpoint and auth resolver |
 | `--otel-capture-content` | Include message and tool content in spans (disabled by default for privacy) |
 | `--otel-group-turns` | Add `agentv.turn.N` parent spans that group messages by conversation turn |
 

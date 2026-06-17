@@ -4,6 +4,8 @@ export interface OtelExportOptions {
   readonly endpoint?: string;
   /** Custom headers (e.g., auth) */
   readonly headers?: Record<string, string>;
+  /** Resource attributes to attach to the trace provider */
+  readonly resourceAttributes?: Record<string, string | number | boolean>;
   /** Whether to include message content in spans */
   readonly captureContent?: boolean;
   /** Service name for OTel resource */
@@ -14,9 +16,20 @@ export interface OtelExportOptions {
   readonly otlpFilePath?: string;
 }
 
-/** Preset configuration for a known observability backend. */
-export interface OtelBackendPreset {
-  readonly name: string;
+export interface OtelBackendResolverContext {
+  readonly env: Record<string, string | undefined>;
+  readonly cwd: string;
+}
+
+export interface OtelBackendResolution {
   readonly endpoint: string;
-  readonly headers: (env: Record<string, string | undefined>) => Record<string, string>;
+  readonly headers?: Record<string, string>;
+  readonly resourceAttributes?: Record<string, string | number | boolean>;
+  readonly warnings?: readonly string[];
+}
+
+/** Generic resolver contract for OTel backend endpoint/header/resource routing. */
+export interface OtelBackendResolver {
+  readonly name: string;
+  resolve(context: OtelBackendResolverContext): OtelBackendResolution;
 }

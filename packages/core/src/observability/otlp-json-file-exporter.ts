@@ -12,13 +12,19 @@ export class OtlpJsonFileExporter {
   // biome-ignore lint/suspicious/noExplicitAny: serialized span data
   private spans: any[] = [];
   private filePath: string;
+  private resourceAttributes: Record<string, unknown>;
 
-  constructor(filePath: string) {
+  constructor(filePath: string, resourceAttributes: Record<string, unknown> = {}) {
     this.filePath = filePath;
+    this.resourceAttributes = { ...resourceAttributes };
   }
 
   export(spans: ReadableSpan[], resultCallback: (result: { code: number }) => void): void {
     for (const span of spans) {
+      this.resourceAttributes = {
+        ...this.resourceAttributes,
+        ...getSpanResourceAttributes(span),
+      };
       this.spans.push({
         traceId: span.spanContext().traceId,
         spanId: span.spanContext().spanId,
@@ -57,7 +63,7 @@ export class OtlpJsonFileExporter {
     const otlpJson = {
       resourceSpans: [
         {
-          resource: { attributes: [] },
+          resource: { attributes: convertAttributes(this.resourceAttributes) },
           scopeSpans: [
             {
               scope: { name: 'agentv', version: '1.0.0' },
@@ -71,6 +77,13 @@ export class OtlpJsonFileExporter {
     const { writeFile } = await import('node:fs/promises');
     await writeFile(this.filePath, JSON.stringify(otlpJson, null, 2));
   }
+}
+
+function getSpanResourceAttributes(span: ReadableSpan): Record<string, unknown> {
+  if (span.resource?.attributes && typeof span.resource.attributes === 'object') {
+    return span.resource.attributes;
+  }
+  return {};
 }
 
 function hrTimeToNanos(hrTime: [number, number]): string {

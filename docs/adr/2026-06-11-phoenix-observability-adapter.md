@@ -60,11 +60,11 @@ export interface OtelBackendResolver {
 Registration/discovery should remain boring and local-first. In this ADR, "plugin" should not imply a coding-agent plugin or package marketplace; this is only a backend resolver module seam:
 
 - support explicit TypeScript registration for programmatic callers;
-- optionally discover `.agentv/otel-backends/*.ts`, where the filename is the backend name;
+- optionally discover Node-loadable `.agentv/otel-backends/*.mjs` or `*.js`, where the filename is the backend name;
 - keep `execution.otel_backend: <name>` and `--otel-backend <name>` as the user-facing selectors;
 - do not add package names, package auto-installation, a remote marketplace, trust prompts, or a general-purpose plugin host for this need.
 
-The Phoenix adapter can then expose a resolver, for example `phoenixOtelBackend`, and users can opt in from project config or a local `.agentv/otel-backends/phoenix.ts` file. Reusable npm packages can come later only if repeated project-local resolver files become real friction.
+The Phoenix adapter can then expose a resolver, for example `phoenixOtelBackend`, and users can opt in from project config or a local `.agentv/otel-backends/phoenix.mjs` file. Reusable npm packages can come later only if repeated project-local resolver files become real friction.
 
 ## Migration path for Phoenix
 
@@ -100,5 +100,5 @@ Negative:
 ## Open questions
 
 - Should the existing `langfuse`, `braintrust`, and `confident` core presets migrate to resolver modules in a follow-up cleanup?
-- Should resolver loading be limited to local `.agentv/otel-backends/*.ts`, or should `agentv.config.ts` support direct resolver imports first?
+- Should resolver loading stay limited to local Node-loadable `.agentv/otel-backends/*.mjs`/`*.js`, or should `agentv.config.ts` support direct resolver imports first?
 - What exact Phoenix project-routing headers should the adapter emit across local Phoenix and hosted Phoenix variants?
