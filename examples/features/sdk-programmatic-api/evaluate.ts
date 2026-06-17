@@ -33,6 +33,8 @@ const { results, summary } = await evaluate({
   onResult: (result) => {
     console.log(`  ${result.testId}: score=${result.score.toFixed(2)}`);
   },
+  outputDir: '.agentv/results/runs/sdk-programmatic-api-example',
+  experiment: 'sdk-programmatic-api',
 });
 
 console.log('\n--- Summary ---');
@@ -41,3 +43,4 @@ console.log(`Passed: ${summary.passed}`);
 console.log(`Failed: ${summary.failed}`);
 console.log(`Mean score: ${summary.meanScore.toFixed(2)}`);
 console.log(`Duration: ${summary.durationMs}ms`);
+console.log('Artifacts: .agentv/results/runs/sdk-programmatic-api-example');

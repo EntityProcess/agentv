@@ -76,6 +76,7 @@ import { readTargetDefinitions } from './providers/targets-file.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
 import { INLINE_ASSERT_FN } from './registry/builtin-graders.js';
+import { writeArtifactsFromResults } from './run-artifacts.js';
 import type {
   ConversationAggregation,
   ConversationTurn,
@@ -202,6 +203,10 @@ export interface EvalConfig {
   readonly beforeAll?: string | readonly string[];
   /** Suite-level cost cap in USD. Stops dispatching new tests when exceeded. */
   readonly budgetUsd?: number;
+  /** Optional run workspace directory for canonical AgentV artifacts. */
+  readonly outputDir?: string;
+  /** Optional experiment name recorded in benchmark.json and index.jsonl. */
+  readonly experiment?: string;
 }
 
 export interface MaterializedEvalConfig {
@@ -244,6 +249,15 @@ export interface EvalRunResult {
   readonly results: readonly EvaluationResult[];
   /** Aggregate summary statistics */
   readonly summary: EvalSummary;
+  /** Canonical run artifact paths when `outputDir` is provided. */
+  readonly artifacts?: EvalRunArtifacts;
+}
+
+export interface EvalRunArtifacts {
+  readonly runDir: string;
+  readonly indexPath: string;
+  readonly benchmarkPath: string;
+  readonly timingPath: string;
 }
 
 /**
@@ -366,10 +380,24 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 
   const allResults = collectedResults.length > 0 ? collectedResults : [...results];
   const durationMs = Date.now() - startTime;
+  const outputDir = config.outputDir ? path.resolve(config.outputDir) : undefined;
+  const artifacts = outputDir
+    ? await writeArtifactsFromResults(allResults, outputDir, {
+        evalFile: config.specFile ? testFilePath : '',
+        experiment: config.experiment,
+        sourceTests: materialized.tests,
+      }).then(({ benchmarkPath, indexPath, timingPath }) => ({
+        runDir: outputDir,
+        benchmarkPath,
+        indexPath,
+        timingPath,
+      }))
+    : undefined;
 
   return {
     results: allResults,
     summary: computeSummary(allResults, durationMs, config.threshold),
+    artifacts,
   };
 }
 
