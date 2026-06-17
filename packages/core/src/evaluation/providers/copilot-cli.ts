@@ -61,6 +61,7 @@ interface CopilotCliPromptRunResult {
 type CopilotCliPromptRunner = (
   options: CopilotCliPromptRunOptions,
 ) => Promise<CopilotCliPromptRunResult>;
+type CopilotCliSpawn = typeof spawn;
 
 /**
  * Copilot CLI provider using the Agent Client Protocol (ACP).
@@ -83,16 +84,19 @@ export class CopilotCliProvider implements Provider {
 
   private readonly config: CopilotCliResolvedConfig;
   private readonly runPromptMode: CopilotCliPromptRunner;
+  private readonly spawnAcpProcess: CopilotCliSpawn;
 
   constructor(
     targetName: string,
     config: CopilotCliResolvedConfig,
     promptRunner: CopilotCliPromptRunner = defaultCopilotCliPromptRunner,
+    spawnAcpProcess: CopilotCliSpawn = spawn,
   ) {
     this.id = `copilot-cli:${targetName}`;
     this.targetName = targetName;
     this.config = config;
     this.runPromptMode = promptRunner;
+    this.spawnAcpProcess = spawnAcpProcess;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -110,7 +114,7 @@ export class CopilotCliProvider implements Provider {
     const args = this.buildCliArgs();
 
     // Spawn the CLI process
-    const agentProcess = spawn(executable, args, {
+    const agentProcess = this.spawnAcpProcess(executable, args, {
       env: buildCopilotCliProviderEnv(process.env, this.config.customProvider),
       cwd: this.resolveCwd(request.cwd) ?? process.cwd(),
       stdio: ['pipe', 'pipe', 'inherit'],

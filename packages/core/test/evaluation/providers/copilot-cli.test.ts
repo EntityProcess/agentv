@@ -1,6 +1,6 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
-import type { ChildProcess } from 'node:child_process';
+import type { ChildProcess, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -37,9 +37,6 @@ function createMockChildProcess(): ChildProcess {
 
 beforeAll(async () => {
   spawnMock = mock(() => createMockChildProcess());
-  mock.module('node:child_process', () => ({
-    spawn: spawnMock,
-  }));
   mock.module('@agentclientprotocol/sdk', () => ({
     PROTOCOL_VERSION: 1,
     ndJsonStream: mock(() => ({})),
@@ -77,6 +74,10 @@ beforeAll(async () => {
   const module = await import('../../../src/evaluation/providers/copilot-cli.js');
   CopilotCliProvider = module.CopilotCliProvider;
   buildCopilotCliProviderEnv = module.buildCopilotCliProviderEnv;
+});
+
+afterAll(() => {
+  mock.restore();
 });
 
 beforeEach(() => {
@@ -184,6 +185,7 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
         },
       },
       runner,
+      spawnMock as unknown as typeof spawn,
     );
 
     const response = await provider.invoke({
@@ -225,15 +227,20 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
   });
 
   it('uses configured cwd for ACP spawn when request cwd is omitted', async () => {
-    const provider = new CopilotCliProvider('copilot-cli-custom', {
-      executable: '/usr/bin/copilot',
-      cwd: '/tmp/eval-workspace',
-      customProvider: {
-        type: 'openai',
-        baseUrl: 'https://api.openai.example/v1',
-        apiKey: 'secret-key',
+    const provider = new CopilotCliProvider(
+      'copilot-cli-custom',
+      {
+        executable: '/usr/bin/copilot',
+        cwd: '/tmp/eval-workspace',
+        customProvider: {
+          type: 'openai',
+          baseUrl: 'https://api.openai.example/v1',
+          apiKey: 'secret-key',
+        },
       },
-    });
+      undefined,
+      spawnMock as unknown as typeof spawn,
+    );
 
     await provider.invoke({ question: 'Return done' });
 
@@ -254,15 +261,20 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
     ];
 
     try {
-      const provider = new CopilotCliProvider('copilot-cli-custom', {
-        executable: '/usr/bin/copilot',
-        logDir,
-        customProvider: {
-          type: 'openai',
-          baseUrl: 'https://api.openai.example/v1',
-          apiKey: 'test-api-key',
+      const provider = new CopilotCliProvider(
+        'copilot-cli-custom',
+        {
+          executable: '/usr/bin/copilot',
+          logDir,
+          customProvider: {
+            type: 'openai',
+            baseUrl: 'https://api.openai.example/v1',
+            apiKey: 'test-api-key',
+          },
         },
-      });
+        undefined,
+        spawnMock as unknown as typeof spawn,
+      );
 
       const response = await provider.invoke({ question: 'Return done' });
       const logFile = (response.raw as Record<string, unknown>).logFile;
