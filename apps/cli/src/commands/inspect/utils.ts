@@ -9,6 +9,7 @@ import {
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
 import { loadManifestResults } from '../results/manifest.js';
+import { ResultRowSchemaError, normalizeResultRow } from '../results/result-row-schema.js';
 
 // ANSI color codes (no dependency needed)
 const colors = {
@@ -125,6 +126,24 @@ function resolveTraceResultPath(filePath: string): string {
   return resolveWorkspaceOrFilePath(filePath);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function shouldUseTraceScoreError(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.test_id === 'string' ||
+    typeof value.testId === 'string' ||
+    Object.hasOwn(value, 'score') ||
+    Object.hasOwn(value, 'trace') ||
+    Object.hasOwn(value, 'spans')
+  );
+}
+
 function loadJsonlRecords(filePath: string): RawResult[] {
   const content = readFileSync(filePath, 'utf8');
   const lines = content
@@ -133,11 +152,20 @@ function loadJsonlRecords(filePath: string): RawResult[] {
     .filter((line) => line.trim());
 
   return lines.map((line, i) => {
-    const record = JSON.parse(line) as RawResult;
-    if (typeof record.score !== 'number') {
-      throw new Error(`Missing or invalid score in result at line ${i + 1}: ${line.slice(0, 100)}`);
+    const parsed = JSON.parse(line) as unknown;
+    try {
+      return normalizeResultRow(parsed, {
+        lineNumber: i + 1,
+        sourceLabel: filePath,
+      }) as unknown as RawResult;
+    } catch (error) {
+      if (error instanceof ResultRowSchemaError && shouldUseTraceScoreError(parsed)) {
+        throw new Error(
+          `Missing or invalid score in result at line ${i + 1}: ${line.slice(0, 100)}`,
+        );
+      }
+      throw error;
     }
-    return record;
   });
 }
 

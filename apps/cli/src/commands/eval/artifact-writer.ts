@@ -15,6 +15,7 @@ import {
   toTraceEnvelopeWire,
   traceToTranscriptJsonLines,
 } from '@agentv/core';
+import { normalizeResultRow } from '../results/result-row-schema.js';
 import { RESULT_INDEX_FILENAME } from './result-layout.js';
 import {
   type MaterializedTaskBundlePaths,
@@ -1091,21 +1092,27 @@ function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefin
 export function parseJsonlResults(content: string): EvaluationResult[] {
   const results: EvaluationResult[] = [];
   const lines = content.split('\n');
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmed = line.trim();
     if (trimmed.length === 0) {
       continue;
     }
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(trimmed);
-      // JSONL files from AgentV use snake_case; convert back to camelCase
-      const camelCased = toCamelCaseDeep(parsed);
-      const normalized = normalizeParsedResult(camelCased);
-      if (normalized) {
-        results.push(normalized);
-      }
+      parsed = JSON.parse(trimmed);
     } catch {
       // Skip malformed lines
+      continue;
+    }
+
+    // JSONL files from AgentV use snake_case; convert supported historical aliases
+    // to canonical snake_case before mapping into TypeScript internals.
+    const canonicalRow = normalizeResultRow(parsed, { lineNumber: i + 1 });
+    const camelCased = toCamelCaseDeep(canonicalRow);
+    const normalized = normalizeParsedResult(camelCased);
+    if (normalized) {
+      results.push(normalized);
     }
   }
   return results;

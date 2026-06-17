@@ -562,6 +562,29 @@ describe('parseJsonlResults', () => {
     expect(results[1].testId).toBe('b');
   });
 
+  it('normalizes historical camelCase result row aliases', () => {
+    const content = `${JSON.stringify({
+      testId: 'wtg-replay-fail',
+      target: 'codex',
+      score: 0.4,
+      executionStatus: 'quality_failure',
+      durationMs: 1234,
+      tokenUsage: { input: 10, output: 5 },
+      costUsd: 0.012,
+      trace: { eventCount: 1, toolCalls: { rg: 1 }, errorCount: 0 },
+    })}\n`;
+
+    const results = parseJsonlResults(content);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].testId).toBe('wtg-replay-fail');
+    expect(results[0].executionStatus).toBe('quality_failure');
+    expect(results[0].durationMs).toBe(1234);
+    expect(results[0].tokenUsage).toEqual({ input: 10, output: 5 });
+    expect(results[0].costUsd).toBe(0.012);
+    expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
+  });
+
   it('handles empty content', () => {
     expect(parseJsonlResults('')).toHaveLength(0);
   });
@@ -576,6 +599,12 @@ describe('parseJsonlResults', () => {
     const good = JSON.stringify({ testId: 'a', score: 0.9 });
     const content = `${good}\nnot json\n`;
     expect(parseJsonlResults(content)).toHaveLength(1);
+  });
+
+  it('rejects eval-case-only rows with migration guidance', () => {
+    const content = `${JSON.stringify({ id: 'case-a', prompt: 'What is 2 + 2?' })}\n`;
+
+    expect(() => parseJsonlResults(content)).toThrow(/Eval-case JSONL is input data/);
   });
 });
 

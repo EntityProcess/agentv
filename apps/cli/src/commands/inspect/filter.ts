@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
+import { normalizeResultRow } from '../results/result-row-schema.js';
 import { c, formatScore, padLeft, padRight } from './utils.js';
 
 /** A lightweight result record with fields needed for filtering. */
@@ -105,13 +106,15 @@ export function parseFilterableRecords(filePath: string): FilterableRecord[] {
   const lines = content.split('\n').filter((line) => line.trim());
   const records: FilterableRecord[] = [];
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     let raw: Record<string, unknown>;
     try {
       raw = JSON.parse(line) as Record<string, unknown>;
     } catch {
       continue;
     }
+    raw = normalizeResultRow(raw, { lineNumber: i + 1, sourceLabel: filePath });
 
     // Determine experiment from record or from directory path
     let experiment = typeof raw.experiment === 'string' ? raw.experiment : undefined;

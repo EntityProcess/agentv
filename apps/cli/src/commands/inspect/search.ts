@@ -110,9 +110,11 @@ export function searchJsonlFile(
     const testId =
       typeof record.test_id === 'string'
         ? record.test_id
-        : typeof record.source === 'object' && record.source !== null
-          ? ((record.source as Record<string, unknown>).session_id as string | undefined)
-          : undefined;
+        : typeof record.testId === 'string'
+          ? record.testId
+          : typeof record.source === 'object' && record.source !== null
+            ? ((record.source as Record<string, unknown>).session_id as string | undefined)
+            : undefined;
 
     // Apply metadata filters before regex search
     if (targetFilter && target !== targetFilter) continue;
