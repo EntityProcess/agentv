@@ -118,6 +118,8 @@ const COPILOT_SDK_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'cli_url',
   'cli_path',
+  'args',
+  'arguments',
   'github_token',
   'model',
   'cwd',
@@ -126,8 +128,12 @@ const COPILOT_SDK_SETTINGS = new Set([
   'log_format',
   'stream_log',
   'system_prompt',
-  'custom_provider',
-  'byok',
+  'subprovider',
+  'base_url',
+  'api_key',
+  'bearer_token',
+  'api_version',
+  'wire_api',
 ]);
 
 const COPILOT_CLI_SETTINGS = new Set([
@@ -144,7 +150,12 @@ const COPILOT_CLI_SETTINGS = new Set([
   'log_format',
   'stream_log',
   'system_prompt',
-  'custom_provider',
+  'subprovider',
+  'base_url',
+  'api_key',
+  'bearer_token',
+  'api_version',
+  'wire_api',
 ]);
 
 const VSCODE_SETTINGS = new Set([

@@ -1,9 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 import type { ChildProcess } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { PassThrough } from 'node:stream';
 
 import { DEFAULT_COPILOT_TIMEOUT_MS } from '../../../src/evaluation/providers/copilot-utils.js';
 import { extractLastAssistantContent } from '../../../src/evaluation/providers/types.js';
@@ -13,12 +15,64 @@ type CopilotCliModule = typeof import('../../../src/evaluation/providers/copilot
 let CopilotCliProvider: CopilotCliModule['CopilotCliProvider'];
 let buildCopilotCliProviderEnv: CopilotCliModule['buildCopilotCliProviderEnv'];
 let originalLogEnv: string | undefined;
+let spawnMock: ReturnType<typeof mock>;
+let acpSessionUpdates: Array<{ update: { sessionUpdate: string; [key: string]: unknown } }>;
+let acpPromptResponse: Record<string, unknown>;
+
+function createMockChildProcess(): ChildProcess {
+  const child = new EventEmitter() as EventEmitter & {
+    pid: number;
+    stdin: PassThrough;
+    stdout: PassThrough;
+    stderr: PassThrough;
+    kill: ReturnType<typeof mock>;
+  };
+  child.pid = 12345;
+  child.stdin = new PassThrough();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.kill = mock(() => true);
+  return child as unknown as ChildProcess;
+}
 
 beforeAll(async () => {
+  spawnMock = mock(() => createMockChildProcess());
+  mock.module('node:child_process', () => ({
+    spawn: spawnMock,
+  }));
   mock.module('@agentclientprotocol/sdk', () => ({
     PROTOCOL_VERSION: 1,
     ndJsonStream: mock(() => ({})),
-    ClientSideConnection: class MockClientSideConnection {},
+    ClientSideConnection: class MockClientSideConnection {
+      private readonly client: {
+        sessionUpdate?: (params: {
+          update: { sessionUpdate: string; [key: string]: unknown };
+        }) => Promise<void>;
+      };
+
+      constructor(
+        createClient: (_agent: unknown) => {
+          sessionUpdate?: (params: {
+            update: { sessionUpdate: string; [key: string]: unknown };
+          }) => Promise<void>;
+        },
+      ) {
+        this.client = createClient({});
+      }
+
+      async initialize(): Promise<void> {}
+
+      async newSession(): Promise<{ sessionId: string }> {
+        return { sessionId: 'session-1' };
+      }
+
+      async prompt(): Promise<Record<string, unknown>> {
+        for (const update of acpSessionUpdates) {
+          await this.client.sessionUpdate?.(update);
+        }
+        return acpPromptResponse;
+      }
+    },
   }));
   const module = await import('../../../src/evaluation/providers/copilot-cli.js');
   CopilotCliProvider = module.CopilotCliProvider;
@@ -28,6 +82,16 @@ beforeAll(async () => {
 beforeEach(() => {
   originalLogEnv = process.env.AGENTV_COPILOT_CLI_STREAM_LOGS;
   process.env.AGENTV_COPILOT_CLI_STREAM_LOGS = 'false';
+  spawnMock.mockClear();
+  acpSessionUpdates = [
+    {
+      update: {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'agentv-copilot-gateway-ok' },
+      },
+    },
+  ];
+  acpPromptResponse = {};
 });
 
 afterEach(() => {
@@ -101,19 +165,17 @@ describe('buildCopilotCliProviderEnv', () => {
   });
 });
 
-describe('CopilotCliProvider custom provider prompt mode', () => {
-  it('uses non-ACP prompt mode with custom provider env and default long timeout', async () => {
-    const runner = mock(async () => ({
-      stdout: '\u001b[32magentv-copilot-gateway-ok\u001b[0m\n',
-      stderr: 'warning secret-key',
-      exitCode: 0,
-    }));
+describe('CopilotCliProvider custom provider ACP mode', () => {
+  it('uses ACP mode with custom provider env vars when customProvider is resolved', async () => {
+    const runner = mock(async () => {
+      throw new Error('prompt mode should not be used');
+    });
     const provider = new CopilotCliProvider(
       'copilot-cli-custom',
       {
         executable: '/usr/bin/copilot',
         model: 'gpt-5-mini',
-        args: ['--extra-flag'],
+        args: ['--plugin-dir', './plugins', '--extra-flag'],
         customProvider: {
           type: 'openai',
           baseUrl: 'https://api.openai.example/v1',
@@ -130,119 +192,77 @@ describe('CopilotCliProvider custom provider prompt mode', () => {
     });
 
     expect(extractLastAssistantContent(response.output)).toBe('agentv-copilot-gateway-ok');
-    expect(runner).toHaveBeenCalledTimes(1);
-    const invocation = runner.mock.calls[0][0];
-    expect(invocation.executable).toBe('/usr/bin/copilot');
-    expect(invocation.cwd).toBe('/tmp/copilot-workspace');
-    expect(invocation.timeoutMs).toBe(DEFAULT_COPILOT_TIMEOUT_MS);
-    expect(invocation.env.COPILOT_PROVIDER_TYPE).toBe('openai');
-    expect(invocation.env.COPILOT_PROVIDER_BASE_URL).toBe('https://api.openai.example/v1');
-    expect(invocation.env.COPILOT_PROVIDER_API_KEY).toBe('secret-key');
-    expect(invocation.env.COPILOT_PROVIDER_WIRE_API).toBe('responses');
-    expect(invocation.args.slice(0, 6)).toEqual([
-      '-s',
+    expect(runner).not.toHaveBeenCalled();
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+
+    const [executable, args, options] = spawnMock.mock.calls[0] as [
+      string,
+      string[],
+      {
+        cwd: string;
+        env: NodeJS.ProcessEnv;
+        stdio: string[];
+      },
+    ];
+    expect(executable).toBe('/usr/bin/copilot');
+    expect(args.slice(0, 6)).toEqual([
+      '--acp',
+      '--stdio',
       '--allow-all-tools',
-      '--no-color',
+      '--yolo',
       '--model',
       'gpt-5-mini',
-      '--extra-flag',
     ]);
-    expect(invocation.args).not.toContain('--acp');
-    expect(invocation.args).not.toContain('--stdio');
-    expect(invocation.args.at(-2)).toBe('-p');
-    expect(invocation.args.at(-1)).toContain('agentv-copilot-gateway-ok');
-
-    const raw = response.raw as Record<string, unknown>;
-    expect(raw.stderr).toBe('warning [redacted]');
+    expect(args).toContain('--plugin-dir');
+    expect(args).toContain('./plugins');
+    expect(args).not.toContain('-p');
+    expect(options.cwd).toBe('/tmp/copilot-workspace');
+    expect(options.stdio).toEqual(['pipe', 'pipe', 'inherit']);
+    expect(options.env.COPILOT_PROVIDER_TYPE).toBe('openai');
+    expect(options.env.COPILOT_PROVIDER_BASE_URL).toBe('https://api.openai.example/v1');
+    expect(options.env.COPILOT_PROVIDER_API_KEY).toBe('secret-key');
+    expect(options.env.COPILOT_PROVIDER_WIRE_API).toBe('responses');
   });
 
-  it('uses explicit timeout for custom provider prompt mode when configured', async () => {
-    const runner = mock(async () => ({
-      stdout: 'done',
-      stderr: '',
-      exitCode: 0,
-    }));
-    const provider = new CopilotCliProvider(
-      'copilot-cli-custom',
-      {
-        executable: '/usr/bin/copilot',
-        timeoutMs: 30_000,
-        customProvider: {
-          type: 'openai',
-          baseUrl: 'https://api.openai.example/v1',
-          apiKey: 'secret-key',
-        },
+  it('uses configured cwd for ACP spawn when request cwd is omitted', async () => {
+    const provider = new CopilotCliProvider('copilot-cli-custom', {
+      executable: '/usr/bin/copilot',
+      cwd: '/tmp/eval-workspace',
+      customProvider: {
+        type: 'openai',
+        baseUrl: 'https://api.openai.example/v1',
+        apiKey: 'secret-key',
       },
-      runner,
-    );
+    });
 
     await provider.invoke({ question: 'Return done' });
 
-    expect(runner.mock.calls[0][0].timeoutMs).toBe(30_000);
+    const options = spawnMock.mock.calls[0][2] as { cwd: string };
+    expect(options.cwd).toBe('/tmp/eval-workspace');
   });
 
-  it('redacts custom provider credentials from prompt-mode errors', async () => {
-    const runner = mock(async () => ({
-      stdout: '',
-      stderr: 'upstream rejected secret-key',
-      exitCode: 1,
-    }));
-    const provider = new CopilotCliProvider(
-      'copilot-cli-custom',
+  it('redacts custom provider credentials from ACP stream logs', async () => {
+    const logDir = await mkdtemp(path.join(tmpdir(), 'agentv-copilot-cli-logs-'));
+    Reflect.deleteProperty(process.env, 'AGENTV_COPILOT_CLI_STREAM_LOGS');
+    acpSessionUpdates = [
       {
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'stdout included test-api-key' },
+        },
+      },
+    ];
+
+    try {
+      const provider = new CopilotCliProvider('copilot-cli-custom', {
         executable: '/usr/bin/copilot',
+        logDir,
         customProvider: {
           type: 'openai',
           baseUrl: 'https://api.openai.example/v1',
-          apiKey: 'secret-key',
+          apiKey: 'test-api-key',
         },
-      },
-      runner,
-    );
-
-    let message = '';
-    try {
-      await provider.invoke({ question: 'Return done' });
-    } catch (error) {
-      message = error instanceof Error ? error.message : String(error);
-    }
-
-    expect(message).toContain('[redacted]');
-    expect(message).not.toContain('secret-key');
-  });
-
-  it('redacts custom provider credentials from prompt-mode stream logs', async () => {
-    const logDir = await mkdtemp(path.join(tmpdir(), 'agentv-copilot-cli-logs-'));
-    Reflect.deleteProperty(process.env, 'AGENTV_COPILOT_CLI_STREAM_LOGS');
-
-    try {
-      const runner = mock(
-        async (options: {
-          readonly onStdoutChunk?: (chunk: string) => void;
-          readonly onStderrChunk?: (chunk: string) => void;
-        }) => {
-          options.onStdoutChunk?.('stdout included test-api-key');
-          options.onStderrChunk?.('stderr included test-api-key');
-          return {
-            stdout: 'done',
-            stderr: '',
-            exitCode: 0,
-          };
-        },
-      );
-      const provider = new CopilotCliProvider(
-        'copilot-cli-custom',
-        {
-          executable: '/usr/bin/copilot',
-          logDir,
-          customProvider: {
-            type: 'openai',
-            baseUrl: 'https://api.openai.example/v1',
-            apiKey: 'test-api-key',
-          },
-        },
-        runner,
-      );
+      });
 
       const response = await provider.invoke({ question: 'Return done' });
       const logFile = (response.raw as Record<string, unknown>).logFile;

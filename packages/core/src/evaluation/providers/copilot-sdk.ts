@@ -14,7 +14,7 @@ import {
 } from './copilot-utils.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
-import type { CopilotCustomProviderConfig, CopilotSdkResolvedConfig } from './targets.js';
+import type { CopilotSdkResolvedConfig } from './targets.js';
 import type {
   Message,
   Provider,
@@ -36,7 +36,12 @@ async function loadCopilotSdk(): Promise<typeof import('@github/copilot-sdk')> {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes('vscode-jsonrpc')) {
         throw new Error(
-          `Failed to load @github/copilot-sdk due to a known ESM compatibility issue with vscode-jsonrpc (https://github.com/github/copilot-sdk/issues/710).\n\nWorkarounds:\n  - Use the copilot-cli target instead (recommended): set target type to "copilot-cli" in your eval YAML\n  - If running under Node.js 24+: set NODE_OPTIONS="--experimental-specifier-resolution=node"\n  - Wait for vscode-jsonrpc@9.0.0 stable to be released upstream`,
+          '@github/copilot-sdk failed to load: vscode-jsonrpc ESM import specifier mismatch.\n' +
+            "The package imports 'vscode-jsonrpc/node' but the installed version exposes 'node.js'.\n\n" +
+            'Repair (run once in your project root):\n' +
+            "  node -e \"const p=require.resolve('vscode-jsonrpc/package.json').replace('/package.json',''); require('fs').symlinkSync(p+'/node.js',p+'/node','file')\" 2>/dev/null || true\n\n" +
+            'Or switch to the copilot-cli target (no SDK dependency):\n' +
+            '  Set provider: copilot-cli in your eval YAML',
         );
       }
       throw new Error(
@@ -118,13 +123,13 @@ export class CopilotSdkProvider implements Provider {
       };
     }
 
-    const customProvider = resolveCustomProviderConfig(this.config);
+    const customProvider = this.config.customProvider;
     if (customProvider) {
       const providerType = customProvider.type ?? 'openai';
       // biome-ignore lint/suspicious/noExplicitAny: SDK provider config shape is dynamic
       const provider: any = {
         type: providerType,
-        baseUrl: normalizeByokBaseUrl(customProvider.baseUrl, providerType),
+        baseUrl: normalizeProviderBaseUrl(customProvider.baseUrl, providerType),
       };
       if (customProvider.bearerToken) {
         provider.bearerToken = customProvider.bearerToken;
@@ -317,6 +322,9 @@ export class CopilotSdkProvider implements Provider {
           clientOptions.cliPath = nativePath;
         }
       }
+      if (this.config.args && this.config.args.length > 0) {
+        clientOptions.cliArgs = [...this.config.args];
+      }
       if (this.config.githubToken) {
         clientOptions.githubToken = this.config.githubToken;
       }
@@ -411,25 +419,6 @@ export class CopilotSdkProvider implements Provider {
   }
 }
 
-function resolveCustomProviderConfig(
-  config: CopilotSdkResolvedConfig,
-): CopilotCustomProviderConfig | undefined {
-  if (config.customProvider) {
-    return config.customProvider;
-  }
-  if (!config.byokBaseUrl) {
-    return undefined;
-  }
-  return {
-    ...(config.byokType ? { type: config.byokType } : {}),
-    baseUrl: config.byokBaseUrl,
-    ...(config.byokApiKey ? { apiKey: config.byokApiKey } : {}),
-    ...(config.byokBearerToken ? { bearerToken: config.byokBearerToken } : {}),
-    ...(config.byokApiVersion ? { apiVersion: config.byokApiVersion } : {}),
-    ...(config.byokWireApi ? { wireApi: config.byokWireApi } : {}),
-  };
-}
-
 /**
  * Auto-discover skill directories from a workspace.
  * Checks standard skill directory locations and returns any that exist.
@@ -444,12 +433,12 @@ function resolveSkillDirectories(cwd: string): string[] {
 }
 
 /**
- * Normalize a BYOK base URL for the Copilot SDK.
+ * Normalize a provider base URL for the Copilot SDK.
  * For Azure type, if the value is a bare resource name (no https:// prefix),
  * construct the full URL: https://{resourceName}.openai.azure.com
  * This lets users reuse AZURE_OPENAI_ENDPOINT without a separate env var.
  */
-function normalizeByokBaseUrl(baseUrl: string, type: string): string {
+function normalizeProviderBaseUrl(baseUrl: string, type: string): string {
   const trimmed = baseUrl.trim().replace(/\/+$/, '');
   if (/^https?:\/\//i.test(trimmed)) {
     return trimmed;

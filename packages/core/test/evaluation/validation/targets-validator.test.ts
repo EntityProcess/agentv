@@ -122,14 +122,46 @@ describe('validateTargetsFile', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('accepts custom_provider on copilot SDK and CLI targets', async () => {
-    const filePath = path.join(tempDir, 'copilot-custom-provider.yaml');
+  it('accepts flat provider fields on copilot SDK and CLI targets', async () => {
+    const filePath = path.join(tempDir, 'copilot-flat-provider.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: copilot-sdk-custom-provider
+    provider: copilot-sdk
+    subprovider: openai
+    base_url: \${{ OPENAI_ENDPOINT }}
+    api_key: \${{ OPENAI_API_KEY }}
+    wire_api: responses
+  - name: copilot-cli-custom-provider
+    provider: copilot-cli
+    subprovider: openai
+    base_url: \${{ OPENAI_ENDPOINT }}
+    api_key: \${{ OPENAI_API_KEY }}
+    wire_api: responses
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors.filter((error) => error.severity === 'warning')).toEqual([]);
+  });
+
+  it('warns on removed copilot custom_provider and byok fields', async () => {
+    const filePath = path.join(tempDir, 'copilot-removed-provider-fields.yaml');
     await writeFile(
       filePath,
       `targets:
   - name: copilot-sdk-custom
     provider: copilot-sdk
     custom_provider:
+      type: openai
+      base_url: \${{ OPENAI_ENDPOINT }}
+      api_key: \${{ OPENAI_API_KEY }}
+  - name: copilot-sdk-byok
+    provider: copilot-sdk
+    byok:
       type: openai
       base_url: \${{ OPENAI_ENDPOINT }}
       api_key: \${{ OPENAI_API_KEY }}
@@ -150,7 +182,12 @@ describe('validateTargetsFile', () => {
           error.severity === 'warning' &&
           error.message.includes("Unknown setting 'custom_provider'"),
       ),
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) => error.severity === 'warning' && error.message.includes("Unknown setting 'byok'"),
+      ),
+    ).toBe(true);
   });
 
   it('accepts env-templated use_target values without resolving the env during validation', async () => {

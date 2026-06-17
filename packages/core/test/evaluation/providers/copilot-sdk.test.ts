@@ -160,6 +160,31 @@ describe('CopilotSdkProvider', () => {
     expect(constructorArgs.cliUrl).toBe('http://localhost:9999');
   });
 
+  it('passes args as cliArgs to CopilotClient constructor', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+
+    const CopilotClientMock = mock(function CopilotClient() {
+      return client;
+    });
+    mock.module('@github/copilot-sdk', () => ({
+      CopilotClient: CopilotClientMock,
+    }));
+
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      args: ['--plugin-dir', './plugins'],
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const constructorArgs = CopilotClientMock.mock.calls[0][0];
+    expect(constructorArgs.cliArgs).toEqual(['--plugin-dir', './plugins']);
+  });
+
   it('handles timeout', async () => {
     const session = createMockSession();
     // Override sendAndWait to be slow
@@ -358,7 +383,7 @@ describe('CopilotSdkProvider', () => {
     expect(result.kind).toBe('approved');
   });
 
-  it('passes byok provider block to createSession for azure', async () => {
+  it('passes resolved custom provider config to createSession for azure', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -370,10 +395,12 @@ describe('CopilotSdkProvider', () => {
 
     const provider = new CopilotSdkProvider('test-target', {
       model: 'gpt-4o',
-      byokType: 'azure',
-      byokBaseUrl: 'https://my-resource.openai.azure.com',
-      byokApiKey: 'azure-secret',
-      byokApiVersion: '2024-10-21',
+      customProvider: {
+        type: 'azure',
+        baseUrl: 'https://my-resource.openai.azure.com',
+        apiKey: 'azure-secret',
+        apiVersion: '2024-10-21',
+      },
     });
 
     await provider.invoke({ question: 'Test' });
@@ -397,9 +424,11 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      byokType: 'azure',
-      byokBaseUrl: 'my-resource-eastus2',
-      byokApiKey: 'key',
+      customProvider: {
+        type: 'azure',
+        baseUrl: 'my-resource-eastus2',
+        apiKey: 'key',
+      },
     });
 
     await provider.invoke({ question: 'Test' });
@@ -408,7 +437,7 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.baseUrl).toBe('https://my-resource-eastus2.openai.azure.com');
   });
 
-  it('passes full URL through unchanged for azure byok', async () => {
+  it('passes full URL through unchanged for azure custom provider', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -419,9 +448,11 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      byokType: 'azure',
-      byokBaseUrl: 'https://my-resource.openai.azure.com',
-      byokApiKey: 'key',
+      customProvider: {
+        type: 'azure',
+        baseUrl: 'https://my-resource.openai.azure.com',
+        apiKey: 'key',
+      },
     });
 
     await provider.invoke({ question: 'Test' });
@@ -430,7 +461,7 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.baseUrl).toBe('https://my-resource.openai.azure.com');
   });
 
-  it('passes byok provider block with bearer token', async () => {
+  it('passes resolved custom provider config with bearer token', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -441,9 +472,11 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      byokType: 'openai',
-      byokBaseUrl: 'https://custom-endpoint.example.com/v1',
-      byokBearerToken: 'bearer-secret',
+      customProvider: {
+        type: 'openai',
+        baseUrl: 'https://custom-endpoint.example.com/v1',
+        bearerToken: 'bearer-secret',
+      },
     });
 
     await provider.invoke({ question: 'Test' });
@@ -454,7 +487,7 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.apiKey).toBeUndefined();
   });
 
-  it('passes byok provider block with wireApi', async () => {
+  it('passes resolved custom provider config with wireApi', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -465,10 +498,12 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      byokType: 'openai',
-      byokBaseUrl: 'https://resource.openai.azure.com/openai/v1/',
-      byokApiKey: 'key',
-      byokWireApi: 'responses',
+      customProvider: {
+        type: 'openai',
+        baseUrl: 'https://resource.openai.azure.com/openai/v1/',
+        apiKey: 'key',
+        wireApi: 'responses',
+      },
     });
 
     await provider.invoke({ question: 'Test' });
@@ -477,7 +512,7 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.wireApi).toBe('responses');
   });
 
-  it('passes customProvider block to createSession for openai-compatible endpoints', async () => {
+  it('passes resolved custom provider config to createSession for openai-compatible endpoints', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -507,7 +542,7 @@ describe('CopilotSdkProvider', () => {
     });
   });
 
-  it('does not set provider when byok is not configured', async () => {
+  it('does not set provider when custom provider is not configured', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -527,7 +562,7 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider).toBeUndefined();
   });
 
-  it('defaults byok type to openai when not specified', async () => {
+  it('defaults custom provider type to openai when not specified', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -538,7 +573,9 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      byokBaseUrl: 'http://localhost:11434/v1',
+      customProvider: {
+        baseUrl: 'http://localhost:11434/v1',
+      },
     });
 
     await provider.invoke({ question: 'Test' });
@@ -547,7 +584,7 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.type).toBe('openai');
   });
 
-  it('does not set azure block for non-azure byok type', async () => {
+  it('does not set azure block for non-azure custom provider type', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -558,10 +595,12 @@ describe('CopilotSdkProvider', () => {
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {
-      byokType: 'openai',
-      byokBaseUrl: 'https://api.openai.com/v1',
-      byokApiKey: 'key',
-      byokApiVersion: '2024-10-21', // should be ignored for non-azure
+      customProvider: {
+        type: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'key',
+        apiVersion: '2024-10-21', // should be ignored for non-azure
+      },
     });
 
     await provider.invoke({ question: 'Test' });
