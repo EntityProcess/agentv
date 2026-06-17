@@ -93,7 +93,7 @@ For trace export, use AgentV's standard OTel options:
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
 ```
 
-For live OTel export to Phoenix, use a local `.agentv/otel-backends/phoenix.ts`
+For live OTel export to Phoenix, use a local `.agentv/otel-backends/phoenix.mjs`
 resolver that imports `phoenixOtelBackend` from `@agentv/phoenix-adapter`, then select it
 with `--otel-backend phoenix`. General live export options are documented in
 [Running Evaluations](/docs/evaluation/running-evals/#live-otel-export/).

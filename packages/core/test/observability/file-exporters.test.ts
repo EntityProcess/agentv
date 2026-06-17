@@ -22,6 +22,7 @@ function makeSpan(overrides: {
   startTime?: [number, number];
   endTime?: [number, number];
   attributes?: Record<string, unknown>;
+  resourceAttributes?: Record<string, unknown>;
   status?: { code: number };
   events?: Array<{ name: string; time: [number, number]; attributes?: Record<string, unknown> }>;
 }) {
@@ -35,6 +36,7 @@ function makeSpan(overrides: {
     startTime: overrides.startTime ?? [1000, 0],
     endTime: overrides.endTime ?? [1001, 0],
     attributes: overrides.attributes ?? {},
+    resource: { attributes: overrides.resourceAttributes ?? {} },
     status: overrides.status ?? { code: 0 },
     events: overrides.events ?? [],
   };
@@ -155,5 +157,36 @@ describe('OtlpJsonFileExporter', () => {
         values: [{ stringValue: 'a' }, { stringValue: 'b' }],
       },
     });
+  });
+
+  it('serializes resource attributes into the OTLP resource span', async () => {
+    const filePath = path.join(testDir, 'otlp', 'resource-attrs.json');
+    const exporter = new OtlpJsonFileExporter(filePath, {
+      'service.name': 'agentv',
+      'openinference.project.name': 'phoenix-project',
+    });
+
+    exporter.export(
+      [
+        makeSpan({
+          resourceAttributes: {
+            'agentv.resource.flag': true,
+          },
+        }),
+      ],
+      () => {},
+    );
+
+    await exporter.shutdown();
+
+    const parsed = JSON.parse(await readFile(filePath, 'utf8'));
+    const attrs = parsed.resourceSpans[0].resource.attributes;
+    const byKey = Object.fromEntries(
+      attrs.map((a: { key: string; value: unknown }) => [a.key, a.value]),
+    );
+
+    expect(byKey['service.name']).toEqual({ stringValue: 'agentv' });
+    expect(byKey['openinference.project.name']).toEqual({ stringValue: 'phoenix-project' });
+    expect(byKey['agentv.resource.flag']).toEqual({ boolValue: true });
   });
 });

@@ -79,7 +79,7 @@ describe('OTel backend resolvers', () => {
     await mkdir(nestedDir, { recursive: true });
     await mkdir(resolverDir, { recursive: true });
     await writeFile(
-      path.join(resolverDir, 'local.ts'),
+      path.join(resolverDir, 'local.mjs'),
       `
         export default {
           resolve: ({ env, cwd }) => ({
@@ -104,11 +104,11 @@ describe('OTel backend resolvers', () => {
     });
   });
 
-  it('uses a local resolver before a built-in resolver with the same name', async () => {
+  it('uses a local ESM resolver before a built-in resolver with the same name', async () => {
     const resolverDir = path.join(tempDir, '.agentv', 'otel-backends');
     await mkdir(resolverDir, { recursive: true });
     await writeFile(
-      path.join(resolverDir, 'langfuse.ts'),
+      path.join(resolverDir, 'langfuse.mjs'),
       `
         export const resolver = {
           name: "langfuse",
@@ -126,8 +126,51 @@ describe('OTel backend resolvers', () => {
     expect(resolved).toEqual({ endpoint: 'https://local.example.com/v1/traces' });
   });
 
+  it('loads CommonJS .js resolver files', async () => {
+    const resolverDir = path.join(tempDir, '.agentv', 'otel-backends');
+    await mkdir(resolverDir, { recursive: true });
+    await writeFile(
+      path.join(resolverDir, 'commonjs.js'),
+      `
+        module.exports = {
+          name: "commonjs",
+          resolve: () => ({ endpoint: "https://commonjs.example.com/v1/traces" }),
+        };
+      `,
+      'utf8',
+    );
+
+    const resolved = await resolveOtelBackend('commonjs', {
+      cwd: tempDir,
+      env: {},
+    });
+
+    expect(resolved).toEqual({ endpoint: 'https://commonjs.example.com/v1/traces' });
+  });
+
   it('returns undefined for unknown backend names', async () => {
     const resolved = await resolveOtelBackend('unknown', { cwd: tempDir, env: {} });
+
+    expect(resolved).toBeUndefined();
+  });
+
+  it('ignores TypeScript resolver files because packaged Node cannot import them', async () => {
+    const resolverDir = path.join(tempDir, '.agentv', 'otel-backends');
+    await mkdir(resolverDir, { recursive: true });
+    await writeFile(
+      path.join(resolverDir, 'typescript-only.ts'),
+      `
+        export default {
+          resolve: () => ({ endpoint: "https://typescript.example.com/v1/traces" }),
+        };
+      `,
+      'utf8',
+    );
+
+    const resolved = await resolveOtelBackend('typescript-only', {
+      cwd: tempDir,
+      env: {},
+    });
 
     expect(resolved).toBeUndefined();
   });

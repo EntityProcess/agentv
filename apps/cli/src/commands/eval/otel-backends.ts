@@ -5,8 +5,9 @@
  * `--otel-backend <name>` by checking project-local resolver files first, then
  * falling back to the small set of resolver names already exposed by the CLI.
  *
- * To add a local resolver, create `.agentv/otel-backends/<name>.ts` and export
- * a resolver object as `default`, `otelBackend`, or `resolver`.
+ * To add a local resolver, create `.agentv/otel-backends/<name>.mjs`
+ * (or a Node-loadable `.js`) and export a resolver object as `default`,
+ * `otelBackend`, or `resolver`.
  */
 
 import { access } from 'node:fs/promises';
@@ -19,7 +20,7 @@ import type {
   OtelBackendResolverContext,
 } from '@agentv/core';
 
-const RESOLVER_EXTENSIONS = ['.ts', '.js', '.mts', '.mjs'] as const;
+const RESOLVER_EXTENSIONS = ['.mjs', '.js'] as const;
 
 const builtinOtelBackendResolvers: readonly OtelBackendResolver[] = [
   {
@@ -142,9 +143,11 @@ async function importOtelBackendResolver(
   fallbackName: string,
 ): Promise<OtelBackendResolver> {
   const mod = await import(pathToFileURL(filePath).href);
-  const candidate = mod.default ?? mod.otelBackend ?? mod.resolver;
+  const candidate = [mod.default, mod.otelBackend, mod.resolver].find(
+    (value) => value && typeof value.resolve === 'function',
+  );
 
-  if (!candidate || typeof candidate.resolve !== 'function') {
+  if (!candidate) {
     throw new Error(
       `OTel backend resolver '${fallbackName}' from ${filePath} must export a resolver object`,
     );

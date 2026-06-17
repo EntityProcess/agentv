@@ -215,10 +215,10 @@ agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse --otel-capt
 
 #### Local Backend Resolvers
 
-For project-specific backend routing, create `.agentv/otel-backends/<name>.ts` and select it
+For project-specific backend routing, create `.agentv/otel-backends/<name>.mjs` and select it
 with `--otel-backend <name>`:
 
-```ts
+```js
 export default {
   name: 'my-backend',
   resolve: ({ env }) => ({
@@ -233,7 +233,8 @@ agentv eval evals/my-eval.yaml --export-otel --otel-backend my-backend
 ```
 
 Backend resolvers keep platform-specific endpoint, header, and project-routing logic outside
-AgentV core.
+AgentV core. AgentV also loads Node-compatible `.js` resolver files when you prefer
+CommonJS or your project configures `.js` as ESM.
 
 #### Custom OTLP Endpoint
 

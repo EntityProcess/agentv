@@ -47,10 +47,11 @@ export class OtelTraceExporter {
       const { resourceFromAttributes } = resourcesMod;
       const { ATTR_SERVICE_NAME } = semconvMod;
 
-      const resource = resourceFromAttributes({
+      const resourceAttributes = {
         [ATTR_SERVICE_NAME]: this.options.serviceName ?? 'agentv',
         ...this.options.resourceAttributes,
-      });
+      };
+      const resource = resourceFromAttributes(resourceAttributes);
 
       // biome-ignore lint/suspicious/noExplicitAny: OTel processor types loaded dynamically
       const processors: any[] = [];
@@ -70,7 +71,9 @@ export class OtelTraceExporter {
       if (this.options.otlpFilePath) {
         const { OtlpJsonFileExporter } = await import('./otlp-json-file-exporter.js');
         processors.push(
-          new SimpleSpanProcessor(new OtlpJsonFileExporter(this.options.otlpFilePath)),
+          new SimpleSpanProcessor(
+            new OtlpJsonFileExporter(this.options.otlpFilePath, resourceAttributes),
+          ),
         );
       }
 
