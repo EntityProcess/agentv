@@ -1,20 +1,21 @@
 ---
-title: Trace Envelope Implementation Spec
+title: Execution Trace Implementation Spec
 type: spec
 status: active
 date: 2026-06-15
 ---
 
-# Trace Envelope Implementation Spec
+# Execution Trace Implementation Spec
 
 ## Decision And Scope
 
-AgentV should store and interchange full execution traces as an `agentv.trace_envelope.v1`
-artifact. The canonical trace body is an OpenTelemetry span graph with GenAI
-semantic convention attributes and OpenInference attributes where they cover the
-concept. AgentV owns only the small envelope around that graph: eval and replay
-identity, source metadata, capture/redaction policy, conversion warnings, artifact
-pointers, and score provenance.
+AgentV stores and interchanges full execution traces as an
+`agentv.execution_trace.v1` artifact. The canonical trace body is an
+OpenTelemetry span graph with GenAI semantic convention attributes and
+OpenInference attributes where they cover the concept. AgentV owns only the
+small artifact wrapper around that graph: eval and replay identity, source
+metadata, capture/redaction policy, conversion warnings, artifact pointers, and
+score provenance.
 
 This supersedes the older wording in `docs/plans/trace-evaluation-architecture.md`
 that treats AgentV's normalized `Trace` or `NormalizedTrajectory` object as the
@@ -23,14 +24,21 @@ implemented as derived read/projection views over the canonical span graph.
 
 Source of truth:
 
-- `trace.spans` in the envelope is the canonical ordered span body for AgentV
+- `trace.spans` in the execution trace artifact is the canonical ordered span body for AgentV
   trace evaluation, replay projection, export, and import.
 - Official OTLP JSON is a boundary format generated from, or imported into, that
   span body. Attribute names remain exact standard names such as
   `gen_ai.operation.name` and `openinference.span.kind`.
 - `Message[]`, `outputs/transcript.jsonl`, `TraceSummary`,
   `TraceArtifact`/`NormalizedTrajectory`, replay target output, and compact
-  grader inputs are derived compatibility views.
+  grader inputs are derived compatibility/read views.
+- Derived views must be named and treated as projections over
+  `agentv.execution_trace.v1`, not as separate canonical graphs:
+  `traceEnvelopeToMessages()` for Provider `Message[]` and replay provider
+  responses, `outputs/transcript.jsonl` for the transcript artifact,
+  `traceEnvelopeToTraceSummary()` for metrics aggregation, compact tool
+  trajectory views for trajectory graders, and `traceEnvelopeToOtlpJson()` for
+  OTLP/OpenInference export bodies.
 
 Non-goals:
 
@@ -53,8 +61,8 @@ their source keys exactly.
 Directional v1 shape:
 
 ```yaml
-schema_version: agentv.trace_envelope.v1
-envelope_id: trace-env-01j...
+schema_version: agentv.execution_trace.v1
+artifact_id: execution-trace-01j...
 created_at: "2026-06-15T12:00:00.000Z"
 
 eval:
@@ -68,7 +76,7 @@ eval:
   variant: null
   run_id: "2026-06-15T12-00-00-000Z"
   category: showcase
-  experiment: trace-envelope-v1
+  experiment: execution-trace-v1
 
 replay:
   lookup_key:
@@ -148,7 +156,7 @@ conversion_warnings:
     message: Deterministic tool call id generated from source order.
 
 artifacts:
-  envelope_path: outputs/trace-envelope.json
+  execution_trace_path: outputs/execution-trace.json
   otlp_path: outputs/trace.otlp.json
   answer_path: outputs/answer.md
   transcript_path: outputs/transcript.jsonl
@@ -196,7 +204,8 @@ Implementation pattern:
 
 ```ts
 interface TraceEnvelopeWire {
-  readonly schema_version: 'agentv.trace_envelope.v1';
+  readonly schema_version: 'agentv.execution_trace.v1';
+  readonly artifact_id: string;
   readonly created_at: string;
   readonly eval: TraceEnvelopeEvalWire;
   readonly trace: TraceEnvelopeBodyWire;
@@ -204,7 +213,8 @@ interface TraceEnvelopeWire {
 }
 
 interface TraceEnvelope {
-  readonly schemaVersion: 'agentv.trace_envelope.v1';
+  readonly schemaVersion: 'agentv.execution_trace.v1';
+  readonly artifactId: string;
   readonly createdAt: string;
   readonly eval: TraceEnvelopeEval;
   readonly trace: TraceEnvelopeBody;
@@ -237,8 +247,8 @@ explicit known-field conversion plus Zod validation. It should not look like
 ## Fixture Plan
 
 Golden fixtures should live under a trace-specific fixture directory, for example
-`packages/core/test/evaluation/fixtures/trace-envelope/` or
-`examples/showcase/trace-evaluation/fixtures/envelopes/`, with small raw-source
+`packages/core/test/evaluation/fixtures/execution-trace/` or
+`examples/showcase/trace-evaluation/fixtures/execution-traces/`, with small raw-source
 fixtures beside expected envelope JSON. Tests should compare semantic fields
 rather than full timestamps when timestamps are generated.
 
@@ -293,8 +303,8 @@ Minimal code slices:
    projections once tests prove parity.
 
 5. Artifact sidecar wiring.
-   Write `outputs/trace-envelope.json` or an equivalent sidecar and add an
-   optional `trace_envelope_path` pointer to per-test index entries only if the
+   Write `outputs/execution-trace.json` or an equivalent sidecar and add an
+   optional `execution_trace_path` pointer to per-test index entries only if the
    team accepts an additive index change. If not, write the sidecar inside the
    per-test artifact directory and leave index JSONL unchanged for the first PR.
 
@@ -366,18 +376,18 @@ Red/green UAT scenario:
 
 1. Red on `origin/main` (`0ac6b294`): run the replay showcase and confirm the
    run writes current result artifacts and `outputs/transcript.jsonl`, but no
-   canonical `agentv.trace_envelope.v1` sidecar exists.
+   canonical `agentv.execution_trace.v1` sidecar exists.
 
    ```bash
    bun apps/cli/src/cli.ts eval \
      examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml \
      --target replay_coding_agent \
-     --output /tmp/agentv-trace-envelope-red
+     --output /tmp/agentv-execution-trace-red
    ```
 
 2. Green on the implementation branch: run the identical command with a new
-   output directory. Confirm each test artifact has the envelope sidecar, the
-   sidecar validates against `agentv.trace_envelope.v1`, spans export to OTLP
+   output directory. Confirm each test artifact has the execution trace sidecar, the
+   sidecar validates against `agentv.execution_trace.v1`, spans export to OTLP
    JSON, and regenerated transcript rows match the existing transcript artifact
    except for any documented additive pointer fields.
 
@@ -385,13 +395,13 @@ Red/green UAT scenario:
    bun apps/cli/src/cli.ts eval \
      examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml \
      --target replay_coding_agent \
-     --output /tmp/agentv-trace-envelope-green
+     --output /tmp/agentv-execution-trace-green
    ```
 
 Artifacts to inspect:
 
-- `/tmp/agentv-trace-envelope-green/index.jsonl`
-- per-test `outputs/trace-envelope.json`
+- `/tmp/agentv-execution-trace-green/index.jsonl`
+- per-test `outputs/execution-trace.json`
 - per-test `outputs/transcript.jsonl`
 - per-test `outputs/answer.md`
 - generated OTLP JSON, if the implementation writes an OTLP sidecar
@@ -412,7 +422,7 @@ Stability proof:
 
 Recommended defaults are included so implementation is not blocked.
 
-1. Should the first `.9` PR add `trace_envelope_path` to `index.jsonl`?
+1. Should the first `.9` PR add `execution_trace_path` to `index.jsonl`?
    Recommended default: write the sidecar in each per-test artifact directory
    first and defer the index pointer unless the dashboard/CLI needs discovery in
    the same PR.

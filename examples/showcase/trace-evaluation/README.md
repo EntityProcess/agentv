@@ -41,20 +41,20 @@ The replay target looks up records by `suite`, `eval_path` when present, `test_i
 `source_target`, `attempt`, and `variant` when configured. Missing or duplicate
 records fail before grading.
 
-Replay can also read `agentv.trace_envelope.v1` artifacts by using
-`trace_envelopes` instead of `fixtures` on the replay target. Configure exactly
+Replay can also read `agentv.execution_trace.v1` artifacts by using
+`execution_traces` instead of `fixtures` on the replay target. Configure exactly
 one source field:
 
 ```yaml
 targets:
-  - name: replay_from_envelopes
+  - name: replay_from_execution_traces
     provider: replay
-    trace_envelopes: ../fixtures/trace-envelopes.jsonl
+    execution_traces: ../fixtures/execution-traces.jsonl
     suite: trace-evaluation-showcase
     source_target: live_coding_agent
 ```
 
-Envelope replay requires the matched envelope to contain full captured assistant
+Execution trace replay requires the matched artifact to contain full captured assistant
 output. Metadata-only trace sidecars fail before grading rather than replaying
 an empty answer.
 

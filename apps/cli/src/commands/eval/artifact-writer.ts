@@ -750,14 +750,14 @@ async function writeTraceEnvelopeSidecar(params: {
     experiment: params.experiment,
     source: { path: RESULT_INDEX_FILENAME },
     artifacts: {
-      envelope_path: 'outputs/trace-envelope.json',
+      execution_trace_path: 'outputs/execution-trace.json',
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? 'outputs/transcript.jsonl' : undefined,
     },
   });
   await writeFile(
-    path.join(params.outputsDir, 'trace-envelope.json'),
+    path.join(params.outputsDir, 'execution-trace.json'),
     `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
     'utf8',
   );

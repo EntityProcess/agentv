@@ -452,9 +452,9 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(results[0]?.durationMs).toBe(222);
   });
 
-  it('replays trace envelope target output without invoking the live target and still runs graders', async () => {
+  it('replays execution trace target output without invoking the live target and still runs graders', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-envelope-replay-run-'));
-    const envelopePath = path.join(tempDir, 'trace-envelope.json');
+    const envelopePath = path.join(tempDir, 'execution-trace.json');
     const output: readonly Message[] = [
       { role: 'assistant', content: 'Envelope replay target answer' },
     ];
@@ -498,7 +498,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       kind: 'replay',
       name: 'replay_coding_agent',
       config: {
-        source: { kind: 'trace_envelopes', path: envelopePath },
+        source: { kind: 'execution_traces', path: envelopePath },
         sourceTarget: 'live_coding_agent',
       },
     };

@@ -849,12 +849,13 @@ describe('writeArtifactsFromResults', () => {
     const envelope = TraceEnvelopeWireSchema.parse(
       JSON.parse(
         await readFile(
-          path.join(testDir, 'transcript-case', 'outputs', 'trace-envelope.json'),
+          path.join(testDir, 'transcript-case', 'outputs', 'execution-trace.json'),
           'utf8',
         ),
       ),
     );
-    expect(envelope.schema_version).toBe('agentv.trace_envelope.v1');
+    expect(envelope.schema_version).toBe('agentv.execution_trace.v1');
+    expect(envelope.artifact_id).toMatch(/^execution-trace-/);
     expect(envelope.eval.test_id).toBe('transcript-case');
     expect(envelope.trace.spans.map((span) => span.attributes['gen_ai.operation.name'])).toEqual([
       'invoke_agent',
@@ -865,7 +866,7 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine).not.toHaveProperty('trace_envelope_path');
+    expect(indexLine).not.toHaveProperty('execution_trace_path');
   });
 
   it('sanitizes test IDs for directory names', async () => {

@@ -3,7 +3,7 @@
  *
  * Configure it in targets.yaml with `provider: replay`, the `source_target`
  * whose live outputs were recorded, and exactly one replay source: `fixtures`
- * JSONL or `trace_envelopes`. The provider does not invoke the source target;
+ * JSONL or `execution_traces`. The provider does not invoke the source target;
  * it only performs strict replay lookup and returns the recorded
  * ProviderResponse so graders can run fresh.
  */
@@ -43,7 +43,7 @@ export class ReplayProvider implements Provider {
         const record = findReplayFixtureRecord(records, this.lookupForRequest(request));
         return replayFixtureRecordToProviderResponse(record);
       }
-      case 'trace_envelopes': {
+      case 'execution_traces': {
         const records = await readTraceEnvelopeReplayRecords(source.path);
         const record = findTraceEnvelopeReplayRecord(records, this.lookupForRequest(request));
         return traceEnvelopeReplayRecordToProviderResponse(record);
@@ -62,7 +62,7 @@ export class ReplayProvider implements Provider {
           ),
         );
       }
-      case 'trace_envelopes': {
+      case 'execution_traces': {
         const records = await readTraceEnvelopeReplayRecords(source.path);
         return requests.map((request) =>
           traceEnvelopeReplayRecordToProviderResponse(
@@ -100,6 +100,6 @@ function resolveReplaySource(
     return { kind: 'fixtures', path: config.fixturesPath };
   }
   throw new Error(
-    'Replay provider requires exactly one replay source: fixtures or trace_envelopes',
+    'Replay provider requires exactly one replay source: fixtures or execution_traces',
   );
 }

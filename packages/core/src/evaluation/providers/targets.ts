@@ -579,7 +579,7 @@ export interface ReplayResolvedConfig {
 
 export type ReplayResolvedSource =
   | { readonly kind: 'fixtures'; readonly path: string }
-  | { readonly kind: 'trace_envelopes'; readonly path: string };
+  | { readonly kind: 'execution_traces'; readonly path: string };
 
 export interface TargetDeprecationWarning {
   readonly location: string;
@@ -2033,26 +2033,26 @@ function resolveReplayConfig(
   const fixtures = resolveOptionalString(target.fixtures, env, `${target.name} replay fixtures`, {
     allowLiteral: true,
   });
-  const traceEnvelopes = resolveOptionalString(
-    target.trace_envelopes,
+  const executionTraces = resolveOptionalString(
+    target.execution_traces,
     env,
-    `${target.name} replay trace_envelopes`,
+    `${target.name} replay execution_traces`,
     {
       allowLiteral: true,
     },
   );
-  if ((fixtures ? 1 : 0) + (traceEnvelopes ? 1 : 0) !== 1) {
+  if ((fixtures ? 1 : 0) + (executionTraces ? 1 : 0) !== 1) {
     throw new Error(
-      `Target "${target.name}" (provider: replay) requires exactly one replay source: "fixtures" or "trace_envelopes"`,
+      `Target "${target.name}" (provider: replay) requires exactly one replay source: "fixtures" or "execution_traces"`,
     );
   }
   const fixturesPath = fixtures ? resolveReplaySourcePath(fixtures, evalFilePath) : undefined;
-  const traceEnvelopesPath = traceEnvelopes
-    ? resolveReplaySourcePath(traceEnvelopes, evalFilePath)
+  const executionTracesPath = executionTraces
+    ? resolveReplaySourcePath(executionTraces, evalFilePath)
     : undefined;
   const source: ReplayResolvedSource = fixturesPath
     ? { kind: 'fixtures', path: fixturesPath }
-    : { kind: 'trace_envelopes', path: traceEnvelopesPath as string };
+    : { kind: 'execution_traces', path: executionTracesPath as string };
   const sourceTarget = resolveString(
     target.source_target,
     env,

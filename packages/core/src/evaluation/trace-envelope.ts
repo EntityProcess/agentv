@@ -1,11 +1,17 @@
 /**
- * Trace envelope v1: AgentV-owned metadata around an OTel/OpenInference span graph.
+ * AgentV execution trace v1: AgentV-owned metadata around an OTel/OpenInference span graph.
  *
- * The envelope is the canonical full trace sidecar for eval artifacts. AgentV
- * owns the outer structure, eval/replay identity, capture policy, warnings,
- * artifact pointers, and score provenance. The trace body is a standards-shaped
- * span graph, so attribute keys such as `gen_ai.operation.name` and
- * `openinference.span.kind` are copied exactly and never case-converted.
+ * The `agentv.execution_trace.v1` artifact is the canonical full trace sidecar
+ * for eval artifacts. AgentV owns the outer structure, eval/replay identity,
+ * capture policy, warnings, artifact pointers, and score provenance. The trace
+ * body is a standards-shaped span graph, so attribute keys such as
+ * `gen_ai.operation.name` and `openinference.span.kind` are copied exactly and
+ * never case-converted.
+ *
+ * Derived views such as Provider `Message[]`, `outputs/transcript.jsonl`,
+ * `TraceSummary`, compact tool trajectories, replay provider responses, and
+ * OTLP JSON export bodies must project from this artifact. Do not introduce a
+ * second canonical graph for those compatibility/read models.
  *
  * To extend the wire shape, add snake_case fields to the focused Zod schema,
  * convert them explicitly in the matching to/from helper, and keep opaque maps
@@ -26,7 +32,7 @@ import {
 } from './trace.js';
 import type { EvaluationResult, EvaluationVerdict, GraderKind } from './types.js';
 
-export const TRACE_ENVELOPE_SCHEMA_VERSION = 'agentv.trace_envelope.v1' as const;
+export const EXECUTION_TRACE_SCHEMA_VERSION = 'agentv.execution_trace.v1' as const;
 
 const TRACE_ENVELOPE_FORMAT = 'otlp_openinference_spans' as const;
 
@@ -147,8 +153,8 @@ export interface TraceEnvelopeScore {
 }
 
 export interface TraceEnvelope {
-  readonly schemaVersion: typeof TRACE_ENVELOPE_SCHEMA_VERSION;
-  readonly envelopeId: string;
+  readonly schemaVersion: typeof EXECUTION_TRACE_SCHEMA_VERSION;
+  readonly artifactId: string;
   readonly createdAt: string;
   readonly eval: TraceEnvelopeEval;
   readonly replay?: TraceEnvelopeReplay;
@@ -298,8 +304,8 @@ export const TraceEnvelopeScoreWireSchema = z
 
 export const TraceEnvelopeWireSchema = z
   .object({
-    schema_version: z.literal(TRACE_ENVELOPE_SCHEMA_VERSION),
-    envelope_id: z.string(),
+    schema_version: z.literal(EXECUTION_TRACE_SCHEMA_VERSION),
+    artifact_id: z.string(),
     created_at: z.string(),
     eval: TraceEnvelopeEvalWireSchema,
     replay: TraceEnvelopeReplayWireSchema.optional(),
@@ -338,6 +344,74 @@ export interface BuildTraceEnvelopeOptions {
   readonly artifacts?: Readonly<Record<string, string | undefined>>;
   readonly now?: () => Date;
 }
+
+export interface TraceEnvelopeToolTrajectoryItem {
+  readonly position: number;
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId?: string;
+  readonly ancestorSpanIds: readonly string[];
+  readonly tool: string;
+  readonly toolCallId: string;
+  readonly parentToolCallId?: string;
+  readonly input?: unknown;
+  readonly output?: unknown;
+  readonly status: 'ok' | 'error';
+  readonly startTime?: string;
+  readonly endTime?: string;
+  readonly durationMs?: number;
+}
+
+export interface TraceEnvelopeToolTrajectoryView {
+  readonly schemaVersion: typeof EXECUTION_TRACE_SCHEMA_VERSION;
+  readonly traceId: string;
+  readonly rootSpanId: string;
+  readonly tools: readonly TraceEnvelopeToolTrajectoryItem[];
+}
+
+export interface TraceEnvelopeOtlpJson {
+  readonly resourceSpans: readonly {
+    readonly resource: {
+      readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
+    };
+    readonly scopeSpans: readonly {
+      readonly scope: {
+        readonly name?: string;
+        readonly version?: string;
+      };
+      readonly spans: readonly TraceEnvelopeOtlpSpan[];
+    }[];
+  }[];
+}
+
+export interface TraceEnvelopeOtlpSpan {
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId?: string;
+  readonly name: string;
+  readonly kind: string;
+  readonly startTimeUnixNano: string;
+  readonly endTimeUnixNano: string;
+  readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
+  readonly status: TraceEnvelopeSpanStatus;
+  readonly events?: readonly {
+    readonly name: string;
+    readonly timeUnixNano?: string;
+    readonly attributes: readonly TraceEnvelopeOtlpAttribute[];
+  }[];
+}
+
+export interface TraceEnvelopeOtlpAttribute {
+  readonly key: string;
+  readonly value: TraceEnvelopeOtlpAnyValue;
+}
+
+export type TraceEnvelopeOtlpAnyValue =
+  | { readonly stringValue: string }
+  | { readonly intValue: number }
+  | { readonly doubleValue: number }
+  | { readonly boolValue: boolean }
+  | { readonly arrayValue: { readonly values: readonly TraceEnvelopeOtlpAnyValue[] } };
 
 function dropUndefined<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
@@ -550,7 +624,14 @@ export function buildTraceEnvelopeFromEvaluationResult(
   const capture = capturePolicy(options);
   const source = sourceFromResult(result, options);
   const traceId = hashHex(
-    ['trace-envelope', result.timestamp, result.suite, result.testId, result.target, options.runId],
+    [
+      'execution-trace',
+      result.timestamp,
+      result.suite,
+      result.testId,
+      result.target,
+      options.runId,
+    ],
     32,
   );
   const rootSpanId = hashHex([traceId, 'root'], 16);
@@ -709,7 +790,7 @@ export function buildTraceEnvelopeFromEvaluationResult(
     }
   }
 
-  const envelopeId = `trace-env-${hashHex([traceId, result.timestamp, result.score], 20)}`;
+  const artifactId = `execution-trace-${hashHex([traceId, result.timestamp, result.score], 20)}`;
   const evalIdentity: TraceEnvelopeEval = {
     evalId: options.evalId,
     evalPath: options.evalPath,
@@ -725,8 +806,8 @@ export function buildTraceEnvelopeFromEvaluationResult(
   };
 
   return {
-    schemaVersion: TRACE_ENVELOPE_SCHEMA_VERSION,
-    envelopeId,
+    schemaVersion: EXECUTION_TRACE_SCHEMA_VERSION,
+    artifactId,
     createdAt: now.toISOString(),
     eval: evalIdentity,
     replay: options.replay,
@@ -750,7 +831,7 @@ export function toTraceEnvelopeWire(envelope: TraceEnvelope): TraceEnvelopeWire 
   return TraceEnvelopeWireSchema.parse(
     dropUndefined({
       schema_version: envelope.schemaVersion,
-      envelope_id: envelope.envelopeId,
+      artifact_id: envelope.artifactId,
       created_at: envelope.createdAt,
       eval: toTraceEnvelopeEvalWire(envelope.eval),
       replay: envelope.replay ? toTraceEnvelopeReplayWire(envelope.replay) : undefined,
@@ -768,7 +849,7 @@ export function fromTraceEnvelopeWire(input: unknown): TraceEnvelope {
   const wire = TraceEnvelopeWireSchema.parse(input);
   return {
     schemaVersion: wire.schema_version,
-    envelopeId: wire.envelope_id,
+    artifactId: wire.artifact_id,
     createdAt: wire.created_at,
     eval: fromTraceEnvelopeEvalWire(wire.eval),
     replay: wire.replay ? fromTraceEnvelopeReplayWire(wire.replay) : undefined,
@@ -1106,10 +1187,45 @@ function toolCallFromSpan(span: TraceEnvelopeSpan): ToolCall {
   };
 }
 
+function buildSpanMap(spans: readonly TraceEnvelopeSpan[]): ReadonlyMap<string, TraceEnvelopeSpan> {
+  return new Map(spans.map((span) => [span.spanId, span]));
+}
+
+function ancestorSpanIds(
+  span: TraceEnvelopeSpan,
+  spansById: ReadonlyMap<string, TraceEnvelopeSpan>,
+): readonly string[] {
+  const ancestors: string[] = [];
+  const seen = new Set<string>();
+  let parentSpanId = span.parentSpanId ?? undefined;
+
+  while (parentSpanId && !seen.has(parentSpanId)) {
+    seen.add(parentSpanId);
+    ancestors.push(parentSpanId);
+    parentSpanId = spansById.get(parentSpanId)?.parentSpanId ?? undefined;
+  }
+
+  return ancestors;
+}
+
+function nearestAncestorToolCallId(
+  ancestorIds: readonly string[],
+  spansById: ReadonlyMap<string, TraceEnvelopeSpan>,
+): string | undefined {
+  for (const ancestorId of ancestorIds) {
+    const ancestor = spansById.get(ancestorId);
+    if (ancestor && isToolSpan(ancestor)) {
+      return toolCallFromSpan(ancestor).id;
+    }
+  }
+  return undefined;
+}
+
 export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Message[] {
   const spans = [...envelope.trace.spans].sort((first, second) =>
     first.startTimeUnixNano.localeCompare(second.startTimeUnixNano),
   );
+  const spansById = buildSpanMap(spans);
   const toolSpansByParent = new Map<string, TraceEnvelopeSpan[]>();
   for (const span of spans.filter(isToolSpan)) {
     const parentSpanId = span.parentSpanId ?? envelope.trace.rootSpanId;
@@ -1126,11 +1242,50 @@ export function traceEnvelopeToMessages(envelope: TraceEnvelope): readonly Messa
     endTime: unixNanoToIso(span.endTimeUnixNano),
     durationMs: durationMsFromSpan(span),
     tokenUsage: tokenUsageFromAttributes(span.attributes),
-    metadata: {
+    metadata: dropUndefined({
       span_id: span.spanId,
       trace_id: span.traceId,
-    },
+      parent_span_id: span.parentSpanId ?? undefined,
+      parent_tool_call_id: nearestAncestorToolCallId(ancestorSpanIds(span, spansById), spansById),
+    }),
   }));
+}
+
+export function traceEnvelopeToToolTrajectoryView(
+  envelope: TraceEnvelope,
+): TraceEnvelopeToolTrajectoryView {
+  const spans = [...envelope.trace.spans].sort((first, second) =>
+    first.startTimeUnixNano.localeCompare(second.startTimeUnixNano),
+  );
+  const spansById = buildSpanMap(spans);
+  const tools = spans.filter(isToolSpan).map((span, position) => {
+    const toolCall = toolCallFromSpan(span);
+    const toolCallId = toolCall.id ?? span.spanId;
+    const ancestorIds = ancestorSpanIds(span, spansById);
+    return {
+      position,
+      traceId: span.traceId,
+      spanId: span.spanId,
+      parentSpanId: span.parentSpanId ?? undefined,
+      ancestorSpanIds: ancestorIds,
+      tool: toolCall.tool,
+      toolCallId,
+      parentToolCallId: nearestAncestorToolCallId(ancestorIds, spansById),
+      input: toolCall.input,
+      output: toolCall.output,
+      status: span.status.code === 'ERROR' ? 'error' : 'ok',
+      startTime: toolCall.startTime,
+      endTime: toolCall.endTime,
+      durationMs: toolCall.durationMs,
+    } satisfies TraceEnvelopeToolTrajectoryItem;
+  });
+
+  return {
+    schemaVersion: envelope.schemaVersion,
+    traceId: envelope.trace.traceId,
+    rootSpanId: envelope.trace.rootSpanId,
+    tools,
+  };
 }
 
 export function traceEnvelopeToTraceSummary(envelope: TraceEnvelope): TraceComputeResult {
@@ -1268,4 +1423,80 @@ export function traceEnvelopeToTraceArtifact(envelope: TraceEnvelope): TraceArti
 
 export function getTraceEnvelopeSummary(envelope: TraceEnvelope): TraceSummary {
   return traceEnvelopeToTraceSummary(envelope).trace;
+}
+
+export function traceEnvelopeToOtlpJson(envelope: TraceEnvelope): TraceEnvelopeOtlpJson {
+  return {
+    resourceSpans: [
+      {
+        resource: {
+          attributes: attributesToOtlp(envelope.trace.resource?.attributes),
+        },
+        scopeSpans: [
+          {
+            scope: dropUndefined({
+              name: envelope.trace.scope?.name,
+              version: envelope.trace.scope?.version,
+            }),
+            spans: envelope.trace.spans.map((span) =>
+              dropUndefined({
+                traceId: span.traceId,
+                spanId: span.spanId,
+                parentSpanId: span.parentSpanId ?? undefined,
+                name: span.name,
+                kind: span.kind,
+                startTimeUnixNano: span.startTimeUnixNano,
+                endTimeUnixNano: span.endTimeUnixNano,
+                attributes: attributesToOtlp(span.attributes),
+                status: span.status,
+                events: span.events?.map((event) =>
+                  dropUndefined({
+                    name: event.name,
+                    timeUnixNano: event.timeUnixNano,
+                    attributes: attributesToOtlp(event.attributes),
+                  }),
+                ),
+              }),
+            ),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function attributesToOtlp(
+  attributes: Readonly<Record<string, unknown>> | undefined,
+): readonly TraceEnvelopeOtlpAttribute[] {
+  return Object.entries(attributes ?? {}).map(([key, value]) => ({
+    key,
+    value: toOtlpAnyValue(value),
+  }));
+}
+
+function toOtlpAnyValue(value: unknown): TraceEnvelopeOtlpAnyValue {
+  if (typeof value === 'string') {
+    return { stringValue: value };
+  }
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? { intValue: value } : { doubleValue: value };
+  }
+  if (typeof value === 'boolean') {
+    return { boolValue: value };
+  }
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map(toOtlpAnyValue) } };
+  }
+  return { stringValue: stringifyOtlpAttribute(value) };
+}
+
+function stringifyOtlpAttribute(value: unknown): string {
+  if (value === undefined) {
+    return '';
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }

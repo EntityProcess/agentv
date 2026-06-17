@@ -1,10 +1,12 @@
 /**
- * Trace models for evaluation-time agent behavior.
+ * Trace read models for evaluation-time agent behavior.
  *
- * `Trace` is AgentV's canonical normalized execution model. Evaluation results
- * keep `output` as the final answer/scored result only; the full transcript,
+ * `Trace` is the result-local compatibility/read model attached to evaluation
+ * results. The canonical exported execution trace sidecar is
+ * `agentv.execution_trace.v1` in `trace-envelope.ts`; result JSONL keeps
+ * `output` as the final answer/scored result only, while the full transcript,
  * tool calls/results, errors, timing, usage, provider/session provenance, and
- * replay/eval metrics live in `trace`.
+ * replay/eval metrics live in this read model.
  *
  * `TraceSummary` is a derived compact read model for metric-style graders and
  * aggregation. Derive it from `Trace.messages`/`Trace.events`; do not treat it
@@ -722,13 +724,14 @@ export interface TraceSummary {
 }
 
 /**
- * Canonical trace attached to every evaluation result.
+ * Result-local trace attached to every evaluation result.
  *
  * The compact TraceSummary fields are mirrored for existing
- * metric graders; `messages` and `events` are the complete canonical
- * execution record. Result `output` is only the final answer; tools,
- * intermediate assistant text, timing, usage, provider provenance, and replay
- * metadata live here.
+ * metric graders; `messages` and `events` are the complete execution record for
+ * result JSONL compatibility. Result `output` is only the
+ * final answer; tools, intermediate assistant text, timing, usage, provider
+ * provenance, and replay metadata live here. Full export/import work should use
+ * the execution trace artifact and derive this shape from it.
  */
 export interface Trace extends TraceSummary {
   readonly schemaVersion: typeof TRACE_SCHEMA_VERSION;
@@ -816,8 +819,8 @@ function toTraceError(error: TraceError | string): TraceError {
 }
 
 /**
- * Build the canonical trace for an evaluation case from provider messages and
- * execution metrics. This is the single projection used by result JSONL,
+ * Build the result-local trace read model for an evaluation case from provider
+ * messages and execution metrics. This is the projection used by result JSONL,
  * code-grader stdin, `outputs/answer.md`, and `outputs/transcript.jsonl`.
  */
 export function buildTraceFromMessages(options: BuildTraceOptions = {}): Trace {

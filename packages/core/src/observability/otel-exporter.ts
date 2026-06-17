@@ -216,7 +216,8 @@ export class OtelTraceExporter {
             rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
         }
 
-        // Child spans from canonical trace messages.
+        // Child spans from result-local trace messages. The execution trace
+        // sidecar owns the canonical span graph for export/import work.
         // Some callers may still export older result artifacts while migrating,
         // so tolerate a missing trace instead of crashing the exporter.
         const traceMessages = result.trace?.messages ?? [];
