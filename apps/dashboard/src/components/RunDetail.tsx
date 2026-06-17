@@ -23,8 +23,9 @@ import type { EvalResult } from '~/lib/types';
 
 import { isPassing, useRunLog, useStudioConfig } from '~/lib/api';
 import { isExecutionError, summarizeQuality } from '~/lib/result-summary';
-import { formatCategoryDisplay } from '~/lib/run-detail-context';
+import { formatCategoryDisplay, shouldShowSuiteLabels } from '~/lib/run-detail-context';
 
+import { EvalSuiteLabel } from './EvalSuiteLabel';
 import { PassRatePill } from './PassRatePill';
 import { StatsCards } from './StatsCards';
 
@@ -118,6 +119,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   const categories = buildCategoryGroups(results, passThreshold);
+  const showSuiteLabels = shouldShowSuiteLabels(results);
 
   if (total === 0) {
     return (
@@ -268,25 +270,30 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
                       )}
                     </td>
                     <td className="w-[24rem] max-w-[24rem] px-4 py-3">
-                      {projectId ? (
-                        <Link
-                          to="/projects/$projectId/evals/$runId/$evalId"
-                          params={{ projectId, runId, evalId: result.testId }}
-                          className="block truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                          title={result.testId}
-                        >
-                          {result.testId}
-                        </Link>
-                      ) : (
-                        <Link
-                          to="/evals/$runId/$evalId"
-                          params={{ runId, evalId: result.testId }}
-                          className="block truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                          title={result.testId}
-                        >
-                          {result.testId}
-                        </Link>
-                      )}
+                      <div className="flex min-w-0 items-center gap-2">
+                        {projectId ? (
+                          <Link
+                            to="/projects/$projectId/evals/$runId/$evalId"
+                            params={{ projectId, runId, evalId: result.testId }}
+                            className="min-w-0 flex-1 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                            title={result.testId}
+                          >
+                            {result.testId}
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/evals/$runId/$evalId"
+                            params={{ runId, evalId: result.testId }}
+                            className="min-w-0 flex-1 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+                            title={result.testId}
+                          >
+                            {result.testId}
+                          </Link>
+                        )}
+                        {showSuiteLabels ? (
+                          <EvalSuiteLabel suite={result.suite} className="max-w-[10rem]" />
+                        ) : null}
+                      </div>
                     </td>
                     <td
                       className="w-[12rem] max-w-[12rem] truncate px-4 py-3 text-gray-400"

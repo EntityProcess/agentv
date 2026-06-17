@@ -5,6 +5,10 @@
  * runs carry extra source identity (`source_label`, results repo). Keep that
  * presentation logic here so route components stay thin and tests can pin
  * the remote-context contract without rendering React.
+ *
+ * Suite labels are displayed only when a run mixes suites or has partial suite
+ * metadata. Keep the table/sidebar dense by suppressing repeated labels for
+ * single-suite runs.
  */
 
 import type { EvalResult, RunDetailResponse } from './types';
@@ -12,6 +16,7 @@ import type { EvalResult, RunDetailResponse } from './types';
 type RunSource = RunDetailResponse['source'];
 
 type HeaderResult = Pick<EvalResult, 'experiment' | 'target' | 'timestamp'>;
+type SuiteLabelResult = Pick<EvalResult, 'suite'>;
 
 export interface RunDetailHeaderInput {
   runId: string;
@@ -38,6 +43,11 @@ export interface RunDetailHeader {
 export interface CategoryDisplay {
   label: string;
   mutedLabel?: string;
+}
+
+export interface SuiteDisplay {
+  label: string;
+  title: string;
 }
 
 function nonDefaultExperiment(experiment: string | undefined): string | undefined {
@@ -126,4 +136,35 @@ export function formatCategoryDisplay(category: string | undefined): CategoryDis
     label: basenameFromCategory(raw) ?? 'Uncategorized',
     mutedLabel: raw,
   };
+}
+
+function stripEvalFileExtension(fileName: string): string {
+  return fileName.replace(/\.eval\.(ya?ml|json|jsonl)$/i, '').replace(/\.(ya?ml|json|jsonl)$/i, '');
+}
+
+export function formatSuiteDisplay(suite: string | undefined): SuiteDisplay | undefined {
+  const raw = cleanOptional(suite);
+  if (!raw || raw === 'Uncategorized') {
+    return undefined;
+  }
+
+  const normalized = raw.replace(/\\/g, '/');
+  const basename =
+    normalized
+      .split('/')
+      .filter((part) => part.length > 0)
+      .at(-1) ?? raw;
+  const label = normalized.includes('/') ? stripEvalFileExtension(basename) : raw;
+
+  return {
+    label: label || raw,
+    title: raw,
+  };
+}
+
+export function shouldShowSuiteLabels(results: readonly SuiteLabelResult[]): boolean {
+  const normalizedSuites = results.map((result) => cleanOptional(result.suite) ?? '');
+  const meaningfulSuites = normalizedSuites.filter((suite) => suite && suite !== 'Uncategorized');
+
+  return meaningfulSuites.length > 0 && new Set(normalizedSuites).size > 1;
 }

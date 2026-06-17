@@ -33,10 +33,13 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
+import { shouldShowSuiteLabels } from '~/lib/run-detail-context';
 import { formatRunDisplay } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
+import type { EvalResult } from '~/lib/types';
 
 import { BrandName } from './BrandName';
+import { EvalSuiteLabel } from './EvalSuiteLabel';
 
 /** Responsive <aside> wrapper. Handles mobile overlay and desktop static placement. */
 function SidebarShell({ children }: { children: ReactNode }) {
@@ -94,6 +97,32 @@ function SidebarRunText({ display }: { display: ReturnType<typeof formatRunDispl
       {display.secondary ? (
         <span className="block truncate text-xs text-gray-600">{display.secondary}</span>
       ) : null}
+    </>
+  );
+}
+
+function EvalSidebarItemContent({
+  result,
+  passThreshold,
+  showSuiteLabel,
+}: {
+  result: EvalResult;
+  passThreshold: number;
+  showSuiteLabel: boolean;
+}) {
+  const passed = isPassing(result.score, passThreshold);
+
+  return (
+    <>
+      <span className={`mt-0.5 shrink-0 text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+        {passed ? '\u2713' : '\u2717'}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{result.testId}</span>
+        {showSuiteLabel ? (
+          <EvalSuiteLabel suite={result.suite} className="mt-1 max-w-full text-[11px] leading-4" />
+        ) : null}
+      </span>
     </>
   );
 }
@@ -381,6 +410,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
   const { data } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
+  const showSuiteLabels = shouldShowSuiteLabels(data?.results ?? []);
 
   return (
     <SidebarShell>
@@ -405,23 +435,23 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
 
         {data?.results.map((result) => {
           const isActive = result.testId === currentEvalId;
-          const passed = isPassing(result.score, passThreshold);
 
           return (
             <Link
               key={result.testId}
               to="/evals/$runId/$evalId"
               params={{ runId, evalId: result.testId }}
-              className={`mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+              className={`mb-0.5 flex items-start gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              <span className={`text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                {passed ? '\u2713' : '\u2717'}
-              </span>
-              <span className="truncate">{result.testId}</span>
+              <EvalSidebarItemContent
+                result={result}
+                passThreshold={passThreshold}
+                showSuiteLabel={showSuiteLabels}
+              />
             </Link>
           );
         })}
@@ -580,6 +610,7 @@ function ProjectEvalSidebar({
   const { data } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
+  const showSuiteLabels = shouldShowSuiteLabels(data?.results ?? []);
 
   return (
     <SidebarShell>
@@ -602,22 +633,22 @@ function ProjectEvalSidebar({
         </div>
         {data?.results.map((result) => {
           const isActive = result.testId === currentEvalId;
-          const passed = isPassing(result.score, passThreshold);
           return (
             <Link
               key={result.testId}
               to="/projects/$projectId/evals/$runId/$evalId"
               params={{ projectId, runId, evalId: result.testId }}
-              className={`mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+              className={`mb-0.5 flex items-start gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              <span className={`text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                {passed ? '\u2713' : '\u2717'}
-              </span>
-              <span className="truncate">{result.testId}</span>
+              <EvalSidebarItemContent
+                result={result}
+                passThreshold={passThreshold}
+                showSuiteLabel={showSuiteLabels}
+              />
             </Link>
           );
         })}
