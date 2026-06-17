@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test';
 
 import type { EvalResult } from './types';
 
-import { buildRunDetailHeader, formatCategoryDisplay } from './run-detail-context';
+import {
+  buildRunDetailHeader,
+  formatCategoryDisplay,
+  formatSuiteDisplay,
+  shouldShowSuiteLabels,
+} from './run-detail-context';
 
 const remoteRunDetailFixture = {
   runId: 'remote::smoke-wtg-2026-06-04T02-19-00Z',
@@ -73,5 +78,35 @@ describe('formatCategoryDisplay', () => {
 
   it('leaves normal slash-separated categories intact', () => {
     expect(formatCategoryDisplay('examples/showcase')).toEqual({ label: 'examples/showcase' });
+  });
+});
+
+describe('formatSuiteDisplay', () => {
+  it('uses compact file labels for path-like eval suites', () => {
+    expect(formatSuiteDisplay('evals/github-actions.eval.yaml')).toEqual({
+      label: 'github-actions',
+      title: 'evals/github-actions.eval.yaml',
+    });
+  });
+
+  it('leaves named suites intact', () => {
+    expect(formatSuiteDisplay('wtg-smoke')).toEqual({
+      label: 'wtg-smoke',
+      title: 'wtg-smoke',
+    });
+  });
+});
+
+describe('shouldShowSuiteLabels', () => {
+  it('shows labels for mixed-suite runs', () => {
+    expect(
+      shouldShowSuiteLabels([{ suite: 'evals/a.eval.yaml' }, { suite: 'evals/b.eval.yaml' }]),
+    ).toBe(true);
+  });
+
+  it('suppresses repeated labels for single-suite runs', () => {
+    expect(
+      shouldShowSuiteLabels([{ suite: 'evals/a.eval.yaml' }, { suite: 'evals/a.eval.yaml' }]),
+    ).toBe(false);
   });
 });
