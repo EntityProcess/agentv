@@ -2,9 +2,6 @@
   "enabled": true,
   "telemetry": false,
   "strategy_options": {
-    "checkpoint_remote": {
-      "provider": "github",
-      "repo": "EntityProcess/agentv-private"
-    }
+    "push_sessions": false
   }
 }
