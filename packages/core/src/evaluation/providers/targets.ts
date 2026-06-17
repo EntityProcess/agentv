@@ -461,6 +461,7 @@ export interface CopilotCustomProviderConfig {
 export interface CopilotSdkResolvedConfig {
   readonly cliUrl?: string;
   readonly cliPath?: string;
+  readonly args?: readonly string[];
   readonly githubToken?: string;
   readonly model?: string;
   readonly cwd?: string;
@@ -471,18 +472,6 @@ export interface CopilotSdkResolvedConfig {
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
   readonly customProvider?: CopilotCustomProviderConfig;
-  /** BYOK provider type: "azure", "openai", or "anthropic". */
-  readonly byokType?: string;
-  /** BYOK base URL for the provider endpoint. */
-  readonly byokBaseUrl?: string;
-  /** BYOK API key for authenticating with the provider. */
-  readonly byokApiKey?: string;
-  /** BYOK bearer token (takes precedence over apiKey when set). */
-  readonly byokBearerToken?: string;
-  /** BYOK Azure API version (e.g. "2024-10-21"). Only used when byokType is "azure". */
-  readonly byokApiVersion?: string;
-  /** BYOK wire API format: "completions" or "responses". */
-  readonly byokWireApi?: string;
 }
 
 export interface CopilotLogResolvedConfig {
@@ -1449,6 +1438,7 @@ function resolveCopilotSdkConfig(
 ): CopilotSdkResolvedConfig {
   const cliUrlSource = target.cli_url;
   const cliPathSource = target.cli_path;
+  const argsSource = target.args ?? target.arguments;
   const githubTokenSource = target.github_token;
   const modelSource = target.model;
   const cwdSource = target.cwd;
@@ -1471,6 +1461,8 @@ function resolveCopilotSdkConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
+
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} copilot-sdk args`);
 
   const githubToken = resolveOptionalString(
     githubTokenSource,
@@ -1511,13 +1503,12 @@ function resolveCopilotSdkConfig(
       ? systemPromptSource.trim()
       : undefined;
 
-  const customProvider = resolveCopilotCustomProviderConfig(target, env, {
-    includeByokAlias: true,
-  });
+  const customProvider = resolveCopilotFlatProviderConfig(target, env);
 
   return {
     cliUrl,
     cliPath,
+    args,
     githubToken,
     model,
     cwd,
@@ -1526,100 +1517,58 @@ function resolveCopilotSdkConfig(
     logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
-    ...(customProvider
-      ? {
-          customProvider,
-          byokType: customProvider.type,
-          byokBaseUrl: customProvider.baseUrl,
-          byokApiKey: customProvider.apiKey,
-          byokBearerToken: customProvider.bearerToken,
-          byokApiVersion: customProvider.apiVersion,
-          byokWireApi: customProvider.wireApi,
-        }
-      : {}),
+    ...(customProvider ? { customProvider } : {}),
   };
 }
 
-function resolveCopilotCustomProviderConfig(
+function resolveCopilotFlatProviderConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  options: { readonly includeByokAlias?: boolean } = {},
 ): CopilotCustomProviderConfig | undefined {
-  const hasCustomProvider = target.custom_provider !== undefined;
-  const hasByokAlias = options.includeByokAlias === true && target.byok !== undefined;
-  if (!hasCustomProvider && !hasByokAlias) {
-    return undefined;
-  }
+  const baseUrlSource = target.base_url;
+  if (!baseUrlSource) return undefined;
 
-  const sourceName = hasCustomProvider ? 'custom_provider' : 'byok';
-  const raw =
-    sourceName === 'custom_provider'
-      ? (target.custom_provider as unknown)
-      : (target.byok as unknown);
-
-  if (raw === null) {
-    return undefined;
-  }
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error(`${target.name}: '${sourceName}' must be an object`);
-  }
-
-  const provider = raw as Record<string, unknown>;
-  const type = resolveOptionalString(provider.type, env, `${target.name} ${sourceName} type`, {
+  const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} copilot base URL`, {
     allowLiteral: true,
     optionalEnv: true,
   });
-  const baseUrl = resolveOptionalString(
-    provider.base_url,
+  if (!baseUrl) return undefined;
+
+  const type = resolveOptionalString(
+    target.subprovider,
     env,
-    `${target.name} ${sourceName} base URL`,
+    `${target.name} copilot provider type`,
     {
       allowLiteral: true,
       optionalEnv: true,
     },
   );
-  const apiKey = resolveOptionalString(
-    provider.api_key,
-    env,
-    `${target.name} ${sourceName} API key`,
-    {
-      allowLiteral: false,
-      optionalEnv: true,
-    },
-  );
+  const apiKey = resolveOptionalString(target.api_key, env, `${target.name} copilot API key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
   const bearerToken = resolveOptionalString(
-    provider.bearer_token,
+    target.bearer_token,
     env,
-    `${target.name} ${sourceName} bearer token`,
+    `${target.name} copilot bearer token`,
     {
       allowLiteral: false,
       optionalEnv: true,
     },
   );
   const apiVersion = resolveOptionalString(
-    provider.api_version,
+    target.api_version,
     env,
-    `${target.name} ${sourceName} API version`,
+    `${target.name} copilot API version`,
     {
       allowLiteral: true,
       optionalEnv: true,
     },
   );
-  const wireApi = resolveOptionalString(
-    provider.wire_api,
-    env,
-    `${target.name} ${sourceName} wire API`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
-
-  if (!baseUrl) {
-    throw new Error(
-      `${target.name}: '${sourceName}.base_url' is required when '${sourceName}' is specified`,
-    );
-  }
+  const wireApi = resolveOptionalString(target.wire_api, env, `${target.name} copilot wire API`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
 
   return {
     ...(type ? { type } : {}),
@@ -1686,7 +1635,7 @@ function resolveCopilotCliConfig(
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
       : undefined;
-  const customProvider = resolveCopilotCustomProviderConfig(target, env);
+  const customProvider = resolveCopilotFlatProviderConfig(target, env);
 
   return {
     executable,

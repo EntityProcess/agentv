@@ -103,10 +103,6 @@ export class CopilotCliProvider implements Provider {
     const startTime = new Date().toISOString();
     const startMs = Date.now();
 
-    if (this.config.customProvider) {
-      return await this.invokePromptMode(request, startTime, startMs);
-    }
-
     const logger = await this.createStreamLogger(request, 'acp').catch(() => undefined);
 
     // Build command args
@@ -116,6 +112,7 @@ export class CopilotCliProvider implements Provider {
     // Spawn the CLI process
     const agentProcess = spawn(executable, args, {
       env: buildCopilotCliProviderEnv(process.env, this.config.customProvider),
+      cwd: this.resolveCwd(request.cwd) ?? process.cwd(),
       stdio: ['pipe', 'pipe', 'inherit'],
     });
     trackChild(agentProcess);
@@ -136,6 +133,7 @@ export class CopilotCliProvider implements Provider {
     const input = Writable.toWeb(agentProcess.stdin);
     const output = Readable.toWeb(agentProcess.stdout) as ReadableStream<Uint8Array>;
     const stream = acp.ndJsonStream(input, output);
+    const customProvider = this.config.customProvider;
 
     const client: acp.Client = {
       async requestPermission(): Promise<acp.RequestPermissionResponse> {
@@ -148,7 +146,7 @@ export class CopilotCliProvider implements Provider {
         const update = params.update;
         const sessionUpdate = update.sessionUpdate;
 
-        logger?.handleEvent(sessionUpdate, update);
+        logger?.handleEvent(sessionUpdate, sanitizeSensitiveValue(update, customProvider));
 
         if (sessionUpdate === 'tool_call') {
           const callId = update.toolCallId ?? randomUUID();
@@ -786,6 +784,30 @@ function sanitizeSensitiveText(
     sanitized = sanitized.split(secret).join('[redacted]');
   }
   return sanitized;
+}
+
+function sanitizeSensitiveValue(
+  value: unknown,
+  customProvider: CopilotCustomProviderConfig | undefined,
+): unknown {
+  if (!customProvider) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    return sanitizeSensitiveText(value, customProvider);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeSensitiveValue(item, customProvider));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        sanitizeSensitiveValue(entry, customProvider),
+      ]),
+    );
+  }
+  return value;
 }
 
 async function defaultCopilotCliPromptRunner(

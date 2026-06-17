@@ -784,7 +784,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.executable).toBe('copilot');
   });
 
-  it('resolves copilot-cli with custom_provider openai config', () => {
+  it('resolves copilot-cli flat base_url/api_key as custom provider', () => {
     const env = {
       OPENAI_ENDPOINT: 'https://api.openai.example/v1',
       OPENAI_API_KEY: 'openai-secret',
@@ -793,16 +793,14 @@ describe('resolveTargetDefinition', () => {
 
     const target = resolveTargetDefinition(
       {
-        name: 'copilot-cli-openai',
+        name: 'copilot-cli-openai-flat',
         provider: 'copilot-cli',
-        custom_provider: {
-          type: 'openai',
-          base_url: '${{ OPENAI_ENDPOINT }}',
-          api_key: '${{ OPENAI_API_KEY }}',
-          bearer_token: '${{ OPTIONAL_BEARER_TOKEN }}',
-          wire_api: 'responses',
-          api_version: '2024-10-21',
-        },
+        subprovider: 'openai',
+        base_url: '${{ OPENAI_ENDPOINT }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        bearer_token: '${{ OPTIONAL_BEARER_TOKEN }}',
+        wire_api: 'responses',
+        api_version: '2024-10-21',
       },
       env,
     );
@@ -822,70 +820,7 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
-  it('resolves copilot-sdk with byok azure config', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://my-resource.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'azure-secret',
-      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
-    } satisfies Record<string, string>;
-
-    const target = resolveTargetDefinition(
-      {
-        name: 'copilot-sdk-azure',
-        provider: 'copilot-sdk',
-        model: '${{ AZURE_DEPLOYMENT_NAME }}',
-        byok: {
-          type: 'azure',
-          base_url: '${{ AZURE_OPENAI_ENDPOINT }}',
-          api_key: '${{ AZURE_OPENAI_API_KEY }}',
-          api_version: '2024-10-21',
-        },
-      },
-      env,
-    );
-
-    expect(target.kind).toBe('copilot-sdk');
-    if (target.kind !== 'copilot-sdk') {
-      throw new Error('expected copilot-sdk target');
-    }
-
-    expect(target.config.model).toBe('gpt-4o');
-    expect(target.config.byokType).toBe('azure');
-    expect(target.config.byokBaseUrl).toBe('https://my-resource.openai.azure.com');
-    expect(target.config.byokApiKey).toBe('azure-secret');
-    expect(target.config.byokApiVersion).toBe('2024-10-21');
-  });
-
-  it('resolves copilot-sdk with byok openai config', () => {
-    const env = {
-      OPENAI_API_KEY: 'openai-secret',
-    } satisfies Record<string, string>;
-
-    const target = resolveTargetDefinition(
-      {
-        name: 'copilot-sdk-openai',
-        provider: 'copilot-sdk',
-        model: 'gpt-5',
-        byok: {
-          type: 'openai',
-          base_url: 'https://api.openai.com/v1',
-          api_key: '${{ OPENAI_API_KEY }}',
-        },
-      },
-      env,
-    );
-
-    expect(target.kind).toBe('copilot-sdk');
-    if (target.kind !== 'copilot-sdk') {
-      throw new Error('expected copilot-sdk target');
-    }
-
-    expect(target.config.byokType).toBe('openai');
-    expect(target.config.byokBaseUrl).toBe('https://api.openai.com/v1');
-    expect(target.config.byokApiKey).toBe('openai-secret');
-  });
-
-  it('resolves copilot-sdk with custom_provider openai config', () => {
+  it('resolves copilot-sdk flat base_url/api_key as custom provider', () => {
     const env = {
       OPENAI_ENDPOINT: 'https://api.openai.example/v1',
       OPENAI_API_KEY: 'openai-secret',
@@ -893,15 +828,13 @@ describe('resolveTargetDefinition', () => {
 
     const target = resolveTargetDefinition(
       {
-        name: 'copilot-sdk-openai-custom-provider',
+        name: 'copilot-sdk-openai-flat',
         provider: 'copilot-sdk',
         model: 'gpt-5',
-        custom_provider: {
-          type: 'openai',
-          base_url: '${{ OPENAI_ENDPOINT }}',
-          api_key: '${{ OPENAI_API_KEY }}',
-          wire_api: 'responses',
-        },
+        subprovider: 'openai',
+        base_url: '${{ OPENAI_ENDPOINT }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        wire_api: 'responses',
       },
       env,
     );
@@ -917,27 +850,16 @@ describe('resolveTargetDefinition', () => {
       apiKey: 'openai-secret',
       wireApi: 'responses',
     });
-    expect(target.config.byokType).toBe('openai');
-    expect(target.config.byokBaseUrl).toBe('https://api.openai.example/v1');
-    expect(target.config.byokApiKey).toBe('openai-secret');
-    expect(target.config.byokWireApi).toBe('responses');
   });
 
-  it('copilot-sdk byok defaults type to undefined when not specified', () => {
-    const env = {
-      MY_KEY: 'secret',
-    } satisfies Record<string, string>;
-
+  it('resolves copilot-sdk args field', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'copilot-sdk-byok-minimal',
+        name: 'copilot-sdk-with-args',
         provider: 'copilot-sdk',
-        byok: {
-          base_url: 'http://localhost:11434/v1',
-          api_key: '${{ MY_KEY }}',
-        },
+        args: ['--plugin-dir', '${{ COPILOT_PLUGIN_DIR }}'],
       },
-      env,
+      { COPILOT_PLUGIN_DIR: './plugins' },
     );
 
     expect(target.kind).toBe('copilot-sdk');
@@ -945,60 +867,38 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected copilot-sdk target');
     }
 
-    expect(target.config.byokType).toBeUndefined();
-    expect(target.config.byokBaseUrl).toBe('http://localhost:11434/v1');
-    expect(target.config.byokApiKey).toBe('secret');
+    expect(target.config.args).toEqual(['--plugin-dir', './plugins']);
   });
 
-  it('copilot-sdk byok rejects missing base_url', () => {
+  it('copilot flat config rejects literal api_key', () => {
     expect(() =>
       resolveTargetDefinition(
         {
-          name: 'copilot-sdk-no-url',
+          name: 'copilot-literal-key',
           provider: 'copilot-sdk',
-          byok: {
-            type: 'azure',
-            api_key: '${{ MY_KEY }}',
-          },
-        },
-        { MY_KEY: 'secret' },
-      ),
-    ).toThrow(/byok\.base_url.*required/i);
-  });
-
-  it('copilot-sdk byok rejects literal api_key', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'copilot-sdk-literal-key',
-          provider: 'copilot-sdk',
-          byok: {
-            base_url: 'https://example.com',
-            api_key: 'plaintext-secret',
-          },
+          base_url: 'https://example.com',
+          api_key: 'plaintext-secret',
         },
         {},
       ),
     ).toThrow(/must use.*VARIABLE_NAME/i);
   });
 
-  it('copilot-sdk byok rejects literal bearer_token', () => {
+  it('copilot flat config rejects literal bearer_token', () => {
     expect(() =>
       resolveTargetDefinition(
         {
-          name: 'copilot-sdk-literal-bearer',
+          name: 'copilot-literal-bearer',
           provider: 'copilot-sdk',
-          byok: {
-            base_url: 'https://example.com',
-            bearer_token: 'plaintext-bearer-secret',
-          },
+          base_url: 'https://example.com',
+          bearer_token: 'plaintext-bearer-secret',
         },
         {},
       ),
     ).toThrow(/must use.*VARIABLE_NAME/i);
   });
 
-  it('copilot-sdk byok supports bearer_token', () => {
+  it('copilot-sdk flat config supports bearer_token', () => {
     const env = {
       MY_TOKEN: 'bearer-secret',
     } satisfies Record<string, string>;
@@ -1007,10 +907,8 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'copilot-sdk-bearer',
         provider: 'copilot-sdk',
-        byok: {
-          base_url: 'https://custom-endpoint.example.com/v1',
-          bearer_token: '${{ MY_TOKEN }}',
-        },
+        base_url: 'https://custom-endpoint.example.com/v1',
+        bearer_token: '${{ MY_TOKEN }}',
       },
       env,
     );
@@ -1020,11 +918,11 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected copilot-sdk target');
     }
 
-    expect(target.config.byokBearerToken).toBe('bearer-secret');
-    expect(target.config.byokApiKey).toBeUndefined();
+    expect(target.config.customProvider?.bearerToken).toBe('bearer-secret');
+    expect(target.config.customProvider?.apiKey).toBeUndefined();
   });
 
-  it('copilot-sdk byok supports wire_api', () => {
+  it('copilot-sdk flat config supports wire_api', () => {
     const env = {
       FOUNDRY_KEY: 'foundry-secret',
     } satisfies Record<string, string>;
@@ -1034,12 +932,10 @@ describe('resolveTargetDefinition', () => {
         name: 'copilot-sdk-responses',
         provider: 'copilot-sdk',
         model: 'gpt-5',
-        byok: {
-          type: 'openai',
-          base_url: 'https://resource.openai.azure.com/openai/v1/',
-          api_key: '${{ FOUNDRY_KEY }}',
-          wire_api: 'responses',
-        },
+        subprovider: 'openai',
+        base_url: 'https://resource.openai.azure.com/openai/v1/',
+        api_key: '${{ FOUNDRY_KEY }}',
+        wire_api: 'responses',
       },
       env,
     );
@@ -1049,10 +945,10 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected copilot-sdk target');
     }
 
-    expect(target.config.byokWireApi).toBe('responses');
+    expect(target.config.customProvider?.wireApi).toBe('responses');
   });
 
-  it('copilot-sdk without byok has no byok fields', () => {
+  it('copilot-sdk without base_url has no custom provider', () => {
     const target = resolveTargetDefinition(
       {
         name: 'copilot-sdk-plain',
@@ -1067,9 +963,6 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected copilot-sdk target');
     }
 
-    expect(target.config.byokType).toBeUndefined();
-    expect(target.config.byokBaseUrl).toBeUndefined();
-    expect(target.config.byokApiKey).toBeUndefined();
     expect(target.config.customProvider).toBeUndefined();
   });
 
