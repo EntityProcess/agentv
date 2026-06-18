@@ -71,9 +71,11 @@ push(
 );
 
 const outputText = outputIsString ? output : '';
+const outputHasRelease = outputText.includes('RELEASE');
+const outputHasContract = outputText.includes('CONTRACT');
 push(
-  'output contains the agent answer',
-  outputText.trim().length > 0 && outputText.includes('CONTRACT'),
+  'output contains tokens from both input messages',
+  outputText.trim().length > 0 && outputHasRelease && outputHasContract,
   outputText.trim().length > 0
     ? `output=${JSON.stringify(outputText.slice(0, 80))}`
     : 'output was empty',
@@ -97,17 +99,20 @@ push(
 
 const inputStrings: string[] = [];
 collectStrings(payload.input, inputStrings);
-const inputIncludesOriginalRequest = inputStrings.some((text) => text.includes('CONTRACT'));
+const inputIncludesSystemToken = inputStrings.some((text) => text.includes('RELEASE'));
+const inputIncludesUserToken = inputStrings.some((text) => text.includes('CONTRACT'));
 push(
-  'input contains the original user request',
-  inputIncludesOriginalRequest,
-  inputIncludesOriginalRequest ? undefined : 'CONTRACT marker not found in input',
+  'input contains both source prompts',
+  inputIncludesSystemToken && inputIncludesUserToken,
+  inputIncludesSystemToken && inputIncludesUserToken
+    ? undefined
+    : 'RELEASE or CONTRACT token not found in input',
 );
 
 const criteria = payload.criteria;
 push(
   'criteria contains the test criteria',
-  typeof criteria === 'string' && criteria.includes('CONTRACT'),
+  typeof criteria === 'string' && criteria.includes('RELEASE') && criteria.includes('CONTRACT'),
   typeof criteria === 'string' ? `criteria=${JSON.stringify(criteria)}` : 'criteria was missing',
 );
 

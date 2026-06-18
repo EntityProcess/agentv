@@ -7,12 +7,12 @@ execution:
 
 tests:
   - id: code-grader-stdin-payload
-    criteria: Response includes the literal token CONTRACT.
+    criteria: Response includes both literal tokens RELEASE and CONTRACT.
     input:
       - role: system
-        content: "Answer release contract checks with concise text."
+        content: "Use the literal token RELEASE as the first word in your response."
       - role: user
-        content: "Please respond with the literal token CONTRACT."
+        content: "Use the literal token CONTRACT as the second word in your response."
     assertions:
       - name: code-grader-payload-contract
         type: code-grader
