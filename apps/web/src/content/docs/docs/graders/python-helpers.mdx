@@ -1,0 +1,86 @@
+---
+title: Repo-Local Python Helpers
+description: Example-local Python helpers for canonical AgentV code-graders and eval authoring
+sidebar:
+  order: 7
+---
+
+AgentV's Python surface currently starts as a repo-local helper example, not a separate runner or published package.
+
+- It mirrors the existing AgentV YAML and stdin/stdout wire shapes.
+- It writes canonical YAML and JSONL.
+- It still runs evaluations through the AgentV CLI.
+
+The helper lives in `examples/features/sdk-python/`.
+
+## Scope
+
+- `agentv_py.grader` wraps Python `code-grader` scripts over canonical `snake_case` fields.
+- `agentv_py.evals` builds AgentV-shaped eval definitions and JSONL datasets.
+- `run_agentv_eval()` shells out to `agentv eval` or the repo source CLI.
+
+## Canonical fields only
+
+Deprecated wire aliases like `output_text`, `input_text`, and `reference_answer` are not accepted as stdin fields by the Python helper.
+
+Use canonical fields instead:
+
+- `input`
+- `input_files`
+- `output`
+- `expected_output`
+- `trace`
+- `trace_summary`
+
+## Example
+
+```python
+from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
+
+
+def evaluate(context):
+    actual = context.output or ""
+    expected = context.expected_output[0]["content"]
+    passed = actual.strip() == expected.strip()
+    return CodeGraderResult(
+        score=1.0 if passed else 0.0,
+        assertions=[
+            Assertion(
+                text="Candidate output matches expected output",
+                passed=passed,
+            )
+        ],
+    )
+
+
+if __name__ == "__main__":
+    define_code_grader(evaluate)
+```
+
+## Authoring evals
+
+```python
+from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_jsonl
+
+write_jsonl(
+    "evals/dataset.jsonl",
+    [
+        JsonlCase(
+            id="hello",
+            input=[{"role": "user", "content": "Reply with exactly: hi"}],
+            expected_output=[{"role": "assistant", "content": "hi"}],
+        )
+    ],
+)
+
+write_eval_yaml(
+    "evals/dataset.eval.yaml",
+    EvalDefinition(
+        name="python-helper",
+        execution={"target": "local_cli"},
+        tests="./dataset.jsonl",
+    ),
+)
+```
+
+This keeps Python aligned with existing AgentV files instead of introducing a separate code-first definition language.

@@ -1,0 +1,1 @@
+{"id": "python-helper-local-cli", "input": [{"role": "user", "content": "AgentV Python helper says hi."}], "expected_output": [{"role": "assistant", "content": "AgentV Python helper says hi."}], "assertions": [{"name": "python-expected-output", "type": "code-grader", "command": ["uv", "run", "python", "../scripts/check_expected_output.py"]}]}

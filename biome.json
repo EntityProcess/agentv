@@ -29,6 +29,7 @@
       "build",
       "out",
       ".next",
+      "**/.venv/**",
       "coverage",
       ".turbo",
       ".cache",
