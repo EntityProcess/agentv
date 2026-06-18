@@ -7,6 +7,8 @@ sidebar:
 
 Evaluation files define the test cases, targets, and graders for an evaluation run. AgentV supports two formats: YAML and JSONL.
 
+YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
+
 ## Suites
 
 An eval file is a **suite**: it binds test cases to execution context (workspace, hooks, targets, trials). Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.

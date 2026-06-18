@@ -11,7 +11,6 @@
   "input": [{"role": "user", "content": "..."}],
   "expected_output": [{"role": "assistant", "content": "..."}],
   "output": "final answer text",
-  "answer": "deprecated alias for output",
   "messages": [{"role": "assistant", "content": "final answer text"}],
   "trace": {
     "schema_version": "agentv.trace.v1",
@@ -62,7 +61,7 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
   - Raw stdin uses `snake_case`; SDK handlers receive `camelCase`
-  - Context fields: `input`, `expectedOutput`, `output`, `answer`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
+  - Context fields: `input`, `expectedOutput`, `output`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
 
 ## Python Example
 
@@ -71,7 +70,7 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
 import json, sys
 
 def evaluate(data: dict) -> dict:
-    candidate = data.get("output") or data.get("answer") or ""
+    candidate = data.get("output", "")
     assertions = []
     for kw in ["async", "await"]:
         assertions.append({"text": f"Keyword '{kw}'", "passed": kw in candidate})
@@ -121,7 +120,6 @@ Derived from test fields (users never author these directly):
 | `input` | Full resolved input array (JSON) |
 | `expected_output` | Full resolved expected array (JSON) |
 | `output` | Final answer / scored result string |
-| `answer` | Deprecated alias for `output` |
 | `messages` | Transcript messages from target execution |
 
 Markdown templates use `{{variable}}` syntax. TypeScript templates receive context object.

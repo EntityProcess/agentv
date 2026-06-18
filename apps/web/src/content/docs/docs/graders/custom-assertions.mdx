@@ -42,7 +42,7 @@ The filename (without extension) becomes the assertion type name:
 
 Supported file extensions: `.ts`, `.js`, `.mts`, `.mjs`.
 
-Custom assertion types cannot override built-in types (`contains`, `equals`, `is_json`, etc.). If a filename matches a built-in, it is silently skipped.
+Custom assertion types cannot override built-in types (`contains`, `equals`, `is-json`, etc.). If a filename matches a built-in, it is silently skipped.
 
 ### Using in YAML
 
@@ -117,7 +117,6 @@ The handler receives an `AssertionContext` with the same fields as a code grader
 |-------|------|-------------|
 | `input` | `Message[]` | Full resolved input messages |
 | `output` | `string \| null` | Final answer / scored result only |
-| `answer` | `string` | Deprecated alias for `output` |
 | `messages` | `Message[]` | Transcript messages from the target execution |
 | `expectedOutput` | `Message[]` | Expected output messages |
 | `criteria` | `string` | Evaluation criteria from the test case |

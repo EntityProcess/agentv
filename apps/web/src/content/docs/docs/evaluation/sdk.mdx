@@ -5,7 +5,9 @@ sidebar:
   order: 6
 ---
 
-AgentV provides two npm packages for programmatic use:
+YAML remains AgentV's canonical, portable eval format. The SDK surfaces below are for cases where you want to generate YAML-shaped definitions in code, embed eval runs inside another application, or write executable graders and prompt templates.
+
+AgentV currently provides two npm packages for programmatic use:
 
 - **`@agentv/eval`** — custom assertions and code graders
 - **`@agentv/core`** — programmatic evaluation API and typed configuration
@@ -19,6 +21,17 @@ npm install @agentv/eval
 # Programmatic API (evaluate, defineConfig)
 npm install @agentv/core
 ```
+
+## Choose a Surface
+
+Use the simplest surface that matches the job:
+
+- **YAML / JSONL first** for portable eval specs you want to run from the CLI, check into a repo, or share across TypeScript and Python workflows.
+- **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
+- **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
+- **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
+
+There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
 
 ## Custom Assertions
 
@@ -49,10 +62,11 @@ Return a `score` (0–1) instead of `pass` for graded evaluation:
 import { defineAssertion } from '@agentv/eval';
 
 export default defineAssertion(({ output, traceSummary }) => {
-  const pass = (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 10;
+  const hasContent = (output ?? '').length > 0 ? 0.5 : 0;
+  const isEfficient = (traceSummary?.eventCount ?? 0) <= 10 ? 0.5 : 0;
   return {
-    pass,
-    assertions: [{ text: 'Checks content exists and is efficient', passed: pass }],
+    score: hasContent + isEfficient,
+    reasoning: 'Checks content exists and is efficient',
   };
 });
 ```
@@ -111,11 +125,11 @@ Raw grader stdin uses `snake_case` because it crosses a process boundary and may
 | `duration_ms` | `durationMs` |
 | `workspace_path` | `workspacePath` |
 
-`output` is already the final answer string in both formats. Transcript-aware code should read `messages`, `trace.messages`, or `trace.events`; answer-text graders should read `output` or the deprecated `answer` alias.
+`output` is already the final answer string in both formats. Transcript-aware code should read `messages`, `trace.messages`, or `trace.events`; answer-text graders should read `output`.
 
 ## Programmatic API
 
-Use `evaluate()` from `@agentv/core` to run evaluations as a library — no YAML needed.
+Use `evaluate()` from `@agentv/core` to run evaluations as a library. The most portable pattern is still to keep the suite in YAML and point `specFile` at it; inline tests are best when the eval is tightly coupled to application code.
 
 ### Inline Test Definitions
 
@@ -127,7 +141,8 @@ const { results, summary } = await evaluate({
     {
       id: 'greeting',
       input: 'Say hello',
-      assertions: [{ type: 'contains', value: 'Hello' }],
+      expectedOutput: 'Hello there!',
+      assert: [{ type: 'contains', value: 'Hello' }],
     },
   ],
 });
@@ -149,6 +164,8 @@ const { results, summary } = await evaluate({
 });
 ```
 
+This is the recommended bridge when you want SDK control without creating a separate code-first eval surface.
+
 ## Typed Configuration
 
 Create `agentv.config.ts` at your project root for type-safe, validated configuration using `defineConfig()` from `@agentv/core`:
@@ -169,6 +186,15 @@ export default defineConfig({
 ```
 
 The config file is auto-discovered by the CLI from your project root and validated with Zod at startup.
+
+## Observability Export
+
+AgentV's observability surface is OpenTelemetry. For post-run workflows:
+
+- Use `agentv eval ... --otel-file traces/eval.otlp.json` to write OTLP JSON you can import into systems such as Opik.
+- Use `agentv eval ... --export-otel --otel-backend <name>` for live export when a built-in or local resolver exists.
+
+AgentV does not currently ship a dedicated Opik authoring facade or built-in `opik` backend resolver. Keep the eval definition in YAML and route observability through OTLP export.
 
 ## Scaffold Commands
 

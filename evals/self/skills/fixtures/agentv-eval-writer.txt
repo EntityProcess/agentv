@@ -14,6 +14,10 @@ description: >-
 
 Comprehensive docs: https://agentv.dev
 
+## Authoring Principle
+
+Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
+
 ## Evaluation Types
 
 AgentV evaluations measure **execution quality** — whether your agent or skill produces correct output when invoked.
@@ -113,19 +117,18 @@ tests:
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
 | `criteria` | yes | What the response should accomplish |
-| `input` / `input` | yes | Input to the agent |
-| `expected_output` / `expected_output` | no | Gold-standard reference answer |
+| `input` | yes | Input to the agent (string shorthand or full message array) |
+| `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
-| `rubrics` | no | **Deprecated** — use `assertions: [{type: rubrics, criteria: [...]}]` instead |
 | `execution` | no | Per-case execution overrides |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
 
-**Shorthand aliases:**
+**Shorthand forms:**
 - `input` (string) expands to `[{role: "user", content: "..."}]`
 - `expected_output` (string/object) expands to `[{role: "assistant", content: ...}]`
-- Canonical `input` / `expected_output` take precedence when both present
+- Use these canonical field names on disk; keep the wire format `snake_case`
 
 **Message format:** `{role, content}` where role is `system`, `user`, `assistant`, or `tool`
 **Content types:** inline text, `{type: "file", value: "./path.md"}`
@@ -348,7 +351,7 @@ See https://agentv.dev/targets/configuration/#repository-lifecycle
 
 Configure via `assertions` array. Multiple graders produce a weighted average score.
 
-### code_grader
+### code-grader
 ```yaml
 - name: format_check
   type: code-grader
@@ -357,11 +360,12 @@ Configure via `assertions` array. Multiple graders produce a weighted average sc
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
-Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
+Raw stdin uses snake_case and includes: `criteria`, `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
+SDK handlers receive the same payload in camelCase: `expectedOutput`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`, `fileChanges`, `workspacePath`.
 When a workspace is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
 See docs at https://agentv.dev/graders/code-graders/
 
-### llm_grader
+### llm-grader
 ```yaml
 - name: quality
   type: llm-grader
@@ -371,7 +375,7 @@ See docs at https://agentv.dev/graders/code-graders/
   config:                       # passed to prompt templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
+Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{metadata}}`, `{{metadata_json}}`, `{{rubrics}}`, `{{rubrics_json}}`, `{{file_changes}}`, `{{tool_calls}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 - Use `target:` to run different `llm-grader` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
@@ -498,8 +502,6 @@ Binary check: is the output valid JSON?
 LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
 Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
-### rubrics (inline, deprecated)
-Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assertions` instead.
 See `references/rubric-grader.md` for score-range mode and scoring formula.
 
 ## Execution Error Tolerance
@@ -574,10 +576,13 @@ Use `@agentv/eval` to build custom graders in TypeScript/JavaScript:
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer, trace }) => ({
-  pass: answer.length > 0 && (trace?.eventCount ?? 0) <= 10,
-  reasoning: 'Checks content exists and is efficient',
-}));
+export default defineAssertion(({ output, trace }) => {
+  const finalOutput = output ?? '';
+  return {
+    pass: finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 10,
+    reasoning: 'Checks content exists and is efficient',
+  };
+});
 ```
 
 Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass` is given, score is 1 (pass) or 0 (fail).
@@ -587,12 +592,16 @@ Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ trace, answer }) => ({
-  score: trace?.eventCount <= 5 ? 1.0 : 0.5,
-  assertions: [
-    { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
-  ],
-}));
+export default defineCodeGrader(({ output, trace }) => {
+  const finalOutput = output ?? '';
+  return {
+    score: finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
+    assertions: [
+      { text: 'Output is not empty', passed: finalOutput.length > 0 },
+      { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
+    ],
+  };
+});
 ```
 
 Both are used via `type: code-grader` in YAML with `command: [bun, run, grader.ts]`.
@@ -610,7 +619,7 @@ No `command:` needed in YAML — just use `type: <filename>`.
 
 ## Programmatic API
 
-Use `evaluate()` from `@agentv/core` to run evals as a library:
+Use `evaluate()` from `@agentv/core` to run evals as a library when you need application-level control. Keep YAML as the default portable surface; use `specFile` to point at existing evals and inline `tests` only when the definition belongs in code.
 
 ```typescript
 import { evaluate } from '@agentv/core';
@@ -620,7 +629,8 @@ const { results, summary } = await evaluate({
     {
       id: 'greeting',
       input: 'Say hello',
-      assertions: [{ type: 'contains', value: 'hello' }],
+      expectedOutput: 'Hello there!',
+      assert: [{ type: 'contains', value: 'hello' }],
     },
   ],
   target: { provider: 'mock_agent' },
@@ -628,7 +638,13 @@ const { results, summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
-Supports inline tests (no YAML) or file-based via `specFile`.
+Programmatic API notes:
+
+- Inline programmatic tests use `assert`, not `assertions`.
+- Use camelCase in TypeScript (`expectedOutput`, `beforeAll`, `budgetUsd`).
+- When bridging from Python, generate canonical YAML/JSONL or call the CLI; there is no separate first-party Python authoring SDK.
+
+Supports inline tests or file-based usage via `specFile`.
 
 ## defineConfig
 
@@ -683,6 +699,15 @@ Use `evaluator_overrides` for workspace evaluations to annotate specific grader 
 Review workflow: run evals → inspect results (`agentv inspect show`) → write feedback → tune prompts/graders → re-run.
 
 Full guide: https://agentv.dev/guides/human-review/
+
+## Observability Export
+
+AgentV exports observability data via OpenTelemetry:
+
+- `agentv eval <file.yaml> --otel-file traces/eval.otlp.json` writes a post-run OTLP JSON file that external systems such as Opik can ingest.
+- `agentv eval <file.yaml> --export-otel --otel-backend <name>` streams live traces when a built-in or local resolver exists.
+
+Do not invent a separate Opik-specific eval surface. Keep the eval definition in YAML and route observability through OTLP export.
 
 ## Schemas
 

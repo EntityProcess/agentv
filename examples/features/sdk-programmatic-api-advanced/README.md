@@ -1,6 +1,6 @@
 # SDK Programmatic API — Advanced
 
-Demonstrates the advanced programmatic API features added in [#1115](https://github.com/anthropics/agentv/issues/1115):
+Demonstrates the advanced programmatic API features that extend the same YAML-shaped evaluation model:
 
 - **`beforeAll`** — run setup commands before the suite starts
 - **`budgetUsd`** — cap total LLM spend

@@ -65,10 +65,10 @@ Score the response from 0.0 to 1.0 based on:
 
 | Variable | Source |
 |----------|--------|
+| `criteria` | Test `criteria` field |
 | `input` | Resolved input text |
 | `expected_output` | Reference answer text |
 | `output` | Candidate answer text |
-| `criteria` | Test `criteria` field |
 | `metadata` | Test metadata as formatted JSON |
 | `metadata_json` | Test metadata as compact JSON |
 | `rubrics` | LLM-grader rubric items as formatted JSON |
@@ -76,7 +76,7 @@ Score the response from 0.0 to 1.0 based on:
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 | `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
 
-Use `prompt: file://path/to/prompt.md` to reuse a markdown prompt file. Bare `prompt: "..."` strings are treated as inline prompt text, not file paths.
+Use `prompt: ./path/to/prompt.md` for the common relative-path case. Use `prompt: file://path/to/prompt.md` only when you need to force file-reference resolution explicitly.
 
 Structured task input belongs in `input`. If `input` is a message whose `content` is a JSON object, `{{input}}` renders that object as formatted JSON for the grader prompt; no separate grader-only input field is required. Use `metadata` for provenance or suite-level source fields, and `rubrics_json` for rubric arrays.
 
@@ -141,7 +141,7 @@ export default definePromptTemplate((ctx) => {
   const rubric = ctx.config?.rubric as string | undefined;
   const question = textFromMessages(ctx.input.filter((message) => message.role === 'user'));
   const referenceAnswer = textFromMessages(ctx.expectedOutput);
-  const candidateAnswer = ctx.output ?? ctx.answer ?? '';
+  const candidateAnswer = ctx.output ?? '';
 
   return `You are evaluating an AI assistant's response.
 
@@ -246,8 +246,8 @@ Template variables are derived internally through three layers:
 
 What users write in YAML or JSONL:
 
-- `input` or `input` -- two syntaxes for the same data. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`. If both are present, `input` takes precedence.
-- `expected_output` or `expected_output` -- two syntaxes for the same data. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`. If both are present, `expected_output` takes precedence.
+- `input` may be a shorthand string or a full message array. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`.
+- `expected_output` may be a shorthand string or a full message array. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`.
 
 ### 2. Resolved Layer
 
@@ -264,8 +264,8 @@ Derived strings injected into grader prompts:
 
 | Variable | Derivation |
 |----------|------------|
-| `input` | Resolved input text |
 | `criteria` | Passed through from the test field |
+| `input` | Resolved input text |
 | `expected_output` | Reference answer text |
 | `output` | Candidate answer text |
 | `metadata_json` | Test metadata, compact JSON |
@@ -288,5 +288,5 @@ expected_output: [{ role: "assistant", content: "The answer is 4" }]
 # Derived template variables:
 input:           "What is 2+2?"
 expected_output: "The answer is 4"
-output: (extracted from provider output at runtime)
+output:          (extracted from provider output at runtime)
 ```

@@ -1,6 +1,6 @@
 ---
 title: Autoevals Integration
-description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code_grader graders in AgentV.
+description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code-grader graders in AgentV.
 sidebar:
   order: 3
 ---
@@ -13,7 +13,7 @@ sidebar:
 
 - Works standalone — no Braintrust platform account required
 - Uses any OpenAI-compatible endpoint for LLM-based scorers
-- Integrates with AgentV via `code_grader` grader type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
+- Integrates with AgentV via the `code-grader` type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
 
 ## Installation
 
@@ -50,7 +50,7 @@ All LLM-based scorers return a `score` (0–1) and `metadata.rationale` explaini
 
 ## TypeScript Example
 
-Use the `Factuality` scorer as an AgentV `code_grader` to verify answer correctness.
+Use the `Factuality` scorer as an AgentV `code-grader` to verify answer correctness.
 
 **EVAL.yaml:**
 
@@ -75,11 +75,18 @@ import { readFileSync } from "fs";
 import { Factuality } from "autoevals";
 
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const prompt = input.input
+  ?.filter((message) => message.role === "user")
+  ?.map((message) => typeof message.content === "string" ? message.content : "")
+  ?.join("\n") ?? "";
+const expected = input.expected_output
+  ?.map((message) => typeof message.content === "string" ? message.content : "")
+  ?.join("\n") ?? "";
 
 const result = await Factuality({
-  input: input.input,
-  output: input.output ?? input.answer,
-  expected: input.expected_output,
+  input: prompt,
+  output: input.output ?? "",
+  expected,
 });
 
 const score = result.score ?? 0;
@@ -94,7 +101,7 @@ console.log(
 );
 ```
 
-The code grader reads the AgentV input from stdin (`input`, `output`, `expected_output`), maps the fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format (with `assertions` array) to stdout.
+The code grader reads the canonical AgentV stdin payload (`input`, `expected_output`, `output`), maps those fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format (with `assertions` array) to stdout.
 
 ## Python Example
 
@@ -124,12 +131,22 @@ import sys
 from autoevals import Faithfulness
 
 data = json.load(sys.stdin)
+prompt = "\n".join(
+    message.get("content", "")
+    for message in data.get("input", [])
+    if message.get("role") == "user" and isinstance(message.get("content"), str)
+)
+expected = "\n".join(
+    message.get("content", "")
+    for message in data.get("expected_output", [])
+    if isinstance(message.get("content"), str)
+)
 
 grader = Faithfulness()
 result = grader(
-    input=data.get("input", ""),
-    output=data.get("output") or data.get("answer", ""),
-    expected=data.get("expected_output", ""),
+    input=prompt,
+    output=data.get("output", ""),
+    expected=expected,
 )
 
 score = result.score or 0
@@ -216,11 +233,18 @@ import {
 } from "autoevals";
 
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const prompt = input.input
+  ?.filter((message) => message.role === "user")
+  ?.map((message) => typeof message.content === "string" ? message.content : "")
+  ?.join("\n") ?? "";
+const expected = input.expected_output
+  ?.map((message) => typeof message.content === "string" ? message.content : "")
+  ?.join("\n") ?? "";
 
 const scorerArgs = {
-  input: input.input,
-  output: input.output ?? input.answer,
-  expected: input.expected_output,
+  input: prompt,
+  output: input.output ?? "",
+  expected,
 };
 
 // Run all scorers in parallel

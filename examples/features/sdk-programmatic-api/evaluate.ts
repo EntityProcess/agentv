@@ -2,7 +2,7 @@
  * Programmatic API Example
  *
  * Uses evaluate() from @agentv/core to run evaluations as a library.
- * No YAML needed — tests defined inline with full type safety.
+ * The inline config mirrors the canonical YAML surface with TypeScript-friendly names.
  *
  * Run: bun run evaluate.ts
  * (Uses 'default' target from .agentv/targets.yaml and .env credentials)
