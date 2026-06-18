@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "a60726a7452e",
+  "strategy": "manual-commit",
+  "branch": "fix/publish-workflow-trusted-publisher",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/publish.yml",
+    ".github/workflows/release.yml",
+    "scripts/release.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a6/0726a7452e/0/metadata.json",
+      "transcript": "/a6/0726a7452e/0/full.jsonl",
+      "content_hash": "/a6/0726a7452e/0/content_hash.txt",
+      "prompt": "/a6/0726a7452e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1157353,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 26588032,
+    "output_tokens": 73827,
+    "api_call_count": 219
+  }
+}
