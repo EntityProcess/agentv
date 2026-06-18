@@ -994,16 +994,16 @@ describe('results repo write path', () => {
 });
 
 describe('buildWipBranchName', () => {
-  it('produces an agentv/inflight/<hostname>/<basename> branch name', () => {
+  it('produces an agentv/wip/<hostname>/<basename> branch name', () => {
     const runDir = '/some/path/.agentv/results/runs/default/2026-01-15T10-00-00';
     const branch = buildWipBranchName(runDir);
-    expect(branch).toMatch(/^agentv\/inflight\/[^/]+\/2026-01-15T10-00-00$/);
+    expect(branch).toMatch(/^agentv\/wip\/[^/]+\/2026-01-15T10-00-00$/);
   });
 
   it('sanitizes special characters in hostname and run dir name', () => {
     const branch = buildWipBranchName('/path/to/run dir with spaces!');
     expect(branch).not.toMatch(/[ !]/);
-    expect(branch).toMatch(/^agentv\/inflight\//);
+    expect(branch).toMatch(/^agentv\/wip\//);
   });
 });
 
@@ -1028,7 +1028,7 @@ describe('WIP branch helpers', () => {
   });
 
   it('setupWipWorktree creates a worktree on a new local branch', async () => {
-    const wipBranch = 'agentv/inflight/test-host/test-run-001';
+    const wipBranch = 'agentv/wip/test-host/test-run-001';
     const handle = await setupWipWorktree({ config, wipBranch });
 
     try {
@@ -1050,7 +1050,7 @@ describe('WIP branch helpers', () => {
       path.join(rootDir, 'results-seed'),
       'agentv-results',
     );
-    const wipBranch = 'agentv/inflight/test-host/test-run-configured-branch';
+    const wipBranch = 'agentv/wip/test-host/test-run-configured-branch';
     const handle = await setupWipWorktree({
       config: { ...config, branch: storageBranch },
       wipBranch,
@@ -1069,7 +1069,7 @@ describe('WIP branch helpers', () => {
   }, 30000);
 
   it('pushWipCheckpoint force-pushes run artifacts to the WIP branch', async () => {
-    const wipBranch = 'agentv/inflight/test-host/test-run-002';
+    const wipBranch = 'agentv/wip/test-host/test-run-002';
     const handle = await setupWipWorktree({ config, wipBranch });
 
     // Write some run artifacts to push
@@ -1093,7 +1093,7 @@ describe('WIP branch helpers', () => {
   }, 30000);
 
   it('pushWipCheckpoint returns false when run output has not changed', async () => {
-    const wipBranch = 'agentv/inflight/test-host/test-run-003';
+    const wipBranch = 'agentv/wip/test-host/test-run-003';
     const handle = await setupWipWorktree({ config, wipBranch });
 
     const runDir = path.join(rootDir, 'run-output-static');
@@ -1121,7 +1121,7 @@ describe('WIP branch helpers', () => {
   }, 30000);
 
   it('deleteWipBranch removes the remote WIP branch', async () => {
-    const wipBranch = 'agentv/inflight/test-host/test-run-004';
+    const wipBranch = 'agentv/wip/test-host/test-run-004';
     const handle = await setupWipWorktree({ config, wipBranch });
     const runDir = path.join(rootDir, 'run-delete-test');
     writeRunArtifacts(runDir, 'default', '2026-01-15T12-00-00');

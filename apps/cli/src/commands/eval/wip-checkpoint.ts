@@ -2,7 +2,7 @@
  * WIP (work-in-progress) checkpoint loop for in-progress eval runs.
  *
  * Periodically force-pushes the partial run output directory to a unique
- * non-default branch (`agentv/inflight/<hostname>/<run-dir-basename>`) in the
+ * non-default branch (`agentv/wip/<hostname>/<run-dir-basename>`) in the
  * configured results repository. This protects against pod/process loss by
  * keeping completed-test results durable without requiring PVC or S3.
  *
@@ -14,7 +14,7 @@
  *
  * Manual recovery from a WIP branch:
  *   git clone <results-repo> /tmp/recovery
- *   cd /tmp/recovery && git checkout agentv/inflight/<hostname>/<run-dir>
+ *   cd /tmp/recovery && git checkout agentv/wip/<hostname>/<run-dir>
  *   cp -r .agentv/results/runs/<run-dir> <project>/.agentv/results/runs/
  *   agentv eval <eval-file> --output <project>/.agentv/results/runs/<run-dir> --resume
  *

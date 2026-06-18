@@ -245,7 +245,7 @@ IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becom
 
 ## Remote Results
 
-Dashboard can display runs pushed to a remote git repository by other machines or CI alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber). For in-progress eval durability before final publish, AgentV writes [WIP checkpoints](/docs/tools/wip-checkpoints/) to `agentv/inflight/...` branches; Dashboard lists them only after they are recovered locally or published to the normal results branch.
+Dashboard can display runs pushed to a remote git repository by other machines or CI alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber). For in-progress eval durability before final publish, AgentV writes [WIP checkpoints](/docs/tools/wip-checkpoints/) to `agentv/wip/...` branches; Dashboard lists them only after they are recovered locally or published to the normal results branch.
 
 ### Configuration
 
@@ -267,7 +267,7 @@ projects:
         require_push: false
 ```
 
-`results.repo_path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. The branch defaults to `agentv/results/v1` for `repo_path` configs. AgentV creates the branch automatically on first publish and commits only `.agentv/results/**` paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. `sync.require_push: true` is for CI workflows where a push failure should fail the command after local artifacts are written.
+`results.repo_path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. The name is intentionally `repo_path`, not `repo`: in AgentV, `workspace.repos[].repo` means a portable repository identity such as a clone URL or `org/name`, while `results.repo_path` means an existing local Git checkout whose object database and refs AgentV should write to. The branch defaults to `agentv/results/v1` for `repo_path` configs. AgentV creates the branch automatically on first publish and commits only `.agentv/results/**` paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. `sync.require_push: true` is for CI workflows where a push failure should fail the command after local artifacts are written.
 
 For a separate results repository, use `repo_url` and an optional managed clone `path`:
 
@@ -284,7 +284,7 @@ projects:
         auto_push: true
 ```
 
-`results.path` is the filesystem location of the local clone AgentV manages for a `repo_url` results repo. It uses the same local-path field name as the source project. `results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured.
+`results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured. `results.path` is the filesystem location of the local clone AgentV manages for that remote results repo. Use `repo_path` only when the results store is an already-existing local checkout such as `.`.
 
 You can also set a top-level global fallback in the same file. This is used when the current project is not registered or its registry entry has no `results` block:
 

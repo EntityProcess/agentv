@@ -1888,12 +1888,12 @@ function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
 // ── WIP (work-in-progress) branch helpers ─────────────────────────────────
 //
 // Periodic best-effort checkpoints push the partial run output to a unique
-// non-default branch (`agentv/inflight/<hostname>/<run-dir-basename>`) every ~30s.
+// non-default branch (`agentv/wip/<hostname>/<run-dir-basename>`) every ~30s.
 // The branch is force-pushed (single-writer) to avoid conflict handling and
 // noisy history. On successful run completion the branch is deleted.
 //
 // Manual recovery: if a pod is lost mid-run, an operator can clone the results
-// repo, checkout `agentv/inflight/<hostname>/<run-dir>`, and resume with:
+// repo, checkout `agentv/wip/<hostname>/<run-dir>`, and resume with:
 //   cp -r .agentv/results/runs/<run-dir> <local-workspace>
 //   agentv eval <eval-file> --output <local-workspace>/<run-dir> --resume
 
@@ -1906,7 +1906,7 @@ export function buildWipBranchName(runDir: string): string {
     .basename(runDir)
     .replace(/[^A-Za-z0-9._-]+/g, '-')
     .slice(0, 60);
-  return `agentv/inflight/${hostname}/${runBasename}`;
+  return `agentv/wip/${hostname}/${runBasename}`;
 }
 
 export interface WipWorktreeHandle {
