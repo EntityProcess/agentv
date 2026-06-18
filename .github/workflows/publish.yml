@@ -1,56 +1,182 @@
 name: Publish
 
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_call:
-    inputs:
-      action:
-        description: "Action to perform"
-        required: true
-        type: string
-      ref:
-        description: "Git tag or ref to publish"
-        required: true
-        type: string
-    secrets:
-      NPM_TOKEN:
-        required: true
-      GH_MODELS_TOKEN:
-        required: false
   workflow_dispatch:
     inputs:
-      action:
-        description: "Action to perform"
+      channel:
+        description: "Release channel, or publish an existing tag/ref"
         required: true
         type: choice
         options:
-          - publish-next
-          - publish-latest
-        default: publish-next
+          - next
+          - finalize
+          - stable
+          - existing
+        default: next
+      bump:
+        description: "Version bump (next and stable only)"
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      prerelease_tag:
+        description: "Prerelease tag to finalize (defaults to latest v*-next.* tag)"
+        required: false
+        type: string
       ref:
-        description: "Git tag or ref to publish (defaults to the workflow ref)"
+        description: "Existing release tag/ref to publish (required when channel=existing)"
         required: false
         type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  group: ${{ github.workflow }}-${{ inputs.channel }}-${{ inputs.ref || inputs.prerelease_tag || inputs.bump || github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 
 jobs:
-  publish:
+  prepare:
+    name: Prepare release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      publish_action: ${{ steps.context.outputs.publish_action }}
+      release_tag: ${{ steps.context.outputs.release_tag }}
+      version: ${{ steps.context.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.channel == 'existing' && inputs.ref || github.ref }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ "${{ inputs.channel }}" != "existing" ]; then
+            git checkout main
+          fi
+
+      - name: Validate existing ref input
+        if: inputs.channel == 'existing' && inputs.ref == ''
+        run: |
+          echo "::error::ref is required when channel=existing"
+          exit 1
+
+      - name: Resolve finalize ref
+        if: inputs.channel == 'finalize'
+        id: finalize_ref
+        run: |
+          if [ -n "${{ inputs.prerelease_tag }}" ]; then
+            TAG="${{ inputs.prerelease_tag }}"
+          else
+            TAG=$(git tag --list 'v*-next.*' --sort=-version:refname | head -n 1)
+          fi
+
+          case "$TAG" in
+            v*) ;;
+            *) TAG="v$TAG" ;;
+          esac
+
+          if [ -z "$TAG" ]; then
+            echo "No prerelease tag found to finalize" >&2
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          git checkout --detach "$TAG"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Finalize/stable releases promote to latest, so block before any version
+      # bump/tag if the live contract eval fails. The gate uses a Models-capable
+      # PAT secret and does not override the workflow GITHUB_TOKEN.
+      - name: Contract eval gate
+        if: inputs.channel == 'finalize' || inputs.channel == 'stable'
+        run: bun run contract-eval
+        env:
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
+
+      - name: Bump version, commit, and tag
+        if: inputs.channel != 'existing'
+        run: |
+          if [ "${{ inputs.channel }}" = "next" ]; then
+            bun run release next ${{ inputs.bump }}
+          elif [ "${{ inputs.channel }}" = "finalize" ]; then
+            bun run release finalize "${{ steps.finalize_ref.outputs.tag }}"
+          else
+            bun run release ${{ inputs.bump }}
+          fi
+
+      - name: Resolve publish context
+        id: context
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./apps/cli/package.json').version")
+          RELEASE_TAG="v${VERSION}"
+          CHECKOUT_TAG=$(git tag --points-at HEAD | grep -Fx "$RELEASE_TAG" | head -n 1 || true)
+
+          if [ -z "$CHECKOUT_TAG" ]; then
+            echo "::error::Publish checkout must point at $RELEASE_TAG; tags at HEAD are:"
+            git tag --points-at HEAD || true
+            exit 1
+          fi
+
+          if [[ "$VERSION" == *"-next."* ]]; then
+            PUBLISH_ACTION="publish-next"
+          else
+            PUBLISH_ACTION="publish-latest"
+          fi
+
+          echo "Publishing $RELEASE_TAG with $PUBLISH_ACTION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "publish_action=$PUBLISH_ACTION" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure GitHub Release
+        run: |
+          VERSION="${{ steps.context.outputs.version }}"
+          RELEASE_TAG="${{ steps.context.outputs.release_tag }}"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_TAG already exists"
+            exit 0
+          fi
+
+          if [[ "$VERSION" == *"-next."* ]]; then
+            gh release create "$RELEASE_TAG" --generate-notes --prerelease
+          else
+            gh release create "$RELEASE_TAG" --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    name: Publish npm packages
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ needs.prepare.outputs.release_tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -68,12 +194,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Detect and validate channel
-        id: channel
+      - name: Validate publish checkout
         run: |
           set -euo pipefail
 
-          ACTION="${{ inputs.action }}"
           VERSION=$(node -p "require('./apps/cli/package.json').version")
           RELEASE_TAG="v${VERSION}"
           CHECKOUT_TAG=$(git tag --points-at HEAD | grep -Fx "$RELEASE_TAG" | head -n 1 || true)
@@ -84,43 +208,24 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$ACTION" ]; then
-            if [[ "$VERSION" == *"-next."* ]]; then
-              ACTION="publish-next"
-            else
-              ACTION="publish-latest"
-            fi
-          fi
-
-          case "$ACTION" in
-            publish-next|publish-latest) ;;
-            *)
-              echo "::error::Invalid publish action: $ACTION"
-              exit 1
-              ;;
-          esac
-
           if [[ "$VERSION" == *"-next."* ]]; then
-            if [ "$ACTION" != "publish-next" ]; then
-              echo "::error::Cannot publish prerelease $VERSION with action $ACTION"
+            if [ "${{ needs.prepare.outputs.publish_action }}" != "publish-next" ]; then
+              echo "::error::Cannot publish prerelease $VERSION with ${{ needs.prepare.outputs.publish_action }}"
               exit 1
             fi
           else
-            if [ "$ACTION" != "publish-latest" ]; then
-              echo "::error::Cannot publish stable version $VERSION with action $ACTION"
+            if [ "${{ needs.prepare.outputs.publish_action }}" != "publish-latest" ]; then
+              echo "::error::Cannot publish stable version $VERSION with ${{ needs.prepare.outputs.publish_action }}"
               exit 1
             fi
           fi
 
-          echo "Publishing $RELEASE_TAG with $ACTION"
-          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $RELEASE_TAG with ${{ needs.prepare.outputs.publish_action }}"
 
-      # Latest promotion is blocked on a tiny live contract eval. The gate uses
-      # a Models-capable PAT secret, while npm publish still uses NPM_TOKEN.
+      # Existing latest publishes still run the live contract gate because they
+      # promote an already-created tag to the default npm install path.
       - name: Run contract eval gate
-        if: steps.channel.outputs.action == 'publish-latest'
+        if: needs.prepare.outputs.publish_action == 'publish-latest' && inputs.channel == 'existing'
         run: bun run contract-eval
         env:
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
@@ -128,7 +233,7 @@ jobs:
 
       - name: Publish to npm
         run: |
-          if [ "${{ steps.channel.outputs.action }}" = "publish-next" ]; then
+          if [ "${{ needs.prepare.outputs.publish_action }}" = "publish-next" ]; then
             bun run publish:next
           else
             bun run publish

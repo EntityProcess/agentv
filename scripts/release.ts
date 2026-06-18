@@ -16,6 +16,9 @@
  *   5. Commits the version bump
  *   6. Creates a git tag
  *   7. Pushes the release commit/tag for stable/next, or the stable tag for finalize
+ *
+ * The publish workflow calls this script first, then publishes npm packages from
+ * the resolved release tag in a separate job in the same workflow file.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -267,7 +270,7 @@ async function main() {
         await $`git checkout --detach v${newVersion}`;
         console.log(`\n✅ Release tag v${newVersion} already exists; continuing\n`);
         console.log('Next steps:');
-        console.log('  1. Publish will run automatically from the existing release tag');
+        console.log('  1. Publish from the existing release tag');
         return;
       }
 
@@ -318,7 +321,7 @@ async function main() {
 
   console.log(`\n✅ Released v${newVersion}\n`);
   console.log('Next steps:');
-  console.log('  1. Publish will run automatically from the pushed release tag');
+  console.log('  1. Publish from the pushed release tag');
 }
 
 main().catch((error) => {
