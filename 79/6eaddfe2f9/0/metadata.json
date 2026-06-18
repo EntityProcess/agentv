@@ -1,0 +1,80 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "796eaddfe2f9",
+  "session_id": "019ed99c-d00d-7613-b2e7-d2f512f78afd",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-18T10:06:10.801642907Z",
+  "branch": "ci/update-actions-node24",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/dependency-audit.yml",
+    ".github/workflows/evals.yml",
+    ".github/workflows/publish.yml"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "8344ae09e2c9",
+  "checkpoint_transcript_start": 1497,
+  "transcript_lines_at_start": 1497,
+  "token_usage": {
+    "input_tokens": 548012,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 13929728,
+    "output_tokens": 43334,
+    "api_call_count": 111
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-18T10:06:10.469366569Z",
+    "agent_lines": 14,
+    "agent_removed": 14,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 14,
+    "total_lines_changed": 28,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 2180,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".workmux/prompts/av-agentv-bench-cli-default.md": 127,
+        ".workmux/prompts/av-dashboard-braintrust-research.md": 74,
+        ".workmux/prompts/av-dashboard-eval-suite-labels.md": 97,
+        ".workmux/prompts/av-dashboard-ux-benchmark.md": 97,
+        ".workmux/prompts/av-harbor-boundary-docs-design.md": 81,
+        ".workmux/prompts/av-otel-backend-resolvers.md": 80,
+        ".workmux/prompts/av-rereview-pr1399-otel-resolvers.md": 37,
+        ".workmux/prompts/av-rereview-pr1400-results-schema.md": 38,
+        ".workmux/prompts/av-results-branch-storage.md": 136,
+        ".workmux/prompts/av-results-repo-branch-research.md": 106,
+        ".workmux/prompts/av-results-row-schema-cleanup.md": 88,
+        ".workmux/prompts/av-review-pr1397-dashboard-suite-labels.md": 34,
+        ".workmux/prompts/av-review-pr1398-harbor-boundary.md": 33,
+        ".workmux/prompts/av-review-pr1399-otel-resolvers.md": 36,
+        ".workmux/prompts/av-review-pr1400-results-schema.md": 33,
+        ".workmux/prompts/av-review-pr1401-trace-projection.md": 36,
+        ".workmux/prompts/av-self-eval-real-agentv-bench-skill.md": 125,
+        ".workmux/prompts/av-trace-canonical-projection.md": 85,
+        ".workmux/prompts/av-trace-v1-namespace.md": 102,
+        ".workmux/prompts/av-vwa11-envelope-replay.md": 64,
+        ".workmux/prompts/av-vwa2-pr1374-rereview.md": 70,
+        ".workmux/prompts/av-vwa2-pr1374-review.md": 74,
+        ".workmux/prompts/av-vwa2-replay-payload-fix.md": 108,
+        ".workmux/prompts/av-vwa2-replay.md": 54,
+        ".workmux/prompts/av-vwa9-envelope-slice1.md": 224,
+        ".workmux/prompts/av-vwa9-trace-envelope-spec.md": 141
+      }
+    }
+  ]
+}

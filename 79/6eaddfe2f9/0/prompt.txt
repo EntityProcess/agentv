@@ -1,0 +1,9 @@
+also we have two idle workers for sync feature, can we kill them since they compoelted their work
+
+---
+
+also what is happening with the sdk. i thought we had beads to add packages/sdk and remove packages/eval
+
+---
+
+we should spawn workers to implement the sdk after this
