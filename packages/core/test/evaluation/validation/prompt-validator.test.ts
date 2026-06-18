@@ -13,14 +13,16 @@ describe('validateTemplateVariables', () => {
     ).not.toThrow();
   });
 
-  it('passes when template contains deprecated {{ output_text }}', () => {
-    expect(() => validateTemplateVariables('Score: {{ output_text }}', 'test.txt')).not.toThrow();
+  it('rejects removed deprecated {{ output_text }}', () => {
+    expect(() => validateTemplateVariables('Score: {{ output_text }}', 'test.txt')).toThrow(
+      'Missing required fields',
+    );
   });
 
-  it('passes when template contains deprecated {{ expected_output_text }}', () => {
+  it('rejects removed deprecated {{ expected_output_text }}', () => {
     expect(() =>
       validateTemplateVariables('Reference: {{ expected_output_text }}', 'test.txt'),
-    ).not.toThrow();
+    ).toThrow('Missing required fields');
   });
 
   it('throws when no required or deprecated variables are present', () => {

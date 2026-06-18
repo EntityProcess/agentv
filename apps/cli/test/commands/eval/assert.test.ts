@@ -27,9 +27,26 @@ console.log(JSON.stringify({ score: 1.0, assertions: [{ text: "always passes", p
     path.join(gradersDir, 'check-contains.ts'),
     `const input = await Bun.stdin.text();
 const payload = JSON.parse(input);
-const output = payload.output_text ?? payload.output ?? '';
+const output = payload.output ?? '';
 const score = typeof output === 'string' && output.includes('hello') ? 1.0 : 0.0;
 console.log(JSON.stringify({ score, assertions: [{ text: score ? "contains hello" : "missing hello", passed: !!score }] }));`,
+    'utf8',
+  );
+
+  await writeFile(
+    path.join(gradersDir, 'reject-legacy-fields.ts'),
+    `const input = await Bun.stdin.text();
+const payload = JSON.parse(input);
+const hasLegacyFields = [
+  "input_text",
+  "output_text",
+  "expected_output_text",
+  "reference_answer",
+].some((key) => Object.prototype.hasOwnProperty.call(payload, key));
+console.log(JSON.stringify({
+  score: hasLegacyFields ? 0 : 1,
+  assertions: [{ text: hasLegacyFields ? "legacy fields present" : "canonical fields only", passed: !hasLegacyFields }],
+}));`,
     'utf8',
   );
 
@@ -134,6 +151,32 @@ describe('agentv eval assert', () => {
         { cwd: baseDir, reject: false },
       );
       expect(result.exitCode).not.toBe(0);
+    } finally {
+      await rm(baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('sends only canonical wire fields to code graders', async () => {
+    const { baseDir } = await createGraderFixture();
+    try {
+      const result = await execa(
+        'bun',
+        [
+          '--no-env-file',
+          CLI_ENTRY,
+          'eval',
+          'assert',
+          'reject-legacy-fields',
+          '--agent-output',
+          'hello world',
+          '--agent-input',
+          'test',
+        ],
+        { cwd: baseDir, reject: false },
+      );
+      expect(result.exitCode).toBe(0);
+      const parsed = JSON.parse(result.stdout);
+      expect(parsed.score).toBe(1.0);
     } finally {
       await rm(baseDir, { recursive: true, force: true });
     }

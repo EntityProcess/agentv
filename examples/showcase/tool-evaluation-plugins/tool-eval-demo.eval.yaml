@@ -104,7 +104,7 @@ tests:
   # ==========================================
   # Example 4: Pairwise Comparison
   # Use case: Compare candidate against baseline response
-  # Requires reference_answer field
+  # Requires expected_output to supply a reference answer
   # ==========================================
   - id: pairwise-demo
 
@@ -116,7 +116,7 @@ tests:
         content: Summarize the main points of the user manual.
 
     # Reference answer for comparison (from a baseline agent)
-    # Note: reference_answer is constructed from expected_output content
+    # Note: the reference answer is derived from expected_output content
     expected_output:
       - role: assistant
         content: |-

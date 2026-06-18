@@ -155,45 +155,6 @@ Candidate: {{output}}
     expect(prompt).toContain('Candidate: Apple revenue increased.');
   });
 
-  it('deprecated _text aliases still resolve correctly', async () => {
-    const formattedQuestion = 'What is 2+2?';
-    const customPrompt = `
-Question: {{input_text}}
-Reference: {{expected_output_text}}
-Candidate: {{output_text}}
-`;
-
-    const graderProvider = new CapturingProvider({
-      text: JSON.stringify({
-        score: 0.9,
-        assertions: [{ text: 'OK', passed: true }],
-      }),
-    });
-
-    const evaluator = new LlmGrader({
-      resolveGraderProvider: async () => graderProvider,
-      graderTemplate: customPrompt,
-    });
-
-    await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
-      candidate: 'Four',
-      target: baseTarget,
-      provider: graderProvider,
-      attempt: 0,
-      promptInputs: { question: formattedQuestion },
-      now: new Date(),
-    });
-
-    const request = graderProvider.lastRequest;
-    expect(request).toBeDefined();
-
-    // Deprecated aliases resolve to the same text values as the primary variables
-    expect(request?.question).toContain(`Question: ${formattedQuestion}`);
-    expect(request?.question).toContain('Reference: Reference Answer Text');
-    expect(request?.question).toContain('Candidate: Four');
-  });
-
   it('does not substitute if no variables are present', async () => {
     const customPrompt = 'Fixed prompt without variables';
     const promptQuestion = 'Summarize the latest logs without markers.';

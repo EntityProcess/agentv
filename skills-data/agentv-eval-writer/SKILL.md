@@ -356,7 +356,7 @@ Configure via `assertions` array. Multiple graders produce a weighted average sc
   cwd: ./scripts          # optional working directory
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
-Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
+Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], details?}`
 Raw stdin uses snake_case and includes: `criteria`, `input`, `expected_output`, `output` (final answer string), `answer` (deprecated alias), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 SDK handlers receive the same payload in camelCase: `expectedOutput`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`, `fileChanges`, `workspacePath`.
 When a workspace is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
@@ -372,7 +372,7 @@ See docs at https://agentv.dev/graders/code-graders/
   config:                       # passed to prompt templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
+Variables: `{{criteria}}`, `{{answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 - Use `target:` to run different `llm-grader` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
@@ -575,10 +575,13 @@ Use `@agentv/eval` to build custom graders in TypeScript/JavaScript:
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer, trace }) => ({
-  pass: answer.length > 0 && (trace?.eventCount ?? 0) <= 10,
-  reasoning: 'Checks content exists and is efficient',
-}));
+export default defineAssertion(({ output, traceSummary }) => {
+  const pass = (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 10;
+  return {
+    pass,
+    assertions: [{ text: 'Checks content exists and is efficient', passed: pass }],
+  };
+});
 ```
 
 Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass` is given, score is 1 (pass) or 0 (fail).
@@ -588,10 +591,11 @@ Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ trace, answer }) => ({
-  score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+export default defineCodeGrader(({ output, traceSummary }) => ({
+  score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
   assertions: [
-    { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
+    { text: 'Output is not empty', passed: (output ?? '').length > 0 },
+    { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
   ],
 }));
 ```

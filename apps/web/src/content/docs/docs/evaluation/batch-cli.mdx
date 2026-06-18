@@ -147,7 +147,7 @@ Each test has its own grader that validates the batch runner output. The grader 
 **Input (stdin):**
 ```json
 {
-  "output_text": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
+  "output": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
   "expected_output": [{"role": "assistant", "content": {"decision": "CLEAR"}}],
   "input": [...]
 }
@@ -170,7 +170,7 @@ Each test has its own grader that validates the batch runner output. The grader 
 import fs from 'node:fs';
 
 type EvalInput = {
-  output_text?: string;
+  output?: string;
   expected_output?: Array<{ role: string; content: unknown }>;
 };
 
@@ -182,7 +182,7 @@ function main() {
 
   let candidateDecision: string | undefined;
   try {
-    const parsed = JSON.parse(input.output_text ?? '');
+    const parsed = JSON.parse(input.output ?? '');
     candidateDecision = parsed.decision;
   } catch {
     candidateDecision = undefined;

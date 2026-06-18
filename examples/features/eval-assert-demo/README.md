@@ -67,7 +67,7 @@ When running the eval, the transpiler emits natural-language instructions for ea
 ```
 Run `agentv eval assert keyword-check --agent-output <text> --agent-input <text>` and check the result.
 This grader: Checks that the answer mentions Paris and France.
-The command returns JSON: {"score": 0-1, "reasoning": "..."}.
+The command returns JSON: {"score": 0-1, "assertions": [{"text": "...", "passed": true|false}]}.
 A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).
 ```
 

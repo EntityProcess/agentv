@@ -44,12 +44,11 @@
   "assertions": [
     { "text": "passed check", "passed": true },
     { "text": "failed check", "passed": false }
-  ],
-  "reasoning": "explanation"
+  ]
 }
 ```
 
-`score` (0.0-1.0) required. `assertions`, `reasoning` optional.
+`score` (0.0-1.0) required. `assertions` and `details` optional.
 
 ## SDK Functions
 
@@ -72,7 +71,7 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
 import json, sys
 
 def evaluate(data: dict) -> dict:
-    candidate = data.get("answer", "")
+    candidate = data.get("output") or data.get("answer") or ""
     assertions = []
     for kw in ["async", "await"]:
         assertions.append({"text": f"Keyword '{kw}'", "passed": kw in candidate})
@@ -97,9 +96,9 @@ if __name__ == "__main__":
 import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ output, criteria }) => {
-  const answer = output ?? '';
+  const candidate = output ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
-  if (answer.includes(criteria)) {
+  if (candidate.includes(criteria)) {
     assertions.push({ text: 'Matches expected outcome', passed: true });
   } else {
     assertions.push({ text: 'Does not match expected outcome', passed: false });

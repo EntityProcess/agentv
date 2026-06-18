@@ -34,8 +34,8 @@ interface EvalConfig {
 }
 
 interface EvalInput {
-  output_text: string;
-  expected_output_text: string;
+  output: string;
+  expected_output: string;
   config: EvalConfig | null;
 }
 
@@ -86,8 +86,8 @@ async function main(): Promise<void> {
   let candidateObj: unknown;
   let referenceObj: unknown;
   try {
-    candidateObj = JSON.parse(input.output_text);
-    referenceObj = JSON.parse(input.expected_output_text);
+    candidateObj = JSON.parse(input.output);
+    referenceObj = JSON.parse(input.expected_output);
   } catch {
     console.log(
       JSON.stringify({

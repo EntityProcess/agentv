@@ -80,8 +80,6 @@ export const evalAssertCommand = command({
         question: resolvedInput,
         criteria: '',
         expected_output: [],
-        reference_answer: '',
-
         input_files: [],
         trace,
         token_usage: null,
@@ -93,10 +91,6 @@ export const evalAssertCommand = command({
         workspace_path: null,
         config: null,
         metadata: {},
-        // Text convenience accessors (new names)
-        input_text: resolvedInput,
-        output_text: resolvedOutput,
-        expected_output_text: '',
       },
       null,
       2,
