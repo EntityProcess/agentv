@@ -107,6 +107,8 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - `apps/cli/` - Command-line interface (published as `agentv`)
   - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
 - `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
+- `docs/solutions/` - documented solutions to past problems (bugs, conventions, best practices), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when working in documented areas.
+- `CONCEPTS.md` - shared domain vocabulary (providers, targets, and other project-specific terms). Relevant when orienting to the codebase or discussing domain concepts.
 
 ## Working Style
 
