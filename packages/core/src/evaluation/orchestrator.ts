@@ -129,6 +129,119 @@ function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
 }
 
+interface EvaluationRuntimeOptions {
+  readonly target: ResolvedTarget;
+  readonly targets?: readonly TargetDefinition[];
+  readonly env?: EnvLookup;
+  readonly providerFactory?: (target: ResolvedTarget) => Provider;
+  readonly evalFilePath?: string;
+  readonly graderTarget?: string;
+  readonly model?: string;
+}
+
+interface EvaluationRuntime {
+  readonly getOrCreateProvider: (resolved: ResolvedTarget) => Provider;
+  readonly resolveGraderProvider: (targetContext: ResolvedTarget) => Promise<Provider | undefined>;
+  readonly targetResolver: (name: string) => Provider | undefined;
+  readonly availableTargets: readonly string[];
+}
+
+function createEvaluationRuntime(options: EvaluationRuntimeOptions): EvaluationRuntime {
+  const {
+    target,
+    targets,
+    env,
+    providerFactory,
+    evalFilePath,
+    graderTarget: cliGraderTarget,
+    model: cliModel,
+  } = options;
+  const resolvedTargetsByName = new Map<string, ResolvedTarget>();
+  resolvedTargetsByName.set(target.name, target);
+
+  const targetDefinitions = new Map<string, TargetDefinition>();
+  for (const definition of targets ?? []) {
+    targetDefinitions.set(definition.name, definition);
+  }
+
+  const envLookup: EnvLookup = env ?? process.env;
+  const providerCache = new Map<string, Provider>();
+
+  const getOrCreateProvider = (resolved: ResolvedTarget): Provider => {
+    const existing = providerCache.get(resolved.name);
+    if (existing) {
+      return existing;
+    }
+    const factory = providerFactory ?? createProvider;
+    const instance = factory(resolved);
+    providerCache.set(resolved.name, instance);
+    return instance;
+  };
+
+  const resolveTargetByName = (name: string): ResolvedTarget | undefined => {
+    if (resolvedTargetsByName.has(name)) {
+      return resolvedTargetsByName.get(name);
+    }
+    const definition = resolveDelegatedTargetDefinition(name, targetDefinitions, envLookup);
+    if (!definition) {
+      return undefined;
+    }
+    const resolved = resolveTargetDefinition(definition, envLookup, evalFilePath ?? '');
+    resolvedTargetsByName.set(name, resolved);
+    return resolved;
+  };
+
+  const resolveGraderProvider = async (
+    targetContext: ResolvedTarget,
+  ): Promise<Provider | undefined> => {
+    // CLI --grader-target takes highest priority.
+    if (cliGraderTarget) {
+      if (cliGraderTarget === 'agentv') {
+        if (!cliModel) {
+          throw new Error('--grader-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
+        }
+        const { AgentvProvider } = await import('./providers/agentv-provider.js');
+        return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
+      }
+      const overrideTarget = resolveTargetByName(cliGraderTarget);
+      if (!overrideTarget) {
+        throw new Error(`--grader-target "${cliGraderTarget}" not found in targets`);
+      }
+      return getOrCreateProvider(overrideTarget);
+    }
+
+    // TODO: When --model is provided without --grader-target, override the model of
+    // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
+
+    const graderName = targetContext.graderTarget ?? targetContext.name;
+    const resolvedGrader = resolveTargetByName(graderName);
+    if (!resolvedGrader) {
+      // Only use the eval target as its own grader if it can return structured JSON.
+      // Agent providers, transcript, cli, and copilot-log cannot grade.
+      if (!LLM_GRADER_CAPABLE_KINDS.includes(targetContext.kind)) {
+        return undefined;
+      }
+      return getOrCreateProvider(targetContext);
+    }
+    return getOrCreateProvider(resolvedGrader);
+  };
+
+  const targetResolver = (name: string): Provider | undefined => {
+    const resolved = resolveTargetByName(name);
+    if (!resolved) {
+      return undefined;
+    }
+    return getOrCreateProvider(resolved);
+  };
+
+  return {
+    getOrCreateProvider,
+    resolveGraderProvider,
+    targetResolver,
+    availableTargets: [target.name, ...Array.from(targetDefinitions.keys())],
+  };
+}
+
 /**
  * Validate the dependency DAG for a set of eval tests.
  * Rejects circular dependencies and references to missing test IDs.
@@ -391,6 +504,221 @@ export interface RunEvaluationOptions {
   readonly replayRecording?: ReplayRecordingOptions;
 }
 
+export interface PreparedAttemptMetadata {
+  readonly source: 'manual';
+  readonly manifestPath?: string;
+  readonly preparedDir?: string;
+  readonly workspacePath: string;
+  readonly promptPath?: string;
+  readonly target: string;
+  readonly preparedAt?: string;
+  readonly setupStatus?: string;
+  readonly baselineStatus?: 'initialized' | 'unavailable';
+  readonly baselineCommit?: string;
+}
+
+export interface GradePreparedEvalCaseOptions {
+  readonly evalCase: EvalTest;
+  readonly target: ResolvedTarget;
+  readonly targets?: readonly TargetDefinition[];
+  readonly env?: EnvLookup;
+  readonly evaluators?: Partial<Record<string, Grader>>;
+  readonly providerFactory?: (target: ResolvedTarget) => Provider;
+  readonly now?: () => Date;
+  readonly agentTimeoutMs?: number;
+  readonly graderTarget?: string;
+  readonly model?: string;
+  readonly evalFilePath?: string;
+  readonly workspacePath: string;
+  readonly baselineCommit?: string;
+  readonly response?: string;
+  readonly verbose?: boolean;
+  readonly threshold?: number;
+  readonly preparedAttempt: PreparedAttemptMetadata;
+}
+
+function createPreparedProvider(target: ResolvedTarget): Provider {
+  return {
+    id: `prepared:${target.name}`,
+    kind: target.kind,
+    targetName: target.name,
+    async invoke(): Promise<ProviderResponse> {
+      throw new Error('Prepared grading does not invoke the target provider');
+    },
+  };
+}
+
+function withPreparedMetadata(
+  evalCase: EvalTest,
+  preparedAttempt: PreparedAttemptMetadata,
+): Record<string, unknown> {
+  return {
+    ...evalCase.metadata,
+    preparedAttempt,
+  };
+}
+
+export async function gradePreparedEvalCase(
+  options: GradePreparedEvalCaseOptions,
+): Promise<EvaluationResult> {
+  const {
+    evalCase,
+    target,
+    targets,
+    env,
+    evaluators,
+    providerFactory,
+    agentTimeoutMs,
+    graderTarget,
+    model,
+    evalFilePath,
+    workspacePath,
+    baselineCommit,
+    response,
+    verbose,
+    threshold: caseThreshold,
+    preparedAttempt,
+  } = options;
+  const nowFn = options.now ?? (() => new Date());
+  const caseStartMs = Date.now();
+  const provider = createPreparedProvider(target);
+  const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
+  const promptInputs = await buildPromptInputs(evalCase, formattingMode);
+  const typeRegistry = createBuiltinRegistry();
+  const runtime = createEvaluationRuntime({
+    target,
+    targets,
+    env,
+    providerFactory,
+    evalFilePath,
+    graderTarget,
+    model,
+  });
+  const evaluatorRegistry = buildEvaluatorRegistry(evaluators, runtime.resolveGraderProvider);
+
+  const discoveryBaseDir = evalFilePath ? path.dirname(path.resolve(evalFilePath)) : process.cwd();
+  await discoverAssertions(typeRegistry, discoveryBaseDir);
+  await discoverGraders(typeRegistry, discoveryBaseDir);
+
+  let fileChanges: string | undefined;
+  if (baselineCommit) {
+    try {
+      const diff = await captureWorkspaceFileChanges(workspacePath, baselineCommit);
+      if (diff.length > 0) {
+        fileChanges = diff;
+      }
+    } catch (error) {
+      if (verbose) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Warning: failed to capture prepared workspace diff: ${message}`);
+      }
+    }
+  }
+
+  const candidate = response ?? '';
+  const input = buildResultInput(promptInputs);
+  const outputMessages: readonly Message[] =
+    candidate.length > 0 ? [{ role: 'assistant' as const, content: candidate }] : [];
+  const resultTrace = buildTraceFromMessages({
+    input,
+    output: outputMessages,
+    finalOutput: candidate,
+    provider: provider.kind,
+    target: target.name,
+    testId: evalCase.id,
+    conversationId: evalCase.conversation_id,
+  });
+
+  try {
+    const gradeStartedAt = nowFn();
+    const { score, scores } = await runEvaluatorsForCase({
+      evalCase,
+      candidate,
+      target,
+      provider,
+      evaluators: evaluatorRegistry,
+      typeRegistry,
+      attempt: 0,
+      promptInputs,
+      now: gradeStartedAt,
+      agentTimeoutMs,
+      targetResolver: runtime.targetResolver,
+      availableTargets: runtime.availableTargets,
+      fileChanges,
+      workspacePath,
+      dockerConfig: evalCase.workspace?.docker,
+      threshold: evalCase.threshold ?? caseThreshold,
+    });
+
+    const timestamp = nowFn();
+    const effectiveThreshold = evalCase.threshold ?? caseThreshold;
+    const graderTokens = aggregateEvaluatorTokenUsage(scores);
+    const evalRun = {
+      durationMs: Date.now() - caseStartMs,
+      ...(graderTokens ? { tokenUsage: graderTokens } : {}),
+    };
+    const skippedEvaluatorError = buildSkippedEvaluatorError(scores);
+    const executionStatus: ExecutionStatus = skippedEvaluatorError
+      ? 'execution_error'
+      : classifyQualityStatus(score.score, effectiveThreshold);
+    const baseResult = {
+      timestamp: timestamp.toISOString(),
+      testId: evalCase.id,
+      suite: evalCase.suite,
+      category: evalCase.category,
+      conversationId: evalCase.conversation_id,
+      score: skippedEvaluatorError ? 0 : score.score,
+      assertions: score.assertions,
+      target: target.name,
+      input,
+      output: candidate,
+      scores,
+      trace: resultTrace,
+      fileChanges,
+      workspacePath,
+      evalRun,
+      metadata: withPreparedMetadata(evalCase, preparedAttempt),
+      executionStatus,
+    } satisfies EvaluationResult;
+
+    if (!skippedEvaluatorError) {
+      return baseResult;
+    }
+
+    return {
+      ...baseResult,
+      trace: appendErrorEventToTrace(baseResult.trace, skippedEvaluatorError, {
+        failure_stage: 'evaluator',
+        failure_reason_code: 'evaluator_error',
+      }),
+      error: skippedEvaluatorError,
+      failureStage: 'evaluator',
+      failureReasonCode: 'evaluator_error',
+      executionError: { message: skippedEvaluatorError, stage: 'evaluator' },
+    };
+  } catch (error) {
+    const evalRun = { durationMs: Date.now() - caseStartMs };
+    const errorResult = buildErrorResult(
+      evalCase,
+      target.name,
+      nowFn(),
+      error,
+      promptInputs,
+      provider,
+      'evaluator',
+      'evaluator_error',
+      verbose,
+    );
+    return {
+      ...errorResult,
+      evalRun,
+      fileChanges,
+      workspacePath,
+      metadata: withPreparedMetadata(evalCase, preparedAttempt),
+    };
+  }
+}
+
 export async function runEvaluation(
   options: RunEvaluationOptions,
 ): Promise<readonly EvaluationResult[]> {
@@ -457,75 +785,16 @@ export async function runEvaluation(
     return [];
   }
 
-  const resolvedTargetsByName = new Map<string, ResolvedTarget>();
-  resolvedTargetsByName.set(target.name, target);
-
-  const targetDefinitions = new Map<string, TargetDefinition>();
-  for (const definition of targets ?? []) {
-    targetDefinitions.set(definition.name, definition);
-  }
-
-  const envLookup: EnvLookup = env ?? process.env;
-  const providerCache = new Map<string, Provider>();
-
-  const getOrCreateProvider = (resolved: ResolvedTarget): Provider => {
-    const existing = providerCache.get(resolved.name);
-    if (existing) {
-      return existing;
-    }
-    const factory = providerFactory ?? createProvider;
-    const instance = factory(resolved);
-    providerCache.set(resolved.name, instance);
-    return instance;
-  };
-
-  const resolveTargetByName = (name: string): ResolvedTarget | undefined => {
-    if (resolvedTargetsByName.has(name)) {
-      return resolvedTargetsByName.get(name);
-    }
-    const definition = resolveDelegatedTargetDefinition(name, targetDefinitions, envLookup);
-    if (!definition) {
-      return undefined;
-    }
-    const resolved = resolveTargetDefinition(definition, envLookup, evalFilePath);
-    resolvedTargetsByName.set(name, resolved);
-    return resolved;
-  };
-
-  const resolveGraderProvider = async (
-    targetContext: ResolvedTarget,
-  ): Promise<Provider | undefined> => {
-    // CLI --grader-target takes highest priority
-    if (cliGraderTarget) {
-      if (cliGraderTarget === 'agentv') {
-        if (!cliModel) {
-          throw new Error('--grader-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
-        }
-        const { AgentvProvider } = await import('./providers/agentv-provider.js');
-        return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
-      }
-      const overrideTarget = resolveTargetByName(cliGraderTarget);
-      if (!overrideTarget) {
-        throw new Error(`--grader-target "${cliGraderTarget}" not found in targets`);
-      }
-      return getOrCreateProvider(overrideTarget);
-    }
-
-    // TODO: When --model is provided without --grader-target, override the model of
-    // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
-
-    const graderName = targetContext.graderTarget ?? targetContext.name;
-    const resolvedGrader = resolveTargetByName(graderName);
-    if (!resolvedGrader) {
-      // Only use the eval target as its own grader if it can return structured JSON.
-      // Agent providers, transcript, cli, and copilot-log cannot grade.
-      if (!LLM_GRADER_CAPABLE_KINDS.includes(targetContext.kind)) {
-        return undefined;
-      }
-      return getOrCreateProvider(targetContext);
-    }
-    return getOrCreateProvider(resolvedGrader);
-  };
+  const runtime = createEvaluationRuntime({
+    target,
+    targets,
+    env,
+    providerFactory,
+    evalFilePath,
+    graderTarget: cliGraderTarget,
+    model: cliModel,
+  });
+  const { getOrCreateProvider, resolveGraderProvider, targetResolver, availableTargets } = runtime;
 
   // Validate grader_target: error if an agent provider would be used as grader.
   // Agent providers can't return structured JSON for grading — they respond with
@@ -536,21 +805,6 @@ export async function runEvaluation(
       `Target "${target.name}" is an agent provider ("${target.kind}") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm).`,
     );
   }
-
-  // Create a target resolver for code graders to support target override
-  const targetResolver = (name: string): Provider | undefined => {
-    const resolved = resolveTargetByName(name);
-    if (!resolved) {
-      return undefined;
-    }
-    return getOrCreateProvider(resolved);
-  };
-
-  // Build list of available targets for /info endpoint
-  const availableTargets: readonly string[] = [
-    target.name,
-    ...Array.from(targetDefinitions.keys()),
-  ];
 
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveGraderProvider);
   const typeRegistry = createBuiltinRegistry();

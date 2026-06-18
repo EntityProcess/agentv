@@ -9,6 +9,7 @@ import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
 import { doctorCommand } from './commands/doctor/index.js';
 import { evalCommand } from './commands/eval/index.js';
+import { gradeCommand } from './commands/grade/index.js';
 import { importCommand } from './commands/import/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { inspectCommand } from './commands/inspect/index.js';
@@ -33,6 +34,7 @@ export const app = subcommands({
   cmds: {
     dashboard: resultsServeCommand,
     eval: evalCommand,
+    grade: gradeCommand,
     import: importCommand,
     compare: compareCommand,
     convert: convertCommand,
@@ -73,6 +75,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'create',
   'dashboard',
   'doctor',
+  'grade',
   'init',
   'pipeline',
   'prepare',

@@ -52,6 +52,7 @@ interface PrepareResult {
   readonly setupStatus: 'ok';
   readonly setupSteps: readonly SetupStep[];
   readonly repoPins: readonly RepoPin[];
+  readonly baseline: PreparedEvalWorkspace['baseline'];
   readonly createdAt: string;
 }
 
@@ -65,6 +66,7 @@ interface PrepareManifestWire {
   readonly setup_status: 'ok';
   readonly setup_steps: readonly SetupStepWire[];
   readonly repo_pins: readonly RepoPinWire[];
+  readonly baseline: BaselineWire;
   readonly created_at: string;
 }
 
@@ -85,6 +87,11 @@ interface RepoPinWire {
   readonly base_commit?: string;
   readonly ancestor?: number;
   readonly sparse?: readonly string[];
+}
+
+interface BaselineWire {
+  readonly status: PreparedEvalWorkspace['baseline']['status'];
+  readonly commit?: string;
 }
 
 function setupStatusFromHook(status: HookExecution['status']): SetupStepStatus {
@@ -201,6 +208,10 @@ function toManifestWire(result: PrepareResult): PrepareManifestWire {
       ...(pin.ancestor !== undefined && { ancestor: pin.ancestor }),
       ...(pin.sparse !== undefined && { sparse: pin.sparse }),
     })),
+    baseline: {
+      status: result.baseline.status,
+      ...(result.baseline.commit !== undefined && { commit: result.baseline.commit }),
+    },
     created_at: result.createdAt,
   };
 }
@@ -310,6 +321,7 @@ async function prepareAttempt(options: {
     setupStatus: 'ok',
     setupSteps: setupStepsFromPrepared(prepared),
     repoPins: toRepoPins(prepared.repoPins),
+    baseline: prepared.baseline,
     createdAt: prepared.createdAt,
   };
 

@@ -185,7 +185,11 @@ describe('agentv prepare', () => {
       prompt_path: promptPath,
       setup_status: 'ok',
       repo_pins: [],
+      baseline: {
+        status: 'initialized',
+      },
     });
+    expect(typeof manifest.baseline.commit).toBe('string');
     expect(typeof manifest.created_at).toBe('string');
     expect(Object.keys(manifest)).toContain('setup_steps');
     expect(Object.keys(manifest)).not.toContain('setupStatus');
@@ -228,7 +232,11 @@ describe('agentv prepare', () => {
       prompt_path: path.join(outDir, 'prompt.md'),
       manifest_path: path.join(outDir, 'agentv_prepare.json'),
       setup_status: 'ok',
+      baseline: {
+        status: 'initialized',
+      },
     });
+    expect(typeof output.baseline.commit).toBe('string');
     expect(Object.keys(output)).not.toContain('workspacePath');
   });
 });

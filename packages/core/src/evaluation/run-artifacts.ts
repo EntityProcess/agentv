@@ -378,6 +378,24 @@ function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined
   });
 }
 
+function toIndexPreparedAttempt(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  return dropUndefined({
+    source: value.source,
+    manifest_path: value.manifestPath,
+    prepared_dir: value.preparedDir,
+    workspace_path: value.workspacePath,
+    prompt_path: value.promptPath,
+    target: value.target,
+    prepared_at: value.preparedAt,
+    setup_status: value.setupStatus,
+    baseline_status: value.baselineStatus,
+    baseline_commit: value.baselineCommit,
+  });
+}
+
 function toIndexMetadata(
   metadata: EvaluationResult['metadata'] | undefined,
 ): IndexArtifactEntry['metadata'] {
@@ -385,12 +403,15 @@ function toIndexMetadata(
     return undefined;
   }
   const rerunSource = toIndexRerunSource(metadata.rerunSource);
-  if (!rerunSource) {
+  const preparedAttempt = toIndexPreparedAttempt(metadata.preparedAttempt);
+  if (!rerunSource && !preparedAttempt) {
     return { ...metadata };
   }
+  const reservedKeys = new Set(['rerunSource', 'preparedAttempt']);
   return {
-    ...Object.fromEntries(Object.entries(metadata).filter(([key]) => key !== 'rerunSource')),
-    rerun_source: rerunSource,
+    ...Object.fromEntries(Object.entries(metadata).filter(([key]) => !reservedKeys.has(key))),
+    ...(rerunSource ? { rerun_source: rerunSource } : {}),
+    ...(preparedAttempt ? { prepared_attempt: preparedAttempt } : {}),
   };
 }
 
