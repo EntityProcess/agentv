@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import {
   type AdditionalResultArtifactsWriter,
+  type AggregateGradingArtifact,
   type BenchmarkArtifact,
   type EvalTest,
   type EvaluationResult,
@@ -47,6 +48,7 @@ export {
   writeInitialBenchmarkArtifact,
 };
 export type {
+  AggregateGradingArtifact,
   BenchmarkArtifact,
   GradingArtifact,
   IndexArtifactEntry,

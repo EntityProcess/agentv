@@ -4,6 +4,10 @@ export * from './evaluation/trace.js';
 export * from './evaluation/trace-envelope.js';
 export * from './evaluation/replay-fixtures.js';
 export * from './evaluation/replay-trace-envelopes.js';
+export {
+  ResultRowSchemaError,
+  normalizeResultRow,
+} from './evaluation/result-row-schema.js';
 export { parseYamlValue } from './evaluation/yaml-loader.js';
 export * from './evaluation/yaml-parser.js';
 export {
