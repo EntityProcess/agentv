@@ -111,4 +111,4 @@ targets:
 ## Related
 
 - `packages/core/src/evaluation/providers/copilot-sdk.ts` — `getOrCreateClient()` where `cwd` and `cliArgs` are set
-- PR #1402 — introduced args support for the copilot-sdk provider; removed the startsWith pre-processing in a follow-up fix
+- PR #1402 — introduced args support for the copilot-sdk provider; removed the startsWith pre-processing in a follow-up (PR #1412)
