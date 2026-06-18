@@ -13,6 +13,7 @@ import { importCommand } from './commands/import/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { inspectCommand } from './commands/inspect/index.js';
 import { pipelineCommand } from './commands/pipeline/index.js';
+import { prepareCommand } from './commands/prepare/index.js';
 import { resultsCommand } from './commands/results/index.js';
 import { resultsServeCommand } from './commands/results/serve.js';
 import { runsCommand } from './commands/runs/index.js';
@@ -39,6 +40,7 @@ export const app = subcommands({
     doctor: doctorCommand,
     init: initCmdTsCommand,
     pipeline: pipelineCommand,
+    prepare: prepareCommand,
     results: resultsCommand,
     runs: runsCommand,
     self: selfCommand,
@@ -73,6 +75,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'doctor',
   'init',
   'pipeline',
+  'prepare',
   'results',
   'runs',
   'self',
