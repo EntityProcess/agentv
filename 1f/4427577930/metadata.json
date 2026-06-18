@@ -3,7 +3,7 @@
   "checkpoint_id": "1f4427577930",
   "strategy": "manual-commit",
   "branch": "docs/pi-cli-openai-base-url",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "apps/web/src/content/docs/docs/targets/coding-agents.mdx"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/1f/4427577930/1/full.jsonl",
       "content_hash": "/1f/4427577930/1/content_hash.txt",
       "prompt": "/1f/4427577930/1/prompt.txt"
+    },
+    {
+      "metadata": "/1f/4427577930/2/metadata.json",
+      "transcript": "/1f/4427577930/2/full.jsonl",
+      "content_hash": "/1f/4427577930/2/content_hash.txt",
+      "prompt": "/1f/4427577930/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2169663,
+    "input_tokens": 2382218,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 39596288,
-    "output_tokens": 114127,
-    "api_call_count": 335
+    "cache_read_tokens": 40714624,
+    "output_tokens": 122964,
+    "api_call_count": 358
   }
 }
