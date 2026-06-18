@@ -133,7 +133,7 @@ const COPILOT_SDK_SETTINGS = new Set([
   'api_key',
   'bearer_token',
   'api_version',
-  'wire_api',
+  'api_format',
 ]);
 
 const COPILOT_CLI_SETTINGS = new Set([
@@ -155,7 +155,7 @@ const COPILOT_CLI_SETTINGS = new Set([
   'api_key',
   'bearer_token',
   'api_version',
-  'wire_api',
+  'api_format',
 ]);
 
 const VSCODE_SETTINGS = new Set([

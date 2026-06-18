@@ -1565,10 +1565,15 @@ function resolveCopilotFlatProviderConfig(
       optionalEnv: true,
     },
   );
-  const wireApi = resolveOptionalString(target.wire_api, env, `${target.name} copilot wire API`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
+  const apiFormat = resolveOptionalString(
+    target.api_format,
+    env,
+    `${target.name} copilot API format`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
 
   return {
     ...(type ? { type } : {}),
@@ -1576,7 +1581,7 @@ function resolveCopilotFlatProviderConfig(
     ...(apiKey ? { apiKey } : {}),
     ...(bearerToken ? { bearerToken } : {}),
     ...(apiVersion ? { apiVersion } : {}),
-    ...(wireApi ? { wireApi } : {}),
+    ...(apiFormat ? { wireApi: apiFormat } : {}),
   };
 }
 

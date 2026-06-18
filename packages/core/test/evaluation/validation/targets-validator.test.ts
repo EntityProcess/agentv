@@ -132,13 +132,13 @@ describe('validateTargetsFile', () => {
     subprovider: openai
     base_url: \${{ OPENAI_ENDPOINT }}
     api_key: \${{ OPENAI_API_KEY }}
-    wire_api: responses
+    api_format: responses
   - name: copilot-cli-custom-provider
     provider: copilot-cli
     subprovider: openai
     base_url: \${{ OPENAI_ENDPOINT }}
     api_key: \${{ OPENAI_API_KEY }}
-    wire_api: responses
+    api_format: responses
 `,
     );
 

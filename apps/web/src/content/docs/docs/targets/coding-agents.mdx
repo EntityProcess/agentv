@@ -145,7 +145,7 @@ targets:
 | `api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. |
 | `bearer_token` | No | Provider bearer token. Prefer `${{ ENV_VAR }}` references. Takes precedence over `api_key` when set. |
 | `api_version` | No | Provider API version, primarily for Azure endpoints |
-| `wire_api` | No | Provider wire API format, such as `responses` |
+| `api_format` | No | Provider API format, such as `responses` |
 | `grader_target` | Yes | LLM target for evaluation |
 
 Route Copilot through an OpenAI-compatible endpoint:
@@ -157,7 +157,7 @@ targets:
     subprovider: openai
     base_url: ${{ OPENAI_ENDPOINT }}
     api_key: ${{ OPENAI_API_KEY }}
-    wire_api: ${{ COPILOT_PROVIDER_WIRE_API }}
+    api_format: responses
     grader_target: azure-base
 ```
 
