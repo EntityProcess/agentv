@@ -105,9 +105,6 @@ definePromptTemplate((ctx) => {
   if (ctx.output !== 'Final answer') {
     throw new Error('unexpected final answer: ' + ctx.output);
   }
-  if (ctx.answer !== ctx.output) {
-    throw new Error('answer should mirror output');
-  }
   if (!Array.isArray(ctx.messages) || ctx.messages.length < 2) {
     throw new Error('expected transcript messages');
   }

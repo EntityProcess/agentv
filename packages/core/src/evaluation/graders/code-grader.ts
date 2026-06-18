@@ -171,7 +171,6 @@ export class CodeGrader implements Grader {
         getImageDir,
       ),
       output: outputForPayload,
-      answer: context.candidate,
       messages: materializedMessages ?? [],
       outputPath,
       inputFiles: context.evalCase.file_paths,

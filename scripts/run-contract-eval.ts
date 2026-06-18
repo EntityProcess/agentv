@@ -15,6 +15,7 @@ process.env.CONTRACT_EVAL_MODEL ||= 'openai/gpt-4.1-mini';
 const evalFiles = [
   'examples/contract/evals/release-gate.eval.yaml',
   'examples/contract/evals/repo-materialization.eval.yaml',
+  'examples/contract/evals/code-grader-contract.eval.yaml',
 ];
 
 for (const evalFile of evalFiles) {

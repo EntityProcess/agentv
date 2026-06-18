@@ -75,7 +75,7 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *     .filter((message) => message.role === 'user')
  *     .map((message) => typeof message.content === 'string' ? message.content : '')
  *     .join('\n');
- *   const answer = ctx.output ?? ctx.answer ?? '';
+ *   const answer = ctx.output ?? '';
  *   return `Question: ${question}\nAnswer: ${answer}`;
  * });
  * ```
