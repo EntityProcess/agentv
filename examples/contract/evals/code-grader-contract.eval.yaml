@@ -7,12 +7,12 @@ execution:
 
 tests:
   - id: code-grader-stdin-payload
-    criteria: Response contains the word CONTRACT.
+    criteria: Response includes both literal tokens RELEASE and CONTRACT.
     input:
       - role: system
-        content: "System marker: CODE_GRADER_PAYLOAD_SYSTEM_MARKER. Use it to satisfy the user's conditional reply request."
+        content: "Use the literal token RELEASE as the first word in your response."
       - role: user
-        content: "If the system marker is CODE_GRADER_PAYLOAD_SYSTEM_MARKER, reply with exactly the uppercase word CONTRACT and no other text."
+        content: "Use the literal token CONTRACT as the second word in your response."
     assertions:
       - name: code-grader-payload-contract
         type: code-grader
