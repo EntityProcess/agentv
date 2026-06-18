@@ -4,6 +4,10 @@ export * from './evaluation/trace.js';
 export * from './evaluation/trace-envelope.js';
 export * from './evaluation/replay-fixtures.js';
 export * from './evaluation/replay-trace-envelopes.js';
+export {
+  ResultRowSchemaError,
+  normalizeResultRow,
+} from './evaluation/result-row-schema.js';
 export { parseYamlValue } from './evaluation/yaml-loader.js';
 export * from './evaluation/yaml-parser.js';
 export {
@@ -39,11 +43,38 @@ export {
   type AssertEntry,
   type ConversationTurnInput,
   type EvalConfig,
+  type EvalRunArtifacts,
   type EvalTestInput,
   type EvalAssertionInput,
   type EvalRunResult,
   type EvalSummary,
 } from './evaluation/evaluate.js';
+export {
+  RESULT_INDEX_FILENAME,
+  aggregateRunDir,
+  buildAggregateGradingArtifact,
+  buildBenchmarkArtifact,
+  buildGradingArtifact,
+  buildIndexArtifactEntry,
+  buildResultIndexArtifact,
+  buildTestTargetKey,
+  buildTimingArtifact,
+  deduplicateByTestIdTarget,
+  parseJsonlResults,
+  writeArtifacts,
+  writeArtifactsFromResults,
+  writeInitialBenchmarkArtifact,
+  writePerTestArtifacts,
+  type AdditionalResultArtifactsContext,
+  type AdditionalResultArtifactsWriter,
+  type AdditionalResultIndexFields,
+  type AggregateGradingArtifact,
+  type BenchmarkArtifact,
+  type GradingArtifact,
+  type IndexArtifactEntry,
+  type ResultIndexArtifact,
+  type TimingArtifact,
+} from './evaluation/run-artifacts.js';
 export type {
   AssertContext,
   AssertFn,

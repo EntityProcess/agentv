@@ -7,6 +7,7 @@ Demonstrates using `evaluate()` from `@agentv/core` to run evaluations as a libr
 1. Imports `evaluate()` from `@agentv/core`
 2. Defines tests inline with assertions
 3. Runs the evaluation and prints summary statistics
+4. Writes canonical AgentV run artifacts under `.agentv/results/runs/...`
 
 ## How to Run
 
@@ -25,3 +26,4 @@ bun run evaluate.ts
 - **Inline tests** — define tests in TypeScript, no YAML needed
 - **Config mirrors YAML** — same `assert`, `target` structure
 - **Typed results** — `EvalRunResult` with summary statistics
+- **Canonical artifacts** — opt into the same `index.jsonl` / `benchmark.json` workspace layout as `agentv eval`

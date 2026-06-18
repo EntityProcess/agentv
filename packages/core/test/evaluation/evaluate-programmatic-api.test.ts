@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { evaluate } from '../../src/evaluation/evaluate.js';
@@ -105,6 +106,69 @@ describe('evaluate() — programmatic API extensions', () => {
         expect(readdirSync(firstShard).some((entry) => entry.endsWith('.json'))).toBe(true);
       } finally {
         rmSync(cachePath, { recursive: true, force: true });
+      }
+    },
+    PROGRAMMATIC_API_TIMEOUT_MS,
+  );
+
+  it(
+    'writes canonical run artifacts when outputDir is provided',
+    async () => {
+      const outputDir = mkdtempSync(path.join(tmpdir(), 'agentv-programmatic-artifacts-'));
+      try {
+        const result = await evaluate({
+          tests: [
+            {
+              id: 'programmatic-artifacts',
+              input: 'hello',
+              assert: [{ type: 'contains', value: 'mock' }],
+            },
+          ],
+          target: { name: 'default', provider: 'mock', response: 'mock response' },
+          outputDir,
+          experiment: 'sdk-test',
+        });
+
+        expect(result.artifacts).toBeDefined();
+        expect(result.artifacts?.runDir).toBe(outputDir);
+        expect(result.artifacts?.indexPath).toBe(path.join(outputDir, 'index.jsonl'));
+        expect(result.artifacts?.benchmarkPath).toBe(path.join(outputDir, 'benchmark.json'));
+        expect(result.artifacts?.timingPath).toBe(path.join(outputDir, 'timing.json'));
+
+        const indexContent = await readFile(path.join(outputDir, 'index.jsonl'), 'utf8');
+        expect(indexContent).toContain('"test_id":"programmatic-artifacts"');
+        expect(indexContent).toContain('"experiment":"sdk-test"');
+        const [indexRow] = indexContent
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line) as { artifact_dir?: string });
+
+        const benchmark = JSON.parse(
+          await readFile(path.join(outputDir, 'benchmark.json'), 'utf8'),
+        ) as { metadata: { experiment?: string; tests_run: string[]; eval_file: string } };
+        expect(benchmark.metadata.experiment).toBe('sdk-test');
+        expect(benchmark.metadata.tests_run).toEqual(['programmatic-artifacts']);
+        expect(benchmark.metadata.eval_file).toBe('');
+
+        expect(indexRow?.artifact_dir).toBe('__programmatic__.yaml/programmatic-artifacts');
+        expect(
+          existsSync(
+            path.join(outputDir, '__programmatic__.yaml', 'programmatic-artifacts', 'grading.json'),
+          ),
+        ).toBe(true);
+        expect(
+          existsSync(
+            path.join(
+              outputDir,
+              '__programmatic__.yaml',
+              'programmatic-artifacts',
+              'outputs',
+              'answer.md',
+            ),
+          ),
+        ).toBe(true);
+      } finally {
+        rmSync(outputDir, { recursive: true, force: true });
       }
     },
     PROGRAMMATIC_API_TIMEOUT_MS,
