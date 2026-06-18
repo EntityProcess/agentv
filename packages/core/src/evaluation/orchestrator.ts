@@ -510,6 +510,7 @@ export interface PreparedAttemptMetadata {
   readonly preparedDir?: string;
   readonly workspacePath: string;
   readonly promptPath?: string;
+  readonly tracePath?: string;
   readonly target: string;
   readonly preparedAt?: string;
   readonly setupStatus?: string;
@@ -532,6 +533,7 @@ export interface GradePreparedEvalCaseOptions {
   readonly workspacePath: string;
   readonly baselineCommit?: string;
   readonly response?: string;
+  readonly trace?: Trace;
   readonly verbose?: boolean;
   readonly threshold?: number;
   readonly preparedAttempt: PreparedAttemptMetadata;
@@ -575,6 +577,7 @@ export async function gradePreparedEvalCase(
     workspacePath,
     baselineCommit,
     response,
+    trace: preparedTrace,
     verbose,
     threshold: caseThreshold,
     preparedAttempt,
@@ -615,19 +618,22 @@ export async function gradePreparedEvalCase(
     }
   }
 
-  const candidate = response ?? '';
+  const candidate = response ?? extractLastAssistantContent(preparedTrace?.messages ?? []) ?? '';
   const input = buildResultInput(promptInputs);
   const outputMessages: readonly Message[] =
-    candidate.length > 0 ? [{ role: 'assistant' as const, content: candidate }] : [];
-  const resultTrace = buildTraceFromMessages({
-    input,
-    output: outputMessages,
-    finalOutput: candidate,
-    provider: provider.kind,
-    target: target.name,
-    testId: evalCase.id,
-    conversationId: evalCase.conversation_id,
-  });
+    preparedTrace?.messages ??
+    (candidate.length > 0 ? [{ role: 'assistant' as const, content: candidate }] : []);
+  const resultTrace =
+    preparedTrace ??
+    buildTraceFromMessages({
+      input,
+      output: outputMessages,
+      finalOutput: candidate,
+      provider: provider.kind,
+      target: target.name,
+      testId: evalCase.id,
+      conversationId: evalCase.conversation_id,
+    });
 
   try {
     const gradeStartedAt = nowFn();
@@ -642,6 +648,13 @@ export async function gradePreparedEvalCase(
       promptInputs,
       now: gradeStartedAt,
       agentTimeoutMs,
+      output: preparedTrace ? outputMessages : undefined,
+      trace: preparedTrace ? resultTrace : undefined,
+      costUsd: preparedTrace ? resultTrace.costUsd : undefined,
+      durationMs: preparedTrace ? resultTrace.durationMs : undefined,
+      tokenUsage: preparedTrace ? resultTrace.tokenUsage : undefined,
+      startTime: preparedTrace ? resultTrace.startTime : undefined,
+      endTime: preparedTrace ? resultTrace.endTime : undefined,
       targetResolver: runtime.targetResolver,
       availableTargets: runtime.availableTargets,
       fileChanges,

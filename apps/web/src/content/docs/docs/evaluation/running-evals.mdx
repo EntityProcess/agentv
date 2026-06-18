@@ -132,6 +132,15 @@ case directories are still useful for organizing bulky prompts, fixtures, or
 tests while authoring an eval, but they are optional input organization rather
 than a separate artifact schema.
 
+### Manual or External-Agent Attempts
+
+Use `agentv prepare` when you want AgentV to set up one eval case but a human,
+external agent, or separate harness should perform the work. The workflow is:
+prepare the workspace and prompt, run the external attempt in that workspace,
+then grade the final state with `agentv grade --prepared` without rerunning the
+target provider. See [Prepare](/docs/tools/prepare/) for the full workflow,
+manifest shape, and optional trace/session input with `--trace`.
+
 ### Trace Persistence
 
 Export execution traces (tool calls, timing, spans) to files for debugging and analysis:

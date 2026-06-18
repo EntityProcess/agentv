@@ -18,11 +18,7 @@ import {
   traceEnvelopeToTraceSummary,
   traceEnvelopeToTranscriptMessages,
 } from '../../src/evaluation/trace-envelope.js';
-import {
-  NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
-  buildTraceFromMessages,
-  computeTraceSummary,
-} from '../../src/evaluation/trace.js';
+import { buildTraceFromMessages, computeTraceSummary } from '../../src/evaluation/trace.js';
 import type { EvaluationResult } from '../../src/evaluation/types.js';
 
 function jsonComparable(value: unknown): unknown {
@@ -312,7 +308,7 @@ describe('execution trace artifact v1', () => {
     });
   });
 
-  it('projects Message[], TraceSummary, trajectory, tool grader input, and OTLP JSON from spans', () => {
+  it('projects Message[], TraceSummary, trace artifact, tool grader input, and OTLP JSON from spans', () => {
     const output: readonly Message[] = [
       {
         role: 'assistant',
@@ -333,7 +329,7 @@ describe('execution trace artifact v1', () => {
     const envelope = buildTraceEnvelopeFromEvaluationResult(result);
     const messages = traceEnvelopeToMessages(envelope);
     const summary = traceEnvelopeToTraceSummary(envelope);
-    const trajectory = traceEnvelopeToTraceArtifact(envelope);
+    const traceArtifact = traceEnvelopeToTraceArtifact(envelope);
     const compact = traceEnvelopeToToolTrajectoryView(envelope);
     const otlp = traceEnvelopeToOtlpJson(envelope);
     const grader = new ToolTrajectoryGrader({
@@ -347,12 +343,12 @@ describe('execution trace artifact v1', () => {
 
     expect(summary.trace).toEqual(computeTraceSummary(output).trace);
     expect(messages[0]?.toolCalls?.map((toolCall) => toolCall.tool)).toEqual(['Read', 'Edit']);
-    expect(trajectory.events.map((event) => event.type)).toEqual([
+    expect(traceArtifact.events.map((event) => event.type)).toEqual([
       'model_turn',
       'tool_call',
       'tool_call',
     ]);
-    expect(compact.schemaVersion).toBe(NORMALIZED_TRAJECTORY_SCHEMA_VERSION);
+    expect(compact).not.toHaveProperty('schemaVersion');
     expect(compact.tools.map((tool) => [tool.position, tool.tool, tool.toolCallId])).toEqual([
       [0, 'Read', 'call-read'],
       [1, 'Edit', 'call-edit'],

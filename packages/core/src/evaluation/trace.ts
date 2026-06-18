@@ -17,11 +17,9 @@
  * serializer such as `toSnakeCaseDeep()`.
  */
 import { z } from 'zod';
-import type { Message } from './providers/types.js';
+import type { Message, ToolCall } from './providers/types.js';
 
-export const NORMALIZED_TRAJECTORY_SCHEMA_VERSION = 'agentv.trajectory.v1' as const;
-
-export const NORMALIZED_TRACE_SOURCE_KINDS = [
+export const TRACE_SOURCE_KINDS = [
   'agentv_run',
   'otlp',
   'phoenix',
@@ -31,7 +29,7 @@ export const NORMALIZED_TRACE_SOURCE_KINDS = [
   'compact_transcript',
 ] as const;
 
-export const NORMALIZED_TRACE_EVENT_TYPES = [
+export const TRACE_EVENT_TYPES = [
   'message',
   'model_turn',
   'tool_call',
@@ -40,29 +38,14 @@ export const NORMALIZED_TRACE_EVENT_TYPES = [
   'error',
 ] as const;
 
-export const NORMALIZED_TOOL_STATUSES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
+export const TRACE_TOOL_STATUSES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
 
-export const NORMALIZED_REDACTION_LEVELS = ['none', 'partial', 'full'] as const;
-
-export const TRACE_SCHEMA_VERSION = NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
-export const TRACE_SOURCE_KINDS = NORMALIZED_TRACE_SOURCE_KINDS;
-export const TRACE_EVENT_TYPES = NORMALIZED_TRACE_EVENT_TYPES;
-export const TRACE_TOOL_STATUSES = NORMALIZED_TOOL_STATUSES;
-export const TRACE_REDACTION_LEVELS = NORMALIZED_REDACTION_LEVELS;
+export const TRACE_REDACTION_LEVELS = ['none', 'partial', 'full'] as const;
 
 export type TraceSourceKind = (typeof TRACE_SOURCE_KINDS)[number];
 export type TraceEventType = (typeof TRACE_EVENT_TYPES)[number];
 export type TraceToolStatus = (typeof TRACE_TOOL_STATUSES)[number];
 export type TraceRedactionLevel = (typeof TRACE_REDACTION_LEVELS)[number];
-
-/** @deprecated Use TraceSourceKind. */
-export type NormalizedTraceSourceKind = TraceSourceKind;
-/** @deprecated Use TraceEventType. */
-export type NormalizedTraceEventType = TraceEventType;
-/** @deprecated Use TraceToolStatus. */
-export type NormalizedToolStatus = TraceToolStatus;
-/** @deprecated Use TraceRedactionLevel. */
-export type NormalizedRedactionLevel = TraceRedactionLevel;
 
 export interface TraceSource {
   readonly kind: TraceSourceKind;
@@ -173,14 +156,13 @@ export interface TraceEvent {
 }
 
 /**
- * Derived trajectory artifact shape used by import/replay helpers.
+ * Derived trace artifact shape used by import/replay helpers.
  *
  * New evaluation results use `Trace` below: final answer in `output`, full
  * transcript under `trace.messages`, structured spans under `trace.events`, and
  * provider-native session identifiers in `trace.metadata`.
  */
 export interface TraceArtifact {
-  readonly schemaVersion: typeof NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
   readonly source: TraceSource;
   readonly session: TraceSession;
   readonly branch?: TraceBranch;
@@ -192,12 +174,6 @@ export interface TraceArtifact {
   readonly endedAt?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
-
-/**
- * @deprecated Use `Trace` for evaluation results or `TraceArtifact` for
- * derived import/replay trajectory artifacts.
- */
-export type NormalizedTrajectory = TraceArtifact;
 
 function omitUndefinedProperties<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
@@ -213,13 +189,13 @@ const TokenUsageWireSchema = z.object({
   reasoning: z.number().optional(),
 });
 
-export const NormalizedRedactionStateWireSchema = z.object({
-  level: z.enum(NORMALIZED_REDACTION_LEVELS),
+export const TraceRedactionStateWireSchema = z.object({
+  level: z.enum(TRACE_REDACTION_LEVELS),
   fields: z.array(z.string()).optional(),
   reason: z.string().optional(),
 });
 
-export const NormalizedTraceErrorWireSchema = z.object({
+export const TraceErrorWireSchema = z.object({
   message: z.string(),
   name: z.string().optional(),
   code: z.string().optional(),
@@ -227,8 +203,8 @@ export const NormalizedTraceErrorWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceSourceWireSchema = z.object({
-  kind: z.enum(NORMALIZED_TRACE_SOURCE_KINDS),
+export const TraceSourceWireSchema = z.object({
+  kind: z.enum(TRACE_SOURCE_KINDS),
   path: z.string().optional(),
   url: z.string().optional(),
   provider: z.string().optional(),
@@ -237,7 +213,7 @@ export const NormalizedTraceSourceWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceSessionWireSchema = z.object({
+export const TraceSessionWireSchema = z.object({
   session_id: z.string().optional(),
   conversation_id: z.string().optional(),
   cwd: z.string().optional(),
@@ -246,7 +222,7 @@ export const NormalizedTraceSessionWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceBranchWireSchema = z.object({
+export const TraceBranchWireSchema = z.object({
   selected_leaf_id: z.string().optional(),
   selected_path_ids: z.array(z.string()).optional(),
   included_event_ids: z.array(z.string()).optional(),
@@ -254,7 +230,7 @@ export const NormalizedTraceBranchWireSchema = z.object({
   selection_reason: z.string().optional(),
 });
 
-export const NormalizedTraceSourceRefWireSchema = z.object({
+export const TraceSourceRefWireSchema = z.object({
   event_id: z.string().optional(),
   message_id: z.string().optional(),
   span_id: z.string().optional(),
@@ -265,7 +241,7 @@ export const NormalizedTraceSourceRefWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedRawEvidenceWireSchema = z.object({
+export const TraceRawEvidenceWireSchema = z.object({
   kind: z.string(),
   ref: z.string().optional(),
   media_type: z.string().optional(),
@@ -274,16 +250,16 @@ export const NormalizedRawEvidenceWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceMessageWireSchema = z.object({
+export const TraceMessageWireSchema = z.object({
   role: z.string(),
   name: z.string().optional(),
   content: z.unknown().optional(),
-  redaction: NormalizedRedactionStateWireSchema.optional(),
+  redaction: TraceRedactionStateWireSchema.optional(),
   token_usage: TokenUsageWireSchema.optional(),
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceModelWireSchema = z.object({
+export const TraceModelWireSchema = z.object({
   provider: z.string().optional(),
   name: z.string().optional(),
   invocation_id: z.string().optional(),
@@ -291,42 +267,41 @@ export const NormalizedTraceModelWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceToolWireSchema = z.object({
+export const TraceToolWireSchema = z.object({
   name: z.string(),
   call_id: z.string().optional(),
   input: z.unknown().optional(),
   output: z.unknown().optional(),
-  status: z.enum(NORMALIZED_TOOL_STATUSES).optional(),
-  error: NormalizedTraceErrorWireSchema.optional(),
-  redaction: NormalizedRedactionStateWireSchema.optional(),
+  status: z.enum(TRACE_TOOL_STATUSES).optional(),
+  error: TraceErrorWireSchema.optional(),
+  redaction: TraceRedactionStateWireSchema.optional(),
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTraceEventWireSchema = z.object({
+export const TraceEventWireSchema = z.object({
   event_id: z.string(),
   parent_event_id: z.string().optional(),
   ordinal: z.number().int().nonnegative(),
-  type: z.enum(NORMALIZED_TRACE_EVENT_TYPES),
+  type: z.enum(TRACE_EVENT_TYPES),
   timestamp: z.string().optional(),
   duration_ms: z.number().nonnegative().optional(),
   duration_inferred: z.boolean().optional(),
   turn_index: z.number().int().nonnegative().optional(),
-  message: NormalizedTraceMessageWireSchema.optional(),
-  model: NormalizedTraceModelWireSchema.optional(),
-  tool: NormalizedTraceToolWireSchema.optional(),
-  error: NormalizedTraceErrorWireSchema.optional(),
-  source_ref: NormalizedTraceSourceRefWireSchema.optional(),
-  raw_evidence: z.array(NormalizedRawEvidenceWireSchema).optional(),
-  redaction: NormalizedRedactionStateWireSchema.optional(),
+  message: TraceMessageWireSchema.optional(),
+  model: TraceModelWireSchema.optional(),
+  tool: TraceToolWireSchema.optional(),
+  error: TraceErrorWireSchema.optional(),
+  source_ref: TraceSourceRefWireSchema.optional(),
+  raw_evidence: z.array(TraceRawEvidenceWireSchema).optional(),
+  redaction: TraceRedactionStateWireSchema.optional(),
   metadata: MetadataWireSchema.optional(),
 });
 
-export const NormalizedTrajectoryWireSchema = z.object({
-  schema_version: z.literal(NORMALIZED_TRAJECTORY_SCHEMA_VERSION),
-  source: NormalizedTraceSourceWireSchema,
-  session: NormalizedTraceSessionWireSchema,
-  branch: NormalizedTraceBranchWireSchema.optional(),
-  events: z.array(NormalizedTraceEventWireSchema),
+export const TraceArtifactWireSchema = z.object({
+  source: TraceSourceWireSchema,
+  session: TraceSessionWireSchema,
+  branch: TraceBranchWireSchema.optional(),
+  events: z.array(TraceEventWireSchema),
   token_usage: TokenUsageWireSchema.optional(),
   cost_usd: z.number().optional(),
   duration_ms: z.number().optional(),
@@ -335,52 +310,34 @@ export const NormalizedTrajectoryWireSchema = z.object({
   metadata: MetadataWireSchema.optional(),
 });
 
-export type NormalizedTrajectoryWire = z.infer<typeof NormalizedTrajectoryWireSchema>;
-export type NormalizedTraceEventWire = z.infer<typeof NormalizedTraceEventWireSchema>;
+export type TraceEventWire = z.infer<typeof TraceEventWireSchema>;
+export type TraceArtifactWire = z.infer<typeof TraceArtifactWireSchema>;
 
-export const TraceRedactionStateWireSchema = NormalizedRedactionStateWireSchema;
-export const TraceErrorWireSchema = NormalizedTraceErrorWireSchema;
-export const TraceSourceWireSchema = NormalizedTraceSourceWireSchema;
-export const TraceSessionWireSchema = NormalizedTraceSessionWireSchema;
-export const TraceBranchWireSchema = NormalizedTraceBranchWireSchema;
-export const TraceSourceRefWireSchema = NormalizedTraceSourceRefWireSchema;
-export const TraceRawEvidenceWireSchema = NormalizedRawEvidenceWireSchema;
-export const TraceMessageWireSchema = NormalizedTraceMessageWireSchema;
-export const TraceModelWireSchema = NormalizedTraceModelWireSchema;
-export const TraceToolWireSchema = NormalizedTraceToolWireSchema;
-export const TraceEventWireSchema = NormalizedTraceEventWireSchema;
-export const TraceArtifactWireSchema = NormalizedTrajectoryWireSchema;
-
-export type TraceArtifactWire = NormalizedTrajectoryWire;
-export type TraceEventWire = NormalizedTraceEventWire;
-
-export function toNormalizedTrajectoryWire(trajectory: TraceArtifact): NormalizedTrajectoryWire {
-  return NormalizedTrajectoryWireSchema.parse(
+export function toTraceArtifactWire(artifact: TraceArtifact): TraceArtifactWire {
+  return TraceArtifactWireSchema.parse(
     omitUndefinedProperties({
-      schema_version: trajectory.schemaVersion,
-      source: toNormalizedTraceSourceWire(trajectory.source),
-      session: toNormalizedTraceSessionWire(trajectory.session),
-      branch: trajectory.branch ? toNormalizedTraceBranchWire(trajectory.branch) : undefined,
-      events: trajectory.events.map(toNormalizedTraceEventWire),
-      token_usage: trajectory.tokenUsage,
-      cost_usd: trajectory.costUsd,
-      duration_ms: trajectory.durationMs,
-      started_at: trajectory.startedAt,
-      ended_at: trajectory.endedAt,
-      metadata: trajectory.metadata,
+      source: toTraceSourceWire(artifact.source),
+      session: toTraceSessionWire(artifact.session),
+      branch: artifact.branch ? toTraceBranchWire(artifact.branch) : undefined,
+      events: artifact.events.map(toTraceEventWire),
+      token_usage: artifact.tokenUsage,
+      cost_usd: artifact.costUsd,
+      duration_ms: artifact.durationMs,
+      started_at: artifact.startedAt,
+      ended_at: artifact.endedAt,
+      metadata: artifact.metadata,
     }),
   );
 }
 
-export function fromNormalizedTrajectoryWire(input: unknown): TraceArtifact {
-  const wire = NormalizedTrajectoryWireSchema.parse(input);
+export function fromTraceArtifactWire(input: unknown): TraceArtifact {
+  const wire = TraceArtifactWireSchema.parse(input);
 
   return {
-    schemaVersion: wire.schema_version,
-    source: fromNormalizedTraceSourceWire(wire.source),
-    session: fromNormalizedTraceSessionWire(wire.session),
-    branch: wire.branch ? fromNormalizedTraceBranchWire(wire.branch) : undefined,
-    events: wire.events.map(fromNormalizedTraceEventWire),
+    source: fromTraceSourceWire(wire.source),
+    session: fromTraceSessionWire(wire.session),
+    branch: wire.branch ? fromTraceBranchWire(wire.branch) : undefined,
+    events: wire.events.map(fromTraceEventWire),
     tokenUsage: wire.token_usage,
     costUsd: wire.cost_usd,
     durationMs: wire.duration_ms,
@@ -390,15 +347,7 @@ export function fromNormalizedTrajectoryWire(input: unknown): TraceArtifact {
   };
 }
 
-export function toTraceArtifactWire(artifact: TraceArtifact): TraceArtifactWire {
-  return toNormalizedTrajectoryWire(artifact);
-}
-
-export function fromTraceArtifactWire(input: unknown): TraceArtifact {
-  return fromNormalizedTrajectoryWire(input);
-}
-
-function toNormalizedTraceSourceWire(source: TraceSource) {
+function toTraceSourceWire(source: TraceSource) {
   return omitUndefinedProperties({
     kind: source.kind,
     path: source.path,
@@ -410,9 +359,7 @@ function toNormalizedTraceSourceWire(source: TraceSource) {
   });
 }
 
-function fromNormalizedTraceSourceWire(
-  source: z.infer<typeof NormalizedTraceSourceWireSchema>,
-): TraceSource {
+function fromTraceSourceWire(source: z.infer<typeof TraceSourceWireSchema>): TraceSource {
   return {
     kind: source.kind,
     path: source.path,
@@ -424,7 +371,7 @@ function fromNormalizedTraceSourceWire(
   };
 }
 
-function toNormalizedTraceSessionWire(session: TraceSession) {
+function toTraceSessionWire(session: TraceSession) {
   return omitUndefinedProperties({
     session_id: session.sessionId,
     conversation_id: session.conversationId,
@@ -435,9 +382,7 @@ function toNormalizedTraceSessionWire(session: TraceSession) {
   });
 }
 
-function fromNormalizedTraceSessionWire(
-  session: z.infer<typeof NormalizedTraceSessionWireSchema>,
-): TraceSession {
+function fromTraceSessionWire(session: z.infer<typeof TraceSessionWireSchema>): TraceSession {
   return {
     sessionId: session.session_id,
     conversationId: session.conversation_id,
@@ -448,7 +393,7 @@ function fromNormalizedTraceSessionWire(
   };
 }
 
-function toNormalizedTraceBranchWire(branch: TraceBranch) {
+function toTraceBranchWire(branch: TraceBranch) {
   return omitUndefinedProperties({
     selected_leaf_id: branch.selectedLeafId,
     selected_path_ids: branch.selectedPathIds,
@@ -458,9 +403,7 @@ function toNormalizedTraceBranchWire(branch: TraceBranch) {
   });
 }
 
-function fromNormalizedTraceBranchWire(
-  branch: z.infer<typeof NormalizedTraceBranchWireSchema>,
-): TraceBranch {
+function fromTraceBranchWire(branch: z.infer<typeof TraceBranchWireSchema>): TraceBranch {
   return {
     selectedLeafId: branch.selected_leaf_id,
     selectedPathIds: branch.selected_path_ids,
@@ -470,8 +413,8 @@ function fromNormalizedTraceBranchWire(
   };
 }
 
-function toNormalizedTraceEventWire(event: TraceEvent): NormalizedTraceEventWire {
-  return NormalizedTraceEventWireSchema.parse(
+function toTraceEventWire(event: TraceEvent): TraceEventWire {
+  return TraceEventWireSchema.parse(
     omitUndefinedProperties({
       event_id: event.eventId,
       parent_event_id: event.parentEventId,
@@ -481,19 +424,19 @@ function toNormalizedTraceEventWire(event: TraceEvent): NormalizedTraceEventWire
       duration_ms: event.durationMs,
       duration_inferred: event.durationInferred,
       turn_index: event.turnIndex,
-      message: event.message ? toNormalizedTraceMessageWire(event.message) : undefined,
-      model: event.model ? toNormalizedTraceModelWire(event.model) : undefined,
-      tool: event.tool ? toNormalizedTraceToolWire(event.tool) : undefined,
-      error: event.error ? toNormalizedTraceErrorWire(event.error) : undefined,
-      source_ref: event.sourceRef ? toNormalizedTraceSourceRefWire(event.sourceRef) : undefined,
-      raw_evidence: event.rawEvidence?.map(toNormalizedRawEvidenceWire),
+      message: event.message ? toTraceMessageWire(event.message) : undefined,
+      model: event.model ? toTraceModelWire(event.model) : undefined,
+      tool: event.tool ? toTraceToolWire(event.tool) : undefined,
+      error: event.error ? toTraceErrorWire(event.error) : undefined,
+      source_ref: event.sourceRef ? toTraceSourceRefWire(event.sourceRef) : undefined,
+      raw_evidence: event.rawEvidence?.map(toTraceRawEvidenceWire),
       redaction: event.redaction,
       metadata: event.metadata,
     }),
   );
 }
 
-function fromNormalizedTraceEventWire(event: NormalizedTraceEventWire): TraceEvent {
+function fromTraceEventWire(event: TraceEventWire): TraceEvent {
   return {
     eventId: event.event_id,
     parentEventId: event.parent_event_id,
@@ -503,18 +446,18 @@ function fromNormalizedTraceEventWire(event: NormalizedTraceEventWire): TraceEve
     durationMs: event.duration_ms,
     durationInferred: event.duration_inferred,
     turnIndex: event.turn_index,
-    message: event.message ? fromNormalizedTraceMessageWire(event.message) : undefined,
-    model: event.model ? fromNormalizedTraceModelWire(event.model) : undefined,
-    tool: event.tool ? fromNormalizedTraceToolWire(event.tool) : undefined,
-    error: event.error ? fromNormalizedTraceErrorWire(event.error) : undefined,
-    sourceRef: event.source_ref ? fromNormalizedTraceSourceRefWire(event.source_ref) : undefined,
-    rawEvidence: event.raw_evidence?.map(fromNormalizedRawEvidenceWire),
+    message: event.message ? fromTraceMessageWire(event.message) : undefined,
+    model: event.model ? fromTraceModelWire(event.model) : undefined,
+    tool: event.tool ? fromTraceToolWire(event.tool) : undefined,
+    error: event.error ? fromTraceErrorWire(event.error) : undefined,
+    sourceRef: event.source_ref ? fromTraceSourceRefWire(event.source_ref) : undefined,
+    rawEvidence: event.raw_evidence?.map(fromTraceRawEvidenceWire),
     redaction: event.redaction,
     metadata: event.metadata,
   };
 }
 
-function toNormalizedTraceMessageWire(message: TraceMessage) {
+function toTraceMessageWire(message: TraceMessage) {
   return omitUndefinedProperties({
     role: message.role,
     name: message.name,
@@ -525,9 +468,7 @@ function toNormalizedTraceMessageWire(message: TraceMessage) {
   });
 }
 
-function fromNormalizedTraceMessageWire(
-  message: z.infer<typeof NormalizedTraceMessageWireSchema>,
-): TraceMessage {
+function fromTraceMessageWire(message: z.infer<typeof TraceMessageWireSchema>): TraceMessage {
   return {
     role: message.role,
     name: message.name,
@@ -538,7 +479,7 @@ function fromNormalizedTraceMessageWire(
   };
 }
 
-function toNormalizedTraceModelWire(model: TraceModel) {
+function toTraceModelWire(model: TraceModel) {
   return omitUndefinedProperties({
     provider: model.provider,
     name: model.name,
@@ -548,9 +489,7 @@ function toNormalizedTraceModelWire(model: TraceModel) {
   });
 }
 
-function fromNormalizedTraceModelWire(
-  model: z.infer<typeof NormalizedTraceModelWireSchema>,
-): TraceModel {
+function fromTraceModelWire(model: z.infer<typeof TraceModelWireSchema>): TraceModel {
   return {
     provider: model.provider,
     name: model.name,
@@ -560,7 +499,7 @@ function fromNormalizedTraceModelWire(
   };
 }
 
-function toNormalizedTraceToolWire(tool: TraceTool) {
+function toTraceToolWire(tool: TraceTool) {
   return omitUndefinedProperties({
     name: tool.name,
     call_id: tool.callId,
@@ -573,9 +512,7 @@ function toNormalizedTraceToolWire(tool: TraceTool) {
   });
 }
 
-function fromNormalizedTraceToolWire(
-  tool: z.infer<typeof NormalizedTraceToolWireSchema>,
-): TraceTool {
+function fromTraceToolWire(tool: z.infer<typeof TraceToolWireSchema>): TraceTool {
   return {
     name: tool.name,
     callId: tool.call_id,
@@ -588,7 +525,7 @@ function fromNormalizedTraceToolWire(
   };
 }
 
-function toNormalizedTraceErrorWire(error: TraceError) {
+function toTraceErrorWire(error: TraceError) {
   return omitUndefinedProperties({
     message: error.message,
     name: error.name,
@@ -598,9 +535,7 @@ function toNormalizedTraceErrorWire(error: TraceError) {
   });
 }
 
-function fromNormalizedTraceErrorWire(
-  error: z.infer<typeof NormalizedTraceErrorWireSchema>,
-): TraceError {
+function fromTraceErrorWire(error: z.infer<typeof TraceErrorWireSchema>): TraceError {
   return {
     message: error.message,
     name: error.name,
@@ -610,7 +545,7 @@ function fromNormalizedTraceErrorWire(
   };
 }
 
-function toNormalizedTraceSourceRefWire(sourceRef: TraceSourceRef) {
+function toTraceSourceRefWire(sourceRef: TraceSourceRef) {
   return omitUndefinedProperties({
     event_id: sourceRef.eventId,
     message_id: sourceRef.messageId,
@@ -623,8 +558,8 @@ function toNormalizedTraceSourceRefWire(sourceRef: TraceSourceRef) {
   });
 }
 
-function fromNormalizedTraceSourceRefWire(
-  sourceRef: z.infer<typeof NormalizedTraceSourceRefWireSchema>,
+function fromTraceSourceRefWire(
+  sourceRef: z.infer<typeof TraceSourceRefWireSchema>,
 ): TraceSourceRef {
   return {
     eventId: sourceRef.event_id,
@@ -638,7 +573,7 @@ function fromNormalizedTraceSourceRefWire(
   };
 }
 
-function toNormalizedRawEvidenceWire(evidence: TraceRawEvidence) {
+function toTraceRawEvidenceWire(evidence: TraceRawEvidence) {
   return omitUndefinedProperties({
     kind: evidence.kind,
     ref: evidence.ref,
@@ -649,8 +584,8 @@ function toNormalizedRawEvidenceWire(evidence: TraceRawEvidence) {
   });
 }
 
-function fromNormalizedRawEvidenceWire(
-  evidence: z.infer<typeof NormalizedRawEvidenceWireSchema>,
+function fromTraceRawEvidenceWire(
+  evidence: z.infer<typeof TraceRawEvidenceWireSchema>,
 ): TraceRawEvidence {
   return {
     kind: evidence.kind,
@@ -661,32 +596,6 @@ function fromNormalizedRawEvidenceWire(
     metadata: evidence.metadata,
   };
 }
-
-// Deprecated compatibility names retained for callers that imported the older
-// normalized-trace terminology. New code should use the AgentV-owned Trace*
-// names above.
-/** @deprecated Use TraceSource. */
-export type NormalizedTraceSource = TraceSource;
-/** @deprecated Use TraceSession. */
-export type NormalizedTraceSession = TraceSession;
-/** @deprecated Use TraceBranch. */
-export type NormalizedTraceBranch = TraceBranch;
-/** @deprecated Use TraceSourceRef. */
-export type NormalizedTraceSourceRef = TraceSourceRef;
-/** @deprecated Use TraceRawEvidence. */
-export type NormalizedRawEvidence = TraceRawEvidence;
-/** @deprecated Use TraceRedactionState. */
-export type NormalizedRedactionState = TraceRedactionState;
-/** @deprecated Use TraceError. */
-export type NormalizedTraceError = TraceError;
-/** @deprecated Use TraceMessage. */
-export type NormalizedTraceMessage = TraceMessage;
-/** @deprecated Use TraceModel. */
-export type NormalizedTraceModel = TraceModel;
-/** @deprecated Use TraceTool. */
-export type NormalizedTraceTool = TraceTool;
-/** @deprecated Use TraceEvent. */
-export type NormalizedTraceEvent = TraceEvent;
 
 /**
  * Token usage metrics from provider execution.
@@ -734,7 +643,6 @@ export interface TraceSummary {
  * the canonical trace artifact and derive this shape from it.
  */
 export interface Trace extends TraceSummary {
-  readonly schemaVersion: typeof TRACE_SCHEMA_VERSION;
   /** Complete chat transcript used for transcript-aware graders. */
   readonly messages: readonly Message[];
   /** Structured event stream derived from the same messages and metrics. */
@@ -917,7 +825,6 @@ export function buildTraceFromMessages(options: BuildTraceOptions = {}): Trace {
   }
 
   return {
-    schemaVersion: TRACE_SCHEMA_VERSION,
     eventCount: summary.eventCount,
     toolCalls: summary.toolCalls,
     errorCount: summary.errorCount + (options.error ? 1 : 0),
@@ -1011,7 +918,7 @@ export interface ToolTrajectoryGraderConfig {
 }
 
 /**
- * Expected tool call item in a trajectory sequence.
+ * Expected tool call item in a tool sequence.
  */
 export interface ToolTrajectoryExpectedItem {
   readonly tool: string;
@@ -1041,7 +948,7 @@ interface MessageLike {
 
 /**
  * Compute a lightweight summary from provider output messages.
- * Used for legacy/default result persistence when no full trajectory is present.
+ * Used for legacy/default result persistence when no trace artifact is present.
  *
  * Derives timing information from span boundaries:
  * - startTime: earliest startTime across all messages and tool calls
@@ -1130,35 +1037,35 @@ export function computeTraceSummary(messages: readonly MessageLike[]): TraceComp
 }
 
 /**
- * Return the trajectory events selected for grading.
+ * Return the trace artifact events selected for grading.
  *
  * Importers should already store the selected branch path in `events`. When a
  * source also carries explicit `branch.includedEventIds`, honor it here so
  * branchable transcripts cannot accidentally grade omitted alternatives.
  */
-export function getSelectedTrajectoryEvents(trajectory: TraceArtifact): readonly TraceEvent[] {
-  if (!trajectory.branch?.includedEventIds || trajectory.branch.includedEventIds.length === 0) {
-    return trajectory.events;
+export function getSelectedTraceArtifactEvents(artifact: TraceArtifact): readonly TraceEvent[] {
+  if (!artifact.branch?.includedEventIds || artifact.branch.includedEventIds.length === 0) {
+    return artifact.events;
   }
 
-  const includedIds = new Set(trajectory.branch.includedEventIds);
-  return trajectory.events.filter((event) => includedIds.has(event.eventId));
+  const includedIds = new Set(artifact.branch.includedEventIds);
+  return artifact.events.filter((event) => includedIds.has(event.eventId));
 }
 
 /**
- * Derive the existing compact TraceSummary shape from a full trajectory.
+ * Derive the existing compact TraceSummary shape from a trace artifact.
  *
- * This is the canonical bridge from the high-fidelity trajectory contract to the
- * backward-compatible summary/read model. Keep the projection one-way: importers
- * and replay should preserve TraceArtifact or Trace, while existing result readers
- * can continue consuming the derived TraceSummary shape unchanged.
+ * This is the canonical bridge from the high-fidelity trace artifact to the
+ * summary/read model. Keep the projection one-way: importers and replay should
+ * preserve TraceArtifact or Trace, while existing result readers can continue
+ * consuming the derived TraceSummary shape unchanged.
  *
  * The summary keeps the current lightweight contract: eventCount is the number
  * of tool-call events, toolCalls is counted by tool name, toolDurations carries
  * per-tool milliseconds when present, and llmCallCount counts model turns.
  */
-export function computeTraceSummaryFromTrajectory(trajectory: TraceArtifact): TraceComputeResult {
-  const selectedEvents = getSelectedTrajectoryEvents(trajectory);
+export function computeTraceSummaryFromTraceArtifact(artifact: TraceArtifact): TraceComputeResult {
+  const selectedEvents = getSelectedTraceArtifactEvents(artifact);
   const hasModelTurnEvents = selectedEvents.some((event) => event.type === 'model_turn');
   const toolCallCounts: Record<string, number> = {};
   const toolDurations: Record<string, number[]> = {};
@@ -1215,11 +1122,197 @@ export function computeTraceSummaryFromTrajectory(trajectory: TraceArtifact): Tr
       llmCallCount,
       ...(hasAnyDuration ? { toolDurations } : {}),
     },
-    tokenUsage: trajectory.tokenUsage,
-    costUsd: trajectory.costUsd,
-    durationMs: trajectory.durationMs,
-    startTime: trajectory.startedAt ?? earliestStart?.toISOString(),
-    endTime: trajectory.endedAt ?? latestEnd?.toISOString(),
+    tokenUsage: artifact.tokenUsage,
+    costUsd: artifact.costUsd,
+    durationMs: artifact.durationMs,
+    startTime: artifact.startedAt ?? earliestStart?.toISOString(),
+    endTime: artifact.endedAt ?? latestEnd?.toISOString(),
+  };
+}
+
+function eventEndIso(event: TraceEvent): string | undefined {
+  const start = parseTimestamp(event.timestamp);
+  return deriveEventEnd(start, event.durationMs)?.toISOString();
+}
+
+function messageFromTraceArtifactEvent(event: TraceEvent, fallbackRole = 'assistant'): Message {
+  return {
+    role: event.message?.role ?? fallbackRole,
+    name: event.message?.name,
+    content: event.message?.content as Message['content'],
+    startTime: event.timestamp,
+    endTime: eventEndIso(event),
+    durationMs: event.durationMs,
+    metadata: omitUndefinedProperties({
+      event_id: event.eventId,
+      source_ref: event.sourceRef,
+      ...event.message?.metadata,
+    }),
+    tokenUsage: event.message?.tokenUsage ?? event.model?.tokenUsage,
+  };
+}
+
+function toolCallFromTraceArtifactEvent(event: TraceEvent): ToolCall | undefined {
+  const tool = event.tool;
+  if (!tool) {
+    return undefined;
+  }
+
+  return {
+    tool: tool.name,
+    id: tool.callId,
+    input: tool.input,
+    output: tool.output,
+    startTime: event.timestamp,
+    endTime: eventEndIso(event),
+    durationMs: event.durationMs,
+  };
+}
+
+function attachTraceArtifactToolCall(
+  messages: Message[],
+  eventMessageIndex: Map<string, number>,
+  event: TraceEvent,
+): void {
+  const toolCall = toolCallFromTraceArtifactEvent(event);
+  if (!toolCall) {
+    return;
+  }
+
+  const parentIndex = event.parentEventId ? eventMessageIndex.get(event.parentEventId) : undefined;
+  let fallbackIndex = -1;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    if (messages[index].role === 'assistant') {
+      fallbackIndex = index;
+      break;
+    }
+  }
+  const messageIndex = parentIndex ?? fallbackIndex;
+
+  if (messageIndex >= 0) {
+    const message = messages[messageIndex];
+    messages[messageIndex] = {
+      ...message,
+      toolCalls: [...(message.toolCalls ?? []), toolCall],
+    };
+    return;
+  }
+
+  const syntheticIndex = messages.length;
+  messages.push({
+    role: 'assistant',
+    startTime: event.timestamp,
+    endTime: eventEndIso(event),
+    durationMs: event.durationMs,
+    metadata: { source: 'trace_artifact_tool_call', event_id: event.eventId },
+    toolCalls: [toolCall],
+  });
+  eventMessageIndex.set(event.eventId, syntheticIndex);
+}
+
+function mergeTraceArtifactFinalResponse(
+  messages: Message[],
+  eventMessageIndex: Map<string, number>,
+  event: TraceEvent,
+): boolean {
+  if (!event.parentEventId || !event.message) {
+    return false;
+  }
+
+  const parentIndex = eventMessageIndex.get(event.parentEventId);
+  if (parentIndex === undefined) {
+    return false;
+  }
+
+  const parent = messages[parentIndex];
+  const finalMessage = messageFromTraceArtifactEvent(event);
+  eventMessageIndex.set(event.eventId, parentIndex);
+
+  if (sameMessageContent(parent, finalMessage)) {
+    return true;
+  }
+
+  if (parent.content === undefined && finalMessage.content !== undefined) {
+    messages[parentIndex] = {
+      ...parent,
+      name: parent.name ?? finalMessage.name,
+      content: finalMessage.content,
+      endTime: parent.endTime ?? finalMessage.endTime,
+      tokenUsage: parent.tokenUsage ?? finalMessage.tokenUsage,
+      metadata: omitUndefinedProperties({
+        ...parent.metadata,
+        final_response_event_id: event.eventId,
+        final_response_source_ref: event.sourceRef,
+      }),
+    };
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Project a trace artifact into the result-local Trace read model used by
+ * graders. Message events preserve transcript content when available;
+ * model-turn events provide assistant message anchors for child tool calls;
+ * standalone tool calls attach to the nearest assistant message.
+ */
+export function traceFromTraceArtifact(artifact: TraceArtifact): Trace {
+  const events = [...getSelectedTraceArtifactEvents(artifact)].sort(
+    (first, second) => first.ordinal - second.ordinal,
+  );
+  const messages: Message[] = [];
+  const eventMessageIndex = new Map<string, number>();
+
+  for (const event of events) {
+    if (event.type === 'message' && event.message) {
+      eventMessageIndex.set(event.eventId, messages.length);
+      messages.push(messageFromTraceArtifactEvent(event));
+      continue;
+    }
+
+    if (event.type === 'model_turn') {
+      eventMessageIndex.set(event.eventId, messages.length);
+      messages.push(messageFromTraceArtifactEvent(event, 'assistant'));
+      continue;
+    }
+
+    if (event.type === 'final_response' && event.message) {
+      if (mergeTraceArtifactFinalResponse(messages, eventMessageIndex, event)) {
+        continue;
+      }
+      eventMessageIndex.set(event.eventId, messages.length);
+      messages.push(messageFromTraceArtifactEvent(event));
+      continue;
+    }
+
+    if (event.type === 'tool_call') {
+      attachTraceArtifactToolCall(messages, eventMessageIndex, event);
+    }
+  }
+
+  const computed = computeTraceSummaryFromTraceArtifact(artifact);
+  const conversationId = artifact.session.sessionId ?? artifact.session.conversationId;
+  return {
+    eventCount: computed.trace.eventCount,
+    toolCalls: computed.trace.toolCalls,
+    errorCount: computed.trace.errorCount,
+    llmCallCount: computed.trace.llmCallCount,
+    ...(computed.trace.toolDurations ? { toolDurations: computed.trace.toolDurations } : {}),
+    messages,
+    events,
+    tokenUsage: computed.tokenUsage,
+    costUsd: computed.costUsd,
+    durationMs: computed.durationMs,
+    startTime: computed.startTime,
+    endTime: computed.endTime,
+    metadata: {
+      ...(artifact.source.provider ? { provider: artifact.source.provider } : {}),
+      ...(conversationId ? { provider_session_id: conversationId } : {}),
+      source: artifact.source,
+      session: artifact.session,
+      ...artifact.metadata,
+    },
   };
 }
 
