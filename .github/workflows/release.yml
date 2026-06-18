@@ -37,6 +37,9 @@ jobs:
   release:
     name: Release (${{ inputs.channel }}${{ inputs.channel != 'finalize' && format(' {0}', inputs.bump) || '' }})
     runs-on: ubuntu-latest
+    outputs:
+      publish_action: ${{ steps.bump.outputs.publish_action }}
+      release_tag: ${{ steps.bump.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,6 +93,7 @@ jobs:
           CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
 
       - name: Bump version, commit, and tag
+        id: bump
         run: |
           if [ "${{ inputs.channel }}" = "next" ]; then
             bun run release next ${{ inputs.bump }}
@@ -99,13 +103,47 @@ jobs:
             bun run release ${{ inputs.bump }}
           fi
 
+          VERSION=$(node -p "require('./apps/cli/package.json').version")
+          RELEASE_TAG="v${VERSION}"
+
+          if [[ "$VERSION" == *"-next."* ]]; then
+            PUBLISH_ACTION="publish-next"
+          else
+            PUBLISH_ACTION="publish-latest"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "publish_action=$PUBLISH_ACTION" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         run: |
-          VERSION=$(node -p "require('./apps/cli/package.json').version")
+          VERSION="${{ steps.bump.outputs.version }}"
+          RELEASE_TAG="${{ steps.bump.outputs.release_tag }}"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_TAG already exists"
+            exit 0
+          fi
+
           if [[ "$VERSION" == *"-next."* ]]; then
-            gh release create "v${VERSION}" --generate-notes --prerelease
+            gh release create "$RELEASE_TAG" --generate-notes --prerelease
           else
-            gh release create "v${VERSION}" --generate-notes
+            gh release create "$RELEASE_TAG" --generate-notes
           fi
         env:
           GH_TOKEN: ${{ github.token }}
+
+  publish:
+    name: Publish npm packages
+    needs: release
+    uses: ./.github/workflows/publish.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      action: ${{ needs.release.outputs.publish_action }}
+      ref: ${{ needs.release.outputs.release_tag }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}

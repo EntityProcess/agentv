@@ -256,6 +256,27 @@ async function main() {
   // Check if tag already exists
   const existingTags = (await $`git tag -l v${newVersion}`.text()).trim();
   if (existingTags) {
+    if (channel === 'finalize') {
+      const existingVersionAtTag = JSON.parse(
+        await $`git show v${newVersion}:${PRIMARY_PACKAGE}`.text(),
+      ) as PackageJson;
+
+      if (existingVersionAtTag.version === newVersion) {
+        console.log(`ℹ️  Tag v${newVersion} already exists with version ${newVersion}`);
+        console.log(`🎯 Checking out existing release tag v${newVersion}...`);
+        await $`git checkout --detach v${newVersion}`;
+        console.log(`\n✅ Release tag v${newVersion} already exists; continuing\n`);
+        console.log('Next steps:');
+        console.log('  1. Publish will run automatically from the existing release tag');
+        return;
+      }
+
+      console.error(
+        `❌ Tag v${newVersion} already exists, but ${PRIMARY_PACKAGE} contains version ${existingVersionAtTag.version}`,
+      );
+      process.exit(1);
+    }
+
     console.error(`❌ Tag v${newVersion} already exists`);
     process.exit(1);
   }

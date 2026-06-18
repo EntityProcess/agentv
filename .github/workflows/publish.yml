@@ -4,6 +4,21 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: string
+      ref:
+        description: "Git tag or ref to publish"
+        required: true
+        type: string
+    secrets:
+      NPM_TOKEN:
+        required: true
+      GH_MODELS_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       action:
@@ -14,9 +29,13 @@ on:
           - publish-next
           - publish-latest
         default: publish-next
+      ref:
+        description: "Git tag or ref to publish (defaults to the workflow ref)"
+        required: false
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -28,6 +47,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -45,19 +68,54 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Detect channel
+      - name: Detect and validate channel
         id: channel
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "action=${{ inputs.action }}" >> $GITHUB_OUTPUT
-          else
-            VERSION=$(node -p "require('./apps/cli/package.json').version")
+          set -euo pipefail
+
+          ACTION="${{ inputs.action }}"
+          VERSION=$(node -p "require('./apps/cli/package.json').version")
+          RELEASE_TAG="v${VERSION}"
+          CHECKOUT_TAG=$(git tag --points-at HEAD | grep -Fx "$RELEASE_TAG" | head -n 1 || true)
+
+          if [ -z "$CHECKOUT_TAG" ]; then
+            echo "::error::Publish checkout must point at $RELEASE_TAG; tags at HEAD are:"
+            git tag --points-at HEAD || true
+            exit 1
+          fi
+
+          if [ -z "$ACTION" ]; then
             if [[ "$VERSION" == *"-next."* ]]; then
-              echo "action=publish-next" >> $GITHUB_OUTPUT
+              ACTION="publish-next"
             else
-              echo "action=publish-latest" >> $GITHUB_OUTPUT
+              ACTION="publish-latest"
             fi
           fi
+
+          case "$ACTION" in
+            publish-next|publish-latest) ;;
+            *)
+              echo "::error::Invalid publish action: $ACTION"
+              exit 1
+              ;;
+          esac
+
+          if [[ "$VERSION" == *"-next."* ]]; then
+            if [ "$ACTION" != "publish-next" ]; then
+              echo "::error::Cannot publish prerelease $VERSION with action $ACTION"
+              exit 1
+            fi
+          else
+            if [ "$ACTION" != "publish-latest" ]; then
+              echo "::error::Cannot publish stable version $VERSION with action $ACTION"
+              exit 1
+            fi
+          fi
+
+          echo "Publishing $RELEASE_TAG with $ACTION"
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       # Latest promotion is blocked on a tiny live contract eval. The gate uses
       # a Models-capable PAT secret, while npm publish still uses NPM_TOKEN.
