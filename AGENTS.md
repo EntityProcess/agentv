@@ -107,6 +107,8 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - `apps/cli/` - Command-line interface (published as `agentv`)
   - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
 - `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
+- `docs/learnings/` - captured learnings from bug fixes and deliberate decisions (best practices, conventions, tooling choices), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when working in documented areas.
+- `CONCEPTS.md` - shared domain vocabulary (providers, targets, and other project-specific terms). Relevant when orienting to the codebase or discussing domain concepts.
 
 ## Working Style
 
@@ -180,6 +182,10 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Use `async/await` for async operations
 - Prefer named exports
 - Keep modules cohesive
+
+### Subprocess and Provider Conventions
+
+**Relative paths in CLI arg arrays:** When spawning a subprocess with an explicit `cwd`, pass user-supplied `args` through unchanged — the subprocess resolves its own relative paths against its `cwd`. Do not pre-process arg arrays with `startsWith('./')` or `!path.isAbsolute()` heuristics: they miss bare relative paths (`plugins/foo`), can corrupt flag-value pairs (`--config=./x`), and duplicate what `cwd` already does. See `docs/learnings/best-practices/trust-subprocess-cwd-for-relative-path-resolution.md`.
 
 ## Naming Convention: "Project" vs "Benchmark"
 

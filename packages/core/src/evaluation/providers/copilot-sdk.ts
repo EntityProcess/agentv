@@ -327,9 +327,8 @@ export class CopilotSdkProvider implements Provider {
       clientOptions.cwd = resolvedCwd;
 
       if (this.config.args && this.config.args.length > 0) {
-        clientOptions.cliArgs = this.config.args.map((arg) =>
-          arg.startsWith('./') || arg.startsWith('../') ? path.resolve(resolvedCwd, arg) : arg,
-        );
+        // Pass args through unchanged; the subprocess resolves relative paths against clientOptions.cwd above.
+        clientOptions.cliArgs = [...this.config.args];
       }
       if (this.config.githubToken) {
         clientOptions.githubToken = this.config.githubToken;

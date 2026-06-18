@@ -185,7 +185,7 @@ describe('CopilotSdkProvider', () => {
     expect(constructorArgs.cliArgs).toEqual(['--verbose', 'enabled']);
   });
 
-  it('resolves relative args paths against eval cwd', async () => {
+  it('passes args through unchanged and sets cwd so the subprocess resolves relative paths itself', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
@@ -207,12 +207,13 @@ describe('CopilotSdkProvider', () => {
     await provider.invoke({ question: 'Test', cwd: fixturesRoot });
 
     const constructorArgs = CopilotClientMock.mock.calls[0][0];
+    // cwd is set so the subprocess resolves relative paths itself — args are NOT pre-resolved
     expect(constructorArgs.cwd).toBe(path.resolve(fixturesRoot));
     expect(constructorArgs.cliArgs).toEqual([
       '--plugin-dir',
-      path.resolve(fixturesRoot, './plugins'),
+      './plugins',
       '--shared-dir',
-      path.resolve(fixturesRoot, '../shared'),
+      '../shared',
       '--mode',
       'agent',
     ]);
