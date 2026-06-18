@@ -187,12 +187,45 @@ targets:
 | `timeout_seconds` | No | Per-case timeout |
 | `grader_target` | Yes | LLM target for evaluation |
 
+For `provider: pi-coding-agent`, `base_url` is passed through the Pi SDK model
+configuration. This works for OpenAI-compatible endpoints:
+
+```yaml
+targets:
+  - name: pi-sdk-openai
+    provider: pi-coding-agent
+    subprovider: openai
+    base_url: ${{ OPENAI_ENDPOINT }}
+    api_key: ${{ OPENAI_API_KEY }}
+    model: ${{ OPENAI_MODEL }}
+    grader_target: azure-base
+```
+
 Use `provider: pi-cli` instead when you want AgentV to spawn the `pi` binary directly. It accepts the same Pi fields above plus:
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `executable` | No | Pi binary or shim to run. Defaults to `pi`. |
 | `args` | No | Extra arguments appended before the prompt. |
+
+Pi CLI has one important difference from the SDK path: the built-in `openai`
+provider does not currently expose a CLI base-url option. With `provider: pi-cli`
+and `subprovider: openai`, AgentV can pass the API key and model, but `base_url`
+does not re-route the built-in OpenAI provider. For custom endpoints, either
+configure a Pi custom provider in Pi's own `models.json` and reference that
+provider name as `subprovider`, or use Pi's Azure provider path when your gateway
+is compatible with Azure OpenAI Responses:
+
+```yaml
+targets:
+  - name: pi-cli-gateway
+    provider: pi-cli
+    subprovider: azure
+    base_url: ${{ OPENAI_ENDPOINT }}
+    api_key: ${{ OPENAI_API_KEY }}
+    model: ${{ OPENAI_MODEL }}
+    grader_target: azure-base
+```
 
 ## VS Code
 
