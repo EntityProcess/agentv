@@ -25,7 +25,7 @@ function textFromMessages(messages) {
 
 export default definePromptTemplate((ctx) => `
   Question: ${textFromMessages(ctx.input.filter((message) => message.role === 'user'))}
-  Answer: ${ctx.output ?? ctx.answer ?? ''}
+  Answer: ${ctx.output ?? ''}
 
   ${ctx.expectedOutput.length > 0 ? `Reference: ${textFromMessages(ctx.expectedOutput)}` : ''}
 `);
@@ -37,7 +37,6 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 
 - `input` - Input messages to agent
 - `output` - The agent's final answer being evaluated
-- `answer` - Deprecated alias for `output`
 - `expectedOutput` - Optional expected output messages
 - `criteria` - Optional criteria / expected outcome
 - `messages` - Transcript messages from the target execution

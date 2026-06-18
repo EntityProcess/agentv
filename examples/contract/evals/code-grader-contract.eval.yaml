@@ -1,0 +1,19 @@
+name: code-grader-contract
+description: Release gate verifying the code-grader stdin payload contract.
+
+execution:
+  target: github-models-contract
+  workers: 1
+
+tests:
+  - id: code-grader-stdin-payload
+    criteria: Response contains the word CONTRACT.
+    input:
+      - role: system
+        content: Reply with exactly the uppercase word CONTRACT and no other text.
+      - role: user
+        content: "Reply with the single word: CONTRACT"
+    assertions:
+      - name: code-grader-payload-contract
+        type: code-grader
+        command: ["bun", "../scripts/check-code-grader-payload.ts"]

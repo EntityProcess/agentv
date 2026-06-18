@@ -319,8 +319,6 @@ export const CodeGraderInputSchema = z.object({
   criteria: z.string(),
   expectedOutput: z.array(MessageSchema),
   output: z.string().nullable().optional(),
-  /** Deprecated migration alias; same value as output for text agents. */
-  answer: z.string().optional(),
   messages: z.array(MessageSchema).optional().default([]),
   /** Path to a temp file containing the output JSON (used for large payloads). */
   outputPath: z.string().optional(),

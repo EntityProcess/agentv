@@ -270,6 +270,7 @@ describe('CodeGrader multimodal integration', () => {
     const details = result.details as Record<string, unknown>;
     const payload = details.payload as Record<string, unknown>;
     expect(payload.output).toBe('answer');
+    expect(payload).not.toHaveProperty('answer');
     const messages = payload.messages as Record<string, unknown>[];
     expect(messages[0].content).toBe('Hello world');
   });

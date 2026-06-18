@@ -7,16 +7,14 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasExpected = Array.isArray(input.expected_output);
-// `output` is the final answer/scored result. Keep a tiny legacy fallback so
-// this fixture can still explain failures if an old message-array payload leaks.
+// `output` is the final answer/scored result. Keep a tiny fallback so this
+// fixture can still explain failures if an old message-array payload leaks.
 const candidateText =
   typeof input.output === 'string'
     ? input.output
-    : typeof input.answer === 'string'
-      ? input.answer
-      : Array.isArray(input.output)
-        ? input.output.map((m) => String(m.content ?? '')).join('')
-        : '';
+    : Array.isArray(input.output)
+      ? input.output.map((m) => String(m.content ?? '')).join('')
+      : '';
 const hasCandidate = candidateText.length > 0;
 
 // Emit details with structured metrics
@@ -25,7 +23,7 @@ console.log(
     score: hasExpected && hasCandidate ? 0.75 : 0,
     assertions: [
       ...(hasExpected ? [{ text: 'expected_output present', passed: true }] : []),
-      ...(hasCandidate ? [] : [{ text: 'answer missing', passed: false }]),
+      ...(hasCandidate ? [] : [{ text: 'output missing', passed: false }]),
     ],
     details: {
       metrics: {

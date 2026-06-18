@@ -1010,8 +1010,8 @@ describe('CodeGrader', () => {
     expect(result.verdict).toBe('pass');
     const passedTexts = result.assertions.filter((a) => a.passed).map((a) => a.text);
     expect(passedTexts).toContain('expected_output present');
-    expect(passedTexts).toContain('answer present');
-    expect(passedTexts).toContain('answer parses');
+    expect(passedTexts).toContain('output present');
+    expect(passedTexts).toContain('output parses');
   });
 
   it('surfaces stderr and exit code on failure', async () => {

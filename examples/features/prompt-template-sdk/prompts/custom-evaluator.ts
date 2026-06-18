@@ -28,7 +28,7 @@ function getMessageText(
 
 export default definePromptTemplate((ctx) => {
   const inputText = getMessageText(ctx.input, 'user');
-  const outputText = ctx.output ?? ctx.answer ?? '';
+  const outputText = ctx.output ?? '';
   const expectedOutputText = getMessageText(ctx.expectedOutput);
 
   // Access typed config from YAML
