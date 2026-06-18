@@ -799,7 +799,7 @@ describe('resolveTargetDefinition', () => {
         base_url: '${{ OPENAI_ENDPOINT }}',
         api_key: '${{ OPENAI_API_KEY }}',
         bearer_token: '${{ OPTIONAL_BEARER_TOKEN }}',
-        wire_api: 'responses',
+        api_format: 'responses',
         api_version: '2024-10-21',
       },
       env,
@@ -834,7 +834,7 @@ describe('resolveTargetDefinition', () => {
         subprovider: 'openai',
         base_url: '${{ OPENAI_ENDPOINT }}',
         api_key: '${{ OPENAI_API_KEY }}',
-        wire_api: 'responses',
+        api_format: 'responses',
       },
       env,
     );
@@ -922,7 +922,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.customProvider?.apiKey).toBeUndefined();
   });
 
-  it('copilot-sdk flat config supports wire_api', () => {
+  it('copilot-sdk flat config supports api_format', () => {
     const env = {
       FOUNDRY_KEY: 'foundry-secret',
     } satisfies Record<string, string>;
@@ -935,7 +935,7 @@ describe('resolveTargetDefinition', () => {
         subprovider: 'openai',
         base_url: 'https://resource.openai.azure.com/openai/v1/',
         api_key: '${{ FOUNDRY_KEY }}',
-        wire_api: 'responses',
+        api_format: 'responses',
       },
       env,
     );

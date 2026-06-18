@@ -383,6 +383,7 @@ export interface TargetDefinition {
   readonly model?: string | unknown | undefined;
   readonly version?: string | unknown | undefined;
   readonly api_version?: string | unknown | undefined;
+  readonly api_format?: string | unknown | undefined;
   // Anthropic fields
   readonly variant?: string | unknown | undefined;
   readonly thinking_budget?: number | unknown | undefined;
