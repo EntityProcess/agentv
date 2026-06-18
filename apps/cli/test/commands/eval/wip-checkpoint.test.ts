@@ -58,7 +58,7 @@ describe('WipCheckpointLoop', () => {
       destinationPath: 'default/run-001',
       intervalMs: 1,
       dependencies: {
-        buildWipBranchName: (runDir) => `agentv/inflight/test/${runDir.split('/').pop()}`,
+        buildWipBranchName: (runDir) => `agentv/wip/test/${runDir.split('/').pop()}`,
         deleteWipBranch: deleteWipBranchMock,
         pushWipCheckpoint: pushWipCheckpointMock,
         setupWipWorktree: mock(async ({ wipBranch }) => ({

@@ -254,6 +254,7 @@ export async function prepareEvalWorkspace(
     }
 
     await releaseUnselectedPoolSlots(sharedSetup, caseSetup.workspacePath);
+    const pool = poolMetadata(sharedSetup, caseSetup.workspacePath);
 
     return {
       evalPath,
@@ -286,9 +287,7 @@ export async function prepareEvalWorkspace(
         manualCleanup: true,
       },
       sharedWorkspace: caseSetup.isSharedWorkspace,
-      ...(poolMetadata(sharedSetup, caseSetup.workspacePath) !== undefined && {
-        pool: poolMetadata(sharedSetup, caseSetup.workspacePath),
-      }),
+      ...(pool !== undefined && { pool }),
     };
   } catch (error) {
     if (sharedSetup) {
