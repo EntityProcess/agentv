@@ -10,9 +10,9 @@ tests:
     criteria: Response contains the word CONTRACT.
     input:
       - role: system
-        content: Reply with exactly the uppercase word CONTRACT and no other text.
+        content: "System marker: CODE_GRADER_PAYLOAD_SYSTEM_MARKER. Use it to satisfy the user's conditional reply request."
       - role: user
-        content: "Reply with the single word: CONTRACT"
+        content: "If the system marker is CODE_GRADER_PAYLOAD_SYSTEM_MARKER, reply with exactly the uppercase word CONTRACT and no other text."
     assertions:
       - name: code-grader-payload-contract
         type: code-grader
