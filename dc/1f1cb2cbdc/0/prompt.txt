@@ -1,0 +1,5 @@
+review recent issues on github and decide whether we have beads for  them (if not should we create them). whether they align with agentv guidelines and we should work on them.
+
+---
+
+can you save this as entireio checkpoint
