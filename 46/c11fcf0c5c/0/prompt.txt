@@ -1,0 +1,3 @@
+publish to npm failed, https://github.com/EntityProcess/agentv/actions/runs/27737304307
+
+it's still pointing to 4.39.0-next.1 and 4.38.1. how to fix and make the github release and publish action more robust
