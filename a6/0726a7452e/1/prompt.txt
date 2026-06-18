@@ -1,0 +1,26 @@
+investigate why CI failed. https://github.com/EntityProcess/agentv/actions/runs/27748348602/job/82092246693
+how to publish to npm
+
+---
+
+publish previously worked fine, is it because we didn't include publish in release
+
+---
+
+we previously had separate publish.yml called by release.yml, why did we change it so it now fails
+
+---
+
+is there any reason why we need separate release and publish, why not set release as the trusted publisher and we get rid of publish
+
+---
+
+is this how popular open source projects like opencode do this
+
+---
+
+we should rename to publish.yml given that access already setup for publish.yml in npm
+
+---
+
+do you believe this aligns better with best pracices
