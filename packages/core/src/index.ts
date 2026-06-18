@@ -38,6 +38,7 @@ export * from './evaluation/file-utils.js';
 export * from './evaluation/providers/index.js';
 export * from './evaluation/graders.js';
 export * from './evaluation/orchestrator.js';
+export * from './evaluation/prepared-workspace.js';
 export {
   evaluate,
   type AssertEntry,
