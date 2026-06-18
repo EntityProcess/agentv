@@ -181,6 +181,10 @@ cd ../agentv.worktrees/<type>-<short-desc>
 - Prefer named exports
 - Keep modules cohesive
 
+### Subprocess and Provider Conventions
+
+**Relative paths in CLI arg arrays:** When spawning a subprocess with an explicit `cwd`, pass user-supplied `args` through unchanged — the subprocess resolves its own relative paths against its `cwd`. Do not pre-process arg arrays with `startsWith('./')` or `!path.isAbsolute()` heuristics: they miss bare relative paths (`plugins/foo`), can corrupt flag-value pairs (`--config=./x`), and duplicate what `cwd` already does. See `docs/solutions/best-practices/trust-subprocess-cwd-for-relative-path-resolution.md`.
+
 ## Naming Convention: "Project" vs "Benchmark"
 
 These two words have distinct, non-interchangeable meanings in this codebase. Get them right when adding new symbols, docs, or example dirs:
