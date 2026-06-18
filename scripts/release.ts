@@ -6,16 +6,16 @@
  *   bun scripts/release.ts [patch|minor|major]         # stable release
  *   bun scripts/release.ts next [patch|minor|major]    # new pre-release series
  *   bun scripts/release.ts next                        # increment pre-release (e.g. next.1 -> next.2)
- *   bun scripts/release.ts finalize                    # promote pre-release to stable (e.g. 4.12.0-next.3 -> 4.12.0)
+ *   bun scripts/release.ts finalize [prerelease-tag]   # promote a pre-release tag to stable (e.g. v4.12.0-next.3 -> 4.12.0)
  *
  * This script:
- *   1. Validates we're on the main branch
- *   2. Validates working directory is clean
- *   3. Pulls latest changes
+ *   1. Validates the working directory is clean
+ *   2. Uses main for stable/next releases, or a prerelease tag for finalize
+ *   3. Syncs git state from origin
  *   4. Bumps version in all package.json files
  *   5. Commits the version bump
  *   6. Creates a git tag
- *   7. Pushes commit and tag to origin
+ *   7. Pushes the release commit/tag for stable/next, or the stable tag for finalize
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -42,6 +42,12 @@ interface PackageJson {
   name: string;
   version: string;
   [key: string]: unknown;
+}
+
+interface ParsedArgs {
+  channel: ReleaseChannel;
+  bumpType?: BumpType;
+  prereleaseTag?: string;
 }
 
 function readPackageJson(path: string): PackageJson {
@@ -108,7 +114,46 @@ function bumpNextVersion(currentVersion: string, bumpType?: BumpType): string {
   return `${bumpedBase}-${NEXT_PRERELEASE_TAG}.1`;
 }
 
-function parseArgs(argv: readonly string[]): { channel: ReleaseChannel; bumpType?: BumpType } {
+function normalizePrereleaseTag(tag: string): string {
+  return tag.startsWith('v') ? tag : `v${tag}`;
+}
+
+async function resolveLatestPrereleaseTag(): Promise<string> {
+  const latestTag = (await $`git tag --list v*-next.* --sort=-version:refname`.text())
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  if (!latestTag) {
+    throw new Error('No prerelease tags found (expected tags like vX.Y.Z-next.N)');
+  }
+
+  return latestTag;
+}
+
+async function resolveFinalizeTag(explicitTag?: string): Promise<string> {
+  const prereleaseTag = explicitTag
+    ? normalizePrereleaseTag(explicitTag)
+    : await resolveLatestPrereleaseTag();
+  const existingTag = (await $`git tag -l ${prereleaseTag}`.text()).trim();
+
+  if (!existingTag) {
+    throw new Error(`Prerelease tag ${prereleaseTag} does not exist`);
+  }
+
+  const versionAtTag = JSON.parse(
+    await $`git show ${prereleaseTag}:${PRIMARY_PACKAGE}`.text(),
+  ) as PackageJson;
+  if (!parseNextPrerelease(versionAtTag.version)) {
+    throw new Error(
+      `Tag ${prereleaseTag} does not point to a prerelease version in ${PRIMARY_PACKAGE} (found ${versionAtTag.version})`,
+    );
+  }
+
+  return prereleaseTag;
+}
+
+function parseArgs(argv: readonly string[]): ParsedArgs {
   const first = argv[2];
   const second = argv[3];
 
@@ -117,7 +162,7 @@ function parseArgs(argv: readonly string[]): { channel: ReleaseChannel; bumpType
   }
 
   if (first === 'finalize') {
-    return { channel: 'finalize' };
+    return { channel: 'finalize', prereleaseTag: second };
   }
 
   if (first === NEXT_PRERELEASE_TAG) {
@@ -144,21 +189,15 @@ function parseArgs(argv: readonly string[]): { channel: ReleaseChannel; bumpType
 async function main() {
   let channel: ReleaseChannel;
   let bumpType: BumpType | undefined;
+  let prereleaseTag: string | undefined;
   try {
-    ({ channel, bumpType } = parseArgs(process.argv));
+    ({ channel, bumpType, prereleaseTag } = parseArgs(process.argv));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`❌ ${message}`);
     console.error('   Usage: bun scripts/release.ts [patch|minor|major]');
     console.error(`          bun scripts/release.ts ${NEXT_PRERELEASE_TAG} [patch|minor|major]`);
-    console.error('          bun scripts/release.ts finalize');
-    process.exit(1);
-  }
-
-  // Check we're on main branch
-  const branch = (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
-  if (branch !== 'main') {
-    console.error(`❌ Must be on main branch (currently on: ${branch})`);
+    console.error('          bun scripts/release.ts finalize [prerelease-tag]');
     process.exit(1);
   }
 
@@ -170,9 +209,30 @@ async function main() {
     process.exit(1);
   }
 
-  // Pull latest changes
-  console.log('📥 Pulling latest changes...');
-  await $`git pull origin main`;
+  let resolvedFinalizeTag: string | undefined;
+  if (channel === 'finalize') {
+    console.log('📥 Fetching latest tags...');
+    await $`git fetch origin --tags`;
+    resolvedFinalizeTag = await resolveFinalizeTag(prereleaseTag);
+
+    const currentHead = (await $`git rev-parse HEAD`.text()).trim();
+    const targetHead = (await $`git rev-list -n 1 ${resolvedFinalizeTag}`.text()).trim();
+    if (currentHead !== targetHead) {
+      console.log(`🎯 Checking out prerelease tag ${resolvedFinalizeTag}...`);
+      await $`git checkout --detach ${resolvedFinalizeTag}`;
+    }
+  } else {
+    // Check we're on main branch
+    const branch = (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
+    if (branch !== 'main') {
+      console.error(`❌ Must be on main branch (currently on: ${branch})`);
+      process.exit(1);
+    }
+
+    // Pull latest changes
+    console.log('📥 Pulling latest changes...');
+    await $`git pull origin main`;
+  }
 
   // Get current version from primary package
   const primaryPkgPath = resolve(process.cwd(), PRIMARY_PACKAGE);
@@ -189,7 +249,7 @@ async function main() {
     channel === 'next'
       ? `${NEXT_PRERELEASE_TAG}${bumpType ? ` (${bumpType})` : ' (increment)'}`
       : channel === 'finalize'
-        ? 'finalize'
+        ? `finalize${resolvedFinalizeTag ? ` from ${resolvedFinalizeTag}` : ''}`
         : (bumpType ?? 'patch');
   console.log(`\n📦 Bumping version: ${currentVersion} → ${newVersion} [${releaseMode}]\n`);
 
@@ -230,12 +290,14 @@ async function main() {
 
   // Push
   console.log('🚀 Pushing to origin...');
-  await $`git push --no-verify origin main`;
+  if (channel !== 'finalize') {
+    await $`git push --no-verify origin main`;
+  }
   await $`git push --no-verify origin v${newVersion}`;
 
   console.log(`\n✅ Released v${newVersion}\n`);
   console.log('Next steps:');
-  console.log('  1. Trigger the Publish workflow in GitHub Actions');
+  console.log('  1. Publish will run automatically from the pushed release tag');
 }
 
 main().catch((error) => {

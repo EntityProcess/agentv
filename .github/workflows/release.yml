@@ -21,6 +21,10 @@ on:
           - minor
           - major
         default: patch
+      prerelease_tag:
+        description: "Prerelease tag to finalize (defaults to latest v*-next.* tag)"
+        required: false
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}
@@ -43,6 +47,29 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout main
+
+      - name: Resolve finalize ref
+        if: inputs.channel == 'finalize'
+        id: finalize_ref
+        run: |
+          if [ -n "${{ inputs.prerelease_tag }}" ]; then
+            TAG="${{ inputs.prerelease_tag }}"
+          else
+            TAG=$(git tag --list 'v*-next.*' --sort=-version:refname | head -n 1)
+          fi
+
+          case "$TAG" in
+            v*) ;;
+            *) TAG="v$TAG" ;;
+          esac
+
+          if [ -z "$TAG" ]; then
+            echo "No prerelease tag found to finalize" >&2
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          git checkout --detach "$TAG"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -67,7 +94,7 @@ jobs:
           if [ "${{ inputs.channel }}" = "next" ]; then
             bun run release next ${{ inputs.bump }}
           elif [ "${{ inputs.channel }}" = "finalize" ]; then
-            bun run release finalize
+            bun run release finalize "${{ steps.finalize_ref.outputs.tag }}"
           else
             bun run release ${{ inputs.bump }}
           fi

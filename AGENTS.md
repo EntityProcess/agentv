@@ -561,7 +561,7 @@ Use the **GitHub Actions workflows** — do not publish manually from a local ma
 **Standard flow (pre-release → stable):**
 1. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=next` (and desired bump: patch/minor/major). This bumps the version to `x.y.z-next.1`, commits, tags, and pushes.
 2. The [Publish workflow](https://github.com/EntityProcess/agentv/actions/workflows/publish.yml) triggers automatically and publishes to npm `next`.
-3. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=finalize`. This strips the `-next.N` suffix (e.g. `4.12.0-next.1` → `4.12.0`), commits, tags, and pushes.
+3. Run the [Release workflow](https://github.com/EntityProcess/agentv/actions/workflows/release.yml) with `channel=finalize`. This finalizes the latest prerelease tag by default (or a specific `prerelease_tag` if provided), strips the `-next.N` suffix (e.g. `4.12.0-next.1` → `4.12.0`), commits, and tags that prerelease lineage.
 4. The Publish workflow triggers automatically and publishes to npm `latest`.
 
 **Direct stable release (skip pre-release):**
