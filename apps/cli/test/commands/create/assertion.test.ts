@@ -23,9 +23,14 @@ describe('agentv create assertion', () => {
 
       expect(result.exitCode).toBe(0);
 
-      const content = await readFile(path.join(cwd, '.agentv', 'assertions', 'word-count.ts'), 'utf8');
+      const content = await readFile(
+        path.join(cwd, '.agentv', 'assertions', 'word-count.ts'),
+        'utf8',
+      );
       expect(content).toContain("const text = output ?? '';");
-      expect(content).toContain('assertions: [{ text: pass ? \'Output has content\' : \'Output is empty\', passed: pass }]');
+      expect(content).toContain(
+        "assertions: [{ text: pass ? 'Output has content' : 'Output is empty', passed: pass }]",
+      );
       expect(content).not.toContain('reasoning:');
       expect(content).not.toContain('getMessageText');
     } finally {
