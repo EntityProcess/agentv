@@ -7,8 +7,8 @@
  * repository without declaring extra repos in workspace config.
  */
 
-import { execSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { execFileSync, execSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const stdin = readFileSync(0, 'utf8');
@@ -28,10 +28,13 @@ for (const entry of readdirSync(workspacePath)) {
   rmSync(join(workspacePath, entry), { recursive: true, force: true });
 }
 
-for (const entry of readdirSync(repoRoot)) {
-  if (entry === '.git') continue;
-  cpSync(join(repoRoot, entry), join(workspacePath, entry), { recursive: true });
-}
+const archivePath = join(workspacePath, 'agentv-repo.tar');
+execFileSync('git', ['archive', '--format=tar', `--output=${archivePath}`, 'HEAD'], {
+  cwd: repoRoot,
+  stdio: ['ignore', 'ignore', 'inherit'],
+});
+execFileSync('tar', ['-xf', archivePath, '-C', workspacePath], { stdio: 'inherit' });
+rmSync(archivePath, { force: true });
 
 if (!existsSync(join(workspacePath, 'AGENTS.md')) || !existsSync(join(workspacePath, '.agents'))) {
   console.error('expected AGENTS.md and .agents to be copied into the workspace');

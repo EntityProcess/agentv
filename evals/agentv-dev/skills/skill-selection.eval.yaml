@@ -16,7 +16,8 @@ input:
           The file above is the live `agentv-dev` plugin skill entrypoint.
           For the next task, name the **single** skill (or skills, only if
           the task genuinely requires more than one) that best fits.
-          Reply with the skill name(s) only — no commentary.
+          Reply with the skill name(s) only, or `none` if no listed skill fits.
+          No commentary.
 
 tests:
   - id: select-bench-for-eval-run
@@ -120,6 +121,8 @@ tests:
       Task: I want to deploy my Node.js app to a Kubernetes cluster. Which
       agentv skill should I load?
     assertions:
+      - type: equals
+        value: none
       - type: rubrics
         criteria:
           - Correctly states that no bundled agentv skill is relevant — these skills are for evaluation workflows, not deployment
