@@ -522,6 +522,13 @@ describe('parseGraders - code-grader config pass-through', () => {
           script: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
+          required: true,
+          min_score: 0.75,
+          negate: true,
+          config: {
+            algorithm: 'levenshtein',
+            threshold: 0.9,
+          },
           threshold: 0.85, // This should go to config
         },
       ],
@@ -532,7 +539,10 @@ describe('parseGraders - code-grader config pass-through', () => {
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeGraderConfig;
     expect(config.weight).toBe(2.0);
-    expect(config.config).toEqual({ threshold: 0.85 });
+    expect(config.required).toBe(true);
+    expect(config.min_score).toBe(0.75);
+    expect(config.negate).toBe(true);
+    expect(config.config).toEqual({ threshold: 0.9, algorithm: 'levenshtein' });
   });
 
   it('converts string scripts into argv using a shell', async () => {
