@@ -22,7 +22,7 @@ describe('getProjectSyncView', () => {
       configured: true,
       available: true,
       sync_status: 'dirty',
-      dirty_paths: ['.agentv/results/metadata/runs/demo/tags.json'],
+      dirty_paths: ['metadata/runs/demo/tags.json'],
       auto_push: false,
     });
 

@@ -1,11 +1,11 @@
 /**
  * Mutable metadata overlays for remote result runs.
  *
- * Remote run artifacts under `.agentv/results/runs/**` are treated as immutable
- * fetched payloads. Editable fields, starting with tags, live in a small
- * sidecar tree under `.agentv/results/metadata/runs/**` inside the configured
- * results repo checkout. That keeps local edits pushable by normal Git sync
- * without rewriting the fetched run directory.
+ * Remote run artifacts under `runs/**` on the results branch are treated as
+ * immutable fetched payloads. Editable fields, starting with tags, live in a
+ * small sidecar tree under `metadata/runs/**` inside the configured results repo
+ * checkout. That keeps local edits pushable by normal Git sync without rewriting
+ * the fetched run directory.
  *
  * To add another mutable field: create a sibling helper that maps the remote
  * run manifest to the same metadata run directory, keep the on-disk keys
@@ -19,8 +19,8 @@ import path from 'node:path';
 
 import { RUN_TAGS_FILENAME, normalizeTags } from './run-tags.js';
 
-const RESULTS_RUNS_DIR = path.join('.agentv', 'results', 'runs');
-const REMOTE_METADATA_RUNS_DIR = path.join('.agentv', 'results', 'metadata', 'runs');
+const RESULTS_RUNS_DIR = 'runs';
+const REMOTE_METADATA_RUNS_DIR = path.join('metadata', 'runs');
 
 interface TagsFile {
   readonly tags: string[];
