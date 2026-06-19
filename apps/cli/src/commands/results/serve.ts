@@ -29,7 +29,7 @@
  * mismatches without prompting, self-updating, or blocking startup.
  *
  * Exported functions (for testing):
- *   - resolveSourceFile(source, cwd) — resolves a run manifest path
+ *   - resolveSourceFile(source, cwd) — resolves the canonical project run source
  *   - loadResults(content) — parses JSONL into EvaluationResult[]
  *   - createApp(results, cwd) — Hono app factory
  */
@@ -55,7 +55,6 @@ import { Hono } from 'hono';
 
 import { enforceRequiredVersion } from '../../version-check.js';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
-import { resolveRunManifestPath } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { listResultFiles } from '../inspect/utils.js';
@@ -67,12 +66,7 @@ import {
 } from './combine-run.js';
 import { deleteLocalRun } from './delete-run.js';
 import { getActiveRunStatus, getActiveRunTarget, registerEvalRoutes } from './eval-runner.js';
-import {
-  loadLightweightResults,
-  loadManifestResults,
-  parseResultManifest,
-  resolveResultSourcePath,
-} from './manifest.js';
+import { loadLightweightResults, loadManifestResults, parseResultManifest } from './manifest.js';
 import {
   type SourcedResultFileMeta,
   clearRemoteRunTags,
@@ -90,17 +84,34 @@ import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-
 // ── Source resolution ────────────────────────────────────────────────────
 
 /**
- * Resolve a run manifest path from an explicit source, run cache,
- * or directory scan. Throws if no run workspace can be found.
+ * Dashboard has one run source per project: the project's
+ * `.agentv/results/runs/` tree plus any `results:` repo configured for that
+ * project. Direct run workspaces and index manifests are supported by
+ * `agentv results report`, not the live Dashboard server.
+ */
+const DIRECT_DASHBOARD_SOURCE_GUIDANCE = [
+  'Dashboard reads configured project run sources only.',
+  'Run it from a project root, or pass --dir so Dashboard uses <project>/.agentv/results/runs/:',
+  '  agentv dashboard --dir <project-dir>',
+  'To browse external results, configure results.repo_url or results.repo_path in config YAML.',
+  'For a one-off run bundle, use: agentv results report <run-workspace-or-index.jsonl>',
+].join('\n');
+
+function unsupportedDashboardSourceError(source: string, cwd: string): Error {
+  const resolved = path.isAbsolute(source) ? source : path.resolve(cwd, source);
+  return new Error(
+    `Unsupported Dashboard source: ${resolved}\n${DIRECT_DASHBOARD_SOURCE_GUIDANCE}`,
+  );
+}
+
+/**
+ * Resolve a canonical project run manifest path from run cache or directory
+ * scan. Throws if an unsupported direct source is provided or no run workspace
+ * can be found.
  */
 export async function resolveSourceFile(source: string | undefined, cwd: string): Promise<string> {
   if (source) {
-    let resolved = resolveResultSourcePath(source, cwd);
-    if (!existsSync(resolved)) {
-      throw new Error(`Source file not found: ${resolved}`);
-    }
-    resolved = resolveRunManifestPath(resolved);
-    return resolved;
+    throw unsupportedDashboardSourceError(source, cwd);
   }
 
   // Prefer cache pointer, fall back to directory scan
@@ -2036,7 +2047,7 @@ export const resultsServeCommand = command({
       type: optional(string),
       displayName: 'source',
       description:
-        'Run workspace directory or index.jsonl manifest to serve (defaults to most recent in .agentv/results/runs/)',
+        'Legacy direct run source (unsupported); use --dir <project-dir> or results: config',
     }),
     port: option({
       type: optional(number),
@@ -2126,8 +2137,8 @@ export const resultsServeCommand = command({
       let results: EvaluationResult[] = [];
       let sourceFile: string | undefined;
 
-      // When a source is explicitly provided, it must exist.
-      // Otherwise, try to auto-discover results; start empty if none found.
+      // Reject unsupported direct sources. Otherwise, auto-discover the
+      // project's configured run workspace and fall back to the empty state.
       if (source) {
         sourceFile = await resolveSourceFile(source, cwd);
         results = loadManifestResults(sourceFile);

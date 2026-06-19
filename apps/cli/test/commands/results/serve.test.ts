@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { addProject, saveProjectRegistry } from '@agentv/core';
 
@@ -13,6 +14,14 @@ import {
   resolveDashboardMode,
   resolveSourceFile,
 } from '../../../src/commands/results/serve.js';
+import { assertCoreBuild } from '../../setup-core-build.js';
+
+assertCoreBuild();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '../../../../..');
+const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 
 // ── Sample JSONL content (snake_case, matching on-disk format) ──────────
 
@@ -250,23 +259,128 @@ function writeLocalRunArtifact(
   return `${experiment}::${timestamp}`;
 }
 
+function writeWtgDogfoodNoncanonicalArtifact(baseDir: string): {
+  runDir: string;
+  indexPath: string;
+} {
+  const runDir = path.join(baseDir, 'wtg-dogfood-noncanonical-run');
+  mkdirSync(runDir, { recursive: true });
+  const indexPath = path.join(runDir, 'index.jsonl');
+  writeFileSync(indexPath, toJsonl({ ...RESULT_A, test_id: 'wtg-dogfood-noncanonical' }));
+  return { runDir, indexPath };
+}
+
+function runDashboardExpectFailure(args: string[], env: Record<string, string>) {
+  try {
+    execFileSync(process.execPath, [CLI_ENTRY, 'dashboard', ...args], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      env: {
+        ...cleanGitEnv(),
+        ...env,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 5000,
+    });
+    throw new Error('Expected dashboard command to fail');
+  } catch (error) {
+    const result = error as {
+      status?: number;
+      signal?: NodeJS.Signals | null;
+      stdout?: string | Buffer;
+      stderr?: string | Buffer;
+    };
+    return {
+      status: result.status,
+      signal: result.signal,
+      stdout: String(result.stdout ?? ''),
+      stderr: String(result.stderr ?? ''),
+    };
+  }
+}
+
 // ── resolveSourceFile ────────────────────────────────────────────────────
 
 describe('resolveSourceFile', () => {
-  it('throws for nonexistent file', async () => {
-    await expect(resolveSourceFile('/tmp/does-not-exist.jsonl', '/tmp')).rejects.toThrow(
-      'Source file not found',
+  it('rejects direct WTG dogfood run directories with setup guidance', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
+    const { runDir } = writeWtgDogfoodNoncanonicalArtifact(tempDir);
+
+    await expect(resolveSourceFile(runDir, tempDir)).rejects.toThrow(
+      'Dashboard reads configured project run sources only',
     );
+
+    rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('rejects legacy flat result files', async () => {
+  it('rejects direct WTG dogfood index.jsonl manifests with setup guidance', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
-    const flatFile = path.join(tempDir, 'results.jsonl');
-    writeFileSync(flatFile, toJsonl(RESULT_A));
+    const { indexPath } = writeWtgDogfoodNoncanonicalArtifact(tempDir);
 
-    await expect(resolveSourceFile(flatFile, tempDir)).rejects.toThrow(
-      'Expected a run workspace directory or index.jsonl manifest',
+    await expect(resolveSourceFile(indexPath, tempDir)).rejects.toThrow(
+      'For a one-off run bundle, use: agentv results report',
     );
+
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('still auto-discovers canonical project run workspaces when no source is provided', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
+    const runDir = path.join(
+      tempDir,
+      '.agentv',
+      'results',
+      'runs',
+      'default',
+      '2026-06-17T00-00-00-000Z',
+    );
+    mkdirSync(runDir, { recursive: true });
+    const indexPath = path.join(runDir, 'index.jsonl');
+    writeFileSync(indexPath, toJsonl(RESULT_A));
+
+    await expect(resolveSourceFile(undefined, tempDir)).resolves.toBe(indexPath);
+
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe('dashboard CLI source contract', () => {
+  it('fails before serving a WTG dogfood noncanonical run directory', () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-dashboard-source-cli-'));
+    const projectDir = path.join(tempDir, 'project');
+    mkdirSync(projectDir, { recursive: true });
+    const { runDir } = writeWtgDogfoodNoncanonicalArtifact(tempDir);
+
+    const result = runDashboardExpectFailure(
+      [runDir, '--dir', projectDir, '--single', '--port', '43117'],
+      { AGENTV_HOME: path.join(tempDir, 'home') },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.signal).toBeNull();
+    expect(result.stdout).not.toContain('Serving 1 result(s)');
+    expect(result.stderr).toContain('Unsupported Dashboard source');
+    expect(result.stderr).toContain('agentv dashboard --dir <project-dir>');
+
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('fails before serving a direct WTG dogfood index.jsonl manifest', () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-dashboard-source-cli-'));
+    const projectDir = path.join(tempDir, 'project');
+    mkdirSync(projectDir, { recursive: true });
+    const { indexPath } = writeWtgDogfoodNoncanonicalArtifact(tempDir);
+
+    const result = runDashboardExpectFailure(
+      [indexPath, '--dir', projectDir, '--single', '--port', '43118'],
+      { AGENTV_HOME: path.join(tempDir, 'home') },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.signal).toBeNull();
+    expect(result.stdout).not.toContain('Serving 1 result(s)');
+    expect(result.stderr).toContain('Unsupported Dashboard source');
+    expect(result.stderr).toContain('agentv results report <run-workspace-or-index.jsonl>');
 
     rmSync(tempDir, { recursive: true, force: true });
   });
