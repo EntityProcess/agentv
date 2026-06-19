@@ -611,8 +611,10 @@ async function parseGraderList(
         'cwd',
         'weight',
         'target',
+        'config',
         'preprocessors',
         'required',
+        'min_score',
         'negate',
       ]);
       const config: Record<string, JsonValue> = {};
@@ -621,6 +623,10 @@ async function parseGraderList(
           config[key] = value as JsonValue;
         }
       }
+      const topLevelConfig = isJsonObject(rawEvaluator.config)
+        ? (rawEvaluator.config as Record<string, JsonValue>)
+        : {};
+      const mergedConfig = { ...config, ...topLevelConfig };
 
       evaluators.push({
         name,
@@ -633,7 +639,7 @@ async function parseGraderList(
         ...(required !== undefined ? { required } : {}),
         ...(min_score !== undefined ? { min_score } : {}),
         ...(negate !== undefined ? { negate } : {}),
-        ...(Object.keys(config).length > 0 ? { config } : {}),
+        ...(Object.keys(mergedConfig).length > 0 ? { config: mergedConfig } : {}),
         ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
         ...(targetConfig !== undefined ? { target: targetConfig } : {}),
       });
