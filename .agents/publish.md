@@ -6,7 +6,7 @@ This file expands [AGENTS.md](../AGENTS.md) for version bumps, contract gates, a
 
 - Git commit history is the changelog.
 - Use the GitHub Actions publish workflow in [`.github/workflows/publish.yml`](../.github/workflows/publish.yml).
-- There is no separate GitHub Actions release workflow anymore. The publish workflow now prepares the version and tag, creates the GitHub Release, and publishes the npm packages.
+- There is no separate GitHub Actions release-prep workflow anymore. The publish workflow now prepares the version and tag, creates the GitHub Release, and publishes the npm packages.
 - Do not publish manually from a local machine.
 
 ## Publish Workflow Channels
