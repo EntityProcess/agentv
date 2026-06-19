@@ -18,6 +18,8 @@ Comprehensive docs: https://agentv.dev
 
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
+Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it is only a deprecated compatibility shim for existing consumers during migration.
+
 ## Evaluation Types
 
 AgentV evaluations measure **execution quality** — whether your agent or skill produces correct output when invoked.
@@ -567,9 +569,47 @@ agentv validate <file.yaml>
 
 **Replay targets:** Add `provider: replay`, `fixtures: <jsonl>`, and `source_target: <live target name>` in `.agentv/targets.yaml`. Optional `suite`, `eval_path`, and `variant` tighten lookup. The eval YAML and graders stay unchanged; replay only substitutes recorded target output, and graders run fresh.
 
-## Code Judge SDK
+## TypeScript SDK Helpers
 
-Use `@agentv/sdk` to build custom graders in TypeScript/JavaScript:
+Use `@agentv/sdk` as the public lightweight SDK package for TypeScript/JavaScript helpers. SDK helpers must stay AgentV-native and lower to YAML/runtime contracts rather than introducing a second eval vocabulary.
+
+### YAML-aligned eval authoring
+```typescript
+import { defineEval, graders } from '@agentv/sdk';
+
+export default defineEval({
+  name: 'helper-suite',
+  execution: { targets: ['default'] },
+  tests: [
+    {
+      id: 'json-answer',
+      input: 'Return a JSON answer with a status field.',
+      assertions: [
+        graders.json({ name: 'valid-json', required: true }),
+        graders.regex(/"status"\s*:/, { name: 'status-key' }),
+      ],
+    },
+  ],
+});
+```
+
+The `graders` catalog returns ordinary `assertions` entries such as `type: is-json`, `type: regex`, `type: llm-grader`, and `type: code-grader`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
+
+If adapting Braintrust `scores` or DeepEval metrics, write small AgentV helper factories that return `graders.*` configs:
+
+```typescript
+import { graders } from '@agentv/sdk';
+
+export function ragFaithfulness() {
+  return graders.llmGrader({
+    name: 'rag-faithfulness',
+    target: 'grader-target',
+    prompt: 'Grade whether the answer is supported by the retrieved context.',
+  });
+}
+```
+
+Use the helper in `assertions: [ragFaithfulness()]`; do not create new YAML terms like `scores`.
 
 ### defineAssertion (recommended for custom checks)
 ```typescript
@@ -604,7 +644,7 @@ export default defineCodeGrader(({ output, trace }) => {
 });
 ```
 
-Both are used via `type: code-grader` in YAML with `command: [bun, run, grader.ts]`.
+`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineCodeGrader()` scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`.
 
 ### Convention-Based Discovery
 

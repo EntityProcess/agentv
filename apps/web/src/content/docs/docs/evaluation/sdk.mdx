@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-YAML remains AgentV's canonical, portable eval format. The SDK surfaces below are for cases where you want to generate YAML-shaped definitions in code, embed eval runs inside another application, or write executable graders and prompt templates.
+YAML remains AgentV's canonical, portable eval format. The SDK surfaces below are for cases where you want to generate YAML-shaped definitions in code, embed eval runs inside another application, or write executable graders and prompt templates. For authoring helpers, `@agentv/sdk` is AgentV's public lightweight SDK package.
 
 AgentV currently provides two npm packages for programmatic use:
 
@@ -15,12 +15,27 @@ AgentV currently provides two npm packages for programmatic use:
 ## Installation
 
 ```bash
-# Assertion SDK (defineAssertion, defineCodeGrader)
+# Lightweight SDK (defineEval, graders, defineAssertion, defineCodeGrader)
 npm install @agentv/sdk
 
 # Programmatic API (evaluate, defineConfig)
 npm install @agentv/core
 ```
+
+## Migrating from `@agentv/eval`
+
+Use `@agentv/sdk` for all new TypeScript SDK code:
+
+```bash
+npm uninstall @agentv/eval
+npm install @agentv/sdk
+```
+
+```typescript
+import { defineCodeGrader } from '@agentv/sdk';
+```
+
+The general policy is hard convergence for same-week or unreleased surface names: use the correct package, field, or wire name instead of carrying aliases. The package rename is the exception because `@agentv/eval` was already published. It remains a temporary deprecated compatibility package that re-exports `@agentv/sdk` for existing consumers, but it should not appear in new docs, examples, scaffolds, or skills except as migration guidance.
 
 ## Choose a Surface
 
@@ -33,6 +48,41 @@ Use the simplest surface that matches the job:
 - **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
 
 There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
+
+For example, the repo-local helper in `examples/features/sdk-python/` can build YAML-shaped cases while keeping `assertions` as the durable contract:
+
+```python
+from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_jsonl
+
+
+def rag_faithfulness():
+    return {
+        "name": "rag-faithfulness",
+        "type": "llm-grader",
+        "target": "grader-target",
+        "prompt": "Grade whether the answer is supported by the retrieved context.",
+    }
+
+
+write_jsonl(
+    "evals/dataset.jsonl",
+    [
+        JsonlCase(
+            id="grounded-answer",
+            input=[{"role": "user", "content": "Answer using the retrieved context."}],
+            expected_output=[{"role": "assistant", "content": "The answer cites the source material."}],
+            extra={"assertions": [rag_faithfulness()]},
+        )
+    ],
+)
+
+write_eval_yaml(
+    "evals/dataset.eval.yaml",
+    EvalDefinition(name="rag-suite", tests="./dataset.jsonl"),
+)
+```
+
+This is example-local/repo-local guidance, not a promise of a published Python package.
 
 ## YAML-Aligned `.eval.ts` Authoring
 
@@ -105,6 +155,55 @@ export default defineEval({
 ```
 
 The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `rubrics`, `llm-grader`, and `code-grader`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+
+## AgentV-Native Helper Factories
+
+If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusable logic AgentV-native: write helper factories that return `graders.*` configs, then let `defineEval()` lower them to ordinary `assertions`.
+
+```typescript
+import { defineEval, graders } from '@agentv/sdk';
+
+function ragFaithfulness() {
+  return graders.llmGrader({
+    name: 'rag-faithfulness',
+    target: 'grader-target',
+    prompt: [
+      'Grade whether the answer is supported by the retrieved context.',
+      'Use the input and expected_output fields as grounding evidence.',
+    ].join('\n'),
+  });
+}
+
+export default defineEval({
+  name: 'rag-suite',
+  tests: [
+    {
+      id: 'grounded-answer',
+      input: 'Answer the question using the retrieved context.',
+      expectedOutput: 'The answer cites the source material.',
+      assertions: [
+        graders.contains('source', { name: 'mentions-source' }),
+        ragFaithfulness(),
+      ],
+    },
+  ],
+});
+```
+
+The helper above serializes to the same shape you could write by hand:
+
+```yaml
+assertions:
+  - name: mentions-source
+    type: contains
+    value: source
+  - name: rag-faithfulness
+    type: llm-grader
+    target: grader-target
+    prompt: |-
+      Grade whether the answer is supported by the retrieved context.
+      Use the input and expected_output fields as grounding evidence.
+```
 
 ## Custom Assertions
 

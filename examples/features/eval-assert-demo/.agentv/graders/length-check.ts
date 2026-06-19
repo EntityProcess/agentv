@@ -1,27 +1,8 @@
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
-
-function getMessageText(
-  messages: readonly { role: string; content?: unknown }[],
-  role = 'assistant',
-): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role === role) {
-      if (typeof msg.content === 'string') return msg.content;
-      if (Array.isArray(msg.content)) {
-        return msg.content
-          .filter((b: { type?: string }) => b.type === 'text')
-          .map((b: { text?: string }) => b.text)
-          .join('\n');
-      }
-    }
-  }
-  return '';
-}
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output }) => {
-  const outputText = getMessageText(output ?? []);
+  const outputText = output ?? '';
   const wordCount = outputText.split(/\s+/).filter(Boolean).length;
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
@@ -37,5 +18,6 @@ export default defineCodeGrader(({ output }) => {
     assertions.push({ text: `Answer has ${wordCount} words (> 50, too verbose)`, passed: false });
   }
 
-  return { assertions };
+  const passed = assertions.filter((assertion) => assertion.passed).length;
+  return { score: passed / assertions.length, assertions };
 });
