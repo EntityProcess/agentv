@@ -1,7 +1,9 @@
+name: agentv-dev-output-correctness
 description: >-
   Tests whether agent-produced output is structurally and factually correct
-  given a bundled-skill fixture as ground truth — covers eval YAML structure,
-  CLI command syntax, fixture-content accuracy, and grader configuration.
+  given live AgentV skill and docs content as ground truth — covers eval YAML
+  structure, CLI command syntax, skill-content accuracy, and grader
+  configuration.
 
 tags: [agent, skills]
 
@@ -12,10 +14,10 @@ tests:
       - role: user
         content:
           - type: file
-            value: fixtures/agentv-eval-writer.txt
+            value: /skills-data/agentv-eval-writer/SKILL.md
           - type: text
             value: |
-              Using the agentv-eval-writer skill above as your reference,
+              Using the live agentv-eval-writer skill above as your reference,
               produce a minimal but valid `.eval.yaml` snippet (one `description`
               and one test in `tests:`) for an eval that grades whether an LLM
               correctly summarises a paragraph.
@@ -41,11 +43,11 @@ tests:
       - role: user
         content:
           - type: file
-            value: fixtures/agentv-eval-writer.txt
+            value: /skills-data/agentv-eval-writer/SKILL.md
           - type: text
             value: |
-              Using the agentv-eval-writer skill as reference, write a single
-              test entry under `tests:` that uses **three** assertions:
+              Using the live agentv-eval-writer skill as reference, write a
+              single test entry under `tests:` that uses **three** assertions:
               one `contains`, one `regex`, and one `rubrics` (with at least
               two criteria). Output only the YAML for the test entry.
     assertions:
@@ -58,8 +60,8 @@ tests:
       - type: rubrics
         criteria:
           - "Each assertion has both a `type:` and the field that type expects (`value:` for contains/regex, `criteria:` list for rubrics)"
-          - Does not invent assertion types that are not in the agentv-eval-writer skill (e.g., `like`, `match`, `expect`)
-          - Uses kebab-case (e.g., `llm-grader`, `is-json`) not snake_case (e.g., `llm_grader`) for any multi-word grader types referenced
+          - Does not invent assertion types that are not in the agentv-eval-writer skill (for example `like`, `match`, or `expect`)
+          - Uses kebab-case (for example `llm-grader`, `is-json`) not snake_case (for example `llm_grader`) for any multi-word grader types referenced
 
   - id: cli-command-correct-syntax
     criteria: Agent produces correct `agentv skills` CLI commands with valid subcommands and flags.
@@ -67,13 +69,14 @@ tests:
       - role: user
         content:
           - type: file
-            value: fixtures/agentv-bench.txt
+            value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
           - type: text
             value: |
-              Give me three shell commands, one per line, that exercise the
+              Using the live installation doc above as your reference, give me
+              three shell commands, one per line, that exercise the
               `agentv skills` subcommand:
               1. List all bundled skills as JSON.
-              2. Print the agentv-bench skill including its references and templates.
+              2. Print the agentv-bench skill including its bundled support files.
               3. Print the on-disk path of the agentv-bench skill.
     assertions:
       - type: regex
@@ -83,16 +86,16 @@ tests:
       - type: regex
         value: "agentv\\s+skills\\s+path\\s+agentv-bench"
 
-  - id: fixture-content-accurate
-    criteria: Agent's description of a skill matches the skill's actual SKILL.md content.
+  - id: skill-content-accurate
+    criteria: Agent's description of a skill matches the skill's live SKILL.md content.
     input:
       - role: user
         content:
           - type: file
-            value: fixtures/agentv-trace-analyst.txt
+            value: /skills-data/agentv-trace-analyst/SKILL.md
           - type: text
             value: |
-              Read the agentv-trace-analyst skill above. In one paragraph,
+              Read the live agentv-trace-analyst skill above. In one paragraph,
               describe what this skill does and when it should be invoked.
               Quote at most one short phrase from the skill text; do not
               invent capabilities the skill does not mention.
@@ -101,20 +104,21 @@ tests:
         criteria:
           - Description accurately reflects what agentv-trace-analyst does (analysing eval traces and failure modes)
           - Does not claim the skill writes or runs evals (those are agentv-eval-writer and agentv-bench respectively)
-          - Any quoted phrase appears verbatim in the fixture
-          - Does not hallucinate sub-features not present in the SKILL.md
+          - Any quoted phrase appears verbatim in the provided SKILL.md
+          - Does not hallucinate sub-features not present in the skill
 
-  - id: skill-list-complete
-    criteria: Agent lists all six bundled skills when given the JSON fixture.
+  - id: plugin-skill-list-complete
+    criteria: Agent lists all bundled skills from the live `agentv-dev` plugin stub.
     input:
       - role: user
         content:
           - type: file
-            value: fixtures/skills-list-all.txt
+            value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
           - type: text
             value: |
-              The JSON above is the output of `agentv skills list --json`.
-              Reproduce the list of skill names as a markdown bulleted list.
+              The file above is the live `agentv-dev` plugin entrypoint.
+              Reproduce the list of available bundled skill names as a markdown
+              bulleted list.
     assertions:
       - type: contains
         value: agentv-bench
@@ -125,32 +129,28 @@ tests:
       - type: contains
         value: agentv-governance
       - type: contains
-        value: agentv-onboarding
-      - type: contains
         value: agentv-trace-analyst
       - type: rubrics
         criteria:
-          - Lists exactly the six skill names from the JSON, no more and no fewer
-          - Does not invent additional skill names not present in the fixture
+          - Lists exactly the five skill names from the live plugin file, no more and no fewer
+          - Does not invent additional skill names not present in the plugin file
 
-  - id: error-message-accurate
-    criteria: Agent correctly interprets the not-found error and proposes a recoverable next step.
+  - id: governance-ref-command-accurate
+    criteria: Agent gives the correct command for loading a specific governance reference file.
     input:
       - role: user
         content:
           - type: file
-            value: fixtures/skills-get-nonexistent.txt
+            value: /skills-data/agentv-governance/SKILL.md
           - type: text
             value: |
-              The output above came from running `agentv skills get does-not-exist`.
-              In two sentences, explain (a) what error the user hit and
-              (b) the single most useful command to run next.
+              Using the live agentv-governance skill above as reference, what
+              single command should I run to load the `lint-rules` reference
+              file without pulling in the whole skill?
+              Reply with the command on its own line.
     assertions:
-      - type: rubrics
-        criteria:
-          - Identifies that `does-not-exist` is not a recognised skill name
-          - "Proposes either `agentv skills list` or selecting one of the names from the error's \"Available skills:\" line"
-          - Does not blame missing installation or recommend re-running `npm install -g agentv`
+      - type: regex
+        value: "agentv\\s+skills\\s+get\\s+agentv-governance\\s+--ref\\s+lint-rules"
 
   - id: grader-config-valid
     criteria: Agent configures an llm-grader with the fields the AgentV registry expects.
@@ -158,19 +158,19 @@ tests:
       - role: user
         content:
           - type: file
-            value: fixtures/agentv-eval-writer.txt
+            value: /skills-data/agentv-eval-writer/SKILL.md
           - type: text
             value: |
-              Using the agentv-eval-writer skill as reference, produce a YAML
-              snippet for **one** assertion that uses `type: llm-grader` to
-              grade an answer's correctness. Include whatever fields the
-              skill says an `llm-grader` requires (e.g., target/model, rubric
-              criteria). Output only the YAML for the single assertion.
+              Using the live agentv-eval-writer skill as reference, produce a
+              YAML snippet for **one** assertion that uses `type: llm-grader`
+              to grade an answer's correctness. Include whatever fields the
+              skill says an `llm-grader` requires (for example target/model or
+              rubric criteria). Output only the YAML for the single assertion.
     assertions:
       - type: regex
         value: "type:\\s+llm-grader"
       - type: rubrics
         criteria:
           - "Uses `type: llm-grader` (kebab-case), not `type: llm_grader` or `type: llmGrader`"
-          - Includes the fields the skill documents for llm-grader (typically a rubric/criteria field; may also include a target/model)
-          - Does not invent fields not mentioned in the skill (e.g., a fabricated `model_provider` field)
+          - Includes the fields the skill documents for llm-grader (typically a rubric or criteria field; may also include a target or model)
+          - Does not invent fields not mentioned in the skill (for example a fabricated `model_provider` field)

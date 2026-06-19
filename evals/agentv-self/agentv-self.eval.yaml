@@ -1,0 +1,70 @@
+name: agentv-self-guidance
+description: >-
+  Validates the current AgentV repo guidance split, repo-change preflight,
+  and wire-format naming rules using the live AGENTS index and linked
+  `.agents/*.md` files copied into the eval workspace.
+
+tags: [agent, guidance]
+
+workspace:
+  hooks:
+    before_all:
+      command:
+        - node
+        - ./scripts/setup.mjs
+
+input:
+  - role: user
+    content:
+      - type: file
+        value: /AGENTS.md
+      - type: file
+        value: /.agents/product-boundary.md
+      - type: file
+        value: /.agents/workflow.md
+      - type: file
+        value: /.agents/verification.md
+      - type: file
+        value: /.agents/conventions.md
+      - type: text
+        value: |
+          The files above are the current AgentV repo guidance. Use them as the
+          source of truth for the next request.
+
+tests:
+  - id: guidance-split-paths
+    criteria: Agent points detailed workflow, verification, and conventions questions at the linked `.agents` docs.
+    input: |
+      List the three relative file paths that contain the detailed rules for
+      workflow, verification, and conventions.
+      Reply with one path per line and nothing else.
+    assertions:
+      - type: contains
+        value: .agents/workflow.md
+      - type: contains
+        value: .agents/verification.md
+      - type: contains
+        value: .agents/conventions.md
+      - type: rubrics
+        criteria:
+          - Returns the detailed `.agents/*.md` paths rather than treating `AGENTS.md` as the full instruction body
+          - Uses relative repo paths, not prose summaries
+
+  - id: repo-change-preflight
+    criteria: Agent names the required git commands that must start every repo change.
+    input: |
+      What two exact shell commands must start every repo change in this repository?
+      Reply with one command per line and nothing else.
+    assertions:
+      - type: contains
+        value: git fetch origin
+      - type: contains
+        value: git status --short --branch
+
+  - id: wire-format-snake-case
+    criteria: Agent keeps wire-format keys in snake_case.
+    input: |
+      What key naming convention should anything that crosses a process boundary use
+      in this repository?
+      Reply with just the convention name.
+    expected_output: snake_case

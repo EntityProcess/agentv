@@ -9,7 +9,8 @@ description: >-
 ---
 
 The full skill content is bundled with the AgentV CLI and always version-matched to it.
-Load the specific skill you need:
+Load the specific skill you need. If the task is not about AgentV evals, trace
+analysis, optimization, or governance, no AgentV skill applies.
 
 ```bash
 agentv skills get <skill-name>

@@ -1,36 +1,50 @@
-# AgentV Self-Evaluation
+# AgentV Plugin-Aligned Self Evals
 
-This folder contains evaluations to ensure AgentV's `AGENTS.md` design principles don't regress.
+This directory holds the repo-owned self-evaluation suites, split to match the
+current plugin boundary:
+
+- `agentv-self` covers AgentV's own repo guidance and self-eval workspace
+  behavior.
+- `agentv-dev` covers the bundled `agentv skills` CLI surface and skill content
+  shipped with the developer plugin. It reads live repo files from
+  `plugins/agentv-dev/`, `skills-data/`, and current docs instead of
+  checked-in transcript fixtures.
 
 ## Structure
 
-```
+```text
 evals/
-├── targets.yaml              # Target definitions
-├── design-principles.yaml    # Tests
-└── design-principles-grader.md # LLM grader prompt
+├── agentv-self/
+│   ├── agentv-self.eval.yaml
+│   ├── azure-smoke.eval.yaml
+│   └── scripts/setup.mjs
+├── agentv-dev/
+│   └── skills/
+│       ├── *.eval.yaml
+│       └── README.md
+└── agentic-engineering/
 ```
 
-## Known Issue: pi-coding-agent on Windows
+## Running
 
-The pi-coding-agent provider has issues passing multi-line prompts on Windows. When running pi directly from CLI, it works correctly, but through the provider the prompt content is not received by pi.
-
-**Workaround**: Use mock provider for testing eval structure, or run on macOS/Linux.
-
-**To fix**: Investigate `packages/core/src/evaluation/providers/pi-coding-agent.ts` - specifically how `spawn()` handles arguments with newlines on Windows.
-
-## Running the Evals
+Use the local CLI source from the repo root:
 
 ```bash
-# Dry run to verify structure
-bun agentv eval evals/design-principles.yaml --targets evals/targets.yaml --dry-run
+# Validate the renamed suites
+bun apps/cli/src/cli.ts validate evals/agentv-self/agentv-self.eval.yaml
+bun apps/cli/src/cli.ts validate evals/agentv-self/azure-smoke.eval.yaml
+bun apps/cli/src/cli.ts validate evals/agentv-dev/skills/*.eval.yaml
 
-# Full run (requires working pi-coding-agent or alternative target)
-bun agentv eval evals/design-principles.yaml --targets evals/targets.yaml
+# Prepare one agentv-self case and inspect the materialized workspace
+bun apps/cli/src/cli.ts prepare \
+  evals/agentv-self/agentv-self.eval.yaml \
+  --test-id guidance-split-paths \
+  --target codex
+
+# Run the agentv-dev skills suite against a target
+bun apps/cli/src/cli.ts eval run evals/agentv-dev/skills/*.eval.yaml --target <target>
 ```
 
-## Test Cases
-
-1. **violates-lightweight-core** - Proposes adding complex built-in (should fail)
-2. **violates-ai-first-design** - Proposes rigid CLI instructions (should fail)
-3. **follows-principles** - Proposes plugin/example approach (should pass)
+`agentv-self/agentv-self.eval.yaml` uses a `before_all` hook to copy the current repo
+checkout into the eval workspace. That keeps `/AGENTS.md` and `/.agents/`
+current without declaring extra repos in workspace config.

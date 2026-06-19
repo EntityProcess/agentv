@@ -1,24 +1,23 @@
+name: agentv-dev-skill-selection
 description: >-
   Tests whether the agent picks the correct bundled agentv skill (by name)
-  for a given natural-language task. Each test injects the bundled skills
-  list as context so the agent has the same options a real user would.
+  for a given natural-language task using the live `agentv-dev` plugin stub
+  as the source of truth for available skills.
 
 tags: [agent, skills]
 
-# Suite-level input: every test sees the bundled skills list as the first
-# user message, so the agent always has the canonical set of names to
-# choose from. Per-test `input:` is appended to this.
 input:
   - role: user
     content:
       - type: file
-        value: fixtures/skills-list-all.txt
+        value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
       - type: text
         value: |
-          The JSON above lists every agentv skill bundled with the CLI.
+          The file above is the live `agentv-dev` plugin skill entrypoint.
           For the next task, name the **single** skill (or skills, only if
           the task genuinely requires more than one) that best fits.
-          Reply with the skill name(s) only — no commentary.
+          Reply with the skill name(s) only, or `none` if no listed skill fits.
+          No commentary.
 
 tests:
   - id: select-bench-for-eval-run
@@ -61,32 +60,31 @@ tests:
           - Selects agentv-eval-review (the audit-focused skill)
           - Does not select agentv-eval-writer (which is for writing, not reviewing)
 
-  - id: select-governance-for-policy
-    criteria: "Task: \"what are the design principles?\" → agent selects agentv-governance."
+  - id: select-governance-for-authoring
+    criteria: "Task: \"add governance metadata to my eval\" → agent selects agentv-governance."
     input: |
-      Task: I'm proposing a new built-in feature and want to check whether it
-      aligns with the AgentV project's design principles before I open a PR.
-      Which skill?
+      Task: I'm building a red-team eval and need to add a `governance:` block
+      with OWASP and MITRE coverage metadata. Which skill?
+    assertions:
+      - type: contains
+        value: agentv-governance
+      - type: rubrics
+        criteria:
+          - Selects agentv-governance for governance block authoring
+          - Does not select agentv-eval-review or agentv-trace-analyst for this authoring task
+
+  - id: select-governance-for-lint
+    criteria: "Task: \"lint my governance block\" → agent selects agentv-governance."
+    input: |
+      Task: I already wrote the `governance:` block in my `.eval.yaml` and want
+      to lint it against the supported vocabulary before CI runs. Which skill?
     assertions:
       - type: contains
         value: agentv-governance
       - type: rubrics
         criteria:
           - Selects agentv-governance
-          - Does not select agentv-onboarding (which is install-time setup, not design review)
-
-  - id: select-onboarding-for-setup
-    criteria: "Task: \"help me get started with agentv\" → agent selects agentv-onboarding."
-    input: |
-      Task: I just `npm install -g agentv`'d for the first time and have no
-      idea where to start. Which skill walks me through first steps?
-    assertions:
-      - type: contains
-        value: agentv-onboarding
-      - type: rubrics
-        criteria:
-          - Selects agentv-onboarding
-          - Does not select agentv-governance (which is for design-principle checks, not first-time setup)
+          - Does not select agentv-eval-review or agentv-bench for governance-specific linting
 
   - id: select-trace-analyst-for-debug
     criteria: "Task: \"analyze why this eval failed\" → agent selects agentv-trace-analyst."
@@ -123,8 +121,10 @@ tests:
       Task: I want to deploy my Node.js app to a Kubernetes cluster. Which
       agentv skill should I load?
     assertions:
+      - type: equals
+        value: none
       - type: rubrics
         criteria:
           - Correctly states that no bundled agentv skill is relevant — these skills are for evaluation workflows, not deployment
           - Does not invent a fake skill name
-          - Does not falsely select agentv-bench, agentv-eval-writer, agentv-onboarding, or any other listed skill
+          - Does not falsely select agentv-bench, agentv-eval-writer, or any other listed skill
