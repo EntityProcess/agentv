@@ -47,9 +47,24 @@ export function formatRemoteRunCount(count?: number): string {
   return `${count} remote run${count === 1 ? '' : 's'}`;
 }
 
+/**
+ * Summarizes how many of the listed runs are backed up to the remote results
+ * branch. Both counts derive from the same per-run `on_remote` flag that drives
+ * the row indicators, so the summary can never disagree with the badged rows.
+ */
+export function formatOnRemoteSummary(
+  onRemoteCount: number,
+  totalCount: number,
+  branch?: string,
+): string {
+  const branchSuffix = branch ? ` (${branch})` : '';
+  return `${onRemoteCount} of ${totalCount} run${totalCount === 1 ? '' : 's'} on remote${branchSuffix}`;
+}
+
 export function buildRemoteStatusItems(
   status: RemoteStatusResponse | undefined,
   projectName?: string,
+  onRemoteSummary?: string,
 ): string[] {
   if (status?.configured !== true) {
     return [];
@@ -57,7 +72,7 @@ export function buildRemoteStatusItems(
 
   return [
     projectName ? `Project: ${projectName}` : undefined,
-    formatRemoteRunCount(status.run_count),
+    onRemoteSummary ?? formatRemoteRunCount(status.run_count),
     formatLastSynced(status.last_synced_at),
     status.repo ? `Repo: ${status.repo}` : undefined,
   ].filter((item): item is string => item !== undefined);

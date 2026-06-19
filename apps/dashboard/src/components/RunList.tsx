@@ -2,8 +2,9 @@
  * Sortable run table component.
  *
  * Displays all available runs with a pass/fail status dot, human-readable name,
- * source badge, date, quality test count, execution-error count, and coloured pass-rate pill.
- * Clicking a row navigates to the run detail view.
+ * a per-run "on remote" indicator (whether the run is backed up to the
+ * configured results branch), date, quality test count, execution-error count,
+ * and coloured pass-rate pill. Clicking a row navigates to the run detail view.
  *
  * On phone-width viewports the rows collapse to dense cards so right-side table
  * data stays visible without touch-scroll hunting. Tablet and desktop keep the
@@ -49,6 +50,8 @@ interface RunListProps {
   isFetchingNextPage?: boolean;
   onLoadMore?: () => void;
   enableCombine?: boolean;
+  /** Configured remote results branch, used for the per-run "on remote" tooltip. */
+  remoteBranch?: string;
 }
 
 interface RunActionFeedback {
@@ -127,6 +130,7 @@ export function RunList({
   isFetchingNextPage = false,
   onLoadMore,
   enableCombine = false,
+  remoteBranch,
 }: RunListProps) {
   const { data: config } = useStudioConfig(projectId);
   const queryClient = useQueryClient();
@@ -433,7 +437,7 @@ export function RunList({
                     </p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <SourceBadge source={run.source} />
+                    <RemoteIndicator onRemote={run.on_remote === true} branch={remoteBranch} />
                     {metadataDirty ? <PendingSyncBadge /> : null}
                     <span className="text-xs text-gray-500" title={ts.full}>
                       {ts.date}
@@ -458,8 +462,8 @@ export function RunList({
                 <MobileRunMetric label="Errors" valueClassName="text-amber-300">
                   {errors > 0 ? errors : <span className="text-gray-600">0</span>}
                 </MobileRunMetric>
-                <MobileRunMetric label="Source" valueClassName="text-gray-400">
-                  {run.source === 'remote' ? 'Remote' : 'Local'}
+                <MobileRunMetric label="Remote" valueClassName="text-gray-400">
+                  {run.on_remote === true ? 'On remote' : 'Local only'}
                 </MobileRunMetric>
               </dl>
             </article>
@@ -482,7 +486,7 @@ export function RunList({
               {enableCombine && <th className="w-10 px-4 py-3" />}
               <th className="w-8 px-4 py-3" />
               <th className="w-[22rem] px-4 py-3 font-medium text-gray-400">Run</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Source</th>
+              <th className="px-4 py-3 font-medium text-gray-400">Remote</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Failures</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Errors</th>
@@ -555,9 +559,9 @@ export function RunList({
                     </div>
                   </td>
 
-                  {/* Source */}
+                  {/* Remote presence */}
                   <td className="px-4 py-3">
-                    <SourceBadge source={run.source} />
+                    <RemoteIndicator onRemote={run.on_remote === true} branch={remoteBranch} />
                   </td>
 
                   {/* Passed / Failed / Total */}
@@ -636,17 +640,68 @@ function RunNameLink({
   );
 }
 
-function SourceBadge({ source }: { source: RunMeta['source'] }) {
+/**
+ * Per-run indicator for whether the run is backed up to the configured remote
+ * results branch. Derived from the same `on_remote` flag that the
+ * "N of M runs on remote" summary counts, so the badge and the count agree.
+ */
+function RemoteIndicator({ onRemote, branch }: { onRemote: boolean; branch?: string }) {
+  if (onRemote) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-md border border-cyan-900/60 bg-cyan-950/20 px-2 py-0.5 text-xs font-medium text-cyan-300"
+        title={branch ? `On ${branch}` : 'On the remote results branch'}
+        aria-label={branch ? `On remote branch ${branch}` : 'On the remote results branch'}
+      >
+        <CloudCheckIcon />
+        Synced
+      </span>
+    );
+  }
   return (
     <span
-      className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${
-        source === 'remote'
-          ? 'border-cyan-900/60 bg-cyan-950/20 text-cyan-300'
-          : 'border-gray-800 bg-gray-900/70 text-gray-400'
-      }`}
+      className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900/70 px-2 py-0.5 text-xs font-medium text-gray-500"
+      title="Local only — not pushed"
+      aria-label="Local only — not pushed"
     >
-      {source === 'remote' ? 'Remote' : 'Local'}
+      <CloudOutlineIcon />
+      Local only
     </span>
+  );
+}
+
+function CloudCheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 9a3.5 3.5 0 0 1 1 6.86" />
+      <path d="m9 14 2 2 4-4" />
+    </svg>
+  );
+}
+
+function CloudOutlineIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 9a3.5 3.5 0 0 1 1 6.86" />
+    </svg>
   );
 }
 

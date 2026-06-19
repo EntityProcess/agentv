@@ -80,6 +80,14 @@ export type RunSource = 'local' | 'remote';
 export interface SourcedResultFileMeta extends ResultFileMeta {
   readonly source: RunSource;
   readonly raw_filename: string;
+  /**
+   * True when this run is present on the configured remote results branch.
+   * A run synced to the remote keeps `source: 'local'` (the local copy is
+   * preferred for reads) but still records `on_remote: true`, so the Dashboard
+   * can show a per-run "on remote" indicator instead of an exclusive
+   * local/remote filter. This is the flag the run-count summary derives from.
+   */
+  readonly on_remote: boolean;
 }
 
 export interface RemoteEvalSummary {
@@ -342,9 +350,19 @@ function dedupeSyncedRunCopies(runs: SourcedResultFileMeta[]): SourcedResultFile
 
   for (const run of runs) {
     const existing = byRunId.get(run.raw_filename);
-    if (!existing || (existing.source === 'remote' && run.source === 'local')) {
+    if (!existing) {
       byRunId.set(run.raw_filename, run);
+      continue;
     }
+    // A run can appear once locally and once on the remote branch. Keep the
+    // local copy (it is materialized on disk and readable), but remember that
+    // the run is also present remotely so the per-run "on remote" indicator
+    // and the summary count stay accurate for synced runs.
+    const preferred = existing.source === 'remote' && run.source === 'local' ? run : existing;
+    byRunId.set(run.raw_filename, {
+      ...preferred,
+      on_remote: existing.on_remote || run.on_remote,
+    });
   }
 
   return [...byRunId.values()];
@@ -361,6 +379,7 @@ export async function listMergedResultFiles(
         ...meta,
         source: 'local' as const,
         raw_filename: meta.filename,
+        on_remote: false,
       }) satisfies SourcedResultFileMeta,
   );
 
@@ -381,6 +400,7 @@ export async function listMergedResultFiles(
         filename: encodeRemoteRunId(r.run_id),
         raw_filename: r.run_id,
         source: 'remote' as const,
+        on_remote: true,
         path: path.join(config.path, r.manifest_path),
         displayName: r.display_name,
         timestamp: r.timestamp,
@@ -401,6 +421,7 @@ export async function listMergedResultFiles(
               filename: encodeRemoteRunId(meta.filename),
               raw_filename: meta.filename,
               source: 'remote' as const,
+              on_remote: true,
             }) satisfies SourcedResultFileMeta,
         );
       }
@@ -413,6 +434,7 @@ export async function listMergedResultFiles(
           filename: encodeRemoteRunId(meta.filename),
           raw_filename: meta.filename,
           source: 'remote' as const,
+          on_remote: true,
         }) satisfies SourcedResultFileMeta,
     );
   }

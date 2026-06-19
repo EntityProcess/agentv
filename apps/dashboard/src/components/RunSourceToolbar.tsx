@@ -5,26 +5,23 @@ import {
 } from '~/lib/project-sync-status';
 import type { RemoteStatusResponse } from '~/lib/types';
 
-export type RunSourceFilter = 'all' | 'local' | 'remote';
-
 interface RunSourceToolbarProps {
-  filter: RunSourceFilter;
-  onFilterChange: (filter: RunSourceFilter) => void;
   remoteStatus?: RemoteStatusResponse;
   syncInFlight?: boolean;
   onSync?: () => void;
   projectName?: string;
   syncFeedback?: { kind: 'success' | 'warning' | 'error'; message: string } | null;
+  /** Pre-formatted "N of M runs on remote (branch)" summary derived from the listed runs. */
+  onRemoteSummary?: string;
 }
 
 export function RunSourceToolbar({
-  filter,
-  onFilterChange,
   remoteStatus,
   syncInFlight,
   onSync,
   projectName,
   syncFeedback,
+  onRemoteSummary,
 }: RunSourceToolbarProps) {
   const remoteConfigured = remoteStatus?.configured === true;
   const syncView = getProjectSyncView(remoteStatus, syncInFlight);
@@ -44,32 +41,16 @@ export function RunSourceToolbar({
         : 'border-red-900/60 bg-red-950/20 text-red-300';
   const dirtyPathCount = remoteStatus?.dirty_paths?.length ?? 0;
   const conflictedPathCount = remoteStatus?.conflicted_paths?.length ?? 0;
-  const remoteStatusItems = buildRemoteStatusItems(remoteStatus, projectName);
+  const remoteStatusItems = buildRemoteStatusItems(remoteStatus, projectName, onRemoteSummary);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {(['all', 'local', 'remote'] as const).map((value) => {
-            const dimmed = value === 'remote' && !remoteConfigured;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onFilterChange(value)}
-                title={dimmed ? 'Remote results are not configured' : undefined}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                  filter === value
-                    ? 'bg-cyan-500/20 text-cyan-300'
-                    : dimmed
-                      ? 'bg-gray-800 text-gray-600'
-                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                {value === 'all' ? 'All Sources' : value === 'local' ? 'Local Only' : 'Remote Only'}
-              </button>
-            );
-          })}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-200">Recent Runs</p>
+          {remoteConfigured && onRemoteSummary ? (
+            <p className="mt-0.5 text-xs text-gray-500">{onRemoteSummary}</p>
+          ) : null}
         </div>
 
         {remoteConfigured ? (
@@ -122,14 +103,14 @@ export function RunSourceToolbar({
             </div>
           ) : null}
         </div>
-      ) : filter === 'all' ? (
+      ) : (
         <p className="text-sm text-gray-500">
           Remote results are not configured. Add{' '}
           <code className="rounded bg-gray-800 px-1 text-gray-400">results</code> to{' '}
           <code className="rounded bg-gray-800 px-1 text-gray-400">.agentv/config.yaml</code> to
           enable.
         </p>
-      ) : null}
+      )}
 
       {syncFeedback ? (
         <div
