@@ -9,7 +9,7 @@ YAML remains AgentV's canonical, portable eval format. The SDK surfaces below ar
 
 AgentV currently provides two npm packages for programmatic use:
 
-- **`@agentv/sdk`** — custom assertions and code graders
+- **`@agentv/sdk`** — YAML-aligned eval authoring, custom assertions, and code graders
 - **`@agentv/core`** — programmatic evaluation API and typed configuration
 
 ## Installation
@@ -27,11 +27,51 @@ npm install @agentv/core
 Use the simplest surface that matches the job:
 
 - **YAML / JSONL first** for portable eval specs you want to run from the CLI, check into a repo, or share across TypeScript and Python workflows.
+- **`defineEval()` / `evalSuite()`** when you want a `.eval.ts` file that mirrors YAML concepts and lowers back to the canonical snake_case contract.
 - **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
 - **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
 - **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
 
 There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
+
+## YAML-Aligned `.eval.ts` Authoring
+
+Use `defineEval()` from `@agentv/sdk` when you want TypeScript ergonomics without creating a second eval vocabulary. The helper keeps authoring in camelCase where TypeScript needs it, then lowers back to the canonical snake_case eval object contract when AgentV loads the file.
+
+```typescript
+// evals/greeting.eval.ts
+import { defineEval } from '@agentv/sdk';
+
+export default defineEval({
+  name: 'hello-suite',
+  execution: {
+    targets: ['mock-sdk'],
+  },
+  workspace: {
+    hooks: {
+      beforeAll: {
+        command: ['echo', 'suite-start'],
+      },
+    },
+  },
+  tests: [
+    {
+      id: 'hello',
+      input: 'Say hello',
+      inputFiles: ['../fixtures/per-test-note.md'],
+      expectedOutput: 'Hello from the mock target',
+      assertions: [{ type: 'contains', value: 'Hello' }],
+    },
+  ],
+});
+```
+
+Useful companion helpers:
+
+- `toEvalYamlObject()` returns the canonical snake_case object.
+- `serializeEvalYaml()` returns YAML text using the same canonical field names.
+
+The durable field remains `assertions`. This helper does not introduce a second YAML vocabulary.
 
 ## Custom Assertions
 

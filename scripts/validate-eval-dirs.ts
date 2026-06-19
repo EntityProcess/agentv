@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Validates that each feature directory under examples/features/ that has an
- * evals/ subdirectory contains at least one *.eval.yaml or *.EVAL.yaml file
- * (either inside evals/ or at the feature root).
+ * evals/ subdirectory contains at least one eval file (either inside evals/
+ * or at the feature root).
  *
  * Directories without an evals/ subdirectory are skipped — they may be SDK
  * examples or other non-eval feature demos.
@@ -34,9 +34,10 @@ for (const entry of entries) {
   }
 
   // Look for eval files in evals/ (recursive) and at feature root.
-  // Matches: *.eval.yaml, *.EVAL.yaml, eval.yaml, dataset*.yaml (config default patterns)
+  // Matches config default patterns, including YAML and TypeScript eval suites.
   const evalPatterns = [
     '**/*.{eval.yaml,eval.yml,EVAL.yaml,EVAL.yml}',
+    '**/*.{eval.ts,eval.mts}',
     '**/eval.{yaml,yml}',
     '**/dataset*.{yaml,yml}',
   ];
@@ -52,7 +53,7 @@ for (const entry of entries) {
 
 if (errors.length > 0) {
   console.error(
-    'The following evals/ directories contain no eval files (*.eval.yaml or *.EVAL.yaml):',
+    'The following evals/ directories contain no eval files (*.eval.yaml, *.EVAL.yaml, or *.eval.ts):',
   );
   for (const e of errors) console.error(`  - ${e}`);
   process.exit(1);

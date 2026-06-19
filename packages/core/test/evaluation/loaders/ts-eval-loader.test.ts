@@ -9,26 +9,36 @@ const fixtureDir = path.join(import.meta.dir, 'fixtures');
 describe('loadTsEvalFile', () => {
   it('loads default export', async () => {
     const result = await loadTsEvalFile(path.join(fixtureDir, 'default-export.eval.ts'));
+    const tests = (result.config as { tests?: Array<{ id?: string }> }).tests;
     expect(result.config).toBeDefined();
-    expect(result.config.tests).toHaveLength(1);
-    expect(result.config.tests?.[0].id).toBe('greeting');
+    expect(tests).toHaveLength(1);
+    expect(tests?.[0]?.id).toBe('greeting');
   });
 
   it('loads named "config" export', async () => {
     const result = await loadTsEvalFile(path.join(fixtureDir, 'named-config.eval.ts'));
+    const tests = (result.config as { tests?: Array<{ id?: string }> }).tests;
     expect(result.config).toBeDefined();
-    expect(result.config.tests?.[0].id).toBe('named-config');
+    expect(tests?.[0]?.id).toBe('named-config');
   });
 
   it('loads named "evalConfig" export', async () => {
     const result = await loadTsEvalFile(path.join(fixtureDir, 'eval-config-named.eval.ts'));
+    const tests = (result.config as { tests?: Array<{ id?: string }> }).tests;
     expect(result.config).toBeDefined();
-    expect(result.config.tests?.[0].id).toBe('eval-config-named');
+    expect(tests?.[0]?.id).toBe('eval-config-named');
   });
 
-  it('throws when no EvalConfig export found', async () => {
+  it('loads YAML-aligned sdk eval exports', async () => {
+    const result = await loadTsEvalFile(path.join(fixtureDir, 'sdk-define-eval.eval.ts'));
+    const tests = (result.config as { tests?: Array<{ id?: string }> }).tests;
+    expect(result.config).toBeDefined();
+    expect(tests?.[0]?.id).toBe('sdk-define-eval');
+  });
+
+  it('throws when no supported eval export is found', async () => {
     await expect(loadTsEvalFile(path.join(fixtureDir, 'no-config.eval.ts'))).rejects.toThrow(
-      'no EvalConfig export found',
+      'no supported eval export found',
     );
   });
 
@@ -52,6 +62,27 @@ describe('loadTsEvalFile', () => {
     expect(suite.budgetUsd).toBe(1.5);
     expect(suite.threshold).toBe(0.9);
     expect(suite.inlineTarget?.name).toBe('inline-target');
+  });
+
+  it('materializes a YAML-aligned sdk eval through loadTestSuite', async () => {
+    const suite = await loadTestSuite(
+      path.join(fixtureDir, 'sdk-define-eval.eval.ts'),
+      fixtureDir,
+      {
+        category: 'sdk',
+      },
+    );
+
+    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests[0].suite).toBe('sdk-define-eval-suite');
+    expect(suite.tests[0].workspace?.hooks?.before_all?.command).toEqual(['echo', 'suite-setup']);
+    expect(suite.tests[0].workspace?.hooks?.before_each?.command).toEqual(['echo', 'case-setup']);
+    expect(suite.tests[0].workspace?.hooks?.before_each?.timeout_ms).toBe(1_000);
+    expect(suite.targets).toEqual(['mock-target']);
+    expect(suite.workers).toBe(2);
+    expect(suite.budgetUsd).toBe(2);
+    expect(suite.threshold).toBe(0.75);
+    expect(suite.metadata?.tags).toEqual(['sdk', 'typescript', 'yaml']);
   });
 
   it('routes TypeScript evals through loadTests', async () => {

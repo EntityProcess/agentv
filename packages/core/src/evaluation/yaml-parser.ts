@@ -315,26 +315,27 @@ export async function loadTestSuite(
     repoRoot,
     options,
   );
-  const metadata = parseMetadata(parsed);
-  const failOnError = extractFailOnError(parsed);
-  const threshold = extractThreshold(parsed);
-  return {
-    tests,
-    trials: extractTrialsConfig(parsed),
-    targets: extractTargetsFromSuite(parsed),
-    targetRefs: extractTargetRefsFromSuite(parsed),
-    workers: extractWorkersFromSuite(parsed),
-    cacheConfig: extractCacheConfig(parsed),
-    budgetUsd: extractBudgetUsd(parsed),
-    ...(metadata !== undefined && { metadata }),
-    ...(failOnError !== undefined && { failOnError }),
-    ...(threshold !== undefined && { threshold }),
-    ...(suiteWorkspacePath !== undefined && { workspacePath: suiteWorkspacePath }),
-  };
+  return buildEvalSuiteResult(parsed, tests, suiteWorkspacePath);
 }
 
 /** @deprecated Use `loadTestSuite` instead */
 export const loadEvalSuite = loadTestSuite;
+
+export async function loadTestSuiteFromYamlObject(
+  evalFilePath: string,
+  suiteObject: unknown,
+  repoRoot: URL | string,
+  options?: LoadOptions,
+): Promise<EvalSuiteResult> {
+  const { tests, parsed, suiteWorkspacePath } = await loadTestsFromParsedYamlValue(
+    suiteObject,
+    evalFilePath,
+    repoRoot,
+    options,
+  );
+
+  return buildEvalSuiteResult(parsed, tests, suiteWorkspacePath);
+}
 
 export async function loadTests(
   evalFilePath: string,
@@ -366,7 +367,18 @@ async function loadTestsFromYaml(
   repoRoot: URL | string,
   options?: LoadOptions,
 ): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject; suiteWorkspacePath?: string }> {
-  // YAML parsing (existing implementation)
+  const absoluteTestPath = path.resolve(evalFilePath);
+  const rawFile = await readFile(absoluteTestPath, 'utf8');
+
+  return loadTestsFromParsedYamlValue(parseYamlValue(rawFile), evalFilePath, repoRoot, options);
+}
+
+async function loadTestsFromParsedYamlValue(
+  rawParsed: unknown,
+  evalFilePath: string,
+  repoRoot: URL | string,
+  options?: LoadOptions,
+): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject; suiteWorkspacePath?: string }> {
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
   const absoluteTestPath = path.resolve(evalFilePath);
@@ -377,8 +389,6 @@ async function loadTestsFromYaml(
   // Load configuration (walks up directory tree to repo root)
   const config = await loadConfig(absoluteTestPath, repoRootPath);
 
-  const rawFile = await readFile(absoluteTestPath, 'utf8');
-  const rawParsed = parseYamlValue(rawFile) as unknown;
   const rawCaseSnapshots = buildRawInlineTestSnapshots(rawParsed);
   const interpolated = interpolateEnv(rawParsed, process.env) as unknown;
   if (!isJsonObject(interpolated)) {
@@ -713,6 +723,30 @@ async function loadTestsFromYaml(
   }
 
   return { tests: results, parsed: suite, suiteWorkspacePath: suiteWorkspace?.path };
+}
+
+function buildEvalSuiteResult(
+  parsed: JsonObject,
+  tests: readonly EvalTest[],
+  suiteWorkspacePath?: string,
+): EvalSuiteResult {
+  const metadata = parseMetadata(parsed);
+  const failOnError = extractFailOnError(parsed);
+  const threshold = extractThreshold(parsed);
+
+  return {
+    tests,
+    trials: extractTrialsConfig(parsed),
+    targets: extractTargetsFromSuite(parsed),
+    targetRefs: extractTargetRefsFromSuite(parsed),
+    workers: extractWorkersFromSuite(parsed),
+    cacheConfig: extractCacheConfig(parsed),
+    budgetUsd: extractBudgetUsd(parsed),
+    ...(metadata !== undefined && { metadata }),
+    ...(failOnError !== undefined && { failOnError }),
+    ...(threshold !== undefined && { threshold }),
+    ...(suiteWorkspacePath !== undefined && { workspacePath: suiteWorkspacePath }),
+  };
 }
 
 const SOURCE_SECRET_KEY_PATTERN =
