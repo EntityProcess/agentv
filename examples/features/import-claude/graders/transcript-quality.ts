@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];

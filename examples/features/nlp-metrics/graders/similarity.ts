@@ -6,7 +6,7 @@
  * token-overlap (bag-of-words) vectors. This is a lightweight alternative to
  * embedding-based similarity that requires no external dependencies.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 function tokenize(text: string): string[] {
   return text

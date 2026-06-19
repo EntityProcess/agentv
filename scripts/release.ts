@@ -34,6 +34,7 @@ const NEXT_PRERELEASE_TAG = 'next';
 // Packages to update (relative to repo root)
 const PACKAGE_PATHS = [
   'packages/core/package.json',
+  'packages/sdk/package.json',
   'packages/eval/package.json',
   'apps/cli/package.json',
 ];

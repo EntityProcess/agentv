@@ -15,7 +15,7 @@
  * Requires `target: { max_calls: N }` in the grader YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
-import { createTargetClient, defineCodeGrader } from '@agentv/eval';
+import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
 import { extractRetrievalContext } from './utils.js';
 
 interface RelevanceResult {

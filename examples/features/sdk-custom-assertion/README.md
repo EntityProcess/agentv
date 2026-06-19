@@ -1,6 +1,6 @@
 # SDK Example: Custom Assertion
 
-Demonstrates creating a custom assertion type using `defineAssertion()` from `@agentv/eval` and convention-based discovery from `.agentv/assertions/`.
+Demonstrates creating a custom assertion type using `defineAssertion()` from `@agentv/sdk` and convention-based discovery from `.agentv/assertions/`.
 
 ## What It Does
 

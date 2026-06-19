@@ -5,7 +5,7 @@
  * Uses the declarative defineCodeGrader helper to verify attachments
  * are referenced in the candidate output.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 function fileName(path: string): string {
   const parts = path.split('/');

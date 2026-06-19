@@ -5,7 +5,7 @@
  * Uses the declarative definePromptTemplate helper to generate
  * a custom evaluation prompt with full TypeScript support.
  */
-import { definePromptTemplate } from '@agentv/eval';
+import { definePromptTemplate } from '@agentv/sdk';
 
 function getMessageText(
   messages: readonly { role: string; content?: unknown }[],

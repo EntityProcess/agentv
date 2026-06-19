@@ -20,7 +20,7 @@
  *       script: ["bun", "run", "../graders/tool-call-f1.ts"]
  *       expected_tools: ["search", "fetch"]
  */
-import { type CodeGraderInput, defineCodeGrader } from '@agentv/eval';
+import { type CodeGraderInput, defineCodeGrader } from '@agentv/sdk';
 
 function extractActualTools(input: CodeGraderInput): string[] {
   const tools: string[] = [];

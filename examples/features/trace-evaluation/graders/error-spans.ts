@@ -5,7 +5,7 @@
  * Detects errors in agent traces by inspecting trace.errorCount
  * and optionally checking for specific tool failures.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ trace, config }) => {
   if (!trace) {

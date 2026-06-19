@@ -6,7 +6,7 @@
  * The score is 1 - (distance / maxLength), so identical strings score 1.0
  * and completely different strings score close to 0.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 function levenshteinDistance(a: string, b: string): number {
   const m = a.length;

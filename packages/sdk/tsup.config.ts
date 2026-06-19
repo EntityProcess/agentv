@@ -2,7 +2,6 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: ['src/index.ts'],
-  external: ['@agentv/sdk'],
   format: ['esm', 'cjs'],
   sourcemap: true,
   clean: true,

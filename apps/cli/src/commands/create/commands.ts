@@ -4,7 +4,7 @@ import { command, option, optional, positional, string } from 'cmd-ts';
 
 const ASSERTION_TEMPLATES: Record<string, string> = {
   default: `#!/usr/bin/env bun
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
   // TODO: Implement your assertion logic
@@ -17,7 +17,7 @@ export default defineAssertion(({ output }) => {
 });
 `,
   score: `#!/usr/bin/env bun
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
   // TODO: Implement your scoring logic (0.0 to 1.0)

@@ -1,7 +1,7 @@
 {
-  "name": "@agentv/eval",
+  "name": "@agentv/sdk",
   "version": "4.41.1-next.1",
-  "description": "Deprecated compatibility package for @agentv/sdk",
+  "description": "Evaluation SDK for AgentV - build custom code judges",
   "type": "module",
   "repository": {
     "type": "git",
@@ -22,17 +22,16 @@
   },
   "scripts": {
     "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
-    "build:deps": "bun --filter @agentv/sdk build",
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "bun run build:deps && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "fix": "biome check --write .",
-    "test": "bun run build:deps && bun test"
+    "test": "bun test"
   },
   "files": ["dist", "README.md"],
   "dependencies": {
-    "@agentv/sdk": "workspace:*"
+    "zod": "^3.23.8"
   }
 }

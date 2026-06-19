@@ -7,7 +7,7 @@
  *
  * Returns structured output that enables post-processing for metrics.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 const VALID_RISK_LEVELS = new Set(['High', 'Medium', 'Low']);
 const REQUIRED_KEYS = ['riskLevel', 'reasoning'];

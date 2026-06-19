@@ -11,7 +11,7 @@
  *   - ground_truth: string — path to the ground truth diff file (from metadata)
  */
 
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 defineCodeGrader(({ fileChanges, config }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];

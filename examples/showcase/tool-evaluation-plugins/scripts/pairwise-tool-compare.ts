@@ -17,7 +17,7 @@
  *       type: code_grader
  *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  */
-import { type Message, defineCodeGrader } from '@agentv/eval';
+import { type Message, defineCodeGrader } from '@agentv/sdk';
 
 interface ToolSummary {
   tools: string[];

@@ -22,7 +22,7 @@
  *           args: { query: "weather" }
  *         - tool: fetch
  */
-import { type CodeGraderInput, defineCodeGrader } from '@agentv/eval';
+import { type CodeGraderInput, defineCodeGrader } from '@agentv/sdk';
 
 interface ExpectedTool {
   tool: string;

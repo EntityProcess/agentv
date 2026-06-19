@@ -2,7 +2,7 @@
 /**
  * Test fixture for defineCodeGrader integration test.
  */
-import { defineCodeGrader } from '../../../eval/src/index.js';
+import { defineCodeGrader } from '../../../sdk/src/index.js';
 
 export default defineCodeGrader(({ output, criteria }) => {
   const assertions: { text: string; passed: boolean }[] = [];

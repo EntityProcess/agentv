@@ -9,14 +9,14 @@ YAML remains AgentV's canonical, portable eval format. The SDK surfaces below ar
 
 AgentV currently provides two npm packages for programmatic use:
 
-- **`@agentv/eval`** — custom assertions and code graders
+- **`@agentv/sdk`** — custom assertions and code graders
 - **`@agentv/core`** — programmatic evaluation API and typed configuration
 
 ## Installation
 
 ```bash
 # Assertion SDK (defineAssertion, defineCodeGrader)
-npm install @agentv/eval
+npm install @agentv/sdk
 
 # Programmatic API (evaluate, defineConfig)
 npm install @agentv/core
@@ -35,13 +35,13 @@ There is no separate first-party Python authoring SDK today. Python-facing workf
 
 ## Custom Assertions
 
-Use `defineAssertion` from `@agentv/eval` to create reusable assertion types. Place them in `.agentv/assertions/` — they're auto-discovered by filename.
+Use `defineAssertion` from `@agentv/sdk` to create reusable assertion types. Place them in `.agentv/assertions/` — they're auto-discovered by filename.
 
 ### Pass/Fail Pattern
 
 ```typescript
 // .agentv/assertions/word-count.ts
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
@@ -59,7 +59,7 @@ Return a `score` (0–1) instead of `pass` for graded evaluation:
 
 ```typescript
 // .agentv/assertions/efficiency.ts
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output, traceSummary }) => {
   const hasContent = (output ?? '').length > 0 ? 0.5 : 0;
@@ -93,10 +93,10 @@ assertions:
 
 ## Code Graders
 
-Use `defineCodeGrader` from `@agentv/eval` for full control over scoring with an explicit assertions array:
+Use `defineCodeGrader` from `@agentv/sdk` for full control over scoring with an explicit assertions array:
 
 ```typescript
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
@@ -113,7 +113,7 @@ For detailed patterns, input/output contracts, and language-agnostic examples, s
 
 ## Wire Format vs SDK Format
 
-Raw grader stdin uses `snake_case` because it crosses a process boundary and may be consumed by Python, shell, jq, or external dashboards. The `@agentv/eval` SDK converts that payload to idiomatic TypeScript `camelCase` before calling your handler.
+Raw grader stdin uses `snake_case` because it crosses a process boundary and may be consumed by Python, shell, jq, or external dashboards. The `@agentv/sdk` package converts that payload to idiomatic TypeScript `camelCase` before calling your handler.
 
 | Raw stdin | SDK handler field |
 |-----------|-------------------|

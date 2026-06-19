@@ -11,7 +11,7 @@
  *       type: code_grader
  *       script: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];

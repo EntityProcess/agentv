@@ -47,7 +47,7 @@ tests:
 
 ```typescript
 // judges/codex-skill-trigger.ts
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output }) => {
   const skillName = 'csv-analyzer';

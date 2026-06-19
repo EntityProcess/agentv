@@ -31,7 +31,7 @@ Set `negated: true` in config to invert any assertion.
 
 ## Files
 
-- `graders/assertions.ts` — Parameterised code grader using `defineCodeGrader` from `@agentv/eval`
+- `graders/assertions.ts` — Parameterised code grader using `defineCodeGrader` from `@agentv/sdk`
 - `evals/dataset.eval.yaml` — Example tests covering every assertion type
 
 ## Setup

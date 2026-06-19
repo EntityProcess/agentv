@@ -11,7 +11,7 @@ Demonstrates how to implement common NLP evaluation metrics as AgentV `code_grad
 | `graders/similarity.ts` | Cosine + Jaccard | Paraphrasing — token-overlap similarity |
 | `graders/levenshtein.ts` | Levenshtein distance | Extraction — character-level edit distance |
 
-Each grader is a standalone TypeScript file that uses `defineCodeGrader` from `@agentv/eval`. Scores are normalised to the 0–1 range expected by AgentV.
+Each grader is a standalone TypeScript file that uses `defineCodeGrader` from `@agentv/sdk`. Scores are normalised to the 0–1 range expected by AgentV.
 
 ## Running
 

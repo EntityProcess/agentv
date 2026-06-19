@@ -6,7 +6,7 @@
  * ROUGE (Recall-Oriented Understudy for Gisting Evaluation) measures n-gram
  * overlap, commonly used for summarisation evaluation.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 function tokenize(text: string): string[] {
   return text

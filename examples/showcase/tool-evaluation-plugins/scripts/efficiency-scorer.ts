@@ -19,7 +19,7 @@
  *       type: code_grader
  *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
-import { type TraceSummary, defineCodeGrader } from '@agentv/eval';
+import { type TraceSummary, defineCodeGrader } from '@agentv/sdk';
 
 // Configurable thresholds (customize for your domain)
 const THRESHOLDS = {

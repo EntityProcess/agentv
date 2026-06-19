@@ -25,7 +25,7 @@ if (requestedTag !== undefined && requestedTag !== 'next') {
 const npmTag = requestedTag ?? 'latest';
 const tagArgs = ['--tag', npmTag];
 
-const PACKAGES = ['packages/core', 'packages/eval', 'apps/cli'];
+const PACKAGES = ['packages/core', 'packages/sdk', 'packages/eval', 'apps/cli'];
 
 interface PackageJson {
   name: string;

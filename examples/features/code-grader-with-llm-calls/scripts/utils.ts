@@ -1,4 +1,4 @@
-import type { Message } from '@agentv/eval';
+import type { Message } from '@agentv/sdk';
 
 /**
  * Extract retrieval context from expectedOutput tool calls.
