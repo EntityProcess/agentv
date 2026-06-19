@@ -162,7 +162,7 @@ conversion_warnings:
     message: Deterministic tool call id generated from source order.
 
 artifacts:
-  execution_trace_path: outputs/execution-trace.json
+  trace_path: outputs/trace.json
   otlp_path: outputs/trace.otlp.json
   answer_path: outputs/answer.md
   transcript_path: outputs/transcript.jsonl
@@ -310,10 +310,10 @@ Minimal code slices:
    projections once tests prove parity.
 
 5. Artifact sidecar wiring.
-   Write `outputs/execution-trace.json` or an equivalent sidecar and add an
-   optional `execution_trace_path` pointer to per-test index entries only if the
-   team accepts an additive index change. If not, write the sidecar inside the
-   per-test artifact directory and leave index JSONL unchanged for the first PR.
+   Write `outputs/trace.json` and keep its envelope artifact pointer as
+   `trace_path`. Keep the sidecar inside the per-test artifact directory and
+   leave index JSONL unchanged unless a later discovery surface needs an additive
+   index pointer.
 
 6. OTLP import/export bridge.
    Reuse `packages/core/src/observability/otel-exporter.ts` and
@@ -408,7 +408,7 @@ Red/green UAT scenario:
 Artifacts to inspect:
 
 - `/tmp/agentv-execution-trace-green/index.jsonl`
-- per-test `outputs/execution-trace.json`
+- per-test `outputs/trace.json`
 - per-test `outputs/transcript.jsonl`
 - per-test `outputs/answer.md`
 - generated OTLP JSON, if the implementation writes an OTLP sidecar
@@ -429,7 +429,7 @@ Stability proof:
 
 Recommended defaults are included so implementation is not blocked.
 
-1. Should the first `.9` PR add `execution_trace_path` to `index.jsonl`?
+1. Should the first `.9` PR add `trace_path` to `index.jsonl`?
    Recommended default: write the sidecar in each per-test artifact directory
    first and defer the index pointer unless the dashboard/CLI needs discovery in
    the same PR.

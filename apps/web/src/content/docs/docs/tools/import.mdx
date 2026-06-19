@@ -154,14 +154,29 @@ Provider-specific flags:
 
 ## Output Format
 
-The imported transcript is written as JSONL — one `Message` object per line:
+Imported transcripts are written as AgentV transcript JSONL. Each row is a
+provider-neutral `agentv.transcript.v1` message row grouped by `test_id` and
+ordered by `message_index`:
 
 ```json
-{"role":"user","content":"Fix the bug in auth.ts"}
-{"role":"assistant","content":"I'll fix the authentication bug.","toolCalls":[{"tool":"Read","input":{"file_path":"src/auth.ts"},"id":"toolu_01...","output":"...file contents..."}]}
+{"schema_version":"agentv.transcript.v1","test_id":"claude-session-1","target":"claude","message_index":0,"role":"user","content":"Fix the bug in auth.ts","capture":{"content":"full","redaction_level":"none"},"source":{"kind":"imported_transcript","provider":"claude","session_id":"claude-session-1"}}
+{"schema_version":"agentv.transcript.v1","test_id":"claude-session-1","target":"claude","message_index":1,"role":"assistant","content":"I'll fix the authentication bug.","tool_calls":[{"tool":"Read","id":"toolu_01...","input":{"file_path":"src/auth.ts"},"output":"...file contents..."}],"capture":{"content":"full","redaction_level":"none"},"source":{"kind":"imported_transcript","provider":"claude","session_id":"claude-session-1"}}
 ```
 
-Each message follows AgentV's standard `Message` interface with `role`, `content`, and optional `toolCalls` (including tool outputs paired from subsequent events).
+Stable top-level fields are `schema_version`, `test_id`, `target`,
+`message_index`, `role`, optional `name`, `content`, `tool_calls`,
+`start_time`, `end_time`, `duration_ms`, `metadata`, `token_usage`,
+transcript-level `transcript_token_usage`, `transcript_duration_ms`,
+`transcript_cost_usd`, `capture`, optional `trace`, and `source`.
+Provider-native details stay inside opaque nested fields such as `metadata`,
+`source.metadata`, tool `input`, or tool `output`; they are not custom top-level
+row keys.
+
+Rows without `schema_version`, `capture`, or `trace` from older AgentV transcript
+exports remain replayable. New eval run artifacts write the v1 shape.
+For eval run artifacts, `outputs/transcript.jsonl` is derived from
+`outputs/trace.json`; it is a portable message/event projection, not a second
+canonical trace source or a provider-native session dump.
 
 ## What Gets Parsed
 

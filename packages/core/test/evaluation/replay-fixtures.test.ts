@@ -385,7 +385,7 @@ describe('replay fixtures', () => {
   it('replays target output from execution trace sources', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-replay-envelopes-'));
     try {
-      const envelopePath = path.join(dir, 'execution-trace.json');
+      const envelopePath = path.join(dir, 'trace.json');
       const wire = fullContentEnvelopeWire(
         envelopeResult([{ role: 'assistant', content: 'Envelope replay answer' }]),
       );
@@ -420,7 +420,7 @@ describe('replay fixtures', () => {
   it('fails clearly when an execution trace lacks replayable assistant output', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-replay-envelopes-'));
     try {
-      const envelopePath = path.join(dir, 'execution-trace.json');
+      const envelopePath = path.join(dir, 'trace.json');
       const wire = toTraceEnvelopeWire(
         buildTraceEnvelopeFromEvaluationResult(
           envelopeResult([{ role: 'assistant', content: 'Redacted answer' }]),

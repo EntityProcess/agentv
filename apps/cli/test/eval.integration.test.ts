@@ -405,7 +405,10 @@ describe('agentv eval CLI', () => {
       expect(canonicalResults).toHaveLength(2);
       await expectFileExists(path.join(outputDir, 'benchmark.json'));
       await expectFileExists(path.join(outputDir, 'timing.json'));
-      await expectFileExists(path.join(outputDir, 'transcript.jsonl'));
+      for (const row of canonicalResults) {
+        expect(row.transcript_path).toMatch(/outputs\/transcript\.jsonl$/);
+        await expectFileExists(path.join(outputDir, row.transcript_path as string));
+      }
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }

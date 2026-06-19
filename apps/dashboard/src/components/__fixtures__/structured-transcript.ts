@@ -2,17 +2,25 @@ import type { FileNode } from '~/lib/types';
 
 export const structuredTranscriptJsonl = [
   {
+    schema_version: 'agentv.transcript.v1',
     test_id: 'final-json-answer',
     target: 'codex',
     message_index: 0,
     role: 'user',
     content: 'Inspect the workspace and return the final JSON only.',
-    source: { provider: 'codex', session_id: 'session-123', model: 'gpt-5-codex' },
+    capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
+    source: {
+      kind: 'agentv_run',
+      provider: 'codex',
+      session_id: 'session-123',
+      model: 'gpt-5-codex',
+    },
     transcript_token_usage: { input: 120, output: 80 },
     transcript_duration_ms: 2450,
     transcript_cost_usd: 0.0123,
   },
   {
+    schema_version: 'agentv.transcript.v1',
     test_id: 'final-json-answer',
     target: 'codex',
     message_index: 1,
@@ -27,9 +35,16 @@ export const structuredTranscriptJsonl = [
         metadata: { cwd: '/tmp/agentv-fixture' },
       },
     ],
-    source: { provider: 'codex', session_id: 'session-123', model: 'gpt-5-codex' },
+    capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
+    source: {
+      kind: 'agentv_run',
+      provider: 'codex',
+      session_id: 'session-123',
+      model: 'gpt-5-codex',
+    },
   },
   {
+    schema_version: 'agentv.transcript.v1',
     test_id: 'final-json-answer',
     target: 'codex',
     message_index: 2,
@@ -37,15 +52,28 @@ export const structuredTranscriptJsonl = [
     name: 'read_file',
     content: { ok: true, text: 'export const answer = 42;' },
     duration_ms: 32,
-    source: { provider: 'codex', session_id: 'session-123', model: 'gpt-5-codex' },
+    capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
+    source: {
+      kind: 'agentv_run',
+      provider: 'codex',
+      session_id: 'session-123',
+      model: 'gpt-5-codex',
+    },
   },
   {
+    schema_version: 'agentv.transcript.v1',
     test_id: 'final-json-answer',
     target: 'codex',
     message_index: 3,
     role: 'assistant',
     content: '{"answer":42,"source":"src/app.ts"}',
-    source: { provider: 'codex', session_id: 'session-123', model: 'gpt-5-codex' },
+    capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
+    source: {
+      kind: 'agentv_run',
+      provider: 'codex',
+      session_id: 'session-123',
+      model: 'gpt-5-codex',
+    },
   },
 ]
   .map((line) => JSON.stringify(line))
@@ -58,11 +86,6 @@ export const structuredTranscriptFiles: FileNode[] = [
     type: 'dir',
     children: [
       { name: 'grading.json', path: 'final-json-answer__codex/grading.json', type: 'file' },
-      {
-        name: 'transcript.jsonl',
-        path: 'final-json-answer__codex/transcript.jsonl',
-        type: 'file',
-      },
       { name: 'answer.md', path: 'final-json-answer__codex/answer.md', type: 'file' },
       {
         name: 'outputs',

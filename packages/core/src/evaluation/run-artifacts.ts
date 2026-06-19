@@ -10,7 +10,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { traceToTranscriptJsonLines } from '../import/types.js';
+import { traceEnvelopeToTranscriptJsonLines } from '../import/types.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
 import {
   type ExportDuplicatePolicy,
@@ -751,7 +751,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     source: { path: RESULT_INDEX_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
-      execution_trace_path: 'outputs/execution-trace.json',
+      trace_path: 'outputs/trace.json',
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? 'outputs/transcript.jsonl' : undefined,
@@ -765,7 +765,7 @@ async function writeTraceEnvelopeSidecar(
 ): Promise<TraceEnvelope> {
   const envelope = buildTraceEnvelopeSidecar(params);
   await writeFile(
-    path.join(params.outputsDir, 'execution-trace.json'),
+    path.join(params.outputsDir, 'trace.json'),
     `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
     'utf8',
   );
@@ -896,13 +896,6 @@ async function writeJsonlFile(filePath: string, records: readonly unknown[]): Pr
   await writeFile(filePath, content, 'utf8');
 }
 
-function traceProjectionForTranscript(result: EvaluationResult, envelope: TraceEnvelope) {
-  return {
-    ...result.trace,
-    messages: traceEnvelopeToTranscriptMessages(envelope),
-  };
-}
-
 function hasTranscriptProjection(result: EvaluationResult, envelope: TraceEnvelope): boolean {
   return result.output.length > 0 || traceEnvelopeToTranscriptMessages(envelope).length > 0;
 }
@@ -912,7 +905,7 @@ async function writeTranscriptJsonl(
   result: EvaluationResult,
   envelope: TraceEnvelope,
 ): Promise<void> {
-  const lines = traceToTranscriptJsonLines(traceProjectionForTranscript(result, envelope), {
+  const lines = traceEnvelopeToTranscriptJsonLines(envelope, {
     testId: result.testId,
     target: result.target,
   });
@@ -1207,20 +1200,6 @@ export async function writeArtifacts(
   return writeArtifactsFromResults(results, outputDir, options);
 }
 
-function buildTranscriptMessageLines(results: readonly EvaluationResult[]): string {
-  const lines: string[] = [];
-
-  for (const result of results) {
-    const transcriptLines = traceToTranscriptJsonLines(result.trace, {
-      testId: result.testId,
-      target: result.target,
-    });
-    lines.push(...transcriptLines.map((line) => JSON.stringify(line)));
-  }
-
-  return lines.length > 0 ? `${lines.join('\n')}\n` : '';
-}
-
 async function collectAdditionalIndexFields(
   result: EvaluationResult,
   outputDir: string,
@@ -1497,11 +1476,6 @@ export async function writeArtifactsFromResults(
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 
   await writeJsonlFile(indexPath, indexRecords);
-  await writeFile(
-    path.join(outputDir, 'transcript.jsonl'),
-    buildTranscriptMessageLines(results),
-    'utf8',
-  );
 
   return { testArtifactDir, timingPath, benchmarkPath, indexPath };
 }

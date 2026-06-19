@@ -12,16 +12,21 @@ export {
 } from './session-discovery.js';
 export { TranscriptProvider } from './transcript-provider.js';
 export {
+  TRANSCRIPT_ROW_SCHEMA_VERSION,
   groupTranscriptJsonLines,
   readTranscriptFile,
   readTranscriptJsonl,
+  traceEnvelopeToTranscriptJsonLines,
   traceFromTranscriptJsonLines,
   traceToTranscriptJsonLines,
   toTranscriptJsonLines,
+  type TranscriptCaptureState,
   type TranscriptEntry,
   type TranscriptJsonLine,
   type TranscriptReplayEntry,
   type TranscriptSource,
+  type TranscriptToolCallJsonLine,
+  type TranscriptTraceRef,
 } from './types.js';
 
 // Re-export existing Copilot parser and discovery for the import pipeline

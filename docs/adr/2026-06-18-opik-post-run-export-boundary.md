@@ -12,7 +12,7 @@ AgentV already has the post-run artifacts an Opik exporter should consume:
 - per-test grading, timing, answer, and transcript artifacts from
   `packages/core/src/evaluation/run-artifacts.ts`, with the CLI wrapper in
   `apps/cli/src/commands/eval/artifact-writer.ts`;
-- canonical trace sidecars in `outputs/execution-trace.json` using `agentv.trace.v1`;
+- canonical trace sidecars in `outputs/trace.json` using `agentv.trace.v1`;
 - in-memory `EvaluationResult` and `TraceEnvelope` read models in `packages/core/src/evaluation/types.ts` and `packages/core/src/evaluation/trace-envelope.ts`.
 
 That is the correct product boundary. AgentV remains the runner, gate, and artifact source of truth. Opik should be a projection over completed AgentV runs, not the runtime owner of AgentV execution.
@@ -24,8 +24,8 @@ Two existing constraints matter:
 
 There is also a privacy mismatch in current artifact generation: the canonical
 trace envelope builder defaults to metadata-only capture, but
-`run-artifacts.ts` currently overrides that and writes execution-trace sidecars
-with full content capture.
+`run-artifacts.ts` currently overrides that and writes `outputs/trace.json`
+sidecars with full content capture.
 
 ## Audit
 
@@ -89,7 +89,7 @@ The future Opik adapter should consume one of these equivalent inputs:
    - `benchmark.json`
    - per-test `grading.json`
    - per-test `timing.json`
-   - per-test `outputs/execution-trace.json`
+   - per-test `outputs/trace.json`
 
 The adapter should emit or upload Opik-native objects only after the AgentV run is complete.
 

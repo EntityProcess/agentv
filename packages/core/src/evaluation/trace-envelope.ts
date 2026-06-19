@@ -456,6 +456,7 @@ interface TraceEnvelopeTranscriptToolCallWire {
   readonly input?: unknown;
   readonly output?: unknown;
   readonly id?: string;
+  readonly status?: NonNullable<ToolCall['status']>;
   readonly start_time?: string;
   readonly end_time?: string;
   readonly duration_ms?: number;
@@ -607,13 +608,17 @@ function sourceFromResult(
     typeof result.trace.metadata?.provider === 'string'
       ? result.trace.metadata.provider
       : undefined;
+  const metadata = dropUndefined({
+    ...result.trace.metadata,
+    ...options.source?.metadata,
+  });
   return {
     kind: options.source?.kind ?? 'agentv_run',
     path: options.source?.path,
     provider: options.source?.provider ?? traceProvider ?? result.target,
     format: options.source?.format ?? 'agentv_result',
     version: options.source?.version ?? '1',
-    metadata: options.source?.metadata,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   };
 }
 
@@ -668,6 +673,24 @@ function maybeToolContentAttributes(
   });
 }
 
+function toolCallStatusToSpanStatus(toolCall: ToolCall): TraceEnvelopeSpanStatus {
+  if (
+    toolCall.status === 'error' ||
+    toolCall.status === 'timeout' ||
+    toolCall.status === 'cancelled'
+  ) {
+    return { code: 'ERROR', message: toolCall.status };
+  }
+  return { code: 'OK' };
+}
+
+function spanStatusToToolCallStatus(status: TraceEnvelopeSpanStatus): 'ok' | 'error' {
+  if (status.code === 'ERROR') {
+    return 'error';
+  }
+  return 'ok';
+}
+
 function toTranscriptToolCallWire(
   toolCall: ToolCall,
   capture: TraceEnvelopeCapture,
@@ -677,6 +700,7 @@ function toTranscriptToolCallWire(
     input: capture.content === 'full' ? toolCall.input : undefined,
     output: capture.content === 'full' ? toolCall.output : undefined,
     id: toolCall.id,
+    status: toolCall.status,
     start_time: toolCall.startTime,
     end_time: toolCall.endTime,
     duration_ms: toolCall.durationMs,
@@ -923,7 +947,7 @@ export function buildTraceEnvelopeFromEvaluationResult(
         kind: 'INTERNAL',
         startTimeUnixNano: msToUnixNano(toolTiming.startMs),
         endTimeUnixNano: msToUnixNano(toolTiming.endMs),
-        status: { code: 'OK' },
+        status: toolCallStatusToSpanStatus(toolCall),
         attributes: dropUndefined({
           'gen_ai.operation.name': 'execute_tool',
           'gen_ai.tool.name': toolCall.tool,
@@ -1392,6 +1416,7 @@ function toolCallFromSpan(span: TraceEnvelopeSpan): ToolCall {
       span.spanId,
     input: attributes['gen_ai.tool.call.arguments'],
     output: attributes['gen_ai.tool.call.result'],
+    status: spanStatusToToolCallStatus(span.status),
     startTime: unixNanoToIso(span.startTimeUnixNano),
     endTime: unixNanoToIso(span.endTimeUnixNano),
     durationMs: durationMsFromSpan(span),
@@ -1441,6 +1466,14 @@ function fromTranscriptToolCallWire(wire: unknown): ToolCall | undefined {
     input: wire.input,
     output: wire.output,
     id: typeof wire.id === 'string' ? wire.id : undefined,
+    status:
+      wire.status === 'ok' ||
+      wire.status === 'error' ||
+      wire.status === 'timeout' ||
+      wire.status === 'cancelled' ||
+      wire.status === 'unknown'
+        ? wire.status
+        : undefined,
     startTime: typeof wire.start_time === 'string' ? wire.start_time : undefined,
     endTime: typeof wire.end_time === 'string' ? wire.end_time : undefined,
     durationMs: numberAttribute(wire, 'duration_ms'),
@@ -1575,7 +1608,7 @@ export function traceEnvelopeToToolTrajectoryView(
       parentToolCallId: nearestAncestorToolCallId(ancestorIds, spansById),
       input: toolCall.input,
       output: toolCall.output,
-      status: span.status.code === 'ERROR' ? 'error' : 'ok',
+      status: spanStatusToToolCallStatus(span.status),
       startTime: toolCall.startTime,
       endTime: toolCall.endTime,
       durationMs: toolCall.durationMs,
@@ -1688,7 +1721,7 @@ export function traceEnvelopeToTraceArtifact(envelope: TraceEnvelope): TraceArti
           callId: toolCall.id,
           input: toolCall.input,
           output: toolCall.output,
-          status: span.status.code === 'ERROR' ? 'error' : 'ok',
+          status: spanStatusToToolCallStatus(span.status),
         },
         sourceRef: {
           spanId: span.spanId,

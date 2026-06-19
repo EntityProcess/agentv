@@ -61,7 +61,7 @@ Supported `--trace` inputs:
 
 | Format | Typical source |
 |--------|----------------|
-| `agentv.trace.v1` JSON or JSONL | `outputs/execution-trace.json` from an AgentV run or replay/export workflow |
+| `agentv.trace.v1` JSON or JSONL | `outputs/trace.json` from an AgentV run or replay/export workflow |
 | AgentV transcript JSONL | `agentv import claude`, `agentv import codex`, or `agentv import copilot` output |
 
 Single-record trace files are accepted directly. Multi-record files are matched by `test_id` and target. The selected trace is projected into AgentV's normal `trace` and `messages` grader context, so `tool-trajectory`, execution-metrics, and code graders receive the same shape they see during eval runs.
