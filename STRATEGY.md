@@ -7,7 +7,7 @@ last_updated: 2026-06-19
 
 ## Target problem
 
-Teams evaluating coding agents and other tool-using workflows need results from the real repositories, fixtures, and harnesses their agents already touch, but most eval tools either flatten that work into generic benchmark runners or ask teams to move execution and results into a separate platform. That makes it hard to reproduce failures, compare targets fairly, and keep evaluation evidence close to the code and workflow it came from.
+Teams evaluating coding agents and other tool-using workflows need results from the real repositories, fixtures, and harnesses their agents already touch, but that work often gets split away from the actual workspace and development loop it came from. That makes it hard to reproduce failures, compare targets fairly, and keep evaluation evidence close to the code and workflow it came from.
 
 ## Our approach
 
@@ -15,7 +15,7 @@ AgentV stays repo-native and workspace-native: it runs or imports evaluations ar
 
 ## Who it's for
 
-**Primary:** AI platform engineers and agent builders working in real repositories - They're hiring AgentV to evaluate real agent workflows, compare targets, and gate changes using the same workspaces, fixtures, and result artifacts their teams already rely on.
+**Primary:** AI platform engineers and agent builders working in real repositories. They're hiring AgentV to evaluate real agent workflows, compare targets, and gate changes using the same workspaces, fixtures, and result artifacts their teams already rely on.
 
 ## Key metrics
 

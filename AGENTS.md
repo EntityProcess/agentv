@@ -4,11 +4,14 @@ This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
 ## High-Level Goals
 
-AgentV aims to provide a robust, declarative framework for evaluating AI agents.
-- **Declarative Definitions**: Define tasks, expected outcomes, and rubrics in simple YAML files.
-- **Structured Evaluation**: Use "Rubric as Object" (Google ADK style) for deterministic, type-safe grading.
-- **Multi-Objective Scoring**: Measure correctness, latency, cost, and safety in a single run.
-- **Optimization Ready**: Designed to support future automated hyperparameter tuning and candidate generation.
+See [STRATEGY.md](STRATEGY.md) for the durable product boundary.
+
+AgentV aims to be the repo-native, workspace-native evaluation framework for AI agents.
+- **Repo-native evals**: Define evals that run against real repos, multi-repo workspaces, setup scripts, and existing harnesses.
+- **Zero-infra local to CI**: Keep the default path lightweight so the same eval contract works on a laptop and in CI.
+- **Portable run artifacts**: Treat run bundles, traces, and summaries as the source of truth for comparison, gating, and export.
+- **Adapter boundaries**: Integrate with Phoenix, Harbor, Opik, and provider-specific systems through narrow adapters instead of absorbing their concepts into core.
+- **AI-native extensibility**: Keep the core small and composable so engineers and coding agents can extend it with plugins, wrappers, and harness-specific glue.
 
 ## Design Principles
 
