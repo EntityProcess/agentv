@@ -33,13 +33,13 @@ agentv dashboard
 
 Dashboard auto-discovers run workspaces from `.agentv/results/runs/` in the current directory and opens at `http://localhost:3117`.
 
-You can also point it at a specific run workspace or `index.jsonl` manifest:
+To open a different project, pass the project root with `--dir`:
 
 ```bash
-agentv dashboard .agentv/results/runs/2026-03-30T11-45-56-989Z/index.jsonl
-# or
-agentv dashboard .agentv/results/runs/2026-03-30T11-45-56-989Z
+agentv dashboard --dir /path/to/project
 ```
+
+Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/runs/` tree, plus an external results repository or run directory configured under `results:` in YAML. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
 
 ## Options
 
