@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,12 @@ describe('agentv create assertion', () => {
     const cwd = await mkdtemp(path.join(tmpdir(), 'agentv-create-assertion-'));
 
     try {
+      await symlink(
+        path.join(projectRoot, 'node_modules'),
+        path.join(cwd, 'node_modules'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+
       const result = await execa(
         'bun',
         ['--no-env-file', CLI_ENTRY, 'create', 'assertion', 'word-count'],
@@ -27,6 +33,7 @@ describe('agentv create assertion', () => {
         path.join(cwd, '.agentv', 'assertions', 'word-count.ts'),
         'utf8',
       );
+      expect(content).toContain("import { defineAssertion } from '@agentv/sdk';");
       expect(content).toContain("const text = output ?? '';");
       expect(content).toContain(
         "assertions: [{ text: pass ? 'Output has content' : 'Output is empty', passed: pass }]",

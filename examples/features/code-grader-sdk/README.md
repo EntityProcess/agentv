@@ -1,6 +1,6 @@
 # Code Grader SDK Helper
 
-Demonstrates how a TypeScript `code-grader` can use `defineCodeGrader` from `@agentv/eval` for a declarative, low-boilerplate approach while still consuming the canonical AgentV wire format.
+Demonstrates how a TypeScript `code-grader` can use `defineCodeGrader` from `@agentv/sdk` for a declarative, low-boilerplate approach while still consuming the canonical AgentV wire format.
 
 ## Files
 
@@ -56,7 +56,7 @@ The `defineCodeGrader` helper:
 - Handles errors gracefully
 
 ```typescript
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, criteria }) => ({
   score: (output ?? '').includes(criteria) ? 1.0 : 0.0,

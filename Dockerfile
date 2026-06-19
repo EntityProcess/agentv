@@ -4,6 +4,7 @@ WORKDIR /app
 # All workspace member package.json files needed for bun install to resolve lockfile
 COPY package.json bun.lock ./
 COPY packages/core/package.json packages/core/
+COPY packages/sdk/package.json packages/sdk/
 COPY packages/eval/package.json packages/eval/
 COPY apps/cli/package.json apps/cli/
 COPY apps/dashboard/package.json apps/dashboard/
@@ -57,6 +58,8 @@ COPY --from=build /app/package.json /app/bun.lock ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/core/package.json ./packages/core/
+COPY --from=build /app/packages/sdk/dist ./packages/sdk/dist
+COPY --from=build /app/packages/sdk/package.json ./packages/sdk/
 COPY --from=build /app/packages/eval/dist ./packages/eval/dist
 COPY --from=build /app/packages/eval/package.json ./packages/eval/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist

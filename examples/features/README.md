@@ -38,7 +38,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Write custom graders in code
 | Example | Description |
 |---------|-------------|
-| [code-grader-sdk](code-grader-sdk/) | TypeScript code graders using `defineCodeGrader()` from `@agentv/eval` |
+| [code-grader-sdk](code-grader-sdk/) | TypeScript code graders using `defineCodeGrader()` from `@agentv/sdk` |
 | [code-grader-with-llm-calls](code-grader-with-llm-calls/) | Code graders that make LLM calls via a target proxy |
 | [eval-assert-demo](eval-assert-demo/) | Code graders runnable both in a suite and individually via `agentv eval assert` |
 | [functional-grading](functional-grading/) | Install dependencies, compile, and run tests against agent-generated code |

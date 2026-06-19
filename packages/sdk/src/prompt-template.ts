@@ -68,7 +68,7 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *
  * @example
  * ```typescript
- * import { definePromptTemplate, type CodeGraderInput } from '@agentv/eval';
+ * import { definePromptTemplate, type CodeGraderInput } from '@agentv/sdk';
  *
  * export default definePromptTemplate((ctx: CodeGraderInput) => {
  *   const question = ctx.input

@@ -52,7 +52,7 @@
 ## SDK Functions
 
 ```typescript
-import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@agentv/eval';
+import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@agentv/sdk';
 ```
 
 - `defineCodeGrader(fn)` - Wraps evaluation function with stdin/stdout handling
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, criteria }) => {
   const candidate = output ?? '';

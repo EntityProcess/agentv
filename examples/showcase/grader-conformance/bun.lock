@@ -5,13 +5,13 @@
     "": {
       "name": "agentv-example-grader-conformance",
       "dependencies": {
-        "@agentv/eval": "file:../../../packages/eval",
+        "@agentv/sdk": "file:../../../packages/sdk",
         "yaml": "^2.7.1",
       },
     },
   },
   "packages": {
-    "@agentv/eval": ["@agentv/eval@file:../../../packages/eval", { "dependencies": { "zod": "^3.23.8" } }],
+    "@agentv/sdk": ["@agentv/sdk@file:../../../packages/sdk", { "dependencies": { "zod": "^3.23.8" } }],
 
     "yaml": ["yaml@2.8.2", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A=="],
 

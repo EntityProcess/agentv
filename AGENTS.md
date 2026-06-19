@@ -38,7 +38,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 ## Repo Map
 
 - `packages/core/`: evaluation engine, providers, grading, project registry, and the programmatic API.
-- `packages/eval/`: lightweight assertion SDK such as `defineAssertion` and `defineCodeGrader`.
+- `packages/sdk/`: lightweight assertion SDK such as `defineAssertion` and `defineCodeGrader`.
 - `apps/cli/`: published CLI surface for `agentv`.
 - `apps/web/src/content/docs/`: public product and CLI docs on agentv.dev.
 - `examples/`: examples that double as reference material and integration coverage.

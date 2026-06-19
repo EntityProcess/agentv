@@ -104,7 +104,7 @@ export class TargetInvocationError extends Error {
  *
  * @example
  * ```typescript
- * import { createTargetClient, defineCodeGrader } from '@agentv/eval';
+ * import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
  *
  * export default defineCodeGrader(async ({ input, criteria, output }) => {
  *   const target = createTargetClient();

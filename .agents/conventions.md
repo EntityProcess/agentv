@@ -128,7 +128,7 @@ Backward compatibility:
 Two type definitions exist and must stay in sync:
 
 - `EvaluatorKind` in `packages/core/src/evaluation/types.ts`
-- `AssertionType` in `packages/eval/src/assertion.ts`
+- `AssertionType` in `packages/sdk/src/assertion.ts`
 
 ## Python Scripts
 

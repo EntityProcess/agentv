@@ -377,7 +377,7 @@ See docs at https://agentv.dev/graders/code-graders/
 ```
 Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{metadata}}`, `{{metadata_json}}`, `{{rubrics}}`, `{{rubrics_json}}`, `{{file_changes}}`, `{{tool_calls}}`
 - Markdown templates: use `{{variable}}` syntax
-- TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
+- TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/sdk`, receives context object with all variables + `config`
 - Use `target:` to run different `llm-grader` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
 
 ### composite
@@ -569,12 +569,12 @@ agentv validate <file.yaml>
 
 ## Code Judge SDK
 
-Use `@agentv/eval` to build custom graders in TypeScript/JavaScript:
+Use `@agentv/sdk` to build custom graders in TypeScript/JavaScript:
 
 ### defineAssertion (recommended for custom checks)
 ```typescript
 #!/usr/bin/env bun
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output, trace }) => {
   const finalOutput = output ?? '';
@@ -590,7 +590,7 @@ Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass
 ### defineCodeGrader (full control)
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, trace }) => {
   const finalOutput = output ?? '';
@@ -18152,7 +18152,7 @@ Gating: checklist uses `required: true`, score-range uses `min_score: N` (0–1 
 ## SDK Functions
 
 ```typescript
-import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@agentv/eval';
+import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@agentv/sdk';
 ```
 
 - `defineCodeGrader(fn)` - Wraps evaluation function with stdin/stdout handling
@@ -18192,7 +18192,7 @@ if __name__ == "__main__":
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, criteria }) => {
   const answer = output ?? '';

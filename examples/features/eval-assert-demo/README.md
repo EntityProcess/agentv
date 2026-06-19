@@ -9,7 +9,7 @@ Demonstrates code graders that can be run both as part of an eval suite and indi
 | `.agentv/graders/keyword-check.ts` | Checks answer contains expected keywords (Paris, France) |
 | `.agentv/graders/length-check.ts` | Validates answer word count is between 5 and 50 |
 
-Both graders use `defineCodeGrader` from `@agentv/eval`.
+Both graders use `defineCodeGrader` from `@agentv/sdk`.
 
 ## Running the Full Eval
 

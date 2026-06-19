@@ -29,7 +29,7 @@ Code graders receive eval context via stdin JSON and return a result via stdout.
 }
 ```
 
-Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. TypeScript and JavaScript graders that use `@agentv/eval` receive the same payload converted to `camelCase`. The repo-local Python helper in `examples/features/sdk-python/` keeps the same `snake_case` field names.
+Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. TypeScript and JavaScript graders that use `@agentv/sdk` receive the same payload converted to `camelCase`. The repo-local Python helper in `examples/features/sdk-python/` keeps the same `snake_case` field names.
 
 | Raw stdin key | TypeScript SDK field | Meaning |
 |---------------|----------------------|---------|
@@ -185,13 +185,13 @@ assertions:
     command: [./validators/check_answer.py]
 ```
 
-## @agentv/eval SDK
+## TypeScript SDK
 
-The `@agentv/eval` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` to skip boilerplate:
+The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` to skip boilerplate:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, criteria }) => {
   const outputText = output ?? '';
@@ -236,7 +236,7 @@ Use `createTargetClient` from the SDK:
 
 ```typescript
 #!/usr/bin/env bun
-import { createTargetClient, defineCodeGrader } from '@agentv/eval';
+import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(async ({ input, output }) => {
   const inputText = input

@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agentv/eval": "file:../../../packages/eval"
+    "@agentv/sdk": "file:../../../packages/sdk"
   }
 }

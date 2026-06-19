@@ -10,7 +10,7 @@
  *   value   – expected substring, pattern, or prefix (not used for is-json)
  *   negated – when true, inverts the assertion (default: false)
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 type AssertionType = 'contains' | 'icontains' | 'equals' | 'regex' | 'starts-with' | 'is-json';
 

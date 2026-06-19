@@ -172,9 +172,9 @@ Same as contains variants but explicitly case-insensitive.
 #### `code-grader`
 
 - **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
-- **Script SDK:** Use `defineCodeGrader` from `@agentv/eval`:
+- **Script SDK:** Use `defineCodeGrader` from `@agentv/sdk`:
   ```typescript
-  import { defineCodeGrader } from '@agentv/eval';
+  import { defineCodeGrader } from '@agentv/sdk';
   export default defineCodeGrader(({ output, trace }) => ({
     score: (output ?? '').includes('expected') ? 1 : 0,
     assertions: [{ text: 'Contains expected', passed: (output ?? '').includes('expected') }],

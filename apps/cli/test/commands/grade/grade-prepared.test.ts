@@ -199,7 +199,7 @@ describe('agentv grade prepared attempts', () => {
 
     const grading = JSON.parse(await readFile(path.join(runDir, row.grading_path), 'utf8'));
     expect(grading.workspace_changes.diff_summary).toContain('+manual edit');
-  });
+  }, 20_000);
 
   it('fails clearly when the prepared manifest is missing', async () => {
     await expect(

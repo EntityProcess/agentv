@@ -4,7 +4,7 @@
  * Replaces the hardcoded switch/case dispatch in the orchestrator with
  * a registry of named factory functions. Built-in evaluators are registered
  * at startup; users can add custom evaluators via `defineAssertion()` in
- * `@agentv/eval` or by dropping files in `.agentv/assertions/`.
+ * `@agentv/sdk` or by dropping files in `.agentv/assertions/`.
  */
 
 import type { EvaluationContext, EvaluationScore, Grader } from '../graders/types.js';

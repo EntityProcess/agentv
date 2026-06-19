@@ -5,7 +5,7 @@
  * Validates that no individual tool execution exceeds a time threshold
  * using trace.toolDurations data.
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 const DEFAULT_MAX_SPAN_MS = 5000;
 

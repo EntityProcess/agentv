@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { appendFileSync } from 'node:fs';
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs, messages, config }) => {
   const proofLog = process.env.AGENTV_TRACE_SHOWCASE_PROOF_LOG;

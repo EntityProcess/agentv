@@ -15,7 +15,7 @@
  *       type: code-grader
  *       command: ["bun", "run", "../graders/transcript-quality.ts"]
  */
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 function getMessageText(
   messages: readonly { role: string; content?: unknown }[],

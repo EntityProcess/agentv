@@ -91,7 +91,7 @@ describe('resolveCustomPrompt', () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'prompt-template-contract-'));
     const promptPath = path.join(tmpDir, 'prompt-template.ts');
     const promptTemplateRuntime = pathToFileURL(
-      path.resolve(__dirname, '../../../../eval/src/prompt-template.ts'),
+      path.resolve(__dirname, '../../../../sdk/src/prompt-template.ts'),
     ).href;
 
     writeFileSync(

@@ -83,11 +83,11 @@ example-name/
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/
 │   └── targets.yaml          # Target configuration (optional)
-├── package.json              # Dependencies (if using @agentv/eval)
+├── package.json              # Dependencies (if using @agentv/sdk)
 └── README.md                 # Example documentation
 ```
 
-### Using `@agentv/eval` SDK
+### Using `@agentv/sdk`
 
 For TypeScript code graders, add a `package.json`:
 
@@ -97,7 +97,7 @@ For TypeScript code graders, add a `package.json`:
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agentv/eval": "file:../../../packages/eval"
+    "@agentv/sdk": "file:../../../packages/sdk"
   }
 }
 ```
@@ -106,7 +106,7 @@ Then write type-safe code graders:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output }) => ({
   score: (output ?? '').includes('expected') ? 1.0 : 0.0,

@@ -1403,7 +1403,7 @@ describe('runEvalCase trace integration', () => {
       const promptPath = path.join(tmpDir, 'my-prompt.ts');
 
       // Write a simple TypeScript prompt template that reads stdin manually
-      // (avoiding dependency on @agentv/eval which won't resolve from temp dir)
+      // (avoiding dependency on @agentv/sdk which won't resolve from temp dir)
       writeFileSync(
         promptPath,
         `import { readFileSync } from 'fs';

@@ -25,7 +25,7 @@ Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase convers
 ## Installation
 
 ```bash
-npm install @agentv/eval
+npm install @agentv/sdk
 ```
 
 ## Convention-Based Discovery
@@ -61,7 +61,7 @@ The simplest pattern returns `pass` (boolean) and an optional `assertions` array
 
 ```typescript
 // .agentv/assertions/word-count.ts
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
@@ -81,7 +81,7 @@ Return a `score` (0 to 1) for granular evaluation instead of binary pass/fail:
 
 ```typescript
 // .agentv/assertions/efficiency.ts
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output, traceSummary }) => {
   const hasContent = (output ?? '').length > 0 ? 0.5 : 0;
@@ -191,7 +191,7 @@ my-project/
 ```typescript
 // .agentv/assertions/word-count.ts
 #!/usr/bin/env bun
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
   const wordCount = (output ?? '').trim().split(/\s+/).filter(Boolean).length;
@@ -246,7 +246,7 @@ tests:
 ### 4. Install and Run
 
 ```bash
-npm install @agentv/eval
+npm install @agentv/sdk
 agentv eval evals/dataset.eval.yaml
 ```
 
