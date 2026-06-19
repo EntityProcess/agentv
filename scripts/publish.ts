@@ -23,7 +23,7 @@ if (requestedTag !== undefined && requestedTag !== 'next') {
 }
 
 const npmTag = requestedTag ?? 'latest';
-const tagArgs = ['--tag', npmTag];
+const publishArgs = ['--tag', npmTag, '--access', 'public'];
 
 const PACKAGES = ['packages/core', 'packages/sdk', 'packages/eval', 'apps/cli'];
 
@@ -116,7 +116,7 @@ async function main() {
       if (publishedVersion === version) {
         console.log(`   ✓ ${name}@${version} is already published`);
       } else {
-        await $`npm publish ${tagArgs}`.cwd(pkg).env({ ...process.env, ALLOW_PUBLISH: '1' });
+        await $`npm publish ${publishArgs}`.cwd(pkg).env({ ...process.env, ALLOW_PUBLISH: '1' });
       }
 
       await ensureDistTag(name, version);
