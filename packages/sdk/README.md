@@ -1,12 +1,27 @@
 # @agentv/sdk
 
-Evaluation SDK for AgentV - build YAML-aligned eval suites, custom graders, and prompt templates around the canonical AgentV eval model.
+Public lightweight SDK for AgentV - build YAML-aligned eval suites, custom graders, and prompt templates around the canonical AgentV eval model.
 
 ## Installation
 
 ```bash
 npm install @agentv/sdk
 ```
+
+## Migrating from `@agentv/eval`
+
+Use `@agentv/sdk` for new code:
+
+```bash
+npm uninstall @agentv/eval
+npm install @agentv/sdk
+```
+
+```typescript
+import { defineCodeGrader } from '@agentv/sdk';
+```
+
+`@agentv/eval` remains only as a temporary deprecated compatibility package that re-exports this SDK for existing consumers. New docs, examples, scaffolds, and skills should not import from it.
 
 ## Quick Start
 
@@ -96,6 +111,33 @@ export default defineEval({
 ```
 
 The helpers return ordinary `assertions` entries such as `type: contains`, `type: llm-grader`, and `type: code-grader`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
+
+If you are coming from Braintrust `scores` or DeepEval metrics, model reusable checks as small AgentV-native helper factories that return these grader configs. They still lower to the same YAML/runtime contract:
+
+```typescript
+import { defineEval, graders } from '@agentv/sdk';
+
+function ragFaithfulness() {
+  return graders.llmGrader({
+    name: 'rag-faithfulness',
+    target: 'grader-target',
+    prompt: 'Grade whether the answer is supported by the provided context.',
+  });
+}
+
+export default defineEval({
+  name: 'rag-suite',
+  tests: [
+    {
+      id: 'grounded-answer',
+      input: 'Answer using the retrieved context.',
+      assertions: [ragFaithfulness()],
+    },
+  ],
+});
+```
+
+Python workflows should emit canonical YAML/JSONL or implement code graders over the stdin/stdout contract. The repo-local helper under `examples/features/sdk-python/` is an example, not a promised published Python package.
 
 ## Exports
 

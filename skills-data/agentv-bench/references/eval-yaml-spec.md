@@ -219,7 +219,7 @@ Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, f
 - `test_id` (string)
 - `score` (number, 0.0-1.0, weighted average of all assertion scores)
 - `assertions` (array of `{text, passed, evidence?}`)
-- `output` (Message[]) — agent output messages
+- `output` (string) — final answer/scored result; transcript evidence is available through captured trace/messages when present
 - `execution_status` (string: `ok` | `quality_failure` | `execution_error`)
 
 ### Optional fields

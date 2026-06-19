@@ -49,13 +49,21 @@
 
 `score` (0.0-1.0) required. `assertions` and `details` optional.
 
-## SDK Functions
+## TypeScript SDK Functions
 
 ```typescript
-import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@agentv/sdk';
+import {
+  createTargetClient,
+  defineCodeGrader,
+  defineEval,
+  definePromptTemplate,
+  graders,
+} from '@agentv/sdk';
 ```
 
 - `defineCodeGrader(fn)` - Wraps evaluation function with stdin/stdout handling
+- `defineEval(definition)` - Defines a YAML-aligned `.eval.ts` suite
+- `graders` - Helper catalog that returns ordinary AgentV `assertions` entries
 - `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
@@ -63,7 +71,50 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
   - Raw stdin uses `snake_case`; SDK handlers receive `camelCase`
   - Context fields: `input`, `expectedOutput`, `output`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
 
-For Python, the repo-local helper example in `examples/features/sdk-python/` keeps canonical `snake_case` fields and rejects deprecated wire aliases like `output_text`, `input_text`, and `reference_answer`. It is not a separate Python runner; generated evals still run through the AgentV CLI.
+For Python, the repo-local helper example in `examples/features/sdk-python/` keeps canonical `snake_case` fields and rejects deprecated wire aliases like `output_text`, `input_text`, and `reference_answer`. It is not a separate Python runner or a promised published package; generated evals still run through the AgentV CLI.
+
+## YAML-Aligned Helper Example
+
+Use helper factories for reusable Braintrust/DeepEval-inspired checks, but keep the result as AgentV `assertions`:
+
+```typescript
+import { defineEval, graders } from '@agentv/sdk';
+
+function ragFaithfulness() {
+  return graders.llmGrader({
+    name: 'rag-faithfulness',
+    target: 'grader-target',
+    prompt: 'Grade whether the answer is supported by the retrieved context.',
+  });
+}
+
+export default defineEval({
+  name: 'rag-suite',
+  tests: [
+    {
+      id: 'grounded-answer',
+      input: 'Answer using the retrieved context.',
+      assertions: [
+        graders.contains('source', { name: 'mentions-source' }),
+        ragFaithfulness(),
+      ],
+    },
+  ],
+});
+```
+
+The helper lowers to ordinary YAML:
+
+```yaml
+assertions:
+  - name: mentions-source
+    type: contains
+    value: source
+  - name: rag-faithfulness
+    type: llm-grader
+    target: grader-target
+    prompt: Grade whether the answer is supported by the retrieved context.
+```
 
 ## Python Example
 

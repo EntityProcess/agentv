@@ -30,10 +30,11 @@ to any platform with skill-discovery mechanisms. All listed providers support sk
 
 The built-in `skill-trigger` grader covers Claude, Copilot, Pi, Codex and VS Code out
 of the box. For providers with different tool-call formats, write a code-grader that inspects
-the agent's tool call trace.
+the agent's transcript messages or tool call trace.
 
-A code-grader receives the full evaluation context including the agent's output messages and
-tool calls. You can inspect these to determine whether the skill was invoked:
+A code-grader receives the full evaluation context including the final `output` string,
+transcript `messages`, and structured `trace`. Inspect `messages` or `trace.events` for
+tool calls; reserve `output` for final-answer text checks.
 
 ```yaml
 # Example: code-grader for Codex skill-trigger detection
@@ -42,27 +43,32 @@ tests:
     input: "Analyze this CSV file"
     assertions:
       - type: code-grader
-        path: ./judges/codex-skill-trigger.ts
+        command: [bun, run, ./judges/codex-skill-trigger.ts]
 ```
 
 ```typescript
 // judges/codex-skill-trigger.ts
 import { defineCodeGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output }) => {
+export default defineCodeGrader(({ messages }) => {
   const skillName = 'csv-analyzer';
-  const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
+  const toolCalls = messages.flatMap((msg) => msg.toolCalls ?? []);
   const firstTool = toolCalls[0];
 
   if (!firstTool) {
-    return { score: 0, reason: 'No tool calls recorded' };
+    return { score: 0, assertions: [{ text: 'No tool calls recorded', passed: false }] };
   }
 
   // Codex reads skill files via shell commands
   if (firstTool.tool === 'command_execution') {
     const cmd = String(firstTool.input ?? '');
     if (cmd.includes(skillName)) {
-      return { score: 1, reason: `Skill "${skillName}" triggered via command: ${cmd}` };
+      return {
+        score: 1,
+        assertions: [
+          { text: `Skill "${skillName}" triggered via command`, passed: true, evidence: cmd },
+        ],
+      };
     }
   }
 
@@ -70,11 +76,23 @@ export default defineCodeGrader(({ output }) => {
   if (firstTool.tool === 'file_change') {
     const path = String((firstTool.input as Record<string, unknown>)?.path ?? '');
     if (path.includes(skillName)) {
-      return { score: 1, reason: `Skill file accessed: ${path}` };
+      return {
+        score: 1,
+        assertions: [{ text: 'Skill file accessed', passed: true, evidence: path }],
+      };
     }
   }
 
-  return { score: 0, reason: `First tool was "${firstTool.tool}" — not a skill invocation for "${skillName}"` };
+  return {
+    score: 0,
+    assertions: [
+      {
+        text: `First tool was not a skill invocation for "${skillName}"`,
+        passed: false,
+        evidence: firstTool.tool,
+      },
+    ],
+  };
 });
 ```
 

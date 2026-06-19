@@ -1,4 +1,4 @@
-import { defineEval } from '@agentv/sdk';
+import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'sdk-eval-authoring',
@@ -20,7 +20,10 @@ export default defineEval({
       input: 'Use the attached notes and say hello.',
       inputFiles: ['../fixtures/per-test-note.md'],
       expectedOutput: 'Hello from the mock target',
-      assertions: [{ type: 'contains', value: 'Hello' }],
+      assertions: [
+        graders.contains('Hello', { name: 'mentions-hello' }),
+        graders.regex(/mock target/i, { name: 'mentions-mock-target' }),
+      ],
       workspace: {
         hooks: {
           beforeEach: {

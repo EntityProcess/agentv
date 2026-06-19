@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { defineAssertion } from '@agentv/eval';
+import { defineAssertion } from '@agentv/sdk';
 
 export default defineAssertion(({ output }) => {
   const outputText = output ?? '';
