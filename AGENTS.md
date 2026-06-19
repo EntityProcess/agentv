@@ -32,6 +32,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - Prefer the primary checkout only for small, clean, bounded work. Use a dedicated worktree from the latest `origin/main` for non-trivial, risky, long-running, or parallel changes.
 - Non-trivial work needs a plan or task list. If the implementation surface starts to balloon, stop and re-plan.
 - Manual red/green UAT is blocking before a branch is ready for review. GitHub Actions is the authoritative merge gate.
+- For browser or screenshot UAT, keep evidence out of the public repo and publish reviewable artifacts to an `agentv-private` evidence branch. See [.agents/verification.md](.agents/verification.md).
 - Wire formats are `snake_case`; internal TypeScript is `camelCase`. Translate only at the boundary.
 - In AgentV, a `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite. Do not collapse those terms.
 

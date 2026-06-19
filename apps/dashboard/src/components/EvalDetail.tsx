@@ -135,7 +135,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
         )}
         {!isReadOnly && activeTab === 'feedback' && (
           <div className="p-4">
-            <FeedbackPanel testId={result.testId} />
+            <FeedbackPanel testId={result.testId} projectId={projectId} />
           </div>
         )}
       </div>

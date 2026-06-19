@@ -179,10 +179,13 @@ export const indexOptions = queryOptions({
   queryFn: () => fetchJson<IndexResponse>('/api/index'),
 });
 
-export const feedbackOptions = queryOptions({
-  queryKey: ['feedback'],
-  queryFn: () => fetchJson<FeedbackData>('/api/feedback'),
-});
+export function feedbackOptions(projectId?: string) {
+  const url = projectId ? `${projectApiBase(projectId)}/feedback` : '/api/feedback';
+  return queryOptions({
+    queryKey: ['feedback', projectId ?? ''],
+    queryFn: () => fetchJson<FeedbackData>(url),
+  });
+}
 
 export const experimentsOptions = queryOptions({
   queryKey: ['experiments'],
@@ -294,8 +297,8 @@ export function useIndex() {
   return useQuery(indexOptions);
 }
 
-export function useFeedback() {
-  return useQuery(feedbackOptions);
+export function useFeedback(projectId?: string) {
+  return useQuery(feedbackOptions(projectId));
 }
 
 export function useExperiments() {

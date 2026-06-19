@@ -21,12 +21,12 @@ import { Link } from '@tanstack/react-router';
 
 import type { EvalResult } from '~/lib/types';
 
-import { isPassing, useRunLog, useStudioConfig } from '~/lib/api';
-import { isExecutionError, summarizeQuality } from '~/lib/result-summary';
-import { formatCategoryDisplay, shouldShowSuiteLabels } from '~/lib/run-detail-context';
+import { useRunLog, useStudioConfig } from '~/lib/api';
+import { summarizeQuality } from '~/lib/result-summary';
+import { formatCategoryDisplay } from '~/lib/run-detail-context';
 
-import { EvalSuiteLabel } from './EvalSuiteLabel';
 import { PassRatePill } from './PassRatePill';
+import { ResultTable } from './ResultTable';
 import { StatsCards } from './StatsCards';
 
 interface RunDetailProps {
@@ -119,7 +119,6 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   const categories = buildCategoryGroups(results, passThreshold);
-  const showSuiteLabels = shouldShowSuiteLabels(results);
 
   if (total === 0) {
     return (
@@ -233,98 +232,13 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
         </div>
       </div>
 
-      {/* All Evals */}
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-gray-400">All Evals</h3>
-        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
-          <table className="min-w-[760px] w-full whitespace-nowrap text-left text-sm">
-            <thead className="border-b border-gray-800 bg-gray-900/50">
-              <tr>
-                <th className="w-8 px-4 py-3" />
-                <th className="w-[24rem] px-4 py-3 font-medium text-gray-400">Test ID</th>
-                <th className="w-[12rem] px-4 py-3 font-medium text-gray-400">Target</th>
-                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/50">
-              {results.map((result, idx) => {
-                const isError = isExecutionError(result);
-                const passing = isPassing(result.score, passThreshold);
-                return (
-                  <tr
-                    key={`${result.testId}-${idx}`}
-                    className="transition-colors hover:bg-gray-900/30"
-                  >
-                    {/* Status dot */}
-                    <td className="px-4 py-3 text-center">
-                      {isError ? (
-                        <span className="text-base font-bold text-amber-400">!</span>
-                      ) : (
-                        <span
-                          className={`text-base font-bold ${passing ? 'text-emerald-400' : 'text-red-400'}`}
-                        >
-                          {passing ? '✓' : '✗'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="w-[24rem] max-w-[24rem] px-4 py-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        {projectId ? (
-                          <Link
-                            to="/projects/$projectId/evals/$runId/$evalId"
-                            params={{ projectId, runId, evalId: result.testId }}
-                            className="min-w-0 flex-1 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                            title={result.testId}
-                          >
-                            {result.testId}
-                          </Link>
-                        ) : (
-                          <Link
-                            to="/evals/$runId/$evalId"
-                            params={{ runId, evalId: result.testId }}
-                            className="min-w-0 flex-1 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                            title={result.testId}
-                          >
-                            {result.testId}
-                          </Link>
-                        )}
-                        {showSuiteLabels ? (
-                          <EvalSuiteLabel suite={result.suite} className="max-w-[10rem]" />
-                        ) : null}
-                      </div>
-                    </td>
-                    <td
-                      className="w-[12rem] max-w-[12rem] truncate px-4 py-3 text-gray-400"
-                      title={result.target ?? undefined}
-                    >
-                      {result.target ?? '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      {isError ? (
-                        <span className="inline-flex rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
-                          Execution error
-                        </span>
-                      ) : (
-                        <PassRatePill rate={result.score} />
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                      {result.durationMs != null
-                        ? `${(result.durationMs / 1000).toFixed(1)}s`
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                      {result.costUsd != null ? `$${result.costUsd.toFixed(4)}` : '-'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ResultTable
+        results={results}
+        runId={runId}
+        projectId={projectId}
+        passThreshold={passThreshold}
+        title="All Evals"
+      />
 
       <ConsoleLogSection runId={runId} projectId={projectId} />
     </div>
