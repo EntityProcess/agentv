@@ -1,6 +1,6 @@
 {
   "name": "@agentv/eval",
-  "version": "4.42.0-next.1",
+  "version": "4.42.1-next.1",
   "description": "Deprecated compatibility package for @agentv/sdk",
   "type": "module",
   "repository": {
