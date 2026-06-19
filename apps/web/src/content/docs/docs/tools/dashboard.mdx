@@ -187,6 +187,9 @@ agentv dashboard --add /path/to/my-evals
 agentv dashboard --add /path/to/other-evals
 ```
 
+You can also click **Add Project** on the Projects dashboard, browse or enter a
+folder path, and select a directory that contains `.agentv/`.
+
 Each path must contain a `.agentv/` directory. Registered projects are stored under `projects:` in `$AGENTV_HOME/config.yaml`, or `~/.agentv/config.yaml` when `AGENTV_HOME` is unset.
 
 To register a remote repo and keep it synced automatically, add `repo_url` and `ref` to the entry in `$AGENTV_HOME/config.yaml`. `repo_url` is the Git remote URL AgentV passes to `git clone`, so it can be HTTPS or SSH:
@@ -206,7 +209,7 @@ On each Dashboard startup, AgentV clones the repo if the path is empty (`git clo
 
 `$AGENTV_HOME/config.yaml` is the single source of truth for registered projects. Dashboard re-reads it on every `/api/projects` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
 
-- Adding via the UI's **Add Project** form or `POST /api/projects`.
+- Adding via the UI's **Add Project** folder picker or `POST /api/projects`.
 - Removing via the UI's **Remove** button or `DELETE /api/projects/:id`.
 - Editing the `projects:` block in `$AGENTV_HOME/config.yaml` directly.
 - Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Dashboard reflects it within the next poll.

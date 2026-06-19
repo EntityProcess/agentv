@@ -29,8 +29,11 @@ import type {
   FeedbackData,
   FileContentResponse,
   FileTreeResponse,
+  FilesystemBrowseResponse,
+  FilesystemBrowseResponseWire,
   IndexResponse,
   ProjectEntry,
+  ProjectEntryWire,
   ProjectListResponse,
   RemoteStatusResponse,
   RunDetailResponse,
@@ -351,6 +354,36 @@ export function useProjectList() {
   return useQuery(projectListOptions);
 }
 
+export async function browseFilesystemApi(browsePath?: string): Promise<FilesystemBrowseResponse> {
+  const params = new URLSearchParams();
+  if (browsePath?.trim()) {
+    params.set('path', browsePath.trim());
+  }
+  const query = params.toString();
+  const res = await fetch(`/api/filesystem/browse${query ? `?${query}` : ''}`);
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+    };
+    throw new Error(err.error ?? `Failed to browse folders: ${res.status}`);
+  }
+  const body = (await res.json()) as FilesystemBrowseResponseWire;
+  return {
+    path: body.path,
+    parentPath: body.parent_path,
+    current: {
+      name: body.current.name,
+      path: body.current.path,
+      hasAgentv: body.current.has_agentv,
+    },
+    entries: body.entries.map((entry) => ({
+      name: entry.name,
+      path: entry.path,
+      hasAgentv: entry.has_agentv,
+    })),
+  };
+}
+
 export const allProjectRunsOptions = queryOptions({
   queryKey: ['projects', 'all-runs'],
   queryFn: () => fetchJson<RunListResponse>('/api/projects/all-runs'),
@@ -371,7 +404,14 @@ export async function addProjectApi(projectPath: string): Promise<ProjectEntry> 
     const err = (await res.json()) as { error: string };
     throw new Error(err.error || `Failed to add project: ${res.status}`);
   }
-  return res.json() as Promise<ProjectEntry>;
+  const body = (await res.json()) as ProjectEntryWire;
+  return {
+    id: body.id,
+    name: body.name,
+    path: body.path,
+    addedAt: body.added_at,
+    lastOpenedAt: body.last_opened_at,
+  };
 }
 
 export async function removeProjectApi(projectId: string): Promise<void> {
@@ -379,7 +419,10 @@ export async function removeProjectApi(projectId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(`Failed to remove project: ${res.status}`);
+    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+    };
+    throw new Error(err.error ?? `Failed to remove project: ${res.status}`);
   }
 }
 

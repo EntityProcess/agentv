@@ -495,6 +495,138 @@ describe('serve app', () => {
     });
   });
 
+  // ── GET /api/filesystem/browse ────────────────────────────────────────
+
+  describe('GET /api/filesystem/browse', () => {
+    it('lists child directories and marks AgentV project folders', async () => {
+      const projectDir = path.join(tempDir, 'project-with-agentv');
+      const bareDir = path.join(tempDir, 'plain-folder');
+      mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+      mkdirSync(bareDir, { recursive: true });
+      writeFileSync(path.join(tempDir, 'not-a-folder.txt'), 'ignored');
+
+      const app = makeApp();
+      const res = await app.request(`/api/filesystem/browse?path=${encodeURIComponent(tempDir)}`);
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        path: string;
+        parent_path?: string;
+        current: { name: string; path: string; has_agentv: boolean };
+        entries: Array<{ name: string; path: string; has_agentv: boolean }>;
+      };
+      expect(data.path).toBe(tempDir);
+      expect(data.parent_path).toBe(path.dirname(tempDir));
+      expect(data.current).toMatchObject({
+        name: path.basename(tempDir),
+        path: tempDir,
+        has_agentv: false,
+      });
+      expect(data.entries).toEqual([
+        { name: 'project-with-agentv', path: projectDir, has_agentv: true },
+        { name: 'plain-folder', path: bareDir, has_agentv: false },
+        { name: 'studio-dist', path: studioDir, has_agentv: false },
+      ]);
+    });
+
+    it('returns an understandable error for non-directory paths', async () => {
+      const filePath = path.join(tempDir, 'not-a-folder.txt');
+      writeFileSync(filePath, 'not a directory');
+
+      const app = makeApp();
+      const res = await app.request(`/api/filesystem/browse?path=${encodeURIComponent(filePath)}`);
+
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toContain('Not a directory');
+      expect(data.error).toContain(filePath);
+    });
+  });
+
+  // ── POST /api/projects ────────────────────────────────────────────────
+
+  describe('POST /api/projects', () => {
+    it('registers a selected AgentV project directory', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home-register');
+
+      try {
+        const projectDir = path.join(tempDir, 'project-to-register');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+
+        const app = makeApp();
+        const create = await app.request('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: projectDir }),
+        });
+
+        expect(create.status).toBe(201);
+        const created = (await create.json()) as {
+          id: string;
+          name: string;
+          path: string;
+          added_at: string;
+          last_opened_at: string;
+        };
+        expect(created).toMatchObject({
+          id: 'project-to-register',
+          name: 'project-to-register',
+          path: projectDir,
+        });
+        expect(created.added_at).toBeTruthy();
+        expect(created.last_opened_at).toBeTruthy();
+
+        const list = await app.request('/api/projects');
+        const data = (await list.json()) as { projects: Array<{ id: string; path: string }> };
+        expect(data.projects).toEqual([
+          expect.objectContaining({ id: 'project-to-register', path: projectDir }),
+        ]);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+  });
+
+  // ── DELETE /api/projects/:projectId ───────────────────────────────────
+
+  describe('DELETE /api/projects/:projectId', () => {
+    it('unregisters a project without deleting its directory', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home-remove');
+
+      try {
+        const projectDir = path.join(tempDir, 'project-to-remove');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        const entry = addProject(projectDir);
+
+        const app = makeApp();
+        const remove = await app.request(`/api/projects/${encodeURIComponent(entry.id)}`, {
+          method: 'DELETE',
+        });
+
+        expect(remove.status).toBe(200);
+        expect(await remove.json()).toEqual({ ok: true });
+        expect(existsSync(projectDir)).toBe(true);
+        expect(existsSync(path.join(projectDir, '.agentv'))).toBe(true);
+
+        const list = await app.request('/api/projects');
+        const data = (await list.json()) as { projects: Array<{ id: string }> };
+        expect(data.projects).toEqual([]);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+  });
+
   // ── GET /api/feedback ──────────────────────────────────────────────────
 
   describe('GET /api/feedback', () => {
