@@ -929,6 +929,213 @@ describe('results repo write path', () => {
   }, 20000);
 });
 
+describe('results branch stable genesis', () => {
+  let rootDir: string;
+
+  beforeEach(() => {
+    rootDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-results-genesis-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  // Simulate the containerized deploy: a shallow, single-branch clone whose
+  // fetch refspec covers only the default branch, so the results branch is NOT
+  // present locally and is not brought in by a plain `git fetch --prune`.
+  function shallowCloneDefaultBranchOnly(remoteDir: string, cloneDir: string): void {
+    git(
+      `git clone --depth=1 --filter=blob:none --single-branch --branch main "${remoteDir}" "${cloneDir}"`,
+      rootDir,
+    );
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+    // The clone only knows about main — the results branch must not be local.
+    expect(git('git config --get remote.origin.fetch', cloneDir)).toBe(
+      '+refs/heads/main:refs/remotes/origin/main',
+    );
+    expect(git(`git branch --list ${DEFAULT_RESULTS_BRANCH}`, cloneDir)).toBe('');
+  }
+
+  function rootCommits(remoteDir: string, branch: string): string[] {
+    return git(`git --git-dir "${remoteDir}" rev-list --max-parents=0 ${branch}`, rootDir)
+      .split('\n')
+      .filter(Boolean);
+  }
+
+  function isAncestor(remoteDir: string, ancestor: string, descendant: string): boolean {
+    try {
+      git(
+        `git --git-dir "${remoteDir}" merge-base --is-ancestor ${ancestor} ${descendant}`,
+        rootDir,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function publishFromShallowClone(params: {
+    readonly remoteDir: string;
+    readonly cloneName: string;
+    readonly experiment: string;
+    readonly timestamp: string;
+  }): Promise<void> {
+    const cloneDir = path.join(rootDir, params.cloneName);
+    shallowCloneDefaultBranchOnly(params.remoteDir, cloneDir);
+    const fsTimestamp = params.timestamp.replace(/[:.]/g, '-');
+    const sourceDir = path.join(rootDir, `${params.cloneName}-run`);
+    writeRunArtifacts(sourceDir, params.experiment, params.timestamp);
+    await directPushResults({
+      config: {
+        repo_path: cloneDir,
+        branch: DEFAULT_RESULTS_BRANCH,
+        sync: { auto_push: true },
+      },
+      sourceDir,
+      destinationPath: path.join(params.experiment, fsTimestamp),
+      commitMessage: `feat(results): ${params.experiment}`,
+    });
+  }
+
+  it('roots a self-contained orphan with an empty-tree genesis and no main ancestry', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const mainSha = git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir);
+
+    await publishFromShallowClone({
+      remoteDir,
+      cloneName: 'deploy-boot',
+      experiment: 'expA',
+      timestamp: '2026-06-19T10:00:00.000Z',
+    });
+
+    const roots = rootCommits(remoteDir, DEFAULT_RESULTS_BRANCH);
+    expect(roots).toHaveLength(1);
+    const rootSha = roots[0];
+
+    // Root has an empty tree, zero parents, and the deterministic genesis identity.
+    expect(git(`git --git-dir "${remoteDir}" ls-tree ${rootSha}`, rootDir)).toBe('');
+    expect(
+      git(`git --git-dir "${remoteDir}" rev-list --count --max-parents=0 ${rootSha}`, rootDir),
+    ).toBe('1');
+    expect(git(`git --git-dir "${remoteDir}" show -s --format=%ai ${rootSha}`, rootDir)).toBe(
+      '1970-01-01 00:00:00 +0000',
+    );
+    expect(git(`git --git-dir "${remoteDir}" log -1 --format=%s ${rootSha}`, rootDir)).toBe(
+      'chore(results): initialize AgentV results branch',
+    );
+
+    // The orphan never inherits main's tree or history.
+    expect(isAncestor(remoteDir, mainSha, DEFAULT_RESULTS_BRANCH)).toBe(false);
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, rootDir),
+    ).toContain('runs/expA/2026-06-19T10-00-00-000Z/benchmark.json');
+  }, 20000);
+
+  it('mints a byte-identical genesis root regardless of wall-clock time', async () => {
+    const initGenesisRoot = async (label: string, runTimestamp: string): Promise<string> => {
+      const repoDir = path.join(rootDir, label);
+      mkdirSync(repoDir, { recursive: true });
+      git('git init --initial-branch=main --quiet', repoDir);
+      git('git config user.email "test@example.com"', repoDir);
+      git('git config user.name "Test User"', repoDir);
+      writeFileSync(path.join(repoDir, 'README.md'), '# project\n');
+      git('git add README.md && git commit --quiet -m "seed"', repoDir);
+      const fsTimestamp = runTimestamp.replace(/[:.]/g, '-');
+      const sourceDir = path.join(rootDir, `${label}-run`);
+      writeRunArtifacts(sourceDir, label, runTimestamp);
+      await directPushResults({
+        config: { repo_path: repoDir, branch: DEFAULT_RESULTS_BRANCH, sync: { auto_push: false } },
+        sourceDir,
+        destinationPath: path.join(label, fsTimestamp),
+        commitMessage: `feat(results): ${label}`,
+      });
+      return git(`git rev-list --max-parents=0 ${DEFAULT_RESULTS_BRANCH}`, repoDir);
+    };
+
+    // Two independent first-inits with different content and run timestamps.
+    const rootA = await initGenesisRoot('clientA', '2020-01-01T00:00:00.000Z');
+    const rootB = await initGenesisRoot('clientB', '2030-12-31T23:59:59.000Z');
+    expect(rootA).toBe(rootB);
+  }, 20000);
+
+  it('appends to the existing remote branch from a fresh clone that lacks it locally', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+
+    await publishFromShallowClone({
+      remoteDir,
+      cloneName: 'boot-1',
+      experiment: 'expA',
+      timestamp: '2026-06-19T10:00:00.000Z',
+    });
+    const rootAfterFirst = rootCommits(remoteDir, DEFAULT_RESULTS_BRANCH);
+    const tipAfterFirst = git(
+      `git --git-dir "${remoteDir}" rev-parse ${DEFAULT_RESULTS_BRANCH}`,
+      rootDir,
+    );
+
+    // A brand-new shallow clone that has never seen the results branch publishes again.
+    await publishFromShallowClone({
+      remoteDir,
+      cloneName: 'boot-2',
+      experiment: 'expB',
+      timestamp: '2026-06-19T11:00:00.000Z',
+    });
+
+    // Same single root preserved; history was appended (not replaced).
+    expect(rootCommits(remoteDir, DEFAULT_RESULTS_BRANCH)).toEqual(rootAfterFirst);
+    expect(isAncestor(remoteDir, tipAfterFirst, DEFAULT_RESULTS_BRANCH)).toBe(true);
+    const tree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
+      rootDir,
+    );
+    expect(tree).toContain('runs/expA/2026-06-19T10-00-00-000Z/benchmark.json');
+    expect(tree).toContain('runs/expB/2026-06-19T11-00-00-000Z/benchmark.json');
+  }, 30000);
+
+  it('reconciles two independent first-inits onto a single shared genesis', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+
+    // Two deploy boots each clone master-only and create their own genesis locally.
+    const cloneA = path.join(rootDir, 'concurrent-a');
+    const cloneB = path.join(rootDir, 'concurrent-b');
+    shallowCloneDefaultBranchOnly(remoteDir, cloneA);
+    shallowCloneDefaultBranchOnly(remoteDir, cloneB);
+
+    const runA = path.join(rootDir, 'concurrent-a-run');
+    const runB = path.join(rootDir, 'concurrent-b-run');
+    writeRunArtifacts(runA, 'expA', '2026-06-19T10:00:00.000Z');
+    writeRunArtifacts(runB, 'expB', '2026-06-19T11:00:00.000Z');
+
+    // Client A publishes first and wins the race to create the remote branch.
+    await directPushResults({
+      config: { repo_path: cloneA, branch: DEFAULT_RESULTS_BRANCH, sync: { auto_push: true } },
+      sourceDir: runA,
+      destinationPath: path.join('expA', '2026-06-19T10-00-00-000Z'),
+      commitMessage: 'feat(results): expA',
+    });
+
+    // Client B initialized its own genesis before A pushed; its push is a
+    // non-fast-forward, but because both share the deterministic genesis it
+    // reconciles by re-basing onto the remote tip instead of diverging.
+    await directPushResults({
+      config: { repo_path: cloneB, branch: DEFAULT_RESULTS_BRANCH, sync: { auto_push: true } },
+      sourceDir: runB,
+      destinationPath: path.join('expB', '2026-06-19T11-00-00-000Z'),
+      commitMessage: 'feat(results): expB',
+    });
+
+    // One shared root, both runs present.
+    expect(rootCommits(remoteDir, DEFAULT_RESULTS_BRANCH)).toHaveLength(1);
+    const tree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
+      rootDir,
+    );
+    expect(tree).toContain('runs/expA/2026-06-19T10-00-00-000Z/benchmark.json');
+    expect(tree).toContain('runs/expB/2026-06-19T11-00-00-000Z/benchmark.json');
+  }, 30000);
+});
+
 describe('buildWipBranchName', () => {
   it('produces an agentv/wip/<hostname>/<basename> branch name', () => {
     const runDir = '/some/path/.agentv/results/runs/default/2026-01-15T10-00-00';

@@ -34,6 +34,14 @@ const RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
 const RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
 export const DEFAULT_RESULTS_BRANCH = 'agentv/results/v1';
 const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+// The results branch is a self-rooted orphan whose first commit is a fixed,
+// byte-identical empty-tree genesis. Pinning the message, identity (see
+// ensureResultsRepoCommitIdentity), and author/committer dates makes the root
+// commit SHA deterministic across every machine and clone, so all clients share
+// one genesis and fast-forward/append to a single ref instead of each minting a
+// divergent root. See createOrphanResultsBranch.
+const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
+const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -291,8 +299,32 @@ async function resolveDefaultBranch(repoDir: string): Promise<string> {
   return 'main';
 }
 
-async function fetchResultsRepo(repoDir: string, remote = 'origin'): Promise<void> {
+async function fetchResultsRepo(
+  repoDir: string,
+  remote = 'origin',
+  branch?: string,
+): Promise<void> {
   await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
+  // A shallow `--single-branch --branch <default>` clone (e.g. the containerized
+  // deploy) has a fetch refspec covering only the default branch, so the prune
+  // fetch above never learns about the results branch. Fetch it explicitly by
+  // name into its remote-tracking ref so the branch is detected and appended to
+  // rather than re-rooted as a fresh orphan. Tolerate absence: the branch simply
+  // may not exist on the remote yet (first publish).
+  if (branch) {
+    await fetchResultsBranchRef(repoDir, remote, branch);
+  }
+}
+
+async function fetchResultsBranchRef(
+  repoDir: string,
+  remote: string,
+  branch: string,
+): Promise<void> {
+  await runGit(['fetch', remote, `+refs/heads/${branch}:refs/remotes/${remote}/${branch}`], {
+    cwd: repoDir,
+    check: false,
+  });
 }
 
 function remoteBranchRef(branch: string, remote = 'origin'): string {
@@ -373,12 +405,31 @@ async function checkoutConfiguredResultsBranch(
 }
 
 async function createOrphanResultsBranch(repoDir: string, branch: string): Promise<void> {
+  await runGit(['update-ref', `refs/heads/${branch}`, await createResultsGenesisCommit(repoDir)], {
+    cwd: repoDir,
+  });
+}
+
+// Mint the deterministic empty-tree genesis commit (no parents). Tree, message,
+// identity, and author/committer dates are all fixed, so two inits at different
+// wall-clock times — on different machines — produce the identical root SHA.
+async function createResultsGenesisCommit(repoDir: string): Promise<string> {
   await ensureResultsRepoCommitIdentity(repoDir);
   const { stdout } = await runGit(
-    ['commit-tree', GIT_EMPTY_TREE, '-m', 'chore(results): initialize AgentV results branch'],
-    { cwd: repoDir },
+    ['commit-tree', GIT_EMPTY_TREE, '-m', RESULTS_REPO_GENESIS_MESSAGE],
+    {
+      cwd: repoDir,
+      env: {
+        GIT_AUTHOR_NAME: RESULTS_REPO_COMMIT_NAME,
+        GIT_AUTHOR_EMAIL: RESULTS_REPO_COMMIT_EMAIL,
+        GIT_COMMITTER_NAME: RESULTS_REPO_COMMIT_NAME,
+        GIT_COMMITTER_EMAIL: RESULTS_REPO_COMMIT_EMAIL,
+        GIT_AUTHOR_DATE: RESULTS_REPO_GENESIS_DATE,
+        GIT_COMMITTER_DATE: RESULTS_REPO_GENESIS_DATE,
+      },
+    },
   );
-  await runGit(['update-ref', `refs/heads/${branch}`, stdout.trim()], { cwd: repoDir });
+  return stdout.trim();
 }
 
 async function isGitRepository(repoDir: string): Promise<boolean> {
@@ -884,14 +935,18 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
 
   try {
     if (normalized.repo_path) {
-      await fetchResultsRepo(normalized.path, normalized.remote).catch(() => undefined);
+      await fetchResultsRepo(normalized.path, normalized.remote, normalized.branch).catch(
+        () => undefined,
+      );
       return withGitInspection(
         baseStatus,
         await inspectResultsStorageBranchGit(normalized.path, normalized),
       );
     }
     if (normalized.branch) {
-      await fetchResultsRepo(normalized.path, normalized.remote).catch(() => undefined);
+      await fetchResultsRepo(normalized.path, normalized.remote, normalized.branch).catch(
+        () => undefined,
+      );
       await checkoutConfiguredResultsBranch(normalized.path, normalized);
     }
     return withGitInspection(baseStatus, await inspectResultsRepoGit(normalized.path, normalized));
@@ -910,7 +965,7 @@ export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRep
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
-    await fetchResultsRepo(repoDir, normalized.remote);
+    await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
     if (!normalized.repo_path) {
       await checkoutConfiguredResultsBranch(repoDir, normalized);
     }
@@ -953,7 +1008,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
     const repoDir = await ensureResultsRepoClone(normalized);
     if (normalized.repo_path) {
       try {
-        await fetchResultsRepo(repoDir, normalized.remote);
+        await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
       } catch (error) {
         if (normalized.require_push) {
           throw error;
@@ -1003,7 +1058,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         commitCreated,
       });
     }
-    await fetchResultsRepo(repoDir, normalized.remote);
+    await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
     await checkoutConfiguredResultsBranch(repoDir, normalized);
     let inspection = await inspectResultsRepoGit(repoDir, normalized);
 
@@ -1152,10 +1207,12 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       try {
         await runGit(['push', normalized.remote, `HEAD:${targetBranch}`], { cwd: repoDir });
         pushPerformed = true;
-        await fetchResultsRepo(repoDir, normalized.remote);
+        await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
         inspection = await inspectResultsRepoGit(repoDir, normalized);
       } catch (error) {
-        await fetchResultsRepo(repoDir, normalized.remote).catch(() => undefined);
+        await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
+          () => undefined,
+        );
         inspection = await inspectResultsRepoGit(repoDir, normalized);
         const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
         const reason = `Results repo push was rejected: ${getStatusMessage(error)}`;
@@ -1504,11 +1561,26 @@ async function commitResultsRunWithTemporaryIndex(params: {
 
   const destinationRunPath = normalizeDestinationPath(params.destinationPath);
   const destinationTreePath = path.posix.join(RESULTS_REPO_RUNS_DIR, destinationRunPath);
-  const base = await resolveStorageBranchBase({
+  let base = await resolveStorageBranchBase({
     repoDir: params.repoDir,
     normalized,
     preferRemote: params.preferRemoteBase,
   });
+
+  // No local or remote tip exists yet (after fetching the branch by name): this
+  // is the branch's very first commit. Root it at the deterministic empty-tree
+  // genesis and parent the run commit on it, rather than letting the run commit
+  // itself be the parentless root. This keeps the root SHA byte-identical across
+  // clients, so independent first-inits converge on one genesis and reconcile by
+  // fast-forward instead of producing divergent orphans.
+  if (!base.baseRef) {
+    await createOrphanResultsBranch(params.repoDir, normalized.branch);
+    base = await resolveStorageBranchBase({
+      repoDir: params.repoDir,
+      normalized,
+      preferRemote: params.preferRemoteBase,
+    });
+  }
 
   const indexRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-index-'));
   const indexFile = path.join(indexRoot, 'index');
@@ -1634,12 +1706,14 @@ async function pushDirectResultsToStorageBranch(params: {
         last_synced_at: new Date().toISOString(),
         last_error: undefined,
       });
-      await fetchResultsRepo(params.repoDir, params.normalized.remote).catch(() => undefined);
+      await fetchResultsRepo(params.repoDir, params.normalized.remote, params.storageBranch).catch(
+        () => undefined,
+      );
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
-        await fetchResultsRepo(params.repoDir, params.normalized.remote);
+        await fetchResultsRepo(params.repoDir, params.normalized.remote, params.storageBranch);
         const remoteRef = remoteBranchRef(params.storageBranch, params.normalized.remote);
         const localOnlyCount = (await gitRefExists(params.repoDir, remoteRef))
           ? await countUnpushedCommits(params.repoDir, remoteRef, params.storageBranch)
@@ -1678,7 +1752,7 @@ export async function directPushResults(params: {
 }): Promise<boolean> {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
-  await fetchResultsRepo(repoDir, normalized.remote).catch((error) => {
+  await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch((error) => {
     if (normalized.require_push) {
       throw error;
     }
@@ -1947,7 +2021,7 @@ export async function setupWipWorktree(params: {
 }): Promise<WipWorktreeHandle> {
   const normalized = normalizeResultsConfig(params.config);
   const cloneDir = await ensureResultsRepoClone(normalized);
-  await fetchResultsRepo(cloneDir, normalized.remote).catch((error) => {
+  await fetchResultsRepo(cloneDir, normalized.remote, normalized.branch).catch((error) => {
     if (normalized.require_push) {
       throw error;
     }
