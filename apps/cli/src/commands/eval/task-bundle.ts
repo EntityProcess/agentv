@@ -5,7 +5,10 @@ import path from 'node:path';
 import {
   type EvalSourceReference,
   type EvalTest,
+  type JsonObject,
   type TargetDefinition,
+  type TestMessage,
+  type WorkspaceConfig,
   parseYamlValue,
 } from '@agentv/core';
 import { stringify as stringifyYaml } from 'yaml';
@@ -17,6 +20,11 @@ const TASK_EVAL_FILENAME = 'EVAL.yaml';
 const TASK_TARGETS_FILENAME = 'targets.yaml';
 const TASK_FILES_DIRNAME = 'files';
 const TASK_GRADERS_DIRNAME = 'graders';
+const BUNDLE_EVALS_DIRNAME = 'evals';
+const BUNDLE_MANIFEST_FILENAME = 'agentv_bundle.json';
+const BUNDLE_TARGETS_FILENAME = 'targets.yaml';
+const BUNDLE_WORKSPACES_DIRNAME = 'workspaces';
+const BUNDLE_SCRIPTS_DIRNAME = 'scripts';
 const REDACTED_SOURCE_VALUE = '[redacted]';
 const SECRET_KEY_PATTERN =
   /(?:api[_-]?key|authorization|bearer|credential|password|private[_-]?key|secret|token)/i;
@@ -61,10 +69,49 @@ export interface MaterializedTaskBundlePaths {
   readonly gradersPath?: string;
 }
 
+export interface MaterializeEvalBundleOptions {
+  readonly evalFilePath: string;
+  readonly tests: readonly EvalTest[];
+  readonly targetSelections: readonly TaskBundleTargetSelection[];
+  readonly outputDir: string;
+  readonly cwd?: string;
+  readonly repoRoot?: string;
+  readonly execution?: Record<string, unknown>;
+  readonly now?: () => Date;
+}
+
+export interface MaterializedEvalBundlePaths {
+  readonly bundleDir: string;
+  readonly evalsDir: string;
+  readonly evalPath: string;
+  readonly targetsPath: string;
+  readonly manifestPath: string;
+  readonly filesPath?: string;
+  readonly gradersPath?: string;
+  readonly workspacesPath?: string;
+  readonly scriptsPath?: string;
+}
+
+type BundleReferenceKind =
+  | EvalSourceReference['kind']
+  | 'expected_output_file'
+  | 'workspace_template'
+  | 'workspace_hook_command';
+
+interface BundleSourceReference extends Omit<EvalSourceReference, 'kind'> {
+  readonly kind: BundleReferenceKind;
+  readonly location?: string;
+}
+
 interface CopiedReference {
-  readonly reference: EvalSourceReference;
+  readonly reference: BundleSourceReference;
   readonly localPath: string;
   readonly destinationPath: string;
+}
+
+interface BundleReferenceFailure {
+  readonly reference: BundleSourceReference;
+  readonly reason: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,7 +145,7 @@ function hashedExternalPath(resolvedPath: string): string {
 }
 
 function relativeReferencePath(
-  reference: EvalSourceReference,
+  reference: BundleSourceReference,
   options: Pick<MaterializeTaskBundleOptions, 'cwd' | 'repoRoot'>,
 ): string | undefined {
   if (reference.resolvedPath) {
@@ -111,8 +158,19 @@ function relativeReferencePath(
   return safeRelativePath(reference.displayPath);
 }
 
-function referenceBucket(reference: EvalSourceReference): 'files' | 'graders' {
-  return reference.kind === 'input_file' ? TASK_FILES_DIRNAME : TASK_GRADERS_DIRNAME;
+function referenceBucket(
+  reference: BundleSourceReference,
+): 'files' | 'graders' | 'workspaces' | 'scripts' {
+  if (reference.kind === 'input_file' || reference.kind === 'expected_output_file') {
+    return TASK_FILES_DIRNAME;
+  }
+  if (reference.kind === 'workspace_template') {
+    return BUNDLE_WORKSPACES_DIRNAME;
+  }
+  if (reference.kind === 'workspace_hook_command') {
+    return BUNDLE_SCRIPTS_DIRNAME;
+  }
+  return TASK_GRADERS_DIRNAME;
 }
 
 function isLikelyBinary(buffer: Buffer): boolean {
@@ -219,25 +277,35 @@ async function copyDirectory(sourcePath: string, destinationPath: string): Promi
   return copiedAny;
 }
 
-function shouldCopyDirectory(reference: EvalSourceReference): boolean {
+function shouldCopyDirectory(reference: BundleSourceReference): boolean {
   if (reference.kind !== 'code_grader_cwd') {
     return true;
   }
   return !path.isAbsolute(reference.displayPath);
 }
 
-async function copyReference(
-  reference: EvalSourceReference,
+async function copyReferenceWithFailure(
+  reference: BundleSourceReference,
   taskDir: string,
   options: Pick<MaterializeTaskBundleOptions, 'cwd' | 'repoRoot'>,
-): Promise<CopiedReference | undefined> {
+): Promise<{ copied?: CopiedReference; failure?: BundleReferenceFailure }> {
   if (!reference.resolvedPath) {
-    return undefined;
+    return {
+      failure: {
+        reference,
+        reason: `${reference.location ?? reference.kind} has no resolved path: ${reference.displayPath}`,
+      },
+    };
   }
 
   const relPath = relativeReferencePath(reference, options);
   if (!relPath) {
-    return undefined;
+    return {
+      failure: {
+        reference,
+        reason: `${reference.location ?? reference.kind} could not be assigned a portable path: ${reference.displayPath}`,
+      },
+    };
   }
 
   const bucket = referenceBucket(reference);
@@ -246,29 +314,62 @@ async function copyReference(
   const sourcePath = path.resolve(reference.resolvedPath);
   const sourceStat = await stat(sourcePath).catch(() => undefined);
   if (!sourceStat) {
-    return undefined;
+    return {
+      failure: {
+        reference,
+        reason: `${reference.location ?? reference.kind} not found: ${reference.displayPath} (resolved to ${sourcePath})`,
+      },
+    };
   }
 
   if (sourceStat.isDirectory()) {
     if (!shouldCopyDirectory(reference)) {
-      return undefined;
+      return {
+        failure: {
+          reference,
+          reason: `${reference.location ?? reference.kind} uses an absolute directory that is not safe to copy automatically: ${reference.displayPath}`,
+        },
+      };
     }
     if (!(await copyDirectory(sourcePath, destinationPath))) {
-      return undefined;
+      return {
+        failure: {
+          reference,
+          reason: `${reference.location ?? reference.kind} directory contained no bundleable files: ${reference.displayPath}`,
+        },
+      };
     }
   } else if (sourceStat.isFile()) {
     if (!(await copyFileRedactingText(sourcePath, destinationPath))) {
-      return undefined;
+      return {
+        failure: {
+          reference,
+          reason: `${reference.location ?? reference.kind} could not be copied: ${reference.displayPath}`,
+        },
+      };
     }
   } else {
-    return undefined;
+    return {
+      failure: {
+        reference,
+        reason: `${reference.location ?? reference.kind} is not a regular file or directory: ${reference.displayPath}`,
+      },
+    };
   }
 
-  return { reference, localPath: localPath.split(path.sep).join('/'), destinationPath };
+  return { copied: { reference, localPath: localPath.split(path.sep).join('/'), destinationPath } };
+}
+
+async function copyReference(
+  reference: BundleSourceReference,
+  taskDir: string,
+  options: Pick<MaterializeTaskBundleOptions, 'cwd' | 'repoRoot'>,
+): Promise<CopiedReference | undefined> {
+  return (await copyReferenceWithFailure(reference, taskDir, options)).copied;
 }
 
 async function copyReferences(
-  references: readonly EvalSourceReference[],
+  references: readonly BundleSourceReference[],
   taskDir: string,
   options: Pick<MaterializeTaskBundleOptions, 'cwd' | 'repoRoot'>,
 ): Promise<readonly CopiedReference[]> {
@@ -283,6 +384,42 @@ async function copyReferences(
     copied.push(result);
   }
   return copied;
+}
+
+async function copyReferencesStrict(
+  references: readonly BundleSourceReference[],
+  taskDir: string,
+  options: Pick<MaterializeEvalBundleOptions, 'cwd' | 'repoRoot'>,
+): Promise<{
+  readonly copied: readonly CopiedReference[];
+  readonly failures: readonly BundleReferenceFailure[];
+}> {
+  const copied: CopiedReference[] = [];
+  const failures: BundleReferenceFailure[] = [];
+  const seenDestinations = new Set<string>();
+  const seenFailures = new Set<string>();
+
+  for (const reference of references) {
+    const result = await copyReferenceWithFailure(reference, taskDir, options);
+    if (result.copied) {
+      if (seenDestinations.has(result.copied.destinationPath)) {
+        continue;
+      }
+      seenDestinations.add(result.copied.destinationPath);
+      copied.push(result.copied);
+      continue;
+    }
+
+    if (result.failure) {
+      const key = `${result.failure.reference.kind}:${result.failure.reference.displayPath}:${result.failure.reason}`;
+      if (!seenFailures.has(key)) {
+        seenFailures.add(key);
+        failures.push(result.failure);
+      }
+    }
+  }
+
+  return { copied, failures };
 }
 
 function addRewrite(rewrites: Map<string, string>, from: string | undefined, to: string): void {
@@ -414,8 +551,398 @@ async function writeYamlFile(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, `${yaml}\n`, 'utf8');
 }
 
-function hasCopiedBucket(copied: readonly CopiedReference[], bucket: 'files' | 'graders'): boolean {
+function hasCopiedBucket(
+  copied: readonly CopiedReference[],
+  bucket: 'files' | 'graders' | 'workspaces' | 'scripts',
+): boolean {
   return copied.some((entry) => entry.localPath.startsWith(`${bucket}/`));
+}
+
+function bundledEvalFileName(evalFilePath: string): string {
+  const basename = path.basename(evalFilePath);
+  const withoutKnownExtension = basename
+    .replace(/\.eval\.[cm]?ts$/i, '')
+    .replace(/\.eval\.ya?ml$/i, '')
+    .replace(/\.[cm]?ts$/i, '')
+    .replace(/\.ya?ml$/i, '')
+    .replace(/\.jsonl?$/i, '');
+  const safeName = withoutKnownExtension
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${safeName || 'bundle'}.eval.yaml`;
+}
+
+function uniqueTargetDefinitions(
+  selections: readonly TaskBundleTargetSelection[],
+): readonly TargetDefinition[] {
+  const selected: TargetDefinition[] = [];
+  const seen = new Set<string>();
+
+  for (const selection of selections) {
+    for (const definition of selectTargetDefinitions(selection.targetName, selection.definitions)) {
+      if (seen.has(definition.name)) {
+        continue;
+      }
+      seen.add(definition.name);
+      selected.push(definition);
+    }
+  }
+
+  return selected;
+}
+
+function uniqueTargetNames(selections: readonly TaskBundleTargetSelection[]): readonly string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const selection of selections) {
+    if (seen.has(selection.targetName)) {
+      continue;
+    }
+    seen.add(selection.targetName);
+    names.push(selection.targetName);
+  }
+  return names;
+}
+
+function rewritePathString(value: string, rewrites: ReadonlyMap<string, string>): string {
+  const direct = rewrites.get(value);
+  if (direct) {
+    return direct.startsWith('file://') ? direct.slice('file://'.length) : direct;
+  }
+  const fileUrl = rewrites.get(`file://${value}`);
+  if (fileUrl) {
+    return fileUrl.startsWith('file://') ? fileUrl.slice('file://'.length) : fileUrl;
+  }
+  return value;
+}
+
+function serializeContentValue(value: unknown, rewrites: ReadonlyMap<string, string>): unknown {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeContentItem(item, rewrites));
+  }
+
+  if (isRecord(value)) {
+    return rewritePathsDeep(value, rewrites);
+  }
+
+  return value;
+}
+
+function serializeContentItem(value: unknown, rewrites: ReadonlyMap<string, string>): unknown {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const type = value.type;
+  if (type === 'text') {
+    const text = typeof value.value === 'string' ? value.value : value.text;
+    return { type: 'text', value: typeof text === 'string' ? text : '' };
+  }
+
+  if (type === 'file') {
+    const source =
+      typeof value.value === 'string'
+        ? value.value
+        : typeof value.path === 'string'
+          ? value.path
+          : typeof value.resolvedPath === 'string'
+            ? value.resolvedPath
+            : undefined;
+    return source
+      ? { type: 'file', value: rewritePathString(source, rewrites) }
+      : { type: 'file', value: '' };
+  }
+
+  if (type === 'image') {
+    const source =
+      typeof value.value === 'string'
+        ? value.value
+        : typeof value.path === 'string'
+          ? value.path
+          : typeof value.resolvedPath === 'string'
+            ? value.resolvedPath
+            : undefined;
+    if (source) {
+      return { type: 'image', value: rewritePathString(source, rewrites) };
+    }
+  }
+
+  return rewritePathsDeep(value, rewrites);
+}
+
+function serializeMessage(
+  message: TestMessage,
+  rewrites: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  return {
+    role: message.role,
+    content: serializeContentValue(message.content, rewrites),
+  };
+}
+
+function serializeExpectedMessage(
+  message: JsonObject,
+  rewrites: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const serialized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(message)) {
+    serialized[key] = key === 'content' ? serializeContentValue(value, rewrites) : value;
+  }
+  return rewritePathsDeep(serialized, rewrites) as Record<string, unknown>;
+}
+
+function serializeWorkspace(
+  workspace: WorkspaceConfig,
+  rewrites: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const {
+    workspaceFileDir: _workspaceFileDir,
+    path: _path,
+    mode,
+    ...portableWorkspace
+  } = workspace;
+  const withoutStaticMode =
+    mode === 'static' ? portableWorkspace : { ...portableWorkspace, ...(mode ? { mode } : {}) };
+  return rewritePathsDeep(withoutStaticMode, rewrites) as Record<string, unknown>;
+}
+
+function buildPortableEvalCase(
+  test: EvalTest,
+  rewrites: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const testCase = buildEvalCase(test, rewrites);
+  testCase.id = test.id;
+  testCase.input = test.input.map((message) => serializeMessage(message, rewrites));
+
+  if (test.criteria.trim().length > 0) {
+    testCase.criteria = test.criteria;
+  }
+  if (test.expected_output.length > 0) {
+    testCase.expected_output = test.expected_output.map((message) =>
+      serializeExpectedMessage(message, rewrites),
+    );
+  }
+  if (test.workspace) {
+    testCase.workspace = serializeWorkspace(test.workspace, rewrites);
+  }
+  if (test.metadata && Object.keys(test.metadata).length > 0) {
+    testCase.metadata = rewritePathsDeep(test.metadata, rewrites);
+  }
+  if (test.conversation_id) {
+    testCase.conversation_id = test.conversation_id;
+  }
+  if (test.targets && test.targets.length > 0) {
+    const existingExecution = isRecord(testCase.execution) ? testCase.execution : {};
+    testCase.execution = { ...existingExecution, targets: test.targets };
+  }
+  if (test.threshold !== undefined) {
+    const existingExecution = isRecord(testCase.execution) ? testCase.execution : {};
+    testCase.execution = { ...existingExecution, threshold: test.threshold };
+  }
+  if (test.mode) {
+    testCase.mode = test.mode;
+  }
+  if (test.turns && test.turns.length > 0) {
+    testCase.turns = rewritePathsDeep(test.turns, rewrites);
+  }
+  if (test.aggregation) {
+    testCase.aggregation = test.aggregation;
+  }
+  if (test.on_turn_failure) {
+    testCase.on_turn_failure = test.on_turn_failure;
+  }
+  if (test.window_size !== undefined) {
+    testCase.window_size = test.window_size;
+  }
+  if (test.depends_on && test.depends_on.length > 0) {
+    testCase.depends_on = test.depends_on;
+  }
+  if (test.on_dependency_failure) {
+    testCase.on_dependency_failure = test.on_dependency_failure;
+  }
+
+  return testCase;
+}
+
+function isLikelyCommandPath(value: string): boolean {
+  if (value.trim().length === 0 || value.startsWith('-') || value.includes('${{')) {
+    return false;
+  }
+  return (
+    value.startsWith('.') ||
+    value.includes('/') ||
+    value.includes('\\') ||
+    path.extname(value).length > 0
+  );
+}
+
+async function maybeWorkspaceHookCommandReference(options: {
+  readonly arg: string;
+  readonly baseDir: string;
+  readonly testId: string;
+  readonly hookName: string;
+}): Promise<BundleSourceReference | undefined> {
+  if (!isLikelyCommandPath(options.arg)) {
+    return undefined;
+  }
+  const resolvedPath = path.isAbsolute(options.arg)
+    ? path.resolve(options.arg)
+    : path.resolve(options.baseDir, options.arg);
+  const sourceStat = await stat(resolvedPath).catch(() => undefined);
+  if (!sourceStat?.isFile()) {
+    return undefined;
+  }
+  return {
+    kind: 'workspace_hook_command',
+    displayPath: options.arg,
+    resolvedPath,
+    location: `workspace.hooks.${options.hookName}.command for test "${options.testId}"`,
+  };
+}
+
+async function collectWorkspaceReferences(
+  tests: readonly EvalTest[],
+  evalFileDir: string,
+): Promise<{
+  readonly references: readonly BundleSourceReference[];
+  readonly errors: readonly string[];
+}> {
+  const references: BundleSourceReference[] = [];
+  const errors: string[] = [];
+
+  for (const test of tests) {
+    const workspace = test.workspace;
+    if (!workspace) {
+      continue;
+    }
+
+    if (workspace.path || workspace.mode === 'static') {
+      errors.push(
+        `workspace.path for test "${test.id}" cannot be bundled because it points at an existing static workspace. Use workspace.template, workspace.repos, or workspace.hooks for portable bundles.`,
+      );
+    }
+
+    if (workspace.template) {
+      references.push({
+        kind: 'workspace_template',
+        displayPath: workspace.template,
+        resolvedPath: workspace.template,
+        location: `workspace.template for test "${test.id}"`,
+      });
+    }
+
+    const hooks = workspace.hooks;
+    if (!hooks) {
+      continue;
+    }
+
+    for (const hookName of ['before_all', 'before_each', 'after_each', 'after_all'] as const) {
+      const hook = hooks[hookName];
+      const command = hook?.command ?? hook?.script;
+      if (!command || command.length === 0) {
+        continue;
+      }
+      if (hook?.cwd) {
+        errors.push(
+          `workspace.hooks.${hookName}.cwd for test "${test.id}" cannot be bundled safely yet: ${hook.cwd}`,
+        );
+        continue;
+      }
+
+      const baseDir = workspace.workspaceFileDir ?? evalFileDir;
+      for (const arg of command) {
+        const reference = await maybeWorkspaceHookCommandReference({
+          arg,
+          baseDir,
+          testId: test.id,
+          hookName,
+        });
+        if (reference) {
+          references.push(reference);
+        }
+      }
+    }
+  }
+
+  return { references, errors };
+}
+
+function collectExpectedOutputReferences(
+  tests: readonly EvalTest[],
+): readonly BundleSourceReference[] {
+  const references: BundleSourceReference[] = [];
+  for (const test of tests) {
+    for (const message of test.expected_output) {
+      const content = message.content;
+      if (!Array.isArray(content)) {
+        continue;
+      }
+      for (const segment of content) {
+        if (!isRecord(segment) || segment.type !== 'file') {
+          continue;
+        }
+        const resolvedPath =
+          typeof segment.resolvedPath === 'string' ? path.resolve(segment.resolvedPath) : undefined;
+        const displayPath =
+          typeof segment.path === 'string'
+            ? segment.path
+            : typeof segment.value === 'string'
+              ? segment.value
+              : resolvedPath;
+        if (!displayPath) {
+          continue;
+        }
+        references.push({
+          kind: 'expected_output_file',
+          displayPath,
+          ...(resolvedPath ? { resolvedPath } : {}),
+          location: `expected_output file for test "${test.id}"`,
+        });
+      }
+    }
+  }
+  return references;
+}
+
+function bundleManifest(options: {
+  readonly outputDir: string;
+  readonly evalFilePath: string;
+  readonly evalPath: string;
+  readonly targetsPath: string;
+  readonly copiedReferences: readonly CopiedReference[];
+  readonly tests: readonly EvalTest[];
+  readonly targetNames: readonly string[];
+  readonly createdAt: string;
+}): Record<string, unknown> {
+  const relative = (filePath: string) =>
+    path.relative(options.outputDir, filePath).split(path.sep).join('/');
+  return {
+    schema_version: 1,
+    created_at: options.createdAt,
+    source_eval: options.evalFilePath,
+    eval_path: relative(options.evalPath),
+    targets_path: relative(options.targetsPath),
+    test_count: options.tests.length,
+    targets: options.targetNames,
+    ...(hasCopiedBucket(options.copiedReferences, 'files') ? { files_path: 'evals/files' } : {}),
+    ...(hasCopiedBucket(options.copiedReferences, 'graders')
+      ? { graders_path: 'evals/graders' }
+      : {}),
+    ...(hasCopiedBucket(options.copiedReferences, 'workspaces')
+      ? { workspaces_path: 'evals/workspaces' }
+      : {}),
+    ...(hasCopiedBucket(options.copiedReferences, 'scripts')
+      ? { scripts_path: 'evals/scripts' }
+      : {}),
+  };
 }
 
 /**
@@ -461,6 +988,99 @@ export async function materializeTaskBundle(
       : {}),
     ...(hasCopiedBucket(copiedReferences, 'graders')
       ? { gradersPath: path.join(taskDir, TASK_GRADERS_DIRNAME) }
+      : {}),
+  };
+}
+
+/**
+ * Materialize a whole eval suite as a portable directory.
+ *
+ * This reuses the same source snapshots, dependency copying, path rewriting,
+ * target slicing, and secret redaction used by per-result task bundles. The
+ * output eval is intentionally explicit: inherited suite defaults are written
+ * onto each bundled test case so the bundle can run without the source tree.
+ */
+export async function materializeEvalBundle(
+  options: MaterializeEvalBundleOptions,
+): Promise<MaterializedEvalBundlePaths> {
+  if (options.tests.length === 0) {
+    throw new Error('Cannot bundle eval with no runnable tests.');
+  }
+  if (options.targetSelections.length === 0) {
+    throw new Error('Cannot bundle eval without a selected target.');
+  }
+
+  const missingSource = options.tests.find((test) => !test.source);
+  if (missingSource) {
+    throw new Error(
+      `Cannot bundle test "${missingSource.id}" because it has no source metadata. YAML evals are supported; programmatic evals with inline functions are not portable yet.`,
+    );
+  }
+
+  const outputDir = path.resolve(options.outputDir);
+  const evalsDir = path.join(outputDir, BUNDLE_EVALS_DIRNAME);
+  await mkdir(evalsDir, { recursive: true });
+
+  const evalFileDir = path.dirname(path.resolve(options.evalFilePath));
+  const workspaceReferences = await collectWorkspaceReferences(options.tests, evalFileDir);
+  const references: BundleSourceReference[] = [
+    ...options.tests.flatMap((test) => test.source?.references ?? []),
+    ...collectExpectedOutputReferences(options.tests),
+    ...workspaceReferences.references,
+  ];
+
+  const { copied, failures } = await copyReferencesStrict(references, evalsDir, options);
+  const errors = [...workspaceReferences.errors, ...failures.map((failure) => failure.reason)];
+  if (errors.length > 0) {
+    throw new Error(`Cannot bundle eval:\n${errors.map((error) => `- ${error}`).join('\n')}`);
+  }
+
+  const rewrites = buildPathRewrites(copied);
+  const targetNames = uniqueTargetNames(options.targetSelections);
+  const evalPath = path.join(evalsDir, bundledEvalFileName(options.evalFilePath));
+  const targetsPath = path.join(outputDir, BUNDLE_TARGETS_FILENAME);
+  const manifestPath = path.join(outputDir, BUNDLE_MANIFEST_FILENAME);
+  const execution =
+    options.execution ??
+    (targetNames.length === 1 ? { target: targetNames[0] } : { targets: targetNames });
+
+  await writeYamlFile(evalPath, {
+    execution,
+    tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
+  });
+  await writeYamlFile(targetsPath, {
+    targets: uniqueTargetDefinitions(options.targetSelections),
+  });
+
+  const manifest = bundleManifest({
+    outputDir,
+    evalFilePath: path.resolve(options.evalFilePath),
+    evalPath,
+    targetsPath,
+    copiedReferences: copied,
+    tests: options.tests,
+    targetNames,
+    createdAt: (options.now ?? (() => new Date()))().toISOString(),
+  });
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+
+  return {
+    bundleDir: outputDir,
+    evalsDir,
+    evalPath,
+    targetsPath,
+    manifestPath,
+    ...(hasCopiedBucket(copied, 'files')
+      ? { filesPath: path.join(evalsDir, TASK_FILES_DIRNAME) }
+      : {}),
+    ...(hasCopiedBucket(copied, 'graders')
+      ? { gradersPath: path.join(evalsDir, TASK_GRADERS_DIRNAME) }
+      : {}),
+    ...(hasCopiedBucket(copied, 'workspaces')
+      ? { workspacesPath: path.join(evalsDir, BUNDLE_WORKSPACES_DIRNAME) }
+      : {}),
+    ...(hasCopiedBucket(copied, 'scripts')
+      ? { scriptsPath: path.join(evalsDir, BUNDLE_SCRIPTS_DIRNAME) }
       : {}),
   };
 }

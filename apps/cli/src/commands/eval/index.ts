@@ -2,6 +2,7 @@ import { subcommands } from 'cmd-ts';
 
 import { evalAggregateCommand } from './commands/aggregate.js';
 import { evalAssertCommand } from './commands/assert.js';
+import { evalBundleCommand } from './commands/bundle.js';
 import { evalRunCommand } from './commands/run.js';
 
 export const evalCommand = subcommands({
@@ -12,5 +13,6 @@ export const evalCommand = subcommands({
     run: evalRunCommand,
     assert: evalAssertCommand,
     aggregate: evalAggregateCommand,
+    bundle: evalBundleCommand,
   },
 });

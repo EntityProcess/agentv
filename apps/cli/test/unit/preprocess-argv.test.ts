@@ -26,6 +26,11 @@ describe('preprocessArgv', () => {
       expect(preprocessArgv(argv)).toEqual(argv);
     });
 
+    it('does not insert `run` for eval bundle', () => {
+      const argv = ['node', 'agentv', 'eval', 'bundle', 'evals/demo.eval.yaml', '--out', 'bundle'];
+      expect(preprocessArgv(argv)).toEqual(argv);
+    });
+
     it('does not insert `run` when eval is followed by --help', () => {
       const argv = ['node', 'agentv', 'eval', '--help'];
       expect(preprocessArgv(argv)).toEqual(argv);
