@@ -1,11 +1,22 @@
 name: agentv-dev-skill-invocation
-
 description: >-
   Tests whether an AI agent correctly invokes `agentv skills` CLI subcommands
   (list, get, path) with the right flags when asked to retrieve, enumerate,
-  or locate bundled skill content.
+  or locate bundled skill content using the live repo docs and plugin stub.
 
 tags: [agent, skills]
+
+input:
+  - role: user
+    content:
+      - type: file
+        value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+      - type: file
+        value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+      - type: text
+        value: |
+          The files above are the live repo references for bundled `agentv-dev`
+          skills and the `agentv skills` CLI.
 
 tests:
   - id: invoke-get-single-skill
@@ -25,11 +36,10 @@ tests:
           - Does not suggest a plugin-install or marketplace step
 
   - id: invoke-get-full-flag
-    criteria: Agent uses `--full` when bundled references/templates are needed.
+    criteria: Agent uses `--full` when bundled references or support files are needed.
     input: |
-      I need the full agentv-eval-writer skill — not just SKILL.md, but every
-      file under its `references/` and `templates/` directories — so I can see
-      the example YAML templates the skill ships with.
+      I need the full agentv-eval-writer skill — not just SKILL.md, but the
+      bundled supporting files too — so I can inspect its reference material.
 
       What single `agentv skills` command should I run?
     assertions:
@@ -52,25 +62,16 @@ tests:
           - Does not invoke `npx allagents plugin` or any marketplace step
 
   - id: invoke-get-nonexistent
-    criteria: Agent diagnoses a not-found error from the CLI and proposes a fix.
-    input:
-      - role: user
-        content:
-          - type: text
-            value: |
-              I ran `agentv skills get does-not-exist` and got this output:
-          - type: file
-            value: fixtures/skills-get-nonexistent.txt
-          - type: text
-            value: |
-              What happened, and what command should I run instead to discover
-              the correct skill name?
+    criteria: Agent diagnoses a not-found skill lookup and proposes a fix.
+    input: |
+      I ran `agentv skills get does-not-exist`. What happened, and what command
+      should I run instead to discover the correct skill name?
     assertions:
       - type: rubrics
         criteria:
           - Identifies that `does-not-exist` is not a valid skill name
           - Recommends `agentv skills list` to discover valid names
-          - Does not invent a skill name that isn't in the error output's "Available skills" line
+          - Does not invent a skill name that is not listed in the live plugin entrypoint
 
   - id: invoke-json-flag
     criteria: Agent uses `--json` when machine-readable output is needed.
@@ -112,16 +113,9 @@ tests:
 
   - id: invoke-skill-trigger
     criteria: Agent maps a natural-language task to the correct skill name and command.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: fixtures/skills-list-all.txt
-          - type: text
-            value: |
-              Above is the JSON list of bundled agentv skills. I want to read
-              the skill that helps with debugging eval failures and analysing
-              traces. Give me the single CLI command to print its content.
+    input: |
+      I want to read the skill that helps with debugging eval failures and
+      analysing traces. Give me the single CLI command to print its content.
     assertions:
       - type: contains
         value: agentv-trace-analyst

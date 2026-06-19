@@ -1,22 +1,19 @@
 name: agentv-dev-skill-selection
 description: >-
   Tests whether the agent picks the correct bundled agentv skill (by name)
-  for a given natural-language task. Each test injects the bundled skills
-  list as context so the agent has the same options a real user would.
+  for a given natural-language task using the live `agentv-dev` plugin stub
+  as the source of truth for available skills.
 
 tags: [agent, skills]
 
-# Suite-level input: every test sees the bundled skills list as the first
-# user message, so the agent always has the canonical set of names to
-# choose from. Per-test `input:` is appended to this.
 input:
   - role: user
     content:
       - type: file
-        value: fixtures/skills-list-all.txt
+        value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
       - type: text
         value: |
-          The JSON above lists every agentv skill bundled with the CLI.
+          The file above is the live `agentv-dev` plugin skill entrypoint.
           For the next task, name the **single** skill (or skills, only if
           the task genuinely requires more than one) that best fits.
           Reply with the skill name(s) only — no commentary.

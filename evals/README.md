@@ -6,7 +6,9 @@ current plugin boundary:
 - `agentv-self` covers AgentV's own repo guidance and self-eval workspace
   behavior.
 - `agentv-dev` covers the bundled `agentv skills` CLI surface and skill content
-  shipped with the developer plugin.
+  shipped with the developer plugin. It reads live repo files from
+  `plugins/agentv-dev/`, `skills-data/`, and current docs instead of
+  checked-in transcript fixtures.
 
 ## Structure
 
@@ -19,7 +21,6 @@ evals/
 ├── agentv-dev/
 │   └── skills/
 │       ├── *.eval.yaml
-│       ├── fixtures/
 │       └── README.md
 └── agentic-engineering/
 ```
