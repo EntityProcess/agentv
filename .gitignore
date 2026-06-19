@@ -25,7 +25,8 @@ examples/**/*.results.jsonl
 agent-orchestrator.yaml
 
 # Agent configuration and activity logs
-.agents/
+.agents/*
+!.agents/*.md
 .claude/
 .codex/
 .factory/

@@ -1,0 +1,152 @@
+# Verification
+
+This file expands [AGENTS.md](../AGENTS.md) for testing, manual UAT, CLI and browser verification, grader validation, and completion gates.
+
+## CI Gates
+
+- GitHub Actions is the authoritative merge gate.
+- The `CI` workflow runs build, typecheck, lint, tests, marketplace checks, docs link checks, and eval schema validation on pushes to `main`, pull requests to `main`, and manual dispatches.
+- Run the same core checks locally when you need fast feedback:
+
+```bash
+bun run verify
+bun run validate:examples
+```
+
+- Task tracker sync is operator-supplied. If the prompt provides an external tracker sync or flush command, run it exactly as instructed and keep exported tracker state out of AgentV commits unless explicitly requested.
+- NTM hooks are optional local coordination tooling. Do not commit generated hook files or local `.ntm/config.toml`.
+- If an existing checkout has NTM or prek hooks installed, restore Git's default hook path:
+
+```bash
+git config --unset core.hooksPath
+```
+
+## Functional Testing the CLI
+
+- Never use `agentv` directly for functional testing. It may resolve to a globally installed version.
+- Preferred: `bun apps/cli/src/cli.ts <args>`. This always runs the current CLI source.
+- Exception: changes inside `packages/core/` require `bun run build` first because the CLI imports `@agentv/core` from compiled `dist/`.
+- `bun apps/cli/dist/cli.js <args>` also works, but only after `bun run build`, and it can go stale.
+- `bun agentv <args>` runs the locally built version and also requires a build.
+- Prefer running from source during development. Rebuild after pulling changes that touch `packages/core/`.
+
+## Browser E2E for Docs and Dashboard
+
+- Use `agent-browser` for visual verification of docs-site and Dashboard changes.
+- Always use `--session <name>` so browser instances stay isolated.
+- Never use `--headed`; there is no display server.
+- Rebuild `apps/dashboard/dist/` before Dashboard UAT, even if you only changed backend or docs code:
+
+```bash
+cd apps/dashboard && bun run build
+```
+
+- Running `agentv dashboard` from source reloads the CLI and backend routes, but the Dashboard web UI is served from the static `apps/dashboard/dist/` bundle. If you skip the rebuild, you can silently test stale UI code.
+
+If `agent-browser --session <name> open <url>` hangs with EAGAIN on ARM64, pre-start Chrome and connect with CDP:
+
+```bash
+nohup chromium --headless=new --remote-debugging-port=9222 \
+  --no-first-run --disable-background-networking --disable-default-apps \
+  --disable-sync --ozone-platform=headless --window-size=1280,720 \
+  --user-data-dir=/tmp/ab-chrome > /tmp/chrome.log 2>&1 &
+curl -s http://localhost:9222/json/version
+
+agent-browser --cdp 9222 open <url>
+agent-browser --cdp 9222 screenshot output.png
+```
+
+## Agent Provider Eval Concurrency
+
+- When running evals against agent-provider targets such as `claude`, `claude-sdk`, `codex`, `copilot`, `copilot-sdk`, `pi`, or `pi-cli`, limit concurrency to 3 targets at a time.
+- These providers spawn heavyweight subprocesses and can exhaust system resources if you run too many in parallel.
+
+```bash
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target claude &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target codex &
+wait
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target copilot &
+bun apps/cli/src/cli.ts eval my.EVAL.yaml --target pi &
+wait
+```
+
+- This limit does not apply to lightweight LLM-only targets such as `azure`, `openai`, `gemini`, or `openrouter`.
+
+## Writing Tests
+
+- Only test new or changed behavior.
+- Protect stable core contracts such as data formats, scoring semantics, routing, persistence, provider contracts, and CLI or API outcomes users depend on.
+- One test per distinct behavior.
+- Skip tests for obvious one-line behavior unless it is a regression risk.
+- Prefer regression tests over broad happy-path matrices.
+- When end-user behavior matters but churns often, prefer updating the public docs in `apps/web/src/content/docs/` over locking temporary behavior into brittle tests.
+- Tests are executable contracts. If the contract changes, update the tests to match the new promise.
+
+## Verifying Grader Changes
+
+Unit tests alone are not enough for grader changes.
+
+1. If you are in a git worktree, copy `.env` into the worktree root before claiming E2E or grader verification:
+
+```bash
+cp /path/to/main/.env .env
+```
+
+```powershell
+Copy-Item D:/path/to/main/.env .env
+```
+
+2. Run a real eval with a real example file:
+
+```bash
+bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
+```
+
+3. Inspect the results JSONL and verify:
+
+- the correct grader type ran by checking `scores[].type`
+- scores are calculated as expected
+- the `assertions` array reflects the evaluation logic
+
+4. Update baseline files if output format changes. Baselines live next to eval YAML files as `*.baseline.jsonl`.
+5. `--dry-run` returns schema-valid mock responses, but the scores are not meaningful. Use it only for plumbing and harness checks.
+
+## Checking Grader Score Ranges
+
+Use `scripts/check-grader-scores.ts` as a post-processor after an eval run.
+
+Workflow:
+
+```bash
+bun apps/cli/src/cli.ts eval examples/path/to/suite.eval.yaml --target azure \
+  --output examples/path/to/suite.run
+
+bun scripts/check-grader-scores.ts
+```
+
+- The script auto-discovers `examples/**/*.grader-scores.yaml`, finds the sibling `*.results.jsonl`, and exits non-zero if any score is out of range.
+- To add checks for a new eval, create `<eval-stem>.grader-scores.yaml` next to the eval YAML, add the `(test_id, grader, range)` entries you care about, then run the eval and the checker.
+- `grader` must match a `scores[].name` value in the JSONL output. `range.min` and `range.max` default to `0` and `1` if omitted.
+
+## Completion Checklist
+
+Before marking a branch ready for review:
+
+1. Preflight: if in a git worktree, ensure `.env` exists in the worktree root.
+
+```bash
+cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
+```
+
+2. Run unit tests with `bun run test`.
+3. Blocking manual red and green UAT:
+
+- Red: run the scenario on `main` or the pre-change state and confirm the bug or missing feature is observable.
+- Green: run the identical scenario on your branch and confirm the fix or feature works from the end user's perspective.
+- Document both red and green evidence in the PR description or comments.
+
+4. Verify no regressions in adjacent areas.
+5. For scoring, threshold, or grader changes, run at least one real eval with a live provider and verify the output JSONL.
+6. For Dashboard config, scoring-display, or dashboard API changes, use `agent-browser` to verify the UI still renders and behaves correctly.
+7. If operator instructions require private visual evidence, save screenshots there and include the resulting paths or commits in the handoff.
+8. Mark the PR ready only after the checklist is complete and the red or green evidence is attached.
