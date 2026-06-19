@@ -1,0 +1,2 @@
+Error: skill 'does-not-exist' not found
+Available skills: agentv-bench, agentv-eval-review, agentv-eval-writer, agentv-governance, agentv-trace-analyst

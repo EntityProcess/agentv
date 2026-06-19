@@ -62,44 +62,109 @@ The expected output format is:
 5. Run the lint rules from `references/lint-rules.md` against your block before committing.
 6. See `references/governance-yaml-shape.md` for complete examples copied from real suites.
 
---- references/eu-ai-act-risk-tiers.md ---
-# EU AI Act — Risk Tiers
+## Accessing reference files
 
-**Valid values for the `risk_tier:` field.**
+To load a specific reference without pulling the entire skill into context:
 
-Official source: Regulation (EU) 2024/1689 on Artificial Intelligence (EU AI Act)
-Full text: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689
+```bash
+agentv skills get agentv-governance --ref lint-rules
+```
 
-## Allowed values
+Or resolve the skill directory and read files directly:
 
-| Value | EU AI Act category | Key articles | Description |
-|-------|-------------------|-------------|-------------|
-| `prohibited` | Prohibited AI practices | Art. 5 | AI systems whose risks are deemed unacceptable — banned outright. Examples: social scoring by public authorities, real-time remote biometric surveillance in public spaces, AI that exploits vulnerabilities of specific groups. |
-| `high` | High-risk AI systems | Art. 6, Annex I–III | AI systems subject to mandatory conformity assessments, transparency, and human oversight. Examples: biometric identification, critical infrastructure, employment screening, access to education or essential services, law enforcement. |
-| `limited` | Limited-risk AI systems | Art. 50 | AI systems with transparency obligations only. Examples: chatbots must disclose they are AI; deep-fake generators must mark synthetic media. |
-| `minimal` | Minimal-risk AI systems | — | No mandatory obligations. Examples: spam filters, AI in video games. Voluntary codes of conduct encouraged. |
+```bash
+cat $(agentv skills path agentv-governance)/references/lint-rules.md
+```
+
+Use `--full` to retrieve every framework reference in one shot.
+
+--- references/iso-42001-controls.md ---
+# ISO/IEC 42001:2023 — AI Management System Controls
+
+**Curated subset of controls relevant to AI evaluation suites.**
+
+Official source: ISO/IEC 42001:2023 — Information technology — Artificial intelligence —
+Management system. Full standard available at https://www.iso.org/standard/81230.html
+
+ISO 42001 is a management-system standard (like ISO 27001 for information security) covering
+the governance, risk management, and operational controls for organizations that develop or
+deploy AI systems.
+
+## Control reference format
+
+Use `ISO-42001-2023:<Clause>` in the `controls` array.
+
+## Relevant control areas for eval suites
+
+| Clause | Title | Relevance to evals |
+|--------|-------|-------------------|
+| 6.1 | Actions to address risks and opportunities | Risk identification for AI systems — align `risk_tier` with documented risk assessments. |
+| 6.1.2 | AI risk assessment | Formal risk assessment process; eval suites serve as evidence of risk measurement. |
+| 8.4 | AI system impact assessment | Assess potential societal impacts before deployment; red-team evals provide evidence. |
+| 8.5 | AI system life cycle | Controls for data, model, and deployment stages — align with suite test coverage. |
+| 9.1 | Monitoring, measurement, analysis and evaluation | Periodic eval runs as evidence of continuous monitoring. |
+| 9.1.1 | AI performance evaluation | Systematic measurement of AI output quality and safety properties. |
+| 10.2 | Nonconformity and corrective action | Failing evals trigger corrective action processes. |
+| A.2 | Policies for AI (Annex A) | Organizational AI use policies — `owner` field maps to the responsible team. |
+| A.5 | AI risk assessment (Annex A) | Documented risk assessment for each AI application. |
+| A.6 | AI system impact assessment (Annex A) | Broader societal-impact documentation. |
+
+## Usage example
+
+```yaml
+controls:
+  - ISO-42001-2023:6.1.2   # AI risk assessment
+  - ISO-42001-2023:9.1.1   # AI performance evaluation
+  - EU-AI-ACT-2024:Art.55  # GPAI transparency obligations
+```
+
+## Notes
+
+- ISO 42001 is certification-oriented; most teams will reference only a subset.
+  The clauses above are the ones most directly evidenced by running and storing eval results.
+- For pure LLM / red-team suites, clauses 6.1.2, 8.4, and 9.1.1 are the most common references.
+- Combine with NIST AI RMF controls (e.g. `NIST-AI-RMF-1.0:MEASURE-2.7`) when the organization
+  uses both frameworks.
+
+--- references/mitre-atlas.md ---
+# MITRE ATLAS — AI/ML Threat Techniques
+
+**Canonical IDs for use in `mitre_atlas:` arrays.**
+
+Official source: https://atlas.mitre.org/
+
+MITRE ATLAS (Adversarial Threat Landscape for Artificial-Intelligence Systems) documents
+adversarial ML and AI attack techniques using the same taxonomy style as MITRE ATT&CK.
+IDs follow the pattern `AML.Txxxx` for techniques and `AML.Txxxx.xxx` for sub-techniques.
+
+## Techniques most relevant to LLM / agentic-AI evaluation
+
+| ID | Name | Relevant OWASP IDs |
+|----|------|-------------------|
+| AML.T0051 | LLM Prompt Injection | LLM01, T01 |
+| AML.T0054 | LLM Jailbreak | LLM01 |
+| AML.T0056 | LLM Meta Prompt Extraction | LLM07 |
+| AML.T0057 | LLM Plugin Compromise | LLM03, T09 |
+| AML.T0058 | LLM Data Leakage | LLM02 |
+| AML.T0068 | Training Data Poisoning | LLM04 |
+| AML.T0075 | Manipulate LLM Inputs | LLM01, T01 |
+
+## Sub-techniques
+
+Sub-techniques extend a base ID with a period-separated suffix, e.g.:
+- `AML.T0051.000` — Direct Prompt Injection
+- `AML.T0051.001` — Indirect Prompt Injection
+
+Use the base ID if the test covers the whole technique class; use sub-techniques for
+more precise tagging when the attack method is specific.
 
 ## Usage notes
 
-- `risk_tier` is a scalar; only one value per governance block.
-- The vocabulary is anchored to EU AI Act terminology. Some organizations use different
-  risk scales (e.g. NIST SP 800-30 `low | moderate | high | very_high`). When mapping
-  from another framework, choose the EU AI Act equivalent that best matches the impact.
-- Combine `risk_tier: high` with `controls` referencing EU AI Act articles:
-  ```yaml
-  risk_tier: high
-  controls:
-    - EU-AI-ACT-2024:Art.55
-    - EU-AI-ACT-2024:Art.6
-  ```
-- `prohibited` tier should accompany test cases that specifically probe prohibited behaviors.
-  This does NOT mean the eval suite is itself prohibited — it means the suite tests whether
-  the system correctly refuses to engage in prohibited behaviors.
-
-## Article reference format
-
-Use `EU-AI-ACT-2024:<Article>` in the `controls` array, e.g. `EU-AI-ACT-2024:Art.55`.
-Article 55 covers general-purpose AI (GPAI) model obligations and transparency requirements.
+- List IDs as strings in an array: `mitre_atlas: [AML.T0051, AML.T0075]`
+- Cross-reference with OWASP IDs when both frameworks cover the same attack:
+  a suite testing indirect prompt injection via tool output should tag
+  `owasp_llm_top_10_2025: [LLM01]` and `mitre_atlas: [AML.T0051]`.
+- For the full technique catalog, browse https://atlas.mitre.org/techniques/
 
 --- references/governance-yaml-shape.md ---
 # Governance Block — YAML Shape and Examples
@@ -228,53 +293,101 @@ The merged `governance` block is passed through verbatim to the JSONL result fil
 result's `metadata.governance` key. Downstream tools (jq pipelines, `.ai-register.yaml`
 aggregators) consume it from there. The eval engine does not validate or transform the values.
 
---- references/iso-42001-controls.md ---
-# ISO/IEC 42001:2023 — AI Management System Controls
+--- references/owasp-llm-top-10-2025.md ---
+# OWASP LLM Top 10 v2025
 
-**Curated subset of controls relevant to AI evaluation suites.**
+**Canonical IDs for use in `owasp_llm_top_10_2025:` arrays.**
 
-Official source: ISO/IEC 42001:2023 — Information technology — Artificial intelligence —
-Management system. Full standard available at https://www.iso.org/standard/81230.html
+Official source: https://owasp.org/www-project-top-10-for-large-language-model-applications/
 
-ISO 42001 is a management-system standard (like ISO 27001 for information security) covering
-the governance, risk management, and operational controls for organizations that develop or
-deploy AI systems.
+| ID | Name | One-line description |
+|----|------|----------------------|
+| LLM01 | Prompt Injection | Attacker manipulates LLM behavior via crafted inputs (direct or indirect). |
+| LLM02 | Sensitive Information Disclosure | LLM reveals confidential data, system prompts, or PII in its output. |
+| LLM03 | Supply Chain | Compromised components — plugins, datasets, pre-trained weights — affect the LLM pipeline. |
+| LLM04 | Data and Model Poisoning | Training or fine-tuning data is tampered with to alter model behavior. |
+| LLM05 | Improper Output Handling | LLM output is passed unsanitized to downstream systems (XSS, SSRF, code injection). |
+| LLM06 | Excessive Agency | LLM acts on permissions or capabilities beyond what the task requires. |
+| LLM07 | System Prompt Leakage | The system prompt or internal context is exposed to the user or a third party. |
+| LLM08 | Vector and Embedding Weaknesses | Adversarial manipulation of embedding stores used for retrieval (RAG poisoning). |
+| LLM09 | Misinformation | LLM generates plausible but factually incorrect content that causes harm. |
+| LLM10 | Unbounded Consumption | LLM use is abused to exhaust resources — tokens, cost, rate limits, or compute. |
 
-## Control reference format
+## Usage notes
 
-Use `ISO-42001-2023:<Clause>` in the `controls` array.
+- Use as many IDs as apply; list them in an array: `owasp_llm_top_10_2025: [LLM01, LLM06]`
+- IDs are version-anchored. When OWASP releases a new version, a new field
+  (`owasp_llm_top_10_2026`) will be added rather than redefining these IDs.
+- Combine with `mitre_atlas` IDs for technique-level tagging.
 
-## Relevant control areas for eval suites
+--- references/owasp-agentic-top-10-2025.md ---
+# OWASP Top 10 for Agentic AI v2025
 
-| Clause | Title | Relevance to evals |
-|--------|-------|-------------------|
-| 6.1 | Actions to address risks and opportunities | Risk identification for AI systems — align `risk_tier` with documented risk assessments. |
-| 6.1.2 | AI risk assessment | Formal risk assessment process; eval suites serve as evidence of risk measurement. |
-| 8.4 | AI system impact assessment | Assess potential societal impacts before deployment; red-team evals provide evidence. |
-| 8.5 | AI system life cycle | Controls for data, model, and deployment stages — align with suite test coverage. |
-| 9.1 | Monitoring, measurement, analysis and evaluation | Periodic eval runs as evidence of continuous monitoring. |
-| 9.1.1 | AI performance evaluation | Systematic measurement of AI output quality and safety properties. |
-| 10.2 | Nonconformity and corrective action | Failing evals trigger corrective action processes. |
-| A.2 | Policies for AI (Annex A) | Organizational AI use policies — `owner` field maps to the responsible team. |
-| A.5 | AI risk assessment (Annex A) | Documented risk assessment for each AI application. |
-| A.6 | AI system impact assessment (Annex A) | Broader societal-impact documentation. |
+**Canonical IDs for use in `owasp_agentic_top_10_2025:` arrays.**
 
-## Usage example
+Official source: https://owasp.org/www-project-top-10-for-large-language-model-applications/
+(Agentic AI supplement — see the "Agentic AI" section of the OWASP LLM project)
 
-```yaml
-controls:
-  - ISO-42001-2023:6.1.2   # AI risk assessment
-  - ISO-42001-2023:9.1.1   # AI performance evaluation
-  - EU-AI-ACT-2024:Art.55  # GPAI transparency obligations
-```
+| ID | Name | One-line description |
+|----|------|----------------------|
+| T01 | Prompt Injection for Agentic Systems | Attacker plants instructions in agent inputs, tool results, or retrieved content to redirect agent behavior. |
+| T02 | Memory Poisoning | Adversarial content is written to agent memory (short- or long-term) to influence future decisions. |
+| T03 | Data Exfiltration | Agent is manipulated into leaking sensitive data through tool calls, network requests, or outputs. |
+| T04 | Privilege Escalation | Agent acquires or is tricked into using permissions beyond its intended scope. |
+| T05 | Misconfigured Agent Networks | Overly permissive trust between orchestrating and sub-agents enables abuse. |
+| T06 | Tool and Plugin Misuse | Agent uses legitimate tools (bash, file I/O, API calls) outside their intended purpose or without authorization. |
+| T07 | Insecure Credential Storage | Agent stores or transmits credentials in memory, files, or outputs where they can be captured. |
+| T08 | Unsafe Agent-to-Agent Communication | Messages between agents are unvalidated, unencrypted, or susceptible to injection. |
+| T09 | Supply Chain Compromise | Malicious code in agent plugins, dependencies, or retrieved skill definitions. |
+| T10 | Lack of Accountability | Agent actions are not logged or attributable, making audit and incident response impossible. |
 
-## Notes
+## Usage notes
 
-- ISO 42001 is certification-oriented; most teams will reference only a subset.
-  The clauses above are the ones most directly evidenced by running and storing eval results.
-- For pure LLM / red-team suites, clauses 6.1.2, 8.4, and 9.1.1 are the most common references.
-- Combine with NIST AI RMF controls (e.g. `NIST-AI-RMF-1.0:MEASURE-2.7`) when the organization
-  uses both frameworks.
+- Combine with `owasp_llm_top_10_2025` IDs for cases that bridge both lists.
+  Example: an indirect-prompt-injection attack is LLM01 + T01 + T06 (tool misuse).
+- `T01` (Prompt Injection) and `LLM01` (Prompt Injection) are closely related but distinct:
+  LLM01 covers LLM-level injection; T01 covers the agent-orchestration dimension.
+- List multiple IDs when a test case exercises more than one category:
+  `owasp_agentic_top_10_2025: [T01, T06]`
+
+--- references/eu-ai-act-risk-tiers.md ---
+# EU AI Act — Risk Tiers
+
+**Valid values for the `risk_tier:` field.**
+
+Official source: Regulation (EU) 2024/1689 on Artificial Intelligence (EU AI Act)
+Full text: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689
+
+## Allowed values
+
+| Value | EU AI Act category | Key articles | Description |
+|-------|-------------------|-------------|-------------|
+| `prohibited` | Prohibited AI practices | Art. 5 | AI systems whose risks are deemed unacceptable — banned outright. Examples: social scoring by public authorities, real-time remote biometric surveillance in public spaces, AI that exploits vulnerabilities of specific groups. |
+| `high` | High-risk AI systems | Art. 6, Annex I–III | AI systems subject to mandatory conformity assessments, transparency, and human oversight. Examples: biometric identification, critical infrastructure, employment screening, access to education or essential services, law enforcement. |
+| `limited` | Limited-risk AI systems | Art. 50 | AI systems with transparency obligations only. Examples: chatbots must disclose they are AI; deep-fake generators must mark synthetic media. |
+| `minimal` | Minimal-risk AI systems | — | No mandatory obligations. Examples: spam filters, AI in video games. Voluntary codes of conduct encouraged. |
+
+## Usage notes
+
+- `risk_tier` is a scalar; only one value per governance block.
+- The vocabulary is anchored to EU AI Act terminology. Some organizations use different
+  risk scales (e.g. NIST SP 800-30 `low | moderate | high | very_high`). When mapping
+  from another framework, choose the EU AI Act equivalent that best matches the impact.
+- Combine `risk_tier: high` with `controls` referencing EU AI Act articles:
+  ```yaml
+  risk_tier: high
+  controls:
+    - EU-AI-ACT-2024:Art.55
+    - EU-AI-ACT-2024:Art.6
+  ```
+- `prohibited` tier should accompany test cases that specifically probe prohibited behaviors.
+  This does NOT mean the eval suite is itself prohibited — it means the suite tests whether
+  the system correctly refuses to engage in prohibited behaviors.
+
+## Article reference format
+
+Use `EU-AI-ACT-2024:<Article>` in the `controls` array, e.g. `EU-AI-ACT-2024:Art.55`.
+Article 55 covers general-purpose AI (GPAI) model obligations and transparency requirements.
 
 --- references/lint-rules.md ---
 # Governance Block Lint Rules
@@ -446,100 +559,3 @@ Common mistakes:
 All rules above are **errors** (contribute to `pass: false`). There are no warnings in this
 schema — an unknown key is always wrong, and empty arrays are always wrong. This matches the
 intent: the block should only be present when it contains real, validated tags.
-
---- references/mitre-atlas.md ---
-# MITRE ATLAS — AI/ML Threat Techniques
-
-**Canonical IDs for use in `mitre_atlas:` arrays.**
-
-Official source: https://atlas.mitre.org/
-
-MITRE ATLAS (Adversarial Threat Landscape for Artificial-Intelligence Systems) documents
-adversarial ML and AI attack techniques using the same taxonomy style as MITRE ATT&CK.
-IDs follow the pattern `AML.Txxxx` for techniques and `AML.Txxxx.xxx` for sub-techniques.
-
-## Techniques most relevant to LLM / agentic-AI evaluation
-
-| ID | Name | Relevant OWASP IDs |
-|----|------|-------------------|
-| AML.T0051 | LLM Prompt Injection | LLM01, T01 |
-| AML.T0054 | LLM Jailbreak | LLM01 |
-| AML.T0056 | LLM Meta Prompt Extraction | LLM07 |
-| AML.T0057 | LLM Plugin Compromise | LLM03, T09 |
-| AML.T0058 | LLM Data Leakage | LLM02 |
-| AML.T0068 | Training Data Poisoning | LLM04 |
-| AML.T0075 | Manipulate LLM Inputs | LLM01, T01 |
-
-## Sub-techniques
-
-Sub-techniques extend a base ID with a period-separated suffix, e.g.:
-- `AML.T0051.000` — Direct Prompt Injection
-- `AML.T0051.001` — Indirect Prompt Injection
-
-Use the base ID if the test covers the whole technique class; use sub-techniques for
-more precise tagging when the attack method is specific.
-
-## Usage notes
-
-- List IDs as strings in an array: `mitre_atlas: [AML.T0051, AML.T0075]`
-- Cross-reference with OWASP IDs when both frameworks cover the same attack:
-  a suite testing indirect prompt injection via tool output should tag
-  `owasp_llm_top_10_2025: [LLM01]` and `mitre_atlas: [AML.T0051]`.
-- For the full technique catalog, browse https://atlas.mitre.org/techniques/
-
---- references/owasp-agentic-top-10-2025.md ---
-# OWASP Top 10 for Agentic AI v2025
-
-**Canonical IDs for use in `owasp_agentic_top_10_2025:` arrays.**
-
-Official source: https://owasp.org/www-project-top-10-for-large-language-model-applications/
-(Agentic AI supplement — see the "Agentic AI" section of the OWASP LLM project)
-
-| ID | Name | One-line description |
-|----|------|----------------------|
-| T01 | Prompt Injection for Agentic Systems | Attacker plants instructions in agent inputs, tool results, or retrieved content to redirect agent behavior. |
-| T02 | Memory Poisoning | Adversarial content is written to agent memory (short- or long-term) to influence future decisions. |
-| T03 | Data Exfiltration | Agent is manipulated into leaking sensitive data through tool calls, network requests, or outputs. |
-| T04 | Privilege Escalation | Agent acquires or is tricked into using permissions beyond its intended scope. |
-| T05 | Misconfigured Agent Networks | Overly permissive trust between orchestrating and sub-agents enables abuse. |
-| T06 | Tool and Plugin Misuse | Agent uses legitimate tools (bash, file I/O, API calls) outside their intended purpose or without authorization. |
-| T07 | Insecure Credential Storage | Agent stores or transmits credentials in memory, files, or outputs where they can be captured. |
-| T08 | Unsafe Agent-to-Agent Communication | Messages between agents are unvalidated, unencrypted, or susceptible to injection. |
-| T09 | Supply Chain Compromise | Malicious code in agent plugins, dependencies, or retrieved skill definitions. |
-| T10 | Lack of Accountability | Agent actions are not logged or attributable, making audit and incident response impossible. |
-
-## Usage notes
-
-- Combine with `owasp_llm_top_10_2025` IDs for cases that bridge both lists.
-  Example: an indirect-prompt-injection attack is LLM01 + T01 + T06 (tool misuse).
-- `T01` (Prompt Injection) and `LLM01` (Prompt Injection) are closely related but distinct:
-  LLM01 covers LLM-level injection; T01 covers the agent-orchestration dimension.
-- List multiple IDs when a test case exercises more than one category:
-  `owasp_agentic_top_10_2025: [T01, T06]`
-
---- references/owasp-llm-top-10-2025.md ---
-# OWASP LLM Top 10 v2025
-
-**Canonical IDs for use in `owasp_llm_top_10_2025:` arrays.**
-
-Official source: https://owasp.org/www-project-top-10-for-large-language-model-applications/
-
-| ID | Name | One-line description |
-|----|------|----------------------|
-| LLM01 | Prompt Injection | Attacker manipulates LLM behavior via crafted inputs (direct or indirect). |
-| LLM02 | Sensitive Information Disclosure | LLM reveals confidential data, system prompts, or PII in its output. |
-| LLM03 | Supply Chain | Compromised components — plugins, datasets, pre-trained weights — affect the LLM pipeline. |
-| LLM04 | Data and Model Poisoning | Training or fine-tuning data is tampered with to alter model behavior. |
-| LLM05 | Improper Output Handling | LLM output is passed unsanitized to downstream systems (XSS, SSRF, code injection). |
-| LLM06 | Excessive Agency | LLM acts on permissions or capabilities beyond what the task requires. |
-| LLM07 | System Prompt Leakage | The system prompt or internal context is exposed to the user or a third party. |
-| LLM08 | Vector and Embedding Weaknesses | Adversarial manipulation of embedding stores used for retrieval (RAG poisoning). |
-| LLM09 | Misinformation | LLM generates plausible but factually incorrect content that causes harm. |
-| LLM10 | Unbounded Consumption | LLM use is abused to exhaust resources — tokens, cost, rate limits, or compute. |
-
-## Usage notes
-
-- Use as many IDs as apply; list them in an array: `owasp_llm_top_10_2025: [LLM01, LLM06]`
-- IDs are version-anchored. When OWASP releases a new version, a new field
-  (`owasp_llm_top_10_2026`) will be added rather than redefining these IDs.
-- Combine with `mitre_atlas` IDs for technique-level tagging.

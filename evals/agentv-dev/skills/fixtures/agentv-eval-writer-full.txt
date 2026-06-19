@@ -730,6 +730,55 @@ cat $(agentv skills path agentv-eval-writer)/references/eval-schema.json
 
 Use `--full` to retrieve every file in the skill at once.
 
+--- references/python-helpers.md ---
+# Repo-Local Python Helpers
+
+AgentV's Python authoring surface is currently a repo-local helper example under `examples/features/sdk-python/`.
+
+Use it when the user wants Python-based custom graders or wants to emit AgentV YAML/JSONL from Python without introducing a Python-native runner.
+
+## Rules
+
+- Prefer canonical AgentV wire and YAML fields.
+- Do not accept deprecated wire aliases like `output_text`, `input_text`, or `reference_answer`.
+- Keep Python eval authoring YAML-shaped. Mirror `execution`, `tests`, `assertions`, `expected_output`, and related AgentV keys directly.
+- Run evals through the AgentV CLI, not through a separate Python runtime.
+
+## Available helpers
+
+- `agentv_py.grader`
+  - `load_grader_input()`
+  - `run_code_grader(handler)`
+  - `define_code_grader(handler)`
+  - `TargetClient.from_env()`
+- `agentv_py.evals`
+  - `EvalDefinition`
+  - `EvalTest`
+  - `JsonlCase`
+  - `write_eval_yaml()`
+  - `write_jsonl()`
+  - `run_agentv_eval()`
+
+## Example
+
+```python
+from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
+
+
+def evaluate(context):
+    actual = context.output or ""
+    expected = context.expected_output[0]["content"]
+    passed = actual.strip() == expected.strip()
+    return CodeGraderResult(
+        score=1.0 if passed else 0.0,
+        assertions=[Assertion(text="Exact match", passed=passed)],
+    )
+
+
+if __name__ == "__main__":
+    define_code_grader(evaluate)
+```
+
 --- references/eval-schema.json ---
 {
   "$schema": "https://json-schema.org/draft/2019-09/schema#",
@@ -18142,12 +18191,11 @@ Gating: checklist uses `required: true`, score-range uses `min_score: N` (0–1 
   "assertions": [
     { "text": "passed check", "passed": true },
     { "text": "failed check", "passed": false }
-  ],
-  "reasoning": "explanation"
+  ]
 }
 ```
 
-`score` (0.0-1.0) required. `assertions`, `reasoning` optional.
+`score` (0.0-1.0) required. `assertions` and `details` optional.
 
 ## SDK Functions
 
@@ -18163,29 +18211,29 @@ import { defineCodeGrader, createTargetClient, definePromptTemplate } from '@age
   - Raw stdin uses `snake_case`; SDK handlers receive `camelCase`
   - Context fields: `input`, `expectedOutput`, `output`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
 
+For Python, the repo-local helper example in `examples/features/sdk-python/` keeps canonical `snake_case` fields and rejects deprecated wire aliases like `output_text`, `input_text`, and `reference_answer`. It is not a separate Python runner; generated evals still run through the AgentV CLI.
+
 ## Python Example
 
 ```python
 #!/usr/bin/env python3
-import json, sys
+from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
 
-def evaluate(data: dict) -> dict:
-    candidate = data.get("output", "")
+
+def evaluate(context):
+    candidate = context.output or ""
     assertions = []
     for kw in ["async", "await"]:
-        assertions.append({"text": f"Keyword '{kw}'", "passed": kw in candidate})
-    passed = sum(1 for a in assertions if a["passed"])
-    return {
-        "score": passed / max(len(assertions), 1),
-        "assertions": assertions,
-    }
+        assertions.append(Assertion(text=f"Keyword '{kw}'", passed=kw in candidate))
+    passed = sum(1 for item in assertions if item.passed)
+    return CodeGraderResult(
+        score=passed / max(len(assertions), 1),
+        assertions=assertions,
+    )
+
 
 if __name__ == "__main__":
-    try:
-        print(json.dumps(evaluate(json.loads(sys.stdin.read()))))
-    except Exception as e:
-        print(json.dumps({"score": 0, "assertions": [{"text": str(e), "passed": False}]}))
-        sys.exit(1)
+    define_code_grader(evaluate)
 ```
 
 ## TypeScript Example
@@ -18195,9 +18243,9 @@ if __name__ == "__main__":
 import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, criteria }) => {
-  const answer = output ?? '';
+  const candidate = output ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
-  if (answer.includes(criteria)) {
+  if (candidate.includes(criteria)) {
     assertions.push({ text: 'Matches expected outcome', passed: true });
   } else {
     assertions.push({ text: 'Does not match expected outcome', passed: false });

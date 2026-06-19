@@ -1,4 +1,5 @@
-description: Smoke test for Azure OpenAI connectivity via pi agent
+name: agentv-self-azure-smoke
+description: Smoke test for lightweight agentv-self suite execution against an Azure target
 
 tests:
   - id: capital-of-france

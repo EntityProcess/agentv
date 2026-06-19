@@ -1,3 +1,5 @@
+name: agentv-dev-output-correctness
+
 description: >-
   Tests whether agent-produced output is structurally and factually correct
   given a bundled-skill fixture as ground truth — covers eval YAML structure,
@@ -105,7 +107,7 @@ tests:
           - Does not hallucinate sub-features not present in the SKILL.md
 
   - id: skill-list-complete
-    criteria: Agent lists all six bundled skills when given the JSON fixture.
+    criteria: Agent lists all five bundled skills when given the JSON fixture.
     input:
       - role: user
         content:
@@ -125,12 +127,10 @@ tests:
       - type: contains
         value: agentv-governance
       - type: contains
-        value: agentv-onboarding
-      - type: contains
         value: agentv-trace-analyst
       - type: rubrics
         criteria:
-          - Lists exactly the six skill names from the JSON, no more and no fewer
+          - Lists exactly the five skill names from the JSON, no more and no fewer
           - Does not invent additional skill names not present in the fixture
 
   - id: error-message-accurate

@@ -175,6 +175,21 @@ When each subagent task completes, you receive a notification containing `total_
 
 This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
 
+### After all executors complete
+
+Once all executor subagent notifications arrive, **read `response.md` directly from disk**.
+Do NOT use `read_agent` to fetch executor results — they are already written to the run
+directory. Verify all responses exist before proceeding:
+
+```bash
+for d in <run-dir>/<evalset>/*/; do
+  echo "$(basename $d): $(ls "$d"/response.md 2>/dev/null && echo OK || echo MISSING)"
+done
+```
+
+If any `response.md` is MISSING, re-run that specific executor subagent. Do not proceed to
+grading until all responses are present.
+
 ### Grading
 
 **In CLI mode**, `agentv eval` handles all grading end-to-end — no manual phases needed.
@@ -426,3 +441,19 @@ Repeating the core loop for emphasis:
 - Repeat until you and the user are satisfied
 
 Take your time with improvements. Read the transcripts. Understand why failures happened. Make changes that generalize beyond the test set. This is important work.
+
+## Accessing reference files
+
+To load a specific reference without pulling the entire skill into context:
+
+```bash
+agentv skills get agentv-bench --ref eval-yaml-spec
+```
+
+Or resolve the skill directory and read files directly:
+
+```bash
+cat $(agentv skills path agentv-bench)/references/eval-yaml-spec.md
+```
+
+Use `--full` to retrieve every file in the skill at once.

@@ -1,3 +1,5 @@
+name: agentv-dev-skill-invocation
+
 description: >-
   Tests whether an AI agent correctly invokes `agentv skills` CLI subcommands
   (list, get, path) with the right flags when asked to retrieve, enumerate,
