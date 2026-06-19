@@ -14,7 +14,7 @@ This file expands [AGENTS.md](../AGENTS.md) for version bumps, contract gates, a
 The publish workflow accepts these channels:
 
 - `next`: bump to the next prerelease such as `x.y.z-next.N`, commit, tag, create the GitHub Release, and publish to npm `next`
-- `finalize`: finalize the latest or specified prerelease tag, strip the `-next.N` suffix, create the stable tag and release, and publish to npm `latest`
+- `finalize`: finalize the latest or specified prerelease tag, strip the `-next.N` suffix on `main`, create the stable tag and release, and publish to npm `latest`
 - `stable`: bump straight to a stable release, tag it, create the GitHub Release, and publish to npm `latest`
 - `existing`: publish an existing tag or ref without creating a new version bump first
 

@@ -88,8 +88,8 @@ jobs:
             exit 1
           fi
 
+          git rev-parse --verify "$TAG^{commit}" >/dev/null
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          git checkout --detach "$TAG"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
