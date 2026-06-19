@@ -1,8 +1,8 @@
 name: agentv-self-guidance
 description: >-
   Validates the current AgentV repo guidance split, repo-change preflight,
-  and wire-format naming rules using the live AGENTS index and linked
-  `.agents/*.md` files copied into the eval workspace.
+  and wire-format naming rules by requiring the agent to inspect the live
+  AGENTS index and linked `.agents/*.md` files from the prepared eval workspace.
 
 tags: [agent, guidance]
 
@@ -16,29 +16,32 @@ workspace:
 input:
   - role: user
     content:
-      - type: file
-        value: /AGENTS.md
-      - type: file
-        value: /.agents/product-boundary.md
-      - type: file
-        value: /.agents/workflow.md
-      - type: file
-        value: /.agents/verification.md
-      - type: file
-        value: /.agents/conventions.md
       - type: text
         value: |
-          The files above are the current AgentV repo guidance. Use them as the
-          source of truth for the next request.
+          The eval harness has prepared the current AgentV repo in your working
+          directory. Follow the repo-facing agent instructions from disk. Start
+          with AGENTS.md and read any linked guidance needed for the request.
 
 tests:
   - id: guidance-split-paths
-    criteria: Agent points detailed workflow, verification, and conventions questions at the linked `.agents` docs.
+    criteria: Agent points detailed workflow, verification, and conventions questions at the linked `.agents` docs after reading the relevant guidance files.
     input: |
       List the three relative file paths that contain the detailed rules for
-      workflow, verification, and conventions.
-      Reply with one path per line and nothing else.
+      workflow, verification, and conventions. Include the top-level title from
+      each file after the path.
+      Reply with one path and title per line and nothing else.
     assertions:
+      - name: required-guidance-reads
+        type: code-grader
+        command: ["bun", "run", "./graders/required-file-reads.ts"]
+        cwd: .
+        required: true
+        config:
+          required_files:
+            - AGENTS.md
+            - .agents/workflow.md
+            - .agents/verification.md
+            - .agents/conventions.md
       - type: contains
         value: .agents/workflow.md
       - type: contains
@@ -51,20 +54,40 @@ tests:
           - Uses relative repo paths, not prose summaries
 
   - id: repo-change-preflight
-    criteria: Agent names the required git commands that must start every repo change.
+    criteria: Agent names the required git commands that must start every repo change after reading the repo workflow guidance.
     input: |
       What two exact shell commands must start every repo change in this repository?
       Reply with one command per line and nothing else.
     assertions:
+      - name: required-guidance-reads
+        type: code-grader
+        command: ["bun", "run", "./graders/required-file-reads.ts"]
+        cwd: .
+        required: true
+        config:
+          required_files:
+            - AGENTS.md
+            - .agents/workflow.md
       - type: contains
         value: git fetch origin
       - type: contains
         value: git status --short --branch
 
   - id: wire-format-snake-case
-    criteria: Agent keeps wire-format keys in snake_case.
+    criteria: Agent keeps wire-format keys in snake_case after reading the repo conventions guidance.
     input: |
       What key naming convention should anything that crosses a process boundary use
       in this repository?
       Reply with just the convention name.
-    expected_output: snake_case
+    assertions:
+      - name: required-guidance-reads
+        type: code-grader
+        command: ["bun", "run", "./graders/required-file-reads.ts"]
+        cwd: .
+        required: true
+        config:
+          required_files:
+            - AGENTS.md
+            - .agents/conventions.md
+      - type: equals
+        value: snake_case
