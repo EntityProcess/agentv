@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
-import { addProjectApi, browseFilesystemApi } from './api';
+import { addProjectApi, browseFilesystemApi, removeProjectApi } from './api';
 
 const originalFetch = globalThis.fetch;
 
@@ -68,5 +68,24 @@ describe('dashboard API boundary mapping', () => {
       addedAt: '2026-06-19T05:00:00.000Z',
       lastOpenedAt: '2026-06-19T05:00:00.000Z',
     });
+  });
+
+  it('calls the project removal endpoint', async () => {
+    const calls = stubJsonResponse({ ok: true });
+
+    await removeProjectApi('demo project');
+
+    expect(calls[0]).toEqual({
+      url: '/api/projects/demo%20project',
+      init: {
+        method: 'DELETE',
+      },
+    });
+  });
+
+  it('surfaces project removal API errors', async () => {
+    stubJsonResponse({ error: 'Project not found' }, 404);
+
+    await expect(removeProjectApi('missing')).rejects.toThrow('Project not found');
   });
 });

@@ -20,6 +20,7 @@ import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceTo
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   remoteStatusOptions,
+  removeProjectApi,
   syncRemoteResultsApi,
   useCompare,
   useEvalRuns,
@@ -36,7 +37,7 @@ import {
 } from '~/lib/navigation';
 import { buildProjectSyncErrorFeedback, buildProjectSyncFeedback } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
-import type { RunMeta } from '~/lib/types';
+import type { ProjectListResponse, ProjectSummary, RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
 
 const tabs: { id: TabId; label: string }[] = [
@@ -125,10 +126,23 @@ function ProjectsDashboard() {
   const queryClient = useQueryClient();
   const [showAddProject, setShowAddProject] = useState(false);
   const [showRunEval, setShowRunEval] = useState(false);
-  const [addProjectMessage, setAddProjectMessage] = useState<string | null>(null);
+  const [projectMessage, setProjectMessage] = useState<string | null>(null);
 
   const projects = data?.projects ?? [];
   const isReadOnly = config?.read_only === true;
+
+  async function handleRemoveProject(project: ProjectSummary) {
+    await removeProjectApi(project.id);
+    queryClient.setQueryData<ProjectListResponse>(['projects'], (current) =>
+      current
+        ? {
+            projects: current.projects.filter((entry) => entry.id !== project.id),
+          }
+        : current,
+    );
+    setProjectMessage(`Project removed from Dashboard: ${project.name}. Files were left on disk.`);
+    void queryClient.invalidateQueries({ queryKey: ['projects'] });
+  }
 
   return (
     <div className="space-y-6">
@@ -147,7 +161,7 @@ function ProjectsDashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  setAddProjectMessage(null);
+                  setProjectMessage(null);
                   setShowAddProject(true);
                 }}
                 className="rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-medium text-gray-950 transition-colors hover:bg-cyan-400"
@@ -159,9 +173,9 @@ function ProjectsDashboard() {
         </div>
       </div>
 
-      {addProjectMessage && (
+      {projectMessage && (
         <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/30 p-3 text-sm text-cyan-300">
-          {addProjectMessage}
+          {projectMessage}
         </div>
       )}
 
@@ -175,7 +189,12 @@ function ProjectsDashboard() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              canRemove={!isReadOnly}
+              onRemove={handleRemoveProject}
+            />
           ))}
         </div>
       )}
@@ -186,7 +205,7 @@ function ProjectsDashboard() {
           open={showAddProject}
           onClose={() => setShowAddProject(false)}
           onAdded={(project) => {
-            setAddProjectMessage(`Project registered: ${project.name}`);
+            setProjectMessage(`Project registered: ${project.name}`);
             void queryClient.invalidateQueries({ queryKey: ['projects'] });
           }}
         />

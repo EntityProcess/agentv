@@ -419,7 +419,10 @@ export async function removeProjectApi(projectId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(`Failed to remove project: ${res.status}`);
+    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+    };
+    throw new Error(err.error ?? `Failed to remove project: ${res.status}`);
   }
 }
 

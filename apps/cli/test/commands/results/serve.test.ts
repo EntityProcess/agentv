@@ -592,6 +592,41 @@ describe('serve app', () => {
     });
   });
 
+  // ── DELETE /api/projects/:projectId ───────────────────────────────────
+
+  describe('DELETE /api/projects/:projectId', () => {
+    it('unregisters a project without deleting its directory', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home-remove');
+
+      try {
+        const projectDir = path.join(tempDir, 'project-to-remove');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        const entry = addProject(projectDir);
+
+        const app = makeApp();
+        const remove = await app.request(`/api/projects/${encodeURIComponent(entry.id)}`, {
+          method: 'DELETE',
+        });
+
+        expect(remove.status).toBe(200);
+        expect(await remove.json()).toEqual({ ok: true });
+        expect(existsSync(projectDir)).toBe(true);
+        expect(existsSync(path.join(projectDir, '.agentv'))).toBe(true);
+
+        const list = await app.request('/api/projects');
+        const data = (await list.json()) as { projects: Array<{ id: string }> };
+        expect(data.projects).toEqual([]);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    });
+  });
+
   // ── GET /api/feedback ──────────────────────────────────────────────────
 
   describe('GET /api/feedback', () => {
