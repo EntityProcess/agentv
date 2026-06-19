@@ -1,6 +1,6 @@
 # AgentV
 
-**Evaluate AI agents from the terminal. No server. No signup.**
+**Evaluate AI agents against real repos from the terminal. No server. No signup.**
 
 ```bash
 npm install -g agentv
@@ -33,6 +33,8 @@ agentv eval evals/math.yaml
 ## Why AgentV?
 
 - **Local-first** — runs on your machine, no cloud accounts or API keys for eval infrastructure
+- **Repo-backed workspaces** — reuse real repos, setup scripts, and existing harnesses instead of rebuilding synthetic tasks
+- **Portable artifacts** — results, traces, and reports are saved in a durable format other tools can consume
 - **Version-controlled** — evals, judges, and results all live in Git
 - **Hybrid graders** — deterministic code checks + LLM-based subjective scoring
 - **CI/CD native** — exit codes, JSONL output, threshold flags for pipeline gating

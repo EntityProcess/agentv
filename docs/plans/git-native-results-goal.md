@@ -3,6 +3,8 @@
 ## Objective
 Implement the git-native results storage architecture and land PR #1261 as a clean, tested, manually verified change.
 
+> Historical note: this file captured the execution goal for PR #1261. The current git-native results contract lives in [`docs/plans/git-native-results.md`](git-native-results.md); if any implementation detail below differs, treat that design doc as the source of truth.
+
 ## Success Criteria
 - All implementation passes completed per design doc
 - Full test suite green (unit + integration + existing 1782 core + 553 CLI tests)
@@ -14,8 +16,8 @@ Implement the git-native results storage architecture and land PR #1261 as a cle
 - Worktree: `agentv.worktrees/git-native-results/`
 - Branch: `feat/git-native-results`
 
-## Key Decisions Confirmed
-- Dedicated results repo model → write directly to `main` of results repo (no separate branch needed)
+## Key Decisions Confirmed During Execution
+- Historical planning assumption: dedicated results repos would write directly to `main`; the shipped storage-branch contract is documented in `docs/plans/git-native-results.md`
 - Use raw `git` subprocess (not go-git) for ls-tree / cat-file path
 - Follow exact order in design doc
 
