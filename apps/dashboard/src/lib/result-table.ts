@@ -2,7 +2,7 @@
  * Pure view model for Dashboard result tables.
  *
  * Result browsing appears on run detail and drill-down screens. Keep the
- * filtering, preset, scorer-column, and display-column rules here so routes
+ * filtering, preset, grader-column, and display-column rules here so routes
  * can share one dense table contract without adding a new product mode.
  */
 
@@ -14,7 +14,7 @@ export type ResultTableViewId =
   | 'passing'
   | 'failing'
   | 'errors'
-  | 'scorer_errors'
+  | 'grader_errors'
   | 'unreviewed';
 
 export const RESULT_TABLE_VIEW_PRESETS: readonly {
@@ -25,7 +25,7 @@ export const RESULT_TABLE_VIEW_PRESETS: readonly {
   { id: 'passing', label: 'Passing' },
   { id: 'failing', label: 'Failing' },
   { id: 'errors', label: 'Errors' },
-  { id: 'scorer_errors', label: 'Scorer errors' },
+  { id: 'grader_errors', label: 'Grader errors' },
   { id: 'unreviewed', label: 'Unreviewed' },
 ];
 
@@ -33,7 +33,7 @@ export interface ResultTableState {
   readonly view: ResultTableViewId;
   readonly search: string;
   readonly target: string;
-  readonly scorer: string;
+  readonly grader: string;
   readonly visibleColumnIds: readonly string[];
 }
 
@@ -41,6 +41,7 @@ export interface ResultTableStateInput {
   readonly view?: string;
   readonly search?: string;
   readonly target?: string;
+  readonly grader?: string;
   readonly scorer?: string;
   readonly visibleColumnIds?: readonly string[];
 }
@@ -48,7 +49,7 @@ export interface ResultTableStateInput {
 export interface ResultTableColumn {
   readonly id: string;
   readonly label: string;
-  readonly kind: 'base' | 'scorer';
+  readonly kind: 'base' | 'grader';
   readonly defaultVisible: boolean;
 }
 
@@ -63,15 +64,15 @@ export interface ResultTableRow {
   readonly statusLabel: 'Passing' | 'Failing' | 'Error';
   readonly passing: boolean;
   readonly executionError: boolean;
-  readonly scorerError: boolean;
+  readonly graderError: boolean;
   readonly reviewed: boolean;
   readonly targetLabel: string;
   readonly modelLabel?: string;
   readonly suiteLabel?: string;
   readonly categoryLabel?: string;
   readonly tokenTotal?: number;
-  readonly scorerNames: readonly string[];
-  readonly scorerScores: ReadonlyMap<string, ScoreEntry>;
+  readonly graderNames: readonly string[];
+  readonly graderScores: ReadonlyMap<string, ScoreEntry>;
   readonly searchText: string;
 }
 
@@ -82,7 +83,7 @@ export interface ResultTableModel {
   readonly visibleColumns: readonly ResultTableColumn[];
   readonly state: ResultTableState;
   readonly targetOptions: readonly string[];
-  readonly scorerOptions: readonly string[];
+  readonly graderOptions: readonly string[];
   readonly viewCounts: Readonly<Record<ResultTableViewId, number>>;
 }
 
@@ -94,7 +95,7 @@ export interface BuildResultTableModelInput {
 }
 
 const DEFAULT_TARGET = 'all';
-const DEFAULT_SCORER = 'all';
+const DEFAULT_GRADER = 'all';
 
 function cleanString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -109,7 +110,7 @@ function uniqueSorted(values: Iterable<string>): string[] {
 }
 
 function scoreLabel(score: ScoreEntry, index: number): string {
-  return cleanString(score.name) ?? cleanString(score.type) ?? `Scorer ${index + 1}`;
+  return cleanString(score.name) ?? cleanString(score.type) ?? `Grader ${index + 1}`;
 }
 
 function scoreHasFailure(score: ScoreEntry, passThreshold: number): boolean {
@@ -132,7 +133,7 @@ function flattenScoreText(scores: readonly ScoreEntry[] | undefined): string[] {
   return parts.filter((part) => part.length > 0);
 }
 
-function buildScorerMap(
+function buildGraderMap(
   scores: readonly ScoreEntry[] | undefined,
 ): ReadonlyMap<string, ScoreEntry> {
   const map = new Map<string, ScoreEntry>();
@@ -184,9 +185,9 @@ function buildRow(
   const executionError = isExecutionError(result);
   const passing = !executionError && result.score >= passThreshold;
   const status: ResultTableRowStatus = executionError ? 'error' : passing ? 'passing' : 'failing';
-  const scorerScores = buildScorerMap(result.scores);
-  const scorerNames = [...scorerScores.keys()];
-  const scorerError =
+  const graderScores = buildGraderMap(result.scores);
+  const graderNames = [...graderScores.keys()];
+  const graderError =
     result.scores?.some((score) => scoreHasFailure(score, passThreshold)) ?? false;
   const model = modelLabel(result);
   const target = targetLabel(result);
@@ -214,15 +215,15 @@ function buildRow(
     statusLabel: executionError ? 'Error' : passing ? 'Passing' : 'Failing',
     passing,
     executionError,
-    scorerError,
+    graderError,
     reviewed: reviewedTestIds.has(result.testId),
     targetLabel: target,
     ...(model && { modelLabel: model }),
     ...(suite && { suiteLabel: suite }),
     ...(category && { categoryLabel: category }),
     ...(tokenTotal !== undefined && { tokenTotal }),
-    scorerNames,
-    scorerScores,
+    graderNames,
+    graderScores,
     searchText: searchParts.join(' ').toLowerCase(),
   };
 }
@@ -231,7 +232,7 @@ function hasMeaningfulTarget(rows: readonly ResultTableRow[]): boolean {
   return rows.some((row) => row.targetLabel !== 'default' || row.modelLabel);
 }
 
-function buildColumns(rows: readonly ResultTableRow[], scorerOptions: readonly string[]) {
+function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly string[]) {
   const hasSuite = rows.some((row) => row.suiteLabel);
   const hasCategory = rows.some((row) => row.categoryLabel);
   const hasDuration = rows.some((row) => row.result.durationMs != null);
@@ -271,10 +272,10 @@ function buildColumns(rows: readonly ResultTableRow[], scorerOptions: readonly s
     ...(hasError
       ? [{ id: 'error', label: 'Error', kind: 'base' as const, defaultVisible: false }]
       : []),
-    ...scorerOptions.map((name) => ({
-      id: `scorer:${name}`,
+    ...graderOptions.map((name) => ({
+      id: `grader:${name}`,
       label: name,
-      kind: 'scorer' as const,
+      kind: 'grader' as const,
       defaultVisible: true,
     })),
   ];
@@ -283,6 +284,7 @@ function buildColumns(rows: readonly ResultTableRow[], scorerOptions: readonly s
 }
 
 function normalizeView(value: string | undefined): ResultTableViewId {
+  if (value === 'scorer_errors') return 'grader_errors';
   return RESULT_TABLE_VIEW_PRESETS.some((preset) => preset.id === value)
     ? (value as ResultTableViewId)
     : 'all';
@@ -297,22 +299,26 @@ function normalizeState(
   input: ResultTableStateInput | undefined,
   columns: readonly ResultTableColumn[],
   targetOptions: readonly string[],
-  scorerOptions: readonly string[],
+  graderOptions: readonly string[],
 ): ResultTableState {
   const columnIds = new Set(columns.map((column) => column.id));
-  const requestedColumns = input?.visibleColumnIds?.filter((id) => columnIds.has(id)) ?? [];
+  const requestedColumns =
+    input?.visibleColumnIds
+      ?.map((id) => (id.startsWith('scorer:') ? `grader:${id.slice('scorer:'.length)}` : id))
+      .filter((id) => columnIds.has(id)) ?? [];
   const visibleColumnIds =
     requestedColumns.length > 0 ? requestedColumns : defaultVisibleColumnIds(columns);
   const target =
     input?.target && targetOptions.includes(input.target) ? input.target : DEFAULT_TARGET;
-  const scorer =
-    input?.scorer && scorerOptions.includes(input.scorer) ? input.scorer : DEFAULT_SCORER;
+  const requestedGrader = input?.grader ?? input?.scorer;
+  const grader =
+    requestedGrader && graderOptions.includes(requestedGrader) ? requestedGrader : DEFAULT_GRADER;
 
   return {
     view: normalizeView(input?.view),
     search: input?.search?.trim() ?? '',
     target,
-    scorer,
+    grader,
     visibleColumnIds,
   };
 }
@@ -325,8 +331,8 @@ function matchesView(row: ResultTableRow, view: ResultTableViewId): boolean {
       return row.status === 'failing';
     case 'errors':
       return row.status === 'error';
-    case 'scorer_errors':
-      return row.scorerError;
+    case 'grader_errors':
+      return row.graderError;
     case 'unreviewed':
       return !row.reviewed;
     case 'all':
@@ -340,7 +346,7 @@ function viewCounts(rows: readonly ResultTableRow[]): Readonly<Record<ResultTabl
     passing: rows.filter((row) => row.status === 'passing').length,
     failing: rows.filter((row) => row.status === 'failing').length,
     errors: rows.filter((row) => row.status === 'error').length,
-    scorer_errors: rows.filter((row) => row.scorerError).length,
+    grader_errors: rows.filter((row) => row.graderError).length,
     unreviewed: rows.filter((row) => !row.reviewed).length,
   };
 }
@@ -351,16 +357,16 @@ export function buildResultTableModel(input: BuildResultTableModelInput): Result
     buildRow(result, index, input.passThreshold, reviewedTestIds),
   );
   const targetOptions = uniqueSorted(rows.map((row) => row.targetLabel));
-  const scorerOptions = uniqueSorted(rows.flatMap((row) => row.scorerNames));
-  const columns = buildColumns(rows, scorerOptions);
-  const state = normalizeState(input.state, columns, targetOptions, scorerOptions);
+  const graderOptions = uniqueSorted(rows.flatMap((row) => row.graderNames));
+  const columns = buildColumns(rows, graderOptions);
+  const state = normalizeState(input.state, columns, targetOptions, graderOptions);
   const query = state.search.toLowerCase();
   const visibleColumnIds = new Set(state.visibleColumnIds);
 
   const filteredRows = rows.filter((row) => {
     if (!matchesView(row, state.view)) return false;
     if (state.target !== DEFAULT_TARGET && row.targetLabel !== state.target) return false;
-    if (state.scorer !== DEFAULT_SCORER && !row.scorerScores.has(state.scorer)) return false;
+    if (state.grader !== DEFAULT_GRADER && !row.graderScores.has(state.grader)) return false;
     if (query && !row.searchText.includes(query)) return false;
     return true;
   });
@@ -372,7 +378,7 @@ export function buildResultTableModel(input: BuildResultTableModelInput): Result
     visibleColumns: columns.filter((column) => visibleColumnIds.has(column.id)),
     state,
     targetOptions,
-    scorerOptions,
+    graderOptions,
     viewCounts: viewCounts(rows),
   };
 }

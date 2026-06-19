@@ -16,7 +16,7 @@ function result(overrides: Partial<EvalResult>): EvalResult {
 }
 
 describe('result-table model', () => {
-  it('builds canonical preset counts from execution status, quality score, scorer failures, and review state', () => {
+  it('builds canonical preset counts from execution status, quality score, grader failures, and review state', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,
       reviewedTestIds: ['passing-case'],
@@ -25,7 +25,7 @@ describe('result-table model', () => {
         result({ testId: 'failing-case', score: 0.4, executionStatus: 'quality_failure' }),
         result({ testId: 'error-case', score: 0, executionStatus: 'execution_error' }),
         result({
-          testId: 'scorer-case',
+          testId: 'grader-case',
           score: 0.9,
           scores: [
             {
@@ -45,21 +45,21 @@ describe('result-table model', () => {
       passing: 2,
       failing: 1,
       errors: 1,
-      scorer_errors: 1,
+      grader_errors: 1,
       unreviewed: 3,
     });
 
-    const scorerErrors = buildResultTableModel({
+    const graderErrors = buildResultTableModel({
       passThreshold: 0.8,
       reviewedTestIds: ['passing-case'],
       results: model.rows.map((row) => row.result),
-      state: { view: 'scorer_errors' },
+      state: { view: 'grader_errors' },
     });
 
-    expect(scorerErrors.filteredRows.map((row) => row.testId)).toEqual(['scorer-case']);
+    expect(graderErrors.filteredRows.map((row) => row.testId)).toEqual(['grader-case']);
   });
 
-  it('combines search, target, and scorer filters', () => {
+  it('combines search, target, and grader filters', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,
       results: [
@@ -77,14 +77,14 @@ describe('result-table model', () => {
       state: {
         search: 'beta',
         target: 'claude',
-        scorer: 'rubric',
+        grader: 'rubric',
       },
     });
 
     expect(model.filteredRows.map((row) => row.testId)).toEqual(['beta-rubric']);
   });
 
-  it('creates display columns for present metrics and scorer names', () => {
+  it('creates display columns for present metrics and grader names', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,
       results: [
@@ -111,8 +111,29 @@ describe('result-table model', () => {
       'duration',
       'cost_tokens',
       'review',
-      'scorer:correctness',
+      'grader:correctness',
     ]);
-    expect(model.visibleColumns.map((column) => column.id)).toContain('scorer:correctness');
+    expect(model.visibleColumns.map((column) => column.id)).toContain('grader:correctness');
+  });
+
+  it('accepts legacy scorer URL state as a grader alias', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'legacy-rubric',
+          scores: [{ name: 'rubric', type: 'llm-grader', score: 1, verdict: 'pass' }],
+        }),
+      ],
+      state: {
+        view: 'scorer_errors',
+        scorer: 'rubric',
+        visibleColumnIds: ['scorer:rubric'],
+      },
+    });
+
+    expect(model.state.view).toBe('grader_errors');
+    expect(model.state.grader).toBe('rubric');
+    expect(model.visibleColumns.map((column) => column.id)).toEqual(['grader:rubric']);
   });
 });

@@ -36,7 +36,8 @@ const QUERY_KEYS = {
   view: 'results_view',
   search: 'results_q',
   target: 'results_target',
-  scorer: 'results_scorer',
+  grader: 'results_grader',
+  legacyScorer: 'results_scorer',
   columns: 'results_cols',
 } as const;
 
@@ -47,7 +48,7 @@ function readUrlState(): ResultTableStateInput {
     view: params.get(QUERY_KEYS.view) ?? undefined,
     search: params.get(QUERY_KEYS.search) ?? undefined,
     target: params.get(QUERY_KEYS.target) ?? undefined,
-    scorer: params.get(QUERY_KEYS.scorer) ?? undefined,
+    grader: params.get(QUERY_KEYS.grader) ?? params.get(QUERY_KEYS.legacyScorer) ?? undefined,
     visibleColumnIds:
       params
         .get(QUERY_KEYS.columns)
@@ -70,8 +71,9 @@ function writeUrlState(state: ResultTableState) {
   if (state.target === 'all') params.delete(QUERY_KEYS.target);
   else params.set(QUERY_KEYS.target, state.target);
 
-  if (state.scorer === 'all') params.delete(QUERY_KEYS.scorer);
-  else params.set(QUERY_KEYS.scorer, state.scorer);
+  params.delete(QUERY_KEYS.legacyScorer);
+  if (state.grader === 'all') params.delete(QUERY_KEYS.grader);
+  else params.set(QUERY_KEYS.grader, state.grader);
 
   if (state.visibleColumnIds.length > 0) {
     params.set(QUERY_KEYS.columns, state.visibleColumnIds.join(','));
@@ -129,10 +131,10 @@ function scoreTone(score: number): string {
   return 'text-red-300';
 }
 
-function scorerFailed(score: ScoreEntry): boolean {
+function graderFailed(score: ScoreEntry): boolean {
   return score.verdict === 'fail' || score.assertions?.some((assertion) => !assertion.passed)
     ? true
-    : (score.scores?.some(scorerFailed) ?? false);
+    : (score.scores?.some(graderFailed) ?? false);
 }
 
 export function ResultTable({
@@ -237,7 +239,7 @@ export function ResultTable({
               type="search"
               value={model.state.search}
               onChange={(event) => updateState({ search: event.target.value })}
-              placeholder="Search tests, targets, scorers, assertions"
+              placeholder="Search tests, targets, graders, assertions"
               className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-gray-100 placeholder:text-gray-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             />
           </label>
@@ -259,16 +261,16 @@ export function ResultTable({
           </label>
 
           <label>
-            <span className="sr-only">Filter by scorer</span>
+            <span className="sr-only">Filter by grader</span>
             <select
-              value={model.state.scorer}
-              onChange={(event) => updateState({ scorer: event.target.value })}
+              value={model.state.grader}
+              onChange={(event) => updateState({ grader: event.target.value })}
               className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-gray-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             >
-              <option value="all">All scorers</option>
-              {model.scorerOptions.map((scorer) => (
-                <option key={scorer} value={scorer}>
-                  {scorer}
+              <option value="all">All graders</option>
+              {model.graderOptions.map((grader) => (
+                <option key={grader} value={grader}>
+                  {grader}
                 </option>
               ))}
             </select>
@@ -366,7 +368,7 @@ export function ResultTable({
 }
 
 function isNumericColumn(columnId: string): boolean {
-  return ['duration', 'cost_tokens'].includes(columnId) || columnId.startsWith('scorer:');
+  return ['duration', 'cost_tokens'].includes(columnId) || columnId.startsWith('grader:');
 }
 
 function ResultCell({
@@ -382,10 +384,10 @@ function ResultCell({
   projectId?: string;
   passThreshold: number;
 }) {
-  if (column.id.startsWith('scorer:')) {
-    const scorerName = column.id.slice('scorer:'.length);
+  if (column.id.startsWith('grader:')) {
+    const graderName = column.id.slice('grader:'.length);
     return (
-      <ScorerScoreCell score={row.scorerScores.get(scorerName)} passThreshold={passThreshold} />
+      <GraderScoreCell score={row.graderScores.get(graderName)} passThreshold={passThreshold} />
     );
   }
 
@@ -527,7 +529,7 @@ function CostTokenCell({
   );
 }
 
-function ScorerScoreCell({
+function GraderScoreCell({
   score,
   passThreshold,
 }: {
@@ -535,7 +537,7 @@ function ScorerScoreCell({
   passThreshold: number;
 }) {
   if (!score) return <span className="text-gray-600">-</span>;
-  const failed = score.score < passThreshold || scorerFailed(score);
+  const failed = score.score < passThreshold || graderFailed(score);
   return (
     <div className="min-w-0 text-right">
       <div className={`tabular-nums ${scoreTone(score.score)}`}>{formatPercent(score.score)}</div>
