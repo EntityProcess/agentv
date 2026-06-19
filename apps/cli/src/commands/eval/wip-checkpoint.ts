@@ -15,7 +15,7 @@
  * Manual recovery from a WIP branch:
  *   git clone <results-repo> /tmp/recovery
  *   cd /tmp/recovery && git checkout agentv/wip/<hostname>/<run-dir>
- *   cp -r .agentv/results/runs/<run-dir> <project>/.agentv/results/runs/
+ *   cp -r runs/<run-dir> <project>/.agentv/results/runs/
  *   agentv eval <eval-file> --output <project>/.agentv/results/runs/<run-dir> --resume
  *
  * All checkpoint operations are best-effort: failures are logged as warnings

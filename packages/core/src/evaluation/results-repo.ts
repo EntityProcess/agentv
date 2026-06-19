@@ -17,8 +17,19 @@ import { getAgentvDataDir } from '../paths.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
+// Local working-tree run workspace inside the eval repo. Local commands
+// (`agentv eval` default --output, inspect/trend/export/combine/serve) read and
+// write runs here. This is NOT the on-branch layout — see resolveResultsRepoRunsDir.
 const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
-const RESULTS_REPO_RUNS_DIR = `${RESULTS_REPO_RESULTS_DIR}/runs`;
+// On-branch / results-repo-clone storage layout. The results branch (e.g.
+// agentv/results/v1) already namespaces results, so runs are stored flat at
+// runs/<experiment>/<timestamp>/ and the editable tag overlays at
+// metadata/runs/<experiment>/<timestamp>/ — no redundant `.agentv/results/` prefix.
+const RESULTS_REPO_RUNS_DIR = 'runs';
+const RESULTS_REPO_METADATA_DIR = 'metadata';
+// Top-level directories AgentV owns on the results branch. The auto-sync
+// dirty-commit path stages only these so it never touches unrelated repo files.
+const RESULTS_REPO_TRACKED_DIRS = [RESULTS_REPO_RUNS_DIR, RESULTS_REPO_METADATA_DIR] as const;
 const RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
 const RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
 export const DEFAULT_RESULTS_BRANCH = 'agentv/results/v1';
@@ -787,7 +798,25 @@ function withActionFlags(
 }
 
 function isSafeResultsRepoPath(p: string): boolean {
-  return p === RESULTS_REPO_RESULTS_DIR || p.startsWith(`${RESULTS_REPO_RESULTS_DIR}/`);
+  return RESULTS_REPO_TRACKED_DIRS.some((dir) => p === dir || p.startsWith(`${dir}/`));
+}
+
+// git errors on a pathspec that matches nothing, so when staging AgentV's result
+// trees we only pass the ones that currently exist on disk or in the index. A run
+// commit may have no tag overlays yet (no `metadata/`), and vice versa.
+async function existingTrackedResultsDirs(repoDir: string): Promise<string[]> {
+  const targets: string[] = [];
+  for (const dir of RESULTS_REPO_TRACKED_DIRS) {
+    if (existsSync(path.join(repoDir, dir))) {
+      targets.push(dir);
+      continue;
+    }
+    const { stdout } = await runGit(['ls-files', '--', dir], { cwd: repoDir, check: false });
+    if (stdout.trim().length > 0) {
+      targets.push(dir);
+    }
+  }
+  return targets;
 }
 
 function areSafeResultsRepoPaths(paths: readonly string[]): boolean {
@@ -1038,16 +1067,11 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       }
 
       if (inspection.syncStatus === 'dirty') {
-        await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], { cwd: repoDir });
+        const trackedDirs = await existingTrackedResultsDirs(repoDir);
+        await runGit(['add', '--all', '--', ...trackedDirs], { cwd: repoDir });
         await ensureResultsRepoCommitIdentity(repoDir);
         await runGit(
-          [
-            'commit',
-            '-m',
-            'chore(results): sync local result metadata',
-            '--',
-            RESULTS_REPO_RESULTS_DIR,
-          ],
+          ['commit', '-m', 'chore(results): sync local result metadata', '--', ...trackedDirs],
           {
             cwd: repoDir,
           },
@@ -1894,7 +1918,7 @@ function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
 //
 // Manual recovery: if a pod is lost mid-run, an operator can clone the results
 // repo, checkout `agentv/wip/<hostname>/<run-dir>`, and resume with:
-//   cp -r .agentv/results/runs/<run-dir> <local-workspace>
+//   cp -r runs/<run-dir> <local-workspace>
 //   agentv eval <eval-file> --output <local-workspace>/<run-dir> --resume
 
 export function buildWipBranchName(runDir: string): string {
@@ -1983,7 +2007,8 @@ export async function pushWipCheckpoint(params: {
     sourceDir: params.sourceDir,
     destinationDir,
   });
-  await runGit(['add', '--all', '--', RESULTS_REPO_RESULTS_DIR], {
+  const trackedDirs = await existingTrackedResultsDirs(params.handle.worktreeDir);
+  await runGit(['add', '--all', '--', ...trackedDirs], {
     cwd: params.handle.worktreeDir,
   });
   const { stdout: status } = await runGit(['status', '--porcelain'], {
@@ -2013,13 +2038,44 @@ export async function deleteWipBranch(params: {
   await runGit(['push', normalized.remote, '--delete', params.wipBranch], { cwd: cloneDir });
 }
 
-export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {
-  const { stdout: treeOut } = await runGit(
-    ['ls-tree', '-r', '--name-only', ref, RESULTS_REPO_RUNS_DIR],
-    {
-      cwd: repoDir,
-    },
+// git exits non-zero with one of these messages when the requested ref/object
+// does not exist yet — e.g. a configured results branch that has never been
+// pushed. We treat that as "no remote runs" rather than a hard failure.
+function isMissingGitRefError(error: unknown): boolean {
+  const parts: string[] = [];
+  if (error && typeof error === 'object') {
+    const e = error as { stderr?: unknown; message?: unknown };
+    if (typeof e.stderr === 'string') parts.push(e.stderr);
+    if (typeof e.message === 'string') parts.push(e.message);
+  } else if (typeof error === 'string') {
+    parts.push(error);
+  }
+  const haystack = parts.join('\n').toLowerCase();
+  return (
+    haystack.includes('not a valid object name') ||
+    haystack.includes('unknown revision or path') ||
+    haystack.includes('bad revision') ||
+    haystack.includes('does not exist')
   );
+}
+
+export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {
+  let treeOut: string;
+  try {
+    ({ stdout: treeOut } = await runGit(
+      ['ls-tree', '-r', '--name-only', ref, RESULTS_REPO_RUNS_DIR],
+      {
+        cwd: repoDir,
+      },
+    ));
+  } catch (error) {
+    // A not-yet-created results branch is an empty result, not an error. This
+    // keeps the Dashboard's remote-results poll quiet before the first push.
+    if (isMissingGitRefError(error)) {
+      return [];
+    }
+    throw error;
+  }
 
   const benchmarkPaths = treeOut
     .split(/\r?\n/)

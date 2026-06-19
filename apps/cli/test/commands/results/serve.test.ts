@@ -133,7 +133,7 @@ function writeRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', experiment, timestamp);
+  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
   const records = Array.isArray(resultRecords) ? resultRecords : [resultRecords];
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
@@ -173,7 +173,7 @@ function writeDirtyRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, '.agentv', 'results', 'runs', experiment, timestamp);
+  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
   writeFileSync(
@@ -205,16 +205,7 @@ function writeRemoteTagMetadataOverlay(
   timestamp: string,
   tags: readonly string[],
 ): string {
-  const metadataPath = path.join(
-    repoDir,
-    '.agentv',
-    'results',
-    'metadata',
-    'runs',
-    experiment,
-    timestamp,
-    'tags.json',
-  );
+  const metadataPath = path.join(repoDir, 'metadata', 'runs', experiment, timestamp, 'tags.json');
   mkdirSync(path.dirname(metadataPath), { recursive: true });
   writeFileSync(
     metadataPath,
@@ -1379,8 +1370,6 @@ describe('serve app', () => {
 
       const runManifestPath = path.join(
         cloneDir,
-        '.agentv',
-        'results',
         'runs',
         'external-sync',
         '2026-03-26T11-00-00-000Z',
@@ -1454,8 +1443,6 @@ describe('serve app', () => {
 
       const artifactTagsPath = path.join(
         cloneDir,
-        '.agentv',
-        'results',
         'runs',
         'green-uat',
         '2026-03-26T12-00-00-000Z',
@@ -1463,8 +1450,6 @@ describe('serve app', () => {
       );
       const overlayTagsPath = path.join(
         cloneDir,
-        '.agentv',
-        'results',
         'metadata',
         'runs',
         'green-uat',
@@ -1846,7 +1831,7 @@ describe('serve app', () => {
           '2026-03-26T11-00-00-000Z',
           RESULT_A,
         );
-        git('git add .agentv && git commit --quiet -m "remote result"', seedDir);
+        git('git add runs && git commit --quiet -m "remote result"', seedDir);
         git('git push --quiet origin main', seedDir);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
@@ -1875,8 +1860,6 @@ describe('serve app', () => {
           existsSync(
             path.join(
               cloneDir,
-              '.agentv',
-              'results',
               'runs',
               'project-sync-pull',
               runId.replace('project-sync-pull::', ''),
@@ -1949,7 +1932,7 @@ describe('serve app', () => {
           run_count: 1,
         });
         expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
-          `.agentv/results/metadata/runs/project-sync-push/${runTimestamp}/tags.json`,
+          `metadata/runs/project-sync-push/${runTimestamp}/tags.json`,
         );
       } finally {
         if (previousHome === undefined) {
@@ -2048,8 +2031,6 @@ describe('serve app', () => {
 
         const runTimestamp = '2026-03-26T13-00-00-000Z';
         const relativeMetadataPath = path.posix.join(
-          '.agentv',
-          'results',
           'metadata',
           'runs',
           'project-sync-conflict',
@@ -2057,14 +2038,14 @@ describe('serve app', () => {
           'tags.json',
         );
         writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['base']);
-        git('git add .agentv && git commit --quiet -m "seed tag metadata"', seedDir);
+        git('git add metadata && git commit --quiet -m "seed tag metadata"', seedDir);
         git('git push --quiet origin main', seedDir);
         git('git pull --ff-only --quiet', cloneDir);
 
         writeRemoteTagMetadataOverlay(cloneDir, 'project-sync-conflict', runTimestamp, ['local']);
-        git('git add .agentv && git commit --quiet -m "local tag metadata"', cloneDir);
+        git('git add metadata && git commit --quiet -m "local tag metadata"', cloneDir);
         writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['remote']);
-        git('git add .agentv && git commit --quiet -m "remote tag metadata"', seedDir);
+        git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
         git('git push --quiet origin main', seedDir);
         git('git fetch --quiet origin --prune', cloneDir);
         git('git merge origin/main || true', cloneDir);

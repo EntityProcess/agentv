@@ -38,14 +38,14 @@ function seedRepo(repoDir: string): string {
   git('git config user.email "test@example.com"', repoDir);
   git('git config user.name "Test User"', repoDir);
 
-  const runDir = path.join(repoDir, '.agentv', 'results', 'runs', 'default', RUN_TIMESTAMP);
+  const runDir = path.join(repoDir, 'runs', 'default', RUN_TIMESTAMP);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha","score":1}\n');
   writeFileSync(
     path.join(runDir, 'tags.json'),
     `${JSON.stringify({ tags: ['remote-baseline'], updated_at: '2026-06-06T09:00:00.000Z' }, null, 2)}\n`,
   );
-  git('git add .agentv', repoDir);
+  git('git add runs', repoDir);
   git('git commit --quiet -m "seed remote run"', repoDir);
   return path.join(runDir, 'index.jsonl');
 }
@@ -73,7 +73,7 @@ describe('remote metadata tags', () => {
     expect(state.pendingTags).toEqual(['pending', 'remote-baseline']);
     expect(state.dirty).toBe(true);
     expect(state.metadataPath).toContain(
-      path.join('.agentv', 'results', 'metadata', 'runs', 'default', RUN_TIMESTAMP, 'tags.json'),
+      path.join('metadata', 'runs', 'default', RUN_TIMESTAMP, 'tags.json'),
     );
     expect(readFileSync(artifactTagsPath, 'utf8')).toBe(originalArtifactTags);
     expect(existsSync(state.metadataPath)).toBe(true);
@@ -88,7 +88,7 @@ describe('remote metadata tags', () => {
   it('uses committed metadata overlays as the clean remote baseline', () => {
     const manifestPath = seedRepo(repoDir);
     const state = writeRemoteRunTags(repoDir, manifestPath, ['accepted']);
-    git('git add .agentv/results/metadata', repoDir);
+    git('git add metadata', repoDir);
     git('git commit --quiet -m "update tags"', repoDir);
 
     const reloaded = readRemoteRunTags(repoDir, manifestPath);
@@ -113,7 +113,7 @@ describe('remote metadata tags', () => {
   });
 
   it('rejects writes when the configured results path is not a git checkout', () => {
-    const runDir = path.join(repoDir, '.agentv', 'results', 'runs', 'default', RUN_TIMESTAMP);
+    const runDir = path.join(repoDir, 'runs', 'default', RUN_TIMESTAMP);
     mkdirSync(runDir, { recursive: true });
     const manifestPath = path.join(runDir, 'index.jsonl');
     writeFileSync(manifestPath, '{"test_id":"alpha","score":1}\n');

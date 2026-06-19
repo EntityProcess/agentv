@@ -148,7 +148,7 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     expect(status).toBe('published');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      '.agentv/results/runs/default/run-001/index.jsonl',
+      'runs/default/run-001/index.jsonl',
     );
   }, 20_000);
 
@@ -203,10 +203,10 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     expect(status).toBe('published');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      '.agentv/results/runs/default/run-001/index.jsonl',
+      'runs/default/run-001/index.jsonl',
     );
     expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
-      '.agentv/results/runs/default/run-001/index.jsonl',
+      'runs/default/run-001/index.jsonl',
     );
   });
 });

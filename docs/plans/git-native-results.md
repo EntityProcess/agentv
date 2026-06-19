@@ -14,7 +14,7 @@ After comparing with **entireio** (single-ref + git tree as index) and **skillfu
 
 ## Core idea
 
-The configured results branch tree IS the index. `git ls-tree -r <storage-ref> -- .agentv/results/runs/` lists every run path without reading every blob. `git cat-file --batch` reads existing `benchmark.json` blobs in one subprocess call. No separate index file. No drift. Natural pruning when runs are deleted. With `--filter=blob:none` clone, individual run blobs are fetched lazily when a user opens the detail view.
+The configured results branch tree IS the index. `git ls-tree -r <storage-ref> -- runs/` lists every run path without reading every blob. `git cat-file --batch` reads existing `benchmark.json` blobs in one subprocess call. No separate index file. No drift. Natural pruning when runs are deleted. With `--filter=blob:none` clone, individual run blobs are fetched lazily when a user opens the detail view.
 
 ## Architecture
 
@@ -23,7 +23,7 @@ The configured results branch tree IS the index. `git ls-tree -r <storage-ref> -
 - `results.repo_path` points at an existing local Git checkout whose object database and refs AgentV may write to. Use `repo_path: .` to store results in a dedicated branch of the source repo without checking that branch out in the source worktree.
 - `results.repo_url` points at a remote results repository. AgentV manages a local clone at `results.path`; omit `path` to use the default AgentV data dir.
 - `results.branch` is the storage branch. `repo_path` configs default to `agentv/results/v1`.
-- Local `.agentv/results/runs/` remains the active run workspace for local Dashboard, resume, and rerun flows. Publishing copies completed run artifacts into the branch-backed store under `.agentv/results/**`.
+- Local `.agentv/results/runs/` remains the active run workspace for local Dashboard, resume, and rerun flows. Publishing copies completed run artifacts into the branch-backed store under `runs/**` (the branch name already namespaces results, so no redundant `.agentv/results/` prefix on the branch). Editable tag overlays live alongside under `metadata/runs/**`.
 
 ```yaml
 # Existing checkout, usually the eval source repo.
@@ -51,7 +51,7 @@ Every completed `agentv eval` publish is one atomic operation:
 
 1. Write artifacts into the normal local run workspace at `.agentv/results/runs/<experiment>/<timestamp>/`.
 2. Resolve the results store: either the `repo_path` checkout or the managed clone for `repo_url`.
-3. Build a commit for `.agentv/results/**` on the storage branch using git plumbing and a temporary index, so `repo_path: .` never has to check out `agentv/results/v1`.
+3. Build a commit for `runs/**` (and `metadata/**`) on the storage branch using git plumbing and a temporary index, so `repo_path: .` never has to check out `agentv/results/v1`.
 4. If `sync.auto_push` or `sync.require_push` is enabled, push the storage branch. Non-fast-forward conflicts fetch the remote branch, rebuild the single run commit on the remote base when safe, and retry.
 
 Each run is one commit. Files are unique to that run, so rebases never content-conflict.
@@ -59,14 +59,14 @@ Each run is one commit. Files are unique to that run, so rebases never content-c
 ### Reads
 
 **Listing** (replaces `listResultFilesFromRunsDir`):
-- `git ls-tree -r <storage-ref> -- .agentv/results/runs/` → filter for `benchmark.json` paths
+- `git ls-tree -r <storage-ref> -- runs/` → filter for `benchmark.json` paths
 - `git cat-file --batch` → read those blobs in one subprocess
 - Derive `run_id` from path (same logic as current `buildRunId`)
 - Sort by timestamp descending
 - Apply cursor pagination
 
 **Detail view file reads** (replaces `readFileSync(meta.path)`):
-- Committed: `git cat-file -p <storage-ref>:.agentv/results/runs/.../<file>`
+- Committed: `git cat-file -p <storage-ref>:runs/.../<file>`
 - In-progress (post-write, pre-commit): `readFileSync(<path>)` from working tree
 
 **In-progress detection**: between artifact write and commit, files exist only in the working tree. `git status --porcelain .agentv/results/` surfaces them; merge with the committed list for the Dashboard runs view.
@@ -91,7 +91,7 @@ Each run is one commit. Files are unique to that run, so rebases never content-c
 - `normalizeResultsConfig()` accepts `repo_url`/legacy `repo` or `repo_path`, but prerelease docs and config examples use `repo_url` or `repo_path`.
 - `directPushResults()` resolves the results store, builds one storage-branch commit for the completed run, and pushes when `sync.auto_push` or `sync.require_push` is enabled.
 - `commitResultsRunWithTemporaryIndex()` writes blobs into the repo object database and updates the storage branch via a temporary index. This is the normal `repo_path: .` path and avoids copying files into a checked-out results branch.
-- `listGitRuns()` uses `git ls-tree` plus `git cat-file --batch` against `.agentv/results/runs/**/benchmark.json`.
+- `listGitRuns()` uses `git ls-tree` plus `git cat-file --batch` against `runs/**/benchmark.json`. A not-yet-created storage branch (ref does not exist) returns `[]` rather than throwing, so the Dashboard's remote-results poll stays quiet before the first push.
 - `setupWipWorktree()` and `pushWipCheckpoint()` maintain recoverable in-progress branches under `agentv/wip/...`.
 
 ## Breaking changes
