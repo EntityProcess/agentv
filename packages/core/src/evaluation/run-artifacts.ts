@@ -1417,7 +1417,7 @@ export async function writeArtifactsFromResults(
       await writeFile(plan.responsePath, result.output, 'utf8');
     }
     await writeFile(
-      path.join(plan.outputsDir, 'execution-trace.json'),
+      path.join(plan.outputsDir, 'trace.json'),
       `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
       'utf8',
     );
