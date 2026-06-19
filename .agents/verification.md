@@ -42,6 +42,15 @@ cd apps/dashboard && bun run build
 ```
 
 - Running `agentv dashboard` from source reloads the CLI and backend routes, but the Dashboard web UI is served from the static `apps/dashboard/dist/` bundle. If you skip the rebuild, you can silently test stale UI code.
+- Save browser screenshots and other visual UAT artifacts outside the public AgentV repo, then publish them to the private evidence repo on a reviewable branch:
+
+```bash
+agentv-private:evidence/<bead-or-feature-slug>
+```
+
+- Use the existing `agentv-private` checkout or remote when available; do not commit screenshot evidence to the public repo.
+- Include a short README or manifest on the evidence branch with the public PR link, source branch, capture date, and what each artifact shows.
+- Include the private evidence branch, commit, or PR link in the public PR description and tracker handoff.
 
 If `agent-browser --session <name> open <url>` hangs with EAGAIN on ARM64, pre-start Chrome and connect with CDP:
 
@@ -148,5 +157,5 @@ cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
 4. Verify no regressions in adjacent areas.
 5. For scoring, threshold, or grader changes, run at least one real eval with a live provider and verify the output JSONL.
 6. For Dashboard config, scoring-display, or dashboard API changes, use `agent-browser` to verify the UI still renders and behaves correctly.
-7. If operator instructions require private visual evidence, save screenshots there and include the resulting paths or commits in the handoff.
+7. If visual evidence was captured, push it to an `agentv-private` evidence branch and include the resulting branch, commit, or PR link in the handoff.
 8. Mark the PR ready only after the checklist is complete and the red or green evidence is attached.
