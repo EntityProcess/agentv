@@ -7,8 +7,8 @@
  *
  * Detection logic:
  *   - Scans ALL tool calls (not just the first) for skill invocation evidence.
- *   - Skill tool: checks `tool === 'Skill'` and `input.skill` contains the skill name.
- *   - Read tool: checks `tool === 'Read'` and `input.file_path` contains a skills/ path.
+ *   - Skill tool: checks `tool` (case-insensitive) === 'skill' and `input.skill` contains the skill name.
+ *   - Read tool: checks `tool` (case-insensitive) === 'read' and `input.file_path` or `input.path` contains a skills/ path.
  *   - Fallback: checks tool output for skill file path references.
  *   - Supports negative cases via should_trigger: false.
  *
@@ -44,15 +44,15 @@ export class SkillTriggerGrader implements Grader {
       const toolName = toolCall.tool ?? '';
       const input = (toolCall.input ?? {}) as Record<string, unknown>;
 
-      if (toolName === 'Skill') {
+      if (toolName.toLowerCase() === 'skill') {
         const skillArg = String(input.skill ?? '');
         if (skillArg.includes(skillName)) {
           triggered = true;
           evidence = `Skill tool invoked with skill="${skillArg}"`;
           break;
         }
-      } else if (toolName === 'Read') {
-        const filePath = String(input.file_path ?? '');
+      } else if (toolName.toLowerCase() === 'read') {
+        const filePath = String(input.file_path ?? input.path ?? '');
         if (filePath.includes(`skills/${skillName}/`)) {
           triggered = true;
           evidence = `Read tool loaded skill file: ${filePath}`;

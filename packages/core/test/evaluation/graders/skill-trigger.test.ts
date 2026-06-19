@@ -331,5 +331,47 @@ describe('SkillTriggerGrader', () => {
       const result = evaluator.evaluate(context);
       expect(result.verdict).toBe('pass');
     });
+
+    it('should detect lowercase "read" tool with input.path (pi-sdk style)', () => {
+      const evaluator = new SkillTriggerGrader(makeConfig());
+      const context = makeContext({
+        output: [
+          {
+            role: 'assistant',
+            content: '',
+            toolCalls: [
+              {
+                tool: 'read',
+                input: { path: '/home/user/.agents/skills/csv-analyzer/SKILL.md' },
+              },
+            ],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('pass');
+      expect(result.score).toBe(1);
+    });
+
+    it('should detect uppercase "Read" with input.file_path (Claude Code style)', () => {
+      const evaluator = new SkillTriggerGrader(makeConfig());
+      const context = makeContext({
+        output: [
+          {
+            role: 'assistant',
+            content: '',
+            toolCalls: [
+              {
+                tool: 'Read',
+                input: { file_path: '.agents/skills/csv-analyzer/SKILL.md' },
+              },
+            ],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('pass');
+      expect(result.score).toBe(1);
+    });
   });
 });
