@@ -188,7 +188,7 @@
     }
   },
   "artifacts": {
-    "execution_trace_path": "outputs/execution-trace.json",
+    "trace_path": "outputs/trace.json",
     "transcript_path": "outputs/transcript.jsonl"
   }
 }

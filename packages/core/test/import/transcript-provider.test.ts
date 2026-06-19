@@ -94,6 +94,45 @@ describe('TranscriptProvider', () => {
     expect(provider.lineCount).toBe(2);
   });
 
+  it('continues to replay legacy rows without v1 row metadata', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-transcript-provider-'));
+    tempDirs.push(dir);
+    const transcriptPath = path.join(dir, 'transcript.jsonl');
+    const legacyRows = [
+      {
+        test_id: 'legacy-case',
+        target: 'offline-claude',
+        message_index: 0,
+        role: 'user',
+        content: 'Inspect the repository',
+        source: { provider: 'claude', session_id: 'legacy-session' },
+      },
+      {
+        test_id: 'legacy-case',
+        target: 'offline-claude',
+        message_index: 1,
+        role: 'assistant',
+        content: 'Done',
+        source: { provider: 'claude', session_id: 'legacy-session' },
+      },
+    ];
+
+    await writeFile(
+      transcriptPath,
+      `${legacyRows.map((line) => JSON.stringify(line)).join('\n')}\n`,
+      'utf8',
+    );
+
+    const provider = await TranscriptProvider.fromFile(transcriptPath);
+    const response = await provider.invoke({ question: 'ignored' });
+
+    expect(provider.lineCount).toBe(1);
+    expect(response.output).toEqual([
+      { role: 'user', content: 'Inspect the repository' },
+      { role: 'assistant', content: 'Done' },
+    ]);
+  });
+
   it('preserves opaque content, metadata, and tool payload keys', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-transcript-provider-'));
     tempDirs.push(dir);

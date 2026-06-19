@@ -764,7 +764,7 @@ export function buildTraceFromMessages(options: BuildTraceOptions = {}): Trace {
           callId: toolCall.id,
           input: toolCall.input,
           output: toolCall.output,
-          status: 'ok',
+          status: toolCall.status ?? 'ok',
         },
         metadata: {
           message_index: messageIndex,
@@ -783,7 +783,7 @@ export function buildTraceFromMessages(options: BuildTraceOptions = {}): Trace {
             name: toolCall.tool,
             callId: toolCall.id,
             output: toolCall.output,
-            status: 'ok',
+            status: toolCall.status ?? 'ok',
           },
           metadata: {
             message_index: messageIndex,
@@ -1163,15 +1163,19 @@ function toolCallFromTraceArtifactEvent(event: TraceEvent): ToolCall | undefined
     id: tool.callId,
     input: tool.input,
     output: tool.output,
+    status: tool.status,
     startTime: event.timestamp,
     endTime: eventEndIso(event),
     durationMs: event.durationMs,
   };
 }
 
+type TraceArtifactToolLocation = { messageIndex: number; toolIndex: number };
+
 function attachTraceArtifactToolCall(
   messages: Message[],
   eventMessageIndex: Map<string, number>,
+  eventToolIndex: Map<string, TraceArtifactToolLocation>,
   event: TraceEvent,
 ): void {
   const toolCall = toolCallFromTraceArtifactEvent(event);
@@ -1191,14 +1195,18 @@ function attachTraceArtifactToolCall(
 
   if (messageIndex >= 0) {
     const message = messages[messageIndex];
+    const toolIndex = message.toolCalls?.length ?? 0;
     messages[messageIndex] = {
       ...message,
       toolCalls: [...(message.toolCalls ?? []), toolCall],
     };
+    eventMessageIndex.set(event.eventId, messageIndex);
+    eventToolIndex.set(event.eventId, { messageIndex, toolIndex });
     return;
   }
 
   const syntheticIndex = messages.length;
+  const toolIndex = 0;
   messages.push({
     role: 'assistant',
     startTime: event.timestamp,
@@ -1208,6 +1216,67 @@ function attachTraceArtifactToolCall(
     toolCalls: [toolCall],
   });
   eventMessageIndex.set(event.eventId, syntheticIndex);
+  eventToolIndex.set(event.eventId, { messageIndex: syntheticIndex, toolIndex });
+}
+
+function findTraceArtifactToolLocation(
+  messages: readonly Message[],
+  eventToolIndex: ReadonlyMap<string, TraceArtifactToolLocation>,
+  event: TraceEvent,
+): TraceArtifactToolLocation | undefined {
+  if (event.parentEventId) {
+    const parentLocation = eventToolIndex.get(event.parentEventId);
+    if (parentLocation) {
+      return parentLocation;
+    }
+  }
+
+  const callId = event.tool?.callId;
+  if (!callId) {
+    return undefined;
+  }
+  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex--) {
+    const toolCalls = messages[messageIndex].toolCalls ?? [];
+    const toolIndex = toolCalls.findIndex((toolCall) => toolCall.id === callId);
+    if (toolIndex >= 0) {
+      return { messageIndex, toolIndex };
+    }
+  }
+  return undefined;
+}
+
+function mergeTraceArtifactToolResult(
+  messages: Message[],
+  eventToolIndex: Map<string, TraceArtifactToolLocation>,
+  event: TraceEvent,
+): void {
+  const location = findTraceArtifactToolLocation(messages, eventToolIndex, event);
+  const result = toolCallFromTraceArtifactEvent(event);
+  if (!location || !result) {
+    return;
+  }
+
+  const message = messages[location.messageIndex];
+  const toolCalls = [...(message.toolCalls ?? [])];
+  const existing = toolCalls[location.toolIndex];
+  if (!existing) {
+    return;
+  }
+  const resultEndTime = result.endTime ?? event.timestamp;
+  const endTime =
+    existing.endTime && existing.endTime !== existing.startTime ? existing.endTime : resultEndTime;
+
+  toolCalls[location.toolIndex] = {
+    ...existing,
+    output: existing.output ?? result.output,
+    status: result.status ?? existing.status,
+    endTime,
+    durationMs: existing.durationMs ?? result.durationMs,
+  };
+  messages[location.messageIndex] = {
+    ...message,
+    toolCalls,
+  };
 }
 
 function mergeTraceArtifactFinalResponse(
@@ -1263,6 +1332,7 @@ export function traceFromTraceArtifact(artifact: TraceArtifact): Trace {
   );
   const messages: Message[] = [];
   const eventMessageIndex = new Map<string, number>();
+  const eventToolIndex = new Map<string, TraceArtifactToolLocation>();
 
   for (const event of events) {
     if (event.type === 'message' && event.message) {
@@ -1287,7 +1357,12 @@ export function traceFromTraceArtifact(artifact: TraceArtifact): Trace {
     }
 
     if (event.type === 'tool_call') {
-      attachTraceArtifactToolCall(messages, eventMessageIndex, event);
+      attachTraceArtifactToolCall(messages, eventMessageIndex, eventToolIndex, event);
+      continue;
+    }
+
+    if (event.type === 'tool_result') {
+      mergeTraceArtifactToolResult(messages, eventToolIndex, event);
     }
   }
 

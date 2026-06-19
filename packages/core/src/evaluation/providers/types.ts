@@ -223,6 +223,8 @@ export interface ToolCall {
   readonly endTime?: string;
   /** Duration of the tool call in milliseconds */
   readonly durationMs?: number;
+  /** Execution status when the provider exposes it. */
+  readonly status?: 'ok' | 'error' | 'timeout' | 'cancelled' | 'unknown';
 }
 
 /**

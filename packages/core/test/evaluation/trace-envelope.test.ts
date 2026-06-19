@@ -18,8 +18,14 @@ import {
   traceEnvelopeToTraceSummary,
   traceEnvelopeToTranscriptMessages,
 } from '../../src/evaluation/trace-envelope.js';
-import { buildTraceFromMessages, computeTraceSummary } from '../../src/evaluation/trace.js';
+import {
+  type TraceArtifact,
+  buildTraceFromMessages,
+  computeTraceSummary,
+  traceFromTraceArtifact,
+} from '../../src/evaluation/trace.js';
 import type { EvaluationResult } from '../../src/evaluation/types.js';
+import { traceEnvelopeToTranscriptJsonLines } from '../../src/import/types.js';
 
 function jsonComparable(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value));
@@ -89,7 +95,7 @@ describe('execution trace artifact v1', () => {
         },
       },
       artifacts: {
-        execution_trace_path: 'outputs/execution-trace.json',
+        trace_path: 'outputs/trace.json',
         transcript_path: 'outputs/transcript.jsonl',
       },
     });
@@ -102,6 +108,8 @@ describe('execution trace artifact v1', () => {
     expect(wire.created_at).toBe('2026-06-15T12:00:05.000Z');
     expect(wire.eval.eval_path).toContain('coding-agent-replay.eval.yaml');
     expect(wire.trace.format).toBe('otlp_openinference_spans');
+    expect(wire.artifacts?.trace_path).toBe('outputs/trace.json');
+    expect(wire.artifacts).not.toHaveProperty('execution_trace_path');
     expect(wire.trace.spans[0]?.attributes['gen_ai.operation.name']).toBe('invoke_agent');
     expect(wire.trace.spans[0]?.attributes['openinference.span.kind']).toBe('AGENT');
     expect(wire.source.metadata).toMatchObject({
@@ -424,6 +432,209 @@ describe('execution trace artifact v1', () => {
     expect(transcriptEvent?.attributes?.['agentv.transcript.message']).toMatchObject({
       role: 'system',
       content: 'Stay terse.',
+    });
+  });
+
+  it('keeps provider-specific lifecycle evidence opaque in transcript rows', () => {
+    const envelope = buildTraceEnvelopeFromEvaluationResult(
+      makeResult({
+        target: 'harbor_replay',
+        output: 'Lifecycle run complete.',
+        trace: buildTraceFromMessages({
+          input: [{ role: 'user', content: 'Run the benchmark task.' }],
+          output: [
+            {
+              role: 'assistant',
+              content: 'Lifecycle run complete.',
+              metadata: {
+                source_event_id: 'evt-assistant-1',
+                providerCamelKey: 'nested only',
+              },
+              toolCalls: [
+                {
+                  tool: 'apply_patch',
+                  id: 'call-apply',
+                  input: { file_path: 'src/app.ts', providerCamelKey: 'nested only' },
+                  output: { changed_files: ['src/app.ts'], providerCamelKey: 'nested only' },
+                },
+              ],
+            },
+          ],
+          finalOutput: 'Lifecycle run complete.',
+          provider: 'harbor',
+          target: 'harbor_replay',
+          testId: 'harbor-lifecycle-case',
+          conversationId: 'harbor-session-1',
+        }),
+      }),
+      {
+        source: {
+          kind: 'compact_transcript',
+          provider: 'harbor',
+          path: 'fixtures/harbor-lifecycle.jsonl',
+          format: 'jsonl',
+          metadata: {
+            lifecycle_event: 'tool_finished',
+            providerCamelKey: 'opaque source metadata',
+          },
+        },
+        capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
+      },
+    );
+
+    const rows = traceEnvelopeToTranscriptJsonLines(envelope, {
+      testId: 'harbor-lifecycle-case',
+      target: 'harbor_replay',
+    });
+    const assistant = rows.find((row) => row.role === 'assistant');
+
+    expect(rows.every((row) => row.schema_version === 'agentv.transcript.v1')).toBe(true);
+    expect(assistant).toMatchObject({
+      source: {
+        kind: 'compact_transcript',
+        provider: 'harbor',
+        session_id: 'harbor-session-1',
+        path: 'fixtures/harbor-lifecycle.jsonl',
+        format: 'jsonl',
+        metadata: {
+          lifecycle_event: 'tool_finished',
+          providerCamelKey: 'opaque source metadata',
+        },
+      },
+      tool_calls: [
+        {
+          tool: 'apply_patch',
+          id: 'call-apply',
+          status: 'ok',
+          input: { file_path: 'src/app.ts', providerCamelKey: 'nested only' },
+          output: { changed_files: ['src/app.ts'], providerCamelKey: 'nested only' },
+        },
+      ],
+    });
+    expect(assistant).not.toHaveProperty('lifecycle_event');
+    expect(assistant).not.toHaveProperty('providerCamelKey');
+    expect(assistant?.tool_calls?.[0]?.trace).toMatchObject({
+      schema_version: 'agentv.trace.v1',
+      artifact_id: envelope.artifactId,
+      trace_id: envelope.trace.traceId,
+    });
+  });
+
+  it('projects Pi-style separate tool results into paired transcript tool calls', () => {
+    const artifact: TraceArtifact = {
+      source: {
+        kind: 'pi_session',
+        provider: 'pi',
+        path: 'fixtures/pi-session.jsonl',
+        format: 'jsonl',
+      },
+      session: {
+        sessionId: 'pi-session-1',
+        conversationId: 'pi-conversation-1',
+        startedAt: '2026-06-18T08:00:00.000Z',
+      },
+      branch: {
+        selectedLeafId: 'leaf-success',
+        includedEventIds: ['evt-user', 'evt-model', 'evt-shell', 'evt-shell-result', 'evt-final'],
+      },
+      events: [
+        {
+          eventId: 'evt-user',
+          ordinal: 0,
+          type: 'message',
+          timestamp: '2026-06-18T08:00:00.000Z',
+          message: { role: 'user', content: 'Check the package script.' },
+        },
+        {
+          eventId: 'evt-model',
+          ordinal: 1,
+          type: 'model_turn',
+          timestamp: '2026-06-18T08:00:01.000Z',
+          durationMs: 2000,
+        },
+        {
+          eventId: 'evt-shell',
+          parentEventId: 'evt-model',
+          ordinal: 2,
+          type: 'tool_call',
+          timestamp: '2026-06-18T08:00:01.200Z',
+          tool: {
+            name: 'bashExecution',
+            callId: 'pi-tool-1',
+            input: { command: 'cat package.json' },
+            status: 'ok',
+          },
+        },
+        {
+          eventId: 'evt-shell-result',
+          parentEventId: 'evt-shell',
+          ordinal: 3,
+          type: 'tool_result',
+          timestamp: '2026-06-18T08:00:01.400Z',
+          tool: {
+            name: 'bashExecution',
+            callId: 'pi-tool-1',
+            output: { stdout: '{"scripts":{"test":"bun test"}}' },
+            status: 'ok',
+          },
+        },
+        {
+          eventId: 'evt-final',
+          parentEventId: 'evt-model',
+          ordinal: 4,
+          type: 'final_response',
+          timestamp: '2026-06-18T08:00:02.000Z',
+          message: { role: 'assistant', content: 'The test script uses bun test.' },
+        },
+      ],
+      tokenUsage: { input: 20, output: 8 },
+      durationMs: 2000,
+    };
+    const trace = traceFromTraceArtifact(artifact);
+    const envelope = buildTraceEnvelopeFromEvaluationResult(
+      makeResult({
+        target: 'pi-cli',
+        testId: 'pi-tool-result-case',
+        output: 'The test script uses bun test.',
+        trace,
+      }),
+      {
+        source: {
+          kind: 'pi_session',
+          provider: 'pi',
+          path: 'fixtures/pi-session.jsonl',
+          format: 'jsonl',
+        },
+        capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
+      },
+    );
+
+    const rows = traceEnvelopeToTranscriptJsonLines(envelope);
+    const assistant = rows.find((row) => row.role === 'assistant');
+
+    expect(
+      trace.messages.find((message) => message.role === 'assistant')?.toolCalls?.[0],
+    ).toMatchObject({
+      tool: 'bashExecution',
+      id: 'pi-tool-1',
+      input: { command: 'cat package.json' },
+      output: { stdout: '{"scripts":{"test":"bun test"}}' },
+      startTime: '2026-06-18T08:00:01.200Z',
+      endTime: '2026-06-18T08:00:01.400Z',
+    });
+    expect(assistant?.tool_calls).toEqual([
+      expect.objectContaining({
+        tool: 'bashExecution',
+        id: 'pi-tool-1',
+        input: { command: 'cat package.json' },
+        output: { stdout: '{"scripts":{"test":"bun test"}}' },
+        status: 'ok',
+      }),
+    ]);
+    expect(assistant?.source).toMatchObject({
+      kind: 'pi_session',
+      provider: 'pi',
+      session_id: 'pi-session-1',
     });
   });
 

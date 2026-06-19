@@ -15,7 +15,7 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 
 ## Phase 1: Finish the artifact and projection foundation
 
-- Keep the canonical handoff surface centered on completed run bundles, `index.jsonl`, grading/timing artifacts, and execution-trace sidecars.
+- Keep the canonical handoff surface centered on completed run bundles, `index.jsonl`, grading/timing artifacts, and `outputs/trace.json` sidecars.
 - Finish the vendor-neutral projection/export seams that let completed runs be re-read, compared, exported, and attached to adapters without vendor-specific logic in core.
 - Keep OTLP/OpenInference mapping generic and reusable before building backend-specific upload or import paths.
 

@@ -454,7 +454,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
   it('replays execution trace target output without invoking the live target and still runs graders', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-envelope-replay-run-'));
-    const envelopePath = path.join(tempDir, 'execution-trace.json');
+    const envelopePath = path.join(tempDir, 'trace.json');
     const output: readonly Message[] = [
       { role: 'assistant', content: 'Envelope replay target answer' },
     ];
