@@ -10,6 +10,7 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 - Phoenix is the preferred shared UI for traces, experiments, and longitudinal results analysis.
 - The AgentV Dashboard stays valuable as the zero-infra local cockpit; this roadmap does not deprecate it.
 - Harbor stays an optional benchmark-grade runner boundary, not AgentV core.
+- AgentV YAML remains the authoring surface even when execution moves behind another runner; prefer a lightweight translation layer over duplicated specs.
 - Adapters, workers, and artifact projections are preferred over rebuilding adjacent platforms inside AgentV.
 
 ## Phase 1: Finish the artifact and projection foundation
@@ -33,7 +34,8 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 
 ## Phase 4: Extend outward through optional boundaries
 
-- Harbor: launch or import benchmark-grade runs through a runner boundary, then gate on imported results.
+- Harbor: move toward Harbor becoming the benchmark-grade runner behind a lightweight translation layer from AgentV YAML, while AgentV stays the authoring, gating, import, and comparison surface.
+- Harbor: in the near term, launch or import benchmark-grade runs through a runner boundary; over time, converge on Harbor as the execution layer for the suites it already owns.
 - Opik and similar systems: consume completed AgentV projection bundles as post-run adapters rather than as runtime owners.
 - Additional observability backends should reuse the same projection and export seams instead of adding new core product models.
 
