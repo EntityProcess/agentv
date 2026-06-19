@@ -6,7 +6,7 @@ AgentV should not add `agentv results remote status` or `agentv results remote s
 
 The production contract is:
 
-- `agentv eval` and `agentv pipeline bench` may auto-export newly created runs to the configured results repository when `auto_push: true`.
+- `agentv eval` and `agentv pipeline bench` may auto-export newly created runs to the configured results repository when `sync.auto_push: true`.
 - `agentv results` remains a local-result workspace command family: combine, delete, export, report, summary, failures, show, and validate.
 - Manual remote status and sync are Dashboard/API capabilities:
   - `GET /api/remote/status`

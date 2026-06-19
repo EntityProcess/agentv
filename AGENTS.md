@@ -107,7 +107,11 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - `apps/cli/` - Command-line interface (published as `agentv`)
   - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
 - `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
-- `docs/learnings/` - captured learnings from bug fixes and deliberate decisions (best practices, conventions, tooling choices), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when working in documented areas.
+- `STRATEGY.md` - product boundary and priorities. Relevant when proposing features, integrations, or roadmap direction.
+- `docs/adr/` - decision records for product and architecture boundaries, especially what AgentV core owns versus adapters, runtimes, and adjacent tools.
+- `docs/plans/` - design and implementation plans. Useful supporting evidence; prefer `STRATEGY.md` and ADRs when a plan's old execution details differ from the current product direction.
+- `docs/learnings/` - primary learning store for this repo (it does not use `docs/solutions/`). Captured learnings from bug fixes and deliberate decisions, organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when working in documented areas.
+- `apps/web/src/content/docs/` - public product and CLI docs. Useful when checking current user-facing contracts, tool boundaries, and integration guidance.
 - `CONCEPTS.md` - shared domain vocabulary (providers, targets, and other project-specific terms). Relevant when orienting to the codebase or discussing domain concepts.
 
 ## Working Style
