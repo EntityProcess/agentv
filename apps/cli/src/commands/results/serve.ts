@@ -35,6 +35,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { command, flag, number, option, optional, positional, string } from 'cmd-ts';
@@ -1282,6 +1283,120 @@ function handleFeedbackRead(c: C, { searchDir }: DataContext) {
   return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : searchDir));
 }
 
+function expandHomePath(inputPath: string): string {
+  if (inputPath === '~') return homedir();
+  if (inputPath.startsWith('~/') || inputPath.startsWith('~\\')) {
+    return path.join(homedir(), inputPath.slice(2));
+  }
+  return inputPath;
+}
+
+function resolveBrowsePath(inputPath: string | undefined, cwd: string): string {
+  const trimmed = inputPath?.trim() ?? '';
+  const expanded = trimmed.length > 0 ? expandHomePath(trimmed) : cwd;
+  return path.resolve(cwd, expanded);
+}
+
+function hasAgentvDir(dirPath: string): boolean {
+  try {
+    return statSync(path.join(dirPath, '.agentv')).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+interface DirectoryBrowseEntry {
+  name: string;
+  path: string;
+  hasAgentv: boolean;
+}
+
+interface DirectoryBrowseResult {
+  path: string;
+  parentPath?: string;
+  current: DirectoryBrowseEntry;
+  entries: DirectoryBrowseEntry[];
+}
+
+function directoryBrowseEntry(dirPath: string): DirectoryBrowseEntry {
+  return {
+    name: path.basename(dirPath) || dirPath,
+    path: dirPath,
+    hasAgentv: hasAgentvDir(dirPath),
+  };
+}
+
+function browseFilesystemDirectories(
+  inputPath: string | undefined,
+  cwd: string,
+): DirectoryBrowseResult {
+  const browsePath = resolveBrowsePath(inputPath, cwd);
+
+  if (!existsSync(browsePath)) {
+    throw new Error(`Directory not found: ${browsePath}`);
+  }
+
+  let stats: ReturnType<typeof statSync>;
+  try {
+    stats = statSync(browsePath);
+  } catch (err) {
+    throw new Error(`Unable to read directory: ${(err as Error).message}`);
+  }
+
+  if (!stats.isDirectory()) {
+    throw new Error(`Not a directory: ${browsePath}`);
+  }
+
+  let entries: DirectoryBrowseEntry[];
+  try {
+    entries = readdirSync(browsePath, { withFileTypes: true })
+      .map((entry) => {
+        const entryPath = path.join(browsePath, entry.name);
+        if (entry.isDirectory()) return directoryBrowseEntry(entryPath);
+        if (entry.isSymbolicLink()) {
+          try {
+            return statSync(entryPath).isDirectory() ? directoryBrowseEntry(entryPath) : null;
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      })
+      .filter((entry): entry is ReturnType<typeof directoryBrowseEntry> => entry !== null)
+      .sort((a, b) => {
+        if (a.hasAgentv !== b.hasAgentv) return a.hasAgentv ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  } catch (err) {
+    throw new Error(`Unable to read directory: ${(err as Error).message}`);
+  }
+
+  const parentPath = path.dirname(browsePath);
+  return {
+    path: browsePath,
+    parentPath: parentPath !== browsePath ? parentPath : undefined,
+    current: directoryBrowseEntry(browsePath),
+    entries,
+  };
+}
+
+function directoryBrowseEntryToWire(entry: DirectoryBrowseEntry) {
+  return {
+    name: entry.name,
+    path: entry.path,
+    has_agentv: entry.hasAgentv,
+  };
+}
+
+function directoryBrowseResultToWire(result: DirectoryBrowseResult) {
+  return {
+    path: result.path,
+    ...(result.parentPath !== undefined && { parent_path: result.parentPath }),
+    current: directoryBrowseEntryToWire(result.current),
+    entries: result.entries.map(directoryBrowseEntryToWire),
+  };
+}
+
 async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename, projectId);
@@ -1601,6 +1716,16 @@ export function createApp(
       }),
     );
     return c.json({ projects });
+  });
+
+  app.get('/api/filesystem/browse', (c) => {
+    try {
+      return c.json(
+        directoryBrowseResultToWire(browseFilesystemDirectories(c.req.query('path'), searchDir)),
+      );
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
   });
 
   app.post('/api/projects', async (c) => {

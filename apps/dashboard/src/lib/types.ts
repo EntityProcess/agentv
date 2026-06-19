@@ -405,8 +405,42 @@ export interface ProjectEntry {
   id: string;
   name: string;
   path: string;
+  addedAt: string;
+  lastOpenedAt: string;
+}
+
+export interface ProjectEntryWire {
+  id: string;
+  name: string;
+  path: string;
   added_at: string;
   last_opened_at: string;
+}
+
+export interface FilesystemBrowseEntryWire {
+  name: string;
+  path: string;
+  has_agentv: boolean;
+}
+
+export interface FilesystemBrowseResponseWire {
+  path: string;
+  parent_path?: string;
+  current: FilesystemBrowseEntryWire;
+  entries: FilesystemBrowseEntryWire[];
+}
+
+export interface FilesystemBrowseEntry {
+  name: string;
+  path: string;
+  hasAgentv: boolean;
+}
+
+export interface FilesystemBrowseResponse {
+  path: string;
+  parentPath?: string;
+  current: FilesystemBrowseEntry;
+  entries: FilesystemBrowseEntry[];
 }
 
 // ── Eval runner types ────────────────────────────────────────────────────

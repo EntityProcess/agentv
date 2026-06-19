@@ -10,6 +10,7 @@ import { Link, createFileRoute, useNavigate, useRouterState } from '@tanstack/re
 import { useEffect, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { AddProjectModal } from '~/components/AddProjectModal';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
 import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
@@ -18,7 +19,6 @@ import { RunList } from '~/components/RunList';
 import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
-  addProjectApi,
   remoteStatusOptions,
   syncRemoteResultsApi,
   useCompare,
@@ -123,27 +123,12 @@ function ProjectsDashboard() {
   const { data } = useProjectList();
   const { data: config } = useStudioConfig();
   const queryClient = useQueryClient();
-  const [addPath, setAddPath] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddProject, setShowAddProject] = useState(false);
   const [showRunEval, setShowRunEval] = useState(false);
+  const [addProjectMessage, setAddProjectMessage] = useState<string | null>(null);
 
   const projects = data?.projects ?? [];
   const isReadOnly = config?.read_only === true;
-
-  async function handleAddProject(e: React.FormEvent) {
-    e.preventDefault();
-    if (!addPath.trim()) return;
-    setError(null);
-    try {
-      await addProjectApi(addPath.trim());
-      setAddPath('');
-      setShowAddForm(false);
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -161,39 +146,22 @@ function ProjectsDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
+                onClick={() => {
+                  setAddProjectMessage(null);
+                  setShowAddProject(true);
+                }}
+                className="rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-medium text-gray-950 transition-colors hover:bg-cyan-400"
               >
-                {showAddForm ? 'Cancel' : 'Add Project'}
+                Add Project
               </button>
             </>
           )}
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
-
-      {!isReadOnly && showAddForm && (
-        <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-          <form onSubmit={handleAddProject} className="flex gap-2">
-            <input
-              type="text"
-              value={addPath}
-              onChange={(e) => setAddPath(e.target.value)}
-              placeholder="Project path (e.g., /home/user/projects/my-evals)"
-              className="flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
-            >
-              Add
-            </button>
-          </form>
+      {addProjectMessage && (
+        <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/30 p-3 text-sm text-cyan-300">
+          {addProjectMessage}
         </div>
       )}
 
@@ -213,6 +181,16 @@ function ProjectsDashboard() {
       )}
 
       {!isReadOnly && <RunEvalModal open={showRunEval} onClose={() => setShowRunEval(false)} />}
+      {!isReadOnly && (
+        <AddProjectModal
+          open={showAddProject}
+          onClose={() => setShowAddProject(false)}
+          onAdded={(project) => {
+            setAddProjectMessage(`Project registered: ${project.name}`);
+            void queryClient.invalidateQueries({ queryKey: ['projects'] });
+          }}
+        />
+      )}
     </div>
   );
 }
