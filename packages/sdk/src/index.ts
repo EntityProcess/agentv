@@ -118,6 +118,41 @@ export {
   type LowerEvalYamlValue,
 } from './eval.js';
 
+// Re-export grader config helpers
+export {
+  codeGrader,
+  containsGrader,
+  equalsGrader,
+  exactGrader,
+  graders,
+  isJsonGrader,
+  jsonGrader,
+  llmGrader,
+  regexGrader,
+  rubricsGrader,
+  type CodeGraderConfig,
+  type CodeGraderOptions,
+  type CodeGraderTargetOptions,
+  type ContainsGraderConfig,
+  type EqualsGraderConfig,
+  type GraderCatalog,
+  type GraderCommand,
+  type GraderCommonConfig,
+  type GraderHelperConfig,
+  type GraderHelperOptions,
+  type GraderPromptScriptConfig,
+  type GraderRubric,
+  type GraderRubricCriterion,
+  type GraderRubricOperator,
+  type GraderScoreRange,
+  type IsJsonGraderConfig,
+  type LlmGraderConfig,
+  type LlmGraderOptions,
+  type RegexGraderConfig,
+  type RegexGraderOptions,
+  type RubricsGraderConfig,
+} from './graders.js';
+
 // Re-export target client
 export {
   createTargetClient,

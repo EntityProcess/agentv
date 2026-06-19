@@ -40,7 +40,7 @@ Use `defineEval()` from `@agentv/sdk` when you want TypeScript ergonomics withou
 
 ```typescript
 // evals/greeting.eval.ts
-import { defineEval } from '@agentv/sdk';
+import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'hello-suite',
@@ -60,7 +60,7 @@ export default defineEval({
       input: 'Say hello',
       inputFiles: ['../fixtures/per-test-note.md'],
       expectedOutput: 'Hello from the mock target',
-      assertions: [{ type: 'contains', value: 'Hello' }],
+      assertions: [graders.contains('Hello')],
     },
   ],
 });
@@ -72,6 +72,39 @@ Useful companion helpers:
 - `serializeEvalYaml()` returns YAML text using the same canonical field names.
 
 The durable field remains `assertions`. This helper does not introduce a second YAML vocabulary.
+
+## Built-In Grader Helpers
+
+`@agentv/sdk` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assertions` entries and serialize to the same canonical YAML you could write by hand.
+
+```typescript
+import { defineEval, graders } from '@agentv/sdk';
+
+export default defineEval({
+  name: 'grader-helper-suite',
+  tests: [
+    {
+      id: 'json-greeting',
+      input: 'Return a JSON greeting.',
+      assertions: [
+        graders.contains('Hello', { name: 'mentions-hello' }),
+        graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
+        graders.regex(/"message"\s*:/, { name: 'message-key' }),
+        graders.json({ name: 'valid-json', required: true }),
+        graders.rubrics(['Greets the user'], { name: 'rubric-review' }),
+        graders.llmGrader({
+          name: 'llm-review',
+          prompt: 'Grade whether the answer is useful.',
+          target: 'grader-target',
+        }),
+        graders.codeGrader(['bun', 'run', 'graders/check.ts'], { name: 'scripted-check' }),
+      ],
+    },
+  ],
+});
+```
+
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `rubrics`, `llm-grader`, and `code-grader`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## Custom Assertions
 

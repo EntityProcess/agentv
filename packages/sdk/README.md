@@ -45,7 +45,7 @@ Both functions handle stdin/stdout parsing, snake_case conversion, Zod validatio
 
 ```typescript
 #!/usr/bin/env bun
-import { defineEval } from '@agentv/sdk';
+import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'hello-suite',
@@ -57,7 +57,7 @@ export default defineEval({
       id: 'hello',
       input: 'Say hello',
       expectedOutput: 'Hello from the mock target',
-      assertions: [{ type: 'contains', value: 'Hello' }],
+      assertions: [graders.contains('Hello')],
     },
   ],
 });
@@ -65,12 +65,46 @@ export default defineEval({
 
 `defineEval()` keeps TypeScript authoring in camelCase and lowers to the canonical snake_case YAML/runtime contract when AgentV loads the `.eval.ts` file.
 
+### Grader helpers
+
+Use the `graders` catalog when you want TypeScript helpers for common AgentV grader configs without creating a new eval vocabulary:
+
+```typescript
+import { defineEval, graders } from '@agentv/sdk';
+
+export default defineEval({
+  name: 'grader-helper-suite',
+  tests: [
+    {
+      id: 'json-greeting',
+      input: 'Return a JSON greeting.',
+      assertions: [
+        graders.contains('Hello', { name: 'mentions-hello' }),
+        graders.regex(/"message"\s*:/, { name: 'message-key' }),
+        graders.json({ name: 'valid-json', required: true }),
+        graders.rubrics(['Greets the user'], { name: 'rubric-review' }),
+        graders.llmGrader({
+          name: 'llm-review',
+          prompt: 'Grade whether the answer is useful.',
+          target: 'grader-target',
+        }),
+        graders.codeGrader(['bun', 'run', 'graders/check.ts'], { name: 'scripted-check' }),
+      ],
+    },
+  ],
+});
+```
+
+The helpers return ordinary `assertions` entries such as `type: contains`, `type: llm-grader`, and `type: code-grader`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
+
 ## Exports
 
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
-- `defineCodeGrader(handler)` - Define a code grader grader (full score control)
+- `defineCodeGrader(handler)` - Define a code grader (full score control)
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite
+- `graders` - Catalog of built-in AgentV grader config helpers
+- `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `rubricsGrader`, `llmGrader`, `codeGrader` - Named grader helper functions
 - `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `CodeGraderInput`, `CodeGraderResult` - Code grader types
