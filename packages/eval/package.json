@@ -22,13 +22,14 @@
   },
   "scripts": {
     "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
+    "build:deps": "bun --filter @agentv/sdk build",
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun run build:deps && tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "fix": "biome check --write .",
-    "test": "bun test"
+    "test": "bun run build:deps && bun test"
   },
   "files": ["dist", "README.md"],
   "dependencies": {
