@@ -46,6 +46,7 @@ export interface TokenUsage {
   input?: number;
   output?: number;
   reasoning?: number;
+  cached?: number;
 }
 
 export interface ScoreEntry {
@@ -57,6 +58,9 @@ export interface ScoreEntry {
   verdict?: string;
   details?: string | Record<string, unknown>;
   durationMs?: number;
+  target?: string;
+  tokenUsage?: TokenUsage;
+  scores?: ScoreEntry[];
 }
 
 export interface AssertionEntry {
@@ -115,6 +119,8 @@ export interface EvalResult {
   suite?: string;
   category?: string;
   target?: string;
+  targetUsed?: string;
+  model?: string;
   experiment?: string;
   score: number;
   executionStatus?: string;
@@ -128,6 +134,7 @@ export interface EvalResult {
   output?: string;
   _toolCalls?: Record<string, unknown>;
   _graderDurationMs?: number;
+  metadata?: Record<string, unknown>;
   source_traceability?: SourceTraceability;
 }
 

@@ -1279,8 +1279,58 @@ function handleConfig(
 }
 
 function handleFeedbackRead(c: C, { searchDir }: DataContext) {
+  return c.json(readFeedback(feedbackStoreDir(searchDir)));
+}
+
+function feedbackStoreDir(searchDir: string): string {
   const resultsDir = path.join(searchDir, '.agentv', 'results');
-  return c.json(readFeedback(existsSync(resultsDir) ? resultsDir : searchDir));
+  return existsSync(resultsDir) ? resultsDir : searchDir;
+}
+
+async function handleFeedbackWrite(c: C, resultDir: string) {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON' }, 400);
+  }
+
+  if (!body || typeof body !== 'object') {
+    return c.json({ error: 'Invalid payload' }, 400);
+  }
+
+  const payload = body as Record<string, unknown>;
+  if (!Array.isArray(payload.reviews)) {
+    return c.json({ error: 'Missing reviews array' }, 400);
+  }
+
+  const incoming = payload.reviews as Record<string, unknown>[];
+  for (const review of incoming) {
+    if (typeof review.test_id !== 'string' || typeof review.comment !== 'string') {
+      return c.json({ error: 'Each review must have test_id and comment strings' }, 400);
+    }
+  }
+
+  const existing = readFeedback(resultDir);
+  const now = new Date().toISOString();
+
+  for (const review of incoming) {
+    const newReview: FeedbackReview = {
+      test_id: review.test_id as string,
+      comment: review.comment as string,
+      updated_at: now,
+    };
+
+    const idx = existing.reviews.findIndex((r) => r.test_id === newReview.test_id);
+    if (idx >= 0) {
+      existing.reviews[idx] = newReview;
+    } else {
+      existing.reviews.push(newReview);
+    }
+  }
+
+  writeFeedback(resultDir, existing);
+  return c.json(existing);
 }
 
 function expandHomePath(inputPath: string): string {
@@ -1911,49 +1961,7 @@ export function createApp(
     if (readOnly) {
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
     }
-    let body: unknown;
-    try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: 'Invalid JSON' }, 400);
-    }
-
-    if (!body || typeof body !== 'object') {
-      return c.json({ error: 'Invalid payload' }, 400);
-    }
-
-    const payload = body as Record<string, unknown>;
-    if (!Array.isArray(payload.reviews)) {
-      return c.json({ error: 'Missing reviews array' }, 400);
-    }
-
-    const incoming = payload.reviews as Record<string, unknown>[];
-    for (const review of incoming) {
-      if (typeof review.test_id !== 'string' || typeof review.comment !== 'string') {
-        return c.json({ error: 'Each review must have test_id and comment strings' }, 400);
-      }
-    }
-
-    const existing = readFeedback(resultDir);
-    const now = new Date().toISOString();
-
-    for (const review of incoming) {
-      const newReview: FeedbackReview = {
-        test_id: review.test_id as string,
-        comment: review.comment as string,
-        updated_at: now,
-      };
-
-      const idx = existing.reviews.findIndex((r) => r.test_id === newReview.test_id);
-      if (idx >= 0) {
-        existing.reviews[idx] = newReview;
-      } else {
-        existing.reviews.push(newReview);
-      }
-    }
-
-    writeFeedback(resultDir, existing);
-    return c.json(existing);
+    return handleFeedbackWrite(c, resultDir);
   });
 
   // Aggregated index (unscoped only)
@@ -2065,6 +2073,14 @@ export function createApp(
   app.get('/api/projects/:projectId/compare', (c) => withProject(c, handleCompare));
   app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
   app.get('/api/projects/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
+  app.post('/api/projects/:projectId/feedback', (c) => {
+    if (readOnly) {
+      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
+    }
+    return withProject(c, (projectContext, ctx) =>
+      handleFeedbackWrite(projectContext, feedbackStoreDir(ctx.searchDir)),
+    );
+  });
 
   // ── Eval runner routes (discovery, launch, status) ────────────────────
 

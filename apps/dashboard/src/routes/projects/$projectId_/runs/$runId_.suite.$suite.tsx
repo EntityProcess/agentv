@@ -2,12 +2,12 @@
  * Project-scoped suite drill-down route.
  */
 
-import { Link, createFileRoute } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 
-import { PassRatePill } from '~/components/PassRatePill';
+import { ResultTable } from '~/components/ResultTable';
 import { StatsCards } from '~/components/StatsCards';
 import { useProjectRunDetail, useStudioConfig } from '~/lib/api';
-import { isExecutionError, summarizeQuality } from '~/lib/result-summary';
+import { summarizeQuality } from '~/lib/result-summary';
 
 export const Route = createFileRoute('/projects/$projectId_/runs/$runId_/suite/$suite')({
   component: ProjectSuitePage,
@@ -68,53 +68,13 @@ function ProjectSuitePage() {
           <p className="text-lg text-gray-400">No evaluations in this suite</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-800">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-800 bg-gray-900/50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-gray-400">Test ID</th>
-                <th className="px-4 py-3 font-medium text-gray-400">Target</th>
-                <th className="w-48 px-4 py-3 font-medium text-gray-400">Score</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-400">Duration</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-400">Cost</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/50">
-              {results.map((result, idx) => (
-                <tr
-                  key={`${result.testId}-${idx}`}
-                  className="transition-colors hover:bg-gray-900/30"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      to="/projects/$projectId/evals/$runId/$evalId"
-                      params={{ projectId, runId, evalId: result.testId }}
-                      className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-                    >
-                      {result.testId}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-400">{result.target ?? '-'}</td>
-                  <td className="px-4 py-3">
-                    {isExecutionError(result) ? (
-                      <span className="inline-flex rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
-                        Execution error
-                      </span>
-                    ) : (
-                      <PassRatePill rate={result.score} />
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                    {result.durationMs != null ? `${(result.durationMs / 1000).toFixed(1)}s` : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                    {result.costUsd != null ? `$${result.costUsd.toFixed(4)}` : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResultTable
+          results={results}
+          runId={runId}
+          projectId={projectId}
+          passThreshold={passThreshold}
+          title="Suite Evals"
+        />
       )}
     </div>
   );

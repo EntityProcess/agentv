@@ -12,10 +12,15 @@ import { useFeedback } from '~/lib/api';
 
 interface FeedbackPanelProps {
   testId: string;
+  projectId?: string;
 }
 
-async function saveFeedback(testId: string, comment: string) {
-  const res = await fetch('/api/feedback', {
+function feedbackUrl(projectId?: string): string {
+  return projectId ? `/api/projects/${encodeURIComponent(projectId)}/feedback` : '/api/feedback';
+}
+
+async function saveFeedback(testId: string, comment: string, projectId?: string) {
+  const res = await fetch(feedbackUrl(projectId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reviews: [{ test_id: testId, comment }] }),
@@ -26,8 +31,8 @@ async function saveFeedback(testId: string, comment: string) {
   return res.json();
 }
 
-export function FeedbackPanel({ testId }: FeedbackPanelProps) {
-  const { data } = useFeedback();
+export function FeedbackPanel({ testId, projectId }: FeedbackPanelProps) {
+  const { data } = useFeedback(projectId);
   const queryClient = useQueryClient();
 
   const existing = data?.reviews?.find((r) => r.test_id === testId);
@@ -42,9 +47,9 @@ export function FeedbackPanel({ testId }: FeedbackPanelProps) {
   }, [existing?.comment]);
 
   const mutation = useMutation({
-    mutationFn: () => saveFeedback(testId, comment),
+    mutationFn: () => saveFeedback(testId, comment, projectId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['feedback', projectId ?? ''] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
