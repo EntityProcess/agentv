@@ -122,6 +122,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [sdk-custom-assertion](sdk-custom-assertion/) | Custom assertion types using `defineAssertion()` |
+| [sdk-eval-authoring](sdk-eval-authoring/) | YAML-aligned `.eval.ts` authoring using `defineEval()` |
 | [sdk-programmatic-api](sdk-programmatic-api/) | Programmatic evaluation using `evaluate()` |
 | [sdk-config-file](sdk-config-file/) | Typed configuration with `defineConfig()` |
 | [prompt-template-sdk](prompt-template-sdk/) | Custom LLM grader prompts using `definePromptTemplate()` |
@@ -167,6 +168,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [rubric](rubric/) | LLM grading |
 | [sdk-config-file](sdk-config-file/) | TypeScript SDK |
 | [sdk-custom-assertion](sdk-custom-assertion/) | TypeScript SDK |
+| [sdk-eval-authoring](sdk-eval-authoring/) | TypeScript SDK |
 | [sdk-programmatic-api](sdk-programmatic-api/) | TypeScript SDK |
 | [suite-level-input](suite-level-input/) | Dataset & input |
 | [suite-level-input-files](suite-level-input-files/) | Dataset & input |

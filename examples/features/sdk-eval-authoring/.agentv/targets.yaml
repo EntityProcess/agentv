@@ -1,0 +1,4 @@
+targets:
+  - name: mock-sdk
+    provider: mock
+    response: Hello from the mock target

@@ -54,6 +54,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [code-grader-sdk](features/code-grader-sdk/) - TypeScript SDK for code graders using `defineCodeGrader()`
 - [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
 - [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
+- [sdk-eval-authoring](features/sdk-eval-authoring/) - YAML-aligned `.eval.ts` authoring using `defineEval()`
 - [sdk-config-file](features/sdk-config-file/) - Typed configuration with `defineConfig()`
 - [prompt-template-sdk](features/prompt-template-sdk/) - Custom LLM grader prompts using `definePromptTemplate()`
 

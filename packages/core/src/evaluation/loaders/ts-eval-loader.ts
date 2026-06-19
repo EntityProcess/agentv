@@ -15,12 +15,19 @@ import { type EvalConfig, materializeEvalConfig } from '../evaluate.js';
 import { createFunctionProvider } from '../providers/function-provider.js';
 import type { ProviderFactoryFn } from '../providers/provider-registry.js';
 import type { TargetDefinition } from '../providers/types.js';
-import type { EvalSuiteResult } from '../yaml-parser.js';
+import { type EvalSuiteResult, loadTestSuiteFromYamlObject } from '../yaml-parser.js';
 
 const EXPORT_NAMES = ['default', 'config', 'evalConfig'] as const;
+const SDK_EVAL_SUITE_SYMBOL = Symbol.for('@agentv/sdk/eval-suite');
+const SDK_TO_EVAL_YAML_OBJECT_SYMBOL = Symbol.for('@agentv/sdk/to-eval-yaml-object');
+
+type SdkEvalSuiteExport = Record<string, unknown> & {
+  readonly [SDK_EVAL_SUITE_SYMBOL]: true;
+  readonly [SDK_TO_EVAL_YAML_OBJECT_SYMBOL]: () => Record<string, unknown>;
+};
 
 export interface TsEvalResult {
-  readonly config: EvalConfig;
+  readonly config: EvalConfig | SdkEvalSuiteExport;
   readonly filePath: string;
 }
 
@@ -38,10 +45,10 @@ export async function loadTsEvalFile(filePath: string): Promise<TsEvalResult> {
   const moduleUrl = pathToFileURL(absolutePath).href;
   const module = await import(moduleUrl);
 
-  let config: EvalConfig | undefined;
+  let config: EvalConfig | SdkEvalSuiteExport | undefined;
   for (const name of EXPORT_NAMES) {
     const candidate = module[name];
-    if (isEvalConfigLike(candidate)) {
+    if (isSupportedTsEvalExport(candidate)) {
       config = candidate;
       break;
     }
@@ -49,7 +56,7 @@ export async function loadTsEvalFile(filePath: string): Promise<TsEvalResult> {
 
   if (!config) {
     throw new Error(
-      `${filePath}: no EvalConfig export found. Export an EvalConfig as default, 'config', or 'evalConfig'.`,
+      `${filePath}: no supported eval export found. Export defineEval(...) or an EvalConfig as default, 'config', or 'evalConfig'.`,
     );
   }
 
@@ -66,6 +73,16 @@ export async function loadTsEvalSuite(
   },
 ): Promise<TsEvalSuiteResult> {
   const { config, filePath: absolutePath } = await loadTsEvalFile(filePath);
+
+  if (isSdkEvalSuiteExport(config)) {
+    return loadTestSuiteFromYamlObject(
+      absolutePath,
+      config[SDK_TO_EVAL_YAML_OBJECT_SYMBOL](),
+      repoRoot,
+      options,
+    );
+  }
+
   const materialized = await materializeEvalConfig(config, {
     repoRoot,
     baseDir: path.dirname(absolutePath),
@@ -96,6 +113,19 @@ export async function loadTsEvalSuite(
       }) as ProviderFactoryFn,
     }),
   };
+}
+
+function isSdkEvalSuiteExport(value: unknown): value is SdkEvalSuiteExport {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as SdkEvalSuiteExport)[SDK_EVAL_SUITE_SYMBOL] === true &&
+    typeof (value as SdkEvalSuiteExport)[SDK_TO_EVAL_YAML_OBJECT_SYMBOL] === 'function'
+  );
+}
+
+function isSupportedTsEvalExport(value: unknown): value is EvalConfig | SdkEvalSuiteExport {
+  return isSdkEvalSuiteExport(value) || isEvalConfigLike(value);
 }
 
 /**

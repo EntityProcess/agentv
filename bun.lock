@@ -142,6 +142,7 @@
       "name": "@agentv/sdk",
       "version": "4.41.1-next.1",
       "dependencies": {
+        "yaml": "^2.8.3",
         "zod": "^3.23.8",
       },
     },

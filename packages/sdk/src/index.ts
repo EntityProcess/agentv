@@ -92,6 +92,32 @@ export {
   type Content,
 } from './schemas.js';
 
+// Re-export YAML-aligned eval authoring helpers
+export {
+  defineEval,
+  evalSuite,
+  serializeEvalYaml,
+  toEvalYamlObject,
+  type DefinedEvalSuite,
+  type EvalAssertionConfig,
+  type EvalDefinition,
+  type EvalDockerWorkspace,
+  type EvalExecution,
+  type EvalMessage,
+  type EvalMessageContent,
+  type EvalPreprocessor,
+  type EvalRequires,
+  type EvalTargetRef,
+  type EvalTest,
+  type EvalTrials,
+  type EvalTurn,
+  type EvalWorkspace,
+  type EvalWorkspaceHook,
+  type EvalWorkspaceHooks,
+  type EvalWorkspaceRepo,
+  type LowerEvalYamlValue,
+} from './eval.js';
+
 // Re-export target client
 export {
   createTargetClient,

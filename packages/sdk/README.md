@@ -1,6 +1,6 @@
 # @agentv/sdk
 
-Evaluation SDK for AgentV - build custom graders and prompt templates around the canonical AgentV eval model.
+Evaluation SDK for AgentV - build YAML-aligned eval suites, custom graders, and prompt templates around the canonical AgentV eval model.
 
 ## Installation
 
@@ -41,11 +41,37 @@ export default defineCodeGrader(({ output, traceSummary }) => ({
 
 Both functions handle stdin/stdout parsing, snake_case conversion, Zod validation, and error handling automatically.
 
+### defineEval (YAML-aligned `.eval.ts` authoring)
+
+```typescript
+#!/usr/bin/env bun
+import { defineEval } from '@agentv/sdk';
+
+export default defineEval({
+  name: 'hello-suite',
+  execution: {
+    targets: ['mock-sdk'],
+  },
+  tests: [
+    {
+      id: 'hello',
+      input: 'Say hello',
+      expectedOutput: 'Hello from the mock target',
+      assertions: [{ type: 'contains', value: 'Hello' }],
+    },
+  ],
+});
+```
+
+`defineEval()` keeps TypeScript authoring in camelCase and lowers to the canonical snake_case YAML/runtime contract when AgentV loads the `.eval.ts` file.
+
 ## Exports
 
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
 - `defineCodeGrader(handler)` - Define a code grader grader (full score control)
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
+- `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite
+- `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `CodeGraderInput`, `CodeGraderResult` - Code grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types
