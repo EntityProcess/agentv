@@ -6,6 +6,7 @@ import {
   type BenchmarkArtifact,
   type EvalTest,
   type EvaluationResult,
+  type ExportDuplicatePolicy,
   type GradingArtifact,
   type IndexArtifactEntry,
   RESULT_INDEX_FILENAME,
@@ -201,6 +202,8 @@ export async function writePerTestArtifacts(
   outputDir: string,
   options?: {
     experiment?: string;
+    runId?: string;
+    duplicatePolicy?: ExportDuplicatePolicy;
     cwd?: string;
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
@@ -209,6 +212,8 @@ export async function writePerTestArtifacts(
 ): Promise<void> {
   await writeCorePerTestArtifacts(results, outputDir, {
     experiment: options?.experiment,
+    runId: options?.runId,
+    duplicatePolicy: options?.duplicatePolicy,
     sourceTests: options?.sourceTests,
     additionalArtifacts: createTaskBundleArtifactsWriter(options),
   });
@@ -221,6 +226,8 @@ export async function writeArtifactsFromResults(
     evalFile?: string;
     experiment?: string;
     plannedTestCount?: number;
+    runId?: string;
+    duplicatePolicy?: ExportDuplicatePolicy;
     cwd?: string;
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
@@ -236,6 +243,8 @@ export async function writeArtifactsFromResults(
     evalFile: options?.evalFile,
     experiment: options?.experiment,
     plannedTestCount: options?.plannedTestCount,
+    runId: options?.runId,
+    duplicatePolicy: options?.duplicatePolicy,
     sourceTests: options?.sourceTests,
     additionalArtifacts: createTaskBundleArtifactsWriter(options),
   });

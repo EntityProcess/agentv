@@ -12,6 +12,14 @@ import path from 'node:path';
 
 import { traceToTranscriptJsonLines } from '../import/types.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
+import {
+  type ExportDuplicatePolicy,
+  type ProjectionIdentity,
+  type ProjectionIdentityIssueWire,
+  type ProjectionIdentityWire,
+  toProjectionIdentityIssueWire,
+  toProjectionIdentityWire,
+} from './projection-identity.js';
 import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import { normalizeResultRow } from './result-row-schema.js';
@@ -204,6 +212,12 @@ export interface IndexArtifactEntry {
   readonly targets_path?: string;
   readonly files_path?: string;
   readonly graders_path?: string;
+  readonly projection_identity?: ProjectionIdentityWire;
+  readonly export_metadata?: {
+    readonly duplicate_policy: ExportDuplicatePolicy;
+    readonly identity_warnings?: readonly ProjectionIdentityIssueWire[];
+    readonly skipped?: boolean;
+  };
   readonly metadata?: Record<string, unknown>;
 }
 
@@ -413,6 +427,24 @@ function toIndexMetadata(
     ...Object.fromEntries(Object.entries(metadata).filter(([key]) => !reservedKeys.has(key))),
     ...(rerunSource ? { rerun_source: rerunSource } : {}),
     ...(preparedAttempt ? { prepared_attempt: preparedAttempt } : {}),
+  };
+}
+
+function buildExportMetadata(
+  duplicatePolicy: ExportDuplicatePolicy | undefined,
+  projectionIdentity: ProjectionIdentity | undefined,
+  options?: { skipped?: boolean },
+): IndexArtifactEntry['export_metadata'] {
+  if (!duplicatePolicy) {
+    return undefined;
+  }
+  const warnings = projectionIdentity?.issues
+    ?.filter((issue) => issue.severity === 'warning')
+    .map(toProjectionIdentityIssueWire);
+  return {
+    duplicate_policy: duplicatePolicy,
+    identity_warnings: warnings && warnings.length > 0 ? warnings : undefined,
+    skipped: options?.skipped,
   };
 }
 
@@ -700,17 +732,21 @@ function resultHasExecutionTraceTranscript(result: EvaluationResult): boolean {
   return result.output.length > 0 || result.trace.messages.length > 0;
 }
 
-async function writeTraceEnvelopeSidecar(params: {
+interface TraceEnvelopeSidecarParams {
   readonly result: EvaluationResult;
   readonly outputDir: string;
   readonly outputsDir: string;
   readonly evalPath?: string;
   readonly experiment?: string;
-}): Promise<TraceEnvelope> {
+  readonly runId?: string;
+  readonly duplicatePolicy?: ExportDuplicatePolicy;
+}
+
+function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnvelope {
   const hasTranscript = resultHasExecutionTraceTranscript(params.result);
-  const envelope = buildTraceEnvelopeFromEvaluationResult(params.result, {
+  return buildTraceEnvelopeFromEvaluationResult(params.result, {
     evalPath: params.evalPath,
-    runId: path.basename(params.outputDir),
+    runId: params.runId ?? path.basename(params.outputDir),
     experiment: params.experiment,
     source: { path: RESULT_INDEX_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
@@ -720,7 +756,14 @@ async function writeTraceEnvelopeSidecar(params: {
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? 'outputs/transcript.jsonl' : undefined,
     },
+    duplicatePolicy: params.duplicatePolicy,
   });
+}
+
+async function writeTraceEnvelopeSidecar(
+  params: TraceEnvelopeSidecarParams,
+): Promise<TraceEnvelope> {
+  const envelope = buildTraceEnvelopeSidecar(params);
   await writeFile(
     path.join(params.outputsDir, 'execution-trace.json'),
     `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
@@ -742,6 +785,8 @@ export function buildIndexArtifactEntry(
     inputPath?: string;
     responsePath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
+    projectionIdentity?: ProjectionIdentity;
+    duplicatePolicy?: ExportDuplicatePolicy;
   },
 ): IndexArtifactEntry {
   return {
@@ -784,6 +829,10 @@ export function buildIndexArtifactEntry(
       ? toRelativeArtifactPath(options.outputDir, options.responsePath)
       : undefined,
     ...options.extraIndexFields,
+    projection_identity: options.projectionIdentity
+      ? toProjectionIdentityWire(options.projectionIdentity)
+      : undefined,
+    export_metadata: buildExportMetadata(options.duplicatePolicy, options.projectionIdentity),
     metadata: toIndexMetadata(result.metadata),
   };
 }
@@ -791,6 +840,10 @@ export function buildIndexArtifactEntry(
 export function buildResultIndexArtifact(
   result: EvaluationResult,
   extraIndexFields?: AdditionalResultIndexFields,
+  options?: {
+    projectionIdentity?: ProjectionIdentity;
+    duplicatePolicy?: ExportDuplicatePolicy;
+  },
 ): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
   const input = extractInput(result);
@@ -829,6 +882,10 @@ export function buildResultIndexArtifact(
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
       : undefined,
     ...extraIndexFields,
+    projection_identity: options?.projectionIdentity
+      ? toProjectionIdentityWire(options.projectionIdentity)
+      : undefined,
+    export_metadata: buildExportMetadata(options?.duplicatePolicy, options?.projectionIdentity),
     metadata: toIndexMetadata(result.metadata),
   };
 }
@@ -876,6 +933,74 @@ function indexRecordKey(record: unknown): string | undefined {
         : undefined;
   const target = typeof record.target === 'string' ? record.target : undefined;
   return testId ? buildTestTargetKey(testId, target) : undefined;
+}
+
+function projectionIdentityRecordKey(record: unknown): string | undefined {
+  if (!isRecord(record) || !isRecord(record.projection_identity)) {
+    return undefined;
+  }
+  const id = record.projection_identity.id;
+  return typeof id === 'string' && id.trim().length > 0 ? id : undefined;
+}
+
+async function readExistingIndexRecords(outputDir: string): Promise<readonly unknown[]> {
+  const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
+  const content = await readFile(indexPath, 'utf8').catch(() => undefined);
+  if (content === undefined) {
+    return [];
+  }
+
+  const records: unknown[] = [];
+  for (const line of content.split('\n')) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+    try {
+      records.push(JSON.parse(line) as unknown);
+    } catch {}
+  }
+  return records;
+}
+
+function existingRecordsByProjectionIdentity(
+  records: readonly unknown[],
+): ReadonlyMap<string, unknown> {
+  const byIdentity = new Map<string, unknown>();
+  for (const record of records) {
+    const key = projectionIdentityRecordKey(record);
+    if (key) {
+      byIdentity.set(key, record);
+    }
+  }
+  return byIdentity;
+}
+
+function skippedExistingRecord(
+  record: unknown,
+  identity: ProjectionIdentity,
+  duplicatePolicy: ExportDuplicatePolicy,
+): unknown {
+  if (!isRecord(record)) {
+    return record;
+  }
+  return {
+    ...record,
+    projection_identity: toProjectionIdentityWire(identity),
+    export_metadata: buildExportMetadata(duplicatePolicy, identity, { skipped: true }),
+  };
+}
+
+function duplicateProjectionMessage(identity: ProjectionIdentity): string {
+  const dimensions = identity.dimensions;
+  return [
+    `Duplicate export projection ${identity.id}`,
+    `test_id=${dimensions.testId}`,
+    `target=${dimensions.target}`,
+    `source_target=${dimensions.sourceTarget}`,
+    `attempt=${dimensions.attempt}`,
+    `variant=${dimensions.variant ?? '<none>'}`,
+    `run_id=${dimensions.runId}`,
+  ].join(' ');
 }
 
 async function rewriteExistingIndexRecords(
@@ -1121,11 +1246,14 @@ export async function writePerTestArtifacts(
   options?: {
     experiment?: string;
     evalFile?: string;
+    runId?: string;
+    duplicatePolicy?: ExportDuplicatePolicy;
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
   },
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
+  const duplicatePolicy = options?.duplicatePolicy ?? 'update';
   const testByTestId = new Map((options?.sourceTests ?? []).map((test) => [test.id, test]));
   const indexRecords: ResultIndexArtifact[] = [];
 
@@ -1162,6 +1290,8 @@ export async function writePerTestArtifacts(
       outputsDir,
       evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
       experiment: options?.experiment,
+      runId: options?.runId,
+      duplicatePolicy,
     });
     if (hasTranscriptProjection(result, envelope)) {
       await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result, envelope);
@@ -1176,7 +1306,10 @@ export async function writePerTestArtifacts(
     );
 
     indexRecords.push({
-      ...buildResultIndexArtifact(result, extraIndexFields),
+      ...buildResultIndexArtifact(result, extraIndexFields, {
+        projectionIdentity: envelope.projectionIdentity,
+        duplicatePolicy,
+      }),
       experiment: options?.experiment,
     });
   }
@@ -1191,6 +1324,8 @@ export async function writeArtifactsFromResults(
     evalFile?: string;
     experiment?: string;
     plannedTestCount?: number;
+    runId?: string;
+    duplicatePolicy?: ExportDuplicatePolicy;
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
   },
@@ -1205,72 +1340,148 @@ export async function writeArtifactsFromResults(
   const benchmarkPath = path.join(outputDir, 'benchmark.json');
   const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
   await mkdir(outputDir, { recursive: true });
-  const indexRecords: ResultIndexArtifact[] = [];
+  const duplicatePolicy = options?.duplicatePolicy ?? 'update';
+  const existingRecords = await readExistingIndexRecords(outputDir);
+  const existingByIdentity = existingRecordsByProjectionIdentity(existingRecords);
+  const indexRecords: unknown[] = [];
   const testByTestId = new Map((options?.sourceTests ?? []).map((test) => [test.id, test]));
+  const emittedIdentityIds = new Set<string>();
 
-  for (const result of results) {
+  const plans = results.map((result) => {
     const grading = buildGradingArtifact(result);
     const timing = buildTimingArtifact([result]);
     const artifactSubdir = buildArtifactSubdir(result);
     const testDir = path.join(outputDir, artifactSubdir);
     const gradingPath = path.join(testDir, 'grading.json');
     const perTestTimingPath = path.join(testDir, 'timing.json');
-    await mkdir(testDir, { recursive: true });
-    await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
-    await writeFile(perTestTimingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
-
     const input = extractInput(result);
     const inputPath = input ? path.join(testDir, 'input.md') : undefined;
-    if (inputPath && input) {
-      await writeFile(inputPath, input, 'utf8');
-    }
-
     const outputsDir = path.join(testDir, 'outputs');
-    await mkdir(outputsDir, { recursive: true });
     const answerPath = result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
     const responsePath =
       result.output.length > 0 ? path.join(outputsDir, 'response.md') : undefined;
-    if (answerPath && responsePath) {
-      await writeFile(answerPath, result.output, 'utf8');
-      await writeFile(responsePath, result.output, 'utf8');
-    }
-    const envelope = await writeTraceEnvelopeSidecar({
+    const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
       outputsDir,
       evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
       experiment: options?.experiment,
+      runId: options?.runId,
+      duplicatePolicy,
     });
     const transcriptPath = hasTranscriptProjection(result, envelope)
       ? path.join(outputsDir, 'transcript.jsonl')
       : undefined;
-    if (transcriptPath) {
-      await writeTranscriptJsonl(transcriptPath, result, envelope);
+    const projectionIdentity = envelope.projectionIdentity;
+    if (!projectionIdentity) {
+      throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
+    }
+    const identityId = projectionIdentity.id;
+    return {
+      result,
+      grading,
+      timing,
+      testDir,
+      gradingPath,
+      perTestTimingPath,
+      input,
+      inputPath,
+      outputsDir,
+      answerPath,
+      responsePath,
+      envelope,
+      projectionIdentity,
+      transcriptPath,
+      identityId,
+    };
+  });
+
+  if (duplicatePolicy === 'error') {
+    const seen = new Set<string>();
+    for (const plan of plans) {
+      const duplicate =
+        seen.has(plan.identityId) || existingByIdentity.has(plan.identityId)
+          ? plan.projectionIdentity
+          : undefined;
+      if (duplicate) {
+        throw new Error(
+          `${duplicateProjectionMessage(duplicate)}; use --duplicate-policy update or skip`,
+        );
+      }
+      seen.add(plan.identityId);
+    }
+  }
+
+  for (const plan of plans) {
+    const { result, envelope, identityId } = plan;
+    const existing = existingByIdentity.get(identityId);
+    if (duplicatePolicy === 'skip' && existing) {
+      indexRecords.push(skippedExistingRecord(existing, plan.projectionIdentity, duplicatePolicy));
+      emittedIdentityIds.add(identityId);
+      continue;
+    }
+    if (duplicatePolicy === 'skip' && emittedIdentityIds.has(identityId)) {
+      continue;
+    }
+
+    await mkdir(plan.testDir, { recursive: true });
+    await writeFile(plan.gradingPath, `${JSON.stringify(plan.grading, null, 2)}\n`, 'utf8');
+    await writeFile(plan.perTestTimingPath, `${JSON.stringify(plan.timing, null, 2)}\n`, 'utf8');
+
+    if (plan.inputPath && plan.input) {
+      await writeFile(plan.inputPath, plan.input, 'utf8');
+    }
+
+    await mkdir(plan.outputsDir, { recursive: true });
+    if (plan.answerPath && plan.responsePath) {
+      await writeFile(plan.answerPath, result.output, 'utf8');
+      await writeFile(plan.responsePath, result.output, 'utf8');
+    }
+    await writeFile(
+      path.join(plan.outputsDir, 'execution-trace.json'),
+      `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
+      'utf8',
+    );
+    if (plan.transcriptPath) {
+      await writeTranscriptJsonl(plan.transcriptPath, result, envelope);
     }
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
       outputDir,
-      testDir,
+      plan.testDir,
       testByTestId,
       options?.additionalArtifacts,
     );
 
-    indexRecords.push({
+    const nextRecord = {
       ...buildIndexArtifactEntry(result, {
         outputDir,
-        artifactDir: testDir,
-        gradingPath,
-        timingPath: perTestTimingPath,
-        outputPath: answerPath,
-        answerPath,
-        transcriptPath,
-        inputPath,
-        responsePath,
+        artifactDir: plan.testDir,
+        gradingPath: plan.gradingPath,
+        timingPath: plan.perTestTimingPath,
+        outputPath: plan.answerPath,
+        answerPath: plan.answerPath,
+        transcriptPath: plan.transcriptPath,
+        inputPath: plan.inputPath,
+        responsePath: plan.responsePath,
         extraIndexFields,
+        projectionIdentity: plan.projectionIdentity,
+        duplicatePolicy,
       }),
       experiment: options?.experiment,
-    });
+    };
+    if (duplicatePolicy === 'update' && emittedIdentityIds.has(identityId)) {
+      const existingIndex = indexRecords.findIndex(
+        (record) => projectionIdentityRecordKey(record) === identityId,
+      );
+      if (existingIndex >= 0) {
+        indexRecords[existingIndex] = nextRecord;
+      }
+    } else {
+      indexRecords.push(nextRecord);
+    }
+    emittedIdentityIds.add(identityId);
   }
 
   const timing = buildTimingArtifact(results);

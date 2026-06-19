@@ -23,6 +23,18 @@
 
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import {
+  type ExportDuplicatePolicy,
+  type ProjectionIdentity,
+  type ProjectionIdentityIssue,
+  ProjectionIdentityIssueWireSchema,
+  ProjectionIdentityWireSchema,
+  buildProjectionIdentity,
+  fromProjectionIdentityIssueWire,
+  fromProjectionIdentityWire,
+  toProjectionIdentityIssueWire,
+  toProjectionIdentityWire,
+} from './projection-identity.js';
 import type { Message, ToolCall } from './providers/types.js';
 import type {
   TokenUsage,
@@ -37,6 +49,7 @@ import type { EvaluationResult, EvaluationVerdict, GraderKind } from './types.js
 export const EXECUTION_TRACE_SCHEMA_VERSION = 'agentv.trace.v1' as const;
 
 const TRACE_ENVELOPE_FORMAT = 'otlp_openinference_spans' as const;
+const TRACE_ENVELOPE_PROJECTION_FORMAT = 'execution_trace' as const;
 const TRANSCRIPT_MESSAGE_EVENT_NAME = 'agentv.transcript.message' as const;
 
 const CAPTURE_CONTENT_VALUES = ['none', 'metadata', 'full'] as const;
@@ -160,6 +173,8 @@ export interface TraceEnvelope {
   readonly artifactId: string;
   readonly createdAt: string;
   readonly eval: TraceEnvelopeEval;
+  readonly projectionIdentity?: ProjectionIdentity;
+  readonly exportMetadata?: TraceEnvelopeExportMetadata;
   readonly replay?: TraceEnvelopeReplay;
   readonly trace: TraceEnvelopeBody;
   readonly source: TraceEnvelopeSource;
@@ -167,6 +182,11 @@ export interface TraceEnvelope {
   readonly conversionWarnings?: readonly TraceEnvelopeConversionWarning[];
   readonly artifacts?: Readonly<Record<string, string>>;
   readonly scores?: readonly TraceEnvelopeScore[];
+}
+
+export interface TraceEnvelopeExportMetadata {
+  readonly duplicatePolicy?: ExportDuplicatePolicy;
+  readonly identityWarnings?: readonly ProjectionIdentityIssue[];
 }
 
 const AttributeMapWireSchema = z.record(z.string(), z.unknown());
@@ -305,12 +325,21 @@ export const TraceEnvelopeScoreWireSchema = z
   })
   .strict();
 
+export const TraceEnvelopeExportMetadataWireSchema = z
+  .object({
+    duplicate_policy: z.enum(['skip', 'update', 'error']).optional(),
+    identity_warnings: z.array(ProjectionIdentityIssueWireSchema).optional(),
+  })
+  .strict();
+
 export const TraceEnvelopeWireSchema = z
   .object({
     schema_version: z.literal(EXECUTION_TRACE_SCHEMA_VERSION),
     artifact_id: z.string(),
     created_at: z.string(),
     eval: TraceEnvelopeEvalWireSchema,
+    projection_identity: ProjectionIdentityWireSchema.optional(),
+    export_metadata: TraceEnvelopeExportMetadataWireSchema.optional(),
     replay: TraceEnvelopeReplayWireSchema.optional(),
     trace: TraceEnvelopeBodyWireSchema,
     source: TraceEnvelopeSourceWireSchema,
@@ -332,6 +361,7 @@ export type TraceEnvelopeConversionWarningWire = z.infer<
   typeof TraceEnvelopeConversionWarningWireSchema
 >;
 export type TraceEnvelopeScoreWire = z.infer<typeof TraceEnvelopeScoreWireSchema>;
+export type TraceEnvelopeExportMetadataWire = z.infer<typeof TraceEnvelopeExportMetadataWireSchema>;
 
 export interface BuildTraceEnvelopeOptions {
   readonly evalId?: string;
@@ -345,6 +375,7 @@ export interface BuildTraceEnvelopeOptions {
   readonly replay?: TraceEnvelopeReplay;
   readonly capture?: Partial<TraceEnvelopeCapture>;
   readonly artifacts?: Readonly<Record<string, string | undefined>>;
+  readonly duplicatePolicy?: ExportDuplicatePolicy;
   readonly now?: () => Date;
 }
 
@@ -773,8 +804,8 @@ export function buildTraceEnvelopeFromEvaluationResult(
     'agentv.suite': result.suite,
     'agentv.category': result.category,
     'agentv.eval_path': options.evalPath,
-    'agentv.run_id': options.runId,
-    'agentv.attempt': options.attempt,
+    'agentv.run_id': options.runId ?? result.timestamp,
+    'agentv.attempt': options.attempt ?? 0,
     'agentv.variant': options.variant ?? undefined,
     'agentv.execution_status': result.executionStatus,
     'agentv.failure_stage': result.failureStage,
@@ -911,25 +942,53 @@ export function buildTraceEnvelopeFromEvaluationResult(
   }
 
   const artifactId = `execution-trace-${hashHex([traceId, result.timestamp, result.score], 20)}`;
+  const sourceTarget = options.sourceTarget ?? result.target;
+  const attempt = options.attempt ?? 0;
+  const variant = options.variant ?? null;
+  const runId = options.runId ?? result.timestamp;
   const evalIdentity: TraceEnvelopeEval = {
     evalId: options.evalId,
     evalPath: options.evalPath,
     suite: result.suite,
     testId: result.testId,
     target: result.target,
-    sourceTarget: options.sourceTarget,
-    attempt: options.attempt,
-    variant: options.variant,
-    runId: options.runId,
+    sourceTarget,
+    attempt,
+    variant,
+    runId,
     category: result.category,
     experiment: options.experiment,
   };
+  const projectionIdentity = buildProjectionIdentity({
+    runId,
+    suite: evalIdentity.suite,
+    evalPath: evalIdentity.evalPath,
+    testId: evalIdentity.testId,
+    target: evalIdentity.target,
+    sourceTarget,
+    attempt,
+    variant,
+    envelopeId: artifactId,
+    traceId,
+    rootSpanId,
+    projectionFormat: TRACE_ENVELOPE_PROJECTION_FORMAT,
+    projectionVersion: EXECUTION_TRACE_SCHEMA_VERSION,
+  });
 
   return {
     schemaVersion: EXECUTION_TRACE_SCHEMA_VERSION,
     artifactId,
     createdAt: now.toISOString(),
     eval: evalIdentity,
+    projectionIdentity,
+    exportMetadata: options.duplicatePolicy
+      ? {
+          duplicatePolicy: options.duplicatePolicy,
+          identityWarnings: projectionIdentity.issues?.filter(
+            (issue) => issue.severity === 'warning',
+          ),
+        }
+      : undefined,
     replay: options.replay,
     trace: {
       format: TRACE_ENVELOPE_FORMAT,
@@ -954,6 +1013,12 @@ export function toTraceEnvelopeWire(envelope: TraceEnvelope): TraceEnvelopeWire 
       artifact_id: envelope.artifactId,
       created_at: envelope.createdAt,
       eval: toTraceEnvelopeEvalWire(envelope.eval),
+      projection_identity: envelope.projectionIdentity
+        ? toProjectionIdentityWire(envelope.projectionIdentity)
+        : undefined,
+      export_metadata: envelope.exportMetadata
+        ? toTraceEnvelopeExportMetadataWire(envelope.exportMetadata)
+        : undefined,
       replay: envelope.replay ? toTraceEnvelopeReplayWire(envelope.replay) : undefined,
       trace: toTraceEnvelopeBodyWire(envelope.trace),
       source: toTraceEnvelopeSourceWire(envelope.source),
@@ -972,6 +1037,12 @@ export function fromTraceEnvelopeWire(input: unknown): TraceEnvelope {
     artifactId: wire.artifact_id,
     createdAt: wire.created_at,
     eval: fromTraceEnvelopeEvalWire(wire.eval),
+    projectionIdentity: wire.projection_identity
+      ? fromProjectionIdentityWire(wire.projection_identity)
+      : undefined,
+    exportMetadata: wire.export_metadata
+      ? fromTraceEnvelopeExportMetadataWire(wire.export_metadata)
+      : undefined,
     replay: wire.replay ? fromTraceEnvelopeReplayWire(wire.replay) : undefined,
     trace: fromTraceEnvelopeBodyWire(wire.trace),
     source: fromTraceEnvelopeSourceWire(wire.source),
@@ -1013,6 +1084,26 @@ function fromTraceEnvelopeEvalWire(evaluation: TraceEnvelopeEvalWire): TraceEnve
     runId: evaluation.run_id,
     category: evaluation.category,
     experiment: evaluation.experiment,
+  };
+}
+
+function toTraceEnvelopeExportMetadataWire(
+  metadata: TraceEnvelopeExportMetadata,
+): TraceEnvelopeExportMetadataWire {
+  return TraceEnvelopeExportMetadataWireSchema.parse(
+    dropUndefined({
+      duplicate_policy: metadata.duplicatePolicy,
+      identity_warnings: metadata.identityWarnings?.map(toProjectionIdentityIssueWire),
+    }),
+  );
+}
+
+function fromTraceEnvelopeExportMetadataWire(
+  metadata: TraceEnvelopeExportMetadataWire,
+): TraceEnvelopeExportMetadata {
+  return {
+    duplicatePolicy: metadata.duplicate_policy,
+    identityWarnings: metadata.identity_warnings?.map(fromProjectionIdentityIssueWire),
   };
 }
 
