@@ -91,10 +91,22 @@ Use `--out docs/<name>.html` when a repository should publish multiple runs. Lin
 Use `results export` when you need the artifact workspace layout itself rather than a rendered report.
 
 ```bash
-agentv results export <run-workspace-or-index.jsonl> [--out <dir>]
+agentv results export <run-workspace-or-index.jsonl> [--out <dir>] [--duplicate-policy update]
 ```
 
 This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving. The run workspace is also where generated task bundles live: `index.jsonl` rows may point to per-result `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` entries. Keep those generated artifacts with the run when sharing or auditing results.
+
+Each exported trace sidecar and `index.jsonl` row includes a stable `projection_identity` derived from AgentV-owned fields: `run_id`, `suite` or `eval_path`, `test_id`, `target`, `source_target`, `attempt`, `variant`, `envelope_id`, `trace_id`, `root_span_id`, and the projection format/version. Retrying the same completed run keeps the same projection ID even when you choose a different `--out` directory, because `run_id` comes from the source run directory or source manifest name rather than the export destination.
+
+Duplicate policy is explicit:
+
+| Policy | Behavior |
+|--------|----------|
+| `update` | Default. Rewrites the local projection for the same identity. |
+| `skip` | Leaves the existing local projection in place and records `export_metadata.duplicate_policy: skip`. |
+| `error` | Fails before rewriting local projection files when the identity already exists. |
+
+`attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
 
 ## Inspection helpers
 

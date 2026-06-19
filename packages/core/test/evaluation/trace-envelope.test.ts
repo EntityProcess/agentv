@@ -99,6 +99,22 @@ describe('execution trace artifact v1', () => {
     expect(wire.schema_version).toBe(EXECUTION_TRACE_SCHEMA_VERSION);
     expect(wire.artifact_id).toMatch(/^execution-trace-/);
     expect(wire).not.toHaveProperty('envelope_id');
+    expect(wire.projection_identity?.schema_version).toBe('agentv.projection_identity.v1');
+    expect(wire.projection_identity?.dimensions).toMatchObject({
+      run_id: 'run-123',
+      suite: 'trace-evaluation',
+      eval_path: 'examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml',
+      test_id: 'trace-case',
+      target: 'replay_coding_agent',
+      source_target: 'replay_coding_agent',
+      attempt: 0,
+      variant: null,
+      envelope_id: wire.artifact_id,
+      trace_id: wire.trace.trace_id,
+      root_span_id: wire.trace.root_span_id,
+      projection_format: 'execution_trace',
+      projection_version: EXECUTION_TRACE_SCHEMA_VERSION,
+    });
     expect(wire.created_at).toBe('2026-06-15T12:00:05.000Z');
     expect(wire.eval.eval_path).toContain('coding-agent-replay.eval.yaml');
     expect(wire.trace.format).toBe('otlp_openinference_spans');

@@ -23,9 +23,9 @@
 
 import path from 'node:path';
 
-import { command, option, optional, positional, string } from 'cmd-ts';
+import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
 
-import type { EvaluationResult } from '@agentv/core';
+import type { EvaluationResult, ExportDuplicatePolicy } from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
 import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
@@ -37,6 +37,7 @@ export async function exportResults(
   sourceFile: string,
   content: string,
   outputDir: string,
+  options?: { duplicatePolicy?: ExportDuplicatePolicy },
 ): Promise<void> {
   const results = parseJsonlResults(content);
 
@@ -46,6 +47,8 @@ export async function exportResults(
 
   await writeArtifactsFromResults(results, outputDir, {
     evalFile: sourceFile,
+    runId: deriveExportRunId(sourceFile),
+    duplicatePolicy: options?.duplicatePolicy ?? 'update',
   });
 }
 
@@ -71,6 +74,13 @@ export function deriveOutputDir(cwd: string, sourceFile: string): string {
     return path.join(cwd, '.agentv', 'results', 'export', parentDir.slice(5));
   }
   return path.join(cwd, '.agentv', 'results', 'export', parentDir);
+}
+
+export function deriveExportRunId(sourceFile: string): string {
+  if (path.basename(sourceFile) === RESULT_INDEX_FILENAME) {
+    return path.basename(path.dirname(sourceFile));
+  }
+  return path.basename(sourceFile, path.extname(sourceFile));
 }
 
 export async function loadExportSource(
@@ -106,9 +116,16 @@ export const resultsExportCommand = command({
       short: 'd',
       description: 'Working directory (default: current directory)',
     }),
+    duplicatePolicy: option({
+      type: optional(oneOf(['skip', 'update', 'error'])),
+      long: 'duplicate-policy',
+      description:
+        'How to handle duplicate projection identities in the output: update (default), skip, or error',
+    }),
   },
-  handler: async ({ source, out, dir }) => {
+  handler: async ({ source, out, dir, duplicatePolicy }) => {
     const cwd = dir ?? process.cwd();
+    const policy = (duplicatePolicy ?? 'update') as ExportDuplicatePolicy;
 
     try {
       const { sourceFile, results } = await loadExportSource(source, cwd);
@@ -121,6 +138,8 @@ export const resultsExportCommand = command({
 
       await writeArtifactsFromResults(results, outputDir, {
         evalFile: sourceFile,
+        runId: deriveExportRunId(sourceFile),
+        duplicatePolicy: policy,
       });
 
       // Report exported test IDs

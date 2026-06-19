@@ -10,6 +10,7 @@ import type {
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import {
+  deriveExportRunId,
   deriveOutputDir,
   exportResults,
   loadExportSource,
@@ -104,6 +105,18 @@ function artifactDir(outputDir: string, record: { suite?: string; test_id?: stri
   return path.join(outputDir, ...(record.suite ? [record.suite] : []), testId);
 }
 
+function readIndex(outputDir: string): IndexArtifactEntry[] {
+  return readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as IndexArtifactEntry);
+}
+
+function readAnswer(outputDir: string, record: { suite?: string; test_id?: string }): string {
+  return readFileSync(path.join(artifactDir(outputDir, record), 'outputs', 'answer.md'), 'utf8');
+}
+
 describe('results export', () => {
   let tempDir: string;
 
@@ -162,6 +175,15 @@ describe('results export', () => {
     );
   });
 
+  it('deriveExportRunId keeps retry identity tied to the source run', () => {
+    expect(
+      deriveExportRunId(
+        path.join(tempDir, '.agentv', 'results', 'runs', 'demo', '2026-run', 'index.jsonl'),
+      ),
+    ).toBe('2026-run');
+    expect(deriveExportRunId(path.join(tempDir, 'legacy-results.jsonl'))).toBe('legacy-results');
+  });
+
   it('should create benchmark.json matching artifact-writer schema', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
@@ -216,6 +238,102 @@ describe('results export', () => {
       transcript_path: 'demo/test-greeting/outputs/transcript.jsonl',
       input_path: 'demo/test-greeting/input.md',
     });
+    expect(entries[0].projection_identity).toMatchObject({
+      schema_version: 'agentv.projection_identity.v1',
+      dimensions: {
+        run_id: 'test',
+        suite: 'demo',
+        eval_path: 'test.jsonl',
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        source_target: 'gpt-4o',
+        attempt: 0,
+        variant: null,
+        projection_format: 'execution_trace',
+        projection_version: 'agentv.trace.v1',
+      },
+    });
+    expect(entries[0].export_metadata).toMatchObject({
+      duplicate_policy: 'update',
+    });
+  });
+
+  it('keeps projection IDs stable across repeated exports from the same run', async () => {
+    const sourceFile = path.join(
+      tempDir,
+      '.agentv',
+      'results',
+      'runs',
+      '2026-03-18T10-00-00-000Z',
+      'index.jsonl',
+    );
+    const firstOutputDir = path.join(tempDir, 'first-output');
+    const secondOutputDir = path.join(tempDir, 'second-output');
+    const content = toJsonl(RESULT_FULL);
+
+    await exportResults(sourceFile, content, firstOutputDir);
+    await exportResults(sourceFile, content, secondOutputDir);
+
+    const [first] = readIndex(firstOutputDir);
+    const [second] = readIndex(secondOutputDir);
+    expect(first.projection_identity?.id).toBe(second.projection_identity?.id);
+    expect(first.projection_identity?.key).toBe(second.projection_identity?.key);
+    expect(first.projection_identity?.dimensions.run_id).toBe('2026-03-18T10-00-00-000Z');
+  });
+
+  it('updates duplicate projection artifacts when duplicate policy is update', async () => {
+    const sourceFile = path.join(tempDir, 'runs', 'retry-run', 'index.jsonl');
+    const outputDir = path.join(tempDir, 'output');
+    const updated = { ...RESULT_FULL, output: 'Updated answer.' };
+
+    await exportResults(sourceFile, toJsonl(RESULT_FULL), outputDir, {
+      duplicatePolicy: 'update',
+    });
+    const before = readIndex(outputDir)[0]?.projection_identity?.id;
+    await exportResults(sourceFile, toJsonl(updated), outputDir, {
+      duplicatePolicy: 'update',
+    });
+
+    const [entry] = readIndex(outputDir);
+    expect(entry.projection_identity?.id).toBe(before);
+    expect(entry.export_metadata).toMatchObject({ duplicate_policy: 'update' });
+    expect(readAnswer(outputDir, RESULT_FULL)).toBe('Updated answer.');
+  });
+
+  it('skips duplicate projection artifacts when duplicate policy is skip', async () => {
+    const sourceFile = path.join(tempDir, 'runs', 'retry-run', 'index.jsonl');
+    const outputDir = path.join(tempDir, 'output');
+    const updated = { ...RESULT_FULL, output: 'Skipped answer.' };
+
+    await exportResults(sourceFile, toJsonl(RESULT_FULL), outputDir, {
+      duplicatePolicy: 'update',
+    });
+    const before = readIndex(outputDir)[0]?.projection_identity?.id;
+    await exportResults(sourceFile, toJsonl(updated), outputDir, {
+      duplicatePolicy: 'skip',
+    });
+
+    const [entry] = readIndex(outputDir);
+    expect(entry.projection_identity?.id).toBe(before);
+    expect(entry.export_metadata).toMatchObject({ duplicate_policy: 'skip', skipped: true });
+    expect(readAnswer(outputDir, RESULT_FULL)).toBe('Hello, Alice!');
+  });
+
+  it('fails duplicate projection artifacts when duplicate policy is error', async () => {
+    const sourceFile = path.join(tempDir, 'runs', 'retry-run', 'index.jsonl');
+    const outputDir = path.join(tempDir, 'output');
+    const updated = { ...RESULT_FULL, output: 'Should not write.' };
+
+    await exportResults(sourceFile, toJsonl(RESULT_FULL), outputDir);
+    await expect(
+      exportResults(sourceFile, toJsonl(updated), outputDir, {
+        duplicatePolicy: 'error',
+      }),
+    ).rejects.toThrow('Duplicate export projection');
+
+    const [entry] = readIndex(outputDir);
+    expect(entry.export_metadata).toMatchObject({ duplicate_policy: 'update' });
+    expect(readAnswer(outputDir, RESULT_FULL)).toBe('Hello, Alice!');
   });
 
   it('should create per-test timing.json with run timing', async () => {
