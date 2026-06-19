@@ -599,6 +599,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         execution_error_count: executionErrorCount,
         size_bytes: m.sizeBytes,
         source: m.source,
+        on_remote: m.on_remote,
         ...(target && { target }),
         ...(experiment && { experiment }),
         ...tagFields,

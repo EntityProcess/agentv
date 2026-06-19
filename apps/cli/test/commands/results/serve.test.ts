@@ -942,11 +942,15 @@ describe('serve app', () => {
       const res = await app.request('/api/runs');
 
       expect(res.status).toBe(200);
-      const data = (await res.json()) as { runs: Array<{ filename: string; source: string }> };
+      const data = (await res.json()) as {
+        runs: Array<{ filename: string; source: string; on_remote: boolean }>;
+      };
       expect(data.runs).toHaveLength(1);
+      // A local-only run (no remote configured) is not on the remote branch.
       expect(data.runs[0]).toMatchObject({
         filename,
         source: 'local',
+        on_remote: false,
       });
     });
 
@@ -1103,12 +1107,15 @@ describe('serve app', () => {
 
         expect(res.status).toBe(200);
         const data = (await res.json()) as {
-          runs: Array<{ filename: string; source: string }>;
+          runs: Array<{ filename: string; source: string; on_remote: boolean }>;
         };
         expect(data.runs).toHaveLength(1);
+        // A run only present on the remote branch (no local copy) reports
+        // on_remote: true so it still shows with the on-remote indicator.
         expect(data.runs[0]).toMatchObject({
           filename: 'remote::2026-03-26T10-00-00-000Z',
           source: 'remote',
+          on_remote: true,
         });
       } finally {
         if (previousHome === undefined) {
@@ -1291,12 +1298,17 @@ describe('serve app', () => {
       const listRes = await app.request('/api/runs');
       expect(listRes.status).toBe(200);
       const listData = (await listRes.json()) as {
-        runs: Array<{ filename: string; source: string }>;
+        runs: Array<{ filename: string; source: string; on_remote: boolean }>;
       };
       expect(listData.runs).toHaveLength(1);
+      // A run present both locally and on the remote branch dedupes to a single
+      // row that prefers the local copy but still reports on_remote: true — this
+      // is the per-run flag the Dashboard's "on remote" indicator/count derive
+      // from, so synced runs are no longer hidden.
       expect(listData.runs[0]).toMatchObject({
         filename: runId,
         source: 'local',
+        on_remote: true,
       });
     }, 15000);
 

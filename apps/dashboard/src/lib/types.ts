@@ -18,6 +18,13 @@ export interface RunMeta {
   target?: string;
   experiment?: string;
   source: 'local' | 'remote';
+  /**
+   * True when this run is present on the configured remote results branch.
+   * Drives the per-run "Remote" indicator and the "N of M runs on remote"
+   * summary. A run synced to the remote keeps `source: 'local'` but reports
+   * `on_remote: true`, so the indicator and the count always agree.
+   */
+  on_remote?: boolean;
   project_id?: string;
   project_name?: string;
   /** Optional user-assigned tags from the run's sidecar tags.json. */

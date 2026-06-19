@@ -16,7 +16,7 @@ import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
-import { type RunSourceFilter, RunSourceToolbar } from '~/components/RunSourceToolbar';
+import { RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
   remoteStatusOptions,
@@ -35,7 +35,11 @@ import {
   resolveIndexRoute,
   resolveInitialProjectRedirect,
 } from '~/lib/navigation';
-import { buildProjectSyncErrorFeedback, buildProjectSyncFeedback } from '~/lib/project-sync-status';
+import {
+  buildProjectSyncErrorFeedback,
+  buildProjectSyncFeedback,
+  formatOnRemoteSummary,
+} from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 import type { ProjectListResponse, ProjectSummary, RunMeta } from '~/lib/types';
 type TabId = StudioTabId;
@@ -227,7 +231,6 @@ function SingleProjectHome() {
   const { data: remoteStatus } = useRemoteStatus();
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState<RunSourceFilter>('all');
   const [syncInFlight, setSyncInFlight] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<{
     kind: 'success' | 'warning' | 'error';
@@ -236,10 +239,12 @@ function SingleProjectHome() {
   const isReadOnly = config?.read_only === true;
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
-  const filteredRuns =
-    sourceFilter === 'all'
-      ? dedupeSyncedRuns(data?.runs ?? [])
-      : (data?.runs ?? []).filter((run) => run.source === sourceFilter);
+  const runs = dedupeSyncedRuns(data?.runs ?? []);
+  const onRemoteCount = runs.filter((run) => run.on_remote === true).length;
+  const onRemoteSummary =
+    remoteStatus?.configured === true
+      ? formatOnRemoteSummary(onRemoteCount, runs.length, remoteStatus.branch)
+      : undefined;
 
   async function handleSyncRemote() {
     setSyncInFlight(true);
@@ -317,16 +322,15 @@ function SingleProjectHome() {
       {/* Tab content */}
       {activeTab === 'runs' && (
         <RunsTabContent
-          runs={filteredRuns}
+          runs={runs}
           isLoading={isLoading}
           error={error}
-          sourceFilter={sourceFilter}
-          onSourceFilterChange={setSourceFilter}
           remoteStatus={remoteStatus}
           syncInFlight={syncInFlight}
           syncFeedback={syncFeedback}
           onSyncRemote={handleSyncRemote}
           projectName={config?.project_name}
+          onRemoteSummary={onRemoteSummary}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           onLoadMore={() => void fetchNextPage()}
@@ -359,13 +363,12 @@ function RunsTabContent({
   runs,
   isLoading,
   error,
-  sourceFilter,
-  onSourceFilterChange,
   remoteStatus,
   syncInFlight,
   syncFeedback,
   onSyncRemote,
   projectName,
+  onRemoteSummary,
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
@@ -374,13 +377,12 @@ function RunsTabContent({
   runs: RunMeta[];
   isLoading: boolean;
   error: Error | null;
-  sourceFilter: RunSourceFilter;
-  onSourceFilterChange: (filter: RunSourceFilter) => void;
   remoteStatus: ReturnType<typeof useRemoteStatus>['data'];
   syncInFlight: boolean;
   syncFeedback: { kind: 'success' | 'warning' | 'error'; message: string } | null;
   onSyncRemote: () => void;
   projectName?: string;
+  onRemoteSummary?: string;
   hasNextPage: boolean | undefined;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
@@ -402,48 +404,20 @@ function RunsTabContent({
     <div className="space-y-4">
       <ActiveRunsSection />
       <RunSourceToolbar
-        filter={sourceFilter}
-        onFilterChange={onSourceFilterChange}
         remoteStatus={remoteStatus}
         syncInFlight={syncInFlight}
         onSync={onSyncRemote}
         projectName={projectName}
         syncFeedback={syncFeedback}
+        onRemoteSummary={onRemoteSummary}
       />
       <RunList
         runs={runs}
         enableCombine={!readOnly}
+        remoteBranch={remoteStatus?.branch}
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={onLoadMore}
-        emptyMessage={
-          sourceFilter === 'remote' ? (
-            remoteStatus?.configured ? (
-              <>
-                <p className="text-lg text-gray-400">No remote runs found.</p>
-                <p className="mt-2 text-sm text-gray-500">
-                  Sync remote results or run an eval with{' '}
-                  <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
-                    sync.auto_push: true
-                  </code>{' '}
-                  in your config.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-lg text-gray-400">Remote results are not configured.</p>
-                <p className="mt-2 text-sm text-gray-500">
-                  Add <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">results</code>{' '}
-                  to{' '}
-                  <code className="rounded bg-gray-800 px-2 py-1 text-cyan-400">
-                    .agentv/config.yaml
-                  </code>{' '}
-                  to enable remote result syncing.
-                </p>
-              </>
-            )
-          ) : undefined
-        }
       />
     </div>
   );

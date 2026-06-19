@@ -4,6 +4,7 @@ import {
   buildProjectSyncErrorFeedback,
   buildProjectSyncFeedback,
   buildRemoteStatusItems,
+  formatOnRemoteSummary,
   formatRemoteRunCount,
   getProjectSyncView,
   shouldPollRemoteStatus,
@@ -159,6 +160,19 @@ describe('formatRemoteRunCount', () => {
   });
 });
 
+describe('formatOnRemoteSummary', () => {
+  it('summarizes how many listed runs are backed up to the branch', () => {
+    expect(formatOnRemoteSummary(2, 3, 'agentv/results/v1')).toBe(
+      '2 of 3 runs on remote (agentv/results/v1)',
+    );
+  });
+
+  it('handles a single run and a missing branch', () => {
+    expect(formatOnRemoteSummary(1, 1)).toBe('1 of 1 run on remote');
+    expect(formatOnRemoteSummary(0, 0)).toBe('0 of 0 runs on remote');
+  });
+});
+
 describe('buildRemoteStatusItems', () => {
   it('includes WTG-like repo, remote run count, and last sync time', () => {
     const items = buildRemoteStatusItems({
@@ -172,6 +186,23 @@ describe('buildRemoteStatusItems', () => {
     expect(items).toContain('1 remote run');
     expect(items).toContain('Repo: WiseTechGlobal/WTG.AI.Prompts.EvalResults');
     expect(items.some((item) => item.startsWith('Last synced '))).toBe(true);
+  });
+
+  it('prefers the on-remote summary over the raw remote run count when provided', () => {
+    const items = buildRemoteStatusItems(
+      {
+        configured: true,
+        available: true,
+        repo: 'WiseTechGlobal/WTG.AI.Prompts.EvalResults',
+        run_count: 5,
+        last_synced_at: '2026-06-06T13:00:00.000Z',
+      },
+      undefined,
+      '2 of 3 runs on remote (agentv/results/v1)',
+    );
+
+    expect(items).toContain('2 of 3 runs on remote (agentv/results/v1)');
+    expect(items).not.toContain('5 remote runs');
   });
 });
 
