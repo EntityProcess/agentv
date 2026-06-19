@@ -6,7 +6,7 @@ Status: Proposed
 
 ## Context
 
-AgentV exports evaluation traces through generic OpenTelemetry/OTLP plumbing and is adding a derived trajectory contract for post-hoc trace evaluation. A focused follow-up proposed adding a Phoenix OTel backend preset for `--otel-backend phoenix`, but that raised a scope concern: Phoenix project routing, collector endpoint conventions, API keys, dataset concepts, and experiment behavior are backend-specific.
+AgentV exports evaluation traces through generic OpenTelemetry/OTLP plumbing and is adding a trace artifact contract for post-hoc trace evaluation. A focused follow-up proposed adding a Phoenix OTel backend preset for `--otel-backend phoenix`, but that raised a scope concern: Phoenix project routing, collector endpoint conventions, API keys, dataset concepts, and experiment behavior are backend-specific.
 
 AgentV's architecture principles prefer a lightweight core with extension points and adapters. Built-ins should be universal primitives that most users compose. Backend-specific observability integrations should not make AgentV core behave like a hosted trace or experiment platform.
 
@@ -25,7 +25,7 @@ AgentV core should own:
 
 - generic OTLP/HTTP export configuration;
 - OTLP JSON file export;
-- derived trajectory types and wire conversion;
+- trace artifact types and boundary conversion;
 - generic OTLP/OpenInference import/export mapping where it is backend-neutral;
 - small registry/discovery primitives for extension points.
 
@@ -94,7 +94,7 @@ Negative:
 
 ## Tracker impact
 
-- `av-vwa.6` remains valid: core should map derived trajectories to and from generic OTLP/OpenInference shapes, while Phoenix-specific dataset, experiment, project, and span-kind behavior stays in adapter space.
+- `av-vwa.6` remains valid: core should map trace artifacts to and from generic OTLP/OpenInference shapes, while Phoenix-specific dataset, experiment, project, and span-kind behavior stays in adapter space.
 - `av-vwa.6.1` should be revised from adding a Phoenix preset in core to adding the minimal observability backend extension seam plus a Phoenix resolver in the Phoenix adapter. If the extension seam is not approved, defer the bead and document generic OTLP environment-variable configuration for Phoenix instead.
 
 ## Open questions

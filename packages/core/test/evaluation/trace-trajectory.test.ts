@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
-  NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
-  type NormalizedTrajectory,
-  NormalizedTrajectoryWireSchema,
+  type TraceArtifact,
+  TraceArtifactWireSchema,
   computeTraceSummary,
-  computeTraceSummaryFromTrajectory,
-  fromNormalizedTrajectoryWire,
-  toNormalizedTrajectoryWire,
+  computeTraceSummaryFromTraceArtifact,
+  fromTraceArtifactWire,
+  toTraceArtifactWire,
+  traceFromTraceArtifact,
 } from '../../src/evaluation/trace.js';
 
 function jsonComparable(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value));
 }
 
-function buildTrajectory(): NormalizedTrajectory {
+function buildTraceArtifact(): TraceArtifact {
   return {
-    schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
     source: {
       kind: 'pi_session',
       path: 'traces/pi-session.jsonl',
@@ -135,13 +134,13 @@ function buildTrajectory(): NormalizedTrajectory {
   };
 }
 
-describe('derived trajectory contract', () => {
-  it('round-trips between internal camelCase and snake_case wire format', () => {
-    const trajectory = buildTrajectory();
+describe('derived trace artifact projection', () => {
+  it('round-trips between internal camelCase and boundary snake_case shape', () => {
+    const artifact = buildTraceArtifact();
 
-    const wire = toNormalizedTrajectoryWire(trajectory);
+    const wire = toTraceArtifactWire(artifact);
 
-    expect(wire.schema_version).toBe('agentv.trajectory.v1');
+    expect(wire).not.toHaveProperty('schema_version');
     expect(wire.source.kind).toBe('pi_session');
     expect(wire.session.session_id).toBe('session-123');
     expect(wire.branch?.selected_leaf_id).toBe('leaf-success');
@@ -150,25 +149,13 @@ describe('derived trajectory contract', () => {
     expect(wire.events[2]?.source_ref?.raw_kind).toBe('pi.toolCall');
     expect(wire.events[2]?.raw_evidence?.[0]?.media_type).toBe('application/json');
 
-    const roundTrip = fromNormalizedTrajectoryWire(wire);
+    const roundTrip = fromTraceArtifactWire(wire);
 
-    expect(jsonComparable(roundTrip)).toEqual(jsonComparable(trajectory));
-  });
-
-  it('rejects unsupported schema versions', () => {
-    const wire = toNormalizedTrajectoryWire(buildTrajectory());
-
-    expect(() =>
-      fromNormalizedTrajectoryWire({
-        ...wire,
-        schema_version: 'agentv.trace.v2',
-      }),
-    ).toThrow();
+    expect(jsonComparable(roundTrip)).toEqual(jsonComparable(artifact));
   });
 
   it('validates missing optional content without fabricating fields', () => {
-    const trajectory: NormalizedTrajectory = {
-      schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
+    const artifact: TraceArtifact = {
       source: { kind: 'imported_transcript' },
       session: { sessionId: 'minimal-session' },
       events: [
@@ -187,17 +174,17 @@ describe('derived trajectory contract', () => {
       ],
     };
 
-    const wire = toNormalizedTrajectoryWire(trajectory);
-    const roundTrip = fromNormalizedTrajectoryWire(wire);
+    const wire = toTraceArtifactWire(artifact);
+    const roundTrip = fromTraceArtifactWire(wire);
 
     expect(wire.events[0]?.message).not.toHaveProperty('content');
     expect(wire.events[1]?.tool).not.toHaveProperty('input');
-    expect(jsonComparable(roundTrip)).toEqual(jsonComparable(trajectory));
+    expect(jsonComparable(roundTrip)).toEqual(jsonComparable(artifact));
   });
 
   it('preserves branch metadata and derives summaries from the selected branch path', () => {
-    const trajectory: NormalizedTrajectory = {
-      ...buildTrajectory(),
+    const artifact: TraceArtifact = {
+      ...buildTraceArtifact(),
       branch: {
         selectedLeafId: 'leaf-success',
         includedEventIds: ['evt-read'],
@@ -205,8 +192,8 @@ describe('derived trajectory contract', () => {
       },
     };
 
-    const wire = toNormalizedTrajectoryWire(trajectory);
-    const summary = computeTraceSummaryFromTrajectory(fromNormalizedTrajectoryWire(wire));
+    const wire = toTraceArtifactWire(artifact);
+    const summary = computeTraceSummaryFromTraceArtifact(fromTraceArtifactWire(wire));
 
     expect(wire.branch).toEqual({
       selected_leaf_id: 'leaf-success',
@@ -219,7 +206,7 @@ describe('derived trajectory contract', () => {
   });
 
   it('preserves redaction, raw evidence, source refs, inferred timing, and tool errors', () => {
-    const wire = toNormalizedTrajectoryWire(buildTrajectory());
+    const wire = toTraceArtifactWire(buildTraceArtifact());
     const readEvent = wire.events.find((event) => event.event_id === 'evt-read');
     const errorEvent = wire.events.find((event) => event.event_id === 'evt-write-error');
 
@@ -249,7 +236,7 @@ describe('derived trajectory contract', () => {
       code: 'EACCES',
     });
 
-    const summary = computeTraceSummaryFromTrajectory(fromNormalizedTrajectoryWire(wire));
+    const summary = computeTraceSummaryFromTraceArtifact(fromTraceArtifactWire(wire));
 
     expect(summary.trace.errorCount).toBe(1);
     expect(summary.trace.toolDurations).toEqual({
@@ -258,7 +245,7 @@ describe('derived trajectory contract', () => {
     });
   });
 
-  it('derives the existing TraceSummary shape from full trajectories', () => {
+  it('derives the existing TraceSummary shape from trace artifacts', () => {
     const messages = [
       { role: 'user', startTime: '2026-06-08T10:00:00Z' },
       {
@@ -280,8 +267,7 @@ describe('derived trajectory contract', () => {
         ],
       },
     ];
-    const trajectory: NormalizedTrajectory = {
-      schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
+    const artifact: TraceArtifact = {
       source: { kind: 'agentv_run' },
       session: { sessionId: 'agentv-run-1' },
       events: [
@@ -319,15 +305,15 @@ describe('derived trajectory contract', () => {
     };
 
     const fromMessages = computeTraceSummary(messages);
-    const fromTrajectory = computeTraceSummaryFromTrajectory(trajectory);
+    const fromArtifact = computeTraceSummaryFromTraceArtifact(artifact);
 
-    expect(fromTrajectory).toEqual(fromMessages);
+    expect(fromArtifact).toEqual(fromMessages);
   });
 
-  it('keeps TraceSummary as a derived read model outside trajectory wire state', () => {
-    const trajectory = buildTrajectory();
-    const wire = toNormalizedTrajectoryWire(trajectory);
-    const summary = computeTraceSummaryFromTrajectory(fromNormalizedTrajectoryWire(wire));
+  it('keeps TraceSummary as a derived read model outside trace artifact state', () => {
+    const artifact = buildTraceArtifact();
+    const wire = toTraceArtifactWire(artifact);
+    const summary = computeTraceSummaryFromTraceArtifact(fromTraceArtifactWire(wire));
 
     expect(wire).not.toHaveProperty('trace');
     expect(wire).not.toHaveProperty('summary');
@@ -348,8 +334,7 @@ describe('derived trajectory contract', () => {
   });
 
   it('counts LLM turns once when message and model_turn events coexist', () => {
-    const trajectory: NormalizedTrajectory = {
-      schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
+    const artifact: TraceArtifact = {
       source: { kind: 'agentv_run' },
       session: { sessionId: 'agentv-run-2' },
       events: [
@@ -375,15 +360,63 @@ describe('derived trajectory contract', () => {
       ],
     };
 
-    const summary = computeTraceSummaryFromTrajectory(trajectory);
+    const summary = computeTraceSummaryFromTraceArtifact(artifact);
 
     expect(summary.trace.llmCallCount).toBe(1);
     expect(summary.trace.errorCount).toBe(0);
   });
 
-  it('exposes a Zod schema for direct wire validation', () => {
-    const wire = toNormalizedTrajectoryWire(buildTrajectory());
+  it('projects child final responses onto contentless model turns', () => {
+    const artifact: TraceArtifact = {
+      source: { kind: 'imported_transcript', provider: 'codex' },
+      session: { sessionId: 'session-with-final' },
+      events: [
+        {
+          eventId: 'evt-user',
+          ordinal: 0,
+          type: 'message',
+          message: { role: 'user', content: 'Inspect app.txt' },
+        },
+        {
+          eventId: 'evt-model',
+          ordinal: 1,
+          type: 'model_turn',
+          timestamp: '2026-06-18T08:00:00Z',
+        },
+        {
+          eventId: 'evt-read',
+          parentEventId: 'evt-model',
+          ordinal: 2,
+          type: 'tool_call',
+          tool: { name: 'Read', callId: 'call-read', input: { path: 'app.txt' } },
+        },
+        {
+          eventId: 'evt-final',
+          parentEventId: 'evt-model',
+          ordinal: 3,
+          type: 'final_response',
+          timestamp: '2026-06-18T08:00:01Z',
+          message: { role: 'assistant', content: 'done' },
+        },
+      ],
+    };
 
-    expect(NormalizedTrajectoryWireSchema.parse(wire).events).toHaveLength(4);
+    const trace = traceFromTraceArtifact(artifact);
+    const assistant = trace.messages.find((message) => message.role === 'assistant');
+
+    expect(assistant?.content).toBe('done');
+    expect(assistant?.toolCalls?.map((toolCall) => toolCall.tool)).toEqual(['Read']);
+    expect(trace.events.map((event) => event.eventId)).toEqual([
+      'evt-user',
+      'evt-model',
+      'evt-read',
+      'evt-final',
+    ]);
+  });
+
+  it('exposes a Zod schema for direct wire validation', () => {
+    const wire = toTraceArtifactWire(buildTraceArtifact());
+
+    expect(TraceArtifactWireSchema.parse(wire).events).toHaveLength(4);
   });
 });

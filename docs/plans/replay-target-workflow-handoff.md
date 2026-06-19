@@ -24,7 +24,7 @@ This work owns the replay target database loop:
 - preserve target output/messages/tool calls/transcript/usage/cost/duration where available,
 - prove replay makes zero live target calls with live-provider environment variables blanked.
 
-The broader derived trajectory contract remains a separate architecture unit. This replay loop should not invent a competing full trace schema.
+The broader trace artifact contract remains a separate architecture unit. This replay loop should not invent a competing full trace schema.
 
 ## Existing Useful Surface
 

@@ -24,14 +24,13 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Message, ToolCall } from './providers/types.js';
-import {
-  NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
-  type TokenUsage,
-  type TraceArtifact,
-  type TraceComputeResult,
-  type TraceEvent,
-  type TraceSourceKind,
-  type TraceSummary,
+import type {
+  TokenUsage,
+  TraceArtifact,
+  TraceComputeResult,
+  TraceEvent,
+  TraceSourceKind,
+  TraceSummary,
 } from './trace.js';
 import type { EvaluationResult, EvaluationVerdict, GraderKind } from './types.js';
 
@@ -367,7 +366,6 @@ export interface TraceEnvelopeToolTrajectoryItem {
 }
 
 export interface TraceEnvelopeToolTrajectoryView {
-  readonly schemaVersion: typeof NORMALIZED_TRAJECTORY_SCHEMA_VERSION;
   readonly traceId: string;
   readonly rootSpanId: string;
   readonly tools: readonly TraceEnvelopeToolTrajectoryItem[];
@@ -1494,7 +1492,6 @@ export function traceEnvelopeToToolTrajectoryView(
   });
 
   return {
-    schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
     traceId: envelope.trace.traceId,
     rootSpanId: envelope.trace.rootSpanId,
     tools,
@@ -1612,7 +1609,6 @@ export function traceEnvelopeToTraceArtifact(envelope: TraceEnvelope): TraceArti
 
   const summary = traceEnvelopeToTraceSummary(envelope);
   return {
-    schemaVersion: NORMALIZED_TRAJECTORY_SCHEMA_VERSION,
     source: {
       kind: envelope.source.kind as TraceSourceKind,
       path: envelope.source.path,

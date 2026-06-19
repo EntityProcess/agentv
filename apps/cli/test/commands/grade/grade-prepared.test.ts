@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, setDefaultTimeout } from 'bun:test';
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,6 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
+
+setDefaultTimeout(15_000);
 
 async function exists(filePath: string): Promise<boolean> {
   return access(filePath).then(
@@ -235,21 +237,21 @@ describe('agentv grade prepared attempts', () => {
     ).rejects.toThrow(/Invalid prepared manifest/);
   });
 
-  it('marks trajectory grading unavailable when no trace is supplied', async () => {
+  it('marks trace-based tool grading unavailable when no trace is supplied', async () => {
     const { evalPath, targetMarker } = await writeFixtureProject(
       tempDir,
       `
 - name: expected-tool-sequence
   type: tool-trajectory
-  mode: in_order
+  mode: exact
   expected:
     - tool: Read
       args:
         path: app.txt
 `,
     );
-    const preparedDir = path.join(tempDir, 'prepared', 'trajectory');
-    const runDir = path.join(tempDir, 'runs', 'trajectory');
+    const preparedDir = path.join(tempDir, 'prepared', 'trace-tools');
+    const runDir = path.join(tempDir, 'runs', 'trace-tools');
 
     await runCli(
       ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
@@ -278,5 +280,225 @@ describe('agentv grade prepared attempts', () => {
       text: 'No trace available for evaluation',
       passed: false,
     });
+  });
+
+  it('grades tool-sequence assertions from a supplied transcript trace', async () => {
+    const { evalPath, targetMarker } = await writeFixtureProject(
+      tempDir,
+      `
+- name: expected-tool-sequence
+  type: tool-trajectory
+  mode: in_order
+  expected:
+    - tool: Read
+      args:
+        path: app.txt
+`,
+    );
+    const preparedDir = path.join(tempDir, 'prepared', 'trace-tools-with-trace');
+    const runDir = path.join(tempDir, 'runs', 'trace-tools-with-trace');
+    const tracePath = path.join(tempDir, 'trace.jsonl');
+
+    await runCli(
+      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      tempDir,
+    );
+    await writeFile(
+      path.join(preparedDir, 'workspace', 'app.txt'),
+      'initial workspace file\nmanual edit\n',
+      'utf8',
+    );
+    await writeFile(
+      tracePath,
+      `${[
+        {
+          test_id: 'case-1',
+          target: 'other-agent',
+          message_index: 0,
+          role: 'assistant',
+          content: 'decoy',
+          tool_calls: [{ tool: 'Write', input: { path: 'app.txt' }, id: 'call-write-app' }],
+          source: {
+            provider: 'other-agent',
+            session_id: 'manual-session-decoy',
+          },
+        },
+        {
+          test_id: 'case-1',
+          target: 'codex',
+          message_index: 0,
+          role: 'assistant',
+          content: 'done',
+          tool_calls: [
+            {
+              tool: 'Read',
+              input: { path: 'app.txt' },
+              id: 'call-read-app',
+              output: 'initial workspace file',
+            },
+          ],
+          source: {
+            provider: 'codex',
+            session_id: 'manual-session-1',
+          },
+        },
+      ]
+        .map((line) => JSON.stringify(line))
+        .join('\n')}\n`,
+      'utf8',
+    );
+
+    const result = await runCli(
+      [
+        'grade',
+        evalPath,
+        '--test-id',
+        'case-1',
+        '--prepared',
+        preparedDir,
+        '--trace',
+        tracePath,
+        '--output',
+        runDir,
+        '--format',
+        'json',
+      ],
+      tempDir,
+    );
+
+    const output = JSON.parse(result.stdout);
+    expect(output).toMatchObject({
+      test_id: 'case-1',
+      target: 'codex',
+      score: 1,
+      execution_status: 'ok',
+      trace_path: tracePath,
+    });
+    expect(await exists(targetMarker)).toBe(false);
+
+    const row = JSON.parse((await readFile(path.join(runDir, 'index.jsonl'), 'utf8')).trim());
+    const answerPath = row.answer_path ?? row.response_path ?? row.output_path;
+    expect(typeof answerPath).toBe('string');
+    expect((await readFile(path.join(runDir, answerPath), 'utf8')).trim()).toBe('done');
+    expect(row.score).toBe(1);
+    expect(row.scores[0]).toMatchObject({
+      name: 'expected-tool-sequence',
+      type: 'tool-trajectory',
+      score: 1,
+      assertions: [{ text: 'Found Read at position 0', passed: true }],
+    });
+    expect(row.metadata.prepared_attempt.trace_path).toBe(tracePath);
+  });
+
+  it('rejects a single transcript trace for the wrong target', async () => {
+    const { evalPath } = await writeFixtureProject(
+      tempDir,
+      `
+- name: expected-tool-sequence
+  type: tool-trajectory
+  mode: in_order
+  expected:
+    - tool: Read
+`,
+    );
+    const preparedDir = path.join(tempDir, 'prepared', 'wrong-transcript-target');
+    const tracePath = path.join(tempDir, 'wrong-transcript-target.jsonl');
+
+    await runCli(
+      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      tempDir,
+    );
+    await writeFile(
+      tracePath,
+      `${JSON.stringify({
+        test_id: 'case-1',
+        target: 'other-agent',
+        message_index: 0,
+        role: 'assistant',
+        content: 'done',
+        tool_calls: [{ tool: 'Read', input: { path: 'app.txt' }, id: 'call-read-app' }],
+        source: {
+          provider: 'other-agent',
+          session_id: 'manual-session-other',
+        },
+      })}\n`,
+      'utf8',
+    );
+
+    await expect(
+      runCli(
+        ['grade', evalPath, '--test-id', 'case-1', '--prepared', preparedDir, '--trace', tracePath],
+        tempDir,
+      ),
+    ).rejects.toThrow(/none match target 'codex'/);
+  });
+
+  it('rejects a single execution trace for the wrong target', async () => {
+    const { evalPath } = await writeFixtureProject(
+      tempDir,
+      `
+- name: expected-tool-sequence
+  type: tool-trajectory
+  mode: in_order
+  expected:
+    - tool: Read
+`,
+    );
+    const preparedDir = path.join(tempDir, 'prepared', 'wrong-envelope-target');
+    const tracePath = path.join(tempDir, 'wrong-envelope-target.json');
+
+    await runCli(
+      ['prepare', evalPath, '--test-id', 'case-1', '--target', 'codex', '--out', preparedDir],
+      tempDir,
+    );
+    await writeFile(
+      tracePath,
+      `${JSON.stringify(
+        {
+          schema_version: 'agentv.trace.v1',
+          artifact_id: 'execution-trace-wrong-target',
+          created_at: '2026-06-18T00:00:00.000Z',
+          eval: {
+            test_id: 'case-1',
+            target: 'other-agent',
+          },
+          trace: {
+            format: 'otlp_openinference_spans',
+            trace_id: 'trace-wrong-target',
+            root_span_id: 'span-root',
+            spans: [
+              {
+                trace_id: 'trace-wrong-target',
+                span_id: 'span-root',
+                name: 'invoke_agent',
+                kind: 'INTERNAL',
+                start_time_unix_nano: '0',
+                end_time_unix_nano: '1',
+                status: { code: 'OK' },
+                attributes: {},
+              },
+            ],
+          },
+          source: {
+            kind: 'agentv_run',
+            provider: 'other-agent',
+          },
+          capture: {
+            content: 'metadata',
+            redaction_level: 'none',
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      'utf8',
+    );
+
+    await expect(
+      runCli(
+        ['grade', evalPath, '--test-id', 'case-1', '--prepared', preparedDir, '--trace', tracePath],
+        tempDir,
+      ),
+    ).rejects.toThrow(/none match target 'codex'/);
   });
 });

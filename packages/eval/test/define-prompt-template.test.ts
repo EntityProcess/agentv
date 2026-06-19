@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test';
 import { PromptTemplateInputSchema } from '../src/schemas.js';
 
 const makeTrace = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 'agentv.trajectory.v1',
   eventCount: 3,
   toolCalls: { read: 2, write: 1 },
   errorCount: 0,

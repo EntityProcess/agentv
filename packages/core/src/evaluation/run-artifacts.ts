@@ -388,6 +388,7 @@ function toIndexPreparedAttempt(value: unknown): Record<string, unknown> | undef
     prepared_dir: value.preparedDir,
     workspace_path: value.workspacePath,
     prompt_path: value.promptPath,
+    trace_path: value.tracePath,
     target: value.target,
     prepared_at: value.preparedAt,
     setup_status: value.setupStatus,
