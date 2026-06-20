@@ -15,12 +15,14 @@ import { useFeedback } from '~/lib/api';
 import {
   RESULT_TABLE_VIEW_PRESETS,
   type ResultTableColumn,
+  type ResultTableRow,
   type ResultTableState,
   type ResultTableStateInput,
   buildResultTableModel,
 } from '~/lib/result-table';
 import type { EvalResult, ScoreEntry } from '~/lib/types';
 
+import { EvalDetail } from './EvalDetail';
 import { PassRatePill } from './PassRatePill';
 
 interface ResultTableProps {
@@ -39,6 +41,7 @@ const QUERY_KEYS = {
   grader: 'results_grader',
   legacyScorer: 'results_scorer',
   columns: 'results_cols',
+  detail: 'results_detail',
 } as const;
 
 function readUrlState(): ResultTableStateInput {
@@ -81,6 +84,22 @@ function writeUrlState(state: ResultTableState) {
     params.delete(QUERY_KEYS.columns);
   }
 
+  const query = params.toString();
+  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+  window.history.replaceState(window.history.state, '', nextUrl);
+}
+
+function readSelectedRowKey(): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get(QUERY_KEYS.detail);
+}
+
+function writeSelectedRowKey(rowKey: string | null) {
+  if (typeof window === 'undefined') return;
+  const params = new URLSearchParams(window.location.search);
+  if (rowKey) params.set(QUERY_KEYS.detail, rowKey);
+  else params.delete(QUERY_KEYS.detail);
   const query = params.toString();
   const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
   window.history.replaceState(window.history.state, '', nextUrl);
@@ -146,6 +165,7 @@ export function ResultTable({
   emptyMessage,
 }: ResultTableProps) {
   const [urlState, setUrlState] = useState<ResultTableStateInput>(() => readUrlState());
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(() => readSelectedRowKey());
   const { data: feedback } = useFeedback(projectId);
   const reviewedTestIds = useMemo(
     () => feedback?.reviews.map((review) => review.test_id) ?? [],
@@ -162,12 +182,25 @@ export function ResultTable({
     [passThreshold, results, reviewedTestIds, urlState],
   );
   const visibleColumnIds = new Set(model.state.visibleColumnIds);
+  const selectedRow =
+    selectedRowKey != null
+      ? (model.filteredRows.find((row) => row.key === selectedRowKey) ?? null)
+      : null;
 
   useEffect(() => {
-    const handlePopState = () => setUrlState(readUrlState());
+    const handlePopState = () => {
+      setUrlState(readUrlState());
+      setSelectedRowKey(readSelectedRowKey());
+    };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (!selectedRowKey || selectedRow) return;
+    writeSelectedRowKey(null);
+    setSelectedRowKey(null);
+  }, [selectedRow, selectedRowKey]);
 
   function updateState(partial: Partial<ResultTableState>) {
     const nextState = { ...model.state, ...partial };
@@ -185,6 +218,7 @@ export function ResultTable({
     const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
     window.history.replaceState(window.history.state, '', nextUrl);
     setUrlState({});
+    setSelectedRowKey(null);
   }
 
   function toggleColumn(columnId: string) {
@@ -192,6 +226,16 @@ export function ResultTable({
     if (next.has(columnId)) next.delete(columnId);
     else next.add(columnId);
     updateState({ visibleColumnIds: [...next] });
+  }
+
+  function openRowDetail(rowKey: string) {
+    writeSelectedRowKey(rowKey);
+    setSelectedRowKey(rowKey);
+  }
+
+  function closeRowDetail() {
+    writeSelectedRowKey(null);
+    setSelectedRowKey(null);
   }
 
   if (results.length === 0) {
@@ -312,57 +356,84 @@ export function ResultTable({
         </div>
       </div>
 
-      {model.filteredRows.length === 0 ? (
-        <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-lg text-gray-400">No matching evaluations</p>
-          <p className="mt-2 text-sm text-gray-500">Adjust the result filters or display preset.</p>
+      <div
+        className={
+          selectedRow ? 'grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,42rem)]' : ''
+        }
+      >
+        <div className="min-w-0">
+          {model.filteredRows.length === 0 ? (
+            <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
+              <p className="text-lg text-gray-400">No matching evaluations</p>
+              <p className="mt-2 text-sm text-gray-500">
+                Adjust the result filters or display preset.
+              </p>
+            </div>
+          ) : (
+            <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+              <table
+                className="w-full whitespace-nowrap text-left text-sm"
+                style={{ minWidth: `${Math.max(860, model.visibleColumns.length * 136)}px` }}
+              >
+                <thead className="border-b border-gray-800 bg-gray-900/50">
+                  <tr>
+                    {model.visibleColumns.map((column) => (
+                      <th
+                        key={column.id}
+                        className={`px-4 py-3 font-medium text-gray-400 ${
+                          isNumericColumn(column.id) ? 'text-right' : ''
+                        }`}
+                        title={column.label}
+                      >
+                        <span className="block max-w-48 truncate">{column.label}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800/50">
+                  {model.filteredRows.map((row) => {
+                    const isSelected = selectedRowKey === row.key;
+                    return (
+                      <tr
+                        key={row.key}
+                        className={`transition-colors ${
+                          isSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/30'
+                        }`}
+                      >
+                        {model.visibleColumns.map((column) => (
+                          <td
+                            key={`${row.key}:${column.id}`}
+                            className={`px-4 py-3 align-middle ${
+                              isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
+                            }`}
+                          >
+                            <ResultCell
+                              column={column}
+                              row={row}
+                              passThreshold={passThreshold}
+                              onOpenDetail={openRowDetail}
+                              isSelected={isSelected}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
-          <table
-            className="w-full whitespace-nowrap text-left text-sm"
-            style={{ minWidth: `${Math.max(860, model.visibleColumns.length * 136)}px` }}
-          >
-            <thead className="border-b border-gray-800 bg-gray-900/50">
-              <tr>
-                {model.visibleColumns.map((column) => (
-                  <th
-                    key={column.id}
-                    className={`px-4 py-3 font-medium text-gray-400 ${
-                      isNumericColumn(column.id) ? 'text-right' : ''
-                    }`}
-                    title={column.label}
-                  >
-                    <span className="block max-w-48 truncate">{column.label}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/50">
-              {model.filteredRows.map((row) => (
-                <tr key={row.key} className="transition-colors hover:bg-gray-900/30">
-                  {model.visibleColumns.map((column) => (
-                    <td
-                      key={`${row.key}:${column.id}`}
-                      className={`px-4 py-3 align-middle ${
-                        isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
-                      }`}
-                    >
-                      <ResultCell
-                        column={column}
-                        row={row}
-                        runId={runId}
-                        projectId={projectId}
-                        passThreshold={passThreshold}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+
+        {selectedRow && (
+          <ResultDetailPanel
+            row={selectedRow}
+            runId={runId}
+            projectId={projectId}
+            onClose={closeRowDetail}
+          />
+        )}
+      </div>
     </section>
   );
 }
@@ -374,15 +445,15 @@ function isNumericColumn(columnId: string): boolean {
 function ResultCell({
   column,
   row,
-  runId,
-  projectId,
   passThreshold,
+  onOpenDetail,
+  isSelected,
 }: {
   column: ResultTableColumn;
   row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
-  runId: string;
-  projectId?: string;
   passThreshold: number;
+  onOpenDetail: (rowKey: string) => void;
+  isSelected: boolean;
 }) {
   if (column.id.startsWith('grader:')) {
     const graderName = column.id.slice('grader:'.length);
@@ -395,7 +466,7 @@ function ResultCell({
     case 'status':
       return <StatusCell status={row.status} label={row.statusLabel} />;
     case 'test':
-      return <TestCell row={row} runId={runId} projectId={projectId} />;
+      return <TestCell row={row} onOpenDetail={onOpenDetail} isSelected={isSelected} />;
     case 'model_target':
       return <ModelTargetCell row={row} />;
     case 'score':
@@ -448,43 +519,91 @@ function StatusCell({ status, label }: { status: string; label: string }) {
 
 function TestCell({
   row,
-  runId,
-  projectId,
+  onOpenDetail,
+  isSelected,
 }: {
   row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
-  runId: string;
-  projectId?: string;
+  onOpenDetail: (rowKey: string) => void;
+  isSelected: boolean;
 }) {
   const className =
-    'block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline';
+    'block min-w-0 truncate text-left font-medium text-cyan-400 hover:text-cyan-300 hover:underline';
 
   return (
     <div className="max-w-[24rem] min-w-0">
-      {projectId ? (
-        <Link
-          to="/projects/$projectId/evals/$runId/$evalId"
-          params={{ projectId, runId, evalId: row.testId }}
-          className={className}
-          title={row.testId}
-        >
-          {row.testId}
-        </Link>
-      ) : (
-        <Link
-          to="/evals/$runId/$evalId"
-          params={{ runId, evalId: row.testId }}
-          className={className}
-          title={row.testId}
-        >
-          {row.testId}
-        </Link>
-      )}
+      <button
+        type="button"
+        onClick={() => onOpenDetail(row.key)}
+        className={className}
+        title={row.testId}
+        aria-pressed={isSelected}
+      >
+        {row.testId}
+      </button>
       {row.result.error ? (
         <div className="mt-0.5 truncate text-xs text-red-300" title={row.result.error}>
           {row.result.error}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ResultDetailPanel({
+  row,
+  runId,
+  projectId,
+  onClose,
+}: {
+  row: ResultTableRow;
+  runId: string;
+  projectId?: string;
+  onClose: () => void;
+}) {
+  return (
+    <aside className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
+      <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Row detail</p>
+          <h4 className="mt-1 truncate text-base font-semibold text-white" title={row.testId}>
+            {row.testId}
+          </h4>
+          <p className="mt-1 truncate text-xs text-gray-500" title={row.targetLabel}>
+            {row.targetLabel}
+            {row.suiteLabel ? ` · ${row.suiteLabel}` : ''}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {projectId ? (
+            <Link
+              to="/projects/$projectId/evals/$runId/$evalId"
+              params={{ projectId, runId, evalId: row.testId }}
+              className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+            >
+              Full page
+            </Link>
+          ) : (
+            <Link
+              to="/evals/$runId/$evalId"
+              params={{ runId, evalId: row.testId }}
+              className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+            >
+              Full page
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+      <div className="h-[36rem] min-h-[28rem] overflow-hidden xl:h-[calc(100vh-9rem)]">
+        <EvalDetail eval={row.result} runId={runId} projectId={projectId} />
+      </div>
+    </aside>
   );
 }
 
