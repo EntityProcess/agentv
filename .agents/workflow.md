@@ -9,8 +9,7 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 - Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details outside this public repository.
 - GitHub remains the PR, CI, review, and merge surface. Use GitHub Issues or Projects for external collaboration only when the user or operator explicitly asks for that workflow.
 - Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
-- If using Beads, follow the global Beads skill. The only repo-local Beads files intentionally tracked are `.beads/config.yaml.example` and `.beads/.gitignore`; `.beads/config.yaml`, `.beads/metadata.json`, and runtime state stay checkout-local.
-- Do not commit project-local coordination config files. The Beads template above is the exception.
+- Do not commit project-local coordination config files.
 - Do not use `git stash` on shared checkouts. Inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes.
 
 ## Worktree Setup
