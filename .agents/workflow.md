@@ -19,6 +19,7 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 - When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local coordination config, generated evidence, or unrelated tracker or doc state.
 - Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale or dirty in paths you need.
 - Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit.
+- Before Beads bootstrap, copy `.beads/config.yaml.example` to `.beads/config.yaml` and run `bun run beads:check`. Keep `.beads/metadata.json` tracked; it preserves AgentV's `av` embedded Dolt identity. See [docs/runbooks/beads-worktree-recovery.md](../docs/runbooks/beads-worktree-recovery.md).
 
 Manual setup:
 

@@ -72,6 +72,7 @@ Common entry points:
 
 - Product or architecture decisions: start with [STRATEGY.md](STRATEGY.md), [ROADMAP.md](ROADMAP.md), and [.agents/product-boundary.md](.agents/product-boundary.md).
 - Tracker, worktree, or PR flow questions: read [.agents/workflow.md](.agents/workflow.md).
+- Beads bootstrap or recovery questions: read [docs/runbooks/beads-worktree-recovery.md](docs/runbooks/beads-worktree-recovery.md).
 - Dashboard, docs, CLI UX, or grader verification work: read [.agents/verification.md](.agents/verification.md).
 - Wire-format, naming, or grader-type changes: read [.agents/conventions.md](.agents/conventions.md).
 - Version bumps or npm publishing: read [.agents/publish.md](.agents/publish.md).
