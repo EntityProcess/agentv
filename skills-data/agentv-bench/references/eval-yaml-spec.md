@@ -11,12 +11,13 @@ The grader agent uses this to evaluate assertions without the CLI.
 - `description` (string, optional) — description
 - `execution` (object, optional) — `target`, `model`, etc.
 - `workspace` (object, optional) — workspace config (template, hooks)
+- `input` (string | object | Message | Message[], optional) — suite-level input prepended to each test. String/block shorthand expands to a user message.
 - `tests` (array, required) — test cases
 
 ### Per-test fields
 
 - `id` (string, required) — unique test identifier
-- `input` (string | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`
+- `input` (string | object | Message | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`; object shorthand preserves structured user content when the object has no top-level `role`. Top-level `role` is reserved for message objects.
 - `expected_output` (string | Message[], optional) — reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`
 - `criteria` (string, optional) — human-readable success criteria
 - `assertions` (array, optional) — grader assertions

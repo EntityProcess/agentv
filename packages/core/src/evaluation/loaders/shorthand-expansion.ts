@@ -2,7 +2,7 @@
  * Shorthand expansion utilities for input/expected_output fields.
  *
  * Supports:
- * - `input` with string shorthand or message array
+ * - `input` with string/object shorthand, single message objects, or message arrays
  * - `input_files` shorthand (string input only): expands to type:file + type:text content blocks
  * - `expected_output` with string/object shorthand or message array
  */
@@ -15,7 +15,8 @@ import { isJsonObject, isTestMessage } from '../types.js';
  *
  * Supports:
  * - String: "What is 2+2?" -> [{ role: 'user', content: "What is 2+2?" }]
- * - Object (without role key): { accuracy: 0.9 } -> [{ role: 'user', content: { accuracy: 0.9 } }]
+ * - Object without role key: { accuracy: 0.9 } -> [{ role: 'user', content: { accuracy: 0.9 } }]
+ * - Object with role key: treated as a single message and must be valid message-shaped input
  * - Array of messages: Already in message format, passthrough
  *
  * @param value The raw `input` value from YAML/JSONL

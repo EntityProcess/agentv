@@ -118,11 +118,17 @@ The `input` field defines messages that are **prepended** to every test's input.
 
 ```yaml
 description: Travel assistant evaluation
-input:
-  - role: user
-    content:
-      - type: file
-        value: ./system-prompt.md
+input: "Answer as a concise travel assistant."
+
+tests: ./cases.yaml
+```
+
+Use a block scalar for multi-line shared instructions:
+
+```yaml
+input: |
+  Read AGENTS.md before answering.
+  Explain the tradeoffs clearly.
 
 tests: ./cases.yaml
 ```
@@ -139,7 +145,21 @@ The effective input at runtime becomes `[...suite input, ...test input]`.
 
 Suite-level `input` accepts the same formats as test-level `input`:
 - **String** — wrapped as `[{ role: "user", content: "..." }]`
-- **Message array** — used as-is, including file references
+- **Object without a top-level `role` key** — wrapped as structured user-message content
+- **Single message object** — a `{ role, content }` object using a supported message role
+- **Message array** — used as-is, including system messages and file references
+
+The top-level `role` key is reserved for message objects. If your structured payload needs a field named `role`, nest it under another key.
+
+```yaml
+input:
+  - role: system
+    content: You are a careful reviewer.
+  - role: user
+    content:
+      - type: file
+        value: ./system-prompt.md
+```
 
 To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assertions`).
 
