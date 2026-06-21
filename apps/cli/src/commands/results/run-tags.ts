@@ -10,7 +10,7 @@
  * {
  *   "tags": ["baseline", "v2-prompt"],
  *   "updated_at": "2026-04-10T00:00:00.000Z",
- *   "oplog_watermark": { "ref": "agentv/results/v1/oplog" }
+ *   "oplog_watermark": { "ref": "agentv/oplog/v1" }
  * }
  * ```
  *

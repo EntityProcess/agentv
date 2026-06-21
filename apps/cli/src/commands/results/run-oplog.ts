@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
  * tag replacement, and the materialized final-state shape that readers consume.
  */
 
-export const RUN_OPLOG_REF = 'agentv/results/v1/oplog';
+export const RUN_OPLOG_REF = 'agentv/oplog/v1';
 export const RUN_OPERATION_SCHEMA_VERSION = 'agentv.run_operation.v1';
 
 export type RunFinalStateLifecycle = 'active' | 'hidden' | 'deleted';
