@@ -310,11 +310,14 @@ function toRunId(cwd: string, runDir: string): string {
 }
 
 const MANIFEST_PATH_FIELDS = [
+  'artifact_dir',
   'grading_path',
   'timing_path',
   'input_path',
   'output_path',
   'response_path',
+  'transcript_path',
+  'raw_provider_log_path',
   'task_dir',
   'eval_path',
   'targets_path',
@@ -433,12 +436,20 @@ function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManife
       row.record[field],
     );
   }
-  rewritten.artifact_pointers = rewriteArtifactPointers(
+  const artifactPointers = rewriteArtifactPointers(
     row.record.artifact_pointers,
     sourceBaseDir,
     outputDir,
     row.source.index,
   );
+  rewritten.artifact_pointers = artifactPointers;
+  if (
+    row.record.transcript_path &&
+    rewritten.transcript_path === row.record.transcript_path &&
+    artifactPointers?.transcript?.path
+  ) {
+    rewritten.transcript_path = artifactPointers.transcript.path;
+  }
   return rewritten as unknown as ResultManifestRecord;
 }
 
