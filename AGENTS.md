@@ -28,7 +28,6 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - Start every repo change with `git fetch origin` and `git status --short --branch`.
 - Use `bun` for package and script operations.
 - Use the operator-supplied tracker when present. Do not commit tracker runtime state, local coordination config, or other machine-local artifacts.
-- If using Beads, follow the global Beads skill. AgentV Beads data belongs in `EntityProcess/agentv-beads`; never commit `.beads/metadata.json` or Beads runtime state.
 - Do not use `git stash` on shared checkouts. Stage explicit paths only, and never push directly to `main`.
 - Prefer the primary checkout only for small, clean, bounded work. Use a dedicated worktree from the latest `origin/main` for non-trivial, risky, long-running, or parallel changes.
 - Non-trivial work needs a plan or task list. If the implementation surface starts to balloon, stop and re-plan.
