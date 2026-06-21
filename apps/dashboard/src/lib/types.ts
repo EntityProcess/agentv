@@ -120,6 +120,103 @@ export interface SourceTraceability {
   referenced_files?: SourceReferencedFile[];
 }
 
+export interface ExternalTraceMetadata {
+  /**
+   * Optional external viewer reference only. AgentV run artifacts remain the
+   * canonical source of truth for Dashboard trace/session details.
+   */
+  provider?: string;
+  project?: string;
+  session_id?: string;
+  trace_id?: string;
+  url?: string;
+}
+
+export interface TraceSessionTokenUsage {
+  input?: number;
+  output?: number;
+  reasoning?: number;
+  cached?: number;
+  total?: number;
+}
+
+export interface TraceSessionSpanStatus {
+  code?: string;
+  message?: string;
+}
+
+export type TraceSessionEventKind = 'annotation' | 'exception' | 'event' | 'score';
+
+export interface TraceSessionEvent {
+  event_id: string;
+  span_id: string;
+  name: string;
+  kind: TraceSessionEventKind;
+  time_unix_nano?: string;
+  timestamp?: string;
+  score?: number;
+  text?: string;
+  passed?: boolean;
+  attributes?: Record<string, unknown>;
+}
+
+export interface TraceSessionSpan {
+  id: string;
+  trace_id?: string;
+  span_id: string;
+  parent_span_id?: string | null;
+  name: string;
+  kind?: string;
+  status?: TraceSessionSpanStatus;
+  start_time_unix_nano?: string;
+  end_time_unix_nano?: string;
+  start_time?: string;
+  end_time?: string;
+  duration_ms?: number;
+  token_usage?: TraceSessionTokenUsage;
+  attributes?: Record<string, unknown>;
+  events?: TraceSessionEvent[];
+}
+
+export interface TraceSessionScore {
+  name: string;
+  type?: string;
+  score: number;
+  weight?: number;
+  verdict?: string;
+  source?: string;
+  evaluated_at?: string;
+  target_span_id?: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface TraceSessionSource {
+  kind?: string;
+  path?: string;
+  provider?: string;
+  format?: string;
+  version?: string;
+  artifact_path?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TraceSessionResponse {
+  schema_version: 'agentv.dashboard.trace_session.v1';
+  artifact_id?: string;
+  created_at?: string;
+  run_id?: string;
+  test_id?: string;
+  suite?: string;
+  target?: string;
+  trace_id?: string;
+  root_span_id?: string;
+  source?: TraceSessionSource;
+  external_trace?: ExternalTraceMetadata;
+  spans: TraceSessionSpan[];
+  events: TraceSessionEvent[];
+  scores?: TraceSessionScore[];
+}
+
 export interface EvalResult {
   testId: string;
   timestamp?: string;
