@@ -45,7 +45,7 @@ without creating another hosted results platform inside AgentV.
 
 - Define storage backend modes and per-mode listing/index strategies.
 - Pin the git-native ref and path layout for `agentv/results/v1`,
-  `agentv/results/v1/artifacts`, and `agentv/results/v1/oplog`.
+  `agentv/artifacts/v1`, and `agentv/oplog/v1`.
 - Define retention, compaction, and migration rules for run metadata and heavy artifacts.
 - Define compact publication export as a derived artifact over `benchmark.json` and
   `index.jsonl`, with no required `eval.txt`.
@@ -88,9 +88,9 @@ without creating another hosted results platform inside AgentV.
 
 - R5. The primary results ref is `agentv/results/v1`.
 - R6. Heavy artifact sidecars use the single artifact ref or namespace
-  `agentv/results/v1/artifacts`, with path prefixes such as `transcripts/`,
-  `raw-logs/`, and `screenshots/`.
-- R7. Mutable operations use the single oplog ref or namespace `agentv/results/v1/oplog`.
+  `agentv/artifacts/v1`, with path prefixes such as `transcripts/`, `raw-logs/`,
+  and `screenshots/`.
+- R7. Mutable operations use the single oplog ref or namespace `agentv/oplog/v1`.
 - R8. The git-native branch must keep deterministic orphan genesis and must not create
   windowed branches or per-run branches.
 - R9. Path sharding is not part of v1 unless measurement at realistic scale proves it is
@@ -103,7 +103,7 @@ without creating another hosted results platform inside AgentV.
 - R11. Hybrid and blob-native modes must support object lifecycle policy alignment for
   artifact payloads without deleting index metadata prematurely.
 - R12. Transcript migration must support transcripts under
-  `agentv/results/v1/artifacts` while preserving existing logical artifact references.
+  `agentv/artifacts/v1` while preserving existing logical artifact references.
 - R13. Publication export must be compact and derived from `benchmark.json` plus
   `index.jsonl`; it must not require an authored or generated `eval.txt`.
 
@@ -140,17 +140,20 @@ without creating another hosted results platform inside AgentV.
   `artifact-blobs`, `blobs`, or per-artifact refs. Prefix by artifact class, for example
   `transcripts/<run-path>/...`, `raw-logs/<run-path>/...`, and
   `screenshots/<run-path>/...`.
-- KTD5. Hybrid mode keeps git as the metadata and index authority, while object storage
+- KTD5. Use sibling Git refs for results, artifacts, and oplog. Git refs are stored
+  path-like, so `agentv/results/v1` cannot coexist with child refs such as
+  `agentv/results/v1/artifacts` or `agentv/results/v1/oplog`.
+- KTD6. Hybrid mode keeps git as the metadata and index authority, while object storage
   stores selected heavy payload bytes. Git contains stable artifact locator records with
   checksums, sizes, and logical paths so readers can verify fetched payloads.
-- KTD6. Blob-native mode mirrors the same logical namespaces in the bucket, but does not
+- KTD7. Blob-native mode mirrors the same logical namespaces in the bucket, but does not
   emulate git refs. It owns bucket manifests and per-prefix object listings.
-- KTD7. Mutable operations are derived overlays. Existing `metadata/runs/**/tags.json`
+- KTD8. Mutable operations are derived overlays. Existing `metadata/runs/**/tags.json`
   is a compatibility read/write surface until oplog materialization replaces direct
   overlay writes.
-- KTD8. Publication export is a projection. It should read completed run bundles and
+- KTD9. Publication export is a projection. It should read completed run bundles and
   emit a compact publishable directory without becoming a new source of truth.
-- KTD9. Backblaze B2 is addressed only through S3-compatible endpoints and Signature V4.
+- KTD10. Backblaze B2 is addressed only through S3-compatible endpoints and Signature V4.
   The object client should be a standard S3 client configured with endpoint, region,
   bucket, and credentials.
 
@@ -164,8 +167,8 @@ without creating another hosted results platform inside AgentV.
 flowchart TB
   Local[Local run workspace .agentv/results/runs] --> Publish[Result publisher]
   Publish --> GitIndex[agentv/results/v1 runs metadata]
-  Publish --> GitArtifacts[agentv/results/v1/artifacts artifact sidecar]
-  Publish --> Oplog[agentv/results/v1/oplog mutable ops]
+  Publish --> GitArtifacts[agentv/artifacts/v1 artifact sidecar]
+  Publish --> Oplog[agentv/oplog/v1 mutable ops]
   Publish --> Bucket[(B2 S3-compatible bucket)]
 
   GitIndex --> Dashboard[Dashboard and CLI readers]
@@ -182,8 +185,8 @@ flowchart TB
 
 | Mode | Canonical index/listing | Artifact payloads | Mutable ops | Git dependency |
 | --- | --- | --- | --- | --- |
-| `git-native` | `git ls-tree -r agentv/results/v1 -- runs/` plus `git cat-file --batch` for `benchmark.json` | `agentv/results/v1/artifacts` stores payload bytes | `agentv/results/v1/oplog` | Required |
-| `hybrid` | Same primary git ref as `git-native` | Object storage stores selected payload bytes; git stores locators under the artifact namespace | `agentv/results/v1/oplog` | Required for index/oplog |
+| `git-native` | `git ls-tree -r agentv/results/v1 -- runs/` plus `git cat-file --batch` for `benchmark.json` | `agentv/artifacts/v1` stores payload bytes | `agentv/oplog/v1` | Required |
+| `hybrid` | Same primary git ref as `git-native` | Object storage stores selected payload bytes; git stores locators under the artifact namespace | `agentv/oplog/v1` | Required for index/oplog |
 | `blob-native` | Bucket manifest under the results namespace, with `ListObjectsV2` fallback by prefix | Object storage stores all payloads | Bucket oplog prefix | None |
 
 ### Logical Namespace Shape
@@ -195,12 +198,12 @@ agentv/results/v1
   runs/<experiment>/<timestamp>/<test-artifacts except moved heavy payloads>
   metadata/runs/<experiment>/<timestamp>/materialized-tags.json
 
-agentv/results/v1/artifacts
+agentv/artifacts/v1
   transcripts/<experiment>/<timestamp>/<test-key>/transcript.jsonl
   raw-logs/<experiment>/<timestamp>/<test-key>/<source>.jsonl
   screenshots/<experiment>/<timestamp>/<test-key>/<name>.png
 
-agentv/results/v1/oplog
+agentv/oplog/v1
   actors/<actor-id>/<sequence-or-time>-<nonce>.json
 ```
 
@@ -292,7 +295,9 @@ ref. Do not add windowed or per-run branches. Do not shard paths before measurem
 - `packages/core/src/evaluation/results-repo.ts`
   - Keep `DEFAULT_RESULTS_BRANCH = 'agentv/results/v1'`.
   - Add constants for the artifact and oplog refs:
-    `agentv/results/v1/artifacts` and `agentv/results/v1/oplog`.
+    `agentv/artifacts/v1` and `agentv/oplog/v1`.
+  - Add a shared test assertion that all three refs pass `git check-ref-format`
+    and no ref is a prefix parent or child of another.
   - Extend safe-path staging to include only owned top-level paths on each ref.
   - Keep `createResultsGenesisCommit()` and `createOrphanResultsBranch()` behavior
     for any new git storage refs so independent clients converge on the same root.
@@ -305,7 +310,7 @@ ref. Do not add windowed or per-run branches. Do not shard paths before measurem
 - `packages/core/test/evaluation/results-repo.test.ts`
   - Add deterministic genesis tests for the artifact and oplog refs if they are
     created by separate helper functions.
-  - Add tests that two clients publishing to `agentv/results/v1/artifacts` converge
+  - Add tests that two clients publishing to `agentv/artifacts/v1` converge
     rather than minting divergent orphan roots.
 
 **Layout rules:**
@@ -313,11 +318,11 @@ ref. Do not add windowed or per-run branches. Do not shard paths before measurem
 - Primary ref `agentv/results/v1`:
   - Owns `runs/**` and lightweight materialized metadata.
   - Lists runs only through `runs/**/benchmark.json`.
-- Artifact ref `agentv/results/v1/artifacts`:
+- Artifact ref `agentv/artifacts/v1`:
   - Owns payload classes under `transcripts/`, `raw-logs/`, and `screenshots/`.
   - May store payload bytes in `git-native`.
   - May store locator manifests in `hybrid`.
-- Oplog ref `agentv/results/v1/oplog`:
+- Oplog ref `agentv/oplog/v1`:
   - Owns append-only operation records under `actors/**`.
   - Is never used for immutable run payloads.
 
@@ -326,8 +331,10 @@ ref. Do not add windowed or per-run branches. Do not shard paths before measurem
 - Unit test constants and normalized default branch.
 - Integration test with a temporary repo that publishes:
   - one run to `agentv/results/v1`;
-  - one transcript payload to `agentv/results/v1/artifacts`;
-  - one tag operation to `agentv/results/v1/oplog`.
+  - one transcript payload to `agentv/artifacts/v1`;
+  - one tag operation to `agentv/oplog/v1`.
+- Assert all three refs can coexist in one temporary repo because none is a
+  path-prefix of another.
 - Assert the source checkout branch does not switch.
 - Assert no `agentv/results/v1/<window>` or `agentv/results/run/<id>` refs are created.
 
@@ -362,7 +369,7 @@ after logical deletion.
     existing path fields.
 - `apps/cli/src/commands/results/remote.ts`
   - Teach `ensureRemoteRunAvailable()` and future artifact resolvers to fetch a
-    transcript from `agentv/results/v1/artifacts` when the run-local path is a logical
+    transcript from `agentv/artifacts/v1` when the run-local path is a logical
     reference.
 - `apps/cli/src/commands/results/serve.ts`
   - Keep file API responses stable for transcript JSONL, whether bytes are local,
@@ -372,7 +379,7 @@ after logical deletion.
 
 - Logical prune commit:
   - Removes selected `runs/<experiment>/<timestamp>/**` from `agentv/results/v1`.
-  - Removes selected artifact paths from `agentv/results/v1/artifacts` or replaces
+  - Removes selected artifact paths from `agentv/artifacts/v1` or replaces
     hybrid locator records with tombstones.
   - Appends retention operations to oplog when mutable state is affected.
 - Compaction:
@@ -398,7 +405,7 @@ after logical deletion.
 - Existing runs may have `transcript_path` pointing at
   `<artifact_dir>/outputs/transcript.jsonl`.
 - Migration copies transcript bytes to
-  `agentv/results/v1/artifacts:transcripts/<experiment>/<timestamp>/<test-key>/transcript.jsonl`
+  `agentv/artifacts/v1:transcripts/<experiment>/<timestamp>/<test-key>/transcript.jsonl`
   or the matching object-store key.
 - `index.jsonl` keeps `transcript_path` as the logical path and gains optional locator
   metadata with `backend`, `ref` or bucket namespace, `path`, `sha256`, and
@@ -422,7 +429,7 @@ after logical deletion.
 **Acceptance:**
 
 - Retention can remove old live runs without breaking listing for retained runs.
-- A transcript migrated under `agentv/results/v1/artifacts` remains viewable through
+- A transcript migrated under `agentv/artifacts/v1` remains viewable through
   the existing Dashboard file API.
 - Compaction cannot run implicitly as a side effect of publish, sync, or Dashboard
   polling.
@@ -498,7 +505,7 @@ Tags are the first materialized view and use add-wins set semantics.
     payload, created timestamp, and optional causal metadata.
   - Implement add-wins tag projection.
 - `packages/core/src/evaluation/results-repo.ts`
-  - Add git append helpers for `agentv/results/v1/oplog`.
+  - Add git append helpers for `agentv/oplog/v1`.
 - `apps/cli/src/commands/results/serve.ts`
   - Route tag set, clear, and read endpoints through oplog projection for remote
     runs once the adapter is available.
@@ -526,7 +533,7 @@ actor's later tag addition.
 
 **Where oplog lives by mode:**
 
-- `git-native`: `agentv/results/v1/oplog` git ref, under
+- `git-native`: `agentv/oplog/v1` git ref, under
   `actors/<actor-id>/<sequence-or-time>-<nonce>.json`.
 - `hybrid`: same git oplog ref, because git remains the metadata authority.
 - `blob-native`: object-store prefix
@@ -838,8 +845,10 @@ results:
 
 - [ ] Spec includes one section each for storage modes, git-native layout,
   retention/compaction, publication export, oplog, and object storage.
-- [ ] All refs are pinned exactly: `agentv/results/v1`,
-  `agentv/results/v1/artifacts`, and `agentv/results/v1/oplog`.
+- [ ] All refs are pinned exactly: `agentv/results/v1`, `agentv/artifacts/v1`,
+  and `agentv/oplog/v1`.
+- [ ] Shared ref tests assert the three refs are valid Git refnames and cannot
+  prefix-conflict.
 - [ ] The artifact sidecar is called `artifacts`, not `artifact-blobs` or `blob`.
 - [ ] The plan has no windowed or per-run branches.
 - [ ] Path sharding is deferred until realistic measurement proves need.
