@@ -85,7 +85,7 @@ import {
   type RunReadStateFields,
   materializeRunState,
 } from './run-oplog.js';
-import { deleteRunTags, readRunTags, writeRunTags } from './run-tags.js';
+import { readRunTags, writeRunTags } from './run-tags.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -1542,10 +1542,17 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
       });
     }
 
-    deleteRunTags(meta.path);
+    const entry = writeRunTags(meta.path, []);
+    const responseState = localTagMutationResponse({
+      tags: entry.tags,
+      updatedAt: entry.updated_at,
+      watermark: entry.oplog_watermark,
+    });
     return c.json({
       ok: true,
-      ...localTagMutationResponse({ tags: [] }),
+      tags: entry.tags,
+      ...responseState,
+      updated_at: entry.updated_at,
     });
   } catch (err) {
     return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));

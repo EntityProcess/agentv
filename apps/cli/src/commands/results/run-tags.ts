@@ -24,7 +24,7 @@
  *   - No control characters (\n, \t, DEL, etc.)
  *   - Tags are deduplicated case-sensitively
  *   - A run can have at most 20 tags
- *   - Writing an empty array removes the sidecar file
+ *   - Writing an empty array records a clear/tombstone state with a watermark
  *
  * To extend (e.g. add colored labels or descriptions): add optional fields
  * to `RunTagsFile` and keep the schema additive so older files still parse.
@@ -85,7 +85,6 @@ export function readRunTags(manifestPath: string): RunTagsFile | undefined {
     const tags = record.tags.filter(
       (t): t is string => typeof t === 'string' && t.trim().length > 0,
     );
-    if (tags.length === 0) return undefined;
     const updatedAt = typeof record.updated_at === 'string' ? record.updated_at : '';
     return {
       tags,
@@ -98,15 +97,11 @@ export function readRunTags(manifestPath: string): RunTagsFile | undefined {
 }
 
 /**
- * Write tags for a run. Replaces any existing tags. Pass an empty array
- * to remove the sidecar entirely.
+ * Write tags for a run. Replaces any existing tags. Pass an empty array to
+ * record that tags were intentionally cleared while preserving the watermark.
  */
-export function writeRunTags(manifestPath: string, tags: readonly string[]): RunTagsFile | null {
+export function writeRunTags(manifestPath: string, tags: readonly string[]): RunTagsFile {
   const cleaned = normalizeTags(tags);
-  if (cleaned.length === 0) {
-    deleteRunTags(manifestPath);
-    return null;
-  }
   const runPath = inferRunRelativePath(manifestPath);
   const operation = createRunTagsSetOperation({
     runId: buildRunIdFromRelativePath(runPath),

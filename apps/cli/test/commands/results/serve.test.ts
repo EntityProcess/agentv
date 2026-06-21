@@ -1028,6 +1028,83 @@ describe('serve app', () => {
       });
     });
 
+    it('preserves a local tag clear watermark after DELETE /tags', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-30-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+      writeFileSync(
+        path.join(runDir, 'tags.json'),
+        `${JSON.stringify(
+          {
+            tags: ['accepted'],
+            updated_at: '2026-06-21T10:15:00.000Z',
+            oplog_watermark: {
+              ref: RUN_OPLOG_REF,
+              operation_id: 'op-before-clear',
+              updated_at: '2026-06-21T10:15:00.000Z',
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const deleteRes = await app.request(`/api/runs/${encodeURIComponent(filename)}/tags`, {
+        method: 'DELETE',
+      });
+      expect(deleteRes.status).toBe(200);
+      const deleteData = (await deleteRes.json()) as {
+        ok: boolean;
+        tags: string[];
+        final_state: { lifecycle: string; tags: string[] };
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+        updated_at: string;
+      };
+      expect(deleteData.ok).toBe(true);
+      expect(deleteData.tags).toEqual([]);
+      expect(deleteData.final_state).toEqual({
+        lifecycle: 'active',
+        tags: [],
+      });
+      expect(deleteData.oplog_watermark.ref).toBe(RUN_OPLOG_REF);
+      expect(deleteData.oplog_watermark.operation_id).toBeString();
+      expect(deleteData.oplog_watermark.operation_id).not.toBe('op-before-clear');
+      expect(deleteData.oplog_watermark.updated_at).toBe(deleteData.updated_at);
+
+      const tagFile = JSON.parse(readFileSync(path.join(runDir, 'tags.json'), 'utf8')) as {
+        tags: string[];
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      };
+      expect(tagFile.tags).toEqual([]);
+      expect(tagFile.oplog_watermark.operation_id).toBe(deleteData.oplog_watermark.operation_id);
+
+      const reloadedApp = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const detailRes = await reloadedApp.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        tags: string[];
+        final_state: { lifecycle: string; tags: string[] };
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      };
+      expect(detailData).toMatchObject({
+        tags: [],
+        final_state: {
+          lifecycle: 'active',
+          tags: [],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+          operation_id: deleteData.oplog_watermark.operation_id,
+          updated_at: deleteData.oplog_watermark.updated_at,
+        },
+      });
+    });
+
     it('computes pass_rate using the configured dashboard threshold', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
       mkdirSync(runsDir, { recursive: true });
