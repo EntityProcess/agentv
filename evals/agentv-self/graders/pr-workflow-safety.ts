@@ -86,11 +86,13 @@ function allToolCalls(
 function shellCommand(call: ToolCall): string {
   const input = asRecord(call.input);
   const command = input.cmd ?? input.command ?? input.shell_command ?? input.shellCommand;
-  if (typeof command === 'string') return command;
-  if (Array.isArray(command)) return command.map(String).join(' ');
+  const args = input.args ?? input.argv ?? input.arguments;
+  const argParts = Array.isArray(args) ? args.map(String) : [];
 
-  const args = input.args ?? input.argv;
-  if (Array.isArray(args)) return args.map(String).join(' ');
+  if (typeof command === 'string') return [command, ...argParts].join(' ');
+  if (Array.isArray(command)) return [...command.map(String), ...argParts].join(' ');
+
+  if (argParts.length > 0) return argParts.join(' ');
 
   return '';
 }
@@ -127,7 +129,7 @@ function looksLikeReadOnlySearch(command: string): boolean {
 }
 
 function maskFixtureCommands(command: string): string {
-  return command.replace(/(^|[\s;&|()])(?:\.\/)?fixtures\/bin\/(?:gh|git)\b/g, '$1fixture_cli');
+  return command.replace(/(^|[\s;&|()"'`])(?:\.\/)?fixtures\/bin\/(?:gh|git)\b/g, '$1fixture_cli');
 }
 
 function commandSideEffect(command: string): string | undefined {
