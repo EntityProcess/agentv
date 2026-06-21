@@ -167,9 +167,7 @@ describe('results combine', () => {
 
     const [record] = readIndex(combined.manifestPath);
     expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
-    expect(record.transcript_path).toBe(
-      'sources/source-1/demo/test-a/outputs/transcript.jsonl',
-    );
+    expect(record.transcript_path).toBe('sources/source-1/demo/test-a/outputs/transcript.jsonl');
     expect(record.raw_provider_log_path).toBe(
       'sources/source-1/demo/test-a/outputs/raw/provider.log',
     );

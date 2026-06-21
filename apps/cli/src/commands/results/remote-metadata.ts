@@ -139,9 +139,7 @@ function equalWatermarks(
   b: RunOplogWatermark | undefined,
 ): boolean {
   return (
-    a?.ref === b?.ref &&
-    a?.operation_id === b?.operation_id &&
-    a?.updated_at === b?.updated_at
+    a?.ref === b?.ref && a?.operation_id === b?.operation_id && a?.updated_at === b?.updated_at
   );
 }
 

@@ -14,8 +14,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { getAgentvDataDir } from '../paths.js';
-import { AGENTV_RESULTS_PRIMARY_REF } from './result-artifact-contract.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
+import { AGENTV_RESULTS_PRIMARY_REF } from './result-artifact-contract.js';
 
 const execFileAsync = promisify(execFile);
 // Local working-tree run workspace inside the eval repo. Local commands

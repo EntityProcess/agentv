@@ -397,7 +397,9 @@ function resolveRunArtifactPath(
 
 function isPathInsideDirectory(baseDir: string, candidatePath: string): boolean {
   const relative = path.relative(baseDir, candidatePath);
-  return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+  return (
+    relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative))
+  );
 }
 
 function resolveReadableRunArtifactFile(
