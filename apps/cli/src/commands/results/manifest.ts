@@ -148,8 +148,31 @@ function readOptionalJson<T>(baseDir: string, relativePath: string | undefined):
   }
 }
 
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function artifactPointerPath(pointer: ArtifactPointer | undefined): string | undefined {
+  if (typeof pointer === 'string') {
+    return nonEmptyString(pointer);
+  }
+  if (!pointer) {
+    return undefined;
+  }
+  return (
+    nonEmptyString(pointer.path) ??
+    nonEmptyString(pointer.artifact_path) ??
+    nonEmptyString(pointer.relative_path)
+  );
+}
+
 function resolveTranscriptPath(record: ResultManifestRecord): string | undefined {
-  return record.transcript_path ?? record.artifact_pointers?.transcript?.path;
+  return (
+    record.transcript_path ??
+    record.artifact_pointers?.transcript?.path ??
+    record.artifacts?.transcript_path ??
+    artifactPointerPath(record.transcript ?? record.artifacts?.transcript)
+  );
 }
 
 function hydrateInput(

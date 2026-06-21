@@ -23,23 +23,23 @@ import {
 } from './projection-identity.js';
 import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
-import { normalizeResultRow } from './result-row-schema.js';
 import {
   AGENTV_RESULTS_ARTIFACTS_REF,
   CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
-  TRACE_JSON_MEDIA_TYPE,
-  TRANSCRIPT_JSONL_MEDIA_TYPE,
-  TRANSCRIPT_SCHEMA_VERSION,
   type ResultArtifactFamily,
   type ResultArtifactPointerWire,
   type ResultArtifactPointersWire,
+  TRACE_JSON_MEDIA_TYPE,
+  TRANSCRIPT_JSONL_MEDIA_TYPE,
+  TRANSCRIPT_SCHEMA_VERSION,
   type TranscriptArtifactPointerWire,
   toResultArtifactPointerWire,
 } from './result-artifact-contract.js';
+import { normalizeResultRow } from './result-row-schema.js';
 import {
-  type TraceEnvelope,
   EXECUTION_TRACE_SCHEMA_VERSION,
+  type TraceEnvelope,
   buildTraceEnvelopeFromEvaluationResult,
   toTraceEnvelopeWire,
   traceEnvelopeToTranscriptMessages,
@@ -817,10 +817,7 @@ async function writeTraceEnvelopeSidecar(
   return envelope;
 }
 
-function buildSidecarArtifactKey(
-  family: ResultArtifactFamily,
-  runRelativePath: string,
-): string {
+function buildSidecarArtifactKey(family: ResultArtifactFamily, runRelativePath: string): string {
   return path.posix.join(family, runRelativePath);
 }
 
@@ -938,7 +935,6 @@ export function buildIndexArtifactEntry(
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
       : undefined,
-    artifact_pointers: options.artifactPointers,
     raw_provider_log_path: options.rawProviderLogPath
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
       : undefined,

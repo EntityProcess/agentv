@@ -355,7 +355,7 @@ function resolveRecordArtifactPointer(
 
   const pointer =
     kind === 'transcript'
-      ? (record.transcript ?? record.artifacts?.transcript)
+      ? (record.transcript ?? record.artifacts?.transcript ?? record.artifact_pointers?.transcript)
       : record.artifacts?.answer;
   const pointerPath = artifactPointerPath(pointer);
   const description = artifactPointerDescription(pointer);

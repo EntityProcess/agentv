@@ -2771,9 +2771,9 @@ describe('serve app', () => {
         toJsonl({
           ...RESULT_A,
           experiment: 'pointer-transcript',
-          artifacts: {
+          artifact_pointers: {
             transcript: {
-              ref: 'agentv/results/v1/artifacts',
+              ref: 'agentv/artifacts/v1',
               path: artifactPath,
             },
           },
@@ -2795,7 +2795,7 @@ describe('serve app', () => {
       expect(data.status).toBe('ok');
       expect(data.transcript_path).toBe(artifactPath);
       expect(data.content).toBe(transcriptJsonl);
-      expect(data.pointer).toContain('agentv/results/v1/artifacts');
+      expect(data.pointer).toContain('agentv/artifacts/v1');
     });
 
     it('returns a clear missing state when no transcript pointer is recorded', async () => {
