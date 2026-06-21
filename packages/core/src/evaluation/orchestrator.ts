@@ -129,6 +129,21 @@ function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
 }
 
+function extractProviderRawLogPath(response: ProviderResponse): string | undefined {
+  const raw = response.raw;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+
+  const logFile = (raw as Record<string, unknown>).logFile;
+  if (typeof logFile !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = logFile.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 interface EvaluationRuntimeOptions {
   readonly target: ResolvedTarget;
   readonly targets?: readonly TargetDefinition[];
@@ -1588,6 +1603,7 @@ async function runBatchEvaluation(options: {
     const tokenUsage = merged?.tokenUsage;
     const startTime = merged?.startTime;
     const endTime = merged?.endTime;
+    const rawProviderLogPath = extractProviderRawLogPath(providerResponse);
 
     // Extract candidate from last assistant message in output
     const candidate = extractLastAssistantContent(output);
@@ -1615,6 +1631,7 @@ async function runBatchEvaluation(options: {
         tokenUsage,
         startTime,
         endTime,
+        rawProviderLogPath,
         targetResolver,
         availableTargets,
         verbose,
@@ -1982,6 +1999,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const tokenUsage = merged?.tokenUsage;
   const startTime = merged?.startTime;
   const endTime = merged?.endTime;
+  const rawProviderLogPath = extractProviderRawLogPath(providerResponse);
 
   // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
@@ -2375,6 +2393,7 @@ async function evaluateCandidate(options: {
   readonly tokenUsage?: TokenUsage;
   readonly startTime?: string;
   readonly endTime?: string;
+  readonly rawProviderLogPath?: string;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -2404,6 +2423,7 @@ async function evaluateCandidate(options: {
     tokenUsage,
     startTime,
     endTime,
+    rawProviderLogPath,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -2514,6 +2534,7 @@ async function evaluateCandidate(options: {
     output: candidate,
     scores: scores,
     trace: evaluationTrace,
+    rawProviderLogPath,
     fileChanges,
     executionStatus: classifyQualityStatus(score.score, evalThreshold),
   };

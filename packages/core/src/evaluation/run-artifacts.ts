@@ -7,7 +7,7 @@
  * snake_case here so every caller produces the same artifacts.
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { traceEnvelopeToTranscriptJsonLines } from '../import/types.js';
@@ -205,6 +205,7 @@ export interface IndexArtifactEntry {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly raw_provider_log_path?: string;
   readonly input_path?: string;
   readonly response_path?: string;
   readonly task_dir?: string;
@@ -226,7 +227,12 @@ export type ResultIndexArtifact = IndexArtifactEntry;
 export type AdditionalResultIndexFields = Partial<
   Pick<
     IndexArtifactEntry,
-    'task_dir' | 'eval_path' | 'targets_path' | 'files_path' | 'graders_path'
+    | 'task_dir'
+    | 'eval_path'
+    | 'targets_path'
+    | 'files_path'
+    | 'graders_path'
+    | 'raw_provider_log_path'
   >
 >;
 
@@ -732,6 +738,26 @@ function resultHasExecutionTraceTranscript(result: EvaluationResult): boolean {
   return result.output.length > 0 || result.trace.messages.length > 0;
 }
 
+function rawProviderLogSourcePath(result: EvaluationResult): string | undefined {
+  const sourcePath = result.rawProviderLogPath?.trim();
+  return sourcePath ? sourcePath : undefined;
+}
+
+function rawProviderLogArtifactPath(outputsDir: string): string {
+  return path.join(outputsDir, 'raw', 'provider.log');
+}
+
+async function copyRawProviderLogArtifact(sourcePath: string, outputsDir: string): Promise<string> {
+  const destinationPath = rawProviderLogArtifactPath(outputsDir);
+  if (path.resolve(sourcePath) === path.resolve(destinationPath)) {
+    return destinationPath;
+  }
+
+  await mkdir(path.dirname(destinationPath), { recursive: true });
+  await copyFile(sourcePath, destinationPath);
+  return destinationPath;
+}
+
 interface TraceEnvelopeSidecarParams {
   readonly result: EvaluationResult;
   readonly outputDir: string;
@@ -755,6 +781,9 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? 'outputs/transcript.jsonl' : undefined,
+      raw_provider_log_path: rawProviderLogSourcePath(params.result)
+        ? 'outputs/raw/provider.log'
+        : undefined,
     },
     duplicatePolicy: params.duplicatePolicy,
   });
@@ -782,6 +811,7 @@ export function buildIndexArtifactEntry(
     outputPath?: string;
     answerPath?: string;
     transcriptPath?: string;
+    rawProviderLogPath?: string;
     inputPath?: string;
     responsePath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
@@ -822,6 +852,9 @@ export function buildIndexArtifactEntry(
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
       : undefined,
+    raw_provider_log_path: options.rawProviderLogPath
+      ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
+      : undefined,
     input_path: options.inputPath
       ? toRelativeArtifactPath(options.outputDir, options.inputPath)
       : undefined,
@@ -849,6 +882,7 @@ export function buildResultIndexArtifact(
   const input = extractInput(result);
   const hasAnswer = result.output.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
+  const hasRawProviderLog = rawProviderLogSourcePath(result) !== undefined;
 
   return {
     timestamp: result.timestamp,
@@ -877,6 +911,9 @@ export function buildResultIndexArtifact(
     answer_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
     transcript_path: hasTranscript
       ? path.posix.join(artifactSubdir, 'outputs', 'transcript.jsonl')
+      : undefined,
+    raw_provider_log_path: hasRawProviderLog
+      ? path.posix.join(artifactSubdir, 'outputs', 'raw', 'provider.log')
       : undefined,
     response_path: hasAnswer
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
@@ -1122,6 +1159,8 @@ function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefin
   }
 
   const result = value as Record<string, unknown>;
+  const parsedResult = { ...result };
+  parsedResult.rawProviderLogPath = undefined;
   const legacyOutputMessages = Array.isArray(result.output)
     ? result.output.filter(isOutputMessage)
     : undefined;
@@ -1148,7 +1187,7 @@ function normalizeParsedResult(value: unknown): ParsedEvaluationResult | undefin
       });
 
   return {
-    ...result,
+    ...parsedResult,
     timestamp: typeof result.timestamp === 'string' ? result.timestamp : new Date(0).toISOString(),
     testId: typeof result.testId === 'string' ? result.testId : 'unknown',
     score: typeof result.score === 'number' ? result.score : 0,
@@ -1263,6 +1302,10 @@ export async function writePerTestArtifacts(
       await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
       await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
     }
+    const rawProviderLogSource = rawProviderLogSourcePath(result);
+    if (rawProviderLogSource) {
+      await copyRawProviderLogArtifact(rawProviderLogSource, outputsDir);
+    }
     const envelope = await writeTraceEnvelopeSidecar({
       result,
       outputDir,
@@ -1351,6 +1394,10 @@ export async function writeArtifactsFromResults(
     const transcriptPath = hasTranscriptProjection(result, envelope)
       ? path.join(outputsDir, 'transcript.jsonl')
       : undefined;
+    const rawProviderLogSource = rawProviderLogSourcePath(result);
+    const rawProviderLogPath = rawProviderLogSource
+      ? rawProviderLogArtifactPath(outputsDir)
+      : undefined;
     const projectionIdentity = envelope.projectionIdentity;
     if (!projectionIdentity) {
       throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
@@ -1371,6 +1418,8 @@ export async function writeArtifactsFromResults(
       envelope,
       projectionIdentity,
       transcriptPath,
+      rawProviderLogSource,
+      rawProviderLogPath,
       identityId,
     };
   });
@@ -1416,6 +1465,9 @@ export async function writeArtifactsFromResults(
       await writeFile(plan.answerPath, result.output, 'utf8');
       await writeFile(plan.responsePath, result.output, 'utf8');
     }
+    if (plan.rawProviderLogSource) {
+      await copyRawProviderLogArtifact(plan.rawProviderLogSource, plan.outputsDir);
+    }
     await writeFile(
       path.join(plan.outputsDir, 'trace.json'),
       `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
@@ -1442,6 +1494,7 @@ export async function writeArtifactsFromResults(
         outputPath: plan.answerPath,
         answerPath: plan.answerPath,
         transcriptPath: plan.transcriptPath,
+        rawProviderLogPath: plan.rawProviderLogPath,
         inputPath: plan.inputPath,
         responsePath: plan.responsePath,
         extraIndexFields,

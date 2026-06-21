@@ -1184,6 +1184,12 @@ export interface EvaluationResult {
   readonly error?: string;
   /** Canonical execution trace: messages, events, metrics, and provider provenance. */
   readonly trace: Trace;
+  /**
+   * Optional local provider-native session/stream log captured by a provider.
+   * Artifact writers copy this byte-for-byte into the run bundle as raw,
+   * non-canonical evidence and expose only the run-local pointer.
+   */
+  readonly rawProviderLogPath?: string;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
   /** Input messages sent to the agent. Always Message[] for consistent shape with output. */

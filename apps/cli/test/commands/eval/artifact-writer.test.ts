@@ -587,6 +587,21 @@ describe('parseJsonlResults', () => {
     expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
   });
 
+  it('does not treat parsed raw provider log pointers as fresh source artifacts', () => {
+    const content = `${JSON.stringify({
+      test_id: 'raw-log-case',
+      target: 'codex',
+      score: 1,
+      output: 'done',
+      raw_provider_log_path: 'raw-log-case/outputs/raw/provider.log',
+    })}\n`;
+
+    const results = parseJsonlResults(content);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].rawProviderLogPath).toBeUndefined();
+  });
+
   it('handles empty content', () => {
     expect(parseJsonlResults('')).toHaveLength(0);
   });
@@ -919,12 +934,63 @@ describe('writeArtifactsFromResults', () => {
       'chat',
       'execute_tool',
     ]);
+    await expect(
+      readFile(path.join(testDir, 'transcript-case', 'outputs', 'transcript.json'), 'utf8'),
+    ).rejects.toThrow();
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine.transcript_path).toBe('transcript-case/outputs/transcript.jsonl');
     expect(indexLine).not.toHaveProperty('trace_path');
+  });
+
+  it('copies optional raw provider logs as non-canonical evidence', async () => {
+    const rawLogPath = path.join(testDir, 'provider-source.log');
+    const rawLog = [
+      '# provider-native stream log',
+      '{"time":"00:00","data":{"camelCaseProviderKey":true,"toolInput":{"filePath":"src/index.ts"}}}',
+      '',
+    ].join('\n');
+    await mkdir(testDir, { recursive: true });
+    await writeFile(rawLogPath, rawLog, 'utf8');
+
+    const results = [
+      makeResult({
+        testId: 'raw-log-case',
+        target: 'codex',
+        output: 'Raw log copied',
+        rawProviderLogPath: rawLogPath,
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'outputs', 'raw', 'provider.log');
+    expect(await readFile(copiedRawLogPath, 'utf8')).toBe(rawLog);
+
+    const transcriptPath = path.join(testDir, 'raw-log-case', 'outputs', 'transcript.jsonl');
+    await expect(readFile(transcriptPath, 'utf8')).resolves.toContain(
+      '"schema_version":"agentv.transcript.v1"',
+    );
+    await expect(
+      readFile(path.join(testDir, 'raw-log-case', 'outputs', 'transcript.json'), 'utf8'),
+    ).rejects.toThrow();
+
+    const envelope = TraceEnvelopeWireSchema.parse(
+      JSON.parse(
+        await readFile(path.join(testDir, 'raw-log-case', 'outputs', 'trace.json'), 'utf8'),
+      ),
+    );
+    expect(envelope.artifacts.raw_provider_log_path).toBe('outputs/raw/provider.log');
+    expect(envelope.artifacts.transcript_path).toBe('outputs/transcript.jsonl');
+
+    const indexLine = JSON.parse(
+      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
+    );
+    expect(indexLine.raw_provider_log_path).toBe('raw-log-case/outputs/raw/provider.log');
+    expect(indexLine.transcript_path).toBe('raw-log-case/outputs/transcript.jsonl');
+    expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
   it('omits per-test transcript links when the execution trace has no transcript rows', async () => {

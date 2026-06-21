@@ -1044,8 +1044,10 @@ async function runSingleEvalFile(params: {
       // Full output with tool calls goes to OTel.
       const resultWithMetadata = withSourceMetadata(result, testFilePath, options);
       const trimmedOutput = trimOutputMessages(resultWithMetadata.output, options.outputMessages);
+      const serializableResult = { ...resultWithMetadata };
+      serializableResult.rawProviderLogPath = undefined;
       const trimmedResult: EvaluationResult = {
-        ...resultWithMetadata,
+        ...serializableResult,
         output: trimmedOutput,
       };
       await outputWriter.append(trimmedResult);

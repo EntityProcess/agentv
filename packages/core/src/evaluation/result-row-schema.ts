@@ -34,6 +34,7 @@ const RESULT_ROW_ALIASES = {
   gradingPath: 'grading_path',
   inputPath: 'input_path',
   outputPath: 'output_path',
+  rawProviderLogPath: 'raw_provider_log_path',
   responsePath: 'response_path',
   startTime: 'start_time',
   targetsPath: 'targets_path',
