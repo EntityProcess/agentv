@@ -134,6 +134,28 @@ function equalTags(a: readonly string[], b: readonly string[]): boolean {
   return a.every((tag, index) => tag === b[index]);
 }
 
+function equalWatermarks(
+  a: RunOplogWatermark | undefined,
+  b: RunOplogWatermark | undefined,
+): boolean {
+  return (
+    a?.ref === b?.ref &&
+    a?.operation_id === b?.operation_id &&
+    a?.updated_at === b?.updated_at
+  );
+}
+
+function equalTagFiles(a: TagsFile | undefined, b: TagsFile | undefined): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  return (
+    equalTags(a.tags, b.tags) &&
+    a.updatedAt === b.updatedAt &&
+    equalWatermarks(a.oplogWatermark, b.oplogWatermark)
+  );
+}
+
 function resolveComparisonRef(repoDir: string): string | undefined {
   const upstream = tryRunGit(repoDir, [
     'rev-parse',
@@ -199,7 +221,9 @@ function readRemoteRunTagsContext(repoDir: string, manifestPath: string): Remote
 function toRemoteRunTagState(context: RemoteRunTagsContext): RemoteRunTagState {
   const remoteTags = context.baseOverlayTags?.tags ?? context.artifactTags?.tags ?? [];
   const effectiveTags = context.localOverlayTags?.tags ?? remoteTags;
-  const dirty = !equalTags(effectiveTags, remoteTags);
+  const dirty = context.localOverlayTags
+    ? !equalTagFiles(context.localOverlayTags, context.baseOverlayTags)
+    : !equalTags(effectiveTags, remoteTags);
   const watermark =
     context.localOverlayTags?.oplogWatermark ??
     context.baseOverlayTags?.oplogWatermark ??
@@ -252,7 +276,11 @@ export function writeRemoteRunTags(
   const context = readRemoteRunTagsContext(repoDir, manifestPath);
   const remoteTags = context.baseOverlayTags?.tags ?? context.artifactTags?.tags ?? [];
 
-  if (equalTags(cleaned, remoteTags) && context.baseOverlayTags === undefined) {
+  if (
+    cleaned.length > 0 &&
+    equalTags(cleaned, remoteTags) &&
+    context.baseOverlayTags === undefined
+  ) {
     rmSync(context.paths.overlayTagsPath, { force: true });
     return readRemoteRunTags(repoDir, manifestPath);
   }

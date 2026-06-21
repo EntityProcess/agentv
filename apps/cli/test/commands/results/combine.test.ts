@@ -97,6 +97,9 @@ describe('results combine', () => {
   it('copies and rewrites artifact pointers when combining runs', () => {
     const first = seedRun('run-a', [
       result({
+        artifact_dir: 'demo/test-a',
+        transcript_path: 'demo/test-a/outputs/transcript.jsonl',
+        raw_provider_log_path: 'demo/test-a/outputs/raw/provider.log',
         artifact_pointers: {
           trace: {
             ref: 'agentv/artifacts/v1',
@@ -123,7 +126,7 @@ describe('results combine', () => {
         },
       }),
     ]);
-    mkdirSync(path.join(first, 'demo', 'test-a', 'outputs'), { recursive: true });
+    mkdirSync(path.join(first, 'demo', 'test-a', 'outputs', 'raw'), { recursive: true });
     writeFileSync(path.join(first, 'demo', 'test-a', 'outputs', 'trace.json'), '{"trace":[]}\n');
     writeFileSync(
       path.join(first, 'demo', 'test-a', 'outputs', 'transcript.jsonl'),
@@ -136,6 +139,10 @@ describe('results combine', () => {
         content: 'Pointer-backed transcript',
         source: { provider: 'mock', session_id: 'session-a' },
       })}\n`,
+    );
+    writeFileSync(
+      path.join(first, 'demo', 'test-a', 'outputs', 'raw', 'provider.log'),
+      '{"event":"provider-native"}\n',
     );
     const second = seedRun('run-b', [
       result({
@@ -159,7 +166,13 @@ describe('results combine', () => {
     });
 
     const [record] = readIndex(combined.manifestPath);
-    expect(record).not.toHaveProperty('transcript_path');
+    expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
+    expect(record.transcript_path).toBe(
+      'sources/source-1/demo/test-a/outputs/transcript.jsonl',
+    );
+    expect(record.raw_provider_log_path).toBe(
+      'sources/source-1/demo/test-a/outputs/raw/provider.log',
+    );
     expect(record.artifact_pointers).toMatchObject({
       trace: {
         key: 'traces/sources/source-1/demo/test-a/outputs/trace.json',
@@ -176,6 +189,11 @@ describe('results combine', () => {
     expect(
       existsSync(
         path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/transcript.jsonl'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/raw/provider.log'),
       ),
     ).toBe(true);
   });

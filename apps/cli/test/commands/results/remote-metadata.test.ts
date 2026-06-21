@@ -34,7 +34,10 @@ function git(cmd: string, cwd: string): string {
   }).trim();
 }
 
-function seedRepo(repoDir: string): string {
+function seedRepo(
+  repoDir: string,
+  options?: { readonly artifactTags?: readonly string[] },
+): string {
   git('git init --quiet', repoDir);
   git('git config user.email "test@example.com"', repoDir);
   git('git config user.name "Test User"', repoDir);
@@ -42,10 +45,17 @@ function seedRepo(repoDir: string): string {
   const runDir = path.join(repoDir, 'runs', 'default', RUN_TIMESTAMP);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha","score":1}\n');
-  writeFileSync(
-    path.join(runDir, 'tags.json'),
-    `${JSON.stringify({ tags: ['remote-baseline'], updated_at: '2026-06-06T09:00:00.000Z' }, null, 2)}\n`,
-  );
+  const artifactTags = options?.artifactTags ?? ['remote-baseline'];
+  if (artifactTags.length > 0) {
+    writeFileSync(
+      path.join(runDir, 'tags.json'),
+      `${JSON.stringify(
+        { tags: artifactTags, updated_at: '2026-06-06T09:00:00.000Z' },
+        null,
+        2,
+      )}\n`,
+    );
+  }
   git('git add runs', repoDir);
   git('git commit --quiet -m "seed remote run"', repoDir);
   return path.join(runDir, 'index.jsonl');
@@ -115,6 +125,25 @@ describe('remote metadata tags', () => {
     expect(state.pendingTags).toEqual([]);
     expect(state.dirty).toBe(true);
     expect(readFileSync(state.metadataPath, 'utf8')).toContain('"tags": []');
+  });
+
+  it('records an explicit clear watermark when the remote baseline is already empty', () => {
+    const manifestPath = seedRepo(repoDir, { artifactTags: [] });
+
+    const state = writeRemoteRunTags(repoDir, manifestPath, []);
+    const metadata = JSON.parse(readFileSync(state.metadataPath, 'utf8')) as {
+      tags: string[];
+      oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+    };
+
+    expect(state.tags).toEqual([]);
+    expect(state.remoteTags).toEqual([]);
+    expect(state.pendingTags).toEqual([]);
+    expect(state.dirty).toBe(true);
+    expect(state.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
+    expect(state.oplogWatermark.operation_id).toBeString();
+    expect(metadata.tags).toEqual([]);
+    expect(metadata.oplog_watermark.operation_id).toBe(state.oplogWatermark.operation_id);
   });
 
   it('rejects writes when the configured results path is not a git checkout', () => {

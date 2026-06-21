@@ -36,6 +36,8 @@ import {
   writeArtifacts,
   writeArtifactsFromResults,
 } from '../../../src/commands/eval/artifact-writer.js';
+import { prepareResultForJsonl } from '../../../src/commands/eval/run-eval.js';
+import { toSnakeCaseDeep } from '../../../src/utils/case-conversion.js';
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
   const result = {
@@ -635,6 +637,21 @@ describe('parseJsonlResults', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].rawProviderLogPath).toBeUndefined();
+  });
+
+  it('preserves raw provider log pointer metadata at the per-case JSONL boundary', () => {
+    const rawLogPath = path.join(import.meta.dir, '.test-provider-source.log');
+    const result = makeResult({
+      testId: 'raw-log-jsonl-case',
+      rawProviderLogPath: rawLogPath,
+    });
+
+    const prepared = prepareResultForJsonl(result, { outputMessages: 1 });
+    const wire = toSnakeCaseDeep(prepared) as Record<string, unknown>;
+
+    expect(prepared.rawProviderLogPath).toBe(rawLogPath);
+    expect(wire.raw_provider_log_path).toBe(rawLogPath);
+    expect(wire).not.toHaveProperty('raw_provider_log');
   });
 
   it('handles empty content', () => {
