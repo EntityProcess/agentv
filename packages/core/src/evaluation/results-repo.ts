@@ -310,16 +310,13 @@ async function fetchResultsRepo(
   remote = 'origin',
   branch?: string,
 ): Promise<void> {
-  await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
-  // A shallow `--single-branch --branch <default>` clone (e.g. the containerized
-  // deploy) has a fetch refspec covering only the default branch, so the prune
-  // fetch above never learns about the results branch. Fetch it explicitly by
-  // name into its remote-tracking ref so the branch is detected and appended to
-  // rather than re-rooted as a fresh orphan. Tolerate absence: the branch simply
-  // may not exist on the remote yet (first publish).
   if (branch) {
     await fetchResultsBranchRef(repoDir, remote, branch);
+    await runGit(['remote', 'prune', remote], { cwd: repoDir, check: false });
+    return;
   }
+
+  await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
 }
 
 async function fetchResultsBranchRef(
@@ -331,6 +328,21 @@ async function fetchResultsBranchRef(
     cwd: repoDir,
     check: false,
   });
+}
+
+async function fetchResultsArtifactRef(
+  repoDir: string,
+  remote: string,
+  branch: string,
+): Promise<void> {
+  const refspec = `+refs/heads/${branch}:refs/remotes/${remote}/${branch}`;
+  await runGit(['fetch', '--filter=blob:none', remote, refspec], {
+    cwd: repoDir,
+    check: false,
+  });
+  if (!(await gitRefExists(repoDir, `refs/remotes/${remote}/${branch}`))) {
+    await fetchResultsBranchRef(repoDir, remote, branch);
+  }
 }
 
 function remoteBranchRef(branch: string, remote = 'origin'): string {
@@ -1508,6 +1520,33 @@ function artifactSidecarPointers(record: unknown): ArtifactSidecarPointer[] {
   return pointers;
 }
 
+function artifactSidecarKey(destinationPath: string, pointerPath: string): string {
+  return path.posix.join(
+    RESULTS_REPO_RUNS_DIR,
+    normalizeDestinationPath(destinationPath),
+    normalizeDestinationPath(pointerPath),
+  );
+}
+
+function collectArtifactSidecarPointers(sourceDir: string): ArtifactSidecarPointer[] {
+  const indexPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
+  if (!existsSync(indexPath)) {
+    return [];
+  }
+
+  const pointers: ArtifactSidecarPointer[] = [];
+  for (const line of readFileSync(indexPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      pointers.push(...artifactSidecarPointers(JSON.parse(trimmed)));
+    } catch {}
+  }
+  return pointers;
+}
+
 function resolveArtifactPointerSourcePath(sourceDir: string, pointerPath: string): string {
   const normalizedPointerPath = normalizeDestinationPath(pointerPath);
   const sourceRoot = path.resolve(sourceDir);
@@ -1531,39 +1570,29 @@ function verifyArtifactPointerChecksum(pointer: ArtifactSidecarPointer, content:
 
 async function prepareArtifactSidecar(params: {
   readonly sourceDir: string;
+  readonly pointers: readonly ArtifactSidecarPointer[];
 }): Promise<PreparedArtifactSidecar | undefined> {
-  const indexPath = path.join(params.sourceDir, RESULT_INDEX_FILENAME);
-  if (!existsSync(indexPath)) {
-    return undefined;
-  }
-
-  const pointers: ArtifactSidecarPointer[] = [];
-  for (const line of readFileSync(indexPath, 'utf8').split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      continue;
-    }
-    try {
-      pointers.push(...artifactSidecarPointers(JSON.parse(trimmed)));
-    } catch {}
-  }
-
-  if (pointers.length === 0) {
+  if (params.pointers.length === 0) {
     return undefined;
   }
 
   const sidecarRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-artifact-sidecar-'));
   const copied = new Set<string>();
+  const contentByPath = new Map<string, Buffer>();
 
   try {
-    for (const pointer of pointers) {
+    for (const pointer of params.pointers) {
       const relativePointerPath = normalizeDestinationPath(pointer.path);
+      let content = contentByPath.get(relativePointerPath);
+      if (!content) {
+        const sourcePath = resolveArtifactPointerSourcePath(params.sourceDir, relativePointerPath);
+        content = readFileSync(sourcePath);
+        contentByPath.set(relativePointerPath, content);
+      }
+      verifyArtifactPointerChecksum(pointer, content);
       if (copied.has(relativePointerPath)) {
         continue;
       }
-      const sourcePath = resolveArtifactPointerSourcePath(params.sourceDir, relativePointerPath);
-      const content = readFileSync(sourcePath);
-      verifyArtifactPointerChecksum(pointer, content);
       const destinationPath = path.join(sidecarRoot, ...relativePointerPath.split('/'));
       mkdirSync(path.dirname(destinationPath), { recursive: true });
       writeFileSync(destinationPath, content);
@@ -1582,6 +1611,86 @@ async function prepareArtifactSidecar(params: {
   return {
     sourceDir: sidecarRoot,
     cleanup: () => rm(sidecarRoot, { recursive: true, force: true }),
+  };
+}
+
+function rewritePublishedIndexLine(line: string, destinationPath: string): string {
+  if (!line.trim()) {
+    return line;
+  }
+
+  let record: unknown;
+  try {
+    record = JSON.parse(line);
+  } catch {
+    return line;
+  }
+
+  if (!isRecord(record) || !isRecord(record.artifact_pointers)) {
+    return line;
+  }
+
+  let changed = false;
+  for (const pointer of Object.values(record.artifact_pointers)) {
+    if (!isRecord(pointer)) {
+      continue;
+    }
+    if (pointer.ref !== AGENTV_RESULTS_ARTIFACTS_REF || typeof pointer.path !== 'string') {
+      continue;
+    }
+    const key = artifactSidecarKey(destinationPath, pointer.path);
+    if (pointer.key !== key) {
+      pointer.key = key;
+      changed = true;
+    }
+  }
+
+  return changed ? JSON.stringify(record) : line;
+}
+
+async function preparePublishedResultsSource(params: {
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly pointers: readonly ArtifactSidecarPointer[];
+}): Promise<PreparedArtifactSidecar | undefined> {
+  if (params.pointers.length === 0) {
+    return undefined;
+  }
+
+  const publishedRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-published-'));
+  const omittedPaths = new Set(
+    params.pointers.map((pointer) => normalizeDestinationPath(pointer.path)),
+  );
+
+  try {
+    const sourceFiles = await listSourceFiles(params.sourceDir);
+    for (const sourceFile of sourceFiles) {
+      const relativeFile = path.relative(params.sourceDir, sourceFile).split(path.sep).join('/');
+      const destinationFile = path.join(publishedRoot, ...relativeFile.split('/'));
+      if (relativeFile === RESULT_INDEX_FILENAME) {
+        const original = readFileSync(sourceFile, 'utf8');
+        const rewritten = original
+          .split(/\r?\n/)
+          .map((line) => rewritePublishedIndexLine(line, params.destinationPath))
+          .join('\n');
+        mkdirSync(path.dirname(destinationFile), { recursive: true });
+        writeFileSync(destinationFile, rewritten);
+        continue;
+      }
+      if (omittedPaths.has(relativeFile)) {
+        continue;
+      }
+      mkdirSync(path.dirname(destinationFile), { recursive: true });
+      await cp(sourceFile, destinationFile, { dereference: false });
+    }
+  } catch (error) {
+    await rm(publishedRoot, { recursive: true, force: true }).catch(() => undefined);
+    throw error;
+  }
+
+  return {
+    sourceDir: publishedRoot,
+    cleanup: () => rm(publishedRoot, { recursive: true, force: true }),
   };
 }
 
@@ -1961,9 +2070,20 @@ export async function directPushResults(params: {
   };
   const targetRunId = buildGitRunId(params.destinationPath);
   const shouldPush = normalized.auto_push || normalized.require_push;
-  const sidecar = await prepareArtifactSidecar({ sourceDir: params.sourceDir });
+  const sidecarPointers = collectArtifactSidecarPointers(params.sourceDir);
+  const sidecar = await prepareArtifactSidecar({
+    sourceDir: params.sourceDir,
+    pointers: sidecarPointers,
+  });
+  let publishedResultsSource: PreparedArtifactSidecar | undefined;
 
   try {
+    publishedResultsSource = await preparePublishedResultsSource({
+      sourceDir: params.sourceDir,
+      destinationPath: params.destinationPath,
+      pointers: sidecarPointers,
+    });
+
     let sidecarChanged = false;
     if (sidecar) {
       await fetchResultsRepo(repoDir, normalized.remote, AGENTV_RESULTS_ARTIFACTS_REF).catch(
@@ -1990,7 +2110,7 @@ export async function directPushResults(params: {
     const primaryChanged = await commitAndMaybePushRunTree({
       normalized: storageConfig,
       repoDir,
-      sourceDir: params.sourceDir,
+      sourceDir: publishedResultsSource?.sourceDir ?? params.sourceDir,
       destinationPath: params.destinationPath,
       commitMessage: params.commitMessage,
       targetRunId,
@@ -1998,6 +2118,7 @@ export async function directPushResults(params: {
     });
     return primaryChanged || sidecarChanged;
   } finally {
+    await publishedResultsSource?.cleanup().catch(() => undefined);
     await sidecar?.cleanup().catch(() => undefined);
   }
 }
@@ -2163,6 +2284,53 @@ function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
   }
 
   return blobs;
+}
+
+export interface GitResultArtifactReadParams {
+  readonly repoDir: string;
+  readonly key: string;
+  readonly ref?: string;
+  readonly remote?: string;
+  readonly sha256?: string;
+  readonly objectVersion?: string;
+}
+
+export async function readGitResultArtifact(
+  params: GitResultArtifactReadParams,
+): Promise<Buffer | undefined> {
+  const artifactRef = params.ref ?? AGENTV_RESULTS_ARTIFACTS_REF;
+  const normalizedKey = normalizeDestinationPath(params.key);
+  const remote = params.remote ?? 'origin';
+  if (!artifactRef.startsWith('refs/')) {
+    await fetchResultsArtifactRef(params.repoDir, remote, artifactRef).catch(() => undefined);
+  }
+
+  const candidateRefs = [
+    `refs/remotes/${remote}/${artifactRef}`,
+    `refs/heads/${artifactRef}`,
+    artifactRef,
+  ].filter((candidate, index, all) => all.indexOf(candidate) === index);
+
+  for (const candidateRef of candidateRefs) {
+    const blobs = parseGitBatchBlobs(
+      await runGitBatch(params.repoDir, `${candidateRef}:${normalizedKey}\n`),
+    );
+    const blob = blobs[0];
+    if (!blob) {
+      continue;
+    }
+    verifyArtifactPointerChecksum(
+      {
+        path: normalizedKey,
+        ...(params.sha256 ? { sha256: params.sha256 } : {}),
+        ...(params.objectVersion ? { objectVersion: params.objectVersion } : {}),
+      },
+      blob.content,
+    );
+    return Buffer.from(blob.content);
+  }
+
+  return undefined;
 }
 
 // ── WIP (work-in-progress) branch helpers ─────────────────────────────────

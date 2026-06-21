@@ -449,10 +449,16 @@ the run record contract.
 When automatic remote publishing sees pointers whose `ref` is
 `agentv/artifacts/v1`, it also pushes those payload bytes to the
 `agentv/artifacts/v1` branch in the same results remote at
-`runs/<run-path>/<pointer.path>`. The configured results branch remains the
-self-contained run bundle for current readers, while the sidecar branch gives
-artifact-aware consumers a concrete ref whose bytes can be verified with
-`object_version` and `sha256`.
+`runs/<run-path>/<pointer.path>` and rewrites the published pointer `key` to
+that backend object key. The configured results branch is the metadata/control
+plane for `index.jsonl`, `benchmark.json`, tags, and pointers; it does not
+duplicate canonical trace/transcript payload bodies when those rows name
+`agentv/artifacts/v1`. Local pre-publish run workspaces can still contain the
+files beside the manifest, and Dashboard resolves the published pointers lazily
+when a transcript or trace view requests the payload. AgentV keeps this explicit
+pointer/backend contract instead of using Git LFS as the core abstraction so
+S3, B2, or other object stores can use the same `key`, `object_version`,
+`sha256`, `size`, `media_type`, and `schema_version` fields later.
 
 `outputs/trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
 It stores the canonical span graph, source metadata, capture/redaction policy,

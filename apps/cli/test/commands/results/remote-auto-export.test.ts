@@ -221,9 +221,26 @@ describe('maybeAutoExportRunArtifacts', () => {
     const status = await maybeAutoExportRunArtifacts(payload(projectDir, runDir));
 
     expect(status).toBe('published');
-    expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${resultsBranch}`, rootDir),
-    ).toContain('runs/default/run-002/index.jsonl');
+    const resultTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${resultsBranch}`,
+      rootDir,
+    );
+    expect(resultTree).toContain('runs/default/run-002/index.jsonl');
+    expect(resultTree).toContain('runs/default/run-002/benchmark.json');
+    expect(resultTree).not.toContain('runs/default/run-002/alpha/outputs/trace.json');
+    expect(resultTree).not.toContain('runs/default/run-002/alpha/outputs/transcript.jsonl');
+    const index = JSON.parse(
+      git(
+        `git --git-dir "${remoteDir}" show ${resultsBranch}:runs/default/run-002/index.jsonl`,
+        rootDir,
+      ),
+    );
+    expect(index.artifact_pointers.trace.key).toBe(
+      'runs/default/run-002/alpha/outputs/trace.json',
+    );
+    expect(index.artifact_pointers.transcript.key).toBe(
+      'runs/default/run-002/alpha/outputs/transcript.jsonl',
+    );
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_ARTIFACTS_REF}`,
       rootDir,

@@ -664,6 +664,8 @@ describe('results repo write path', () => {
     );
     expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
     expect(resultTree).toContain(`runs/${destinationPath}/benchmark.json`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
 
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
@@ -681,12 +683,14 @@ describe('results repo write path', () => {
       ).toString('utf8'),
     );
     for (const pointer of Object.values(index.artifact_pointers) as Array<{
+      key: string;
       path: string;
       sha256: string;
       object_version: string;
     }>) {
+      expect(pointer.key).toBe(`runs/${destinationPath}/${pointer.path}`);
       const bytes = gitRaw(
-        `git --git-dir "${remoteDir}" show ${AGENTV_RESULTS_REFS.artifacts}:runs/${destinationPath}/${pointer.path}`,
+        `git --git-dir "${remoteDir}" show ${AGENTV_RESULTS_REFS.artifacts}:${pointer.key}`,
         rootDir,
       );
       const sha256 = sha256Hex(bytes);
@@ -750,9 +754,19 @@ describe('results repo write path', () => {
       }),
     ).resolves.toBe(true);
 
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
-      seededResultsHead,
+    const migratedResultsHead = git(
+      `git --git-dir "${remoteDir}" rev-parse ${storageBranch}`,
+      rootDir,
     );
+    expect(migratedResultsHead).not.toBe(seededResultsHead);
+    const resultTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
+      rootDir,
+    );
+    expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
+    expect(resultTree).toContain(`runs/${destinationPath}/benchmark.json`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
