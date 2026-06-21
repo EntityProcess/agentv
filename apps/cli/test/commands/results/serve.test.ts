@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { addProject, saveProjectRegistry } from '@agentv/core';
+import { AGENTV_RESULTS_ARTIFACTS_REF, addProject, saveProjectRegistry } from '@agentv/core';
 
 import { RUN_OPLOG_REF } from '../../../src/commands/results/run-oplog.js';
 import {
@@ -2804,6 +2804,141 @@ describe('serve app', () => {
       expect(data.transcript_path).toBe(artifactPath);
       expect(data.content).toBe(transcriptJsonl);
       expect(data.pointer).toContain('agentv/artifacts/v1');
+    });
+
+    it('resolves remote sidecar transcript and trace artifacts only on demand', async () => {
+      const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+      const resultsBranch = 'dogfood/serve-sidecar-contract';
+      const experiment = 'sidecar-only';
+      const timestamp = '2026-03-25T15-00-00-000Z';
+      const runId = `remote::${experiment}::${timestamp}`;
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const traceArtifactPath = 'demo/test-greeting/outputs/trace.json';
+      const transcriptKey = `runs/${experiment}/${timestamp}/${transcriptArtifactPath}`;
+      const traceKey = `runs/${experiment}/${timestamp}/${traceArtifactPath}`;
+      const transcriptJsonl = `${JSON.stringify({
+        schema_version: 'agentv.transcript.v1',
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'assistant',
+        content: 'sidecar transcript body',
+      })}\n`;
+      const traceJson = `${JSON.stringify({
+        schema_version: 'agentv.trace.v1',
+        test_id: 'test-greeting',
+        spans: [{ name: 'root' }],
+      })}\n`;
+
+      git(`git switch --quiet --orphan ${resultsBranch}`, seedDir);
+      git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
+      const runDir = path.join(seedDir, 'runs', experiment, timestamp);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment,
+          transcript_path: transcriptArtifactPath,
+          trace_path: traceArtifactPath,
+          artifact_pointers: {
+            trace: {
+              ref: AGENTV_RESULTS_ARTIFACTS_REF,
+              key: traceKey,
+              path: traceArtifactPath,
+            },
+            transcript: {
+              ref: AGENTV_RESULTS_ARTIFACTS_REF,
+              key: transcriptKey,
+              path: transcriptArtifactPath,
+            },
+          },
+        }),
+      );
+      writeFileSync(
+        path.join(runDir, 'benchmark.json'),
+        JSON.stringify(
+          {
+            metadata: {
+              timestamp: '2026-03-25T15:00:00.000Z',
+              experiment,
+              targets: ['gpt-4o'],
+              tests_run: ['test-greeting'],
+            },
+            run_summary: { 'gpt-4o': { pass_rate: { mean: 1 } } },
+          },
+          null,
+          2,
+        ),
+      );
+      git('git add runs && git commit --quiet -m "seed metadata-only results"', seedDir);
+      git(`git push --quiet origin HEAD:${resultsBranch}`, seedDir);
+
+      git(`git switch --quiet --orphan ${AGENTV_RESULTS_ARTIFACTS_REF}`, seedDir);
+      git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
+      const transcriptPath = path.join(seedDir, ...transcriptKey.split('/'));
+      const tracePath = path.join(seedDir, ...traceKey.split('/'));
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      writeFileSync(tracePath, traceJson);
+      git('git add runs && git commit --quiet -m "seed artifact sidecars"', seedDir);
+      git(`git push --quiet origin HEAD:${AGENTV_RESULTS_ARTIFACTS_REF}`, seedDir);
+      git('git switch --quiet main', seedDir);
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: ${JSON.stringify(`file://${remoteDir}`)}
+  branch: ${JSON.stringify(resultsBranch)}
+  path: ${JSON.stringify(cloneDir)}
+  auto_push: false
+`,
+      );
+
+      const artifactRemoteRef = `refs/remotes/origin/${AGENTV_RESULTS_ARTIFACTS_REF}`;
+      const artifactRefLookup = () =>
+        git(
+          `git -C "${cloneDir}" show-ref --verify --quiet ${artifactRemoteRef} && echo present || true`,
+          tempDir,
+        );
+      expect(artifactRefLookup()).toBe('');
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      expect(artifactRefLookup()).toBe('');
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
+      expect(detailRes.status).toBe(200);
+      expect(await detailRes.text()).not.toContain('sidecar transcript body');
+      expect(artifactRefLookup()).toBe('');
+      expect(existsSync(path.join(cloneDir, ...transcriptKey.split('/')))).toBe(false);
+      expect(existsSync(path.join(cloneDir, ...traceKey.split('/')))).toBe(false);
+
+      const transcriptRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+      expect(transcriptRes.status).toBe(200);
+      const transcriptData = (await transcriptRes.json()) as {
+        status: string;
+        content: string;
+        transcript_path: string;
+      };
+      expect(transcriptData.status).toBe('ok');
+      expect(transcriptData.transcript_path).toBe(transcriptArtifactPath);
+      expect(transcriptData.content).toBe(transcriptJsonl);
+      expect(artifactRefLookup()).toBe('present');
+      expect(existsSync(path.join(cloneDir, ...transcriptKey.split('/')))).toBe(false);
+
+      const traceRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${traceArtifactPath}?raw=1`,
+      );
+      expect(traceRes.status).toBe(200);
+      expect(traceRes.headers.get('content-type')).toContain('application/json');
+      expect(await traceRes.text()).toBe(traceJson);
+      expect(existsSync(path.join(cloneDir, ...traceKey.split('/')))).toBe(false);
     });
 
     it('returns a clear missing state when no transcript pointer is recorded', async () => {

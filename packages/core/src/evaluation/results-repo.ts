@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -15,7 +16,10 @@ import { promisify } from 'node:util';
 
 import { getAgentvDataDir } from '../paths.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
-import { AGENTV_RESULTS_PRIMARY_REF } from './result-artifact-contract.js';
+import {
+  AGENTV_RESULTS_ARTIFACTS_REF,
+  AGENTV_RESULTS_PRIMARY_REF,
+} from './result-artifact-contract.js';
 
 const execFileAsync = promisify(execFile);
 // Local working-tree run workspace inside the eval repo. Local commands
@@ -43,6 +47,7 @@ const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // divergent root. See createOrphanResultsBranch.
 const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
+const RESULT_INDEX_FILENAME = 'index.jsonl';
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -305,16 +310,13 @@ async function fetchResultsRepo(
   remote = 'origin',
   branch?: string,
 ): Promise<void> {
-  await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
-  // A shallow `--single-branch --branch <default>` clone (e.g. the containerized
-  // deploy) has a fetch refspec covering only the default branch, so the prune
-  // fetch above never learns about the results branch. Fetch it explicitly by
-  // name into its remote-tracking ref so the branch is detected and appended to
-  // rather than re-rooted as a fresh orphan. Tolerate absence: the branch simply
-  // may not exist on the remote yet (first publish).
   if (branch) {
     await fetchResultsBranchRef(repoDir, remote, branch);
+    await runGit(['remote', 'prune', remote], { cwd: repoDir, check: false });
+    return;
   }
+
+  await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
 }
 
 async function fetchResultsBranchRef(
@@ -326,6 +328,21 @@ async function fetchResultsBranchRef(
     cwd: repoDir,
     check: false,
   });
+}
+
+async function fetchResultsArtifactRef(
+  repoDir: string,
+  remote: string,
+  branch: string,
+): Promise<void> {
+  const refspec = `+refs/heads/${branch}:refs/remotes/${remote}/${branch}`;
+  await runGit(['fetch', '--filter=blob:none', remote, refspec], {
+    cwd: repoDir,
+    check: false,
+  });
+  if (!(await gitRefExists(repoDir, `refs/remotes/${remote}/${branch}`))) {
+    await fetchResultsBranchRef(repoDir, remote, branch);
+  }
 }
 
 function remoteBranchRef(branch: string, remote = 'origin'): string {
@@ -1464,6 +1481,219 @@ async function listSourceFiles(sourceDir: string): Promise<string[]> {
   return entries;
 }
 
+type ArtifactSidecarPointer = {
+  readonly path: string;
+  readonly sha256?: string;
+  readonly objectVersion?: string;
+};
+
+type PreparedArtifactSidecar = {
+  readonly sourceDir: string;
+  readonly cleanup: () => Promise<void>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function artifactSidecarPointers(record: unknown): ArtifactSidecarPointer[] {
+  if (!isRecord(record) || !isRecord(record.artifact_pointers)) {
+    return [];
+  }
+
+  const pointers: ArtifactSidecarPointer[] = [];
+  for (const pointer of Object.values(record.artifact_pointers)) {
+    if (!isRecord(pointer)) {
+      continue;
+    }
+    if (pointer.ref !== AGENTV_RESULTS_ARTIFACTS_REF || typeof pointer.path !== 'string') {
+      continue;
+    }
+    pointers.push({
+      path: pointer.path,
+      ...(typeof pointer.sha256 === 'string' ? { sha256: pointer.sha256 } : {}),
+      ...(typeof pointer.object_version === 'string'
+        ? { objectVersion: pointer.object_version }
+        : {}),
+    });
+  }
+  return pointers;
+}
+
+function artifactSidecarKey(destinationPath: string, pointerPath: string): string {
+  return path.posix.join(
+    RESULTS_REPO_RUNS_DIR,
+    normalizeDestinationPath(destinationPath),
+    normalizeDestinationPath(pointerPath),
+  );
+}
+
+function collectArtifactSidecarPointers(sourceDir: string): ArtifactSidecarPointer[] {
+  const indexPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
+  if (!existsSync(indexPath)) {
+    return [];
+  }
+
+  const pointers: ArtifactSidecarPointer[] = [];
+  for (const line of readFileSync(indexPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      pointers.push(...artifactSidecarPointers(JSON.parse(trimmed)));
+    } catch {}
+  }
+  return pointers;
+}
+
+function resolveArtifactPointerSourcePath(sourceDir: string, pointerPath: string): string {
+  const normalizedPointerPath = normalizeDestinationPath(pointerPath);
+  const sourceRoot = path.resolve(sourceDir);
+  const sourcePath = path.resolve(sourceRoot, ...normalizedPointerPath.split('/'));
+  const relative = path.relative(sourceRoot, sourcePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Artifact pointer path escapes run directory: ${pointerPath}`);
+  }
+  return sourcePath;
+}
+
+function verifyArtifactPointerChecksum(pointer: ArtifactSidecarPointer, content: Buffer): void {
+  const sha256 = createHash('sha256').update(content).digest('hex');
+  if (pointer.sha256 && pointer.sha256 !== sha256) {
+    throw new Error(`Artifact pointer checksum mismatch for ${pointer.path}`);
+  }
+  if (pointer.objectVersion && pointer.objectVersion !== `sha256:${sha256}`) {
+    throw new Error(`Artifact pointer object_version mismatch for ${pointer.path}`);
+  }
+}
+
+async function prepareArtifactSidecar(params: {
+  readonly sourceDir: string;
+  readonly pointers: readonly ArtifactSidecarPointer[];
+}): Promise<PreparedArtifactSidecar | undefined> {
+  if (params.pointers.length === 0) {
+    return undefined;
+  }
+
+  const sidecarRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-artifact-sidecar-'));
+  const copied = new Set<string>();
+  const contentByPath = new Map<string, Buffer>();
+
+  try {
+    for (const pointer of params.pointers) {
+      const relativePointerPath = normalizeDestinationPath(pointer.path);
+      let content = contentByPath.get(relativePointerPath);
+      if (!content) {
+        const sourcePath = resolveArtifactPointerSourcePath(params.sourceDir, relativePointerPath);
+        content = readFileSync(sourcePath);
+        contentByPath.set(relativePointerPath, content);
+      }
+      verifyArtifactPointerChecksum(pointer, content);
+      if (copied.has(relativePointerPath)) {
+        continue;
+      }
+      const destinationPath = path.join(sidecarRoot, ...relativePointerPath.split('/'));
+      mkdirSync(path.dirname(destinationPath), { recursive: true });
+      writeFileSync(destinationPath, content);
+      copied.add(relativePointerPath);
+    }
+  } catch (error) {
+    await rm(sidecarRoot, { recursive: true, force: true }).catch(() => undefined);
+    throw error;
+  }
+
+  if (copied.size === 0) {
+    await rm(sidecarRoot, { recursive: true, force: true }).catch(() => undefined);
+    return undefined;
+  }
+
+  return {
+    sourceDir: sidecarRoot,
+    cleanup: () => rm(sidecarRoot, { recursive: true, force: true }),
+  };
+}
+
+function rewritePublishedIndexLine(line: string, destinationPath: string): string {
+  if (!line.trim()) {
+    return line;
+  }
+
+  let record: unknown;
+  try {
+    record = JSON.parse(line);
+  } catch {
+    return line;
+  }
+
+  if (!isRecord(record) || !isRecord(record.artifact_pointers)) {
+    return line;
+  }
+
+  let changed = false;
+  for (const pointer of Object.values(record.artifact_pointers)) {
+    if (!isRecord(pointer)) {
+      continue;
+    }
+    if (pointer.ref !== AGENTV_RESULTS_ARTIFACTS_REF || typeof pointer.path !== 'string') {
+      continue;
+    }
+    const key = artifactSidecarKey(destinationPath, pointer.path);
+    if (pointer.key !== key) {
+      pointer.key = key;
+      changed = true;
+    }
+  }
+
+  return changed ? JSON.stringify(record) : line;
+}
+
+async function preparePublishedResultsSource(params: {
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly pointers: readonly ArtifactSidecarPointer[];
+}): Promise<PreparedArtifactSidecar | undefined> {
+  if (params.pointers.length === 0) {
+    return undefined;
+  }
+
+  const publishedRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-published-'));
+  const omittedPaths = new Set(
+    params.pointers.map((pointer) => normalizeDestinationPath(pointer.path)),
+  );
+
+  try {
+    const sourceFiles = await listSourceFiles(params.sourceDir);
+    for (const sourceFile of sourceFiles) {
+      const relativeFile = path.relative(params.sourceDir, sourceFile).split(path.sep).join('/');
+      const destinationFile = path.join(publishedRoot, ...relativeFile.split('/'));
+      if (relativeFile === RESULT_INDEX_FILENAME) {
+        const original = readFileSync(sourceFile, 'utf8');
+        const rewritten = original
+          .split(/\r?\n/)
+          .map((line) => rewritePublishedIndexLine(line, params.destinationPath))
+          .join('\n');
+        mkdirSync(path.dirname(destinationFile), { recursive: true });
+        writeFileSync(destinationFile, rewritten);
+        continue;
+      }
+      if (omittedPaths.has(relativeFile)) {
+        continue;
+      }
+      mkdirSync(path.dirname(destinationFile), { recursive: true });
+      await cp(sourceFile, destinationFile, { dereference: false });
+    }
+  } catch (error) {
+    await rm(publishedRoot, { recursive: true, force: true }).catch(() => undefined);
+    throw error;
+  }
+
+  return {
+    sourceDir: publishedRoot,
+    cleanup: () => rm(publishedRoot, { recursive: true, force: true }),
+  };
+}
+
 async function getExistingRunTreePaths(
   repoDir: string,
   ref: string | undefined,
@@ -1740,6 +1970,81 @@ async function pushDirectResultsToStorageBranch(params: {
   }
 }
 
+async function commitAndMaybePushRunTree(params: {
+  readonly normalized: StorageBranchResultsConfig;
+  readonly repoDir: string;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly commitMessage: string;
+  readonly targetRunId: string;
+  readonly shouldPush: boolean;
+}): Promise<boolean> {
+  const result = await commitResultsRunWithTemporaryIndex({
+    normalized: params.normalized,
+    repoDir: params.repoDir,
+    sourceDir: params.sourceDir,
+    destinationPath: params.destinationPath,
+    commitMessage: params.commitMessage,
+    targetRunId: params.targetRunId,
+  });
+
+  if (!params.shouldPush) {
+    updateStatusFile(params.normalized, { last_error: undefined });
+    return result.commitCreated;
+  }
+
+  if (!result.commitCreated) {
+    const localBranchExists = await gitRefExists(
+      params.repoDir,
+      `refs/heads/${params.normalized.branch}`,
+    );
+    const hasUnpushed = result.upstreamRef
+      ? localBranchExists
+        ? await hasUnpushedCommits(params.repoDir, result.upstreamRef, params.normalized.branch)
+        : false
+      : localBranchExists;
+    if (!hasUnpushed) {
+      return false;
+    }
+
+    const aheadPaths = result.upstreamRef
+      ? await getAheadPaths(
+          params.repoDir,
+          result.upstreamRef,
+          `refs/heads/${params.normalized.branch}`,
+        )
+      : [];
+    if (result.upstreamRef && !areSafeResultsRepoPaths(aheadPaths)) {
+      const error = new Error('Results repo has non-results committed changes');
+      updateStatusFile(params.normalized, { last_error: error.message });
+      throw error;
+    }
+    await pushDirectResultsToStorageBranch({
+      normalized: params.normalized,
+      repoDir: params.repoDir,
+      storageBranch: params.normalized.branch,
+      upstreamRef: result.upstreamRef,
+      sourceDir: params.sourceDir,
+      destinationPath: params.destinationPath,
+      commitMessage: params.commitMessage,
+      targetRunId: params.targetRunId,
+    });
+    return true;
+  }
+
+  await pushDirectResultsToStorageBranch({
+    normalized: params.normalized,
+    repoDir: params.repoDir,
+    storageBranch: params.normalized.branch,
+    upstreamRef: result.upstreamRef,
+    sourceDir: params.sourceDir,
+    destinationPath: params.destinationPath,
+    commitMessage: params.commitMessage,
+    targetRunId: params.targetRunId,
+  });
+  return true;
+}
+
 /**
  * Push results directly to the configured storage branch of the results repo.
  * Handles non-fast-forward conflicts by fetching, rebasing, and retrying.
@@ -1764,61 +2069,58 @@ export async function directPushResults(params: {
     branch: storageBranch,
   };
   const targetRunId = buildGitRunId(params.destinationPath);
-
-  const result = await commitResultsRunWithTemporaryIndex({
-    normalized: storageConfig,
-    repoDir,
-    sourceDir: params.sourceDir,
-    destinationPath: params.destinationPath,
-    commitMessage: params.commitMessage,
-    targetRunId,
-  });
-
   const shouldPush = normalized.auto_push || normalized.require_push;
-  if (!shouldPush) {
-    updateStatusFile(storageConfig, { last_error: undefined });
-    return result.commitCreated;
-  }
-
-  if (!result.commitCreated) {
-    const hasUnpushed = result.upstreamRef
-      ? await hasUnpushedCommits(repoDir, result.upstreamRef, storageBranch)
-      : true;
-    if (hasUnpushed) {
-      const aheadPaths = result.upstreamRef
-        ? await getAheadPaths(repoDir, result.upstreamRef, `refs/heads/${storageBranch}`)
-        : [];
-      if (result.upstreamRef && !areSafeResultsRepoPaths(aheadPaths)) {
-        const error = new Error('Results repo has non-results committed changes');
-        updateStatusFile(storageConfig, { last_error: error.message });
-        throw error;
-      }
-      await pushDirectResultsToStorageBranch({
-        normalized: storageConfig,
-        repoDir,
-        storageBranch,
-        upstreamRef: result.upstreamRef,
-        sourceDir: params.sourceDir,
-        destinationPath: params.destinationPath,
-        commitMessage: params.commitMessage,
-        targetRunId,
-      });
-      return true;
-    }
-    return false;
-  }
-
-  await pushDirectResultsToStorageBranch({
-    normalized: storageConfig,
-    repoDir,
-    storageBranch,
-    upstreamRef: result.upstreamRef,
+  const sidecarPointers = collectArtifactSidecarPointers(params.sourceDir);
+  const sidecar = await prepareArtifactSidecar({
     sourceDir: params.sourceDir,
-    destinationPath: params.destinationPath,
-    commitMessage: params.commitMessage,
-    targetRunId,
+    pointers: sidecarPointers,
   });
-  return true;
+  let publishedResultsSource: PreparedArtifactSidecar | undefined;
+
+  try {
+    publishedResultsSource = await preparePublishedResultsSource({
+      sourceDir: params.sourceDir,
+      destinationPath: params.destinationPath,
+      pointers: sidecarPointers,
+    });
+
+    let sidecarChanged = false;
+    if (sidecar) {
+      await fetchResultsRepo(repoDir, normalized.remote, AGENTV_RESULTS_ARTIFACTS_REF).catch(
+        (error) => {
+          if (normalized.require_push) {
+            throw error;
+          }
+        },
+      );
+      sidecarChanged = await commitAndMaybePushRunTree({
+        normalized: {
+          ...normalized,
+          branch: AGENTV_RESULTS_ARTIFACTS_REF,
+        },
+        repoDir,
+        sourceDir: sidecar.sourceDir,
+        destinationPath: params.destinationPath,
+        commitMessage: `chore(results): publish artifact sidecars for ${targetRunId}`,
+        targetRunId,
+        shouldPush,
+      });
+    }
+
+    const primaryChanged = await commitAndMaybePushRunTree({
+      normalized: storageConfig,
+      repoDir,
+      sourceDir: publishedResultsSource?.sourceDir ?? params.sourceDir,
+      destinationPath: params.destinationPath,
+      commitMessage: params.commitMessage,
+      targetRunId,
+      shouldPush,
+    });
+    return primaryChanged || sidecarChanged;
+  } finally {
+    await publishedResultsSource?.cleanup().catch(() => undefined);
+    await sidecar?.cleanup().catch(() => undefined);
+  }
 }
 
 export interface GitListedRun {
@@ -1982,6 +2284,53 @@ function parseGitBatchBlobs(output: Buffer): GitBatchBlob[] {
   }
 
   return blobs;
+}
+
+export interface GitResultArtifactReadParams {
+  readonly repoDir: string;
+  readonly key: string;
+  readonly ref?: string;
+  readonly remote?: string;
+  readonly sha256?: string;
+  readonly objectVersion?: string;
+}
+
+export async function readGitResultArtifact(
+  params: GitResultArtifactReadParams,
+): Promise<Buffer | undefined> {
+  const artifactRef = params.ref ?? AGENTV_RESULTS_ARTIFACTS_REF;
+  const normalizedKey = normalizeDestinationPath(params.key);
+  const remote = params.remote ?? 'origin';
+  if (!artifactRef.startsWith('refs/')) {
+    await fetchResultsArtifactRef(params.repoDir, remote, artifactRef).catch(() => undefined);
+  }
+
+  const candidateRefs = [
+    `refs/remotes/${remote}/${artifactRef}`,
+    `refs/heads/${artifactRef}`,
+    artifactRef,
+  ].filter((candidate, index, all) => all.indexOf(candidate) === index);
+
+  for (const candidateRef of candidateRefs) {
+    const blobs = parseGitBatchBlobs(
+      await runGitBatch(params.repoDir, `${candidateRef}:${normalizedKey}\n`),
+    );
+    const blob = blobs[0];
+    if (!blob) {
+      continue;
+    }
+    verifyArtifactPointerChecksum(
+      {
+        path: normalizedKey,
+        ...(params.sha256 ? { sha256: params.sha256 } : {}),
+        ...(params.objectVersion ? { objectVersion: params.objectVersion } : {}),
+      },
+      blob.content,
+    );
+    return Buffer.from(blob.content);
+  }
+
+  return undefined;
 }
 
 // ── WIP (work-in-progress) branch helpers ─────────────────────────────────

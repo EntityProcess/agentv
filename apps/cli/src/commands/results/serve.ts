@@ -49,12 +49,14 @@ import { fileURLToPath } from 'node:url';
 import { command, flag, number, option, optional, positional, string } from 'cmd-ts';
 
 import {
+  AGENTV_RESULTS_ARTIFACTS_REF,
   DEFAULT_CATEGORY,
   type EvaluationResult,
   addProject,
   getProject,
   loadConfig,
   loadProjectRegistry,
+  readGitResultArtifact,
   removeProject,
   syncProjects,
   touchProject,
@@ -88,6 +90,7 @@ import {
   findRunById,
   getRemoteResultsStatus,
   listMergedResultFiles,
+  loadNormalizedResultsConfig,
   readRemoteRunTagState,
   setRemoteRunTags,
   syncRemoteResults,
@@ -342,39 +345,83 @@ function artifactPointerRef(pointer: unknown): string | undefined {
   return isRecord(pointer) ? nonEmptyString(pointer.ref) : undefined;
 }
 
+function artifactPointerKey(pointer: unknown): string | undefined {
+  return isRecord(pointer) ? nonEmptyString(pointer.key) : undefined;
+}
+
+function artifactPointerSha256(pointer: unknown): string | undefined {
+  return isRecord(pointer) ? nonEmptyString(pointer.sha256) : undefined;
+}
+
+function artifactPointerObjectVersion(pointer: unknown): string | undefined {
+  return isRecord(pointer) ? nonEmptyString(pointer.object_version) : undefined;
+}
+
 interface ResolvedArtifactPointer {
   readonly path?: string;
+  readonly key?: string;
   readonly description?: string;
   readonly ref?: string;
+  readonly sha256?: string;
+  readonly objectVersion?: string;
   readonly unsupportedReason?: string;
 }
 
 function resolveRecordArtifactPointer(
   record: ResultManifestRecord,
-  kind: 'transcript' | 'answer',
+  kind: 'transcript' | 'answer' | 'trace',
 ): ResolvedArtifactPointer {
+  const pointer =
+    kind === 'transcript'
+      ? (record.transcript ?? record.artifacts?.transcript ?? record.artifact_pointers?.transcript)
+      : kind === 'trace'
+        ? (record.artifact_pointers?.trace ?? record.artifacts?.trace)
+        : record.artifacts?.answer;
+  const pointerPath = artifactPointerPath(pointer);
+  const description = artifactPointerDescription(pointer);
+  const ref = artifactPointerRef(pointer);
+  const key = artifactPointerKey(pointer);
+  const sha256 = artifactPointerSha256(pointer);
+  const objectVersion = artifactPointerObjectVersion(pointer);
+  if ((kind === 'transcript' || kind === 'trace') && pointerPath) {
+    return {
+      path: pointerPath,
+      description,
+      ref,
+      ...(key && { key }),
+      ...(sha256 && { sha256 }),
+      ...(objectVersion && { objectVersion }),
+    };
+  }
+
+  const recordWithTrace = record as ResultManifestRecord & { readonly trace_path?: string };
   const directPath =
     kind === 'transcript'
       ? (record.transcript_path ?? record.artifacts?.transcript_path)
-      : (record.answer_path ?? record.artifacts?.answer_path ?? record.output_path);
+      : kind === 'trace'
+        ? (recordWithTrace.trace_path ?? nonEmptyString(record.artifacts?.trace_path))
+        : (record.answer_path ?? record.artifacts?.answer_path ?? record.output_path);
   if (directPath) {
     return { path: directPath, description: directPath };
   }
 
-  const pointer =
-    kind === 'transcript'
-      ? (record.transcript ?? record.artifacts?.transcript ?? record.artifact_pointers?.transcript)
-      : record.artifacts?.answer;
-  const pointerPath = artifactPointerPath(pointer);
-  const description = artifactPointerDescription(pointer);
-  const ref = artifactPointerRef(pointer);
   if (pointerPath) {
-    return { path: pointerPath, description, ref };
+    return {
+      path: pointerPath,
+      description,
+      ref,
+      ...(key && { key }),
+      ...(sha256 && { sha256 }),
+      ...(objectVersion && { objectVersion }),
+    };
   }
   if (pointer) {
     return {
       description,
       ref,
+      ...(key && { key }),
+      ...(sha256 && { sha256 }),
+      ...(objectVersion && { objectVersion }),
       unsupportedReason: description
         ? `${kind} artifact pointer does not include a local path (${description}).`
         : `${kind} artifact pointer does not include a local path.`,
@@ -441,6 +488,101 @@ function readOptionalRunArtifactText(
   const resolved = resolveReadableRunArtifactFile(baseDir, artifact.path);
   if (!resolved.absolutePath) return undefined;
   return readFileSync(resolved.absolutePath, 'utf8');
+}
+
+function normalizeArtifactRelativePath(relativePath: string): string | undefined {
+  const normalized = relativePath.split(path.sep).join('/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (
+    segments.length === 0 ||
+    normalized.startsWith('/') ||
+    segments.some((segment) => segment === '..')
+  ) {
+    return undefined;
+  }
+  return segments.join('/');
+}
+
+function relativeRunPathFromManifest(repoDir: string, manifestPath: string): string | undefined {
+  const relativeManifestPath = path.relative(repoDir, manifestPath).split(path.sep).join('/');
+  if (
+    relativeManifestPath.length === 0 ||
+    relativeManifestPath === manifestPath ||
+    relativeManifestPath.startsWith('../')
+  ) {
+    return undefined;
+  }
+
+  const parts = relativeManifestPath.split('/').filter(Boolean);
+  const runsIndex = parts.lastIndexOf('runs');
+  if (runsIndex === -1 || parts.at(-1) !== 'index.jsonl') {
+    return undefined;
+  }
+  const runParts = parts.slice(runsIndex + 1, -1);
+  return runParts.length > 0 ? runParts.join('/') : undefined;
+}
+
+function sidecarArtifactKeyForPointer(
+  repoDir: string,
+  manifestPath: string,
+  artifact: ResolvedArtifactPointer,
+): string | undefined {
+  const publishedKey = artifact.key ? normalizeArtifactRelativePath(artifact.key) : undefined;
+  if (publishedKey?.startsWith('runs/')) {
+    return publishedKey;
+  }
+  if (!artifact.path) {
+    return undefined;
+  }
+  const relativeArtifactPath = normalizeArtifactRelativePath(artifact.path);
+  const relativeRunPath = relativeRunPathFromManifest(repoDir, manifestPath);
+  if (!relativeArtifactPath || !relativeRunPath) {
+    return undefined;
+  }
+  return ['runs', relativeRunPath, relativeArtifactPath].join('/');
+}
+
+async function readSidecarArtifactText(
+  searchDir: string,
+  projectId: string | undefined,
+  meta: SourcedResultFileMeta,
+  artifact: ResolvedArtifactPointer,
+): Promise<string | undefined> {
+  if (artifact.ref !== AGENTV_RESULTS_ARTIFACTS_REF) {
+    return undefined;
+  }
+  const config = await loadNormalizedResultsConfig(searchDir, projectId);
+  if (!config) {
+    return undefined;
+  }
+  const key = sidecarArtifactKeyForPointer(config.path, meta.path, artifact);
+  if (!key) {
+    return undefined;
+  }
+  const bytes = await readGitResultArtifact({
+    repoDir: config.path,
+    key,
+    ref: AGENTV_RESULTS_ARTIFACTS_REF,
+    remote: config.remote,
+    ...(artifact.sha256 && { sha256: artifact.sha256 }),
+    ...(artifact.objectVersion && { objectVersion: artifact.objectVersion }),
+  });
+  return bytes?.toString('utf8');
+}
+
+function artifactFileContentResponse(c: C, filePath: string, fileContent: string) {
+  if (c.req.query('raw') === '1' || c.req.query('download') === '1') {
+    c.header('Content-Type', inferRawContentType(filePath));
+    if (c.req.query('download') === '1') {
+      c.header(
+        'Content-Disposition',
+        `attachment; filename="${contentDispositionFilename(filePath)}"`,
+      );
+    }
+    return c.body(fileContent);
+  }
+  const language = inferLanguage(filePath);
+  return c.json({ content: fileContent, language });
 }
 
 function missingTranscriptMessage(): string {
@@ -1062,6 +1204,7 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
 
 async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
+  const evalId = c.req.param('evalId');
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
@@ -1085,23 +1228,32 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
     return c.json({ error: 'Path traversal not allowed' }, 403);
   }
   if (!resolvedFile.absolutePath) {
+    const records = parseResultManifest(readFileSync(meta.path, 'utf8'));
+    const record = records.find((r) => r.test_id === evalId);
+    if (record) {
+      const normalizedFilePath = normalizeArtifactRelativePath(filePath);
+      const artifact = [
+        resolveRecordArtifactPointer(record, 'trace'),
+        resolveRecordArtifactPointer(record, 'transcript'),
+      ].find((candidate) => {
+        const pointerPath = candidate.path
+          ? normalizeArtifactRelativePath(candidate.path)
+          : undefined;
+        return pointerPath !== undefined && pointerPath === normalizedFilePath;
+      });
+      if (artifact) {
+        const sidecarContent = await readSidecarArtifactText(searchDir, projectId, meta, artifact);
+        if (sidecarContent !== undefined) {
+          return artifactFileContentResponse(c, filePath, sidecarContent);
+        }
+      }
+    }
     return c.json({ error: 'File not found' }, 404);
   }
 
   try {
     const fileContent = readFileSync(resolvedFile.absolutePath, 'utf8');
-    if (c.req.query('raw') === '1' || c.req.query('download') === '1') {
-      c.header('Content-Type', inferRawContentType(filePath));
-      if (c.req.query('download') === '1') {
-        c.header(
-          'Content-Disposition',
-          `attachment; filename="${contentDispositionFilename(filePath)}"`,
-        );
-      }
-      return c.body(fileContent);
-    }
-    const language = inferLanguage(filePath);
-    return c.json({ content: fileContent, language });
+    return artifactFileContentResponse(c, filePath, fileContent);
   } catch {
     return c.json({ error: 'Failed to read file' }, 500);
   }
@@ -1140,7 +1292,14 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
       });
     }
 
-    if (!resolvedTranscript.absolutePath) {
+    let content: string | undefined;
+    if (resolvedTranscript.absolutePath) {
+      content = readFileSync(resolvedTranscript.absolutePath, 'utf8');
+    } else {
+      content = await readSidecarArtifactText(searchDir, projectId, meta, transcript);
+    }
+
+    if (content === undefined) {
       const refMessage = transcript.ref ? ` on ${transcript.ref}` : '';
       return c.json({
         status: 'dangling',
@@ -1150,7 +1309,6 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
       });
     }
 
-    const content = readFileSync(resolvedTranscript.absolutePath, 'utf8');
     const answerContent = readOptionalRunArtifactText(baseDir, answer);
 
     return c.json({

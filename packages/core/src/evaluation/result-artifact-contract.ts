@@ -5,7 +5,10 @@
  * records. Local run workspaces still write their files under the existing
  * per-result artifact directories; these pointers describe where those same
  * AgentV-owned artifacts belong when projected to a results ref, sidecar ref,
- * or object store.
+ * or object store. Git remote publishing treats the configured results branch
+ * as the metadata/control plane and stores transcript or trace payload bytes
+ * whose `ref` is `agentv/artifacts/v1` on that artifact ref at the published
+ * pointer `key` (`runs/<run-path>/<pointer.path>` for the git backend).
  */
 
 export const AGENTV_RESULTS_PRIMARY_REF = 'agentv/results/v1' as const;

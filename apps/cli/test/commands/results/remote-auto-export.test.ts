@@ -1,11 +1,12 @@
 import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 
-import type { EvaluationResult } from '@agentv/core';
+import { AGENTV_RESULTS_ARTIFACTS_REF, type EvaluationResult } from '@agentv/core';
 import { maybeAutoExportRunArtifacts } from '../../../src/commands/results/remote.js';
 
 function cleanGitEnv(): Record<string, string> {
@@ -43,7 +44,7 @@ function initializeRemoteRepo(rootDir: string): string {
 
 function writeProjectConfig(
   projectDir: string,
-  params: { repo: string; path: string; autoPush: boolean },
+  params: { repo: string; path: string; autoPush: boolean; branch?: string },
 ) {
   mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
   writeFileSync(
@@ -51,7 +52,7 @@ function writeProjectConfig(
     `results:
   mode: github
   repo: ${JSON.stringify(params.repo)}
-  path: ${JSON.stringify(params.path)}
+${params.branch ? `  branch: ${JSON.stringify(params.branch)}\n` : ''}  path: ${JSON.stringify(params.path)}
   auto_push: ${params.autoPush}
 `,
   );
@@ -63,6 +64,60 @@ function writeRunArtifacts(projectDir: string): string {
   writeFileSync(
     path.join(runDir, 'index.jsonl'),
     `${JSON.stringify({ test_id: 'alpha', score: 1 })}\n`,
+  );
+  writeFileSync(
+    path.join(runDir, 'benchmark.json'),
+    `${JSON.stringify({ eval_file: 'evals/example.eval.yaml', tests_run: 1 }, null, 2)}\n`,
+  );
+  return runDir;
+}
+
+function sha256Hex(content: Buffer | string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+
+function writeRunArtifactsWithPointers(projectDir: string): string {
+  const runDir = path.join(projectDir, '.agentv', 'results', 'runs', 'default', 'run-002');
+  const outputsDir = path.join(runDir, 'alpha', 'outputs');
+  mkdirSync(outputsDir, { recursive: true });
+  const traceContent = Buffer.from('{"schema_version":"agentv.trace.v1","spans":[]}\n');
+  const transcriptContent = Buffer.from(
+    '{"schema_version":"agentv.transcript.v1","role":"assistant","content":"ok"}\n',
+  );
+  writeFileSync(path.join(outputsDir, 'trace.json'), traceContent);
+  writeFileSync(path.join(outputsDir, 'transcript.jsonl'), transcriptContent);
+  const traceSha = sha256Hex(traceContent);
+  const transcriptSha = sha256Hex(transcriptContent);
+  writeFileSync(
+    path.join(runDir, 'index.jsonl'),
+    `${JSON.stringify({
+      test_id: 'alpha',
+      score: 1,
+      artifact_pointers: {
+        trace: {
+          ref: AGENTV_RESULTS_ARTIFACTS_REF,
+          key: 'traces/alpha/outputs/trace.json',
+          object_version: `sha256:${traceSha}`,
+          path: 'alpha/outputs/trace.json',
+          sha256: traceSha,
+          size: traceContent.byteLength,
+          schema_version: 'agentv.trace.v1',
+          media_type: 'application/vnd.agentv.trace.v1+json',
+          family: 'traces',
+        },
+        transcript: {
+          ref: AGENTV_RESULTS_ARTIFACTS_REF,
+          key: 'transcripts/alpha/outputs/transcript.jsonl',
+          object_version: `sha256:${transcriptSha}`,
+          path: 'alpha/outputs/transcript.jsonl',
+          sha256: transcriptSha,
+          size: transcriptContent.byteLength,
+          schema_version: 'agentv.transcript.v1',
+          media_type: 'application/x-ndjson',
+          family: 'transcripts',
+        },
+      },
+    })}\n`,
   );
   writeFileSync(
     path.join(runDir, 'benchmark.json'),
@@ -150,6 +205,46 @@ describe('maybeAutoExportRunArtifacts', () => {
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
       'runs/default/run-001/index.jsonl',
     );
+  }, 20_000);
+
+  it('pushes sidecar artifact payloads when artifact pointers name the artifact ref', async () => {
+    const remoteDir = initializeRemoteRepo(rootDir);
+    const runDir = writeRunArtifactsWithPointers(projectDir);
+    const resultsBranch = 'dogfood/remote-auto-export';
+    writeProjectConfig(projectDir, {
+      repo: `file://${remoteDir}`,
+      path: cloneDir,
+      branch: resultsBranch,
+      autoPush: true,
+    });
+
+    const status = await maybeAutoExportRunArtifacts(payload(projectDir, runDir));
+
+    expect(status).toBe('published');
+    const resultTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${resultsBranch}`,
+      rootDir,
+    );
+    expect(resultTree).toContain('runs/default/run-002/index.jsonl');
+    expect(resultTree).toContain('runs/default/run-002/benchmark.json');
+    expect(resultTree).not.toContain('runs/default/run-002/alpha/outputs/trace.json');
+    expect(resultTree).not.toContain('runs/default/run-002/alpha/outputs/transcript.jsonl');
+    const index = JSON.parse(
+      git(
+        `git --git-dir "${remoteDir}" show ${resultsBranch}:runs/default/run-002/index.jsonl`,
+        rootDir,
+      ),
+    );
+    expect(index.artifact_pointers.trace.key).toBe('runs/default/run-002/alpha/outputs/trace.json');
+    expect(index.artifact_pointers.transcript.key).toBe(
+      'runs/default/run-002/alpha/outputs/transcript.jsonl',
+    );
+    const artifactTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_ARTIFACTS_REF}`,
+      rootDir,
+    );
+    expect(artifactTree).toContain('runs/default/run-002/alpha/outputs/trace.json');
+    expect(artifactTree).toContain('runs/default/run-002/alpha/outputs/transcript.jsonl');
   }, 20_000);
 
   it('returns already_published when the final results branch is already up to date', async () => {
