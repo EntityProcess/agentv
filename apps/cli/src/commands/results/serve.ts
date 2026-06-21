@@ -56,8 +56,8 @@ import {
   getProject,
   loadConfig,
   loadProjectRegistry,
-  removeProject,
   readGitResultArtifact,
+  removeProject,
   syncProjects,
   touchProject,
 } from '@agentv/core';
@@ -375,7 +375,7 @@ function resolveRecordArtifactPointer(
     kind === 'transcript'
       ? (record.transcript ?? record.artifacts?.transcript ?? record.artifact_pointers?.transcript)
       : kind === 'trace'
-        ? (record.artifact_pointers?.trace ?? record.artifacts?.['trace'])
+        ? (record.artifact_pointers?.trace ?? record.artifacts?.trace)
         : record.artifacts?.answer;
   const pointerPath = artifactPointerPath(pointer);
   const description = artifactPointerDescription(pointer);
@@ -399,7 +399,7 @@ function resolveRecordArtifactPointer(
     kind === 'transcript'
       ? (record.transcript_path ?? record.artifacts?.transcript_path)
       : kind === 'trace'
-        ? (recordWithTrace.trace_path ?? nonEmptyString(record.artifacts?.['trace_path']))
+        ? (recordWithTrace.trace_path ?? nonEmptyString(record.artifacts?.trace_path))
         : (record.answer_path ?? record.artifacts?.answer_path ?? record.output_path);
   if (directPath) {
     return { path: directPath, description: directPath };

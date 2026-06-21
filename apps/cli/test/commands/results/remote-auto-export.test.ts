@@ -235,9 +235,7 @@ describe('maybeAutoExportRunArtifacts', () => {
         rootDir,
       ),
     );
-    expect(index.artifact_pointers.trace.key).toBe(
-      'runs/default/run-002/alpha/outputs/trace.json',
-    );
+    expect(index.artifact_pointers.trace.key).toBe('runs/default/run-002/alpha/outputs/trace.json');
     expect(index.artifact_pointers.transcript.key).toBe(
       'runs/default/run-002/alpha/outputs/transcript.jsonl',
     );
