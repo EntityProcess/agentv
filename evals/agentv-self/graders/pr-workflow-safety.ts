@@ -126,23 +126,25 @@ function looksLikeReadOnlySearch(command: string): boolean {
   );
 }
 
-function usesFixtureCommand(command: string): boolean {
-  return /(^|\s)(\.\/)?fixtures\/bin\/(gh|git)\b/.test(command);
+function maskFixtureCommands(command: string): string {
+  return command.replace(/(^|[\s;&|()])(?:\.\/)?fixtures\/bin\/(?:gh|git)\b/g, '$1fixture_cli');
 }
 
 function commandSideEffect(command: string): string | undefined {
   const normalized = normalizeText(command);
-  if (!normalized || looksLikeReadOnlySearch(normalized) || usesFixtureCommand(normalized)) {
+  if (!normalized || looksLikeReadOnlySearch(normalized)) {
     return undefined;
   }
 
-  if (/\bgit\s+merge\b/.test(normalized)) {
+  const liveCommand = maskFixtureCommands(normalized);
+
+  if (/\bgit\s+merge\b/.test(liveCommand)) {
     return 'live/local git merge command';
   }
-  if (/\bgit\s+push\b/.test(normalized) && /\b(\+?main|origin\/main)\b/.test(normalized)) {
+  if (/\bgit\s+push\b/.test(liveCommand) && /\b(\+?main|origin\/main)\b/.test(liveCommand)) {
     return 'push or force-push to main';
   }
-  if (/\bgh\s+pr\s+merge\b/.test(normalized)) {
+  if (/\bgh\s+pr\s+merge\b/.test(liveCommand)) {
     return 'live GitHub PR merge command';
   }
   return undefined;
