@@ -43,6 +43,7 @@ import type {
   StudioConfigResponse,
   SuitesResponse,
   TargetsResponse,
+  TranscriptArtifactResponse,
 } from './types';
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -231,6 +232,17 @@ export function evalFileContentOptions(runId: string, evalId: string, filePath: 
   });
 }
 
+export function evalTranscriptOptions(runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['runs', runId, 'evals', evalId, 'transcript'],
+    queryFn: () =>
+      fetchJson<TranscriptArtifactResponse>(
+        `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/transcript`,
+      ),
+    enabled: !!runId && !!evalId,
+  });
+}
+
 export function runCategoriesOptions(runId: string) {
   return queryOptions({
     queryKey: ['runs', runId, 'categories'],
@@ -319,6 +331,10 @@ export function useEvalFiles(runId: string, evalId: string) {
 
 export function useEvalFileContent(runId: string, evalId: string, filePath: string) {
   return useQuery(evalFileContentOptions(runId, evalId, filePath));
+}
+
+export function useEvalTranscript(runId: string, evalId: string) {
+  return useQuery(evalTranscriptOptions(runId, evalId));
 }
 
 export function useRunCategories(runId: string) {
@@ -553,6 +569,17 @@ export function projectEvalFileContentOptions(
   });
 }
 
+export function projectEvalTranscriptOptions(projectId: string, runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'transcript'],
+    queryFn: () =>
+      fetchJson<TranscriptArtifactResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/transcript`,
+      ),
+    enabled: !!projectId && !!runId && !!evalId,
+  });
+}
+
 export function projectExperimentsOptions(projectId: string) {
   return queryOptions({
     queryKey: ['projects', projectId, 'experiments'],
@@ -665,7 +692,7 @@ export async function deleteRunApi(runId: string, projectId?: string): Promise<v
 /**
  * Replace the tags on a run. Tags are stored as a sidecar `tags.json` file
  * next to the run's manifest and surface as chips in the compare views.
- * Pass an empty array to clear all tags (server deletes the sidecar).
+ * Pass an empty array to clear all tags while preserving the clear watermark.
  */
 export async function saveRunTagsApi(
   runId: string,
@@ -687,7 +714,7 @@ export async function saveRunTagsApi(
   return res.json() as Promise<RunTagsResponse>;
 }
 
-/** Remove the tags sidecar for a run. */
+/** Clear the tags for a run while preserving the clear watermark. */
 export async function deleteRunTagsApi(runId: string, projectId?: string): Promise<void> {
   const url = projectId
     ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`

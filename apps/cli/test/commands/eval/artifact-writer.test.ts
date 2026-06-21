@@ -1,11 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
+  AGENTV_RESULTS_ARTIFACTS_REF,
+  CANONICAL_TRACE_ARTIFACT_PATH,
+  CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
+  EXECUTION_TRACE_SCHEMA_VERSION,
   type EvalTest,
   type EvaluationResult,
   type GraderResult,
+  TRACE_JSON_MEDIA_TYPE,
+  TRANSCRIPT_JSONL_MEDIA_TYPE,
+  TRANSCRIPT_SCHEMA_VERSION,
   TraceEnvelopeWireSchema,
   buildTraceFromMessages,
   fromTraceEnvelopeWire,
@@ -28,6 +36,8 @@ import {
   writeArtifacts,
   writeArtifactsFromResults,
 } from '../../../src/commands/eval/artifact-writer.js';
+import { prepareResultForJsonl } from '../../../src/commands/eval/run-eval.js';
+import { toSnakeCaseDeep } from '../../../src/utils/case-conversion.js';
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
   const result = {
@@ -70,6 +80,10 @@ function makeEvaluatorResult(overrides: Partial<GraderResult> = {}): GraderResul
     ],
     ...overrides,
   } as GraderResult;
+}
+
+function sha256Hex(content: Buffer): string {
+  return createHash('sha256').update(content).digest('hex');
 }
 
 // ---------------------------------------------------------------------------
@@ -587,6 +601,59 @@ describe('parseJsonlResults', () => {
     expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
   });
 
+  it('rejects camelCase artifact pointer rows for the new wire field', () => {
+    const content = `${JSON.stringify({
+      test_id: 'pointer-row',
+      target: 'codex',
+      score: 1,
+      artifactPointers: {
+        transcript: {
+          ref: 'agentv/artifacts/v1',
+          key: 'transcripts/pointer-row/outputs/transcript.jsonl',
+          object_version: 'sha256:test',
+          path: 'pointer-row/outputs/transcript.jsonl',
+          sha256: 'test',
+          size: 1,
+          schema_version: 'agentv.transcript.v1',
+          media_type: 'application/x-ndjson',
+          family: 'transcripts',
+        },
+      },
+    })}\n`;
+
+    expect(() => parseJsonlResults(content)).toThrow(/Use "artifact_pointers"/);
+  });
+
+  it('does not treat parsed raw provider log pointers as fresh source artifacts', () => {
+    const content = `${JSON.stringify({
+      test_id: 'raw-log-case',
+      target: 'codex',
+      score: 1,
+      output: 'done',
+      raw_provider_log_path: 'raw-log-case/outputs/raw/provider.log',
+    })}\n`;
+
+    const results = parseJsonlResults(content);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].rawProviderLogPath).toBeUndefined();
+  });
+
+  it('preserves raw provider log pointer metadata at the per-case JSONL boundary', () => {
+    const rawLogPath = path.join(import.meta.dir, '.test-provider-source.log');
+    const result = makeResult({
+      testId: 'raw-log-jsonl-case',
+      rawProviderLogPath: rawLogPath,
+    });
+
+    const prepared = prepareResultForJsonl(result, { outputMessages: 1 });
+    const wire = toSnakeCaseDeep(prepared) as Record<string, unknown>;
+
+    expect(prepared.rawProviderLogPath).toBe(rawLogPath);
+    expect(wire.raw_provider_log_path).toBe(rawLogPath);
+    expect(wire).not.toHaveProperty('raw_provider_log');
+  });
+
   it('handles empty content', () => {
     expect(parseJsonlResults('')).toHaveLength(0);
   });
@@ -828,9 +895,8 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptLines = (
-      await readFile(path.join(testDir, 'transcript-case', 'outputs', 'transcript.jsonl'), 'utf8')
-    )
+    const transcriptPath = path.join(testDir, 'transcript-case', 'outputs', 'transcript.jsonl');
+    const transcriptLines = (await readFile(transcriptPath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
@@ -911,7 +977,8 @@ describe('writeArtifactsFromResults', () => {
     expect(transcriptLines[1]).not.toHaveProperty('providerSessionId');
     expect(envelope.schema_version).toBe('agentv.trace.v1');
     expect(envelope.artifact_id).toMatch(/^execution-trace-/);
-    expect(envelope.artifacts.trace_path).toBe('outputs/trace.json');
+    expect(envelope.artifacts.trace_path).toBe(CANONICAL_TRACE_ARTIFACT_PATH);
+    expect(envelope.artifacts.transcript_path).toBe(CANONICAL_TRANSCRIPT_ARTIFACT_PATH);
     expect(envelope.artifacts).not.toHaveProperty('execution_trace_path');
     expect(envelope.eval.test_id).toBe('transcript-case');
     expect(envelope.trace.spans.map((span) => span.attributes['gen_ai.operation.name'])).toEqual([
@@ -919,12 +986,94 @@ describe('writeArtifactsFromResults', () => {
       'chat',
       'execute_tool',
     ]);
+    await expect(
+      readFile(path.join(testDir, 'transcript-case', 'outputs', 'transcript.json'), 'utf8'),
+    ).rejects.toThrow();
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine.transcript_path).toBe('transcript-case/outputs/transcript.jsonl');
+    expect(indexLine.transcript_path.endsWith(CANONICAL_TRANSCRIPT_ARTIFACT_PATH)).toBe(true);
     expect(indexLine).not.toHaveProperty('trace_path');
+
+    const traceContent = await readFile(
+      path.join(testDir, 'transcript-case', 'outputs', 'trace.json'),
+    );
+    const transcriptContent = await readFile(transcriptPath);
+    const traceSha = sha256Hex(traceContent);
+    const transcriptSha = sha256Hex(transcriptContent);
+
+    expect(indexLine.artifact_pointers.trace).toMatchObject({
+      ref: AGENTV_RESULTS_ARTIFACTS_REF,
+      key: 'traces/transcript-case/outputs/trace.json',
+      object_version: `sha256:${traceSha}`,
+      path: 'transcript-case/outputs/trace.json',
+      sha256: traceSha,
+      size: traceContent.byteLength,
+      schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
+      media_type: TRACE_JSON_MEDIA_TYPE,
+      family: 'traces',
+    });
+    expect(indexLine.artifact_pointers.transcript).toMatchObject({
+      ref: AGENTV_RESULTS_ARTIFACTS_REF,
+      key: 'transcripts/transcript-case/outputs/transcript.jsonl',
+      object_version: `sha256:${transcriptSha}`,
+      path: 'transcript-case/outputs/transcript.jsonl',
+      sha256: transcriptSha,
+      size: transcriptContent.byteLength,
+      schema_version: TRANSCRIPT_SCHEMA_VERSION,
+      media_type: TRANSCRIPT_JSONL_MEDIA_TYPE,
+      family: 'transcripts',
+    });
+  });
+
+  it('copies optional raw provider logs as non-canonical evidence', async () => {
+    const rawLogPath = path.join(testDir, 'provider-source.log');
+    const rawLog = [
+      '# provider-native stream log',
+      '{"time":"00:00","data":{"camelCaseProviderKey":true,"toolInput":{"filePath":"src/index.ts"}}}',
+      '',
+    ].join('\n');
+    await mkdir(testDir, { recursive: true });
+    await writeFile(rawLogPath, rawLog, 'utf8');
+
+    const results = [
+      makeResult({
+        testId: 'raw-log-case',
+        target: 'codex',
+        output: 'Raw log copied',
+        rawProviderLogPath: rawLogPath,
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'outputs', 'raw', 'provider.log');
+    expect(await readFile(copiedRawLogPath, 'utf8')).toBe(rawLog);
+
+    const transcriptPath = path.join(testDir, 'raw-log-case', 'outputs', 'transcript.jsonl');
+    await expect(readFile(transcriptPath, 'utf8')).resolves.toContain(
+      '"schema_version":"agentv.transcript.v1"',
+    );
+    await expect(
+      readFile(path.join(testDir, 'raw-log-case', 'outputs', 'transcript.json'), 'utf8'),
+    ).rejects.toThrow();
+
+    const envelope = TraceEnvelopeWireSchema.parse(
+      JSON.parse(
+        await readFile(path.join(testDir, 'raw-log-case', 'outputs', 'trace.json'), 'utf8'),
+      ),
+    );
+    expect(envelope.artifacts.raw_provider_log_path).toBe('outputs/raw/provider.log');
+    expect(envelope.artifacts.transcript_path).toBe('outputs/transcript.jsonl');
+
+    const indexLine = JSON.parse(
+      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
+    );
+    expect(indexLine.raw_provider_log_path).toBe('raw-log-case/outputs/raw/provider.log');
+    expect(indexLine.transcript_path).toBe('raw-log-case/outputs/transcript.jsonl');
+    expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
   it('omits per-test transcript links when the execution trace has no transcript rows', async () => {
@@ -945,6 +1094,15 @@ describe('writeArtifactsFromResults', () => {
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('transcript_path');
+    expect(indexLine.artifact_pointers.trace).toMatchObject({
+      ref: AGENTV_RESULTS_ARTIFACTS_REF,
+      key: 'traces/no-transcript-case/outputs/trace.json',
+      path: 'no-transcript-case/outputs/trace.json',
+      schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
+      media_type: TRACE_JSON_MEDIA_TYPE,
+      family: 'traces',
+    });
+    expect(indexLine.artifact_pointers).not.toHaveProperty('transcript');
 
     const envelope = TraceEnvelopeWireSchema.parse(
       JSON.parse(

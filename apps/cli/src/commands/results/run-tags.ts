@@ -7,20 +7,24 @@
  *
  * Wire format (stored on disk):
  * ```json
- * { "tags": ["baseline", "v2-prompt"], "updated_at": "2026-04-10T00:00:00.000Z" }
+ * {
+ *   "tags": ["baseline", "v2-prompt"],
+ *   "updated_at": "2026-04-10T00:00:00.000Z",
+ *   "oplog_watermark": { "ref": "agentv/oplog/v1" }
+ * }
  * ```
  *
  * Used by the Dashboard compare API so users can retroactively tag runs
- * without changing the eval YAML or the run manifest itself. This mirrors
- * the Langfuse / W&B / GitHub `tags` pattern — a mutable multi-valued
- * list of free-form labels that lives alongside the immutable run_id.
+ * without changing the eval YAML or the run manifest itself. Tags are a
+ * mutable multi-valued list of free-form labels that lives alongside the
+ * immutable run_id.
  *
  * Validation rules:
  *   - Each tag is 1–60 characters after trimming
  *   - No control characters (\n, \t, DEL, etc.)
  *   - Tags are deduplicated case-sensitively
  *   - A run can have at most 20 tags
- *   - Writing an empty array removes the sidecar file
+ *   - Writing an empty array records a clear/tombstone state with a watermark
  *
  * To extend (e.g. add colored labels or descriptions): add optional fields
  * to `RunTagsFile` and keep the schema additive so older files still parse.
@@ -28,6 +32,14 @@
 
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+
+import {
+  type RunOplogWatermark,
+  buildRunIdFromRelativePath,
+  createRunTagsSetOperation,
+  normalizeRunOplogWatermark,
+  watermarkFromRunOperation,
+} from './run-oplog.js';
 
 export const RUN_TAGS_FILENAME = 'tags.json';
 
@@ -42,11 +54,23 @@ export interface RunTagsFile {
   tags: string[];
   /** ISO-8601 timestamp of last update. */
   updated_at: string;
+  /** Watermark for the operation-log state this materialized tag list reflects. */
+  oplog_watermark?: RunOplogWatermark;
 }
 
 /** Resolve the tags sidecar path given a run manifest (index.jsonl) path. */
 export function runTagsPath(manifestPath: string): string {
   return path.join(path.dirname(manifestPath), RUN_TAGS_FILENAME);
+}
+
+function inferRunRelativePath(manifestPath: string): string {
+  const runDir = path.dirname(manifestPath);
+  const segments = runDir.split(path.sep);
+  const runsIndex = segments.lastIndexOf('runs');
+  if (runsIndex >= 0 && runsIndex < segments.length - 1) {
+    return segments.slice(runsIndex + 1).join('/');
+  }
+  return path.basename(runDir);
 }
 
 /** Read the tags for a run. Returns `undefined` if missing or unreadable. */
@@ -61,10 +85,11 @@ export function readRunTags(manifestPath: string): RunTagsFile | undefined {
     const tags = record.tags.filter(
       (t): t is string => typeof t === 'string' && t.trim().length > 0,
     );
-    if (tags.length === 0) return undefined;
+    const updatedAt = typeof record.updated_at === 'string' ? record.updated_at : '';
     return {
       tags,
-      updated_at: typeof record.updated_at === 'string' ? record.updated_at : '',
+      updated_at: updatedAt,
+      oplog_watermark: normalizeRunOplogWatermark(record.oplog_watermark, updatedAt || undefined),
     };
   } catch {
     return undefined;
@@ -72,18 +97,22 @@ export function readRunTags(manifestPath: string): RunTagsFile | undefined {
 }
 
 /**
- * Write tags for a run. Replaces any existing tags. Pass an empty array
- * to remove the sidecar entirely.
+ * Write tags for a run. Replaces any existing tags. Pass an empty array to
+ * record that tags were intentionally cleared while preserving the watermark.
  */
-export function writeRunTags(manifestPath: string, tags: readonly string[]): RunTagsFile | null {
+export function writeRunTags(manifestPath: string, tags: readonly string[]): RunTagsFile {
   const cleaned = normalizeTags(tags);
-  if (cleaned.length === 0) {
-    deleteRunTags(manifestPath);
-    return null;
-  }
+  const runPath = inferRunRelativePath(manifestPath);
+  const operation = createRunTagsSetOperation({
+    runId: buildRunIdFromRelativePath(runPath),
+    runPath,
+    tags: cleaned,
+    actor: { kind: 'dashboard' },
+  });
   const entry: RunTagsFile = {
     tags: cleaned,
-    updated_at: new Date().toISOString(),
+    updated_at: operation.authored_at,
+    oplog_watermark: watermarkFromRunOperation(operation),
   };
   writeFileSync(runTagsPath(manifestPath), `${JSON.stringify(entry, null, 2)}\n`, 'utf8');
   return entry;

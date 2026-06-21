@@ -35,6 +35,10 @@ export interface RunMeta {
   pending_tags?: string[];
   /** True when local editable metadata differs from the fetched remote metadata. */
   metadata_dirty?: boolean;
+  /** Materialized final run state consumed by readers instead of folding raw operations. */
+  final_state?: RunFinalState;
+  /** Operation-log watermark for the materialized final state. */
+  oplog_watermark?: RunOplogWatermark;
   /**
    * Live execution status. Only present for Dashboard-launched runs that are
    * still being tracked in-memory — used to render a spinner in RunList
@@ -42,6 +46,17 @@ export interface RunMeta {
    * results have been written yet.
    */
   status?: 'starting' | 'running' | 'finished' | 'failed';
+}
+
+export interface RunOplogWatermark {
+  ref: string;
+  operation_id?: string;
+  updated_at?: string;
+}
+
+export interface RunFinalState {
+  lifecycle: 'active' | 'hidden' | 'deleted';
+  tags: string[];
 }
 
 export interface RunListResponse {
@@ -120,6 +135,103 @@ export interface SourceTraceability {
   referenced_files?: SourceReferencedFile[];
 }
 
+export interface ExternalTraceMetadata {
+  /**
+   * Optional external viewer reference only. AgentV run artifacts remain the
+   * canonical source of truth for Dashboard trace/session details.
+   */
+  provider?: string;
+  project?: string;
+  session_id?: string;
+  trace_id?: string;
+  url?: string;
+}
+
+export interface TraceSessionTokenUsage {
+  input?: number;
+  output?: number;
+  reasoning?: number;
+  cached?: number;
+  total?: number;
+}
+
+export interface TraceSessionSpanStatus {
+  code?: string;
+  message?: string;
+}
+
+export type TraceSessionEventKind = 'annotation' | 'exception' | 'event' | 'score';
+
+export interface TraceSessionEvent {
+  event_id: string;
+  span_id: string;
+  name: string;
+  kind: TraceSessionEventKind;
+  time_unix_nano?: string;
+  timestamp?: string;
+  score?: number;
+  text?: string;
+  passed?: boolean;
+  attributes?: Record<string, unknown>;
+}
+
+export interface TraceSessionSpan {
+  id: string;
+  trace_id?: string;
+  span_id: string;
+  parent_span_id?: string | null;
+  name: string;
+  kind?: string;
+  status?: TraceSessionSpanStatus;
+  start_time_unix_nano?: string;
+  end_time_unix_nano?: string;
+  start_time?: string;
+  end_time?: string;
+  duration_ms?: number;
+  token_usage?: TraceSessionTokenUsage;
+  attributes?: Record<string, unknown>;
+  events?: TraceSessionEvent[];
+}
+
+export interface TraceSessionScore {
+  name: string;
+  type?: string;
+  score: number;
+  weight?: number;
+  verdict?: string;
+  source?: string;
+  evaluated_at?: string;
+  target_span_id?: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface TraceSessionSource {
+  kind?: string;
+  path?: string;
+  provider?: string;
+  format?: string;
+  version?: string;
+  artifact_path?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TraceSessionResponse {
+  schema_version: 'agentv.dashboard.trace_session.v1';
+  artifact_id?: string;
+  created_at?: string;
+  run_id?: string;
+  test_id?: string;
+  suite?: string;
+  target?: string;
+  trace_id?: string;
+  root_span_id?: string;
+  source?: TraceSessionSource;
+  external_trace?: ExternalTraceMetadata;
+  spans: TraceSessionSpan[];
+  events: TraceSessionEvent[];
+  scores?: TraceSessionScore[];
+}
+
 export interface EvalResult {
   testId: string;
   timestamp?: string;
@@ -149,6 +261,8 @@ export interface RunDetailResponse {
   results: EvalResult[];
   source: 'local' | 'remote';
   source_label?: string;
+  final_state?: RunFinalState;
+  oplog_watermark?: RunOplogWatermark;
   /** Live execution status when this run is still tracked in-memory by Dashboard. */
   status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
@@ -174,6 +288,19 @@ export interface SuitesResponse {
 
 export interface EvalDetailResponse {
   eval: EvalResult;
+}
+
+export type TranscriptArtifactStatus = 'ok' | 'missing' | 'dangling' | 'unsupported';
+
+export interface TranscriptArtifactResponse {
+  status: TranscriptArtifactStatus;
+  transcript_path?: string;
+  answer_path?: string;
+  answer_content?: string;
+  content?: string;
+  language?: string;
+  message?: string;
+  pointer?: string;
 }
 
 export interface IndexEntry {
@@ -260,6 +387,8 @@ export interface CompareRunEntry {
   remote_tags?: string[];
   pending_tags?: string[];
   metadata_dirty?: boolean;
+  final_state?: RunFinalState;
+  oplog_watermark?: RunOplogWatermark;
   source: 'local' | 'remote';
   eval_count: number;
   quality_count?: number;
@@ -283,6 +412,8 @@ export interface RunTagsResponse {
   remote_tags?: string[];
   pending_tags?: string[];
   metadata_dirty?: boolean;
+  final_state?: RunFinalState;
+  oplog_watermark?: RunOplogWatermark;
   updated_at: string;
 }
 

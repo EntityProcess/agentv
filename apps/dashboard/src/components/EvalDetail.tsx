@@ -14,8 +14,10 @@ import {
   isPassing,
   projectEvalFileContentOptions,
   projectEvalFilesOptions,
+  projectEvalTranscriptOptions,
   useEvalFileContent,
   useEvalFiles,
+  useEvalTranscript,
   useStudioConfig,
 } from '~/lib/api';
 import type {
@@ -32,12 +34,7 @@ import type { FileNode } from './FileTree';
 import { FileTree } from './FileTree';
 import { MonacoViewer } from './MonacoViewer';
 import { ScoreBar } from './ScoreBar';
-import {
-  TranscriptTimeline,
-  findAnswerPath,
-  findTranscriptPath,
-  parseTranscriptJsonl,
-} from './TranscriptTimeline';
+import { TranscriptTimeline, parseTranscriptJsonl } from './TranscriptTimeline';
 
 interface EvalDetailProps {
   eval: EvalResult;
@@ -457,49 +454,68 @@ function TranscriptTab({
   onOpenFile: (path: string) => void;
 }) {
   const evalId = result.testId;
-  const { data: filesData, isLoading: isLoadingFiles } = projectId
-    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId))
-    : useEvalFiles(runId, evalId);
-  const files = filesData?.files ?? [];
-  const transcriptPath = findTranscriptPath(files);
-  const answerPath = findAnswerPath(files);
-
-  const { data: transcriptContentData, isLoading: isLoadingTranscript } = projectId
-    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, transcriptPath ?? ''))
-    : useEvalFileContent(runId, evalId, transcriptPath ?? '');
-  const { data: answerContentData } = projectId
-    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, answerPath ?? ''))
-    : useEvalFileContent(runId, evalId, answerPath ?? '');
+  const {
+    data: transcriptData,
+    isLoading: isLoadingTranscript,
+    error: transcriptError,
+  } = projectId
+    ? useQuery(projectEvalTranscriptOptions(projectId, runId, evalId))
+    : useEvalTranscript(runId, evalId);
+  const transcriptPath = transcriptData?.transcript_path;
+  const answerPath = transcriptData?.answer_path;
+  const transcriptContent = transcriptData?.status === 'ok' ? (transcriptData.content ?? '') : '';
 
   const parsedTranscript = useMemo(
-    () => parseTranscriptJsonl(transcriptContentData?.content ?? ''),
-    [transcriptContentData?.content],
+    () => parseTranscriptJsonl(transcriptContent),
+    [transcriptContent],
   );
 
-  if (isLoadingFiles) {
+  if (isLoadingTranscript) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4 text-sm text-gray-500">
-        Loading transcript artifacts...
+        Loading transcript artifact...
       </div>
     );
   }
 
-  if (!transcriptPath) {
+  if (transcriptError) {
+    return (
+      <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-4">
+        <h3 className="text-sm font-medium text-red-300">Transcript could not be loaded</h3>
+        <p className="mt-2 text-sm text-gray-300">{transcriptError.message}</p>
+      </div>
+    );
+  }
+
+  if (!transcriptData || transcriptData.status === 'missing') {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
         <p className="mt-2 text-sm text-gray-500">
-          This run does not include canonical <code>outputs/transcript.jsonl</code>. Dashboard does
-          not parse <code>response.md</code> or markdown transcripts for this view.
+          {transcriptData?.message ??
+            'This run does not include canonical outputs/transcript.jsonl. Dashboard does not parse response.md or markdown transcripts for this view.'}
         </p>
       </div>
     );
   }
 
-  if (isLoadingTranscript) {
+  if (transcriptData.status === 'dangling' || transcriptData.status === 'unsupported') {
     return (
-      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4 text-sm text-gray-500">
-        Loading <code>{transcriptPath}</code>...
+      <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-4">
+        <h3 className="text-sm font-medium text-amber-300">
+          {transcriptData.status === 'dangling'
+            ? 'Transcript artifact unavailable'
+            : 'Transcript pointer unsupported'}
+        </h3>
+        <p className="mt-2 text-sm text-gray-300">
+          {transcriptData.message ?? 'The transcript artifact could not be resolved.'}
+        </p>
+        {transcriptPath ? (
+          <p className="mt-2 font-mono text-xs text-gray-500">{transcriptPath}</p>
+        ) : null}
+        {transcriptData.pointer ? (
+          <p className="mt-2 font-mono text-xs text-gray-500">{transcriptData.pointer}</p>
+        ) : null}
       </div>
     );
   }
@@ -510,27 +526,31 @@ function TranscriptTab({
         <h3 className="text-sm font-medium text-red-300">Transcript could not be parsed</h3>
         <p className="mt-2 text-sm text-gray-300">{parsedTranscript.error}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onOpenFile(transcriptPath)}
-            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
-          >
-            Open raw JSONL in Files
-          </button>
-          <a
-            href={artifactFileContentUrl({
-              projectId,
-              runId,
-              evalId,
-              filePath: transcriptPath,
-              raw: true,
-            })}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md px-3 py-1.5 text-sm text-cyan-400 transition-colors hover:text-cyan-300 hover:underline"
-          >
-            Open raw JSONL
-          </a>
+          {transcriptPath ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onOpenFile(transcriptPath)}
+                className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
+              >
+                Open raw JSONL in Files
+              </button>
+              <a
+                href={artifactFileContentUrl({
+                  projectId,
+                  runId,
+                  evalId,
+                  filePath: transcriptPath,
+                  raw: true,
+                })}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md px-3 py-1.5 text-sm text-cyan-400 transition-colors hover:text-cyan-300 hover:underline"
+              >
+                Open raw JSONL
+              </a>
+            </>
+          ) : null}
         </div>
       </div>
     );
@@ -550,25 +570,29 @@ function TranscriptTab({
   const answerHref = answerPath
     ? artifactFileContentUrl({ projectId, runId, evalId, filePath: answerPath, raw: true })
     : undefined;
-  const transcriptHref = artifactFileContentUrl({
-    projectId,
-    runId,
-    evalId,
-    filePath: transcriptPath,
-    raw: true,
-  });
-  const transcriptDownloadHref = artifactFileContentUrl({
-    projectId,
-    runId,
-    evalId,
-    filePath: transcriptPath,
-    download: true,
-  });
+  const transcriptHref = transcriptPath
+    ? artifactFileContentUrl({
+        projectId,
+        runId,
+        evalId,
+        filePath: transcriptPath,
+        raw: true,
+      })
+    : undefined;
+  const transcriptDownloadHref = transcriptPath
+    ? artifactFileContentUrl({
+        projectId,
+        runId,
+        evalId,
+        filePath: transcriptPath,
+        download: true,
+      })
+    : undefined;
 
   return (
     <TranscriptTimeline
       entries={parsedTranscript.entries}
-      finalAnswer={answerPath ? (answerContentData?.content ?? result.output) : undefined}
+      finalAnswer={answerPath ? (transcriptData.answer_content ?? result.output) : undefined}
       answerPath={answerPath}
       transcriptPath={transcriptPath}
       answerHref={answerHref}

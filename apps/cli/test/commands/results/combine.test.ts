@@ -14,6 +14,13 @@ function toJsonl(...records: object[]): string {
   return `${records.map((record) => JSON.stringify(record)).join('\n')}\n`;
 }
 
+function readIndex(filePath: string): Record<string, unknown>[] {
+  return readFileSync(filePath, 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
 const result = (overrides: Record<string, unknown> = {}) => ({
   timestamp: '2026-06-01T10:00:00.000Z',
   test_id: 'test-a',
@@ -85,6 +92,108 @@ describe('results combine', () => {
       metadata: { timestamp: string };
     };
     expect(benchmark.metadata.timestamp).toBe('2026-06-01T10:00:00.000Z');
+  });
+
+  it('copies and rewrites artifact pointers when combining runs', () => {
+    const first = seedRun('run-a', [
+      result({
+        artifact_dir: 'demo/test-a',
+        transcript_path: 'demo/test-a/outputs/transcript.jsonl',
+        raw_provider_log_path: 'demo/test-a/outputs/raw/provider.log',
+        artifact_pointers: {
+          trace: {
+            ref: 'agentv/artifacts/v1',
+            key: 'traces/demo/test-a/outputs/trace.json',
+            object_version: 'sha256:trace',
+            path: 'demo/test-a/outputs/trace.json',
+            sha256: 'trace',
+            size: 18,
+            schema_version: 'agentv.trace.v1',
+            media_type: 'application/vnd.agentv.trace.v1+json',
+            family: 'traces',
+          },
+          transcript: {
+            ref: 'agentv/artifacts/v1',
+            key: 'transcripts/demo/test-a/outputs/transcript.jsonl',
+            object_version: 'sha256:transcript',
+            path: 'demo/test-a/outputs/transcript.jsonl',
+            sha256: 'transcript',
+            size: 180,
+            schema_version: 'agentv.transcript.v1',
+            media_type: 'application/x-ndjson',
+            family: 'transcripts',
+          },
+        },
+      }),
+    ]);
+    mkdirSync(path.join(first, 'demo', 'test-a', 'outputs', 'raw'), { recursive: true });
+    writeFileSync(path.join(first, 'demo', 'test-a', 'outputs', 'trace.json'), '{"trace":[]}\n');
+    writeFileSync(
+      path.join(first, 'demo', 'test-a', 'outputs', 'transcript.jsonl'),
+      `${JSON.stringify({
+        schema_version: 'agentv.transcript.v1',
+        test_id: 'test-a',
+        target: 'mock',
+        message_index: 0,
+        role: 'assistant',
+        content: 'Pointer-backed transcript',
+        source: { provider: 'mock', session_id: 'session-a' },
+      })}\n`,
+    );
+    writeFileSync(
+      path.join(first, 'demo', 'test-a', 'outputs', 'raw', 'provider.log'),
+      '{"event":"provider-native"}\n',
+    );
+    const second = seedRun('run-b', [
+      result({
+        timestamp: '2026-06-01T11:00:00.000Z',
+        test_id: 'test-b',
+        grading_path: 'demo/test-b/grading.json',
+        timing_path: 'demo/test-b/timing.json',
+      }),
+    ]);
+    mkdirSync(path.join(second, 'demo', 'test-b'), { recursive: true });
+    writeFileSync(path.join(second, 'demo', 'test-b', 'grading.json'), '{"assertions":[]}\n');
+    writeFileSync(
+      path.join(second, 'demo', 'test-b', 'timing.json'),
+      '{"duration_ms":0,"total_duration_seconds":0,"total_tokens":0,"token_usage":{}}\n',
+    );
+
+    const combined = combineRunSources({
+      cwd: tempDir,
+      sources: buildCombineRunSources([first, second], tempDir),
+      duplicatePolicy: 'error',
+    });
+
+    const [record] = readIndex(combined.manifestPath);
+    expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
+    expect(record.transcript_path).toBe('sources/source-1/demo/test-a/outputs/transcript.jsonl');
+    expect(record.raw_provider_log_path).toBe(
+      'sources/source-1/demo/test-a/outputs/raw/provider.log',
+    );
+    expect(record.artifact_pointers).toMatchObject({
+      trace: {
+        key: 'traces/sources/source-1/demo/test-a/outputs/trace.json',
+        path: 'sources/source-1/demo/test-a/outputs/trace.json',
+      },
+      transcript: {
+        key: 'transcripts/sources/source-1/demo/test-a/outputs/transcript.jsonl',
+        path: 'sources/source-1/demo/test-a/outputs/transcript.jsonl',
+      },
+    });
+    expect(
+      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/trace.json')),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/transcript.jsonl'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/raw/provider.log'),
+      ),
+    ).toBe(true);
   });
 
   it('errors on duplicate rows unless latest is explicit', () => {
