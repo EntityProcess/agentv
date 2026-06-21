@@ -294,6 +294,39 @@ describe('results export', () => {
     expect(serialized).not.toContain('SECRET_SCORE_EVIDENCE');
   });
 
+  it('builds projection bundles when grader scores omit assertion arrays', () => {
+    const sourceFile = path.join(tempDir, 'runs', 'legacy-grader-run', 'index.jsonl');
+    const [result] = parseJsonlResults(
+      toJsonl({
+        ...RESULT_FULL,
+        scores: [
+          {
+            name: 'legacy_grader',
+            type: 'llm-grader',
+            score: 1,
+          },
+        ],
+      }),
+    );
+
+    const bundle = buildProjectionBundle([result], {
+      sourceFile,
+      runId: 'legacy-grader-run',
+      cwd: tempDir,
+    });
+
+    expect(bundle.entries[0].feedback.scores?.[0]).toMatchObject({
+      name: 'legacy_grader',
+      type: 'llm-grader',
+      score: 1,
+    });
+    expect(bundle.entries[0].trace_envelope.scores?.[0]).toMatchObject({
+      name: 'legacy_grader',
+      type: 'llm-grader',
+      score: 1,
+    });
+  });
+
   it('includes raw prompt, output, tool payloads, and score evidence only with opt-in', () => {
     const sourceFile = path.join(tempDir, 'runs', 'privacy-run', 'index.jsonl');
     const [result] = parseJsonlResults(toJsonl(RESULT_WITH_RAW_PAYLOADS));

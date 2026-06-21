@@ -775,7 +775,7 @@ function scoresFromResult(
     targetSpanId,
     evidence: dropUndefined({
       span_ids: [targetSpanId],
-      assertions: score.assertions.map((assertion) =>
+      assertions: (score.assertions ?? []).map((assertion) =>
         dropUndefined({
           text: assertion.text,
           passed: assertion.passed,
