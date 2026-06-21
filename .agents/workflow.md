@@ -77,6 +77,7 @@ Issue and tracker workflow:
 - Mark tracker items complete only after the scoped work is complete, verified, merged to `main` through a PR, and documented with verification evidence.
 - If the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the parent tracker item. Keep the child item open or in progress until the PR is merged or explicitly superseded.
 - If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This does not override the rule against pushing directly to `main`.
+- Do not merge feature, worker, or integration branches into local `main` to stage completion. If multiple branches need integration, create an integration branch, push it, and review it through a PR.
 
 GitHub issue flow:
 
@@ -97,7 +98,7 @@ gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue
 ```
 
 - Complete E2E verification before marking a PR ready for review.
-- Never push directly to `main`; always use branches and PRs.
+- Never push directly to `main`, force-push `main`, or merge work into `main` outside GitHub. Every change that reaches `main` must go through a PR with GitHub Actions as the merge gate.
 - GitHub Issues and Projects are external collaboration surfaces, not a substitute for operator-supplied tracker state unless explicitly directed.
 - `bug` marks defects. Issues without `bug` are non-bug work by default.
 - `core`, `wui`, and `tui` are area labels.
@@ -106,6 +107,8 @@ gh pr create --draft --title "<type>(scope): description" --body "Closes #<issue
 
 Pull requests and merges:
 
+- For large or high-risk PRs, keep the PR branch history reviewable: use one meaningful commit per coherent feature, fix, test, docs update, or review-fix slice. Avoid hiding unrelated work behind a single local merge commit or vague "integration" commit.
+- Before marking a large PR ready, replace WIP commits, accidental squash commits, or noisy merge commits on the PR branch with meaningful commits. Use `git push --force-with-lease` only on the PR branch after confirming no one else owns that branch.
 - Always use squash merge when merging PRs to `main`.
 
 ```bash

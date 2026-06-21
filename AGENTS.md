@@ -29,8 +29,10 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - Use `bun` for package and script operations.
 - Use the operator-supplied tracker when present. Do not commit tracker runtime state, local coordination config, or other machine-local artifacts.
 - Do not use `git stash` on shared checkouts. Stage explicit paths only, and never push directly to `main`.
+- Every merge to `main` requires a GitHub pull request with passing GitHub Actions. Do not locally merge feature or integration branches into `main` as a substitute for opening a PR.
 - Prefer the primary checkout only for small, clean, bounded work. Use a dedicated worktree from the latest `origin/main` for non-trivial, risky, long-running, or parallel changes.
 - Non-trivial work needs a plan or task list. If the implementation surface starts to balloon, stop and re-plan.
+- Large or high-risk PRs need meaningful, reviewable commits for each coherent change. Rewrite only the PR branch with `git push --force-with-lease` when needed to replace WIP or accidental squashed history before review.
 - Manual red/green UAT is blocking before a branch is ready for review. GitHub Actions is the authoritative merge gate.
 - For browser or screenshot UAT, keep evidence out of the public repo and publish reviewable artifacts to an `agentv-private` evidence branch. See [.agents/verification.md](.agents/verification.md).
 - Wire formats are `snake_case`; internal TypeScript is `camelCase`. Translate only at the boundary.
