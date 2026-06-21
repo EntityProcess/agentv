@@ -9,13 +9,18 @@ function usage(): string {
   return `Usage:
   bun src/cli.ts run --dry-run [--agentv-root ../agentv] [--filter features/assert] [--eval-file path] [--out reports/dry-run.json]
 
+Boundary note:
+  Internal legacy fixture only. AgentV does not export/project completed runs,
+  traces, transcripts, datasets, experiments, or indexes into Phoenix.
+  Dashboard does not depend on Phoenix, px, or Phoenix database tables.
+
 Options:
   --agentv-root <path>       Source AgentV checkout. Defaults to AGENTV_ROOT or ../agentv.
   --eval-file <path>         Run one eval source.
   --filter <text>            Run sources whose repo-relative path contains text.
-  --dry-run                  Convert and verify without contacting Phoenix.
+  --dry-run                  Build and verify a legacy in-memory report without contacting Phoenix.
   --out <path>               JSON report path. Defaults to reports/phoenix-report.json.
-  --namespace <name>         Phoenix dataset name prefix.
+  --namespace <name>         Legacy Phoenix dataset name prefix for internal fixture runs.
   --fail-on-unsupported      Treat unsupported features as failures.
 `;
 }

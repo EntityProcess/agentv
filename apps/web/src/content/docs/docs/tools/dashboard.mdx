@@ -41,6 +41,19 @@ agentv dashboard --dir /path/to/project
 
 Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/runs/` tree, plus an external results repository or run directory configured under `results:` in YAML. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
 
+## Data boundary
+
+Dashboard is the supported zero-infra inspection path for AgentV-owned runs,
+trace sidecars, transcripts, sessions, and Git-backed result artifacts. It does
+not require Phoenix, the `px` CLI, a Phoenix database, or a hosted Dashboard
+service.
+
+If a trace artifact includes safe `external_trace` metadata for spans that were
+already emitted to Phoenix by Codex, Arize, or another hook, Dashboard may show
+that external reference. AgentV still treats the local/Git-backed run artifacts
+as canonical and does not export or project completed runs, transcripts,
+datasets, experiments, or indexes into Phoenix.
+
 ## Options
 
 | Option | Description |

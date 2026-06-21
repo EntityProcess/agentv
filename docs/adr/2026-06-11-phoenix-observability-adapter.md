@@ -2,7 +2,13 @@
 
 Date: 2026-06-11
 
-Status: Proposed
+Status: Superseded in part by [2026-06-21 Phoenix read-only correlation boundary](2026-06-21-phoenix-read-only-correlation-boundary.md)
+
+This ADR remains useful for the narrower point that Phoenix-specific behavior
+does not belong in `packages/core`. Its earlier allowance for Phoenix dataset,
+experiment, trace import/export helpers is superseded: Phoenix is now read-only
+correlation/read-through for externally emitted traces, not an AgentV artifact
+projection target.
 
 ## Context
 
@@ -14,7 +20,7 @@ Relevant existing seams already point in this direction:
 
 - Provider and grader registries support narrow registration points.
 - `.agentv/providers/`, `.agentv/assertions/`, and `.agentv/graders/` use convention-based local discovery instead of a broad plugin host.
-- `packages/phoenix-adapter/` already keeps Phoenix dataset and experiment behavior outside core and reports unsupported mappings explicitly.
+- Earlier `packages/phoenix-adapter/` experiments kept Phoenix-specific behavior outside core and reported unsupported mappings explicitly. That experiment is not the supported product path for AgentV completed runs or transcripts.
 - The trace evaluation plan requires generic OTLP/OpenInference mapping without Phoenix-specific assumptions in core.
 
 ## Decision
@@ -33,13 +39,15 @@ Phoenix integration should live outside core behind an adapter boundary, current
 
 - a Phoenix OTel backend resolver;
 - Phoenix/OpenInference span-kind mapping;
-- Phoenix trace import/export helpers;
-- Phoenix dataset and experiment helpers;
+- read-only Phoenix GraphQL/API helpers for externally emitted trace/session correlation;
 - explicit unsupported/lossy mapping reports.
 
 ## Minimal extension seam
 
-If `--otel-backend phoenix` needs first-class ergonomics, add the smallest observability backend extension seam rather than hard-coding Phoenix in core.
+Historical note: this ADR originally considered a first-class `--otel-backend phoenix`
+ergonomics path. That must not be used to make Phoenix a Dashboard dependency or
+an AgentV-owned artifact destination. Any future Phoenix work should be framed as
+read-only correlation/read-through for externally emitted spans.
 
 A resolver should be approximately:
 
@@ -64,7 +72,7 @@ Registration/discovery should remain boring and local-first. In this ADR, "plugi
 - keep `execution.otel_backend: <name>` and `--otel-backend <name>` as the user-facing selectors;
 - do not add package names, package auto-installation, a remote marketplace, trust prompts, or a general-purpose plugin host for this need.
 
-The Phoenix adapter can then expose a resolver, for example `phoenixOtelBackend`, and users can opt in from project config or a local `.agentv/otel-backends/phoenix.mjs` file. Reusable npm packages can come later only if repeated project-local resolver files become real friction.
+The earlier prototype exposed a resolver, for example `phoenixOtelBackend`, so users could opt in from project config or a local `.agentv/otel-backends/phoenix.mjs` file. Treat that as a custom/legacy path, not as the supported AgentV-to-Phoenix product boundary.
 
 ## Migration path for Phoenix
 
@@ -74,7 +82,7 @@ The Phoenix adapter can then expose a resolver, for example `phoenixOtelBackend`
    - `--otel-file` for offline OTLP JSON export
 2. Add a tiny backend resolver seam only if ergonomic backend names are needed.
 3. Implement Phoenix endpoint/header/project routing in the Phoenix adapter boundary, not in core.
-4. Keep Phoenix dataset, experiment, and trace-source behavior in `packages/phoenix-adapter/`.
+4. Keep any Phoenix read-through behavior outside core and behind Phoenix GraphQL/API.
 5. Consider moving existing vendor-specific core presets to the same resolver model later, but do not couple that cleanup to the Phoenix decision unless the implementation already touches the preset registry.
 
 ## Consequences
@@ -83,19 +91,19 @@ Positive:
 
 - Keeps core aligned with AgentV's lightweight-core and composition principles.
 - Prevents Phoenix concepts from leaking into the generic trace model.
-- Gives Phoenix users an ergonomic path without blocking generic OTLP users.
+- Gives Phoenix users a read-only correlation path without blocking generic OTLP users.
 - Reuses AgentV's existing pattern of narrow registries and convention-based local discovery.
 
 Negative:
 
-- `--otel-backend phoenix` requires a small extension seam or adapter shim instead of a one-line core preset.
+- Any maintained Phoenix OTel resolver must stay outside the zero-infra Dashboard path.
 - Existing vendor presets in core remain an architectural inconsistency until migrated.
 - Package-level resolver sharing may need a future decision if many backend adapters emerge.
 
 ## Tracker impact
 
-- `av-vwa.6` remains valid: core should map trace artifacts to and from generic OTLP/OpenInference shapes, while Phoenix-specific dataset, experiment, project, and span-kind behavior stays in adapter space.
-- `av-vwa.6.1` should be revised from adding a Phoenix preset in core to adding the minimal observability backend extension seam plus a Phoenix resolver in the Phoenix adapter. If the extension seam is not approved, defer the bead and document generic OTLP environment-variable configuration for Phoenix instead.
+- `av-vwa.6` remains valid only for generic trace artifacts and OTLP/OpenInference shapes. Phoenix-specific read-through stays outside core and must not become AgentV-to-Phoenix artifact projection.
+- `av-vwa.6.1` is superseded as a Phoenix preset/resolver task unless it is reframed under the read-only external-trace correlation boundary.
 
 ## Open questions
 

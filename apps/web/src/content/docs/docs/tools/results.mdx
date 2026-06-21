@@ -123,6 +123,11 @@ span references, score provenance, artifact-relative paths, capture/redaction
 summary, and conversion warnings. It does not call Phoenix, Opik, Braintrust,
 Langfuse, Hugging Face, or any other live service.
 
+Do not use `results export` as an AgentV-to-Phoenix path. Phoenix is read-only
+external trace correlation only when safe `external_trace` metadata points at
+spans emitted independently; AgentV does not project completed runs, traces,
+transcripts, datasets, experiments, or indexes into Phoenix.
+
 For adapter development and CI snapshots, use dry-run mode:
 
 ```bash

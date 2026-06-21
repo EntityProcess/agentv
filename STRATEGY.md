@@ -1,6 +1,6 @@
 ---
 name: AgentV
-last_updated: 2026-06-19
+last_updated: 2026-06-21
 ---
 
 # AgentV Strategy
@@ -11,7 +11,7 @@ Teams evaluating coding agents and other tool-using workflows need results from 
 
 ## Our approach
 
-AgentV stays repo-native and workspace-native: it runs or imports evaluations around the user's existing harness, writes portable run artifacts, and keeps core primitives focused on execution, grading, routing, and results storage. It integrates outward through clear adapter boundaries so teams can use Phoenix for experiment and trace UI, Harbor for benchmark-grade execution, and post-run/export adapters for adjacent systems without AgentV trying to own every layer.
+AgentV stays repo-native and workspace-native: it runs or imports evaluations around the user's existing harness, writes portable run artifacts, and keeps core primitives focused on execution, grading, routing, and results storage. It integrates outward through clear boundaries: Phoenix can be correlated with as an optional external trace database when spans were emitted independently, Harbor can provide benchmark-grade execution, and post-run/export adapters can serve adjacent systems without AgentV trying to own every layer.
 
 ## Who it's for
 
@@ -40,7 +40,7 @@ _Why it serves the approach:_ Portable artifacts let local runs, CI, static repo
 
 ### Adapter-led integrations
 
-Add Phoenix, Harbor, Opik, Langfuse, and similar systems through narrow adapter, runner, or export boundaries rather than copying their product models into core.
+Add Phoenix, Harbor, Opik, Langfuse, and similar systems through narrow correlation, runner, adapter, or export boundaries rather than copying their product models into core. For Phoenix specifically, the supported boundary is read-only correlation/read-through from safe `external_trace` metadata; AgentV does not export or project completed runs, traces, transcripts, datasets, experiments, or indexes into Phoenix.
 
 _Why it serves the approach:_ This expands AgentV's reach without turning it into a hosted observability stack, benchmark platform, or integration kitchen sink.
 
@@ -53,5 +53,7 @@ _Why it serves the approach:_ The product wins when the core primitives make rea
 ## Not working on
 
 - Rebuilding Phoenix, Opik, Langfuse, or similar experiment and trace UIs inside AgentV.
+- Exporting or projecting AgentV-owned completed runs, traces, transcripts, datasets, experiments, or indexes into Phoenix.
+- Making Phoenix, the `px` CLI, or Phoenix database tables part of the zero-infra local Dashboard path.
 - Owning Harbor's benchmark packaging, verifier images, or suite-specific runtime contracts inside AgentV core.
 - Expanding AgentV into a generic benchmark catalog or a general-purpose dashboard platform when repo-native evals, static artifacts, and adapters already cover the job.

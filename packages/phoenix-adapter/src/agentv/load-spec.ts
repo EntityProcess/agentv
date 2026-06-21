@@ -73,9 +73,10 @@ function collectUnsupported(
  *
  * AgentV eval YAML remains the source of truth: this adapter delegates case expansion,
  * external case files, assertion parsing, Agent Skills `evals.json`, interpolation, and
- * metadata handling to `@agentv/core`'s loader, then projects the result into Phoenix
- * dataset examples. Add Phoenix-specific behavior after this boundary rather than
- * duplicating AgentV YAML semantics in the adapter.
+ * metadata handling to `@agentv/core`'s loader, then normalizes the result for
+ * the legacy Phoenix mapping fixture. This is not an AgentV-to-Phoenix completed
+ * run export path; keep production Phoenix work read-only through external_trace
+ * correlation.
  */
 export async function loadAgentVEvalSuite(source: AgentVSource): Promise<NormalizedSuite> {
   if (!existsSync(source.path)) {

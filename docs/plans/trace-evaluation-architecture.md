@@ -16,6 +16,13 @@ namespace for persisted trace sidecars. The trace read-model contract in
 this older plan is a derived internal projection over that artifact, not a
 separate versioned document that users produce.
 
+Update, 2026-06-21: Phoenix-specific parts of this older plan are superseded by
+the read-only Phoenix correlation boundary in
+[docs/adr/2026-06-21-phoenix-read-only-correlation-boundary.md](../adr/2026-06-21-phoenix-read-only-correlation-boundary.md).
+Do not use U4 or the Phoenix dataset/experiment notes below as current product
+scope. AgentV does not export or project completed runs, traces, transcripts,
+datasets, experiments, or indexes into Phoenix.
+
 ---
 
 ## Problem Frame
@@ -40,7 +47,7 @@ The best-practice direction is clear: larger players own trace stores, dashboard
 
 - R6. AgentV OTLP export must continue to emit standards-aligned GenAI spans, especially `invoke_agent`, `chat`, and `execute_tool` operations.
 - R7. AgentV must map trace artifacts to and from OTLP/OpenInference-style traces without making Phoenix-specific assumptions in core.
-- R8. Phoenix integration must use AgentV as the eval-definition and grader layer while Phoenix remains the trace/dataset/experiment backend.
+- R8. Phoenix integration, if present, must be read-only correlation/read-through for externally emitted traces; Phoenix must not become the AgentV trace, dataset, experiment, transcript, or index backend.
 - R9. Unsupported or lossy mappings must be explicit in conversion reports instead of silently approximated.
 
 **Post-Hoc Trace And Transcript Evaluation**
@@ -76,7 +83,7 @@ The best-practice direction is clear: larger players own trace stores, dashboard
 ## Key Technical Decisions
 
 - **Start from realistic characterization evals:** The first implementation phase should collect a small set of real trace fixtures and write evals that answer useful agent-quality questions. The trace artifact contract should be pressure-tested by those evals before broad schema or adapter work expands.
-- **Normalize first, grade second:** Graders should consume AgentV's trace artifact contract. Importers translate raw sources into the contract; exporters translate the contract into OTLP/OpenInference/Phoenix shapes. This avoids coupling graders to Phoenix, Pi, VS Code, or provider-specific logs.
+- **Normalize first, grade second:** Graders should consume AgentV's trace artifact contract. Importers translate raw sources into the contract; exporters translate the contract into backend-neutral OTLP/OpenInference shapes. This avoids coupling graders to Phoenix, Pi, VS Code, or provider-specific logs.
 - **OTel is an interchange layer, not the canonical model:** VS Code and industry tooling make OTLP/HTTP and GenAI span semantics important, but entireio-style logs and Pi sessions prove valuable traces are often transcript or lifecycle JSON. AgentV should support OTel strongly without making it mandatory.
 - **Tool sequence grading is turn-centric, not span-centric:** The trace artifact should model sessions, turns, messages, tool calls, tool results, and selected branches as a projection over the canonical trace artifact.
 - **Coding-agent transcripts are trace sources:** `agentv import claude`, `agentv import codex`, `agentv import copilot`, and `agentv eval --transcript` already establish transcript import as offline grading infrastructure. The architecture should extend that path into trace artifact normalization instead of creating a separate trace-only mechanism.
@@ -201,13 +208,13 @@ The exact schema belongs in implementation, but these concepts should be stable:
 - **Test Scenarios:** Import an AgentV OTLP file into a trace artifact, export it back, and verify tool call order, call IDs, token usage, durations, redaction state, and grader score events survive when representable.
 - **Verification:** `agentv trace show` and `agentv trace score` should work from OTLP artifacts without requiring an `agentv.score` attribute for trace-only evaluation.
 
-### U4. Phoenix Adapter Trace Evaluation Path
+### U4. Phoenix Read-Only Correlation Path
 
-- **Goal:** Extend the Phoenix integration so Phoenix can be a trace source and experiment backend while AgentV remains the grader/eval definition layer.
-- **Files:** `packages/phoenix-adapter/src/`, `packages/phoenix-adapter/docs/support-matrix.md`, `packages/phoenix-adapter/docs/e2e-verification.md`, related CLI entry points if promoted beyond package scripts.
-- **Patterns:** Keep unsupported mappings visible, as the current Phoenix adapter already does. Do not move Phoenix-specific dataset or experiment concepts into AgentV core.
-- **Test Scenarios:** Convert a Phoenix/OTLP trace export into trace artifacts, run deterministic trace graders, report unsupported evaluator families, and emit a Phoenix experiment/report with AgentV grader results where supported.
-- **Verification:** Dry-run conversion must work offline. Live Phoenix smoke can remain a separately documented manual check.
+- **Goal:** Superseded for this plan by the 2026-06-21 Phoenix boundary ADR. Phoenix can be an external trace reference when spans were emitted independently, but it is not an AgentV trace, dataset, experiment, transcript, or index backend.
+- **Files:** Future read-through belongs outside core and should use Phoenix GraphQL/API plus safe `external_trace` metadata.
+- **Patterns:** Keep AgentV artifacts canonical. Do not add AgentV-to-Phoenix export/projection, direct Phoenix database access, `px` runtime requirements, or Phoenix-owned indexes.
+- **Test Scenarios:** Future read-through should prove missing Phoenix state degrades cleanly and that secrets are not surfaced from `external_trace` metadata.
+- **Verification:** Dashboard and AgentV result inspection must continue to work without Phoenix installed or running.
 
 ### U5. Pi Session Importer
 
@@ -338,7 +345,7 @@ Outside this product's identity:
 - **Lossy imports:** Some sources lack tool timing, outputs, status, or branch data. Mitigation: record provenance and warning metadata instead of fabricating precision.
 - **Artifact size:** Full trace artifacts can be large. Mitigation: keep compact summaries as default result metadata and store full trace artifacts as optional sidecar artifacts.
 - **Privacy mistakes:** Tool args/results may contain secrets or PII. Mitigation: default to redacted content and centralize capture policy.
-- **Phoenix scope creep:** It is tempting to mirror Phoenix concepts in core. Mitigation: keep Phoenix-specific dataset and experiment behavior in `packages/phoenix-adapter/`.
+- **Phoenix scope creep:** It is tempting to mirror Phoenix concepts in core. Mitigation: keep Phoenix read-through outside core, read-only, and driven by safe `external_trace` metadata; do not add Phoenix dataset or experiment projection.
 
 ---
 

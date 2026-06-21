@@ -1,6 +1,16 @@
 # Phoenix Adapter Support Matrix
 
-This workspace converts AgentV example evals into Phoenix dataset and experiment payloads.
+This is an internal legacy support matrix for the earlier deterministic
+YAML-to-Phoenix adapter fixture. It is not the supported AgentV product path:
+AgentV does not export or project completed runs, traces, transcripts, datasets,
+experiments, or indexes into Phoenix.
+
+The current supported Phoenix boundary is read-only correlation/read-through
+from safe `external_trace` metadata when Codex, Arize, or another hook already
+emitted spans independently.
+
+If the legacy fixture is run for internal parity checks, its deterministic
+coverage is:
 
 | AgentV family | Phoenix status |
 | --- | --- |
@@ -20,4 +30,6 @@ This workspace converts AgentV example evals into Phoenix dataset and experiment
 | `trial-output-consistency` | Reported as unsupported in first pass |
 | Other custom families | Reported as unsupported with the family name |
 
-Unsupported does not block conversion unless `--fail-on-unsupported` is set. The report keeps unsupported families visible so parity gaps are explicit.
+Unsupported does not block legacy fixture conversion unless
+`--fail-on-unsupported` is set. The report keeps unsupported families visible so
+parity gaps are explicit.

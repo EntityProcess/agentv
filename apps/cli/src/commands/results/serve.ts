@@ -2624,7 +2624,8 @@ function resolveStudioDistDir(): string | undefined {
 
 export const resultsServeCommand = command({
   name: 'dashboard',
-  description: 'Start AgentV Dashboard — a local dashboard for reviewing evaluation results',
+  description:
+    'Start AgentV Dashboard - the zero-infra local viewer for AgentV-owned result artifacts',
   args: {
     source: positional({
       type: optional(string),
