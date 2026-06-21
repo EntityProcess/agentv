@@ -135,6 +135,171 @@ class PhoenixReadError extends Error {
   }
 }
 
+const PHOENIX_LINKED_SESSION_GRAPHQL_FIELDS = `
+  fragment AgentVPhoenixSpanFields on Span {
+    id
+    spanId
+    parentId
+    name
+    spanKind
+    statusCode: propagatedStatusCode
+    startTime
+    endTime
+    latencyMs
+    input {
+      value
+      truncatedValue
+      mimeType
+    }
+    output {
+      value
+      truncatedValue
+      mimeType
+    }
+    attributes
+    tokenCountTotal
+    tokenCountPrompt
+    tokenCountCompletion
+    cumulativeTokenCountTotal
+    cumulativeTokenCountPrompt
+    cumulativeTokenCountCompletion
+    costSummary {
+      prompt {
+        cost
+        tokens
+      }
+      completion {
+        cost
+        tokens
+      }
+      total {
+        cost
+        tokens
+      }
+    }
+    spanAnnotations {
+      id
+      name
+      annotatorKind
+      label
+      score
+      explanation
+      metadata
+      identifier
+      spanId
+      createdAt
+      updatedAt
+    }
+    trace {
+      id
+      traceId
+      costSummary {
+        total {
+          cost
+          tokens
+        }
+      }
+    }
+    project {
+      id
+      name
+    }
+  }
+
+  fragment AgentVPhoenixTraceFields on Trace {
+    id
+    traceId
+    startTime
+    endTime
+    latencyMs
+    projectId
+    project {
+      id
+      name
+    }
+    projectSessionId
+    costSummary {
+      total {
+        cost
+        tokens
+      }
+    }
+    traceAnnotations {
+      id
+      name
+      annotatorKind
+      label
+      score
+      explanation
+      metadata
+      identifier
+      createdAt
+      updatedAt
+    }
+    rootSpan {
+      ...AgentVPhoenixSpanFields
+    }
+    spans(first: $spanFirst) {
+      edges {
+        node {
+          ...AgentVPhoenixSpanFields
+        }
+      }
+    }
+  }
+
+  fragment AgentVPhoenixSessionFields on ProjectSession {
+    id
+    sessionId
+    startTime
+    endTime
+    project {
+      id
+      name
+    }
+    numTraces
+    tokenUsage {
+      prompt
+      completion
+      total
+    }
+    costSummary {
+      prompt {
+        cost
+        tokens
+      }
+      completion {
+        cost
+        tokens
+      }
+      total {
+        cost
+        tokens
+      }
+    }
+    sessionAnnotations {
+      id
+      name
+      annotatorKind
+      label
+      score
+      explanation
+      metadata
+      identifier
+      projectSessionId
+      createdAt
+      updatedAt
+    }
+    traces(first: $traceFirst) {
+      edges {
+        node {
+          ...AgentVPhoenixTraceFields
+        }
+      }
+    }
+  }
+`;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -487,29 +652,29 @@ function normalizeSession(raw: unknown): PhoenixRestSession | undefined {
 }
 
 function normalizeGraphqlSession(raw: unknown): PhoenixRestSession | undefined {
-  const data = isRecord(raw) ? raw : undefined;
-  const node = isRecord(data?.node)
-    ? data.node
-    : isRecord(data?.projectSession)
-      ? data.projectSession
-      : undefined;
+  const node = sessionNodeFromGraphqlData(raw);
   if (!node) {
     return undefined;
   }
 
-  const traceNodes = asArray(isRecord(node.traces) ? node.traces.edges : node.traces)
-    .map((edge) => (isRecord(edge) && isRecord(edge.node) ? edge.node : edge))
+  const traceNodes = connectionNodes(node.traces)
     .map(normalizeTrace)
     .filter((trace): trace is PhoenixRestTrace => trace !== undefined);
+  const sessionId =
+    stringValue(node.session_id) ?? stringValue(node.sessionId) ?? stringValue(node.id);
+  if (!sessionId && traceNodes.length === 0) {
+    return undefined;
+  }
 
-  return normalizeSession({
-    id: node.id,
-    session_id: node.session_id ?? node.sessionId,
-    project_id: node.project_id ?? node.projectId,
-    start_time: node.start_time ?? node.startTime,
-    end_time: node.end_time ?? node.endTime,
+  return {
+    id: stringValue(node.id),
+    sessionId,
+    projectId: projectIdFromGraphqlNode(node),
+    startTime: stringValue(node.start_time) ?? stringValue(node.startTime),
+    endTime: stringValue(node.end_time) ?? stringValue(node.endTime),
     traces: traceNodes,
-  });
+    raw: node,
+  };
 }
 
 async function fetchSessionByNodeId(
@@ -521,36 +686,108 @@ async function fetchSessionByNodeId(
     config,
     {
       query: `
-        query AgentVPhoenixSessionNode($id: ID!) {
+        query AgentVPhoenixLinkedSessionByNode($id: ID!, $traceFirst: Int!, $spanFirst: Int!) {
           node(id: $id) {
             __typename
             ... on ProjectSession {
-              id
-              sessionId
-              projectId
-              startTime
-              endTime
-              traces(first: 100) {
-                edges {
-                  node {
-                    traceId
-                    startTime
-                    endTime
-                  }
-                }
-              }
+              ...AgentVPhoenixSessionFields
             }
           }
         }
+        ${PHOENIX_LINKED_SESSION_GRAPHQL_FIELDS}
       `,
-      variables: { id: sessionNodeId },
+      variables: { id: sessionNodeId, traceFirst: 100, spanFirst: DEFAULT_PAGE_LIMIT },
     },
     fetchImpl,
   );
   return normalizeGraphqlSession(data);
 }
 
-async function fetchSessionById(
+async function fetchSessionByIdGraphql(
+  config: PhoenixConfig,
+  projectIdentifier: string,
+  sessionId: string,
+  fetchImpl: typeof fetch,
+): Promise<PhoenixRestSession | undefined> {
+  const data = await phoenixGraphql(
+    config,
+    {
+      query: `
+        query AgentVPhoenixLinkedSessionBySessionId(
+          $projectId: ID!
+          $sessionId: String!
+          $traceFirst: Int!
+          $spanFirst: Int!
+        ) {
+          project: node(id: $projectId) {
+            __typename
+            ... on Project {
+              sessions(first: 1, sessionId: $sessionId) {
+                edges {
+                  node {
+                    ...AgentVPhoenixSessionFields
+                  }
+                }
+              }
+            }
+          }
+        }
+        ${PHOENIX_LINKED_SESSION_GRAPHQL_FIELDS}
+      `,
+      variables: {
+        projectId: projectIdentifier,
+        sessionId,
+        traceFirst: 100,
+        spanFirst: DEFAULT_PAGE_LIMIT,
+      },
+    },
+    fetchImpl,
+  );
+  return normalizeGraphqlSession(data);
+}
+
+async function fetchSessionByTraceIdGraphql(
+  config: PhoenixConfig,
+  projectIdentifier: string,
+  traceId: string,
+  fetchImpl: typeof fetch,
+): Promise<PhoenixRestSession | undefined> {
+  const data = await phoenixGraphql(
+    config,
+    {
+      query: `
+        query AgentVPhoenixLinkedSessionByTraceId(
+          $projectId: ID!
+          $traceId: ID!
+          $traceFirst: Int!
+          $spanFirst: Int!
+        ) {
+          project: node(id: $projectId) {
+            __typename
+            ... on Project {
+              trace(traceId: $traceId) {
+                session {
+                  ...AgentVPhoenixSessionFields
+                }
+              }
+            }
+          }
+        }
+        ${PHOENIX_LINKED_SESSION_GRAPHQL_FIELDS}
+      `,
+      variables: {
+        projectId: projectIdentifier,
+        traceId,
+        traceFirst: 100,
+        spanFirst: DEFAULT_PAGE_LIMIT,
+      },
+    },
+    fetchImpl,
+  );
+  return normalizeGraphqlSession(data);
+}
+
+async function fetchSessionByIdRest(
   config: PhoenixConfig,
   sessionId: string,
   fetchImpl: typeof fetch,
@@ -566,6 +803,41 @@ function extractRecords(payload: unknown): Record<string, unknown>[] {
   return asArray(data)
     .map((entry) => (isRecord(entry) ? entry : undefined))
     .filter((entry): entry is Record<string, unknown> => entry !== undefined);
+}
+
+function connectionNodes(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is Record<string, unknown> => isRecord(entry));
+  }
+  const record = isRecord(value) ? value : undefined;
+  return asArray(record?.edges)
+    .map((edge) => (isRecord(edge) && isRecord(edge.node) ? edge.node : edge))
+    .filter((entry): entry is Record<string, unknown> => isRecord(entry));
+}
+
+function projectIdFromGraphqlNode(node: Record<string, unknown>): string | undefined {
+  const project = isRecord(node.project) ? node.project : undefined;
+  return stringValue(node.projectId) ?? stringValue(project?.id);
+}
+
+function sessionNodeFromGraphqlData(raw: unknown): Record<string, unknown> | undefined {
+  const data = isRecord(raw) ? raw : undefined;
+  if (!data) {
+    return undefined;
+  }
+  if (isRecord(data.node) && stringValue(data.node.sessionId)) {
+    return data.node;
+  }
+  if (isRecord(data.projectSession)) {
+    return data.projectSession;
+  }
+  const project = isRecord(data.project) ? data.project : undefined;
+  const sessionFromProject = connectionNodes(project?.sessions)[0];
+  if (sessionFromProject) {
+    return sessionFromProject;
+  }
+  const trace = isRecord(project?.trace) ? project.trace : undefined;
+  return isRecord(trace?.session) ? trace.session : undefined;
 }
 
 async function fetchTraceSpans(
@@ -616,21 +888,25 @@ async function fetchAnnotations(
 function normalizeAnnotation(
   annotation: Record<string, unknown>,
   target: 'session' | 'trace' | 'span',
+  targetId?: string,
 ): PhoenixAnnotation {
   const result = isRecord(annotation.result) ? annotation.result : undefined;
   return {
     id: stringValue(annotation.id),
     name: stringValue(annotation.name),
     annotator_kind: stringValue(annotation.annotator_kind) ?? stringValue(annotation.annotatorKind),
-    label: stringValue(result?.label),
-    score: finiteNumber(result?.score),
-    explanation: stringValue(result?.explanation),
+    label: stringValue(annotation.label) ?? stringValue(result?.label),
+    score: finiteNumber(annotation.score) ?? finiteNumber(result?.score),
+    explanation: stringValue(annotation.explanation) ?? stringValue(result?.explanation),
     target,
     target_id:
       stringValue(annotation.session_id) ??
+      stringValue(annotation.projectSessionId) ??
       stringValue(annotation.trace_id) ??
-      stringValue(annotation.span_id),
-    result: annotation.result,
+      stringValue(annotation.span_id) ??
+      stringValue(annotation.spanId) ??
+      targetId,
+    result: annotation.result ?? annotation.metadata,
   };
 }
 
@@ -639,7 +915,19 @@ function spanContext(span: Record<string, unknown>): Record<string, unknown> {
 }
 
 function spanAttributes(span: Record<string, unknown>): Record<string, unknown> | undefined {
-  return isRecord(span.attributes) ? span.attributes : undefined;
+  if (isRecord(span.attributes)) {
+    return span.attributes;
+  }
+  const raw = stringValue(span.attributes);
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function attributeString(
@@ -682,23 +970,36 @@ function tokenUsageFromSpan(
   return compactRecord({
     input: firstNumber(
       nested.input,
+      nested.prompt,
       span.input_tokens,
+      span.tokenCountPrompt,
+      span.cumulativeTokenCountPrompt,
       attributeNumber(attributes, ['gen_ai.usage.input_tokens', 'llm.token_count.prompt']),
     ),
     output: firstNumber(
       nested.output,
+      nested.completion,
       span.output_tokens,
+      span.tokenCountCompletion,
+      span.cumulativeTokenCountCompletion,
       attributeNumber(attributes, ['gen_ai.usage.output_tokens', 'llm.token_count.completion']),
     ),
     reasoning: firstNumber(nested.reasoning, attributes?.['gen_ai.usage.reasoning.output_tokens']),
     cached: firstNumber(nested.cached, attributes?.['gen_ai.usage.cache_read.input_tokens']),
-    total: firstNumber(nested.total, span.total_tokens, attributes?.total_tokens),
+    total: firstNumber(
+      nested.total,
+      span.total_tokens,
+      span.tokenCountTotal,
+      span.cumulativeTokenCountTotal,
+      attributes?.total_tokens,
+    ),
   }) as PhoenixTokenUsage | undefined;
 }
 
 function spanInput(span: Record<string, unknown>, attributes: Record<string, unknown> | undefined) {
+  const input = isRecord(span.input) ? span.input.value : span.input;
   return (
-    span.input ??
+    input ??
     attributes?.['input.value'] ??
     attributes?.input ??
     attributes?.['llm.input_messages'] ??
@@ -710,8 +1011,9 @@ function spanOutput(
   span: Record<string, unknown>,
   attributes: Record<string, unknown> | undefined,
 ) {
+  const output = isRecord(span.output) ? span.output.value : span.output;
   return (
-    span.output ??
+    output ??
     attributes?.['output.value'] ??
     attributes?.output ??
     attributes?.['llm.output_messages'] ??
@@ -725,11 +1027,19 @@ function normalizeSpan(
 ): PhoenixSpanDetail | undefined {
   const context = spanContext(span);
   const attributes = spanAttributes(span);
-  const spanId = stringValue(context.span_id) ?? stringValue(span.span_id) ?? stringValue(span.id);
+  const spanId =
+    stringValue(context.span_id) ??
+    stringValue(span.span_id) ??
+    stringValue(span.spanId) ??
+    stringValue(span.id);
   if (!spanId) {
     return undefined;
   }
-  const traceId = stringValue(context.trace_id) ?? stringValue(span.trace_id);
+  const trace = isRecord(span.trace) ? span.trace : undefined;
+  const costSummary = isRecord(span.costSummary) ? span.costSummary : undefined;
+  const totalCostSummary = isRecord(costSummary?.total) ? costSummary.total : undefined;
+  const traceId =
+    stringValue(context.trace_id) ?? stringValue(span.trace_id) ?? stringValue(trace?.traceId);
   const startTime = stringValue(span.start_time) ?? stringValue(span.startTime);
   const endTime = stringValue(span.end_time) ?? stringValue(span.endTime);
   const annotations = annotationsBySpanId.get(spanId);
@@ -737,7 +1047,8 @@ function normalizeSpan(
   return compactRecord({
     span_id: spanId,
     trace_id: traceId,
-    parent_span_id: stringValue(span.parent_id) ?? stringValue(span.parent_span_id),
+    parent_span_id:
+      stringValue(span.parent_id) ?? stringValue(span.parent_span_id) ?? stringValue(span.parentId),
     name: stringValue(span.name),
     span_kind:
       stringValue(span.span_kind) ??
@@ -753,7 +1064,13 @@ function normalizeSpan(
     input: spanInput(span, attributes),
     output: spanOutput(span, attributes),
     token_usage: tokenUsageFromSpan(span, attributes),
-    cost_usd: firstNumber(span.cost_usd, span.cost, attributes?.cost, attributes?.['llm.cost.usd']),
+    cost_usd: firstNumber(
+      span.cost_usd,
+      span.cost,
+      totalCostSummary?.cost,
+      attributes?.cost,
+      attributes?.['llm.cost.usd'],
+    ),
     attributes,
     ...(annotations && annotations.length > 0 ? { annotations } : {}),
   }) as PhoenixSpanDetail | undefined;
@@ -825,6 +1142,26 @@ function sumTokenUsage(
   return compactRecord(total) as PhoenixTokenUsage | undefined;
 }
 
+function tokenUsageFromGraphql(value: unknown): PhoenixTokenUsage | undefined {
+  const record = isRecord(value) ? value : undefined;
+  if (!record) {
+    return undefined;
+  }
+  return compactRecord({
+    input: firstNumber(record.input, record.prompt),
+    output: firstNumber(record.output, record.completion),
+    reasoning: finiteNumber(record.reasoning),
+    cached: finiteNumber(record.cached),
+    total: finiteNumber(record.total),
+  }) as PhoenixTokenUsage | undefined;
+}
+
+function costFromGraphqlSummary(value: unknown): number | undefined {
+  const record = isRecord(value) ? value : undefined;
+  const total = isRecord(record?.total) ? record.total : undefined;
+  return finiteNumber(total?.cost);
+}
+
 function annotationsByTarget(
   annotations: readonly PhoenixAnnotation[],
   target: 'trace' | 'span',
@@ -839,6 +1176,66 @@ function annotationsByTarget(
     byTarget.set(annotation.target_id, entries);
   }
   return byTarget;
+}
+
+function graphqlSpanId(span: Record<string, unknown>): string | undefined {
+  const context = spanContext(span);
+  return stringValue(context.span_id) ?? stringValue(span.span_id) ?? stringValue(span.spanId);
+}
+
+function graphqlTraceRows(session: PhoenixRestSession): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
+  for (const trace of session.traces) {
+    const rawTrace = trace.raw;
+    if (!rawTrace) {
+      continue;
+    }
+    const candidates = [
+      ...(isRecord(rawTrace.rootSpan) ? [rawTrace.rootSpan] : []),
+      ...connectionNodes(rawTrace.spans),
+    ];
+    for (const span of candidates) {
+      const spanId = graphqlSpanId(span);
+      const dedupeKey = `${trace.traceId ?? ''}:${spanId ?? JSON.stringify(span)}`;
+      if (seen.has(dedupeKey)) {
+        continue;
+      }
+      seen.add(dedupeKey);
+      rows.push(span);
+    }
+  }
+  return rows;
+}
+
+function graphqlAnnotations(
+  entries: readonly unknown[],
+  target: 'session' | 'trace' | 'span',
+  targetId?: string,
+): PhoenixAnnotation[] {
+  return entries
+    .filter((entry): entry is Record<string, unknown> => isRecord(entry))
+    .map((annotation) => normalizeAnnotation(annotation, target, targetId));
+}
+
+function graphqlSessionAnnotations(session: PhoenixRestSession): PhoenixAnnotation[] {
+  return graphqlAnnotations(
+    asArray(session.raw?.sessionAnnotations),
+    'session',
+    session.sessionId ?? session.id,
+  );
+}
+
+function graphqlTraceAnnotations(session: PhoenixRestSession): PhoenixAnnotation[] {
+  return session.traces.flatMap((trace) =>
+    graphqlAnnotations(asArray(trace.raw?.traceAnnotations), 'trace', trace.traceId),
+  );
+}
+
+function graphqlSpanAnnotations(spans: readonly Record<string, unknown>[]): PhoenixAnnotation[] {
+  return spans.flatMap((span) =>
+    graphqlAnnotations(asArray(span.spanAnnotations), 'span', graphqlSpanId(span)),
+  );
 }
 
 function sessionIdFromSpans(spans: readonly Record<string, unknown>[]): string | undefined {
@@ -888,15 +1285,30 @@ async function buildLinkedSessionResponse(
   const projectIdentifier =
     session.projectId ?? externalTrace.projectId ?? externalTrace.project ?? config.project;
   const traceIds = session.traces.map((trace) => trace.traceId).filter((id): id is string => !!id);
-  const spanRows = projectIdentifier
-    ? (
-        await Promise.all(
-          traceIds.map((traceId) => fetchTraceSpans(config, projectIdentifier, traceId, fetchImpl)),
-        )
-      ).flat()
-    : [];
+  const graphqlSpanRows = graphqlTraceRows(session);
+  const spanRows =
+    graphqlSpanRows.length > 0
+      ? graphqlSpanRows
+      : projectIdentifier
+        ? (
+            await Promise.all(
+              traceIds.map((traceId) =>
+                fetchTraceSpans(config, projectIdentifier, traceId, fetchImpl),
+              ),
+            )
+          ).flat()
+        : [];
 
-  const [sessionAnnotations, traceAnnotations, spanAnnotations] = projectIdentifier
+  const graphqlSessionAnnotationRows = graphqlSessionAnnotations(session);
+  const graphqlTraceAnnotationRows = graphqlTraceAnnotations(session);
+  const graphqlSpanAnnotationRows = graphqlSpanAnnotations(spanRows);
+  const shouldFetchRestAnnotations =
+    projectIdentifier &&
+    graphqlSessionAnnotationRows.length === 0 &&
+    graphqlTraceAnnotationRows.length === 0 &&
+    graphqlSpanAnnotationRows.length === 0;
+
+  const [sessionAnnotations, traceAnnotations, spanAnnotations] = shouldFetchRestAnnotations
     ? await Promise.all([
         fetchAnnotations(
           config,
@@ -910,13 +1322,11 @@ async function buildLinkedSessionResponse(
           config,
           projectIdentifier,
           'span',
-          spanRows
-            .map((span) => stringValue(spanContext(span).span_id) ?? stringValue(span.span_id))
-            .filter((id): id is string => !!id),
+          spanRows.map(graphqlSpanId).filter((id): id is string => !!id),
           fetchImpl,
         ),
       ])
-    : [[], [], []];
+    : [graphqlSessionAnnotationRows, graphqlTraceAnnotationRows, graphqlSpanAnnotationRows];
 
   const spanAnnotationsById = annotationsByTarget(spanAnnotations, 'span');
   const spans = spanRows
@@ -962,9 +1372,11 @@ async function buildLinkedSessionResponse(
     start_time: session.startTime,
     end_time: session.endTime,
     duration_ms: durationMs(session.startTime, session.endTime),
-    trace_count: traceIds.length,
-    token_usage: sumTokenUsage(turns),
-    cost_usd: turns.reduce((sum, turn) => sum + (turn.cost_usd ?? 0), 0),
+    trace_count: finiteNumber(session.raw?.numTraces) ?? traceIds.length,
+    token_usage: tokenUsageFromGraphql(session.raw?.tokenUsage) ?? sumTokenUsage(turns),
+    cost_usd:
+      costFromGraphqlSummary(session.raw?.costSummary) ??
+      turns.reduce((sum, turn) => sum + (turn.cost_usd ?? 0), 0),
     ...(sessionAnnotations.length > 0 ? { annotations: sessionAnnotations } : {}),
   };
   const annotations = [...sessionAnnotations, ...traceAnnotations, ...spanAnnotations];
@@ -984,6 +1396,8 @@ async function resolveSession(
   config: PhoenixConfig,
   fetchImpl: typeof fetch,
 ): Promise<PhoenixRestSession | undefined> {
+  const projectIdentifier = externalTrace.projectId ?? externalTrace.project ?? config.project;
+
   if (externalTrace.sessionNodeId) {
     try {
       const session = await fetchSessionByNodeId(config, externalTrace.sessionNodeId, fetchImpl);
@@ -994,20 +1408,57 @@ async function resolveSession(
       if (!(error instanceof PhoenixReadError && error.code === 'schema_mismatch')) {
         throw error;
       }
-      // Node lookup is an optimization for GraphQL IDs. The REST API can still
-      // accept Phoenix GlobalID values on newer Phoenix servers.
+      // REST is only a compatibility fallback when the configured Phoenix
+      // GraphQL schema lacks the web-equivalent fields AgentV needs.
     }
-    return fetchSessionById(config, externalTrace.sessionNodeId, fetchImpl);
+    return fetchSessionByIdRest(config, externalTrace.sessionNodeId, fetchImpl);
   }
 
   if (externalTrace.sessionId) {
-    return fetchSessionById(config, externalTrace.sessionId, fetchImpl);
+    if (projectIdentifier) {
+      try {
+        const session = await fetchSessionByIdGraphql(
+          config,
+          projectIdentifier,
+          externalTrace.sessionId,
+          fetchImpl,
+        );
+        if (session) {
+          return session;
+        }
+      } catch (error) {
+        if (!(error instanceof PhoenixReadError && error.code === 'schema_mismatch')) {
+          throw error;
+        }
+        // Project-scoped GraphQL lookup requires a Phoenix GraphQL project ID.
+        // REST remains a narrow fallback for configured project names or older
+        // Phoenix schemas without the session read fields used by the web UI.
+      }
+    }
+    return fetchSessionByIdRest(config, externalTrace.sessionId, fetchImpl);
   }
 
   const traceId = externalTrace.traceId;
-  const projectIdentifier = externalTrace.projectId ?? externalTrace.project ?? config.project;
   if (!traceId || !projectIdentifier) {
     return undefined;
+  }
+
+  try {
+    const session = await fetchSessionByTraceIdGraphql(
+      config,
+      projectIdentifier,
+      traceId,
+      fetchImpl,
+    );
+    if (session) {
+      return session;
+    }
+  } catch (error) {
+    if (!(error instanceof PhoenixReadError && error.code === 'schema_mismatch')) {
+      throw error;
+    }
+    // Fallback path for project-name configs or older Phoenix GraphQL schemas:
+    // use the public spans API only to recover the session ID from trace attrs.
   }
 
   const spans = await fetchTraceSpans(config, projectIdentifier, traceId, fetchImpl);
@@ -1015,7 +1466,7 @@ async function resolveSession(
   if (!resolvedSessionId) {
     return undefined;
   }
-  return fetchSessionById(config, resolvedSessionId, fetchImpl);
+  return fetchSessionByIdRest(config, resolvedSessionId, fetchImpl);
 }
 
 export async function readPhoenixLinkedSession(

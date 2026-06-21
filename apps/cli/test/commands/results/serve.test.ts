@@ -1015,9 +1015,12 @@ describe('serve app', () => {
         if (url.pathname === '/graphql') {
           const body = (await request.json()) as {
             query: string;
-            variables: Record<string, string>;
+            variables: Record<string, string | number>;
           };
-          expect(body.query).toContain('AgentVPhoenixSessionNode');
+          expect(body.query).toContain('AgentVPhoenixLinkedSessionByNode');
+          expect(body.query).toContain('AgentVPhoenixSessionFields');
+          expect(body.query).toContain('AgentVPhoenixTraceFields');
+          expect(body.query).toContain('AgentVPhoenixSpanFields');
           expect(body.variables.id).toBe('UHJvamVjdFNlc3Npb246MQ==');
           expect(request.headers.get('authorization')).toBe('Bearer server-secret');
           return Response.json({
@@ -1026,85 +1029,193 @@ describe('serve app', () => {
                 __typename: 'ProjectSession',
                 id: 'UHJvamVjdFNlc3Npb246MQ==',
                 sessionId: 'codex-session-1',
-                projectId: 'project-1',
+                project: { id: 'project-1', name: 'agentv-dogfood' },
+                numTraces: 1,
+                tokenUsage: { prompt: 12, completion: 8, total: 20 },
+                costSummary: {
+                  prompt: { cost: 0.01, tokens: 12 },
+                  completion: { cost: 0.01, tokens: 8 },
+                  total: { cost: 0.02, tokens: 20 },
+                },
                 startTime: '2026-03-25T10:00:00.000Z',
                 endTime: '2026-03-25T10:00:04.000Z',
+                sessionAnnotations: [
+                  {
+                    id: 'ann-session',
+                    projectSessionId: 'codex-session-1',
+                    name: 'review',
+                    annotatorKind: 'HUMAN',
+                    label: 'pass',
+                    score: 1,
+                    explanation: 'Looks good',
+                    metadata: {},
+                    identifier: 'session-review',
+                    createdAt: '2026-03-25T10:00:05.000Z',
+                    updatedAt: '2026-03-25T10:00:05.000Z',
+                  },
+                ],
                 traces: {
                   edges: [
                     {
                       node: {
+                        id: 'trace-node-1',
                         traceId: 'trace-1',
                         startTime: '2026-03-25T10:00:00.000Z',
                         endTime: '2026-03-25T10:00:04.000Z',
+                        latencyMs: 4000,
+                        projectId: 'project-1',
+                        project: { id: 'project-1', name: 'agentv-dogfood' },
+                        projectSessionId: 'UHJvamVjdFNlc3Npb246MQ==',
+                        costSummary: {
+                          total: { cost: 0.02, tokens: 20 },
+                        },
+                        traceAnnotations: [],
+                        rootSpan: {
+                          id: 'span-node-root',
+                          spanId: 'span-root',
+                          parentId: null,
+                          name: 'agent turn',
+                          spanKind: 'agent',
+                          statusCode: 'OK',
+                          startTime: '2026-03-25T10:00:00.000Z',
+                          endTime: '2026-03-25T10:00:04.000Z',
+                          latencyMs: 4000,
+                          input: {
+                            value: 'summarize the repo',
+                            truncatedValue: 'summarize the repo',
+                            mimeType: 'text/plain',
+                          },
+                          output: {
+                            value: 'repo summary',
+                            truncatedValue: 'repo summary',
+                            mimeType: 'text/plain',
+                          },
+                          attributes: JSON.stringify({
+                            'input.value': 'summarize the repo',
+                            'output.value': 'repo summary',
+                          }),
+                          tokenCountTotal: 20,
+                          tokenCountPrompt: 12,
+                          tokenCountCompletion: 8,
+                          cumulativeTokenCountTotal: 20,
+                          cumulativeTokenCountPrompt: 12,
+                          cumulativeTokenCountCompletion: 8,
+                          costSummary: {
+                            total: { cost: 0.02, tokens: 20 },
+                          },
+                          spanAnnotations: [
+                            {
+                              id: 'ann-span',
+                              spanId: 'span-root',
+                              name: 'latency',
+                              annotatorKind: 'CODE',
+                              label: 'ok',
+                              score: null,
+                              explanation: null,
+                              metadata: {},
+                              identifier: 'span-latency',
+                              createdAt: '2026-03-25T10:00:05.000Z',
+                              updatedAt: '2026-03-25T10:00:05.000Z',
+                            },
+                          ],
+                          trace: {
+                            id: 'trace-node-1',
+                            traceId: 'trace-1',
+                            costSummary: { total: { cost: 0.02, tokens: 20 } },
+                          },
+                          project: { id: 'project-1', name: 'agentv-dogfood' },
+                        },
+                        spans: {
+                          edges: [
+                            {
+                              node: {
+                                id: 'span-node-root',
+                                spanId: 'span-root',
+                                parentId: null,
+                                name: 'agent turn',
+                                spanKind: 'agent',
+                                statusCode: 'OK',
+                                startTime: '2026-03-25T10:00:00.000Z',
+                                endTime: '2026-03-25T10:00:04.000Z',
+                                latencyMs: 4000,
+                                input: {
+                                  value: 'summarize the repo',
+                                  truncatedValue: 'summarize the repo',
+                                  mimeType: 'text/plain',
+                                },
+                                output: {
+                                  value: 'repo summary',
+                                  truncatedValue: 'repo summary',
+                                  mimeType: 'text/plain',
+                                },
+                                attributes: '{}',
+                                tokenCountTotal: 20,
+                                tokenCountPrompt: 12,
+                                tokenCountCompletion: 8,
+                                cumulativeTokenCountTotal: 20,
+                                cumulativeTokenCountPrompt: 12,
+                                cumulativeTokenCountCompletion: 8,
+                                costSummary: { total: { cost: 0.02, tokens: 20 } },
+                                spanAnnotations: [
+                                  {
+                                    id: 'ann-span',
+                                    spanId: 'span-root',
+                                    name: 'latency',
+                                    annotatorKind: 'CODE',
+                                    label: 'ok',
+                                    score: null,
+                                    explanation: null,
+                                    metadata: {},
+                                    identifier: 'span-latency',
+                                    createdAt: '2026-03-25T10:00:05.000Z',
+                                    updatedAt: '2026-03-25T10:00:05.000Z',
+                                  },
+                                ],
+                                trace: {
+                                  id: 'trace-node-1',
+                                  traceId: 'trace-1',
+                                  costSummary: { total: { cost: 0.02, tokens: 20 } },
+                                },
+                                project: { id: 'project-1', name: 'agentv-dogfood' },
+                              },
+                            },
+                            {
+                              node: {
+                                id: 'span-node-child',
+                                spanId: 'span-child',
+                                parentId: 'span-root',
+                                name: 'tool call',
+                                spanKind: 'tool',
+                                statusCode: 'OK',
+                                startTime: '2026-03-25T10:00:01.000Z',
+                                endTime: '2026-03-25T10:00:02.000Z',
+                                latencyMs: 1000,
+                                input: null,
+                                output: null,
+                                attributes: JSON.stringify({ 'openinference.span.kind': 'TOOL' }),
+                                tokenCountTotal: null,
+                                tokenCountPrompt: null,
+                                tokenCountCompletion: null,
+                                cumulativeTokenCountTotal: null,
+                                cumulativeTokenCountPrompt: null,
+                                cumulativeTokenCountCompletion: null,
+                                costSummary: null,
+                                spanAnnotations: [],
+                                trace: {
+                                  id: 'trace-node-1',
+                                  traceId: 'trace-1',
+                                  costSummary: { total: { cost: 0.02, tokens: 20 } },
+                                },
+                                project: { id: 'project-1', name: 'agentv-dogfood' },
+                              },
+                            },
+                          ],
+                        },
                       },
                     },
                   ],
                 },
               },
-            },
-          });
-        }
-        if (url.pathname === '/v1/projects/project-1/spans') {
-          expect(url.searchParams.get('trace_id')).toBe('trace-1');
-          return Response.json({
-            data: {
-              data: [
-                {
-                  context: { trace_id: 'trace-1', span_id: 'span-root' },
-                  name: 'agent turn',
-                  start_time: '2026-03-25T10:00:00.000Z',
-                  end_time: '2026-03-25T10:00:04.000Z',
-                  status_code: 'OK',
-                  attributes: {
-                    'input.value': 'summarize the repo',
-                    'output.value': 'repo summary',
-                    'gen_ai.usage.input_tokens': 12,
-                    'gen_ai.usage.output_tokens': 8,
-                    'llm.cost.usd': 0.02,
-                  },
-                },
-                {
-                  context: { trace_id: 'trace-1', span_id: 'span-child' },
-                  parent_id: 'span-root',
-                  name: 'tool call',
-                  start_time: '2026-03-25T10:00:01.000Z',
-                  end_time: '2026-03-25T10:00:02.000Z',
-                  attributes: { 'openinference.span.kind': 'TOOL' },
-                },
-              ],
-            },
-          });
-        }
-        if (url.pathname === '/v1/projects/project-1/session_annotations') {
-          return Response.json({
-            data: {
-              data: [
-                {
-                  id: 'ann-session',
-                  session_id: 'codex-session-1',
-                  name: 'review',
-                  annotator_kind: 'HUMAN',
-                  result: { label: 'pass', score: 1, explanation: 'Looks good' },
-                },
-              ],
-            },
-          });
-        }
-        if (url.pathname === '/v1/projects/project-1/trace_annotations') {
-          return Response.json({ data: { data: [] } });
-        }
-        if (url.pathname === '/v1/projects/project-1/span_annotations') {
-          return Response.json({
-            data: {
-              data: [
-                {
-                  id: 'ann-span',
-                  span_id: 'span-root',
-                  name: 'latency',
-                  annotator_kind: 'CODE',
-                  result: { label: 'ok' },
-                },
-              ],
             },
           });
         }
@@ -1149,13 +1260,7 @@ describe('serve app', () => {
           expect.objectContaining({ name: 'latency', target: 'span' }),
         ]),
       );
-      expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
-        '/graphql',
-        '/v1/projects/project-1/spans',
-        '/v1/projects/project-1/session_annotations',
-        '/v1/projects/project-1/trace_annotations',
-        '/v1/projects/project-1/span_annotations',
-      ]);
+      expect(requests.map((request) => new URL(request.url).pathname)).toEqual(['/graphql']);
       const serialized = JSON.stringify(data);
       expect(serialized).not.toContain('server-secret');
       expect(serialized).not.toContain('artifact-secret');
