@@ -43,6 +43,8 @@ export interface ResultManifestRecord {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly transcript?: ArtifactPointer;
+  readonly artifacts?: ArtifactPointerMap;
   readonly response_path?: string;
   readonly artifact_dir?: string;
   readonly task_dir?: string;
@@ -51,6 +53,36 @@ export interface ResultManifestRecord {
   readonly files_path?: string;
   readonly graders_path?: string;
   readonly metadata?: Record<string, unknown>;
+}
+
+export type ArtifactPointer =
+  | string
+  | {
+      readonly path?: unknown;
+      readonly artifact_path?: unknown;
+      readonly relative_path?: unknown;
+      readonly ref?: unknown;
+      readonly storage?: unknown;
+      readonly uri?: unknown;
+      readonly href?: unknown;
+      readonly [key: string]: unknown;
+    };
+
+export interface ArtifactPointerMap {
+  readonly transcript_path?: string;
+  readonly answer_path?: string;
+  readonly transcript?: ArtifactPointer;
+  readonly answer?: ArtifactPointer;
+  readonly [key: string]: unknown;
+}
+
+export interface ManifestHydrationOptions {
+  /**
+   * Defaults to true for report/inspect consumers that need a trace projection.
+   * Dashboard detail routes set this false so transcript bodies are loaded only
+   * by the explicit transcript artifact endpoint.
+   */
+  readonly hydrateTranscriptTrace?: boolean;
 }
 
 function parseJsonlLines<T>(content: string): T[] {
@@ -142,13 +174,19 @@ function hydrateOutput(
   return responseText.trimEnd();
 }
 
-function hydrateTrace(baseDir: string, record: ResultManifestRecord): EvaluationResult['trace'] {
-  const transcriptText = readOptionalText(baseDir, record.transcript_path);
-  if (transcriptText) {
-    try {
-      return traceFromTranscriptJsonLines(parseJsonlLines<TranscriptJsonLine>(transcriptText));
-    } catch {
-      // Fall through to a minimal trace below.
+function hydrateTrace(
+  baseDir: string,
+  record: ResultManifestRecord,
+  options: ManifestHydrationOptions,
+): EvaluationResult['trace'] {
+  if (options.hydrateTranscriptTrace !== false) {
+    const transcriptText = readOptionalText(baseDir, record.transcript_path);
+    if (transcriptText) {
+      try {
+        return traceFromTranscriptJsonLines(parseJsonlLines<TranscriptJsonLine>(transcriptText));
+      } catch {
+        // Fall through to a minimal trace below.
+      }
     }
   }
 
@@ -163,7 +201,11 @@ function hydrateTrace(baseDir: string, record: ResultManifestRecord): Evaluation
   });
 }
 
-function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): EvaluationResult {
+function hydrateManifestRecord(
+  baseDir: string,
+  record: ResultManifestRecord,
+  options: ManifestHydrationOptions,
+): EvaluationResult {
   const grading = readOptionalJson<GradingArtifact>(baseDir, record.grading_path);
   const timing = readOptionalJson<TimingArtifact>(baseDir, record.timing_path);
   const testId = record.test_id ?? 'unknown';
@@ -218,7 +260,7 @@ function hydrateManifestRecord(baseDir: string, record: ResultManifestRecord): E
     costUsd: record.cost_usd,
     input: hydrateInput(baseDir, record),
     output: hydrateOutput(baseDir, record) ?? '',
-    trace: hydrateTrace(baseDir, record),
+    trace: hydrateTrace(baseDir, record, options),
     metadata: record.metadata,
   } as EvaluationResult;
 }
@@ -235,12 +277,15 @@ export function resolveResultSourcePath(source: string, cwd?: string): string {
   return resolved;
 }
 
-export function loadManifestResults(sourceFile: string): EvaluationResult[] {
+export function loadManifestResults(
+  sourceFile: string,
+  options: ManifestHydrationOptions = {},
+): EvaluationResult[] {
   const resolvedSourceFile = resolveRunManifestPath(sourceFile);
   const content = readFileSync(resolvedSourceFile, 'utf8');
   const records = parseResultRows(content, resolvedSourceFile);
   const baseDir = path.dirname(resolvedSourceFile);
-  return records.map((record) => hydrateManifestRecord(baseDir, record));
+  return records.map((record) => hydrateManifestRecord(baseDir, record, options));
 }
 
 export interface LightweightResultRecord {
@@ -253,6 +298,7 @@ export interface LightweightResultRecord {
   readonly scores?: readonly Record<string, unknown>[];
   readonly executionStatus?: string;
   readonly error?: string;
+  readonly costUsd?: number;
   readonly timestamp?: string;
 }
 
@@ -269,6 +315,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
     scores: record.scores,
     executionStatus: record.execution_status,
     error: record.error,
+    costUsd: record.cost_usd,
     timestamp: record.timestamp,
   }));
 }

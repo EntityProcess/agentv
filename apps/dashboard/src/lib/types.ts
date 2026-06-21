@@ -176,6 +176,19 @@ export interface EvalDetailResponse {
   eval: EvalResult;
 }
 
+export type TranscriptArtifactStatus = 'ok' | 'missing' | 'dangling' | 'unsupported';
+
+export interface TranscriptArtifactResponse {
+  status: TranscriptArtifactStatus;
+  transcript_path?: string;
+  answer_path?: string;
+  answer_content?: string;
+  content?: string;
+  language?: string;
+  message?: string;
+  pointer?: string;
+}
+
 export interface IndexEntry {
   run_filename: string;
   display_name?: string;

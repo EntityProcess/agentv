@@ -43,6 +43,7 @@ import type {
   StudioConfigResponse,
   SuitesResponse,
   TargetsResponse,
+  TranscriptArtifactResponse,
 } from './types';
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -231,6 +232,17 @@ export function evalFileContentOptions(runId: string, evalId: string, filePath: 
   });
 }
 
+export function evalTranscriptOptions(runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['runs', runId, 'evals', evalId, 'transcript'],
+    queryFn: () =>
+      fetchJson<TranscriptArtifactResponse>(
+        `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/transcript`,
+      ),
+    enabled: !!runId && !!evalId,
+  });
+}
+
 export function runCategoriesOptions(runId: string) {
   return queryOptions({
     queryKey: ['runs', runId, 'categories'],
@@ -319,6 +331,10 @@ export function useEvalFiles(runId: string, evalId: string) {
 
 export function useEvalFileContent(runId: string, evalId: string, filePath: string) {
   return useQuery(evalFileContentOptions(runId, evalId, filePath));
+}
+
+export function useEvalTranscript(runId: string, evalId: string) {
+  return useQuery(evalTranscriptOptions(runId, evalId));
 }
 
 export function useRunCategories(runId: string) {
@@ -550,6 +566,17 @@ export function projectEvalFileContentOptions(
         artifactFileContentUrl({ projectId, runId, evalId, filePath }),
       ),
     enabled: !!projectId && !!runId && !!evalId && !!filePath,
+  });
+}
+
+export function projectEvalTranscriptOptions(projectId: string, runId: string, evalId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, 'transcript'],
+    queryFn: () =>
+      fetchJson<TranscriptArtifactResponse>(
+        `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/transcript`,
+      ),
+    enabled: !!projectId && !!runId && !!evalId,
   });
 }
 
