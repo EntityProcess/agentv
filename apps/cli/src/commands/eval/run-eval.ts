@@ -361,6 +361,16 @@ export function trimOutputMessages(
   return output;
 }
 
+export function prepareResultForJsonl(
+  result: EvaluationResult,
+  options: { readonly outputMessages: number | 'all' },
+): EvaluationResult {
+  return {
+    ...result,
+    output: trimOutputMessages(result.output, options.outputMessages),
+  };
+}
+
 function normalizeOptions(
   rawOptions: Record<string, unknown>,
   config?: Awaited<ReturnType<typeof loadTsConfig>>,
@@ -1043,11 +1053,7 @@ async function runSingleEvalFile(params: {
       // Each message is trimmed to { role, content } only (no toolCalls, startTime, etc.).
       // Full output with tool calls goes to OTel.
       const resultWithMetadata = withSourceMetadata(result, testFilePath, options);
-      const trimmedOutput = trimOutputMessages(resultWithMetadata.output, options.outputMessages);
-      const trimmedResult: EvaluationResult = {
-        ...resultWithMetadata,
-        output: trimmedOutput,
-      };
+      const trimmedResult = prepareResultForJsonl(resultWithMetadata, options);
       await outputWriter.append(trimmedResult);
 
       // Export to OTel if exporter is configured (skip batch export when streaming is active)

@@ -439,22 +439,37 @@ Each result row's `artifact_dir` can include both `outputs/trace.json` and
 artifact; use each index row's `transcript_path` to find the per-result
 transcript.
 
+Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
+entries such as `artifact_pointers.trace` and `artifact_pointers.transcript`
+carry the storage `ref`, artifact `key`, canonical run-relative `path`,
+`object_version`, `sha256`, `size`, `schema_version`, and `media_type` so
+viewers and exports can migrate from git refs to object storage without changing
+the run record contract.
+
 `outputs/trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
 It stores the canonical span graph, source metadata, capture/redaction policy,
 conversion warnings, score provenance, and opaque evidence references.
 
-`outputs/transcript.jsonl` is a derived compatibility artifact for reading and
-replay. It uses provider-neutral `agentv.transcript.v1` rows with stable
-top-level fields for message order, role/content, tool calls and paired results,
-timing, token usage, cost, source metadata, capture state, and trace pointers.
+`outputs/transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
+It uses provider-neutral `agentv.transcript.v1` rows with stable top-level fields
+for message order, role/content, tool calls and paired results, timing, token
+usage, cost, source metadata, capture state, and trace pointers.
 Provider-native payloads can appear only inside opaque nested fields such as
 `metadata`, `source.metadata`, tool `input`, or tool `output`.
+
+When an agent provider captures a native stream or session log, the result row
+may also include `raw_provider_log_path`, pointing at
+`outputs/raw/provider.log`. That file is raw evidence copied byte-for-byte from
+the provider log and is not parsed, normalized, or required for replay, import,
+Agent Skills conversion, or grading. AgentV does not write or maintain a
+parallel `outputs/transcript.json` source of truth.
 
 Use the transcript when you need a compact portable message/event projection
 over the trace, including exports to role/content arrays for chat-template or
 Hugging Face-style workflows. Use the trace when you need full lifecycle, span,
-raw evidence, redaction, or adapter conversion details. The transcript is not a
-second canonical trace source and is not a provider-native Pi session dump.
+raw evidence pointers, redaction, or adapter conversion details. The transcript
+is not a second canonical trace source and is not a provider-native Pi session
+dump.
 Older transcript rows without `schema_version`, `capture`, or `trace` remain
 accepted for replay.
 

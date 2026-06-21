@@ -108,6 +108,50 @@ Duplicate policy is explicit:
 
 `attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
 
+### Vendor-neutral projection bundle
+
+Use the additive projection bundle path when an external adapter needs a
+backend-neutral handoff instead of AgentV's full artifact tree:
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> --projection-bundle
+```
+
+This writes `projection_bundle.json` next to the exported artifacts. The bundle
+contains stable projection IDs, trace envelope metadata, OpenInference-shaped
+span references, score provenance, artifact-relative paths, capture/redaction
+summary, and conversion warnings. It does not call Phoenix, Opik, Braintrust,
+Langfuse, Hugging Face, or any other live service.
+
+For adapter development and CI snapshots, use dry-run mode:
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> --dry-run > projection_bundle.json
+```
+
+Dry-run prints deterministic JSON and does not write export artifacts. Vendor
+adapters should consume either this JSON directly or the local
+`projection_bundle.json`. Dry-run refs are marked
+`artifact_refs.status: "planned_export"` because the export tree has not been
+written. Bundles written with `--projection-bundle` are built from the emitted
+export `index.jsonl` and use `artifact_refs.status: "emitted"`.
+
+Raw prompt text, final output, and tool arguments/results are excluded by
+default, and raw-bearing artifact refs such as `grading_path`, `input_path`,
+`answer_path`, `response_path`, `transcript_path`, and `trace_path` are omitted from
+metadata-only bundles. To include raw payloads and raw-bearing refs in the
+bundle, opt in explicitly:
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> --dry-run --include-raw-content
+```
+
+Keep backend-specific anonymization in the adapter layer. For example, an Opik
+adapter can read the metadata-only bundle by default, or require
+`--include-raw-content` and then run Opik anonymizers before upload. AgentV does
+not run a custom redaction engine in `results export`; it records the capture
+policy so downstream processing is auditable.
+
 ## Inspection helpers
 
 For lightweight terminal workflows:
@@ -127,7 +171,7 @@ The CLI contract is deliberately narrow: `agentv results` manages local result a
 
 Use these supported remote workflows instead:
 
-- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo_path: .` with `branch: agentv/results/v1` to store results on a dedicated branch of the source repo. `repo_path` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
+- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo_path: .` with `branch: agentv/results/v1` to store primary result records on a dedicated branch of the source repo. AgentV reserves `agentv/results/v1` for primary results, `agentv/artifacts/v1` for heavy artifact payloads, and `agentv/oplog/v1` for mutable run/result operations. `repo_path` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
 - **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
 - **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
 - **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.path` clone with `git` directly, then sync again.

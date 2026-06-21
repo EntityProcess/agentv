@@ -94,6 +94,7 @@ export function buildIndexArtifactEntry(
     outputPath?: string;
     answerPath?: string;
     transcriptPath?: string;
+    rawProviderLogPath?: string;
     inputPath?: string;
     responsePath?: string;
     taskBundle?: MaterializedTaskBundlePaths;

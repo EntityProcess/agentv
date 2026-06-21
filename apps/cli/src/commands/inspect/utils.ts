@@ -8,7 +8,7 @@ import {
   resolveExistingRunPrimaryPath,
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
-import { loadManifestResults } from '../results/manifest.js';
+import { loadLightweightResults, loadManifestResults } from '../results/manifest.js';
 import { ResultRowSchemaError, normalizeResultRow } from '../results/result-row-schema.js';
 
 // ANSI color codes (no dependency needed)
@@ -636,7 +636,7 @@ export function listResultFilesFromRunsDir(runsDir: string, limit?: number): Res
   for (const { filePath, displayName, runId } of limited) {
     try {
       const fileStat = statSync(filePath);
-      const results = loadResultFile(filePath);
+      const results = loadLightweightResults(filePath);
 
       const testCount = results.length;
       const passCount = results.filter((r) => r.score >= DEFAULT_THRESHOLD).length;

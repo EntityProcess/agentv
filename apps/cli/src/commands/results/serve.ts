@@ -34,7 +34,15 @@
  *   - createApp(results, cwd) — Hono app factory
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,7 +75,12 @@ import {
 } from './combine-run.js';
 import { deleteLocalRun } from './delete-run.js';
 import { getActiveRunStatus, getActiveRunTarget, registerEvalRoutes } from './eval-runner.js';
-import { loadLightweightResults, loadManifestResults, parseResultManifest } from './manifest.js';
+import {
+  type ResultManifestRecord,
+  loadLightweightResults,
+  loadManifestResults,
+  parseResultManifest,
+} from './manifest.js';
 import {
   type SourcedResultFileMeta,
   clearRemoteRunTags,
@@ -79,7 +92,13 @@ import {
   setRemoteRunTags,
   syncRemoteResults,
 } from './remote.js';
-import { deleteRunTags, readRunTags, writeRunTags } from './run-tags.js';
+import {
+  type RunFinalState,
+  type RunOplogWatermark,
+  type RunReadStateFields,
+  materializeRunState,
+} from './run-oplog.js';
+import { readRunTags, writeRunTags } from './run-tags.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -285,6 +304,150 @@ function contentDispositionFilename(filePath: string): string {
   return path.basename(filePath).replace(/["\\\r\n]/g, '_');
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function artifactPointerPath(pointer: unknown): string | undefined {
+  if (typeof pointer === 'string') return nonEmptyString(pointer);
+  if (!isRecord(pointer)) return undefined;
+  return (
+    nonEmptyString(pointer.path) ??
+    nonEmptyString(pointer.artifact_path) ??
+    nonEmptyString(pointer.relative_path)
+  );
+}
+
+function artifactPointerDescription(pointer: unknown): string | undefined {
+  if (typeof pointer === 'string') return pointer;
+  if (!isRecord(pointer)) return undefined;
+  const ref = nonEmptyString(pointer.ref);
+  const storage = nonEmptyString(pointer.storage);
+  const uri = nonEmptyString(pointer.uri) ?? nonEmptyString(pointer.href);
+  const pointerPath = artifactPointerPath(pointer);
+  const parts = [
+    ref ? `ref ${ref}` : undefined,
+    storage ? `storage ${storage}` : undefined,
+    uri ? `uri ${uri}` : undefined,
+    pointerPath ? `path ${pointerPath}` : undefined,
+  ].filter((part): part is string => part !== undefined);
+  return parts.length > 0 ? parts.join(', ') : undefined;
+}
+
+function artifactPointerRef(pointer: unknown): string | undefined {
+  return isRecord(pointer) ? nonEmptyString(pointer.ref) : undefined;
+}
+
+interface ResolvedArtifactPointer {
+  readonly path?: string;
+  readonly description?: string;
+  readonly ref?: string;
+  readonly unsupportedReason?: string;
+}
+
+function resolveRecordArtifactPointer(
+  record: ResultManifestRecord,
+  kind: 'transcript' | 'answer',
+): ResolvedArtifactPointer {
+  const directPath =
+    kind === 'transcript'
+      ? (record.transcript_path ?? record.artifacts?.transcript_path)
+      : (record.answer_path ?? record.artifacts?.answer_path ?? record.output_path);
+  if (directPath) {
+    return { path: directPath, description: directPath };
+  }
+
+  const pointer =
+    kind === 'transcript'
+      ? (record.transcript ?? record.artifacts?.transcript ?? record.artifact_pointers?.transcript)
+      : record.artifacts?.answer;
+  const pointerPath = artifactPointerPath(pointer);
+  const description = artifactPointerDescription(pointer);
+  const ref = artifactPointerRef(pointer);
+  if (pointerPath) {
+    return { path: pointerPath, description, ref };
+  }
+  if (pointer) {
+    return {
+      description,
+      ref,
+      unsupportedReason: description
+        ? `${kind} artifact pointer does not include a local path (${description}).`
+        : `${kind} artifact pointer does not include a local path.`,
+    };
+  }
+  return {};
+}
+
+function resolveRunArtifactPath(
+  baseDir: string,
+  relativePath: string,
+): { absolutePath?: string; error?: string } {
+  const absolutePath = path.resolve(baseDir, relativePath);
+  const resolvedBase = path.resolve(baseDir);
+  if (!isPathInsideDirectory(resolvedBase, absolutePath)) {
+    return { error: 'Artifact path is outside the run workspace.' };
+  }
+  return { absolutePath };
+}
+
+function isPathInsideDirectory(baseDir: string, candidatePath: string): boolean {
+  const relative = path.relative(baseDir, candidatePath);
+  return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function resolveReadableRunArtifactFile(
+  baseDir: string,
+  relativePath: string,
+): { absolutePath?: string; error?: string } {
+  const resolved = resolveRunArtifactPath(baseDir, relativePath);
+  if (!resolved.absolutePath) return { error: resolved.error };
+
+  let realBase: string;
+  let realArtifact: string;
+  try {
+    realBase = realpathSync(baseDir);
+    realArtifact = realpathSync(resolved.absolutePath);
+  } catch {
+    return {};
+  }
+
+  if (!isPathInsideDirectory(realBase, realArtifact)) {
+    return { error: 'Artifact path is outside the run workspace.' };
+  }
+
+  try {
+    if (!statSync(realArtifact).isFile()) {
+      return {};
+    }
+  } catch {
+    return {};
+  }
+
+  return { absolutePath: realArtifact };
+}
+
+function readOptionalRunArtifactText(
+  baseDir: string,
+  artifact: ResolvedArtifactPointer,
+): string | undefined {
+  if (!artifact.path) return undefined;
+  const resolved = resolveReadableRunArtifactFile(baseDir, artifact.path);
+  if (!resolved.absolutePath) return undefined;
+  return readFileSync(resolved.absolutePath, 'utf8');
+}
+
+function missingTranscriptMessage(): string {
+  return [
+    'This result does not include canonical outputs/transcript.jsonl metadata.',
+    'Dashboard does not parse response.md or markdown transcripts for this view.',
+  ].join(' ');
+}
+
 function stripHeavyFields(results: readonly EvaluationResult[]) {
   return results.map((r) => {
     const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
@@ -316,6 +479,8 @@ interface RunTagFields {
   readonly remote_tags?: string[];
   readonly pending_tags?: string[];
   readonly metadata_dirty?: boolean;
+  readonly final_state: RunFinalState;
+  readonly oplog_watermark: RunOplogWatermark;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -340,7 +505,15 @@ async function readRunTagFields(
 ): Promise<RunTagFields> {
   if (meta.source === 'local') {
     const tagsEntry = readRunTags(meta.path);
-    return tagsEntry ? { tags: tagsEntry.tags } : {};
+    const runState = materializeRunState({
+      tags: tagsEntry?.tags ?? [],
+      watermark: tagsEntry?.oplog_watermark,
+      updatedAt: tagsEntry?.updated_at || undefined,
+    });
+    return {
+      ...(tagsEntry ? { tags: tagsEntry.tags } : {}),
+      ...runState,
+    };
   }
 
   const state = await readRemoteRunTagState(searchDir, meta, projectId);
@@ -349,6 +522,7 @@ async function readRunTagFields(
       tags: [],
       remote_tags: [],
       metadata_dirty: false,
+      ...materializeRunState({ tags: [] }),
     };
   }
 
@@ -357,6 +531,11 @@ async function readRunTagFields(
     remote_tags: state.remoteTags,
     metadata_dirty: state.dirty,
     ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+    ...materializeRunState({
+      tags: state.tags,
+      watermark: state.oplogWatermark,
+      updatedAt: state.updatedAt,
+    }),
   };
 }
 
@@ -366,14 +545,32 @@ function remoteTagMutationResponse(state: {
   readonly pendingTags?: string[];
   readonly dirty: boolean;
   readonly updatedAt?: string;
+  readonly oplogWatermark: RunOplogWatermark;
 }) {
   return {
     tags: state.tags,
     remote_tags: state.remoteTags,
     metadata_dirty: state.dirty,
     ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+    ...materializeRunState({
+      tags: state.tags,
+      watermark: state.oplogWatermark,
+      updatedAt: state.updatedAt,
+    }),
     updated_at: state.updatedAt ?? new Date().toISOString(),
   };
+}
+
+function localTagMutationResponse(input: {
+  readonly tags: readonly string[];
+  readonly updatedAt?: string;
+  readonly watermark?: RunOplogWatermark;
+}): RunReadStateFields {
+  return materializeRunState({
+    tags: input.tags,
+    watermark: input.watermark,
+    updatedAt: input.updatedAt,
+  });
 }
 
 function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
@@ -402,7 +599,7 @@ async function loadManifestResultsForMeta(
   projectId?: string,
 ): Promise<EvaluationResult[]> {
   await ensureRunReadable(searchDir, meta, projectId);
-  return loadManifestResults(meta.path);
+  return loadManifestResults(meta.path, { hydrateTranscriptTrace: false });
 }
 
 async function loadLightweightResultsForMeta(
@@ -824,6 +1021,8 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
     const baseDir = path.dirname(meta.path);
+    const transcriptArtifact = resolveRecordArtifactPointer(record, 'transcript');
+    const answerArtifact = resolveRecordArtifactPointer(record, 'answer');
     const knownPaths = [
       record.grading_path,
       record.timing_path,
@@ -832,12 +1031,14 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
       record.response_path,
       record.answer_path,
       record.transcript_path,
+      transcriptArtifact.path,
+      answerArtifact.path,
       record.task_dir,
       record.eval_path,
       record.targets_path,
       record.files_path,
       record.graders_path,
-    ].filter((p): p is string => !!p);
+    ].filter((p, index, all): p is string => !!p && all.indexOf(p) === index);
 
     if (knownPaths.length === 0) return c.json({ files: [] });
 
@@ -877,36 +1078,90 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
   await ensureRunReadable(searchDir, meta, projectId);
   const baseDir = path.dirname(meta.path);
-  const absolutePath = path.resolve(baseDir, filePath);
-
-  // Security: prevent path traversal — resolved path must be inside baseDir
-  if (
-    !absolutePath.startsWith(path.resolve(baseDir) + path.sep) &&
-    absolutePath !== path.resolve(baseDir)
-  ) {
+  const resolvedFile = resolveReadableRunArtifactFile(baseDir, filePath);
+  if (resolvedFile.error) {
     return c.json({ error: 'Path traversal not allowed' }, 403);
   }
-
-  if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+  if (!resolvedFile.absolutePath) {
     return c.json({ error: 'File not found' }, 404);
   }
 
   try {
-    const fileContent = readFileSync(absolutePath, 'utf8');
+    const fileContent = readFileSync(resolvedFile.absolutePath, 'utf8');
     if (c.req.query('raw') === '1' || c.req.query('download') === '1') {
-      c.header('Content-Type', inferRawContentType(absolutePath));
+      c.header('Content-Type', inferRawContentType(filePath));
       if (c.req.query('download') === '1') {
         c.header(
           'Content-Disposition',
-          `attachment; filename="${contentDispositionFilename(absolutePath)}"`,
+          `attachment; filename="${contentDispositionFilename(filePath)}"`,
         );
       }
       return c.body(fileContent);
     }
-    const language = inferLanguage(absolutePath);
+    const language = inferLanguage(filePath);
     return c.json({ content: fileContent, language });
   } catch {
     return c.json({ error: 'Failed to read file' }, 500);
+  }
+}
+
+async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const evalId = c.req.param('evalId');
+  const meta = await findRunById(searchDir, filename, projectId);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+
+  try {
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
+    const record = records.find((r) => r.test_id === evalId);
+    if (!record) return c.json({ error: 'Eval not found' }, 404);
+
+    const baseDir = path.dirname(meta.path);
+    const transcript = resolveRecordArtifactPointer(record, 'transcript');
+    const answer = resolveRecordArtifactPointer(record, 'answer');
+
+    if (!transcript.path) {
+      return c.json({
+        status: transcript.unsupportedReason ? 'unsupported' : 'missing',
+        message: transcript.unsupportedReason ?? missingTranscriptMessage(),
+        ...(transcript.description && { pointer: transcript.description }),
+      });
+    }
+
+    const resolvedTranscript = resolveReadableRunArtifactFile(baseDir, transcript.path);
+    if (resolvedTranscript.error) {
+      return c.json({
+        status: 'dangling',
+        transcript_path: transcript.path,
+        message: resolvedTranscript.error ?? 'Transcript artifact path could not be resolved.',
+        ...(transcript.description && { pointer: transcript.description }),
+      });
+    }
+
+    if (!resolvedTranscript.absolutePath) {
+      const refMessage = transcript.ref ? ` on ${transcript.ref}` : '';
+      return c.json({
+        status: 'dangling',
+        transcript_path: transcript.path,
+        message: `Transcript artifact pointer${refMessage} is present, but ${transcript.path} is not available in this run workspace.`,
+        ...(transcript.description && { pointer: transcript.description }),
+      });
+    }
+
+    const content = readFileSync(resolvedTranscript.absolutePath, 'utf8');
+    const answerContent = readOptionalRunArtifactText(baseDir, answer);
+
+    return c.json({
+      status: 'ok',
+      transcript_path: transcript.path,
+      content,
+      language: inferLanguage(transcript.path),
+      ...(answer.path && { answer_path: answer.path }),
+      ...(answerContent !== undefined && { answer_content: answerContent }),
+      ...(transcript.description && { pointer: transcript.description }),
+    });
+  } catch {
+    return c.json({ error: 'Failed to load transcript artifact' }, 500);
   }
 }
 
@@ -1025,6 +1280,8 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     remote_tags?: string[];
     pending_tags?: string[];
     metadata_dirty?: boolean;
+    final_state: RunFinalState;
+    oplog_watermark: RunOplogWatermark;
     source: 'local' | 'remote';
     eval_count: number;
     quality_count: number;
@@ -1472,8 +1729,14 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
     }
 
     const entry = writeRunTags(meta.path, tags as string[]);
+    const responseState = localTagMutationResponse({
+      tags: entry?.tags ?? [],
+      updatedAt: entry?.updated_at,
+      watermark: entry?.oplog_watermark,
+    });
     return c.json({
       tags: entry?.tags ?? [],
+      ...responseState,
       updated_at: entry?.updated_at ?? new Date().toISOString(),
     });
   } catch (err) {
@@ -1494,8 +1757,18 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
       });
     }
 
-    deleteRunTags(meta.path);
-    return c.json({ ok: true });
+    const entry = writeRunTags(meta.path, []);
+    const responseState = localTagMutationResponse({
+      tags: entry.tags,
+      updatedAt: entry.updated_at,
+      watermark: entry.oplog_watermark,
+    });
+    return c.json({
+      ok: true,
+      tags: entry.tags,
+      ...responseState,
+      updated_at: entry.updated_at,
+    });
   } catch (err) {
     return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));
   }
@@ -1831,6 +2104,8 @@ export function createApp(
       remote_tags?: string[];
       pending_tags?: string[];
       metadata_dirty?: boolean;
+      final_state: RunFinalState;
+      oplog_watermark: RunOplogWatermark;
       source: 'local' | 'remote';
       project_id: string;
       project_name: string;
@@ -1946,6 +2221,9 @@ export function createApp(
     handleCategorySuites(c, defaultCtx),
   );
   app.get('/api/runs/:filename/evals/:evalId', (c) => handleEvalDetail(c, defaultCtx));
+  app.get('/api/runs/:filename/evals/:evalId/transcript', (c) =>
+    handleEvalTranscript(c, defaultCtx),
+  );
   app.get('/api/runs/:filename/evals/:evalId/files', (c) => handleEvalFiles(c, defaultCtx));
   app.get('/api/runs/:filename/evals/:evalId/files/*', (c) => handleEvalFileContent(c, defaultCtx));
   app.get('/api/experiments', (c) => handleExperiments(c, defaultCtx));
@@ -1976,11 +2254,11 @@ export function createApp(
         let testCount = m.testCount;
         let executionErrorCount = 0;
         try {
-          const loaded = await loadManifestResultsForMeta(searchDir, m, defaultCtx.projectId);
-          totalCostUsd = loaded.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
-          if (loaded.length > 0) {
+          const records = await loadLightweightResultsForMeta(searchDir, m, defaultCtx.projectId);
+          totalCostUsd = records.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
+          if (records.length > 0) {
             const qualitySummary = summarizeQualityResults(
-              loaded,
+              records,
               loadStudioConfig(agentvDir).threshold,
             );
             testCount = qualitySummary.totalCount;
@@ -2063,6 +2341,9 @@ export function createApp(
   );
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) =>
     withProject(c, handleEvalDetail),
+  );
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/transcript', (c) =>
+    withProject(c, handleEvalTranscript),
   );
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files', (c) =>
     withProject(c, handleEvalFiles),
@@ -2283,19 +2564,19 @@ export const resultsServeCommand = command({
       // project's configured run workspace and fall back to the empty state.
       if (source) {
         sourceFile = await resolveSourceFile(source, cwd);
-        results = loadManifestResults(sourceFile);
+        results = loadManifestResults(sourceFile, { hydrateTranscriptTrace: false });
       } else {
         // Auto-discover: run cache -> directory scan -> empty state
         const cache = await loadRunCache(cwd);
         const cachedFile = cache ? resolveRunCacheFile(cache) : '';
         if (cachedFile && existsSync(cachedFile)) {
           sourceFile = cachedFile;
-          results = loadManifestResults(cachedFile);
+          results = loadManifestResults(cachedFile, { hydrateTranscriptTrace: false });
         } else {
           const metas = listResultFiles(cwd, 1);
           if (metas.length > 0) {
             sourceFile = metas[0].path;
-            results = loadManifestResults(metas[0].path);
+            results = loadManifestResults(metas[0].path, { hydrateTranscriptTrace: false });
           }
           // If no metas, results stays empty — dashboard shows welcome state
         }

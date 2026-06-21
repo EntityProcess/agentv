@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -8,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { addProject, saveProjectRegistry } from '@agentv/core';
 
+import { RUN_OPLOG_REF } from '../../../src/commands/results/run-oplog.js';
 import {
   createApp,
   loadResults,
@@ -934,7 +943,13 @@ describe('serve app', () => {
 
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
-        runs: Array<{ filename: string; source: string; on_remote: boolean }>;
+        runs: Array<{
+          filename: string;
+          source: string;
+          on_remote: boolean;
+          final_state: { lifecycle: string; tags: string[] };
+          oplog_watermark: { ref: string };
+        }>;
       };
       expect(data.runs).toHaveLength(1);
       // A local-only run (no remote configured) is not on the remote branch.
@@ -942,6 +957,159 @@ describe('serve app', () => {
         filename,
         source: 'local',
         on_remote: false,
+        final_state: {
+          lifecycle: 'active',
+          tags: [],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+        },
+      });
+    });
+
+    it('exposes materialized final state and oplog watermark for local run tags', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+      writeFileSync(
+        path.join(runDir, 'tags.json'),
+        `${JSON.stringify(
+          {
+            tags: ['accepted'],
+            updated_at: '2026-06-21T10:15:00.000Z',
+            oplog_watermark: {
+              ref: RUN_OPLOG_REF,
+              operation_id: 'op-local-tags',
+              updated_at: '2026-06-21T10:15:00.000Z',
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{
+          tags: string[];
+          final_state: { lifecycle: string; tags: string[] };
+          oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+        }>;
+      };
+      expect(listData.runs[0]).toMatchObject({
+        tags: ['accepted'],
+        final_state: {
+          lifecycle: 'active',
+          tags: ['accepted'],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+          operation_id: 'op-local-tags',
+          updated_at: '2026-06-21T10:15:00.000Z',
+        },
+      });
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        tags: string[];
+        final_state: { lifecycle: string; tags: string[] };
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      };
+      expect(detailData).toMatchObject({
+        tags: ['accepted'],
+        final_state: {
+          lifecycle: 'active',
+          tags: ['accepted'],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+          operation_id: 'op-local-tags',
+          updated_at: '2026-06-21T10:15:00.000Z',
+        },
+      });
+    });
+
+    it('preserves a local tag clear watermark after DELETE /tags', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-30-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+      writeFileSync(
+        path.join(runDir, 'tags.json'),
+        `${JSON.stringify(
+          {
+            tags: ['accepted'],
+            updated_at: '2026-06-21T10:15:00.000Z',
+            oplog_watermark: {
+              ref: RUN_OPLOG_REF,
+              operation_id: 'op-before-clear',
+              updated_at: '2026-06-21T10:15:00.000Z',
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const deleteRes = await app.request(`/api/runs/${encodeURIComponent(filename)}/tags`, {
+        method: 'DELETE',
+      });
+      expect(deleteRes.status).toBe(200);
+      const deleteData = (await deleteRes.json()) as {
+        ok: boolean;
+        tags: string[];
+        final_state: { lifecycle: string; tags: string[] };
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+        updated_at: string;
+      };
+      expect(deleteData.ok).toBe(true);
+      expect(deleteData.tags).toEqual([]);
+      expect(deleteData.final_state).toEqual({
+        lifecycle: 'active',
+        tags: [],
+      });
+      expect(deleteData.oplog_watermark.ref).toBe(RUN_OPLOG_REF);
+      expect(deleteData.oplog_watermark.operation_id).toBeString();
+      expect(deleteData.oplog_watermark.operation_id).not.toBe('op-before-clear');
+      expect(deleteData.oplog_watermark.updated_at).toBe(deleteData.updated_at);
+
+      const tagFile = JSON.parse(readFileSync(path.join(runDir, 'tags.json'), 'utf8')) as {
+        tags: string[];
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      };
+      expect(tagFile.tags).toEqual([]);
+      expect(tagFile.oplog_watermark.operation_id).toBe(deleteData.oplog_watermark.operation_id);
+
+      const reloadedApp = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const detailRes = await reloadedApp.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        tags: string[];
+        final_state: { lifecycle: string; tags: string[] };
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      };
+      expect(detailData).toMatchObject({
+        tags: [],
+        final_state: {
+          lifecycle: 'active',
+          tags: [],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+          operation_id: deleteData.oplog_watermark.operation_id,
+          updated_at: deleteData.oplog_watermark.updated_at,
+        },
       });
     });
 
@@ -2538,6 +2706,296 @@ describe('serve app', () => {
     });
   });
 
+  describe('GET /api/runs/:filename/evals/:evalId/transcript', () => {
+    it('loads canonical transcript JSONL lazily from the manifest pointer', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-transcript');
+      const runId = 'with-transcript::2026-03-25T10-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const answerArtifactPath = 'demo/test-greeting/outputs/answer.md';
+      const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const answerPath = path.join(timestampDir, answerArtifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'user',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      writeFileSync(answerPath, 'Hello, Alice!');
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'with-transcript',
+          transcript_path: transcriptArtifactPath,
+          answer_path: answerArtifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        transcript_path: string;
+        content: string;
+        answer_path: string;
+        answer_content: string;
+      };
+      expect(data).toMatchObject({
+        status: 'ok',
+        transcript_path: transcriptArtifactPath,
+        content: transcriptJsonl,
+        answer_path: answerArtifactPath,
+        answer_content: 'Hello, Alice!',
+      });
+    });
+
+    it('loads pointer-shaped transcript metadata when it resolves to a local artifact path', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'pointer-transcript');
+      const runId = 'pointer-transcript::2026-03-25T11-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T11-00-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const transcriptPath = path.join(timestampDir, artifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'assistant',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'pointer-transcript',
+          artifact_pointers: {
+            transcript: {
+              ref: 'agentv/artifacts/v1',
+              path: artifactPath,
+            },
+          },
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        transcript_path: string;
+        content: string;
+        pointer: string;
+      };
+      expect(data.status).toBe('ok');
+      expect(data.transcript_path).toBe(artifactPath);
+      expect(data.content).toBe(transcriptJsonl);
+      expect(data.pointer).toContain('agentv/artifacts/v1');
+    });
+
+    it('returns a clear missing state when no transcript pointer is recorded', async () => {
+      const runId = writeLocalRunArtifact(
+        tempDir,
+        'missing-transcript',
+        '2026-03-25T12-00-00-000Z',
+        RESULT_A,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { status: string; message: string };
+      expect(data.status).toBe('missing');
+      expect(data.message).toContain('outputs/transcript.jsonl');
+    });
+
+    it('returns a clear dangling state when the transcript pointer cannot be read', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'dangling-transcript');
+      const runId = 'dangling-transcript::2026-03-25T13-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T13-00-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+
+      mkdirSync(timestampDir, { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'dangling-transcript',
+          transcript_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        transcript_path: string;
+        message: string;
+      };
+      expect(data.status).toBe('dangling');
+      expect(data.transcript_path).toBe(artifactPath);
+      expect(data.message).toContain('not available');
+    });
+
+    it('treats symlinked transcript artifacts outside the run workspace as dangling', async () => {
+      const secret = 'outside transcript secret';
+      const outsidePath = path.join(tempDir, 'outside-transcript.jsonl');
+      writeFileSync(outsidePath, secret);
+
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-transcript');
+      const runId = 'escaped-transcript::2026-03-25T13-30-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T13-30-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const symlinkPath = path.join(timestampDir, artifactPath);
+
+      mkdirSync(path.dirname(symlinkPath), { recursive: true });
+      symlinkSync(outsidePath, symlinkPath);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-transcript',
+          transcript_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(text).not.toContain(secret);
+      const data = JSON.parse(text) as { status: string; transcript_path: string };
+      expect(data.status).toBe('dangling');
+      expect(data.transcript_path).toBe(artifactPath);
+    });
+
+    it('omits symlinked answer artifacts outside the run workspace from transcript responses', async () => {
+      const secret = 'outside answer secret';
+      const outsidePath = path.join(tempDir, 'outside-answer.md');
+      writeFileSync(outsidePath, secret);
+
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-answer');
+      const runId = 'escaped-answer::2026-03-25T13-45-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T13-45-00-000Z');
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const answerArtifactPath = 'demo/test-greeting/outputs/answer.md';
+      const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const answerPath = path.join(timestampDir, answerArtifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'user',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      symlinkSync(outsidePath, answerPath);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-answer',
+          transcript_path: transcriptArtifactPath,
+          answer_path: answerArtifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(text).not.toContain(secret);
+      const data = JSON.parse(text) as {
+        status: string;
+        content: string;
+        answer_path: string;
+        answer_content?: string;
+      };
+      expect(data.status).toBe('ok');
+      expect(data.content).toBe(transcriptJsonl);
+      expect(data.answer_path).toBe(answerArtifactPath);
+      expect(data.answer_content).toBeUndefined();
+    });
+
+    it('does not read transcript bodies for list, detail, or aggregate routes', async () => {
+      const timestamp = '2026-03-25T14-00-00-000Z';
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const runId = writeLocalRunArtifact(tempDir, 'lazy-guard', timestamp, {
+        ...RESULT_A,
+        transcript_path: transcriptArtifactPath,
+      });
+      const timestampDir = path.join(
+        tempDir,
+        '.agentv',
+        'results',
+        'runs',
+        'lazy-guard',
+        timestamp,
+      );
+      mkdirSync(path.join(timestampDir, transcriptArtifactPath), { recursive: true });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; target?: string }>;
+      };
+      expect(listData.runs.find((run) => run.filename === runId)?.target).toBe('gpt-4o');
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as { results: unknown[] };
+      expect(detailData.results).toHaveLength(1);
+
+      const compareRes = await app.request('/api/compare');
+      expect(compareRes.status).toBe(200);
+      const compareData = (await compareRes.json()) as {
+        cells: Array<{ experiment: string; eval_count: number }>;
+      };
+      expect(compareData.cells.find((cell) => cell.experiment === 'lazy-guard')?.eval_count).toBe(
+        1,
+      );
+
+      const indexRes = await app.request('/api/index');
+      expect(indexRes.status).toBe(200);
+      const indexData = (await indexRes.json()) as {
+        entries: Array<{ run_filename: string; total_cost_usd: number }>;
+      };
+      expect(indexData.entries.find((entry) => entry.run_filename === runId)?.total_cost_usd).toBe(
+        RESULT_A.cost_usd,
+      );
+    });
+  });
+
   describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
     it('loads file content for experiment-scoped run ids', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-skills');
@@ -2611,6 +3069,37 @@ describe('serve app', () => {
         'attachment; filename="transcript.jsonl"',
       );
       expect(await downloadRes.text()).toBe(transcriptJsonl);
+    });
+
+    it('rejects symlinked artifact file reads outside the run workspace', async () => {
+      const secret = 'outside raw artifact secret';
+      const outsidePath = path.join(tempDir, 'outside-response.md');
+      writeFileSync(outsidePath, secret);
+
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-file');
+      const runId = 'escaped-file::2026-03-25T10-30-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-30-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/response.md';
+      const symlinkPath = path.join(timestampDir, artifactPath);
+
+      mkdirSync(path.dirname(symlinkPath), { recursive: true });
+      symlinkSync(outsidePath, symlinkPath);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-file',
+          output_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${artifactPath}?raw=1`,
+      );
+
+      expect(res.status).toBe(403);
+      expect(await res.text()).not.toContain(secret);
     });
   });
 
