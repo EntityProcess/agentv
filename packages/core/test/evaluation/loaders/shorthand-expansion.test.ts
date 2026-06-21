@@ -15,6 +15,14 @@ describe('expandInputShorthand', () => {
     expect(result).toEqual([{ role: 'user', content: 'What is 2+2?' }]);
   });
 
+  it('expands structured object to single user message', () => {
+    const structured = { task: 'classify', labels: ['bug', 'feature'] };
+
+    const result = expandInputShorthand(structured);
+
+    expect(result).toEqual([{ role: 'user', content: structured }]);
+  });
+
   it('passes through message array', () => {
     const messages = [
       { role: 'system', content: 'You are a calculator' },

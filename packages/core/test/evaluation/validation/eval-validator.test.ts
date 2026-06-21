@@ -34,6 +34,64 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates eval file with suite-level input block shorthand', async () => {
+    const filePath = path.join(tempDir, 'suite-input-block.yaml');
+    await writeFile(
+      filePath,
+      `input: |
+  Read AGENTS.md before answering.
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "What is 2+2?"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates eval file with suite-level structured object input shorthand', async () => {
+    const filePath = path.join(tempDir, 'suite-input-object.yaml');
+    await writeFile(
+      filePath,
+      `input:
+  instruction: Classify the request
+  labels: [bug, feature]
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "The login button is broken."
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates eval file with test-level structured object input shorthand', async () => {
+    const filePath = path.join(tempDir, 'test-input-object.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+    input:
+      question: "What is 2+2?"
+      format: terse
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('validates eval file with input alias message array', async () => {
     const filePath = path.join(tempDir, 'input-array.yaml');
     await writeFile(

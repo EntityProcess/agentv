@@ -41,6 +41,16 @@ The simplest form is a string, which expands to a single user message:
 input: What is 15 + 27?
 ```
 
+Structured object input also expands to a single user message while preserving the object for code graders and batch runners:
+
+```yaml
+input:
+  request:
+    type: classify_ticket
+  ticket:
+    title: Login button is broken
+```
+
 For multi-turn or system messages, use a message array:
 
 ```yaml

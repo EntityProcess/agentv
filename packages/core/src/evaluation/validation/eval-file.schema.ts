@@ -12,23 +12,23 @@ import { z } from 'zod';
 // Shared primitives
 // ---------------------------------------------------------------------------
 
-/** Message content: string or structured array */
+const JsonObjectSchema = z.object({}).catchall(z.unknown());
+
+/** Message content: string, structured object, or structured array */
 const ContentItemSchema = z.object({
   type: z.enum(['text', 'file', 'image']),
   value: z.string(),
 });
 
-const MessageContentSchema = z.union([z.string(), z.array(ContentItemSchema)]);
+const MessageContentSchema = z.union([z.string(), JsonObjectSchema, z.array(ContentItemSchema)]);
 
 const MessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']),
   content: MessageContentSchema,
 });
 
-const JsonObjectSchema = z.object({}).catchall(z.unknown());
-
-/** Input: string shorthand or message array */
-const InputSchema = z.union([z.string(), z.array(MessageSchema)]);
+/** Input: string/object shorthand or message array */
+const InputSchema = z.union([z.string(), JsonObjectSchema, z.array(MessageSchema)]);
 
 /** Expected output: string, object, or message array */
 const ExpectedOutputSchema = z.union([z.string(), JsonObjectSchema, z.array(MessageSchema)]);

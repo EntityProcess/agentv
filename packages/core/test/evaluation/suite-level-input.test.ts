@@ -48,6 +48,62 @@ tests:
     });
   });
 
+  it('prepends suite-level input block scalar to each test input', async () => {
+    await writeFile(
+      path.join(tempDir, 'block-input.eval.yaml'),
+      `input: |
+  Read AGENTS.md before answering.
+  Mention tradeoffs.
+tests:
+  - id: block-test
+    criteria: "Uses shared instructions"
+    input: "Summarize the repo."
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'block-input.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].input).toHaveLength(2);
+    expect(tests[0].input[0]).toEqual({
+      role: 'user',
+      content: 'Read AGENTS.md before answering.\nMention tradeoffs.\n',
+    });
+    expect(tests[0].input[1]).toEqual({ role: 'user', content: 'Summarize the repo.' });
+  });
+
+  it('prepends suite-level structured input object to each test input', async () => {
+    await writeFile(
+      path.join(tempDir, 'object-input.eval.yaml'),
+      `input:
+  instruction: "Classify the request"
+  labels:
+    - bug
+    - feature
+tests:
+  - id: object-test
+    criteria: "Uses shared structured context"
+    input: "The login button is broken."
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'object-input.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].input).toHaveLength(2);
+    expect(tests[0].input[0]).toEqual({
+      role: 'user',
+      content: {
+        instruction: 'Classify the request',
+        labels: ['bug', 'feature'],
+      },
+    });
+    expect(tests[0].input[1]).toEqual({
+      role: 'user',
+      content: 'The login button is broken.',
+    });
+  });
+
   it('prepends suite-level input message array to each test input', async () => {
     await writeFile(
       path.join(tempDir, 'array-input.eval.yaml'),

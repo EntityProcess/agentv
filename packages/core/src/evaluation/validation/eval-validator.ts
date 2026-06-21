@@ -218,22 +218,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     }
   }
 
-  // Validate suite-level input (optional: string shorthand or message array)
-  const suiteInput = parsed.input;
-  if (suiteInput !== undefined) {
-    if (typeof suiteInput === 'string') {
-      // String shorthand is valid
-    } else if (Array.isArray(suiteInput)) {
-      validateMessages(suiteInput, 'input', absolutePath, errors);
-    } else {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: 'input',
-        message: "Invalid suite-level 'input' field (must be a string or array of messages)",
-      });
-    }
-  }
+  // Validate suite-level input (optional: string/object shorthand or message array)
+  validateInputField(parsed.input, 'input', absolutePath, errors);
 
   const cases: JsonValue | undefined = parsed.tests;
 
@@ -395,29 +381,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    // input field (string shorthand or message array)
-    const inputField = evalCase.input;
-    if (inputField !== undefined) {
-      if (typeof inputField === 'string') {
-        // String shorthand is valid - no further validation needed
-      } else if (Array.isArray(inputField)) {
-        validateMessages(inputField, `${location}.input`, absolutePath, errors);
-      } else {
-        errors.push({
-          severity: 'error',
-          filePath: absolutePath,
-          location: `${location}.input`,
-          message: "Invalid 'input' field (must be a string or array of messages)",
-        });
-      }
-    } else {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.input`,
-        message: "Missing 'input' field (must be a string or array of messages)",
-      });
-    }
+    // input field (string/object shorthand or message array)
+    validateInputField(evalCase.input, `${location}.input`, absolutePath, errors, {
+      required: true,
+    });
 
     // expected_output field (string/object shorthand or message array)
     const expectedOutputField = evalCase.expected_output;
@@ -701,6 +668,52 @@ function validateMessages(
       });
     }
   }
+}
+
+function validateInputField(
+  inputField: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+  options: { readonly required?: boolean } = {},
+): void {
+  if (inputField === undefined) {
+    if (options.required) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message: "Missing 'input' field (must be a string, object, or array of messages)",
+      });
+    }
+    return;
+  }
+
+  if (typeof inputField === 'string') {
+    // String shorthand is valid.
+    return;
+  }
+
+  if (Array.isArray(inputField)) {
+    validateMessages(inputField, location, filePath, errors);
+    return;
+  }
+
+  if (isObject(inputField)) {
+    if ('role' in inputField) {
+      validateMessages([inputField], location, filePath, errors);
+    }
+    // Structured object shorthand is valid and expands to one user message.
+    return;
+  }
+
+  const label = location === 'input' ? "suite-level 'input'" : "'input'";
+  errors.push({
+    severity: 'error',
+    filePath,
+    location,
+    message: `Invalid ${label} field (must be a string, object, or array of messages)`,
+  });
 }
 
 function validateMetadata(parsed: JsonObject, filePath: string, errors: ValidationError[]): void {

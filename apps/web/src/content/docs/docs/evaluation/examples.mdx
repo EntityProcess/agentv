@@ -371,11 +371,9 @@ Share a common prompt or system instruction across all tests. Suite-level `input
 
 ```yaml
 description: Travel assistant evaluation
-input:
-  - role: user
-    content:
-      - type: file
-        value: ./system-prompt.md
+input: |
+  You are a knowledgeable travel assistant.
+  Always include a practical safety tip.
 
 tests: ./cases.yaml
 ```

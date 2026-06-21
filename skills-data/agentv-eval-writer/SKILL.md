@@ -119,7 +119,7 @@ tests:
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
 | `criteria` | yes | What the response should accomplish |
-| `input` | yes | Input to the agent (string shorthand or full message array) |
+| `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
 | `execution` | no | Per-case execution overrides |
@@ -128,7 +128,8 @@ tests:
 | `conversation_id` | no | Thread grouping |
 
 **Shorthand forms:**
-- `input` (string) expands to `[{role: "user", content: "..."}]`
+- `input` (string, including YAML block scalars) expands to `[{role: "user", content: "..."}]`
+- `input` (object) expands to `[{role: "user", content: {...}}]`
 - `expected_output` (string/object) expands to `[{role: "assistant", content: ...}]`
 - Use these canonical field names on disk; keep the wire format `snake_case`
 
@@ -158,14 +159,12 @@ requires:
 
 ## Suite-level Input
 
-Prepend shared input messages to every test (like suite-level `assertions`). Avoids repeating the same prompt file in each test:
+Prepend shared input messages to every test (like suite-level `assertions`). Avoids repeating the same prompt or instruction in each test:
 
 ```yaml
-input:
-  - role: user
-    content:
-      - type: file
-        value: ./system-prompt.md
+input: |
+  Read AGENTS.md before answering.
+  Explain tradeoffs clearly.
 
 tests: ./cases.yaml
 
@@ -176,7 +175,7 @@ tests: ./cases.yaml
 ```
 
 Effective input: `[...suite input, ...test input]`. Skipped when `execution.skip_defaults: true`.
-Accepts same formats as test `input` (string or message array).
+Accepts the same formats as test `input`: string/block scalar, structured object, or full message array. Use the full message array only when you need roles, multiple messages, or file/image content blocks.
 
 ## Tests as String Path
 
