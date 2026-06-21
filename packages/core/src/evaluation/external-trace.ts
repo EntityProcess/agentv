@@ -138,10 +138,19 @@ function traceIdFromTraceparent(traceparent: string | undefined): string | undef
 
 function sanitizeTracestate(value: unknown): string | undefined {
   const raw = stringValue(value);
-  if (!raw || isCredentialLikeKey(raw)) {
+  if (!raw) {
     return undefined;
   }
-  return raw;
+  const entries = raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => {
+      const separator = entry.indexOf('=');
+      const key = separator >= 0 ? entry.slice(0, separator) : entry;
+      return key.length > 0 && !isCredentialLikeKey(key);
+    });
+  const sanitized = entries.join(',');
+  return sanitized.length > 0 && sanitized.length <= 512 ? sanitized : undefined;
 }
 
 function compactExternalTrace(value: ExternalTraceMetadata): ExternalTraceMetadata | undefined {
