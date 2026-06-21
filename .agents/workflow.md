@@ -9,7 +9,8 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 - Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details outside this public repository.
 - GitHub remains the PR, CI, review, and merge surface. Use GitHub Issues or Projects for external collaboration only when the user or operator explicitly asks for that workflow.
 - Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
-- The only repo-local Beads files intentionally tracked are `.beads/config.yaml`, `.beads/metadata.json`, and `.beads/.gitignore`. Never commit the embedded Dolt database, JSONL exports, backups, locks, logs, or runtime state.
+- The only repo-local Beads files intentionally tracked are `.beads/config.yaml` and `.beads/.gitignore`. `.beads/metadata.json` is checkout-local identity state. Never commit or copy it, the embedded Dolt database, JSONL exports, backups, locks, logs, or runtime state.
+- AgentV code lives in the public `EntityProcess/agentv` repository. Beads coordination data lives in the private `EntityProcess/agentv-beads` repository. Run `bun scripts/check-beads-context.ts` before `bd bootstrap`, `bd dolt push`, or `bd federation sync` in a new checkout or worktree, and stop if the check reports that Beads data would sync from the code repo.
 - Do not commit project-local coordination config files. The safe Beads defaults above are the exception.
 - Do not use `git stash` on shared checkouts. Inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes.
 
@@ -38,6 +39,7 @@ cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
 ```
 
 - Both steps are required before running builds, tests, or evals in the worktree.
+- Do not copy `.beads/metadata.json` or embedded `.beads/` runtime state into worktrees. The tracked `.beads/config.yaml` points at `EntityProcess/agentv-beads`; run `bun scripts/check-beads-context.ts`, then `bd bootstrap --dry-run`, then `bd bootstrap` so checkout-local Beads identity is created in place.
 - If you discover you are on a stale base or have uncoordinated dirty files, stop and fix that before changing code.
 - Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` or `bun.lock`, run `bun install` before building or testing.
 
