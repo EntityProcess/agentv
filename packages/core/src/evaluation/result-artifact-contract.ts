@@ -9,8 +9,8 @@
  */
 
 export const AGENTV_RESULTS_PRIMARY_REF = 'agentv/results/v1' as const;
-export const AGENTV_RESULTS_ARTIFACTS_REF = 'agentv/results/v1/artifacts' as const;
-export const AGENTV_RESULTS_OPLOG_REF = 'agentv/results/v1/oplog' as const;
+export const AGENTV_RESULTS_ARTIFACTS_REF = 'agentv/artifacts/v1' as const;
+export const AGENTV_RESULTS_OPLOG_REF = 'agentv/oplog/v1' as const;
 
 export const AGENTV_RESULTS_REFS = {
   primary: AGENTV_RESULTS_PRIMARY_REF,
@@ -27,7 +27,12 @@ export const TRACE_JSON_MEDIA_TYPE = 'application/vnd.agentv.trace.v1+json' as c
 
 export type AgentVResultsRefName = (typeof AGENTV_RESULTS_REFS)[keyof typeof AGENTV_RESULTS_REFS];
 
-export type ResultArtifactFamily = 'traces' | 'transcripts' | 'outputs' | 'raw-logs' | 'screenshots';
+export type ResultArtifactFamily =
+  | 'traces'
+  | 'transcripts'
+  | 'outputs'
+  | 'raw-logs'
+  | 'screenshots';
 
 export interface ResultArtifactPointer {
   readonly ref: AgentVResultsRefName | string;

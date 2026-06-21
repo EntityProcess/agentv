@@ -107,7 +107,7 @@ describe('results shared source resolution', () => {
         timing_path: 'pointer-case/timing.json',
         artifact_pointers: {
           transcript: {
-            ref: 'agentv/results/v1/artifacts',
+            ref: 'agentv/artifacts/v1',
             key: 'transcripts/pointer-case/outputs/transcript.jsonl',
             object_version: 'sha256:test',
             path: transcriptRelativePath,

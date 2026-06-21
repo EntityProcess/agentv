@@ -5,8 +5,8 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
-import { AGENTV_RESULTS_REFS } from '../../src/evaluation/result-artifact-contract.js';
 import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.js';
+import { AGENTV_RESULTS_REFS } from '../../src/evaluation/result-artifact-contract.js';
 import {
   DEFAULT_RESULTS_BRANCH,
   buildWipBranchName,
@@ -50,6 +50,17 @@ function createResultsConfig(repoDir: string, cloneDir: string): ResultsConfig {
     path: cloneDir,
     auto_push: true,
   };
+}
+
+function refsHavePrefixConflict(refs: readonly string[]): boolean {
+  for (const ref of refs) {
+    for (const other of refs) {
+      if (ref !== other && other.startsWith(`${ref}/`)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function initializeRemoteRepo(rootDir: string): { remoteDir: string; seedDir: string } {
@@ -336,9 +347,10 @@ describe('results repo write path', () => {
     expect(DEFAULT_RESULTS_BRANCH).toBe(AGENTV_RESULTS_REFS.primary);
     expect(AGENTV_RESULTS_REFS).toEqual({
       primary: 'agentv/results/v1',
-      artifacts: 'agentv/results/v1/artifacts',
-      oplog: 'agentv/results/v1/oplog',
+      artifacts: 'agentv/artifacts/v1',
+      oplog: 'agentv/oplog/v1',
     });
+    expect(refsHavePrefixConflict(Object.values(AGENTV_RESULTS_REFS))).toBe(false);
     expect(normalized.branch).toBe('agentv/results/v1');
     expect(normalized.repo_path).toBe('/tmp/source-project');
     expect(normalized.auto_push).toBe(false);
