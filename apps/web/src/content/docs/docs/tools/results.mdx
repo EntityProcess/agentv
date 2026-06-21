@@ -108,6 +108,45 @@ Duplicate policy is explicit:
 
 `attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
 
+### Vendor-neutral projection bundle
+
+Use the additive projection bundle path when an external adapter needs a
+backend-neutral handoff instead of AgentV's full artifact tree:
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> --projection-bundle
+```
+
+This writes `projection_bundle.json` next to the exported artifacts. The bundle
+contains stable projection IDs, trace envelope metadata, OpenInference-shaped
+span references, score provenance, artifact-relative paths, capture/redaction
+summary, and conversion warnings. It does not call Phoenix, Opik, Braintrust,
+Langfuse, Hugging Face, or any other live service.
+
+For adapter development and CI snapshots, use dry-run mode:
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> --dry-run > projection_bundle.json
+```
+
+Dry-run prints deterministic JSON and does not write export artifacts. Vendor
+adapters should consume either this JSON directly or the local
+`projection_bundle.json` plus the referenced files such as `grading.json`,
+`timing.json`, and `outputs/trace.json`.
+
+Raw prompt text, final output, and tool arguments/results are excluded by
+default. To include them in the bundle, opt in explicitly:
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> --dry-run --include-raw-content
+```
+
+Keep backend-specific anonymization in the adapter layer. For example, an Opik
+adapter can read the metadata-only bundle by default, or require
+`--include-raw-content` and then run Opik anonymizers before upload. AgentV does
+not run a custom redaction engine in `results export`; it records the capture
+policy so downstream processing is auditable.
+
 ## Inspection helpers
 
 For lightweight terminal workflows:

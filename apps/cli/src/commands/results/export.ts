@@ -23,12 +23,17 @@
 
 import path from 'node:path';
 
-import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
+import { command, flag, oneOf, option, optional, positional, string } from 'cmd-ts';
 
 import type { EvaluationResult, ExportDuplicatePolicy } from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
 import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
+import {
+  buildProjectionBundle,
+  serializeProjectionBundle,
+  writeProjectionBundle,
+} from './projection-bundle.js';
 import { loadResults as loadSharedResults, resolveSourceFile } from './shared.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
@@ -122,10 +127,34 @@ export const resultsExportCommand = command({
       description:
         'How to handle duplicate projection identities in the output: update (default), skip, or error',
     }),
+    projectionBundle: flag({
+      long: 'projection-bundle',
+      description: 'Write a vendor-neutral projection_bundle.json alongside exported artifacts',
+    }),
+    dryRun: flag({
+      long: 'dry-run',
+      description: 'Print deterministic projection bundle JSON without writing export artifacts',
+    }),
+    includeRawContent: flag({
+      long: 'include-raw-content',
+      description:
+        'Include raw prompt, output, and tool payload content in the projection bundle (off by default)',
+    }),
   },
-  handler: async ({ source, out, dir, duplicatePolicy }) => {
+  handler: async ({
+    source,
+    out,
+    dir,
+    duplicatePolicy,
+    projectionBundle,
+    dryRun,
+    includeRawContent,
+  }) => {
     const cwd = dir ?? process.cwd();
     const policy = (duplicatePolicy ?? 'update') as ExportDuplicatePolicy;
+    const shouldWriteProjectionBundle = projectionBundle;
+    const shouldDryRun = dryRun;
+    const shouldIncludeRawContent = includeRawContent;
 
     try {
       const { sourceFile, results } = await loadExportSource(source, cwd);
@@ -136,14 +165,35 @@ export const resultsExportCommand = command({
           : path.resolve(cwd, out)
         : deriveOutputDir(cwd, sourceFile);
 
+      const buildBundle = () =>
+        buildProjectionBundle(results, {
+          sourceFile,
+          runId: deriveExportRunId(sourceFile),
+          cwd,
+          duplicatePolicy: policy,
+          includeRawContent: shouldIncludeRawContent,
+        });
+
+      if (shouldDryRun) {
+        process.stdout.write(serializeProjectionBundle(buildBundle()));
+        return;
+      }
+
       await writeArtifactsFromResults(results, outputDir, {
         evalFile: sourceFile,
         runId: deriveExportRunId(sourceFile),
         duplicatePolicy: policy,
       });
 
+      const bundlePath = shouldWriteProjectionBundle
+        ? await writeProjectionBundle(buildBundle(), outputDir)
+        : undefined;
+
       // Report exported test IDs
       console.log(`Exported ${results.length} test(s) to ${outputDir}`);
+      if (bundlePath) {
+        console.log(`Projection bundle written to ${bundlePath}`);
+      }
       for (const result of results) {
         console.log(`  ${result.testId ?? 'unknown'}`);
       }
