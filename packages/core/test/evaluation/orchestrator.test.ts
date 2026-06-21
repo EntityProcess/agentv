@@ -23,6 +23,7 @@ import {
   type ReplayFixtureRecord,
   serializeReplayFixtureRecord,
 } from '../../src/evaluation/replay-fixtures.js';
+import { writeArtifactsFromResults } from '../../src/evaluation/run-artifacts.js';
 import { RunBudgetTracker } from '../../src/evaluation/run-budget-tracker.js';
 import {
   buildTraceEnvelopeFromEvaluationResult,
@@ -720,6 +721,49 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(result.executionStatus).toBe('execution_error');
     expect(result.failureStage).toBe('agent');
     expect(result.failureReasonCode).toBe('provider_error');
+  });
+
+  it('copies and indexes raw provider logs from normal per-case evaluation artifacts', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-raw-provider-log-'));
+    const rawLogPath = path.join(tempDir, 'provider-native-session.jsonl');
+    writeFileSync(rawLogPath, '{"event":"provider-native"}\n', 'utf8');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          output: [{ role: 'assistant', content: 'Raw log evidence preserved.' }],
+          raw: { logFile: rawLogPath },
+        },
+      ],
+    });
+
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.rawProviderLogPath).toBe(rawLogPath);
+
+    const outputDir = path.join(tempDir, 'artifacts');
+    await writeArtifactsFromResults([result], outputDir);
+
+    const outputsDir = path.join(outputDir, 'test-dataset', 'case-1', 'outputs');
+    expect(readFileSync(path.join(outputsDir, 'raw', 'provider.log'), 'utf8')).toBe(
+      '{"event":"provider-native"}\n',
+    );
+    expect(readdirSync(outputsDir)).toContain('transcript.jsonl');
+    expect(readdirSync(outputsDir)).not.toContain('transcript.json');
+
+    const indexRows = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(indexRows[0]?.raw_provider_log_path).toBe(
+      'test-dataset/case-1/outputs/raw/provider.log',
+    );
+    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/outputs/transcript.jsonl');
   });
 
   it('reports failed progress status for batch item errors', async () => {

@@ -2122,6 +2122,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       tokenUsage,
       startTime,
       endTime,
+      rawProviderLogPath,
       targetResolver,
       availableTargets,
       fileChanges,
