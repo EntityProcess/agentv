@@ -1,8 +1,15 @@
 # E2E Verification
 
+This file documents internal legacy fixture checks only. It is not a supported
+AgentV-to-Phoenix export path. AgentV does not export or project completed runs,
+traces, transcripts, datasets, experiments, or indexes into Phoenix.
+
 ## Dry-Run Conversion
 
-Dry-run mode discovers AgentV example evals, normalizes cases through `@agentv/core`, creates Phoenix dataset payloads in memory, and compares test IDs against AgentV baselines where present.
+Dry-run mode discovers AgentV example evals, normalizes cases through
+`@agentv/core`, builds legacy Phoenix-shaped payloads in memory, and compares
+test IDs against AgentV baselines where present. It does not contact Phoenix and
+does not write AgentV artifacts into Phoenix.
 
 ```bash
 bun run phoenix:assert-smoke
@@ -32,7 +39,11 @@ The failing suites are currently source/baseline or source-reference mismatches,
 
 ## Live Phoenix Smoke
 
-Live mode creates or updates a Phoenix dataset and records a Phoenix experiment. It currently uses the deterministic adapter path, so the best smoke target is `examples/features/assert/evals/dataset.eval.yaml`.
+Live Phoenix dataset/experiment creation is no longer part of the supported
+AgentV product boundary. Do not use live mode as Dashboard verification, a
+zero-infra path, or a public integration promise.
+
+Historical command retained for maintainers investigating the legacy fixture:
 
 ```bash
 (cd packages/phoenix-adapter && bun src/cli.ts run \
@@ -42,7 +53,8 @@ Live mode creates or updates a Phoenix dataset and records a Phoenix experiment.
   --namespace agentv-phoenix-e2e-final)
 ```
 
-The source harness was verified locally against Phoenix at `http://localhost:6006`:
+The source harness was historically verified locally against Phoenix at
+`http://localhost:6006`:
 
 - 4 Phoenix task runs
 - 4 Phoenix evaluator runs

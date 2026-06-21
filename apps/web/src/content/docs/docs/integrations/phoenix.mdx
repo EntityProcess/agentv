@@ -1,108 +1,80 @@
 ---
-title: Phoenix Adapter
-description: Convert AgentV eval YAML into Phoenix datasets and experiments while keeping AgentV as the source of truth.
+title: Phoenix
+description: How AgentV relates to Phoenix without making Phoenix the owner of AgentV artifacts.
 sidebar:
   order: 4
 ---
 
-The Phoenix adapter converts AgentV eval YAML suites into Phoenix dataset and
-experiment payloads. Use it when your team already reviews experiments in
-Phoenix but wants AgentV eval files, graders, result JSONL, and run artifacts to
-remain the canonical source.
+AgentV keeps completed runs, traces, transcripts, experiments, and indexes in
+AgentV-owned local or Git-backed artifacts. The supported zero-infra inspection
+path is the local [Dashboard](/docs/tools/dashboard/) and result artifact tools.
+Phoenix is optional external trace infrastructure, not the storage or projection
+target for AgentV artifacts.
 
-The adapter is intentionally narrow. It supports deterministic assertions that
-map cleanly to Phoenix CODE evaluators and reports unsupported AgentV families
-instead of silently dropping semantics.
+## Supported Boundary
 
-## Quick Start
+AgentV does not export or project completed AgentV runs, traces, transcripts,
+datasets, experiments, or indexes into Phoenix.
 
-From the AgentV repository root:
+Phoenix can still appear in AgentV workflows in two narrow ways:
 
-```bash
-bun --filter @agentv/phoenix-adapter phoenix:assert-smoke
-```
+- As UI inspiration for local trace and session review.
+- As an optional external trace database when Codex, Arize, or another hook
+  already emitted spans independently.
 
-This runs a dry-run smoke conversion for the deterministic assertion example and
-writes a structural report to `/tmp/agentv-phoenix-assert-smoke.json`.
+When an AgentV run artifact includes safe `external_trace` metadata, AgentV may
+link to that external Phoenix session. A future read-through can use Phoenix
+GraphQL/API to read the referenced session, but AgentV must not write AgentV
+artifacts into Phoenix as part of that flow.
 
-Run a broader dry run:
+## Local Inspection
 
-```bash
-bun --filter @agentv/phoenix-adapter phoenix:dry-run
-```
-
-Run one eval source directly:
+Use Dashboard for AgentV-owned run and trace review:
 
 ```bash
-bun packages/phoenix-adapter/src/cli.ts run \
-  --dry-run \
-  --agentv-root . \
-  --eval-file examples/features/assert/evals/dataset.eval.yaml \
-  --out reports/phoenix-assert.json
+agentv dashboard
 ```
 
-## Supported Evaluators
+Dashboard reads configured project run sources, local `.agentv/results/runs/`
+workspaces, remote results repositories, trace sidecars, transcripts, and
+artifact manifests. It does not require Phoenix, the `px` CLI, Phoenix database
+tables, or any Phoenix runtime process.
 
-| AgentV assertion family | Phoenix adapter behavior |
-| --- | --- |
-| `contains` | Converts to deterministic Phoenix evaluator logic |
-| `regex` | Converts to deterministic Phoenix evaluator logic |
-| `equals` | Converts to deterministic Phoenix evaluator logic |
-| `is-json` | Converts to deterministic Phoenix evaluator logic |
-| `llm-grader`, rubrics, `code-grader`, `tool-trajectory`, composite, metrics, and custom families | Reported as unsupported in the adapter report |
+## External Trace Metadata
 
-Unsupported families do not fail conversion by default. Add
-`--fail-on-unsupported` when a parity report should fail CI if any suite needs a
-manual Phoenix-specific evaluator.
+AgentV artifacts may carry metadata such as:
 
-```bash
-bun packages/phoenix-adapter/src/cli.ts run \
-  --dry-run \
-  --agentv-root . \
-  --filter examples/features/assert \
-  --fail-on-unsupported
+```json
+{
+  "external_trace": {
+    "provider": "phoenix",
+    "source": "codex",
+    "project": "agentv-dogfood",
+    "session_id": "codex-session-123",
+    "trace_id": "phoenix-trace-456",
+    "ui_url": "https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456"
+  }
+}
 ```
 
-## When to Use the Adapter
+Only safe link and identity fields should be surfaced. Secrets, API keys,
+authorization headers, raw tool payloads, and local filesystem paths should stay
+out of `external_trace` metadata.
 
-Use the Phoenix adapter for:
+## Transcript Boundary
 
-- deterministic assertion suites that should appear as Phoenix datasets and
-  experiments
-- parity checks that prove Phoenix row IDs match AgentV test IDs
-- integration smoke tests before writing a custom Phoenix evaluator
+AgentV transcript artifacts are not Phoenix-native conversation inputs.
+Model-call spans may carry cumulative input messages, so treating Phoenix span
+inputs as a linear transcript can duplicate prior turns and distort the
+conversation. Keep transcript, index, and storage semantics in AgentV artifacts;
+use Phoenix only as optional external context when safe metadata points at an
+already-existing session.
 
-Keep the eval in AgentV when you need:
+## Non-Goals
 
-- workspace setup, lifecycle hooks, Docker workspaces, or repo materialization
-- code graders that execute commands in the AgentV workspace
-- tool trajectory, trace, cost, latency, or composite scoring
-- rich rubric semantics that need AgentV's assertion objects in result JSONL
-
-Those features can still be represented in Phoenix with custom task and
-evaluator code, but the adapter does not attempt a lossy automatic conversion.
-
-## Traces vs Datasets
-
-The Phoenix adapter creates dataset and experiment payloads. It is separate from
-AgentV's OpenTelemetry trace export.
-
-For trace export, use AgentV's standard OTel options:
-
-```bash
-agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
-```
-
-For live OTel export to Phoenix, use a local `.agentv/otel-backends/phoenix.mjs`
-resolver that imports `phoenixOtelBackend` from `@agentv/phoenix-adapter`, then select it
-with `--otel-backend phoenix`. General live export options are documented in
-[Running Evaluations](/docs/evaluation/running-evals/#live-otel-export/).
-
-## Package Docs
-
-The adapter package includes the implementation README, support matrix, and
-verification notes:
-
-- [`packages/phoenix-adapter/README.md`](https://github.com/EntityProcess/agentv/tree/main/packages/phoenix-adapter)
-- [`packages/phoenix-adapter/docs/support-matrix.md`](https://github.com/EntityProcess/agentv/blob/main/packages/phoenix-adapter/docs/support-matrix.md)
-- [`packages/phoenix-adapter/docs/e2e-verification.md`](https://github.com/EntityProcess/agentv/blob/main/packages/phoenix-adapter/docs/e2e-verification.md)
+- No AgentV-to-Phoenix export or projection of completed runs, traces,
+  transcripts, datasets, experiments, or indexes.
+- No Phoenix-owned AgentV transcript, index, or storage model.
+- No Dashboard runtime dependency on Phoenix or `px`.
+- No direct Dashboard access to Phoenix database tables.
+- No Phoenix dataset or experiment creation as part of the zero-infra local path.

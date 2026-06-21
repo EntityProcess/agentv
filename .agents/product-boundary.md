@@ -19,6 +19,18 @@ AgentV aims to be the repo-native, workspace-native evaluation framework for AI 
 - Adapter boundaries: integrate with Phoenix, Harbor, Opik, and provider-specific systems through narrow adapters instead of absorbing their concepts into core.
 - AI-native extensibility: keep the core small and composable so engineers and coding agents can extend it with plugins, wrappers, and harness-specific glue.
 
+## Phoenix Boundary
+
+After the 2026-06-20 product decision, Phoenix is not an AgentV artifact owner or projection target.
+
+AgentV must not export or project completed AgentV runs, traces, transcripts, datasets, experiments, or indexes into Phoenix. AgentV-owned Git/GitHub run artifacts and the local Dashboard remain the supported zero-infra inspection path for AgentV run, trace, session, transcript, and comparison data.
+
+Phoenix may be referenced as UI inspiration and as optional external trace infrastructure when Codex, Arize, or another hook already emitted spans independently. The supported integration shape is read-only correlation/read-through through Phoenix GraphQL/API using safe `external_trace` metadata. That metadata can point from an AgentV artifact to an external Phoenix trace or session, but Phoenix does not become the storage, transcript, index, or run system of record.
+
+Dashboard must not require the `px` CLI at runtime, must not query Phoenix database tables directly, and must not introduce a Phoenix runtime dependency for the zero-infra local path. If Phoenix data is surfaced later, it should be through the public Phoenix GraphQL/API boundary and should degrade cleanly when Phoenix is unavailable.
+
+AgentV transcript artifacts are not Phoenix-native conversation inputs. Model-call spans may contain cumulative input messages, so treating Phoenix span input as a linear transcript can duplicate or distort the conversation. Keep AgentV transcript/index/storage semantics in AgentV artifacts.
+
 ## Design Principles
 
 ### 1. Lightweight Core, Plugin Extensibility

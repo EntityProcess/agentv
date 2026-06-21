@@ -1,26 +1,36 @@
 ---
 title: Trace Evaluation Architecture
 type: feat
-status: active
+status: superseded
 date: 2026-06-04
+superseded_by: docs/adr/2026-06-21-phoenix-read-only-correlation-boundary.md
 ---
 
 # Trace Evaluation Architecture
 
 ## Summary
 
-Build AgentV's trace evaluation architecture around a versioned, provider-neutral trace artifact contract. AgentV should ingest traces from AgentV runs, OTLP/OpenInference/Phoenix exports, Pi sessions, and transcript-style agent logs; normalize them into one trace artifact model; and run existing and future graders against that model without becoming a hosted observability platform.
+Build AgentV's trace evaluation architecture around a versioned, provider-neutral trace artifact contract. AgentV should ingest traces from AgentV runs, OTLP/OpenInference exports, Pi sessions, and transcript-style agent logs; normalize them into one trace artifact model; and run existing and future graders against that model without becoming a hosted observability platform.
 
 Update, 2026-06-18: `agentv.trace.v1` is the only AgentV trace artifact
 namespace for persisted trace sidecars. The trace read-model contract in
 this older plan is a derived internal projection over that artifact, not a
 separate versioned document that users produce.
 
+Update, 2026-06-21: This plan is no longer active. Phoenix-specific parts are superseded by
+the read-only Phoenix correlation boundary in
+[docs/adr/2026-06-21-phoenix-read-only-correlation-boundary.md](../adr/2026-06-21-phoenix-read-only-correlation-boundary.md).
+Do not use this plan as current Phoenix product scope. AgentV does not export,
+import, or project completed runs, traces, transcripts, datasets, experiments,
+or indexes into Phoenix. Phoenix is optional read-only GraphQL/API
+correlation/read-through only when safe `external_trace` metadata points to
+spans already emitted independently by Codex, Arize, or another hook.
+
 ---
 
 ## Problem Frame
 
-AgentV already captures tool calls in provider `Message.toolCalls`, persists compact `TraceSummary` data, exports AgentV OTLP spans, and has early post-hoc trace commands. That is enough for local AgentV result inspection, but it is not enough to evaluate production traces, Phoenix traces, or third-party agent sessions with the same grader contract.
+AgentV already captures tool calls in provider `Message.toolCalls`, persists compact `TraceSummary` data, exports AgentV OTLP spans, and has early post-hoc trace commands. That is enough for local AgentV result inspection, but it is not enough to evaluate production traces or third-party agent sessions with the same grader contract.
 
 The best-practice direction is clear: larger players own trace stores, dashboards, datasets, and experiment UIs. AgentV's niche is the repo-local, declarative evaluation harness for coding agents and tool-using agents. To connect those worlds, AgentV needs a durable trace artifact contract between raw trace sources and graders.
 
@@ -40,13 +50,13 @@ The best-practice direction is clear: larger players own trace stores, dashboard
 
 - R6. AgentV OTLP export must continue to emit standards-aligned GenAI spans, especially `invoke_agent`, `chat`, and `execute_tool` operations.
 - R7. AgentV must map trace artifacts to and from OTLP/OpenInference-style traces without making Phoenix-specific assumptions in core.
-- R8. Phoenix integration must use AgentV as the eval-definition and grader layer while Phoenix remains the trace/dataset/experiment backend.
+- R8. Phoenix integration, if present, must be read-only correlation/read-through for externally emitted traces; Phoenix must not become the AgentV trace, dataset, experiment, transcript, or index backend.
 - R9. Unsupported or lossy mappings must be explicit in conversion reports instead of silently approximated.
 
 **Post-Hoc Trace And Transcript Evaluation**
 
 - R10. Existing deterministic trace graders, including `tool-trajectory` and `execution-metrics`, must run against trace artifacts, not only live provider output messages or compact summaries.
-- R11. Post-hoc evaluation must accept AgentV run artifacts, AgentV OTLP files, Phoenix/Langfuse/OTLP exports, imported coding-agent transcripts, Pi session JSONL, and compact transcript JSONL through source-specific adapters.
+- R11. Post-hoc evaluation must accept AgentV run artifacts, AgentV OTLP files, Langfuse/OTLP exports, imported coding-agent transcripts, Pi session JSONL, and compact transcript JSONL through source-specific adapters.
 - R12. Grader output must cite trace artifact evidence, such as matched tool call IDs, positions, timing, or source event IDs.
 - R13. Trace evaluation must preserve current lightweight result output by deriving compact summaries from trace artifacts.
 
@@ -69,14 +79,14 @@ The best-practice direction is clear: larger players own trace stores, dashboard
 
 - R23. Content capture must remain opt-in. Tool arguments, tool results, message text, screenshots, and thinking blocks must be gated by a single redaction/capture policy.
 - R24. Local offline trace persistence must be supported for CI artifacts and PR review.
-- R25. Trace import must not require live access to Phoenix, Hugging Face, VS Code, or provider services when a local exported artifact is available.
+- R25. Trace import must not require live access to Hugging Face, VS Code, or provider services when a local exported artifact is available.
 
 ---
 
 ## Key Technical Decisions
 
 - **Start from realistic characterization evals:** The first implementation phase should collect a small set of real trace fixtures and write evals that answer useful agent-quality questions. The trace artifact contract should be pressure-tested by those evals before broad schema or adapter work expands.
-- **Normalize first, grade second:** Graders should consume AgentV's trace artifact contract. Importers translate raw sources into the contract; exporters translate the contract into OTLP/OpenInference/Phoenix shapes. This avoids coupling graders to Phoenix, Pi, VS Code, or provider-specific logs.
+- **Normalize first, grade second:** Graders should consume AgentV's trace artifact contract. Importers translate raw sources into the contract; exporters translate the contract into backend-neutral OTLP/OpenInference shapes. This avoids coupling graders to Pi, VS Code, or provider-specific logs.
 - **OTel is an interchange layer, not the canonical model:** VS Code and industry tooling make OTLP/HTTP and GenAI span semantics important, but entireio-style logs and Pi sessions prove valuable traces are often transcript or lifecycle JSON. AgentV should support OTel strongly without making it mandatory.
 - **Tool sequence grading is turn-centric, not span-centric:** The trace artifact should model sessions, turns, messages, tool calls, tool results, and selected branches as a projection over the canonical trace artifact.
 - **Coding-agent transcripts are trace sources:** `agentv import claude`, `agentv import codex`, `agentv import copilot`, and `agentv eval --transcript` already establish transcript import as offline grading infrastructure. The architecture should extend that path into trace artifact normalization instead of creating a separate trace-only mechanism.
@@ -99,7 +109,6 @@ AgentV should introduce a trace artifact layer between raw sources and evaluatio
 flowchart TB
   A[AgentV run output] --> N[Trace artifact]
   B[OTLP / OpenInference export] --> N
-  C[Phoenix trace export] --> N
   D[Pi session JSONL] --> N
   E[Compact transcript JSONL] --> N
   F[Imported coding-agent transcript] --> N
@@ -108,7 +117,6 @@ flowchart TB
   N --> G[Trace graders]
   N --> Q[Transcript replay provider]
   N --> O[OTLP / OpenInference export]
-  N --> P[Phoenix adapter]
 
   S --> R[AgentV result artifacts]
   G --> R
@@ -125,7 +133,7 @@ Directional internal projection shape:
 
 ```yaml
 source:
-  kind: pi_session | agentv_run | otlp | phoenix | langfuse | imported_transcript | compact_transcript
+  kind: pi_session | agentv_run | otlp | langfuse | imported_transcript | compact_transcript
   path: traces/session.jsonl
   url: https://...
 session:
@@ -201,13 +209,13 @@ The exact schema belongs in implementation, but these concepts should be stable:
 - **Test Scenarios:** Import an AgentV OTLP file into a trace artifact, export it back, and verify tool call order, call IDs, token usage, durations, redaction state, and grader score events survive when representable.
 - **Verification:** `agentv trace show` and `agentv trace score` should work from OTLP artifacts without requiring an `agentv.score` attribute for trace-only evaluation.
 
-### U4. Phoenix Adapter Trace Evaluation Path
+### U4. Phoenix Read-Only Correlation Path
 
-- **Goal:** Extend the Phoenix integration so Phoenix can be a trace source and experiment backend while AgentV remains the grader/eval definition layer.
-- **Files:** `packages/phoenix-adapter/src/`, `packages/phoenix-adapter/docs/support-matrix.md`, `packages/phoenix-adapter/docs/e2e-verification.md`, related CLI entry points if promoted beyond package scripts.
-- **Patterns:** Keep unsupported mappings visible, as the current Phoenix adapter already does. Do not move Phoenix-specific dataset or experiment concepts into AgentV core.
-- **Test Scenarios:** Convert a Phoenix/OTLP trace export into trace artifacts, run deterministic trace graders, report unsupported evaluator families, and emit a Phoenix experiment/report with AgentV grader results where supported.
-- **Verification:** Dry-run conversion must work offline. Live Phoenix smoke can remain a separately documented manual check.
+- **Goal:** Superseded for this plan by the 2026-06-21 Phoenix boundary ADR. Phoenix can be an external trace reference when spans were emitted independently, but it is not an AgentV trace, dataset, experiment, transcript, or index backend.
+- **Files:** Future read-through belongs outside core and should use Phoenix GraphQL/API plus safe `external_trace` metadata.
+- **Patterns:** Keep AgentV artifacts canonical. Do not add AgentV-to-Phoenix export/projection, direct Phoenix database access, `px` runtime requirements, or Phoenix-owned indexes.
+- **Test Scenarios:** Future read-through should prove missing Phoenix state degrades cleanly and that secrets are not surfaced from `external_trace` metadata.
+- **Verification:** Dashboard and AgentV result inspection must continue to work without Phoenix installed or running.
 
 ### U5. Pi Session Importer
 
@@ -231,14 +239,14 @@ The exact schema belongs in implementation, but these concepts should be stable:
 - **Files:** `apps/cli/src/commands/import/`, `packages/core/src/import/`, `packages/core/src/import/transcript-provider.ts`, `apps/cli/src/commands/eval/run-eval.ts`.
 - **Patterns:** Reuse `TranscriptEntry`, `TranscriptJsonLine`, and `TranscriptProvider` instead of inventing a parallel transcript format. Preserve `agentv eval --transcript` compatibility while adding trace artifact derivation.
 - **Test Scenarios:** Import one Claude, Codex, and Copilot fixture; replay each through `--transcript`; derive trace artifacts; run `tool-trajectory`; verify tool IDs, order, tool outputs, source provider metadata, duration, cost, token usage, and redaction state where available.
-- **Verification:** Existing transcript-provider tests keep passing, and new trace-evaluation tests prove imported transcripts and OTLP/Phoenix exports feed the same grader path.
+- **Verification:** Existing transcript-provider tests keep passing, and new trace-evaluation tests prove imported transcripts and OTLP exports feed the same grader path.
 
 ### U6c. Replay From Trace Artifact
 
 - **Goal:** Let trace artifacts act as replay sources, not only grader inputs.
 - **Files:** `packages/core/src/import/transcript-provider.ts`, `packages/core/src/import/types.ts`, trace artifact model files from U1, `apps/cli/src/commands/eval/run-eval.ts`.
 - **Patterns:** Treat replay as a projection from a trace artifact to provider `Message[]`. Do not duplicate storage by keeping one trace file for graders and a separate transcript file for replay when the trace artifact can serve both.
-- **Test Scenarios:** Replay a trace artifact generated from AgentV output, an imported transcript, and an OTLP/Phoenix-style trace. Verify each produces the expected provider output messages and identical compact summaries where data is representable.
+- **Test Scenarios:** Replay a trace artifact generated from AgentV output, an imported transcript, and an OTLP-style trace. Verify each produces the expected provider output messages and identical compact summaries where data is representable.
 - **Verification:** Existing `agentv eval --transcript` behavior remains compatible, with a migration path to replay trace artifacts directly.
 
 ### U6d. Replay Target Database Loop
@@ -276,10 +284,10 @@ The exact schema belongs in implementation, but these concepts should be stable:
 ### U9. Documentation and Best-Practice Recipes
 
 - **Goal:** Document the contract and the integration posture so AgentV's scope stays clear.
-- **Files:** `apps/web/src/content/docs/` if public docs exist for this area, package READMEs, `packages/phoenix-adapter/docs/support-matrix.md`, showcase material under `examples/showcase/trace-evaluation/`.
+- **Files:** `apps/web/src/content/docs/` if public docs exist for this area, package READMEs, boundary ADRs, showcase material under `examples/showcase/trace-evaluation/`.
 - **Patterns:** Document patterns instead of adding core primitives when composition is enough.
 - **Test Scenarios:** Validate example eval YAML and include at least one trace-import fixture for post-hoc scoring.
-- **Verification:** Docs should show recipes for local trace scoring, Phoenix trace evaluation, Pi session scoring, and OTLP export.
+- **Verification:** Docs should show recipes for local trace scoring, read-only Phoenix correlation boundaries, Pi session scoring, and OTLP export.
 
 ---
 
@@ -288,10 +296,10 @@ The exact schema belongs in implementation, but these concepts should be stable:
 - AE1. **Covers R1, R10, R13.** Given an AgentV run with ordered tool calls, when the run is converted to a trace artifact, then `tool-trajectory` can grade the order and the result still has the same compact summary counts.
 - AE2. **Covers R2, R7, R11.** Given an OTLP trace export with `execute_tool` spans, when `agentv trace score` runs, then AgentV imports the spans into a trace artifact and grades tool usage without requiring a Phoenix server.
 - AE3. **Covers R3, R11.** Given a branchable Pi session, when a selected leaf is provided or inferred, then only the selected branch path is graded and omitted branch IDs are recorded.
-- AE4. **Covers R8, R9.** Given a Phoenix trace export containing unsupported evaluator semantics, when the Phoenix adapter runs, then the report lists unsupported mappings instead of treating them as successful conversions.
+- AE4. **Covers R8, R9.** Given an AgentV artifact has safe `external_trace` metadata for an independently emitted Phoenix session, when AgentV surfaces that reference, then it treats Phoenix as read-only external context and keeps AgentV artifacts canonical.
 - AE5. **Covers R23.** Given content capture is disabled, when a trace with tool arguments and results is exported, then the trace artifact preserves IDs, names, timing, and redaction state but does not persist raw content.
 - AE6. **Covers R12.** Given a failed tool sequence expectation, when AgentV reports the grader result, then the assertion cites the actual matched or missing tool call positions and source event IDs.
-- AE7. **Covers R10, R11.** Given a transcript imported with `agentv import codex`, `agentv import claude`, or `agentv import copilot`, when the transcript is evaluated post-hoc, then the same trace graders used for OTLP/Phoenix traces can score it.
+- AE7. **Covers R10, R11.** Given a transcript imported with `agentv import codex`, `agentv import claude`, or `agentv import copilot`, when the transcript is evaluated post-hoc, then the same trace graders used for OTLP traces can score it.
 - AE8. **Covers R14, R15, R16.** Given the same derived artifact, when AgentV uses it for replay and for grading, then replayed provider output and grader evidence come from the same ordered messages and tool calls.
 - AE9. **Covers R17, R18, R19.** Given a live target run has been recorded into replay JSONL, when the same eval runs with a replay target alias and shuffled fixture records, then AgentV selects the exact matching record, makes no live LLM call, and runs graders fresh.
 - AE10. **Covers R18.** Given a replay database has no matching record or has multiple matching records for the current test and target, when replay runs, then AgentV fails with an actionable error instead of falling back to a near match.
@@ -305,7 +313,7 @@ The exact schema belongs in implementation, but these concepts should be stable:
 Deferred for later:
 
 - Hosted trace storage or a managed observability service.
-- Phoenix dataset and experiment UI replacement.
+- Any Phoenix-owned AgentV storage, transcript, index, export, projection, dataset, or experiment path.
 - Langfuse or Braintrust prompt registry replacement.
 - Broad RAGAS metric reimplementation inside core.
 - Automatic trace mining into new eval cases, beyond import and post-hoc scoring.
@@ -327,7 +335,7 @@ Outside this product's identity:
 - **Graders:** Trace-aware graders move from output-message parsing toward trace artifact parsing while keeping compatibility with current eval results.
 - **CLI:** Post-hoc trace commands become a real evaluation path, not just inspection of AgentV-generated artifacts.
 - **Observability:** OTel export remains standards-aligned and becomes round-trippable enough for offline scoring.
-- **Adapters:** Phoenix, Pi, and transcript importers stay outside primitive grader logic, preserving AgentV's lightweight core.
+- **Adapters:** Pi and transcript importers stay outside primitive grader logic, preserving AgentV's lightweight core. Phoenix remains read-only external correlation when safe `external_trace` metadata exists.
 - **Privacy:** Redaction and content capture become an explicit boundary concern across import, persistence, export, and grading.
 
 ---
@@ -338,7 +346,7 @@ Outside this product's identity:
 - **Lossy imports:** Some sources lack tool timing, outputs, status, or branch data. Mitigation: record provenance and warning metadata instead of fabricating precision.
 - **Artifact size:** Full trace artifacts can be large. Mitigation: keep compact summaries as default result metadata and store full trace artifacts as optional sidecar artifacts.
 - **Privacy mistakes:** Tool args/results may contain secrets or PII. Mitigation: default to redacted content and centralize capture policy.
-- **Phoenix scope creep:** It is tempting to mirror Phoenix concepts in core. Mitigation: keep Phoenix-specific dataset and experiment behavior in `packages/phoenix-adapter/`.
+- **Phoenix scope creep:** It is tempting to mirror Phoenix concepts in core. Mitigation: keep Phoenix read-through outside core, read-only, and driven by safe `external_trace` metadata; do not add Phoenix dataset or experiment projection.
 
 ---
 
@@ -353,10 +361,8 @@ Outside this product's identity:
 - `packages/core/src/evaluation/cache/response-cache.ts` implements the existing opt-in response cache and safety behavior.
 - `packages/core/src/evaluation/config.ts` exposes TS config `cache.enabled` and `cache.path`, while `apps/cli/src/commands/eval/run-eval.ts` currently uses CLI flags and YAML cache config when constructing `ResponseCache`.
 - `packages/core/src/observability/otel-exporter.ts` already emits `agentv.eval`, `chat`, and `execute_tool` spans with GenAI attributes and optional content capture.
-- `packages/phoenix-adapter/README.md` and `packages/phoenix-adapter/docs/support-matrix.md` show the current adapter boundary and explicit unsupported-mapping posture.
 - Microsoft VS Code at `ebb335fad028ca0f3582e822d14a1bb9109725e7` uses OTLP/HTTP, optional local JSONL/SQLite persistence, `invoke_agent`, `chat`, and `execute_tool` spans, W3C trace context propagation, and privacy-gated content capture.
 - entireio/cli at `b98014a60b474ddf139a91231cdc4640eac62e5f` does not expose agent traces through OTel; its useful trace sources are compact transcript JSONL and lifecycle events with tool-use/file metadata.
 - Pi public session format and `badlogicgames/pi-mono` show branchable JSONL sessions with session headers, message entries, embedded assistant tool calls, separate tool results, model metadata, token usage, and optional inline images/thinking blocks.
 - DeepEval's cache and tracing features are adjacent but distinct: AgentV replay should cache target output/transcripts for fresh grader runs, not primarily replay cached metric judgments.
 - OpenTelemetry GenAI semantic conventions document `execute_tool` spans and tool attributes such as `gen_ai.tool.name` and `gen_ai.tool.call.id`.
-- Phoenix/OpenInference conventions favor span-kind mappings such as agent, LLM, tool, and evaluator spans, which should be adapter mappings rather than AgentV's internal model.

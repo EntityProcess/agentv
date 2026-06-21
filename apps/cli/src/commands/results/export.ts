@@ -162,7 +162,8 @@ export const resultsExportCommand = command({
     }),
     projectionBundle: flag({
       long: 'projection-bundle',
-      description: 'Write a vendor-neutral projection_bundle.json alongside exported artifacts',
+      description:
+        'Write a local vendor-neutral projection_bundle.json for non-Phoenix adapters; no service calls',
     }),
     dryRun: flag({
       long: 'dry-run',
