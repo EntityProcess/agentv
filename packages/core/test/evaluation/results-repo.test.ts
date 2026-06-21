@@ -1,5 +1,14 @@
 import { execSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -41,6 +50,18 @@ function git(cmd: string, cwd: string): string {
   })
     .toString()
     .trim();
+}
+
+function gitRaw(cmd: string, cwd: string): Buffer {
+  return execSync(cmd, {
+    cwd,
+    env: cleanGitEnv(),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+function sha256Hex(content: Buffer | string): string {
+  return createHash('sha256').update(content).digest('hex');
 }
 
 function createResultsConfig(repoDir: string, cloneDir: string): ResultsConfig {
@@ -109,6 +130,67 @@ function writeRunArtifacts(runDir: string, experiment: string, timestamp: string
       null,
       2,
     ),
+  );
+}
+
+function writeRunArtifactsWithPointers(
+  runDir: string,
+  experiment: string,
+  timestamp: string,
+): void {
+  writeRunArtifacts(runDir, experiment, timestamp);
+  const outputsDir = path.join(runDir, 'alpha', 'outputs');
+  mkdirSync(outputsDir, { recursive: true });
+  const traceContent = Buffer.from(
+    JSON.stringify({
+      schema_version: 'agentv.trace.v1',
+      test_id: 'alpha',
+      spans: [],
+    }),
+  );
+  const transcriptContent = Buffer.from(
+    `${JSON.stringify({
+      schema_version: 'agentv.transcript.v1',
+      test_id: 'alpha',
+      role: 'assistant',
+      content: 'sidecar transcript',
+    })}\n`,
+  );
+  writeFileSync(path.join(outputsDir, 'trace.json'), traceContent);
+  writeFileSync(path.join(outputsDir, 'transcript.jsonl'), transcriptContent);
+
+  const traceSha = sha256Hex(traceContent);
+  const transcriptSha = sha256Hex(transcriptContent);
+  writeFileSync(
+    path.join(runDir, 'index.jsonl'),
+    `${JSON.stringify({
+      test_id: 'alpha',
+      score: 1,
+      artifact_pointers: {
+        trace: {
+          ref: AGENTV_RESULTS_REFS.artifacts,
+          key: 'traces/alpha/outputs/trace.json',
+          object_version: `sha256:${traceSha}`,
+          path: 'alpha/outputs/trace.json',
+          sha256: traceSha,
+          size: traceContent.byteLength,
+          schema_version: 'agentv.trace.v1',
+          media_type: 'application/vnd.agentv.trace.v1+json',
+          family: 'traces',
+        },
+        transcript: {
+          ref: AGENTV_RESULTS_REFS.artifacts,
+          key: 'transcripts/alpha/outputs/transcript.jsonl',
+          object_version: `sha256:${transcriptSha}`,
+          path: 'alpha/outputs/transcript.jsonl',
+          sha256: transcriptSha,
+          size: transcriptContent.byteLength,
+          schema_version: 'agentv.transcript.v1',
+          media_type: 'application/x-ndjson',
+          family: 'transcripts',
+        },
+      },
+    })}\n`,
   );
 }
 
@@ -553,6 +635,140 @@ describe('results repo write path', () => {
       git(`git --git-dir "${remoteDir}" log -1 --pretty=%B ${storageBranch}`, rootDir),
     ).toContain(`AgentV-Run: branch-storage::${runTimestamp}`);
   }, 20000);
+
+  it('pushes artifact pointer payloads to the sidecar artifact branch', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, 'dogfood/results-sync');
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const sourceDir = path.join(rootDir, 'source-run');
+    const runTimestamp = '2026-06-21T12-00-00-000Z';
+    const destinationPath = path.posix.join('sidecar', runTimestamp);
+    const config = {
+      ...createResultsConfig(remoteDir, cloneDir),
+      branch: storageBranch,
+    };
+    writeRunArtifactsWithPointers(sourceDir, 'sidecar', '2026-06-21T12:00:00.000Z');
+
+    await expect(
+      directPushResults({
+        config,
+        sourceDir,
+        destinationPath,
+        commitMessage: 'feat(results): sidecar - 1/1 PASS (1.000)',
+      }),
+    ).resolves.toBe(true);
+
+    const resultTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
+      rootDir,
+    );
+    expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
+    expect(resultTree).toContain(`runs/${destinationPath}/benchmark.json`);
+
+    const artifactTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
+      rootDir,
+    );
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
+    expect(artifactTree).not.toContain(`runs/${destinationPath}/benchmark.json`);
+    expect(artifactTree).not.toContain(`runs/${destinationPath}/index.jsonl`);
+
+    const index = JSON.parse(
+      gitRaw(
+        `git --git-dir "${remoteDir}" show ${storageBranch}:runs/${destinationPath}/index.jsonl`,
+        rootDir,
+      ).toString('utf8'),
+    );
+    for (const pointer of Object.values(index.artifact_pointers) as Array<{
+      path: string;
+      sha256: string;
+      object_version: string;
+    }>) {
+      const bytes = gitRaw(
+        `git --git-dir "${remoteDir}" show ${AGENTV_RESULTS_REFS.artifacts}:runs/${destinationPath}/${pointer.path}`,
+        rootDir,
+      );
+      const sha256 = sha256Hex(bytes);
+      expect(sha256).toBe(pointer.sha256);
+      expect(pointer.object_version).toBe(`sha256:${sha256}`);
+    }
+
+    const resultHead = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
+    const artifactHead = git(
+      `git --git-dir "${remoteDir}" rev-parse ${AGENTV_RESULTS_REFS.artifacts}`,
+      rootDir,
+    );
+    await expect(
+      directPushResults({
+        config,
+        sourceDir,
+        destinationPath,
+        commitMessage: 'feat(results): sidecar - 1/1 PASS (1.000)',
+      }),
+    ).resolves.toBe(false);
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
+      resultHead,
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" rev-parse ${AGENTV_RESULTS_REFS.artifacts}`, rootDir),
+    ).toBe(artifactHead);
+  }, 30000);
+
+  it('backfills a missing artifact sidecar for an already-published run', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = 'dogfood/pr-1462-results-sync';
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const sourceDir = path.join(rootDir, 'source-run');
+    const runTimestamp = '2026-06-21T13-00-00-000Z';
+    const destinationPath = path.posix.join('sidecar-backfill', runTimestamp);
+    const config = {
+      ...createResultsConfig(remoteDir, cloneDir),
+      branch: storageBranch,
+    };
+    writeRunArtifactsWithPointers(sourceDir, 'sidecar-backfill', '2026-06-21T13:00:00.000Z');
+
+    git(`git switch --quiet --orphan ${storageBranch}`, seedDir);
+    git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
+    const seededRunDir = path.join(seedDir, 'runs', ...destinationPath.split('/'));
+    mkdirSync(path.dirname(seededRunDir), { recursive: true });
+    cpSync(sourceDir, seededRunDir, { recursive: true });
+    git('git add runs && git commit --quiet -m "seed published run"', seedDir);
+    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
+    git('git switch --quiet main', seedDir);
+    const seededResultsHead = git(
+      `git --git-dir "${remoteDir}" rev-parse ${storageBranch}`,
+      rootDir,
+    );
+
+    await expect(
+      directPushResults({
+        config,
+        sourceDir,
+        destinationPath,
+        commitMessage: 'feat(results): sidecar backfill - 1/1 PASS (1.000)',
+      }),
+    ).resolves.toBe(true);
+
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
+      seededResultsHead,
+    );
+    const artifactTree = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
+      rootDir,
+    );
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
+
+    await expect(
+      directPushResults({
+        config,
+        sourceDir,
+        destinationPath,
+        commitMessage: 'feat(results): sidecar backfill - 1/1 PASS (1.000)',
+      }),
+    ).resolves.toBe(false);
+  }, 30000);
 
   it('auto-creates a missing configured storage branch', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);

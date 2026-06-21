@@ -446,6 +446,14 @@ carry the storage `ref`, artifact `key`, canonical run-relative `path`,
 viewers and exports can migrate from git refs to object storage without changing
 the run record contract.
 
+When automatic remote publishing sees pointers whose `ref` is
+`agentv/artifacts/v1`, it also pushes those payload bytes to the
+`agentv/artifacts/v1` branch in the same results remote at
+`runs/<run-path>/<pointer.path>`. The configured results branch remains the
+self-contained run bundle for current readers, while the sidecar branch gives
+artifact-aware consumers a concrete ref whose bytes can be verified with
+`object_version` and `sha256`.
+
 `outputs/trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
 It stores the canonical span graph, source metadata, capture/redaction policy,
 conversion warnings, score provenance, and opaque evidence references.

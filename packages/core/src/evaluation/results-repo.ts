@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -15,7 +16,10 @@ import { promisify } from 'node:util';
 
 import { getAgentvDataDir } from '../paths.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
-import { AGENTV_RESULTS_PRIMARY_REF } from './result-artifact-contract.js';
+import {
+  AGENTV_RESULTS_ARTIFACTS_REF,
+  AGENTV_RESULTS_PRIMARY_REF,
+} from './result-artifact-contract.js';
 
 const execFileAsync = promisify(execFile);
 // Local working-tree run workspace inside the eval repo. Local commands
@@ -43,6 +47,7 @@ const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // divergent root. See createOrphanResultsBranch.
 const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
+const RESULT_INDEX_FILENAME = 'index.jsonl';
 
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
@@ -1464,6 +1469,122 @@ async function listSourceFiles(sourceDir: string): Promise<string[]> {
   return entries;
 }
 
+type ArtifactSidecarPointer = {
+  readonly path: string;
+  readonly sha256?: string;
+  readonly objectVersion?: string;
+};
+
+type PreparedArtifactSidecar = {
+  readonly sourceDir: string;
+  readonly cleanup: () => Promise<void>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function artifactSidecarPointers(record: unknown): ArtifactSidecarPointer[] {
+  if (!isRecord(record) || !isRecord(record.artifact_pointers)) {
+    return [];
+  }
+
+  const pointers: ArtifactSidecarPointer[] = [];
+  for (const pointer of Object.values(record.artifact_pointers)) {
+    if (!isRecord(pointer)) {
+      continue;
+    }
+    if (pointer.ref !== AGENTV_RESULTS_ARTIFACTS_REF || typeof pointer.path !== 'string') {
+      continue;
+    }
+    pointers.push({
+      path: pointer.path,
+      ...(typeof pointer.sha256 === 'string' ? { sha256: pointer.sha256 } : {}),
+      ...(typeof pointer.object_version === 'string'
+        ? { objectVersion: pointer.object_version }
+        : {}),
+    });
+  }
+  return pointers;
+}
+
+function resolveArtifactPointerSourcePath(sourceDir: string, pointerPath: string): string {
+  const normalizedPointerPath = normalizeDestinationPath(pointerPath);
+  const sourceRoot = path.resolve(sourceDir);
+  const sourcePath = path.resolve(sourceRoot, ...normalizedPointerPath.split('/'));
+  const relative = path.relative(sourceRoot, sourcePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Artifact pointer path escapes run directory: ${pointerPath}`);
+  }
+  return sourcePath;
+}
+
+function verifyArtifactPointerChecksum(pointer: ArtifactSidecarPointer, content: Buffer): void {
+  const sha256 = createHash('sha256').update(content).digest('hex');
+  if (pointer.sha256 && pointer.sha256 !== sha256) {
+    throw new Error(`Artifact pointer checksum mismatch for ${pointer.path}`);
+  }
+  if (pointer.objectVersion && pointer.objectVersion !== `sha256:${sha256}`) {
+    throw new Error(`Artifact pointer object_version mismatch for ${pointer.path}`);
+  }
+}
+
+async function prepareArtifactSidecar(params: {
+  readonly sourceDir: string;
+}): Promise<PreparedArtifactSidecar | undefined> {
+  const indexPath = path.join(params.sourceDir, RESULT_INDEX_FILENAME);
+  if (!existsSync(indexPath)) {
+    return undefined;
+  }
+
+  const pointers: ArtifactSidecarPointer[] = [];
+  for (const line of readFileSync(indexPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    try {
+      pointers.push(...artifactSidecarPointers(JSON.parse(trimmed)));
+    } catch {}
+  }
+
+  if (pointers.length === 0) {
+    return undefined;
+  }
+
+  const sidecarRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-artifact-sidecar-'));
+  const copied = new Set<string>();
+
+  try {
+    for (const pointer of pointers) {
+      const relativePointerPath = normalizeDestinationPath(pointer.path);
+      if (copied.has(relativePointerPath)) {
+        continue;
+      }
+      const sourcePath = resolveArtifactPointerSourcePath(params.sourceDir, relativePointerPath);
+      const content = readFileSync(sourcePath);
+      verifyArtifactPointerChecksum(pointer, content);
+      const destinationPath = path.join(sidecarRoot, ...relativePointerPath.split('/'));
+      mkdirSync(path.dirname(destinationPath), { recursive: true });
+      writeFileSync(destinationPath, content);
+      copied.add(relativePointerPath);
+    }
+  } catch (error) {
+    await rm(sidecarRoot, { recursive: true, force: true }).catch(() => undefined);
+    throw error;
+  }
+
+  if (copied.size === 0) {
+    await rm(sidecarRoot, { recursive: true, force: true }).catch(() => undefined);
+    return undefined;
+  }
+
+  return {
+    sourceDir: sidecarRoot,
+    cleanup: () => rm(sidecarRoot, { recursive: true, force: true }),
+  };
+}
+
 async function getExistingRunTreePaths(
   repoDir: string,
   ref: string | undefined,
@@ -1740,6 +1861,81 @@ async function pushDirectResultsToStorageBranch(params: {
   }
 }
 
+async function commitAndMaybePushRunTree(params: {
+  readonly normalized: StorageBranchResultsConfig;
+  readonly repoDir: string;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly commitMessage: string;
+  readonly targetRunId: string;
+  readonly shouldPush: boolean;
+}): Promise<boolean> {
+  const result = await commitResultsRunWithTemporaryIndex({
+    normalized: params.normalized,
+    repoDir: params.repoDir,
+    sourceDir: params.sourceDir,
+    destinationPath: params.destinationPath,
+    commitMessage: params.commitMessage,
+    targetRunId: params.targetRunId,
+  });
+
+  if (!params.shouldPush) {
+    updateStatusFile(params.normalized, { last_error: undefined });
+    return result.commitCreated;
+  }
+
+  if (!result.commitCreated) {
+    const localBranchExists = await gitRefExists(
+      params.repoDir,
+      `refs/heads/${params.normalized.branch}`,
+    );
+    const hasUnpushed = result.upstreamRef
+      ? localBranchExists
+        ? await hasUnpushedCommits(params.repoDir, result.upstreamRef, params.normalized.branch)
+        : false
+      : localBranchExists;
+    if (!hasUnpushed) {
+      return false;
+    }
+
+    const aheadPaths = result.upstreamRef
+      ? await getAheadPaths(
+          params.repoDir,
+          result.upstreamRef,
+          `refs/heads/${params.normalized.branch}`,
+        )
+      : [];
+    if (result.upstreamRef && !areSafeResultsRepoPaths(aheadPaths)) {
+      const error = new Error('Results repo has non-results committed changes');
+      updateStatusFile(params.normalized, { last_error: error.message });
+      throw error;
+    }
+    await pushDirectResultsToStorageBranch({
+      normalized: params.normalized,
+      repoDir: params.repoDir,
+      storageBranch: params.normalized.branch,
+      upstreamRef: result.upstreamRef,
+      sourceDir: params.sourceDir,
+      destinationPath: params.destinationPath,
+      commitMessage: params.commitMessage,
+      targetRunId: params.targetRunId,
+    });
+    return true;
+  }
+
+  await pushDirectResultsToStorageBranch({
+    normalized: params.normalized,
+    repoDir: params.repoDir,
+    storageBranch: params.normalized.branch,
+    upstreamRef: result.upstreamRef,
+    sourceDir: params.sourceDir,
+    destinationPath: params.destinationPath,
+    commitMessage: params.commitMessage,
+    targetRunId: params.targetRunId,
+  });
+  return true;
+}
+
 /**
  * Push results directly to the configured storage branch of the results repo.
  * Handles non-fast-forward conflicts by fetching, rebasing, and retrying.
@@ -1764,61 +1960,46 @@ export async function directPushResults(params: {
     branch: storageBranch,
   };
   const targetRunId = buildGitRunId(params.destinationPath);
-
-  const result = await commitResultsRunWithTemporaryIndex({
-    normalized: storageConfig,
-    repoDir,
-    sourceDir: params.sourceDir,
-    destinationPath: params.destinationPath,
-    commitMessage: params.commitMessage,
-    targetRunId,
-  });
-
   const shouldPush = normalized.auto_push || normalized.require_push;
-  if (!shouldPush) {
-    updateStatusFile(storageConfig, { last_error: undefined });
-    return result.commitCreated;
-  }
+  const sidecar = await prepareArtifactSidecar({ sourceDir: params.sourceDir });
 
-  if (!result.commitCreated) {
-    const hasUnpushed = result.upstreamRef
-      ? await hasUnpushedCommits(repoDir, result.upstreamRef, storageBranch)
-      : true;
-    if (hasUnpushed) {
-      const aheadPaths = result.upstreamRef
-        ? await getAheadPaths(repoDir, result.upstreamRef, `refs/heads/${storageBranch}`)
-        : [];
-      if (result.upstreamRef && !areSafeResultsRepoPaths(aheadPaths)) {
-        const error = new Error('Results repo has non-results committed changes');
-        updateStatusFile(storageConfig, { last_error: error.message });
-        throw error;
-      }
-      await pushDirectResultsToStorageBranch({
-        normalized: storageConfig,
+  try {
+    let sidecarChanged = false;
+    if (sidecar) {
+      await fetchResultsRepo(repoDir, normalized.remote, AGENTV_RESULTS_ARTIFACTS_REF).catch(
+        (error) => {
+          if (normalized.require_push) {
+            throw error;
+          }
+        },
+      );
+      sidecarChanged = await commitAndMaybePushRunTree({
+        normalized: {
+          ...normalized,
+          branch: AGENTV_RESULTS_ARTIFACTS_REF,
+        },
         repoDir,
-        storageBranch,
-        upstreamRef: result.upstreamRef,
-        sourceDir: params.sourceDir,
+        sourceDir: sidecar.sourceDir,
         destinationPath: params.destinationPath,
-        commitMessage: params.commitMessage,
+        commitMessage: `chore(results): publish artifact sidecars for ${targetRunId}`,
         targetRunId,
+        shouldPush,
       });
-      return true;
     }
-    return false;
-  }
 
-  await pushDirectResultsToStorageBranch({
-    normalized: storageConfig,
-    repoDir,
-    storageBranch,
-    upstreamRef: result.upstreamRef,
-    sourceDir: params.sourceDir,
-    destinationPath: params.destinationPath,
-    commitMessage: params.commitMessage,
-    targetRunId,
-  });
-  return true;
+    const primaryChanged = await commitAndMaybePushRunTree({
+      normalized: storageConfig,
+      repoDir,
+      sourceDir: params.sourceDir,
+      destinationPath: params.destinationPath,
+      commitMessage: params.commitMessage,
+      targetRunId,
+      shouldPush,
+    });
+    return primaryChanged || sidecarChanged;
+  } finally {
+    await sidecar?.cleanup().catch(() => undefined);
+  }
 }
 
 export interface GitListedRun {
