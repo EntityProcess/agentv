@@ -1,4 +1,6 @@
 # Beads Configuration File
+# Copy this file to .beads/config.yaml when using Beads in this checkout.
+# Keep .beads/config.yaml local; do not commit it.
 # This file configures default behavior for all bd commands in this repository
 # All settings can also be set via environment variables (BD_* prefix)
 # or overridden with command-line flags
