@@ -79,7 +79,13 @@ import {
   setRemoteRunTags,
   syncRemoteResults,
 } from './remote.js';
-import { deleteRunTags, readRunTags, writeRunTags } from './run-tags.js';
+import {
+  type RunFinalState,
+  type RunOplogWatermark,
+  type RunReadStateFields,
+  materializeRunState,
+} from './run-oplog.js';
+import { readRunTags, writeRunTags } from './run-tags.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -316,6 +322,8 @@ interface RunTagFields {
   readonly remote_tags?: string[];
   readonly pending_tags?: string[];
   readonly metadata_dirty?: boolean;
+  readonly final_state: RunFinalState;
+  readonly oplog_watermark: RunOplogWatermark;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -340,7 +348,15 @@ async function readRunTagFields(
 ): Promise<RunTagFields> {
   if (meta.source === 'local') {
     const tagsEntry = readRunTags(meta.path);
-    return tagsEntry ? { tags: tagsEntry.tags } : {};
+    const runState = materializeRunState({
+      tags: tagsEntry?.tags ?? [],
+      watermark: tagsEntry?.oplog_watermark,
+      updatedAt: tagsEntry?.updated_at || undefined,
+    });
+    return {
+      ...(tagsEntry ? { tags: tagsEntry.tags } : {}),
+      ...runState,
+    };
   }
 
   const state = await readRemoteRunTagState(searchDir, meta, projectId);
@@ -349,6 +365,7 @@ async function readRunTagFields(
       tags: [],
       remote_tags: [],
       metadata_dirty: false,
+      ...materializeRunState({ tags: [] }),
     };
   }
 
@@ -357,6 +374,11 @@ async function readRunTagFields(
     remote_tags: state.remoteTags,
     metadata_dirty: state.dirty,
     ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+    ...materializeRunState({
+      tags: state.tags,
+      watermark: state.oplogWatermark,
+      updatedAt: state.updatedAt,
+    }),
   };
 }
 
@@ -366,14 +388,32 @@ function remoteTagMutationResponse(state: {
   readonly pendingTags?: string[];
   readonly dirty: boolean;
   readonly updatedAt?: string;
+  readonly oplogWatermark: RunOplogWatermark;
 }) {
   return {
     tags: state.tags,
     remote_tags: state.remoteTags,
     metadata_dirty: state.dirty,
     ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+    ...materializeRunState({
+      tags: state.tags,
+      watermark: state.oplogWatermark,
+      updatedAt: state.updatedAt,
+    }),
     updated_at: state.updatedAt ?? new Date().toISOString(),
   };
+}
+
+function localTagMutationResponse(input: {
+  readonly tags: readonly string[];
+  readonly updatedAt?: string;
+  readonly watermark?: RunOplogWatermark;
+}): RunReadStateFields {
+  return materializeRunState({
+    tags: input.tags,
+    watermark: input.watermark,
+    updatedAt: input.updatedAt,
+  });
 }
 
 function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
@@ -1025,6 +1065,8 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     remote_tags?: string[];
     pending_tags?: string[];
     metadata_dirty?: boolean;
+    final_state: RunFinalState;
+    oplog_watermark: RunOplogWatermark;
     source: 'local' | 'remote';
     eval_count: number;
     quality_count: number;
@@ -1472,8 +1514,14 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
     }
 
     const entry = writeRunTags(meta.path, tags as string[]);
+    const responseState = localTagMutationResponse({
+      tags: entry?.tags ?? [],
+      updatedAt: entry?.updated_at,
+      watermark: entry?.oplog_watermark,
+    });
     return c.json({
       tags: entry?.tags ?? [],
+      ...responseState,
       updated_at: entry?.updated_at ?? new Date().toISOString(),
     });
   } catch (err) {
@@ -1494,8 +1542,18 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
       });
     }
 
-    deleteRunTags(meta.path);
-    return c.json({ ok: true });
+    const entry = writeRunTags(meta.path, []);
+    const responseState = localTagMutationResponse({
+      tags: entry.tags,
+      updatedAt: entry.updated_at,
+      watermark: entry.oplog_watermark,
+    });
+    return c.json({
+      ok: true,
+      tags: entry.tags,
+      ...responseState,
+      updated_at: entry.updated_at,
+    });
   } catch (err) {
     return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));
   }
@@ -1831,6 +1889,8 @@ export function createApp(
       remote_tags?: string[];
       pending_tags?: string[];
       metadata_dirty?: boolean;
+      final_state: RunFinalState;
+      oplog_watermark: RunOplogWatermark;
       source: 'local' | 'remote';
       project_id: string;
       project_name: string;

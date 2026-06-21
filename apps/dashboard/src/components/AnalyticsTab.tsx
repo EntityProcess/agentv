@@ -15,7 +15,7 @@
  * Backend contract:
  *   - `GET /api/compare`                → { cells, runs? }
  *   - `PUT /api/runs/:runId/tags`       → replaces sidecar tags.json
- *   - `DELETE /api/runs/:runId/tags`    → removes sidecar
+ *   - `DELETE /api/runs/:runId/tags`    → records an empty tag state
  *
  * To extend with a new mode: add a value to `ViewMode`, a button in the mode
  * toggle, and a new body component in the content switch. Hooks in any new

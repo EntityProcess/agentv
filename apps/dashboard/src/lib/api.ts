@@ -665,7 +665,7 @@ export async function deleteRunApi(runId: string, projectId?: string): Promise<v
 /**
  * Replace the tags on a run. Tags are stored as a sidecar `tags.json` file
  * next to the run's manifest and surface as chips in the compare views.
- * Pass an empty array to clear all tags (server deletes the sidecar).
+ * Pass an empty array to clear all tags while preserving the clear watermark.
  */
 export async function saveRunTagsApi(
   runId: string,
@@ -687,7 +687,7 @@ export async function saveRunTagsApi(
   return res.json() as Promise<RunTagsResponse>;
 }
 
-/** Remove the tags sidecar for a run. */
+/** Clear the tags for a run while preserving the clear watermark. */
 export async function deleteRunTagsApi(runId: string, projectId?: string): Promise<void> {
   const url = projectId
     ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`

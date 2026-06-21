@@ -35,6 +35,10 @@ export interface RunMeta {
   pending_tags?: string[];
   /** True when local editable metadata differs from the fetched remote metadata. */
   metadata_dirty?: boolean;
+  /** Materialized final run state consumed by readers instead of folding raw operations. */
+  final_state?: RunFinalState;
+  /** Operation-log watermark for the materialized final state. */
+  oplog_watermark?: RunOplogWatermark;
   /**
    * Live execution status. Only present for Dashboard-launched runs that are
    * still being tracked in-memory — used to render a spinner in RunList
@@ -42,6 +46,17 @@ export interface RunMeta {
    * results have been written yet.
    */
   status?: 'starting' | 'running' | 'finished' | 'failed';
+}
+
+export interface RunOplogWatermark {
+  ref: string;
+  operation_id?: string;
+  updated_at?: string;
+}
+
+export interface RunFinalState {
+  lifecycle: 'active' | 'hidden' | 'deleted';
+  tags: string[];
 }
 
 export interface RunListResponse {
@@ -149,6 +164,8 @@ export interface RunDetailResponse {
   results: EvalResult[];
   source: 'local' | 'remote';
   source_label?: string;
+  final_state?: RunFinalState;
+  oplog_watermark?: RunOplogWatermark;
   /** Live execution status when this run is still tracked in-memory by Dashboard. */
   status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
@@ -260,6 +277,8 @@ export interface CompareRunEntry {
   remote_tags?: string[];
   pending_tags?: string[];
   metadata_dirty?: boolean;
+  final_state?: RunFinalState;
+  oplog_watermark?: RunOplogWatermark;
   source: 'local' | 'remote';
   eval_count: number;
   quality_count?: number;
@@ -283,6 +302,8 @@ export interface RunTagsResponse {
   remote_tags?: string[];
   pending_tags?: string[];
   metadata_dirty?: boolean;
+  final_state?: RunFinalState;
+  oplog_watermark?: RunOplogWatermark;
   updated_at: string;
 }
 
