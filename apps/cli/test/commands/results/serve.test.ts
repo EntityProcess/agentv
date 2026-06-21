@@ -2698,6 +2698,208 @@ describe('serve app', () => {
     });
   });
 
+  describe('GET /api/runs/:filename/evals/:evalId/transcript', () => {
+    it('loads canonical transcript JSONL lazily from the manifest pointer', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-transcript');
+      const runId = 'with-transcript::2026-03-25T10-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const answerArtifactPath = 'demo/test-greeting/outputs/answer.md';
+      const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const answerPath = path.join(timestampDir, answerArtifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'user',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      writeFileSync(answerPath, 'Hello, Alice!');
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'with-transcript',
+          transcript_path: transcriptArtifactPath,
+          answer_path: answerArtifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        transcript_path: string;
+        content: string;
+        answer_path: string;
+        answer_content: string;
+      };
+      expect(data).toMatchObject({
+        status: 'ok',
+        transcript_path: transcriptArtifactPath,
+        content: transcriptJsonl,
+        answer_path: answerArtifactPath,
+        answer_content: 'Hello, Alice!',
+      });
+    });
+
+    it('loads pointer-shaped transcript metadata when it resolves to a local artifact path', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'pointer-transcript');
+      const runId = 'pointer-transcript::2026-03-25T11-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T11-00-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const transcriptPath = path.join(timestampDir, artifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'assistant',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'pointer-transcript',
+          artifacts: {
+            transcript: {
+              ref: 'agentv/results/v1/artifacts',
+              path: artifactPath,
+            },
+          },
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        transcript_path: string;
+        content: string;
+        pointer: string;
+      };
+      expect(data.status).toBe('ok');
+      expect(data.transcript_path).toBe(artifactPath);
+      expect(data.content).toBe(transcriptJsonl);
+      expect(data.pointer).toContain('agentv/results/v1/artifacts');
+    });
+
+    it('returns a clear missing state when no transcript pointer is recorded', async () => {
+      const runId = writeLocalRunArtifact(
+        tempDir,
+        'missing-transcript',
+        '2026-03-25T12-00-00-000Z',
+        RESULT_A,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { status: string; message: string };
+      expect(data.status).toBe('missing');
+      expect(data.message).toContain('outputs/transcript.jsonl');
+    });
+
+    it('returns a clear dangling state when the transcript pointer cannot be read', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'dangling-transcript');
+      const runId = 'dangling-transcript::2026-03-25T13-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T13-00-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+
+      mkdirSync(timestampDir, { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'dangling-transcript',
+          transcript_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        transcript_path: string;
+        message: string;
+      };
+      expect(data.status).toBe('dangling');
+      expect(data.transcript_path).toBe(artifactPath);
+      expect(data.message).toContain('not available');
+    });
+
+    it('does not read transcript bodies for list, detail, or aggregate routes', async () => {
+      const timestamp = '2026-03-25T14-00-00-000Z';
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const runId = writeLocalRunArtifact(tempDir, 'lazy-guard', timestamp, {
+        ...RESULT_A,
+        transcript_path: transcriptArtifactPath,
+      });
+      const timestampDir = path.join(
+        tempDir,
+        '.agentv',
+        'results',
+        'runs',
+        'lazy-guard',
+        timestamp,
+      );
+      mkdirSync(path.join(timestampDir, transcriptArtifactPath), { recursive: true });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; target?: string }>;
+      };
+      expect(listData.runs.find((run) => run.filename === runId)?.target).toBe('gpt-4o');
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as { results: unknown[] };
+      expect(detailData.results).toHaveLength(1);
+
+      const compareRes = await app.request('/api/compare');
+      expect(compareRes.status).toBe(200);
+      const compareData = (await compareRes.json()) as {
+        cells: Array<{ experiment: string; eval_count: number }>;
+      };
+      expect(compareData.cells.find((cell) => cell.experiment === 'lazy-guard')?.eval_count).toBe(
+        1,
+      );
+
+      const indexRes = await app.request('/api/index');
+      expect(indexRes.status).toBe(200);
+      const indexData = (await indexRes.json()) as {
+        entries: Array<{ run_filename: string; total_cost_usd: number }>;
+      };
+      expect(indexData.entries.find((entry) => entry.run_filename === runId)?.total_cost_usd).toBe(
+        RESULT_A.cost_usd,
+      );
+    });
+  });
+
   describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
     it('loads file content for experiment-scoped run ids', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-skills');
