@@ -26,6 +26,10 @@ export const traceSessionEnvelopeFixture = {
           'agentv.test_id': 'nested-session',
           'agentv.target': 'codex',
           'custom.unknown_value': { nested_value: true },
+          external_trace_url:
+            'https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456?api_key=secret',
+          external_trace_token: 'secret-span-token',
+          access_token: 'secret-access-token',
           'gen_ai.usage.input_tokens': 14,
           'gen_ai.usage.output_tokens': 9,
         },
@@ -38,6 +42,8 @@ export const traceSessionEnvelopeFixture = {
               text: 'Reviewer note',
               passed: true,
               extra_context: { source: 'grader' },
+              authorization: 'Bearer secret',
+              nested: { password: 'secret', safe_value: 'visible' },
             },
           },
           {

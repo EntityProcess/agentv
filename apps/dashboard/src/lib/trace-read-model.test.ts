@@ -4,7 +4,11 @@ import {
   traceSessionEnvelopeFixture,
   traceSessionMissingOptionalFixture,
 } from './__fixtures__/trace-session-read-model';
-import { buildTraceSpanTree, traceEnvelopeToTraceSessionResponse } from './trace-read-model';
+import {
+  type TraceSpanNode,
+  buildTraceSpanTree,
+  traceEnvelopeToTraceSessionResponse,
+} from './trace-read-model';
 
 function expectSnakeCaseFixtureKeys(value: unknown, path: string[] = []): void {
   if (Array.isArray(value)) {
@@ -22,6 +26,10 @@ function expectSnakeCaseFixtureKeys(value: unknown, path: string[] = []): void {
     }
     expectSnakeCaseFixtureKeys(entry, [...path, key]);
   }
+}
+
+function flattenTree(nodes: readonly TraceSpanNode[]): TraceSpanNode[] {
+  return nodes.flatMap((node) => [node, ...flattenTree(node.children)]);
 }
 
 describe('trace session read model', () => {
@@ -65,6 +73,10 @@ describe('trace session read model', () => {
     expect(root?.duration_ms).toBe(1500);
     expect(root?.token_usage).toEqual({ input: 14, output: 9 });
     expect(root?.attributes?.['custom.unknown_value']).toEqual({ nested_value: true });
+    expect(root?.attributes?.['gen_ai.usage.input_tokens']).toBe(14);
+    expect(root?.attributes).not.toHaveProperty('external_trace_url');
+    expect(root?.attributes).not.toHaveProperty('external_trace_token');
+    expect(root?.attributes).not.toHaveProperty('access_token');
 
     expect(session.events.map((event) => [event.event_id, event.kind, event.name])).toEqual([
       ['annotation-1', 'annotation', 'agentv.annotation'],
@@ -73,7 +85,7 @@ describe('trace session read model', () => {
     expect(session.events[0]).toMatchObject({
       text: 'Reviewer note',
       passed: true,
-      attributes: { extra_context: { source: 'grader' } },
+      attributes: { extra_context: { source: 'grader' }, nested: { safe_value: 'visible' } },
     });
     expect(session.events[1]).toMatchObject({
       score: 0.82,
@@ -109,6 +121,8 @@ describe('trace session read model', () => {
     });
     expect(JSON.stringify(session.external_trace)).not.toContain('secret');
     expect(JSON.stringify(session.external_trace)).not.toContain('api_key');
+    expect(JSON.stringify(session)).not.toContain('secret');
+    expect(JSON.stringify(session)).not.toContain('api_key');
     expect(session.source?.metadata).toEqual({
       safe_note: 'local artifact remains canonical',
     });
@@ -130,6 +144,148 @@ describe('trace session read model', () => {
     });
     expect(JSON.stringify(session.external_trace)).not.toContain('secret');
     expect(JSON.stringify(session.external_trace)).not.toContain('not-a-url');
+  });
+
+  it('preserves duplicate span IDs with collision-free node IDs and diagnostics', () => {
+    const tree = buildTraceSpanTree([
+      {
+        id: 'root',
+        span_id: 'root',
+        parent_span_id: null,
+        name: 'root',
+        start_time_unix_nano: '1000',
+      },
+      {
+        id: 'dup',
+        span_id: 'dup',
+        parent_span_id: 'root',
+        name: 'first duplicate',
+        start_time_unix_nano: '1100',
+      },
+      {
+        id: 'dup',
+        span_id: 'dup',
+        parent_span_id: 'root',
+        name: 'second duplicate',
+        start_time_unix_nano: '1200',
+      },
+    ]);
+    const nodes = flattenTree(tree);
+
+    expect(nodes.map((node) => node.id)).toEqual(['root', 'dup', 'dup#2']);
+    expect(nodes.map((node) => node.span.name)).toEqual([
+      'root',
+      'first duplicate',
+      'second duplicate',
+    ]);
+    expect(nodes[2].diagnostics?.map((diagnostic) => diagnostic.code)).toEqual([
+      'duplicate_span_id',
+    ]);
+  });
+
+  it('promotes self-parented spans and ancestor cycles to diagnostic roots', () => {
+    const tree = buildTraceSpanTree([
+      {
+        id: 'self',
+        span_id: 'self',
+        parent_span_id: 'self',
+        name: 'self',
+        start_time_unix_nano: '3000',
+      },
+      {
+        id: 'cycle-a',
+        span_id: 'cycle-a',
+        parent_span_id: 'cycle-b',
+        name: 'cycle-a',
+        start_time_unix_nano: '1000',
+      },
+      {
+        id: 'cycle-b',
+        span_id: 'cycle-b',
+        parent_span_id: 'cycle-a',
+        name: 'cycle-b',
+        start_time_unix_nano: '2000',
+      },
+    ]);
+    const nodes = flattenTree(tree);
+
+    expect(tree.map((node) => node.spanId)).toEqual(['cycle-a', 'cycle-b', 'self']);
+    expect(nodes.every((node) => node.children.length === 0)).toBe(true);
+    expect(nodes.map((node) => node.diagnostics?.[0]?.code)).toEqual([
+      'cycle',
+      'cycle',
+      'self_parent',
+    ]);
+  });
+
+  it('keeps missing-ID and missing-parent spans as diagnostic roots', () => {
+    const tree = buildTraceSpanTree([
+      {
+        id: '',
+        span_id: '',
+        parent_span_id: null,
+        name: 'missing id',
+      },
+      {
+        id: 'orphan',
+        span_id: 'orphan',
+        parent_span_id: 'missing-parent',
+        name: 'orphan',
+      },
+    ]);
+
+    expect(tree.map((node) => node.id)).toEqual(['missing-span-0', 'orphan']);
+    expect(tree.map((node) => node.diagnostics?.[0]?.code)).toEqual([
+      'missing_span_id',
+      'missing_parent',
+    ]);
+  });
+
+  it('sorts roots and children by start time with stable span ID tie breaks', () => {
+    const tree = buildTraceSpanTree([
+      {
+        id: 'root-b',
+        span_id: 'root-b',
+        parent_span_id: null,
+        name: 'root-b',
+        start_time_unix_nano: '2000',
+      },
+      {
+        id: 'child-late',
+        span_id: 'child-late',
+        parent_span_id: 'root-a',
+        name: 'child-late',
+        start_time_unix_nano: '1200',
+      },
+      {
+        id: 'root-a',
+        span_id: 'root-a',
+        parent_span_id: null,
+        name: 'root-a',
+        start_time_unix_nano: '1000',
+      },
+      {
+        id: 'child-early',
+        span_id: 'child-early',
+        parent_span_id: 'root-a',
+        name: 'child-early',
+        start_time_unix_nano: '1100',
+      },
+      {
+        id: 'child-alpha',
+        span_id: 'child-alpha',
+        parent_span_id: 'root-a',
+        name: 'child-alpha',
+        start_time_unix_nano: '1200',
+      },
+    ]);
+
+    expect(tree.map((node) => node.spanId)).toEqual(['root-a', 'root-b']);
+    expect(tree[0].children.map((node) => node.spanId)).toEqual([
+      'child-early',
+      'child-alpha',
+      'child-late',
+    ]);
   });
 
   it('keeps new API fixtures snake_case-only outside opaque attributes maps', () => {

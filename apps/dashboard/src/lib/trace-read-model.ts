@@ -22,6 +22,22 @@ export interface TraceSpanNode {
   parentSpanId?: string | null;
   span: TraceSessionSpan;
   children: TraceSpanNode[];
+  diagnostics?: TraceSpanTreeDiagnostic[];
+}
+
+export type TraceSpanTreeDiagnosticCode =
+  | 'cycle'
+  | 'duplicate_span_id'
+  | 'missing_parent'
+  | 'missing_span_id'
+  | 'self_parent';
+
+export interface TraceSpanTreeDiagnostic {
+  code: TraceSpanTreeDiagnosticCode;
+  message: string;
+  span_id?: string;
+  node_id?: string;
+  parent_span_id?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -55,6 +71,10 @@ function dropUndefined<T extends Record<string, unknown>>(value: T): T {
 function compactRecord(value: Record<string, unknown>): Record<string, unknown> | undefined {
   const compacted = dropUndefined(value);
   return Object.keys(compacted).length > 0 ? compacted : undefined;
+}
+
+function nonEmptyArray<T>(value: readonly T[] | undefined): readonly T[] | undefined {
+  return value && value.length > 0 ? value : undefined;
 }
 
 function unixNanoToIso(value: string | undefined): string | undefined {
@@ -136,6 +156,48 @@ function tokenUsageFromAttributes(
   });
 
   return usage as TraceSessionTokenUsage | undefined;
+}
+
+function isExternalTraceKey(key: string): boolean {
+  return (
+    key === 'external_trace' ||
+    key.startsWith('external_trace_') ||
+    key.startsWith('external_trace.')
+  );
+}
+
+function isCredentialLikeKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  if (
+    normalized === 'token_usage' ||
+    normalized.endsWith('_tokens') ||
+    normalized.endsWith('.tokens') ||
+    normalized.includes('usage.')
+  ) {
+    return false;
+  }
+  return /(^|[._-])(api[._-]?key|authorization|bearer|password|secret|private[._-]?key|access[._-]?token|auth[._-]?token|client[._-]?secret|id[._-]?token|refresh[._-]?token|session[._-]?token|token)($|[._-])/.test(
+    normalized,
+  );
+}
+
+function sanitizeAttributeMap(
+  value: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const entries = Object.entries(value).flatMap(([key, entry]) => {
+    if (isExternalTraceKey(key) || isCredentialLikeKey(key)) {
+      return [];
+    }
+    if (isRecord(entry)) {
+      const nested = sanitizeAttributeMap(entry);
+      return nested ? [[key, nested] as const] : [];
+    }
+    return [[key, entry] as const];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 function spanStatusFromValue(value: unknown): TraceSessionSpan['status'] {
@@ -235,6 +297,7 @@ function projectSpanEvent(
   }
 
   const attributes = asRecord(record.attributes);
+  const safeAttributes = sanitizeAttributeMap(attributes);
   return dropUndefined({
     event_id: eventId(spanId, index, attributes),
     span_id: spanId,
@@ -245,7 +308,7 @@ function projectSpanEvent(
     score: scoreFromEvent(attributes),
     text: textFromEvent(attributes),
     passed: passedFromEvent(attributes),
-    attributes,
+    attributes: safeAttributes,
   });
 }
 
@@ -259,6 +322,7 @@ function projectSpan(span: unknown, index: number): TraceSessionSpan | undefined
   const traceId = stringValue(record.trace_id);
   const parentSpanId = record.parent_span_id === null ? null : stringValue(record.parent_span_id);
   const attributes = asRecord(record.attributes);
+  const safeAttributes = sanitizeAttributeMap(attributes);
   const startTimeUnixNano = stringValue(record.start_time_unix_nano);
   const endTimeUnixNano = stringValue(record.end_time_unix_nano);
   const events = asArray(record.events)
@@ -279,7 +343,7 @@ function projectSpan(span: unknown, index: number): TraceSessionSpan | undefined
     end_time: unixNanoToIso(endTimeUnixNano),
     duration_ms: durationMsFromNanos(startTimeUnixNano, endTimeUnixNano),
     token_usage: tokenUsageFromAttributes(attributes),
-    attributes,
+    attributes: safeAttributes,
     events: events.length > 0 ? events : undefined,
   });
 }
@@ -377,12 +441,7 @@ function sanitizeMetadata(
     return undefined;
   }
   const entries = Object.entries(value).flatMap(([key, entry]) => {
-    if (
-      key === 'external_trace' ||
-      key.startsWith('external_trace_') ||
-      key.startsWith('external_trace.') ||
-      isSecretLikeKey(key)
-    ) {
+    if (isExternalTraceKey(key) || isSecretLikeKey(key)) {
       return [];
     }
     if (isRecord(entry)) {
@@ -463,22 +522,100 @@ export function traceEnvelopeToTraceSessionResponse(
 }
 
 export function buildTraceSpanTree(spans: readonly TraceSessionSpan[]): TraceSpanNode[] {
-  const nodes = new Map<string, TraceSpanNode>();
-  const roots: TraceSpanNode[] = [];
+  const nodes: TraceSpanNode[] = [];
+  const firstNodeBySpanId = new Map<string, TraceSpanNode>();
+  const spanIdCounts = new Map<string, number>();
 
-  for (const span of spans) {
-    nodes.set(span.span_id, {
-      id: span.id,
-      spanId: span.span_id,
+  spans.forEach((span, index) => {
+    const rawSpanId = stringValue(span.span_id);
+    const spanId = rawSpanId ?? `missing-span-${index}`;
+    const occurrence = (spanIdCounts.get(spanId) ?? 0) + 1;
+    spanIdCounts.set(spanId, occurrence);
+
+    const node: TraceSpanNode = {
+      id: occurrence === 1 ? spanId : `${spanId}#${occurrence}`,
+      spanId,
       parentSpanId: span.parent_span_id,
       span,
       children: [],
+      diagnostics: rawSpanId
+        ? undefined
+        : [
+            {
+              code: 'missing_span_id',
+              message: 'Span was missing span_id and was assigned a stable node id.',
+              node_id: spanId,
+            },
+          ],
+    };
+
+    if (occurrence > 1) {
+      addNodeDiagnostic(node, {
+        code: 'duplicate_span_id',
+        message: 'Duplicate span_id was preserved with a collision-free node id.',
+        span_id: spanId,
+        node_id: node.id,
+      });
+    }
+    if (!firstNodeBySpanId.has(spanId)) {
+      firstNodeBySpanId.set(spanId, node);
+    }
+    nodes.push(node);
+  });
+
+  const parentByNodeId = new Map<string, TraceSpanNode>();
+  for (const node of nodes) {
+    const parentSpanId =
+      typeof node.parentSpanId === 'string' && node.parentSpanId.length > 0
+        ? node.parentSpanId
+        : undefined;
+    if (!parentSpanId) {
+      continue;
+    }
+    if (parentSpanId === node.spanId) {
+      addNodeDiagnostic(node, {
+        code: 'self_parent',
+        message: 'Span parent_span_id points to itself; span was promoted to a root.',
+        span_id: node.spanId,
+        node_id: node.id,
+        parent_span_id: parentSpanId,
+      });
+      continue;
+    }
+    const parent = firstNodeBySpanId.get(parentSpanId);
+    if (!parent) {
+      addNodeDiagnostic(node, {
+        code: 'missing_parent',
+        message: 'Span parent_span_id was not present in this trace; span was promoted to a root.',
+        span_id: node.spanId,
+        node_id: node.id,
+        parent_span_id: parentSpanId,
+      });
+      continue;
+    }
+    parentByNodeId.set(node.id, parent);
+  }
+
+  const cyclicNodes: TraceSpanNode[] = [];
+  for (const node of nodes) {
+    if (hasAncestorCycle(node, parentByNodeId)) {
+      cyclicNodes.push(node);
+    }
+  }
+  for (const node of cyclicNodes) {
+    parentByNodeId.delete(node.id);
+    addNodeDiagnostic(node, {
+      code: 'cycle',
+      message: 'Span parent chain contains a cycle; span was promoted to a root.',
+      span_id: node.spanId,
+      node_id: node.id,
+      parent_span_id: typeof node.parentSpanId === 'string' ? node.parentSpanId : undefined,
     });
   }
 
-  for (const node of nodes.values()) {
-    const parentId = typeof node.parentSpanId === 'string' ? node.parentSpanId : undefined;
-    const parent = parentId ? nodes.get(parentId) : undefined;
+  const roots: TraceSpanNode[] = [];
+  for (const node of nodes) {
+    const parent = parentByNodeId.get(node.id);
     if (parent) {
       parent.children.push(node);
     } else {
@@ -486,5 +623,74 @@ export function buildTraceSpanTree(spans: readonly TraceSessionSpan[]): TraceSpa
     }
   }
 
+  sortTraceSpanNodes(roots);
   return roots;
+}
+
+function addNodeDiagnostic(node: TraceSpanNode, diagnostic: TraceSpanTreeDiagnostic): void {
+  node.diagnostics = [...(node.diagnostics ?? []), diagnostic];
+}
+
+function hasAncestorCycle(
+  node: TraceSpanNode,
+  parentByNodeId: ReadonlyMap<string, TraceSpanNode>,
+): boolean {
+  const seen = new Set<string>();
+  let cursor = parentByNodeId.get(node.id);
+  while (cursor) {
+    if (cursor.id === node.id || seen.has(cursor.id)) {
+      return true;
+    }
+    seen.add(cursor.id);
+    cursor = parentByNodeId.get(cursor.id);
+  }
+  return false;
+}
+
+function compareUnixNanoValue(first: string | undefined, second: string | undefined): number {
+  if (first === second) {
+    return 0;
+  }
+  if (!first) {
+    return 1;
+  }
+  if (!second) {
+    return -1;
+  }
+  try {
+    const firstValue = BigInt(first);
+    const secondValue = BigInt(second);
+    return firstValue < secondValue ? -1 : firstValue > secondValue ? 1 : 0;
+  } catch {
+    return first.localeCompare(second);
+  }
+}
+
+function compareTraceSpanNodes(first: TraceSpanNode, second: TraceSpanNode): number {
+  const byStart = compareUnixNanoValue(
+    first.span.start_time_unix_nano,
+    second.span.start_time_unix_nano,
+  );
+  if (byStart !== 0) {
+    return byStart;
+  }
+  if (first.spanId === second.parentSpanId) {
+    return -1;
+  }
+  if (second.spanId === first.parentSpanId) {
+    return 1;
+  }
+  const bySpanId = first.spanId.localeCompare(second.spanId);
+  return bySpanId !== 0 ? bySpanId : first.id.localeCompare(second.id);
+}
+
+function sortTraceSpanNodes(nodes: TraceSpanNode[]): void {
+  nodes.sort(compareTraceSpanNodes);
+  for (const node of nodes) {
+    node.children.sort(compareTraceSpanNodes);
+    if (node.children.length > 0) {
+      sortTraceSpanNodes(node.children);
+    }
+    node.diagnostics = nonEmptyArray(node.diagnostics) as TraceSpanTreeDiagnostic[] | undefined;
+  }
 }
