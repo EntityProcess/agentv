@@ -7,6 +7,7 @@
  * snake_case here so every caller produces the same artifacts.
  */
 
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -24,7 +25,21 @@ import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import { normalizeResultRow } from './result-row-schema.js';
 import {
+  AGENTV_RESULTS_ARTIFACTS_REF,
+  CANONICAL_TRACE_ARTIFACT_PATH,
+  CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
+  TRACE_JSON_MEDIA_TYPE,
+  TRANSCRIPT_JSONL_MEDIA_TYPE,
+  TRANSCRIPT_SCHEMA_VERSION,
+  type ResultArtifactFamily,
+  type ResultArtifactPointerWire,
+  type ResultArtifactPointersWire,
+  type TranscriptArtifactPointerWire,
+  toResultArtifactPointerWire,
+} from './result-artifact-contract.js';
+import {
   type TraceEnvelope,
+  EXECUTION_TRACE_SCHEMA_VERSION,
   buildTraceEnvelopeFromEvaluationResult,
   toTraceEnvelopeWire,
   traceEnvelopeToTranscriptMessages,
@@ -205,6 +220,7 @@ export interface IndexArtifactEntry {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly input_path?: string;
   readonly response_path?: string;
   readonly task_dir?: string;
@@ -751,10 +767,10 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     source: { path: RESULT_INDEX_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
-      trace_path: 'outputs/trace.json',
+      trace_path: CANONICAL_TRACE_ARTIFACT_PATH,
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
-      transcript_path: hasTranscript ? 'outputs/transcript.jsonl' : undefined,
+      transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
     },
     duplicatePolicy: params.duplicatePolicy,
   });
@@ -772,6 +788,75 @@ async function writeTraceEnvelopeSidecar(
   return envelope;
 }
 
+function buildSidecarArtifactKey(
+  family: ResultArtifactFamily,
+  runRelativePath: string,
+): string {
+  return path.posix.join(family, runRelativePath);
+}
+
+async function buildArtifactPointer(params: {
+  readonly filePath: string;
+  readonly runRelativePath: string;
+  readonly family: ResultArtifactFamily;
+  readonly schemaVersion: string;
+  readonly mediaType: string;
+}): Promise<ResultArtifactPointerWire> {
+  const content = await readFile(params.filePath);
+  const sha256 = createHash('sha256').update(content).digest('hex');
+  return toResultArtifactPointerWire({
+    ref: AGENTV_RESULTS_ARTIFACTS_REF,
+    key: buildSidecarArtifactKey(params.family, params.runRelativePath),
+    objectVersion: `sha256:${sha256}`,
+    path: params.runRelativePath,
+    sha256,
+    size: content.byteLength,
+    schemaVersion: params.schemaVersion,
+    mediaType: params.mediaType,
+    family: params.family,
+  });
+}
+
+async function buildTracePointer(
+  outputDir: string,
+  tracePath: string,
+): Promise<ResultArtifactPointerWire> {
+  return buildArtifactPointer({
+    filePath: tracePath,
+    runRelativePath: toRelativeArtifactPath(outputDir, tracePath),
+    family: 'traces',
+    schemaVersion: EXECUTION_TRACE_SCHEMA_VERSION,
+    mediaType: TRACE_JSON_MEDIA_TYPE,
+  });
+}
+
+async function buildTranscriptPointer(
+  outputDir: string,
+  transcriptPath: string,
+): Promise<TranscriptArtifactPointerWire> {
+  const pointer = await buildArtifactPointer({
+    filePath: transcriptPath,
+    runRelativePath: toRelativeArtifactPath(outputDir, transcriptPath),
+    family: 'transcripts',
+    schemaVersion: TRANSCRIPT_SCHEMA_VERSION,
+    mediaType: TRANSCRIPT_JSONL_MEDIA_TYPE,
+  });
+  return pointer as TranscriptArtifactPointerWire;
+}
+
+async function buildArtifactPointers(params: {
+  readonly outputDir: string;
+  readonly tracePath: string;
+  readonly transcriptPath?: string;
+}): Promise<ResultArtifactPointersWire> {
+  return {
+    trace: await buildTracePointer(params.outputDir, params.tracePath),
+    ...(params.transcriptPath
+      ? { transcript: await buildTranscriptPointer(params.outputDir, params.transcriptPath) }
+      : {}),
+  };
+}
+
 export function buildIndexArtifactEntry(
   result: EvaluationResult,
   options: {
@@ -782,6 +867,7 @@ export function buildIndexArtifactEntry(
     outputPath?: string;
     answerPath?: string;
     transcriptPath?: string;
+    artifactPointers?: ResultArtifactPointersWire;
     inputPath?: string;
     responsePath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
@@ -822,6 +908,7 @@ export function buildIndexArtifactEntry(
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
       : undefined,
+    artifact_pointers: options.artifactPointers,
     input_path: options.inputPath
       ? toRelativeArtifactPath(options.outputDir, options.inputPath)
       : undefined,
@@ -843,6 +930,7 @@ export function buildResultIndexArtifact(
   options?: {
     projectionIdentity?: ProjectionIdentity;
     duplicatePolicy?: ExportDuplicatePolicy;
+    artifactPointers?: ResultArtifactPointersWire;
   },
 ): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
@@ -878,6 +966,7 @@ export function buildResultIndexArtifact(
     transcript_path: hasTranscript
       ? path.posix.join(artifactSubdir, 'outputs', 'transcript.jsonl')
       : undefined,
+    artifact_pointers: options?.artifactPointers,
     response_path: hasAnswer
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
       : undefined,
@@ -1263,6 +1352,7 @@ export async function writePerTestArtifacts(
       await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
       await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
     }
+    const tracePath = path.join(outputsDir, 'trace.json');
     const envelope = await writeTraceEnvelopeSidecar({
       result,
       outputDir,
@@ -1272,9 +1362,17 @@ export async function writePerTestArtifacts(
       runId: options?.runId,
       duplicatePolicy,
     });
-    if (hasTranscriptProjection(result, envelope)) {
-      await writeTranscriptJsonl(path.join(outputsDir, 'transcript.jsonl'), result, envelope);
+    const transcriptPath = hasTranscriptProjection(result, envelope)
+      ? path.join(outputsDir, 'transcript.jsonl')
+      : undefined;
+    if (transcriptPath) {
+      await writeTranscriptJsonl(transcriptPath, result, envelope);
     }
+    const artifactPointers = await buildArtifactPointers({
+      outputDir,
+      tracePath,
+      transcriptPath,
+    });
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
@@ -1288,6 +1386,7 @@ export async function writePerTestArtifacts(
       ...buildResultIndexArtifact(result, extraIndexFields, {
         projectionIdentity: envelope.projectionIdentity,
         duplicatePolicy,
+        artifactPointers,
       }),
       experiment: options?.experiment,
     });
@@ -1351,6 +1450,7 @@ export async function writeArtifactsFromResults(
     const transcriptPath = hasTranscriptProjection(result, envelope)
       ? path.join(outputsDir, 'transcript.jsonl')
       : undefined;
+    const tracePath = path.join(outputsDir, 'trace.json');
     const projectionIdentity = envelope.projectionIdentity;
     if (!projectionIdentity) {
       throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
@@ -1368,6 +1468,7 @@ export async function writeArtifactsFromResults(
       outputsDir,
       answerPath,
       responsePath,
+      tracePath,
       envelope,
       projectionIdentity,
       transcriptPath,
@@ -1417,13 +1518,18 @@ export async function writeArtifactsFromResults(
       await writeFile(plan.responsePath, result.output, 'utf8');
     }
     await writeFile(
-      path.join(plan.outputsDir, 'trace.json'),
+      plan.tracePath,
       `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
       'utf8',
     );
     if (plan.transcriptPath) {
       await writeTranscriptJsonl(plan.transcriptPath, result, envelope);
     }
+    const artifactPointers = await buildArtifactPointers({
+      outputDir,
+      tracePath: plan.tracePath,
+      transcriptPath: plan.transcriptPath,
+    });
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
@@ -1442,6 +1548,7 @@ export async function writeArtifactsFromResults(
         outputPath: plan.answerPath,
         answerPath: plan.answerPath,
         transcriptPath: plan.transcriptPath,
+        artifactPointers,
         inputPath: plan.inputPath,
         responsePath: plan.responsePath,
         extraIndexFields,

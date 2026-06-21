@@ -14,6 +14,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { getAgentvDataDir } from '../paths.js';
+import { AGENTV_RESULTS_PRIMARY_REF } from './result-artifact-contract.js';
 import type { ResultsConfig } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
@@ -32,7 +33,7 @@ const RESULTS_REPO_METADATA_DIR = 'metadata';
 const RESULTS_REPO_TRACKED_DIRS = [RESULTS_REPO_RUNS_DIR, RESULTS_REPO_METADATA_DIR] as const;
 const RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
 const RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
-export const DEFAULT_RESULTS_BRANCH = 'agentv/results/v1';
+export const DEFAULT_RESULTS_BRANCH = AGENTV_RESULTS_PRIMARY_REF;
 const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // The results branch is a self-rooted orphan whose first commit is a fixed,
 // byte-identical empty-tree genesis. Pinning the message, identity (see
