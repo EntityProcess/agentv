@@ -54,3 +54,4 @@
 # - github.repo
 
 federation.remote: "git+https://github.com/EntityProcess/agentv-beads.git"
+sync.remote: "git+https://github.com/EntityProcess/agentv-beads.git"
