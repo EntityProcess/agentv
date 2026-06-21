@@ -218,6 +218,24 @@ describe('parseAgentSkillsEvals', () => {
     expect(tests[0].metadata).toBeUndefined();
   });
 
+  it('ignores transcript artifact-looking fields in evals.json cases', () => {
+    const tests = parseAgentSkillsEvals({
+      evals: [
+        {
+          id: 1,
+          prompt: 'test prompt',
+          transcript_path: 'outputs/transcript.jsonl',
+          raw_provider_log_path: 'outputs/raw/provider.log',
+        },
+      ],
+    });
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].metadata).toBeUndefined();
+    expect(tests[0]).not.toHaveProperty('transcript_path');
+    expect(tests[0]).not.toHaveProperty('raw_provider_log_path');
+  });
+
   it('includes source in error messages', () => {
     expect(() => parseAgentSkillsEvals({}, 'my-evals.json')).toThrow('my-evals.json');
   });
