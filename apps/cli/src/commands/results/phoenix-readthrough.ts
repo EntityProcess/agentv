@@ -2,6 +2,7 @@ import type { ExternalTraceMetadata, ExternalTraceMetadataWire } from '@agentv/c
 
 const RESPONSE_SCHEMA_VERSION = 'agentv.dashboard.phoenix_session.v1';
 const DEFAULT_PAGE_LIMIT = 1000;
+const REDACTED_VALUE = '[redacted]';
 
 export type PhoenixReadStatus =
   | 'ok'
@@ -312,6 +313,41 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function isCredentialLikeKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  if (normalized === 'traceparent' || normalized === 'tracestate') {
+    return false;
+  }
+  return /(^|[._-])(api[._-]?key|authorization|bearer|password|secret|private[._-]?key|access[._-]?token|auth[._-]?token|client[._-]?secret|cookie|id[._-]?token|refresh[._-]?token|session[._-]?token|token)($|[._-])/.test(
+    normalized,
+  );
+}
+
+function scrubCredentialFields(value: unknown, depth = 0): unknown {
+  if (depth > 20) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => scrubCredentialFields(entry, depth + 1));
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      isCredentialLikeKey(key) ? REDACTED_VALUE : scrubCredentialFields(entry, depth + 1),
+    ]),
+  );
+}
+
+function scrubCredentialRecord(
+  value: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const scrubbed = scrubCredentialFields(value);
+  return isRecord(scrubbed) ? scrubbed : undefined;
+}
+
 function finiteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
@@ -434,21 +470,19 @@ function resolvePhoenixConfig(
   externalTrace: ExternalTraceMetadata,
   env: Readonly<Record<string, string | undefined>>,
 ): PhoenixConfig | undefined {
-  const baseUrl =
-    normalizeBaseUrl(externalTrace.endpoint) ??
-    normalizeBaseUrl(
-      envString(env, [
-        'AGENTV_PHOENIX_ENDPOINT',
-        'AGENTV_PHOENIX_BASE_URL',
-        'AGENTV_PHOENIX_HOST',
-        'PHOENIX_HOST',
-        'PHOENIX_BASE_URL',
-        'PHOENIX_ENDPOINT',
-        'PHOENIX_COLLECTOR_ENDPOINT',
-        'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
-        'OTEL_EXPORTER_OTLP_ENDPOINT',
-      ]),
-    );
+  const baseUrl = normalizeBaseUrl(
+    envString(env, [
+      'AGENTV_PHOENIX_ENDPOINT',
+      'AGENTV_PHOENIX_BASE_URL',
+      'AGENTV_PHOENIX_HOST',
+      'PHOENIX_HOST',
+      'PHOENIX_BASE_URL',
+      'PHOENIX_ENDPOINT',
+      'PHOENIX_COLLECTOR_ENDPOINT',
+      'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
+      'OTEL_EXPORTER_OTLP_ENDPOINT',
+    ]),
+  );
   const graphqlUrl =
     normalizeGraphqlUrl(envString(env, ['AGENTV_PHOENIX_GRAPHQL_URL', 'PHOENIX_GRAPHQL_URL'])) ??
     normalizeGraphqlUrl(baseUrl);
@@ -906,7 +940,7 @@ function normalizeAnnotation(
       stringValue(annotation.span_id) ??
       stringValue(annotation.spanId) ??
       targetId,
-    result: annotation.result ?? annotation.metadata,
+    result: scrubCredentialFields(annotation.result ?? annotation.metadata),
   };
 }
 
@@ -1061,8 +1095,8 @@ function normalizeSpan(
     start_time: startTime,
     end_time: endTime,
     duration_ms: finiteNumber(span.latency_ms) ?? durationMs(startTime, endTime),
-    input: spanInput(span, attributes),
-    output: spanOutput(span, attributes),
+    input: scrubCredentialFields(spanInput(span, attributes)),
+    output: scrubCredentialFields(spanOutput(span, attributes)),
     token_usage: tokenUsageFromSpan(span, attributes),
     cost_usd: firstNumber(
       span.cost_usd,
@@ -1071,7 +1105,7 @@ function normalizeSpan(
       attributes?.cost,
       attributes?.['llm.cost.usd'],
     ),
-    attributes,
+    attributes: scrubCredentialRecord(attributes),
     ...(annotations && annotations.length > 0 ? { annotations } : {}),
   }) as PhoenixSpanDetail | undefined;
 }

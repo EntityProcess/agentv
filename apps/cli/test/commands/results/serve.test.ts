@@ -1005,6 +1005,7 @@ describe('serve app', () => {
           ui_url: 'https://phoenix.example/sessions/codex-session-1?token=artifact-secret',
         },
       });
+      process.env.AGENTV_PHOENIX_ENDPOINT = 'https://phoenix.example';
       process.env.AGENTV_PHOENIX_API_KEY = 'server-secret';
 
       const requests: Request[] = [];
@@ -1048,7 +1049,7 @@ describe('serve app', () => {
                     label: 'pass',
                     score: 1,
                     explanation: 'Looks good',
-                    metadata: {},
+                    metadata: { cookie: 'annotation-cookie-secret' },
                     identifier: 'session-review',
                     createdAt: '2026-03-25T10:00:05.000Z',
                     updatedAt: '2026-03-25T10:00:05.000Z',
@@ -1093,6 +1094,8 @@ describe('serve app', () => {
                           attributes: JSON.stringify({
                             'input.value': 'summarize the repo',
                             'output.value': 'repo summary',
+                            authorization: 'span-authorization-secret',
+                            nested: { api_key: 'span-api-key-secret', visible: 'safe' },
                           }),
                           tokenCountTotal: 20,
                           tokenCountPrompt: 12,
@@ -1112,7 +1115,10 @@ describe('serve app', () => {
                               label: 'ok',
                               score: null,
                               explanation: null,
-                              metadata: {},
+                              metadata: {
+                                headers: { authorization: 'span-annotation-secret' },
+                                visible: 'safe',
+                              },
                               identifier: 'span-latency',
                               createdAt: '2026-03-25T10:00:05.000Z',
                               updatedAt: '2026-03-25T10:00:05.000Z',
@@ -1264,7 +1270,47 @@ describe('serve app', () => {
       const serialized = JSON.stringify(data);
       expect(serialized).not.toContain('server-secret');
       expect(serialized).not.toContain('artifact-secret');
+      expect(serialized).not.toContain('annotation-cookie-secret');
+      expect(serialized).not.toContain('span-authorization-secret');
+      expect(serialized).not.toContain('span-api-key-secret');
+      expect(serialized).not.toContain('span-annotation-secret');
       expect(serialized).not.toContain('Authorization');
+      expect(serialized).toContain('safe');
+    });
+
+    it('does not use artifact Phoenix endpoints as server network config', async () => {
+      const filename = '2026-03-25T10-17-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          endpoint: 'https://artifact-controlled.example',
+          session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
+          ui_url: 'https://artifact-controlled.example/sessions/codex-session-1',
+        },
+      });
+      process.env.AGENTV_PHOENIX_API_KEY = 'server-secret';
+      const requests: Request[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        return Response.json({ error: 'unexpected request' }, { status: 500 });
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}/phoenix-session`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        message: string;
+        open_in_phoenix_url?: string;
+      };
+      expect(data.status).toBe('not_configured');
+      expect(data.message).toContain('AGENTV_PHOENIX_ENDPOINT');
+      expect(data.open_in_phoenix_url).toBe(
+        'https://artifact-controlled.example/sessions/codex-session-1',
+      );
+      expect(requests).toHaveLength(0);
     });
 
     it('reports missing Phoenix configuration without contacting Phoenix', async () => {
@@ -1303,6 +1349,7 @@ describe('serve app', () => {
           project: 'agentv-dogfood',
         },
       });
+      process.env.AGENTV_PHOENIX_ENDPOINT = 'https://phoenix.example';
       globalThis.fetch = (async () => {
         throw new Error('connect ECONNREFUSED');
       }) as typeof fetch;
