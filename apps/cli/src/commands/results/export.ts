@@ -21,15 +21,18 @@
  *   - To add new per-test workspace files, add them under each test directory.
  */
 
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { command, flag, oneOf, option, optional, positional, string } from 'cmd-ts';
 
-import type { EvaluationResult, ExportDuplicatePolicy } from '@agentv/core';
+import type { EvaluationResult, ExportDuplicatePolicy, IndexArtifactEntry } from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
 import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
+import { loadManifestResults } from './manifest.js';
 import {
+  type ProjectionBundle,
   buildProjectionBundle,
   serializeProjectionBundle,
   writeProjectionBundle,
@@ -95,6 +98,36 @@ export async function loadExportSource(
   const { sourceFile } = await resolveSourceFile(source, cwd);
   const { results } = await loadSharedResults(source, cwd);
   return { sourceFile, results };
+}
+
+function readIndexArtifactEntries(indexPath: string): IndexArtifactEntry[] {
+  return readFileSync(indexPath, 'utf8')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as IndexArtifactEntry);
+}
+
+export function buildProjectionBundleFromExportedIndex(options: {
+  readonly sourceFile: string;
+  readonly outputDir: string;
+  readonly cwd?: string;
+  readonly includeRawContent?: boolean;
+  readonly duplicatePolicy?: ExportDuplicatePolicy;
+}): ProjectionBundle {
+  const indexPath = path.join(options.outputDir, RESULT_INDEX_FILENAME);
+  const indexRecords = readIndexArtifactEntries(indexPath);
+  const emittedResults = loadManifestResults(indexPath);
+
+  return buildProjectionBundle(emittedResults, {
+    sourceFile: options.sourceFile,
+    runId: deriveExportRunId(options.sourceFile),
+    cwd: options.cwd,
+    duplicatePolicy: options.duplicatePolicy,
+    includeRawContent: options.includeRawContent,
+    artifactRefStatus: 'emitted',
+    indexRecords,
+  });
 }
 
 // ── CLI command ──────────────────────────────────────────────────────────
@@ -186,7 +219,16 @@ export const resultsExportCommand = command({
       });
 
       const bundlePath = shouldWriteProjectionBundle
-        ? await writeProjectionBundle(buildBundle(), outputDir)
+        ? await writeProjectionBundle(
+            buildProjectionBundleFromExportedIndex({
+              sourceFile,
+              outputDir,
+              cwd,
+              duplicatePolicy: policy,
+              includeRawContent: shouldIncludeRawContent,
+            }),
+            outputDir,
+          )
         : undefined;
 
       // Report exported test IDs

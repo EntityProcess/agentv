@@ -131,11 +131,16 @@ agentv results export <run-workspace-or-index.jsonl> --dry-run > projection_bund
 
 Dry-run prints deterministic JSON and does not write export artifacts. Vendor
 adapters should consume either this JSON directly or the local
-`projection_bundle.json` plus the referenced files such as `grading.json`,
-`timing.json`, and `outputs/trace.json`.
+`projection_bundle.json`. Dry-run refs are marked
+`artifact_refs.status: "planned_export"` because the export tree has not been
+written. Bundles written with `--projection-bundle` are built from the emitted
+export `index.jsonl` and use `artifact_refs.status: "emitted"`.
 
 Raw prompt text, final output, and tool arguments/results are excluded by
-default. To include them in the bundle, opt in explicitly:
+default, and raw-bearing artifact refs such as `grading_path`, `input_path`,
+`answer_path`, `response_path`, `transcript_path`, and `trace_path` are omitted from
+metadata-only bundles. To include raw payloads and raw-bearing refs in the
+bundle, opt in explicitly:
 
 ```bash
 agentv results export <run-workspace-or-index.jsonl> --dry-run --include-raw-content

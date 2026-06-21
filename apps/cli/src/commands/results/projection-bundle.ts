@@ -100,7 +100,9 @@ export type ProjectionBundleArtifactRefs = Partial<
     | 'files_path'
     | 'graders_path'
   > & { readonly trace_path: string }
->;
+> & {
+  readonly status: 'planned_export' | 'emitted';
+};
 
 export interface BuildProjectionBundleOptions {
   readonly sourceFile: string;
@@ -108,6 +110,8 @@ export interface BuildProjectionBundleOptions {
   readonly cwd?: string;
   readonly includeRawContent?: boolean;
   readonly duplicatePolicy?: ExportDuplicatePolicy;
+  readonly artifactRefStatus?: ProjectionBundleArtifactRefs['status'];
+  readonly indexRecords?: readonly IndexArtifactEntry[];
 }
 
 function dropUndefined<T extends JsonRecord>(value: T): T {
@@ -147,11 +151,26 @@ function tracePathFor(indexEntry: IndexArtifactEntry): string | undefined {
     : undefined;
 }
 
-function artifactRefs(indexEntry: IndexArtifactEntry): ProjectionBundleArtifactRefs {
+function artifactRefs(
+  indexEntry: IndexArtifactEntry,
+  options: {
+    readonly includeRawContent: boolean;
+    readonly status: ProjectionBundleArtifactRefs['status'];
+  },
+): ProjectionBundleArtifactRefs {
+  const metadataRefs = dropUndefined({
+    status: options.status,
+    timing_path: indexEntry.timing_path,
+  });
+
+  if (!options.includeRawContent) {
+    return metadataRefs;
+  }
+
   return dropUndefined({
+    ...metadataRefs,
     artifact_dir: indexEntry.artifact_dir,
     grading_path: indexEntry.grading_path,
-    timing_path: indexEntry.timing_path,
     input_path: indexEntry.input_path,
     output_path: indexEntry.output_path,
     answer_path: indexEntry.answer_path,
@@ -210,6 +229,7 @@ function safeEnvelope(
       ...envelope.source,
       metadata: undefined,
     },
+    artifacts: undefined,
     scores: envelope.scores?.map(({ evidence: _evidence, ...score }) => score),
   });
 
@@ -245,15 +265,17 @@ function rawContent(result: EvaluationResult): ProjectionBundleEntry['raw_conten
 function buildEntry(
   result: EvaluationResult,
   options: BuildProjectionBundleOptions,
+  indexRecord?: IndexArtifactEntry,
 ): ProjectionBundleEntry {
   const includeRawContent = options.includeRawContent ?? false;
   const sourcePath = toPortablePath(options.sourceFile, options.cwd);
+  const plannedIndexEntry = buildResultIndexArtifact(result);
   const envelope = buildTraceEnvelopeFromEvaluationResult(result, {
     evalPath: sourcePath,
     runId: options.runId,
     source: { kind: 'agentv_run', path: sourcePath, format: 'agentv_result' },
     artifacts: {
-      trace_path: tracePathFor(buildResultIndexArtifact(result)),
+      trace_path: tracePathFor(indexRecord ?? plannedIndexEntry),
       answer_path: result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: result.output.length > 0 ? 'outputs/response.md' : undefined,
     },
@@ -266,16 +288,26 @@ function buildEntry(
     throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
   }
 
-  const indexEntry = buildResultIndexArtifact(result, undefined, {
-    projectionIdentity,
-    duplicatePolicy: options.duplicatePolicy,
+  const indexEntry =
+    indexRecord ??
+    buildResultIndexArtifact(result, undefined, {
+      projectionIdentity,
+      duplicatePolicy: options.duplicatePolicy,
+    });
+  const refs = artifactRefs(indexEntry, {
+    includeRawContent,
+    status: options.artifactRefStatus ?? 'planned_export',
   });
-  const refs = artifactRefs(indexEntry);
-  const envelopeWire = safeEnvelope(toTraceEnvelopeWire(envelope), { includeRawContent });
-  const projectionIdentityWire = envelopeWire.projection_identity;
+  const safeEnvelopeWire = safeEnvelope(toTraceEnvelopeWire(envelope), { includeRawContent });
+  const projectionIdentityWire =
+    indexEntry.projection_identity ?? safeEnvelopeWire.projection_identity;
   if (!projectionIdentityWire) {
     throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
   }
+  const envelopeWire = {
+    ...safeEnvelopeWire,
+    projection_identity: projectionIdentityWire,
+  };
   const scores = safeScores(envelopeWire.scores, { includeRawContent });
 
   const feedback: ProjectionBundleEntry['feedback'] = dropUndefined({
@@ -293,13 +325,13 @@ function buildEntry(
     projection_identity: projectionIdentityWire,
     eval: envelopeWire.eval,
     artifact_refs: refs,
-    trace: {
+    trace: dropUndefined({
       format: envelopeWire.trace.format,
       trace_id: envelopeWire.trace.trace_id,
       root_span_id: envelopeWire.trace.root_span_id,
       span_count: envelopeWire.trace.spans.length,
       envelope_ref: refs.trace_path,
-    },
+    }),
     trace_envelope: envelopeWire,
     feedback,
     capture: envelopeWire.capture,
@@ -318,13 +350,17 @@ export function buildProjectionBundle(
     throw new Error(`No results found in ${options.sourceFile}`);
   }
 
-  const entries = results.map((result) => buildEntry(result, options));
+  const entries = results.map((result, index) =>
+    buildEntry(result, options, options.indexRecords?.[index]),
+  );
   const includeRawContent = options.includeRawContent ?? false;
+  const artifactRefStatus = options.artifactRefStatus ?? 'planned_export';
   const conversionWarnings = entries.flatMap((entry) => entry.conversion_warnings ?? []);
   const bundleId = `projection-bundle-${shortHash([
     PROJECTION_BUNDLE_SCHEMA_VERSION,
     toPortablePath(options.sourceFile, options.cwd),
     options.runId,
+    artifactRefStatus,
     includeRawContent ? 'raw' : 'metadata',
     ...entries.map((entry) => entry.projection_id),
   ])}`;

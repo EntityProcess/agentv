@@ -11,6 +11,7 @@ import type {
 } from '../../../src/commands/eval/artifact-writer.js';
 import { parseJsonlResults } from '../../../src/commands/eval/artifact-writer.js';
 import {
+  buildProjectionBundleFromExportedIndex,
   deriveExportRunId,
   deriveOutputDir,
   exportResults,
@@ -270,6 +271,19 @@ describe('results export', () => {
       raw_content_opt_in: false,
       default_capture: 'metadata',
     });
+    expect(first.entries[0].artifact_refs).toMatchObject({
+      status: 'planned_export',
+      timing_path: 'privacy/test-private/timing.json',
+    });
+    expect(first.entries[0].artifact_refs).not.toHaveProperty('input_path');
+    expect(first.entries[0].artifact_refs).not.toHaveProperty('output_path');
+    expect(first.entries[0].artifact_refs).not.toHaveProperty('answer_path');
+    expect(first.entries[0].artifact_refs).not.toHaveProperty('response_path');
+    expect(first.entries[0].artifact_refs).not.toHaveProperty('transcript_path');
+    expect(first.entries[0].artifact_refs).not.toHaveProperty('trace_path');
+    expect(first.entries[0].feedback).not.toHaveProperty('grading_path');
+    expect(first.entries[0].trace).not.toHaveProperty('envelope_ref');
+    expect(first.entries[0].trace_envelope).not.toHaveProperty('artifacts');
     expect(first.entries[0].projection_identity.dimensions.run_id).toBe('privacy-run');
     expect(first.entries[0].trace_envelope.trace.spans.length).toBeGreaterThan(0);
     expect(first.entries[0].feedback.scores?.[0]).not.toHaveProperty('evidence');
@@ -301,6 +315,17 @@ describe('results export', () => {
       content: 'full',
       redaction_level: 'none',
     });
+    expect(bundle.entries[0].artifact_refs).toMatchObject({
+      status: 'planned_export',
+      input_path: 'privacy/test-private/input.md',
+      output_path: 'privacy/test-private/outputs/answer.md',
+      answer_path: 'privacy/test-private/outputs/answer.md',
+      response_path: 'privacy/test-private/outputs/response.md',
+      trace_path: 'privacy/test-private/outputs/trace.json',
+    });
+    expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/outputs/trace.json');
+    expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
+    expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/grading.json');
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');
     expect(serialized).toContain('SECRET_PROMPT_TEXT');
@@ -443,6 +468,34 @@ describe('results export', () => {
     expect(entry.projection_identity?.id).toBe(before);
     expect(entry.export_metadata).toMatchObject({ duplicate_policy: 'skip', skipped: true });
     expect(readAnswer(outputDir, RESULT_FULL)).toBe('Hello, Alice!');
+  });
+
+  it('builds projection bundles from emitted skipped artifacts for duplicate policy skip', async () => {
+    const sourceFile = path.join(tempDir, 'runs', 'retry-run', 'index.jsonl');
+    const outputDir = path.join(tempDir, 'output');
+    const updated = { ...RESULT_FULL, output: 'Skipped answer.' };
+
+    await exportResults(sourceFile, toJsonl(RESULT_FULL), outputDir, {
+      duplicatePolicy: 'update',
+    });
+    await exportResults(sourceFile, toJsonl(updated), outputDir, {
+      duplicatePolicy: 'skip',
+    });
+
+    const bundle = buildProjectionBundleFromExportedIndex({
+      sourceFile,
+      outputDir,
+      cwd: tempDir,
+      includeRawContent: true,
+      duplicatePolicy: 'skip',
+    });
+
+    expect(bundle.entries[0].artifact_refs.status).toBe('emitted');
+    expect(bundle.entries[0].raw_content?.output).toBe('Hello, Alice!');
+    expect(serializeProjectionBundle(bundle)).not.toContain('Skipped answer.');
+    expect(bundle.entries[0].trace_envelope.projection_identity).toEqual(
+      readIndex(outputDir)[0].projection_identity,
+    );
   });
 
   it('fails duplicate projection artifacts when duplicate policy is error', async () => {
