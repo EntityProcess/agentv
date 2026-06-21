@@ -599,6 +599,29 @@ describe('parseJsonlResults', () => {
     expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
   });
 
+  it('rejects camelCase artifact pointer rows for the new wire field', () => {
+    const content = `${JSON.stringify({
+      test_id: 'pointer-row',
+      target: 'codex',
+      score: 1,
+      artifactPointers: {
+        transcript: {
+          ref: 'agentv/artifacts/v1',
+          key: 'transcripts/pointer-row/outputs/transcript.jsonl',
+          object_version: 'sha256:test',
+          path: 'pointer-row/outputs/transcript.jsonl',
+          sha256: 'test',
+          size: 1,
+          schema_version: 'agentv.transcript.v1',
+          media_type: 'application/x-ndjson',
+          family: 'transcripts',
+        },
+      },
+    })}\n`;
+
+    expect(() => parseJsonlResults(content)).toThrow(/Use "artifact_pointers"/);
+  });
+
   it('handles empty content', () => {
     expect(parseJsonlResults('')).toHaveLength(0);
   });

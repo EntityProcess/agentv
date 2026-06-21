@@ -20,7 +20,12 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
-import type { EvaluationResult } from '@agentv/core';
+import type {
+  EvaluationResult,
+  ResultArtifactPointerWire,
+  ResultArtifactPointersWire,
+  TranscriptArtifactPointerWire,
+} from '@agentv/core';
 
 import {
   type BenchmarkArtifact,
@@ -317,6 +322,15 @@ const MANIFEST_PATH_FIELDS = [
   'graders_path',
 ] as const;
 
+const POINTER_FAMILIES = {
+  trace: 'traces',
+  transcript: 'transcripts',
+} as const;
+
+function isSafeRelativeArtifactPath(relativePath: string): boolean {
+  return !path.isAbsolute(relativePath) && !relativePath.split(/[\\/]+/).includes('..');
+}
+
 function copyReferencedArtifact(
   sourceBaseDir: string,
   outputDir: string,
@@ -324,7 +338,7 @@ function copyReferencedArtifact(
   relativePath: string | undefined,
 ): string | undefined {
   if (!relativePath) return undefined;
-  if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]+/).includes('..')) {
+  if (!isSafeRelativeArtifactPath(relativePath)) {
     throw new Error(`Unsafe artifact path in source manifest: ${relativePath}`);
   }
   const sourcePath = path.join(sourceBaseDir, relativePath);
@@ -343,6 +357,71 @@ function copyReferencedArtifact(
   return rewritten;
 }
 
+function rewriteArtifactPointer(
+  pointerName: keyof typeof POINTER_FAMILIES,
+  pointer: ResultArtifactPointerWire | undefined,
+  sourceBaseDir: string,
+  outputDir: string,
+  sourceIndex: number,
+): ResultArtifactPointerWire | undefined {
+  if (!pointer) {
+    return undefined;
+  }
+
+  if (!isSafeRelativeArtifactPath(pointer.path)) {
+    throw new Error(`Unsafe artifact path in source manifest: ${pointer.path}`);
+  }
+  const sourcePath = path.join(sourceBaseDir, pointer.path);
+  if (!existsSync(sourcePath)) {
+    return { ...pointer };
+  }
+
+  const rewrittenPath = copyReferencedArtifact(sourceBaseDir, outputDir, sourceIndex, pointer.path);
+  if (!rewrittenPath) {
+    return { ...pointer };
+  }
+
+  const family = pointer.family ?? POINTER_FAMILIES[pointerName];
+  return {
+    ...pointer,
+    path: rewrittenPath,
+    key: path.posix.join(family, rewrittenPath),
+  };
+}
+
+function rewriteTranscriptArtifactPointer(
+  pointer: TranscriptArtifactPointerWire | undefined,
+  sourceBaseDir: string,
+  outputDir: string,
+  sourceIndex: number,
+): TranscriptArtifactPointerWire | undefined {
+  return rewriteArtifactPointer('transcript', pointer, sourceBaseDir, outputDir, sourceIndex) as
+    | TranscriptArtifactPointerWire
+    | undefined;
+}
+
+function rewriteArtifactPointers(
+  pointers: ResultArtifactPointersWire | undefined,
+  sourceBaseDir: string,
+  outputDir: string,
+  sourceIndex: number,
+): ResultArtifactPointersWire | undefined {
+  if (!pointers) {
+    return undefined;
+  }
+
+  return {
+    ...pointers,
+    trace: rewriteArtifactPointer('trace', pointers.trace, sourceBaseDir, outputDir, sourceIndex),
+    transcript: rewriteTranscriptArtifactPointer(
+      pointers.transcript,
+      sourceBaseDir,
+      outputDir,
+      sourceIndex,
+    ),
+  };
+}
+
 function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManifestRecord {
   const sourceBaseDir = path.dirname(row.source.manifestPath);
   const rewritten: Record<string, unknown> = { ...row.record };
@@ -354,6 +433,12 @@ function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManife
       row.record[field],
     );
   }
+  rewritten.artifact_pointers = rewriteArtifactPointers(
+    row.record.artifact_pointers,
+    sourceBaseDir,
+    outputDir,
+    row.source.index,
+  );
   return rewritten as unknown as ResultManifestRecord;
 }
 

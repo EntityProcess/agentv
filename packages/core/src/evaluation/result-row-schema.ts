@@ -20,7 +20,6 @@ const MIGRATION_GUIDANCE =
 
 const RESULT_ROW_ALIASES = {
   answerPath: 'answer_path',
-  artifactPointers: 'artifact_pointers',
   artifactDir: 'artifact_dir',
   conversationId: 'conversation_id',
   costUsd: 'cost_usd',
@@ -44,6 +43,10 @@ const RESULT_ROW_ALIASES = {
   tokenUsage: 'token_usage',
   transcriptPath: 'transcript_path',
   workspacePath: 'workspace_path',
+} as const;
+
+const NEW_SNAKE_CASE_ONLY_FIELDS = {
+  artifactPointers: 'artifact_pointers',
 } as const;
 
 const TRACE_SUMMARY_ALIASES = {
@@ -150,6 +153,19 @@ function buildInvalidScoreError(context: {
   return new ResultRowSchemaError(`Missing or invalid score in result row${location}.`);
 }
 
+function buildSnakeCaseOnlyFieldError(
+  field: keyof typeof NEW_SNAKE_CASE_ONLY_FIELDS,
+  context: { lineNumber?: number; sourceLabel?: string },
+): ResultRowSchemaError {
+  const location = [
+    context.sourceLabel ? ` in ${context.sourceLabel}` : '',
+    context.lineNumber !== undefined ? ` at line ${context.lineNumber}` : '',
+  ].join('');
+  return new ResultRowSchemaError(
+    `Unsupported camelCase result row field "${field}"${location}. Use "${NEW_SNAKE_CASE_ONLY_FIELDS[field]}".`,
+  );
+}
+
 function looksLikeResultRow(value: Record<string, unknown>): boolean {
   return (
     typeof value.test_id === 'string' ||
@@ -168,6 +184,14 @@ export function normalizeResultRow(
 ): Record<string, unknown> {
   if (!isRecord(value)) {
     throw buildSchemaError(context);
+  }
+
+  for (const field of Object.keys(
+    NEW_SNAKE_CASE_ONLY_FIELDS,
+  ) as (keyof typeof NEW_SNAKE_CASE_ONLY_FIELDS)[]) {
+    if (Object.hasOwn(value, field)) {
+      throw buildSnakeCaseOnlyFieldError(field, context);
+    }
   }
 
   const normalized = normalizeKnownAliases(value, RESULT_ROW_ALIASES);
