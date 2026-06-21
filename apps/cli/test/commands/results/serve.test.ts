@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -2849,6 +2857,94 @@ describe('serve app', () => {
       expect(data.message).toContain('not available');
     });
 
+    it('treats symlinked transcript artifacts outside the run workspace as dangling', async () => {
+      const secret = 'outside transcript secret';
+      const outsidePath = path.join(tempDir, 'outside-transcript.jsonl');
+      writeFileSync(outsidePath, secret);
+
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-transcript');
+      const runId = 'escaped-transcript::2026-03-25T13-30-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T13-30-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const symlinkPath = path.join(timestampDir, artifactPath);
+
+      mkdirSync(path.dirname(symlinkPath), { recursive: true });
+      symlinkSync(outsidePath, symlinkPath);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-transcript',
+          transcript_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(text).not.toContain(secret);
+      const data = JSON.parse(text) as { status: string; transcript_path: string };
+      expect(data.status).toBe('dangling');
+      expect(data.transcript_path).toBe(artifactPath);
+    });
+
+    it('omits symlinked answer artifacts outside the run workspace from transcript responses', async () => {
+      const secret = 'outside answer secret';
+      const outsidePath = path.join(tempDir, 'outside-answer.md');
+      writeFileSync(outsidePath, secret);
+
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-answer');
+      const runId = 'escaped-answer::2026-03-25T13-45-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T13-45-00-000Z');
+      const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const answerArtifactPath = 'demo/test-greeting/outputs/answer.md';
+      const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const answerPath = path.join(timestampDir, answerArtifactPath);
+      const transcriptJsonl = `${JSON.stringify({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        message_index: 0,
+        role: 'user',
+        content: 'Hello',
+      })}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJsonl);
+      symlinkSync(outsidePath, answerPath);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-answer',
+          transcript_path: transcriptArtifactPath,
+          answer_path: answerArtifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
+      );
+
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(text).not.toContain(secret);
+      const data = JSON.parse(text) as {
+        status: string;
+        content: string;
+        answer_path: string;
+        answer_content?: string;
+      };
+      expect(data.status).toBe('ok');
+      expect(data.content).toBe(transcriptJsonl);
+      expect(data.answer_path).toBe(answerArtifactPath);
+      expect(data.answer_content).toBeUndefined();
+    });
+
     it('does not read transcript bodies for list, detail, or aggregate routes', async () => {
       const timestamp = '2026-03-25T14-00-00-000Z';
       const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
@@ -2973,6 +3069,37 @@ describe('serve app', () => {
         'attachment; filename="transcript.jsonl"',
       );
       expect(await downloadRes.text()).toBe(transcriptJsonl);
+    });
+
+    it('rejects symlinked artifact file reads outside the run workspace', async () => {
+      const secret = 'outside raw artifact secret';
+      const outsidePath = path.join(tempDir, 'outside-response.md');
+      writeFileSync(outsidePath, secret);
+
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-file');
+      const runId = 'escaped-file::2026-03-25T10-30-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-30-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/response.md';
+      const symlinkPath = path.join(timestampDir, artifactPath);
+
+      mkdirSync(path.dirname(symlinkPath), { recursive: true });
+      symlinkSync(outsidePath, symlinkPath);
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-file',
+          output_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${artifactPath}?raw=1`,
+      );
+
+      expect(res.status).toBe(403);
+      expect(await res.text()).not.toContain(secret);
     });
   });
 

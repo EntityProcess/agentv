@@ -34,7 +34,15 @@
  *   - createApp(results, cwd) — Hono app factory
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -381,10 +389,46 @@ function resolveRunArtifactPath(
 ): { absolutePath?: string; error?: string } {
   const absolutePath = path.resolve(baseDir, relativePath);
   const resolvedBase = path.resolve(baseDir);
-  if (absolutePath !== resolvedBase && !absolutePath.startsWith(`${resolvedBase}${path.sep}`)) {
+  if (!isPathInsideDirectory(resolvedBase, absolutePath)) {
     return { error: 'Artifact path is outside the run workspace.' };
   }
   return { absolutePath };
+}
+
+function isPathInsideDirectory(baseDir: string, candidatePath: string): boolean {
+  const relative = path.relative(baseDir, candidatePath);
+  return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function resolveReadableRunArtifactFile(
+  baseDir: string,
+  relativePath: string,
+): { absolutePath?: string; error?: string } {
+  const resolved = resolveRunArtifactPath(baseDir, relativePath);
+  if (!resolved.absolutePath) return { error: resolved.error };
+
+  let realBase: string;
+  let realArtifact: string;
+  try {
+    realBase = realpathSync(baseDir);
+    realArtifact = realpathSync(resolved.absolutePath);
+  } catch {
+    return {};
+  }
+
+  if (!isPathInsideDirectory(realBase, realArtifact)) {
+    return { error: 'Artifact path is outside the run workspace.' };
+  }
+
+  try {
+    if (!statSync(realArtifact).isFile()) {
+      return {};
+    }
+  } catch {
+    return {};
+  }
+
+  return { absolutePath: realArtifact };
 }
 
 function readOptionalRunArtifactText(
@@ -392,11 +436,8 @@ function readOptionalRunArtifactText(
   artifact: ResolvedArtifactPointer,
 ): string | undefined {
   if (!artifact.path) return undefined;
-  const resolved = resolveRunArtifactPath(baseDir, artifact.path);
+  const resolved = resolveReadableRunArtifactFile(baseDir, artifact.path);
   if (!resolved.absolutePath) return undefined;
-  if (!existsSync(resolved.absolutePath) || !statSync(resolved.absolutePath).isFile()) {
-    return undefined;
-  }
   return readFileSync(resolved.absolutePath, 'utf8');
 }
 
@@ -1037,33 +1078,27 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
   await ensureRunReadable(searchDir, meta, projectId);
   const baseDir = path.dirname(meta.path);
-  const absolutePath = path.resolve(baseDir, filePath);
-
-  // Security: prevent path traversal — resolved path must be inside baseDir
-  if (
-    !absolutePath.startsWith(path.resolve(baseDir) + path.sep) &&
-    absolutePath !== path.resolve(baseDir)
-  ) {
+  const resolvedFile = resolveReadableRunArtifactFile(baseDir, filePath);
+  if (resolvedFile.error) {
     return c.json({ error: 'Path traversal not allowed' }, 403);
   }
-
-  if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+  if (!resolvedFile.absolutePath) {
     return c.json({ error: 'File not found' }, 404);
   }
 
   try {
-    const fileContent = readFileSync(absolutePath, 'utf8');
+    const fileContent = readFileSync(resolvedFile.absolutePath, 'utf8');
     if (c.req.query('raw') === '1' || c.req.query('download') === '1') {
-      c.header('Content-Type', inferRawContentType(absolutePath));
+      c.header('Content-Type', inferRawContentType(filePath));
       if (c.req.query('download') === '1') {
         c.header(
           'Content-Disposition',
-          `attachment; filename="${contentDispositionFilename(absolutePath)}"`,
+          `attachment; filename="${contentDispositionFilename(filePath)}"`,
         );
       }
       return c.body(fileContent);
     }
-    const language = inferLanguage(absolutePath);
+    const language = inferLanguage(filePath);
     return c.json({ content: fileContent, language });
   } catch {
     return c.json({ error: 'Failed to read file' }, 500);
@@ -1093,8 +1128,8 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
       });
     }
 
-    const resolvedTranscript = resolveRunArtifactPath(baseDir, transcript.path);
-    if (!resolvedTranscript.absolutePath) {
+    const resolvedTranscript = resolveReadableRunArtifactFile(baseDir, transcript.path);
+    if (resolvedTranscript.error) {
       return c.json({
         status: 'dangling',
         transcript_path: transcript.path,
@@ -1103,10 +1138,7 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
       });
     }
 
-    if (
-      !existsSync(resolvedTranscript.absolutePath) ||
-      !statSync(resolvedTranscript.absolutePath).isFile()
-    ) {
+    if (!resolvedTranscript.absolutePath) {
       const refMessage = transcript.ref ? ` on ${transcript.ref}` : '';
       return c.json({
         status: 'dangling',
