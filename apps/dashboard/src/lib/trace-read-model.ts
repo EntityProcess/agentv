@@ -1,10 +1,13 @@
 import type {
   ExternalTraceMetadata,
+  TraceSessionArtifactLink,
+  TraceSessionConversionWarning,
   TraceSessionEvent,
   TraceSessionEventKind,
   TraceSessionResponse,
   TraceSessionScore,
   TraceSessionSource,
+  TraceSessionSourceRef,
   TraceSessionSpan,
   TraceSessionTokenUsage,
 } from './types';
@@ -58,6 +61,10 @@ function stringValue(value: unknown): string | undefined {
 
 function finiteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function finiteInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
 function boolValue(value: unknown): boolean | undefined {
@@ -376,11 +383,17 @@ function projectScores(scores: unknown): TraceSessionScore[] | undefined {
   return projected.length > 0 ? projected : undefined;
 }
 
-const EXTERNAL_TRACE_KEYS = ['provider', 'project', 'session_id', 'trace_id', 'url'] as const;
-
-function isSecretLikeKey(key: string): boolean {
-  return /(api[_-]?key|authorization|bearer|password|secret|token)/i.test(key);
-}
+const EXTERNAL_TRACE_KEYS = [
+  'provider',
+  'source',
+  'project',
+  'session_id',
+  'trace_id',
+  'ui_url',
+  'run_id',
+  'test_id',
+  'target',
+] as const;
 
 function sanitizeUrl(value: unknown): string | undefined {
   const raw = stringValue(value);
@@ -408,10 +421,14 @@ function sanitizeExternalTrace(value: unknown): ExternalTraceMetadata | undefine
 
   const sanitized = compactRecord({
     provider: stringValue(record.provider),
+    source: stringValue(record.source),
     project: stringValue(record.project),
-    session_id: stringValue(record.session_id),
-    trace_id: stringValue(record.trace_id),
-    url: sanitizeUrl(record.url),
+    session_id: stringValue(record.session_id) ?? stringValue(record.session),
+    trace_id: stringValue(record.trace_id) ?? stringValue(record.trace),
+    ui_url: sanitizeUrl(record.ui_url ?? record.url ?? record.href),
+    run_id: stringValue(record.run_id),
+    test_id: stringValue(record.test_id),
+    target: stringValue(record.target),
   }) as ExternalTraceMetadata | undefined;
 
   return sanitized && EXTERNAL_TRACE_KEYS.some((key) => sanitized[key] !== undefined)
@@ -427,11 +444,40 @@ function externalTraceFromFlatMetadata(
   }
   return sanitizeExternalTrace({
     provider: metadata.external_trace_provider ?? metadata['external_trace.provider'],
+    source: metadata.external_trace_source ?? metadata['external_trace.source'],
     project: metadata.external_trace_project ?? metadata['external_trace.project'],
-    session_id: metadata.external_trace_session_id ?? metadata['external_trace.session_id'],
-    trace_id: metadata.external_trace_trace_id ?? metadata['external_trace.trace_id'],
-    url: metadata.external_trace_url ?? metadata['external_trace.url'],
+    session_id:
+      metadata.external_trace_session_id ??
+      metadata.external_trace_session ??
+      metadata['external_trace.session_id'] ??
+      metadata['external_trace.session'],
+    trace_id:
+      metadata.external_trace_trace_id ??
+      metadata.external_trace_trace ??
+      metadata['external_trace.trace_id'] ??
+      metadata['external_trace.trace'],
+    ui_url:
+      metadata.external_trace_ui_url ??
+      metadata.external_trace_url ??
+      metadata['external_trace.ui_url'] ??
+      metadata['external_trace.url'],
+    run_id: metadata.external_trace_run_id ?? metadata['external_trace.run_id'],
+    test_id: metadata.external_trace_test_id ?? metadata['external_trace.test_id'],
+    target: metadata.external_trace_target ?? metadata['external_trace.target'],
   });
+}
+
+function sanitizeMetadataValue(value: unknown): unknown | undefined {
+  if (Array.isArray(value)) {
+    const sanitized = value
+      .map(sanitizeMetadataValue)
+      .filter((entry): entry is unknown => entry !== undefined);
+    return sanitized.length > 0 ? sanitized : undefined;
+  }
+  if (isRecord(value)) {
+    return sanitizeMetadata(value);
+  }
+  return value;
 }
 
 function sanitizeMetadata(
@@ -441,14 +487,11 @@ function sanitizeMetadata(
     return undefined;
   }
   const entries = Object.entries(value).flatMap(([key, entry]) => {
-    if (isExternalTraceKey(key) || isSecretLikeKey(key)) {
+    if (isExternalTraceKey(key) || isCredentialLikeKey(key)) {
       return [];
     }
-    if (isRecord(entry)) {
-      const nested = sanitizeMetadata(entry);
-      return nested ? [[key, nested] as const] : [];
-    }
-    return [[key, entry] as const];
+    const sanitized = sanitizeMetadataValue(entry);
+    return sanitized !== undefined ? [[key, sanitized] as const] : [];
   });
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
@@ -469,6 +512,86 @@ function sourceFromEnvelope(
     artifact_path: artifactPath,
     metadata: sanitizeMetadata(asRecord(source?.metadata)),
   }) as TraceSessionSource | undefined;
+}
+
+function safeArtifactPath(value: unknown): string | undefined {
+  const raw = stringValue(value);
+  if (!raw || raw.includes('\0')) {
+    return undefined;
+  }
+
+  const normalized = raw.replace(/\\/g, '/');
+  if (normalized.startsWith('/') || normalized.startsWith('//')) {
+    return undefined;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(normalized)) {
+    return undefined;
+  }
+  if (normalized.split('/').includes('..')) {
+    return undefined;
+  }
+  return normalized;
+}
+
+function projectArtifactLinks(artifacts: unknown): TraceSessionArtifactLink[] | undefined {
+  const record = asRecord(artifacts);
+  if (!record) {
+    return undefined;
+  }
+
+  const links = Object.entries(record)
+    .flatMap(([name, value]) => {
+      if (!stringValue(name) || isCredentialLikeKey(name)) {
+        return [];
+      }
+      const artifactPath = safeArtifactPath(value);
+      return artifactPath ? [{ name, path: artifactPath }] : [];
+    })
+    .sort((first, second) => first.name.localeCompare(second.name));
+
+  return links.length > 0 ? links : undefined;
+}
+
+function projectSourceRef(value: unknown): TraceSessionSourceRef | undefined {
+  const record = asRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  return compactRecord({
+    event_id: stringValue(record.event_id),
+    message_id: stringValue(record.message_id),
+    span_id: stringValue(record.span_id),
+    trace_id: stringValue(record.trace_id),
+    raw_kind: stringValue(record.raw_kind),
+    path: safeArtifactPath(record.path),
+    line: finiteInteger(record.line),
+    metadata: sanitizeMetadata(asRecord(record.metadata)),
+  }) as TraceSessionSourceRef | undefined;
+}
+
+function projectConversionWarnings(warnings: unknown): TraceSessionConversionWarning[] | undefined {
+  const projected: TraceSessionConversionWarning[] = [];
+
+  for (const warning of asArray(warnings)) {
+    const record = asRecord(warning);
+    const code = stringValue(record?.code);
+    const message = stringValue(record?.message);
+    if (!record || !code || !message) {
+      continue;
+    }
+    projected.push(
+      dropUndefined({
+        code,
+        severity: stringValue(record.severity),
+        span_id: stringValue(record.span_id),
+        source_ref: projectSourceRef(record.source_ref),
+        message,
+        details: sanitizeMetadata(asRecord(record.details)),
+      }) as TraceSessionConversionWarning,
+    );
+  }
+
+  return projected.length > 0 ? projected : undefined;
 }
 
 function externalTraceFromEnvelope(
@@ -515,6 +638,8 @@ export function traceEnvelopeToTraceSessionResponse(
     root_span_id: stringValue(trace?.root_span_id),
     source: sourceFromEnvelope(asRecord(envelope.source), options.artifactPath),
     external_trace: externalTraceFromEnvelope(envelope),
+    artifact_links: projectArtifactLinks(envelope.artifacts),
+    conversion_warnings: projectConversionWarnings(envelope.conversion_warnings),
     spans,
     events,
     scores: projectScores(envelope.scores),

@@ -141,10 +141,14 @@ export interface ExternalTraceMetadata {
    * canonical source of truth for Dashboard trace/session details.
    */
   provider?: string;
+  source?: string;
   project?: string;
   session_id?: string;
   trace_id?: string;
-  url?: string;
+  ui_url?: string;
+  run_id?: string;
+  test_id?: string;
+  target?: string;
 }
 
 export interface TraceSessionTokenUsage {
@@ -215,6 +219,31 @@ export interface TraceSessionSource {
   metadata?: Record<string, unknown>;
 }
 
+export interface TraceSessionArtifactLink {
+  name: string;
+  path: string;
+}
+
+export interface TraceSessionSourceRef {
+  event_id?: string;
+  message_id?: string;
+  span_id?: string;
+  trace_id?: string;
+  raw_kind?: string;
+  path?: string;
+  line?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TraceSessionConversionWarning {
+  code: string;
+  severity?: 'info' | 'warning' | 'error' | string;
+  span_id?: string;
+  source_ref?: TraceSessionSourceRef;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 export interface TraceSessionResponse {
   schema_version: 'agentv.dashboard.trace_session.v1';
   artifact_id?: string;
@@ -227,6 +256,8 @@ export interface TraceSessionResponse {
   root_span_id?: string;
   source?: TraceSessionSource;
   external_trace?: ExternalTraceMetadata;
+  artifact_links?: TraceSessionArtifactLink[];
+  conversion_warnings?: TraceSessionConversionWarning[];
   spans: TraceSessionSpan[];
   events: TraceSessionEvent[];
   scores?: TraceSessionScore[];

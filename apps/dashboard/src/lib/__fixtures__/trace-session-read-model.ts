@@ -99,16 +99,87 @@ export const traceSessionEnvelopeFixture = {
     metadata: {
       external_trace: {
         provider: 'phoenix',
+        source: 'codex',
         project: 'agentv-dogfood',
         session_id: 'codex-session-123',
         trace_id: 'phoenix-trace-456',
-        url: 'https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456?api_key=secret',
+        ui_url:
+          'https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456?api_key=secret',
+        run_id: '2026-06-21T10-00-00-000Z',
+        test_id: 'nested-session',
+        target: 'codex',
         api_key: 'secret',
       },
       safe_note: 'local artifact remains canonical',
       access_token: 'secret',
     },
   },
+  artifacts: {
+    trace_path: 'outputs/trace.json',
+    answer_path: 'outputs/answer.md',
+    transcript_path: 'outputs/transcript.jsonl',
+    secret_token_path: 'outputs/secret-token.txt',
+    unsafe_url_path: 'https://phoenix.example/artifacts/trace.json?api_key=secret',
+    traversal_path: '../outside/trace.json',
+    unc_path: '\\\\evil.example\\share\\trace.json',
+  },
+  conversion_warnings: [
+    {
+      code: 'missing_event_time',
+      severity: 'warning',
+      span_id: 'child-chat',
+      source_ref: {
+        event_id: 'raw-event-1',
+        span_id: 'child-chat',
+        trace_id: 'trace-123',
+        raw_kind: 'codex_event',
+        path: 'outputs/raw/events.jsonl',
+        line: 7,
+        metadata: {
+          safe_value: 'visible',
+          authorization: 'Bearer secret',
+          messages: [
+            { authorization: 'Bearer nested secret' },
+            {
+              safe_value: 'visible',
+              nested: { keep: 'yes', refresh_token: 'secret' },
+            },
+          ],
+        },
+      },
+      message: 'Converted event did not include a timestamp.',
+      details: {
+        raw_kind: 'codex_event',
+        nested: {
+          safe_value: 'visible',
+          refresh_token: 'secret',
+        },
+        messages: [
+          { authorization: 'Bearer detail secret' },
+          {
+            safe_value: 'visible',
+            nested: { keep: 'yes', token: 'secret' },
+          },
+        ],
+        empty_messages: [{ authorization: 'Bearer only secret' }],
+      },
+    },
+    {
+      code: 'unsafe_source_ref_path',
+      severity: 'warning',
+      source_ref: {
+        span_id: 'grandchild-tool',
+        path: '\\\\evil.example\\share\\trace.json',
+        metadata: {
+          messages: [{ authorization: 'Bearer secret' }, { safe_value: 'visible' }],
+        },
+      },
+      message: 'External-looking source path omitted.',
+      details: {
+        messages: [{ authorization: 'Bearer secret' }, { safe_value: 'visible' }],
+      },
+    },
+  ],
   scores: [
     {
       name: 'rubric',

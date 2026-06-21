@@ -49,6 +49,11 @@ describe('trace session read model', () => {
       source: {
         artifact_path: 'nested-session__codex/outputs/trace.json',
       },
+      artifact_links: [
+        { name: 'answer_path', path: 'outputs/answer.md' },
+        { name: 'trace_path', path: 'outputs/trace.json' },
+        { name: 'transcript_path', path: 'outputs/transcript.jsonl' },
+      ],
     });
     expect(session.spans.map((span) => span.id)).toEqual([
       'root-span',
@@ -107,6 +112,43 @@ describe('trace session read model', () => {
         },
       },
     ]);
+    expect(session.conversion_warnings).toEqual([
+      {
+        code: 'missing_event_time',
+        severity: 'warning',
+        span_id: 'child-chat',
+        source_ref: {
+          event_id: 'raw-event-1',
+          span_id: 'child-chat',
+          trace_id: 'trace-123',
+          raw_kind: 'codex_event',
+          path: 'outputs/raw/events.jsonl',
+          line: 7,
+          metadata: {
+            safe_value: 'visible',
+            messages: [{ safe_value: 'visible', nested: { keep: 'yes' } }],
+          },
+        },
+        message: 'Converted event did not include a timestamp.',
+        details: {
+          raw_kind: 'codex_event',
+          nested: { safe_value: 'visible' },
+          messages: [{ safe_value: 'visible', nested: { keep: 'yes' } }],
+        },
+      },
+      {
+        code: 'unsafe_source_ref_path',
+        severity: 'warning',
+        source_ref: {
+          span_id: 'grandchild-tool',
+          metadata: { messages: [{ safe_value: 'visible' }] },
+        },
+        message: 'External-looking source path omitted.',
+        details: {
+          messages: [{ safe_value: 'visible' }],
+        },
+      },
+    ]);
   });
 
   it('keeps external_trace links safe and leaves AgentV as canonical source', () => {
@@ -114,15 +156,28 @@ describe('trace session read model', () => {
 
     expect(session.external_trace).toEqual({
       provider: 'phoenix',
+      source: 'codex',
       project: 'agentv-dogfood',
       session_id: 'codex-session-123',
       trace_id: 'phoenix-trace-456',
-      url: 'https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456',
+      ui_url: 'https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456',
+      run_id: '2026-06-21T10-00-00-000Z',
+      test_id: 'nested-session',
+      target: 'codex',
     });
     expect(JSON.stringify(session.external_trace)).not.toContain('secret');
     expect(JSON.stringify(session.external_trace)).not.toContain('api_key');
     expect(JSON.stringify(session)).not.toContain('secret');
     expect(JSON.stringify(session)).not.toContain('api_key');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('unsafe_url_path');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('traversal_path');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('secret_token_path');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('unc_path');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('evil.example');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('authorization');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('Bearer');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('empty_messages');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('evil.example');
     expect(session.source?.metadata).toEqual({
       safe_note: 'local artifact remains canonical',
     });
