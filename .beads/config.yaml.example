@@ -55,4 +55,7 @@
 # - github.org
 # - github.repo
 
+# AgentV code lives in EntityProcess/agentv. Beads coordination data lives in
+# EntityProcess/agentv-beads. Keep both Beads remotes pointed at agentv-beads.
+sync.remote: "git+https://github.com/EntityProcess/agentv-beads.git"
 federation.remote: "git+https://github.com/EntityProcess/agentv-beads.git"

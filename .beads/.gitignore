@@ -74,9 +74,11 @@ backup/
 db.sqlite
 bd.db
 
-# Checkout-local config and identity. Copy config.yaml.example when using Beads.
+# Checkout-local config. Copy config.yaml.example when using Beads.
 config.yaml
-metadata.json
+
+# metadata.json is intentionally tracked. It preserves the embedded Dolt
+# database identity for AgentV's av Beads workspace.
 
 # NOTE: Do NOT add negation patterns here.
 # They would override fork protection in .git/info/exclude.
