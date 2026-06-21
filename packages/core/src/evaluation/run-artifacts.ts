@@ -373,7 +373,7 @@ function toIndexScore(score: GraderResult): Record<string, unknown> {
     score: score.score,
     weight: score.weight,
     verdict: score.verdict,
-    assertions: score.assertions.map(toIndexAssertion),
+    assertions: (score.assertions ?? []).map(toIndexAssertion),
     raw_request: score.rawRequest,
     input: score.input,
     target: score.target,
