@@ -124,12 +124,28 @@ describe('trace session read model', () => {
           raw_kind: 'codex_event',
           path: 'outputs/raw/events.jsonl',
           line: 7,
-          metadata: { safe_value: 'visible' },
+          metadata: {
+            safe_value: 'visible',
+            messages: [{ safe_value: 'visible', nested: { keep: 'yes' } }],
+          },
         },
         message: 'Converted event did not include a timestamp.',
         details: {
           raw_kind: 'codex_event',
           nested: { safe_value: 'visible' },
+          messages: [{ safe_value: 'visible', nested: { keep: 'yes' } }],
+        },
+      },
+      {
+        code: 'unsafe_source_ref_path',
+        severity: 'warning',
+        source_ref: {
+          span_id: 'grandchild-tool',
+          metadata: { messages: [{ safe_value: 'visible' }] },
+        },
+        message: 'External-looking source path omitted.',
+        details: {
+          messages: [{ safe_value: 'visible' }],
         },
       },
     ]);
@@ -156,6 +172,12 @@ describe('trace session read model', () => {
     expect(JSON.stringify(session.artifact_links)).not.toContain('unsafe_url_path');
     expect(JSON.stringify(session.artifact_links)).not.toContain('traversal_path');
     expect(JSON.stringify(session.artifact_links)).not.toContain('secret_token_path');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('unc_path');
+    expect(JSON.stringify(session.artifact_links)).not.toContain('evil.example');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('authorization');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('Bearer');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('empty_messages');
+    expect(JSON.stringify(session.conversion_warnings)).not.toContain('evil.example');
     expect(session.source?.metadata).toEqual({
       safe_note: 'local artifact remains canonical',
     });

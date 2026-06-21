@@ -467,6 +467,19 @@ function externalTraceFromFlatMetadata(
   });
 }
 
+function sanitizeMetadataValue(value: unknown): unknown | undefined {
+  if (Array.isArray(value)) {
+    const sanitized = value
+      .map(sanitizeMetadataValue)
+      .filter((entry): entry is unknown => entry !== undefined);
+    return sanitized.length > 0 ? sanitized : undefined;
+  }
+  if (isRecord(value)) {
+    return sanitizeMetadata(value);
+  }
+  return value;
+}
+
 function sanitizeMetadata(
   value: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
@@ -477,11 +490,8 @@ function sanitizeMetadata(
     if (isExternalTraceKey(key) || isCredentialLikeKey(key)) {
       return [];
     }
-    if (isRecord(entry)) {
-      const nested = sanitizeMetadata(entry);
-      return nested ? [[key, nested] as const] : [];
-    }
-    return [[key, entry] as const];
+    const sanitized = sanitizeMetadataValue(entry);
+    return sanitized !== undefined ? [[key, sanitized] as const] : [];
   });
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
@@ -506,14 +516,17 @@ function sourceFromEnvelope(
 
 function safeArtifactPath(value: unknown): string | undefined {
   const raw = stringValue(value);
-  if (!raw || raw.includes('\0') || raw.startsWith('/')) {
-    return undefined;
-  }
-  if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+  if (!raw || raw.includes('\0')) {
     return undefined;
   }
 
   const normalized = raw.replace(/\\/g, '/');
+  if (normalized.startsWith('/') || normalized.startsWith('//')) {
+    return undefined;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(normalized)) {
+    return undefined;
+  }
   if (normalized.split('/').includes('..')) {
     return undefined;
   }
