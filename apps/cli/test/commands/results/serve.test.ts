@@ -454,15 +454,40 @@ function createMockStudioDir(baseDir: string): string {
 // ── Hono app (Dashboard SPA + API) ─────────────────────────────────────────
 
 describe('serve app', () => {
+  const PHOENIX_ENV_KEYS = [
+    'AGENTV_PHOENIX_ENDPOINT',
+    'AGENTV_PHOENIX_API_KEY',
+    'AGENTV_PHOENIX_AUTHORIZATION',
+    'AGENTV_PHOENIX_HEADERS',
+    'AGENTV_PHOENIX_GRAPHQL_URL',
+    'PHOENIX_HOST',
+    'PHOENIX_API_KEY',
+    'PHOENIX_CLIENT_HEADERS',
+  ] as const;
   let tempDir: string;
   let studioDir: string;
+  let originalFetch: typeof fetch;
+  let originalPhoenixEnv: Record<(typeof PHOENIX_ENV_KEYS)[number], string | undefined>;
 
   beforeEach(() => {
     tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-test-'));
     studioDir = createMockStudioDir(tempDir);
+    originalFetch = globalThis.fetch;
+    originalPhoenixEnv = Object.fromEntries(
+      PHOENIX_ENV_KEYS.map((key) => [key, process.env[key]]),
+    ) as Record<(typeof PHOENIX_ENV_KEYS)[number], string | undefined>;
   });
 
   afterEach(() => {
+    globalThis.fetch = originalFetch;
+    for (const key of PHOENIX_ENV_KEYS) {
+      const value = originalPhoenixEnv[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
     rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -965,6 +990,231 @@ describe('serve app', () => {
           ref: RUN_OPLOG_REF,
         },
       });
+    });
+
+    it('reads a linked Phoenix session through narrow server-side GraphQL/API requests', async () => {
+      const filename = '2026-03-25T10-15-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          source: 'codex',
+          endpoint: 'https://phoenix.example/v1/traces?api_key=artifact-secret',
+          project: 'agentv-dogfood',
+          session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
+          ui_url: 'https://phoenix.example/sessions/codex-session-1?token=artifact-secret',
+        },
+      });
+      process.env.AGENTV_PHOENIX_API_KEY = 'server-secret';
+
+      const requests: Request[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        const url = new URL(request.url);
+        if (url.pathname === '/graphql') {
+          const body = (await request.json()) as {
+            query: string;
+            variables: Record<string, string>;
+          };
+          expect(body.query).toContain('AgentVPhoenixSessionNode');
+          expect(body.variables.id).toBe('UHJvamVjdFNlc3Npb246MQ==');
+          expect(request.headers.get('authorization')).toBe('Bearer server-secret');
+          return Response.json({
+            data: {
+              node: {
+                __typename: 'ProjectSession',
+                id: 'UHJvamVjdFNlc3Npb246MQ==',
+                sessionId: 'codex-session-1',
+                projectId: 'project-1',
+                startTime: '2026-03-25T10:00:00.000Z',
+                endTime: '2026-03-25T10:00:04.000Z',
+                traces: {
+                  edges: [
+                    {
+                      node: {
+                        traceId: 'trace-1',
+                        startTime: '2026-03-25T10:00:00.000Z',
+                        endTime: '2026-03-25T10:00:04.000Z',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          });
+        }
+        if (url.pathname === '/v1/projects/project-1/spans') {
+          expect(url.searchParams.get('trace_id')).toBe('trace-1');
+          return Response.json({
+            data: {
+              data: [
+                {
+                  context: { trace_id: 'trace-1', span_id: 'span-root' },
+                  name: 'agent turn',
+                  start_time: '2026-03-25T10:00:00.000Z',
+                  end_time: '2026-03-25T10:00:04.000Z',
+                  status_code: 'OK',
+                  attributes: {
+                    'input.value': 'summarize the repo',
+                    'output.value': 'repo summary',
+                    'gen_ai.usage.input_tokens': 12,
+                    'gen_ai.usage.output_tokens': 8,
+                    'llm.cost.usd': 0.02,
+                  },
+                },
+                {
+                  context: { trace_id: 'trace-1', span_id: 'span-child' },
+                  parent_id: 'span-root',
+                  name: 'tool call',
+                  start_time: '2026-03-25T10:00:01.000Z',
+                  end_time: '2026-03-25T10:00:02.000Z',
+                  attributes: { 'openinference.span.kind': 'TOOL' },
+                },
+              ],
+            },
+          });
+        }
+        if (url.pathname === '/v1/projects/project-1/session_annotations') {
+          return Response.json({
+            data: {
+              data: [
+                {
+                  id: 'ann-session',
+                  session_id: 'codex-session-1',
+                  name: 'review',
+                  annotator_kind: 'HUMAN',
+                  result: { label: 'pass', score: 1, explanation: 'Looks good' },
+                },
+              ],
+            },
+          });
+        }
+        if (url.pathname === '/v1/projects/project-1/trace_annotations') {
+          return Response.json({ data: { data: [] } });
+        }
+        if (url.pathname === '/v1/projects/project-1/span_annotations') {
+          return Response.json({
+            data: {
+              data: [
+                {
+                  id: 'ann-span',
+                  span_id: 'span-root',
+                  name: 'latency',
+                  annotator_kind: 'CODE',
+                  result: { label: 'ok' },
+                },
+              ],
+            },
+          });
+        }
+        return Response.json({ error: 'unexpected request' }, { status: 500 });
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}/phoenix-session`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        external_trace: { endpoint: string; ui_url: string };
+        session: { session_id: string; trace_count: number; token_usage?: { input?: number } };
+        turns: Array<{ root_span_id?: string; input?: string; output?: string; cost_usd?: number }>;
+        trace_tree: Array<{ span_id: string; depth: number }>;
+        annotations: Array<{ name?: string; target?: string }>;
+      };
+
+      expect(data.status).toBe('ok');
+      expect(data.external_trace).toMatchObject({
+        endpoint: 'https://phoenix.example/',
+        ui_url: 'https://phoenix.example/sessions/codex-session-1',
+      });
+      expect(data.session).toMatchObject({
+        session_id: 'codex-session-1',
+        trace_count: 1,
+        token_usage: { input: 12 },
+      });
+      expect(data.turns[0]).toMatchObject({
+        root_span_id: 'span-root',
+        input: 'summarize the repo',
+        output: 'repo summary',
+        cost_usd: 0.02,
+      });
+      expect(data.trace_tree.map(({ span_id, depth }) => ({ span_id, depth }))).toEqual([
+        { span_id: 'span-root', depth: 0 },
+        { span_id: 'span-child', depth: 1 },
+      ]);
+      expect(data.annotations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'review', target: 'session' }),
+          expect.objectContaining({ name: 'latency', target: 'span' }),
+        ]),
+      );
+      expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+        '/graphql',
+        '/v1/projects/project-1/spans',
+        '/v1/projects/project-1/session_annotations',
+        '/v1/projects/project-1/trace_annotations',
+        '/v1/projects/project-1/span_annotations',
+      ]);
+      const serialized = JSON.stringify(data);
+      expect(serialized).not.toContain('server-secret');
+      expect(serialized).not.toContain('artifact-secret');
+      expect(serialized).not.toContain('Authorization');
+    });
+
+    it('reports missing Phoenix configuration without contacting Phoenix', async () => {
+      const filename = '2026-03-25T10-20-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          session_id: 'codex-session-1',
+        },
+      });
+      const requests: Request[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(new Request(input, init));
+        return Response.json({ error: 'unexpected request' }, { status: 500 });
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}/phoenix-session`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { status: string; message: string };
+
+      expect(data.status).toBe('not_configured');
+      expect(data.message).toContain('AGENTV_PHOENIX_ENDPOINT');
+      expect(requests).toEqual([]);
+    });
+
+    it('keeps run detail readable when Phoenix is unreachable', async () => {
+      const filename = '2026-03-25T10-25-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          endpoint: 'https://phoenix.example',
+          trace_id: 'trace-1',
+          project: 'agentv-dogfood',
+        },
+      });
+      globalThis.fetch = (async () => {
+        throw new Error('connect ECONNREFUSED');
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const phoenixRes = await app.request(
+        `/api/runs/${encodeURIComponent(filename)}/phoenix-session`,
+      );
+      expect(phoenixRes.status).toBe(200);
+      const phoenixData = (await phoenixRes.json()) as { status: string; message: string };
+      expect(phoenixData.status).toBe('unreachable');
+      expect(phoenixData.message).toContain('connect ECONNREFUSED');
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as { results: Array<{ testId: string }> };
+      expect(detailData.results[0].testId).toBe('test-greeting');
     });
 
     it('exposes materialized final state and oplog watermark for local run tags', async () => {

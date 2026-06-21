@@ -83,22 +83,43 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
 
 describe('execution trace artifact v1', () => {
   it('validates and round-trips the explicit snake_case wire shape', () => {
-    const envelope = buildTraceEnvelopeFromEvaluationResult(makeResult(), {
-      evalPath: 'examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml',
-      runId: 'run-123',
-      experiment: 'execution-trace-v1',
-      now: () => new Date('2026-06-15T12:00:05.000Z'),
-      source: {
+    const envelope = buildTraceEnvelopeFromEvaluationResult(
+      makeResult({
         metadata: {
-          source_provider: 'replay',
-          providerCamelKey: 'kept',
+          external_trace: {
+            provider: 'phoenix',
+            source: 'codex',
+            endpoint: 'https://phoenix.example/v1/traces?api_key=secret',
+            project: 'agentv-dogfood',
+            session_id: 'codex-session-123',
+            traceparent: '00-11111111111111111111111111111111-2222222222222222-01',
+            ui_url: 'https://phoenix.example/projects/agentv-dogfood/traces/trace-123?token=secret',
+            api_key: 'secret',
+          },
+          external_trace_token: 'secret-flat-token',
+        },
+      }),
+      {
+        evalPath: 'examples/showcase/trace-evaluation/evals/coding-agent-replay.eval.yaml',
+        runId: 'run-123',
+        experiment: 'execution-trace-v1',
+        now: () => new Date('2026-06-15T12:00:05.000Z'),
+        source: {
+          metadata: {
+            source_provider: 'replay',
+            providerCamelKey: 'kept',
+            external_trace: {
+              api_key: 'source-secret',
+              ui_url: 'https://phoenix.example/source?api_key=source-secret',
+            },
+          },
+        },
+        artifacts: {
+          trace_path: 'outputs/trace.json',
+          transcript_path: 'outputs/transcript.jsonl',
         },
       },
-      artifacts: {
-        trace_path: 'outputs/trace.json',
-        transcript_path: 'outputs/transcript.jsonl',
-      },
-    });
+    );
 
     const wire = toTraceEnvelopeWire(envelope);
 
@@ -123,6 +144,19 @@ describe('execution trace artifact v1', () => {
     });
     expect(wire.created_at).toBe('2026-06-15T12:00:05.000Z');
     expect(wire.eval.eval_path).toContain('coding-agent-replay.eval.yaml');
+    expect(wire.external_trace).toEqual({
+      provider: 'phoenix',
+      source: 'codex',
+      endpoint: 'https://phoenix.example/',
+      project: 'agentv-dogfood',
+      session_id: 'codex-session-123',
+      trace_id: '11111111111111111111111111111111',
+      traceparent: '00-11111111111111111111111111111111-2222222222222222-01',
+      ui_url: 'https://phoenix.example/projects/agentv-dogfood/traces/trace-123',
+      run_id: 'run-123',
+      test_id: 'trace-case',
+      target: 'replay_coding_agent',
+    });
     expect(wire.trace.format).toBe('otlp_openinference_spans');
     expect(wire.artifacts?.trace_path).toBe('outputs/trace.json');
     expect(wire.artifacts).not.toHaveProperty('execution_trace_path');
@@ -132,6 +166,9 @@ describe('execution trace artifact v1', () => {
       source_provider: 'replay',
       providerCamelKey: 'kept',
     });
+    expect(wire.source.metadata).not.toHaveProperty('external_trace');
+    expect(JSON.stringify(wire)).not.toContain('secret');
+    expect(JSON.stringify(wire)).not.toContain('api_key');
     expect(wire.source.metadata).not.toHaveProperty('sourceProvider');
     expect(wire.source.metadata).not.toHaveProperty('provider_camel_key');
     expect(TraceEnvelopeWireSchema.parse(wire).trace.spans.length).toBeGreaterThanOrEqual(2);

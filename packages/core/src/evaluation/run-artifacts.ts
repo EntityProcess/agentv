@@ -12,6 +12,12 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { traceEnvelopeToTranscriptJsonLines } from '../import/types.js';
+import {
+  type ExternalTraceMetadataWire,
+  externalTraceMetadataForResult,
+  omitExternalTraceMetadataKeys,
+  toExternalTraceMetadataWire,
+} from './external-trace.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
 import {
   type ExportDuplicatePolicy,
@@ -229,6 +235,7 @@ export interface IndexArtifactEntry {
   readonly targets_path?: string;
   readonly files_path?: string;
   readonly graders_path?: string;
+  readonly external_trace?: ExternalTraceMetadataWire;
   readonly projection_identity?: ProjectionIdentityWire;
   readonly export_metadata?: {
     readonly duplicate_policy: ExportDuplicatePolicy;
@@ -439,17 +446,29 @@ function toIndexMetadata(
   if (!metadata) {
     return undefined;
   }
+  const safeMetadata = omitExternalTraceMetadataKeys(metadata);
+  if (!safeMetadata) {
+    return undefined;
+  }
   const rerunSource = toIndexRerunSource(metadata.rerunSource);
   const preparedAttempt = toIndexPreparedAttempt(metadata.preparedAttempt);
   if (!rerunSource && !preparedAttempt) {
-    return { ...metadata };
+    return { ...safeMetadata };
   }
   const reservedKeys = new Set(['rerunSource', 'preparedAttempt']);
   return {
-    ...Object.fromEntries(Object.entries(metadata).filter(([key]) => !reservedKeys.has(key))),
+    ...Object.fromEntries(Object.entries(safeMetadata).filter(([key]) => !reservedKeys.has(key))),
     ...(rerunSource ? { rerun_source: rerunSource } : {}),
     ...(preparedAttempt ? { prepared_attempt: preparedAttempt } : {}),
   };
+}
+
+function toIndexExternalTrace(
+  result: EvaluationResult,
+  runId: string | undefined,
+): ExternalTraceMetadataWire | undefined {
+  const externalTrace = externalTraceMetadataForResult(result, { runId });
+  return externalTrace ? toExternalTraceMetadataWire(externalTrace) : undefined;
 }
 
 function buildExportMetadata(
@@ -946,6 +965,7 @@ export function buildIndexArtifactEntry(
       ? toRelativeArtifactPath(options.outputDir, options.responsePath)
       : undefined,
     ...options.extraIndexFields,
+    external_trace: toIndexExternalTrace(result, options.projectionIdentity?.dimensions.runId),
     projection_identity: options.projectionIdentity
       ? toProjectionIdentityWire(options.projectionIdentity)
       : undefined,
@@ -1005,6 +1025,7 @@ export function buildResultIndexArtifact(
       ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
       : undefined,
     ...extraIndexFields,
+    external_trace: toIndexExternalTrace(result, options?.projectionIdentity?.dimensions.runId),
     projection_identity: options?.projectionIdentity
       ? toProjectionIdentityWire(options.projectionIdentity)
       : undefined,

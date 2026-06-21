@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   type EvaluationResult,
+  type ExternalTraceMetadataWire,
   type ResultArtifactPointersWire,
   type TraceSummary,
   type TranscriptJsonLine,
@@ -46,6 +47,7 @@ export interface ResultManifestRecord {
   readonly transcript_path?: string;
   readonly raw_provider_log_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
+  readonly external_trace?: ExternalTraceMetadataWire;
   readonly transcript?: ArtifactPointer;
   readonly artifacts?: ArtifactPointerMap;
   readonly response_path?: string;

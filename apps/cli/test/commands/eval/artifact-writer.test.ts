@@ -1076,6 +1076,59 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
+  it('writes safe external_trace metadata without persisting Phoenix credentials', async () => {
+    const results = [
+      makeResult({
+        testId: 'external-trace-case',
+        target: 'codex',
+        metadata: {
+          external_trace: {
+            provider: 'phoenix',
+            endpoint: 'https://phoenix.example/v1/traces?api_key=secret',
+            project: 'agentv-dogfood',
+            session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
+            trace_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            ui_url: 'https://phoenix.example/sessions/codex-session-1?authorization=secret',
+            api_key: 'secret',
+          },
+          external_trace_token: 'secret-flat-token',
+          safe_note: 'kept',
+        },
+      }),
+    ];
+
+    await writeArtifactsFromResults(results, testDir);
+
+    const indexLine = JSON.parse(
+      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
+    );
+    expect(indexLine.external_trace).toEqual({
+      provider: 'phoenix',
+      source: 'codex',
+      endpoint: 'https://phoenix.example/',
+      project: 'agentv-dogfood',
+      session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
+      trace_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      ui_url: 'https://phoenix.example/sessions/codex-session-1',
+      run_id: path.basename(testDir),
+      test_id: 'external-trace-case',
+      target: 'codex',
+    });
+    expect(indexLine.metadata).toEqual({ safe_note: 'kept' });
+    expect(JSON.stringify(indexLine)).not.toContain('secret');
+    expect(JSON.stringify(indexLine)).not.toContain('api_key');
+
+    const envelope = TraceEnvelopeWireSchema.parse(
+      JSON.parse(
+        await readFile(path.join(testDir, 'external-trace-case', 'outputs', 'trace.json'), 'utf8'),
+      ),
+    );
+    expect(envelope.external_trace).toEqual(indexLine.external_trace);
+    expect(envelope.source.metadata ?? {}).not.toHaveProperty('external_trace');
+    expect(JSON.stringify(envelope)).not.toContain('secret');
+    expect(JSON.stringify(envelope)).not.toContain('api_key');
+  });
+
   it('omits per-test transcript links when the execution trace has no transcript rows', async () => {
     const results = [
       makeResult({

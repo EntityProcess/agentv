@@ -100,9 +100,13 @@ export const traceSessionEnvelopeFixture = {
       external_trace: {
         provider: 'phoenix',
         source: 'codex',
+        endpoint: 'https://phoenix.example/v1/traces?authorization=secret',
         project: 'agentv-dogfood',
+        project_id: 'project-1',
         session_id: 'codex-session-123',
+        session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
         trace_id: 'phoenix-trace-456',
+        traceparent: '00-11111111111111111111111111111111-2222222222222222-01',
         ui_url:
           'https://phoenix.example/projects/agentv-dogfood/traces/phoenix-trace-456?api_key=secret',
         run_id: '2026-06-21T10-00-00-000Z',

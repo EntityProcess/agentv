@@ -386,9 +386,18 @@ function projectScores(scores: unknown): TraceSessionScore[] | undefined {
 const EXTERNAL_TRACE_KEYS = [
   'provider',
   'source',
+  'endpoint',
+  'profile',
   'project',
+  'project_id',
   'session_id',
+  'session_node_id',
   'trace_id',
+  'trace_node_id',
+  'span_id',
+  'span_node_id',
+  'traceparent',
+  'tracestate',
   'ui_url',
   'run_id',
   'test_id',
@@ -422,9 +431,21 @@ function sanitizeExternalTrace(value: unknown): ExternalTraceMetadata | undefine
   const sanitized = compactRecord({
     provider: stringValue(record.provider),
     source: stringValue(record.source),
+    endpoint: sanitizeUrl(record.endpoint),
+    profile: stringValue(record.profile),
     project: stringValue(record.project),
+    project_id: stringValue(record.project_id) ?? stringValue(record.projectId),
     session_id: stringValue(record.session_id) ?? stringValue(record.session),
+    session_node_id:
+      stringValue(record.session_node_id) ??
+      stringValue(record.session_node) ??
+      stringValue(record.node_id),
     trace_id: stringValue(record.trace_id) ?? stringValue(record.trace),
+    trace_node_id: stringValue(record.trace_node_id) ?? stringValue(record.trace_node),
+    span_id: stringValue(record.span_id) ?? stringValue(record.span),
+    span_node_id: stringValue(record.span_node_id) ?? stringValue(record.span_node),
+    traceparent: stringValue(record.traceparent),
+    tracestate: stringValue(record.tracestate),
     ui_url: sanitizeUrl(record.ui_url ?? record.url ?? record.href),
     run_id: stringValue(record.run_id),
     test_id: stringValue(record.test_id),
@@ -445,17 +466,35 @@ function externalTraceFromFlatMetadata(
   return sanitizeExternalTrace({
     provider: metadata.external_trace_provider ?? metadata['external_trace.provider'],
     source: metadata.external_trace_source ?? metadata['external_trace.source'],
+    endpoint: metadata.external_trace_endpoint ?? metadata['external_trace.endpoint'],
+    profile: metadata.external_trace_profile ?? metadata['external_trace.profile'],
     project: metadata.external_trace_project ?? metadata['external_trace.project'],
+    project_id: metadata.external_trace_project_id ?? metadata['external_trace.project_id'],
     session_id:
       metadata.external_trace_session_id ??
       metadata.external_trace_session ??
       metadata['external_trace.session_id'] ??
       metadata['external_trace.session'],
+    session_node_id:
+      metadata.external_trace_session_node_id ??
+      metadata.external_trace_node_id ??
+      metadata['external_trace.session_node_id'] ??
+      metadata['external_trace.node_id'],
     trace_id:
       metadata.external_trace_trace_id ??
       metadata.external_trace_trace ??
       metadata['external_trace.trace_id'] ??
       metadata['external_trace.trace'],
+    trace_node_id:
+      metadata.external_trace_trace_node_id ?? metadata['external_trace.trace_node_id'],
+    span_id:
+      metadata.external_trace_span_id ??
+      metadata.external_trace_span ??
+      metadata['external_trace.span_id'] ??
+      metadata['external_trace.span'],
+    span_node_id: metadata.external_trace_span_node_id ?? metadata['external_trace.span_node_id'],
+    traceparent: metadata.external_trace_traceparent ?? metadata['external_trace.traceparent'],
+    tracestate: metadata.external_trace_tracestate ?? metadata['external_trace.tracestate'],
     ui_url:
       metadata.external_trace_ui_url ??
       metadata.external_trace_url ??

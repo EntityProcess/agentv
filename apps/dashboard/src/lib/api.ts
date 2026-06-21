@@ -32,6 +32,7 @@ import type {
   FilesystemBrowseResponse,
   FilesystemBrowseResponseWire,
   IndexResponse,
+  PhoenixLinkedSessionResponse,
   ProjectEntry,
   ProjectEntryWire,
   ProjectListResponse,
@@ -152,8 +153,24 @@ export function runLogOptions(filename: string, projectId?: string) {
   });
 }
 
+export function phoenixLinkedSessionOptions(filename: string, projectId?: string) {
+  const url = projectId
+    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(filename)}/phoenix-session`
+    : `/api/runs/${encodeURIComponent(filename)}/phoenix-session`;
+  return queryOptions({
+    queryKey: ['runs', filename, 'phoenix-session', projectId ?? ''],
+    queryFn: () => fetchJson<PhoenixLinkedSessionResponse>(url),
+    enabled: !!filename,
+    staleTime: 30_000,
+  });
+}
+
 export function useRunLog(filename: string, projectId?: string) {
   return useQuery(runLogOptions(filename, projectId));
+}
+
+export function usePhoenixLinkedSession(filename: string, projectId?: string) {
+  return useQuery(phoenixLinkedSessionOptions(filename, projectId));
 }
 
 export function runSuitesOptions(runId: string) {
