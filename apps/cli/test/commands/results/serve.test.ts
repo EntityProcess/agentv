@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { addProject, saveProjectRegistry } from '@agentv/core';
 
+import { RUN_OPLOG_REF } from '../../../src/commands/results/run-oplog.js';
 import {
   createApp,
   loadResults,
@@ -934,7 +935,13 @@ describe('serve app', () => {
 
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
-        runs: Array<{ filename: string; source: string; on_remote: boolean }>;
+        runs: Array<{
+          filename: string;
+          source: string;
+          on_remote: boolean;
+          final_state: { lifecycle: string; tags: string[] };
+          oplog_watermark: { ref: string };
+        }>;
       };
       expect(data.runs).toHaveLength(1);
       // A local-only run (no remote configured) is not on the remote branch.
@@ -942,6 +949,82 @@ describe('serve app', () => {
         filename,
         source: 'local',
         on_remote: false,
+        final_state: {
+          lifecycle: 'active',
+          tags: [],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+        },
+      });
+    });
+
+    it('exposes materialized final state and oplog watermark for local run tags', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-00-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
+      writeFileSync(
+        path.join(runDir, 'tags.json'),
+        `${JSON.stringify(
+          {
+            tags: ['accepted'],
+            updated_at: '2026-06-21T10:15:00.000Z',
+            oplog_watermark: {
+              ref: RUN_OPLOG_REF,
+              operation_id: 'op-local-tags',
+              updated_at: '2026-06-21T10:15:00.000Z',
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{
+          tags: string[];
+          final_state: { lifecycle: string; tags: string[] };
+          oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+        }>;
+      };
+      expect(listData.runs[0]).toMatchObject({
+        tags: ['accepted'],
+        final_state: {
+          lifecycle: 'active',
+          tags: ['accepted'],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+          operation_id: 'op-local-tags',
+          updated_at: '2026-06-21T10:15:00.000Z',
+        },
+      });
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as {
+        tags: string[];
+        final_state: { lifecycle: string; tags: string[] };
+        oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      };
+      expect(detailData).toMatchObject({
+        tags: ['accepted'],
+        final_state: {
+          lifecycle: 'active',
+          tags: ['accepted'],
+        },
+        oplog_watermark: {
+          ref: RUN_OPLOG_REF,
+          operation_id: 'op-local-tags',
+          updated_at: '2026-06-21T10:15:00.000Z',
+        },
       });
     });
 

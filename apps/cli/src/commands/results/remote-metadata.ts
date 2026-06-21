@@ -17,6 +17,13 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import {
+  type RunOplogWatermark,
+  buildRunIdFromRelativePath,
+  createRunTagsSetOperation,
+  normalizeRunOplogWatermark,
+  watermarkFromRunOperation,
+} from './run-oplog.js';
 import { RUN_TAGS_FILENAME, normalizeTags } from './run-tags.js';
 
 const RESULTS_RUNS_DIR = 'runs';
@@ -25,6 +32,7 @@ const REMOTE_METADATA_RUNS_DIR = path.join('metadata', 'runs');
 interface TagsFile {
   readonly tags: string[];
   readonly updatedAt?: string;
+  readonly oplogWatermark?: RunOplogWatermark;
 }
 
 interface RemoteRunMetadataPaths {
@@ -48,6 +56,7 @@ export interface RemoteRunTagState {
   readonly pendingTags?: string[];
   readonly dirty: boolean;
   readonly updatedAt?: string;
+  readonly oplogWatermark: RunOplogWatermark;
   readonly metadataPath: string;
 }
 
@@ -112,9 +121,11 @@ function parseTagsFile(content: string): TagsFile | undefined {
   const record = parsed as Record<string, unknown>;
   if (!Array.isArray(record.tags)) return undefined;
   const tags = record.tags.filter((tag): tag is string => typeof tag === 'string');
+  const updatedAt = typeof record.updated_at === 'string' ? record.updated_at : undefined;
   return {
     tags,
-    updatedAt: typeof record.updated_at === 'string' ? record.updated_at : undefined,
+    updatedAt,
+    oplogWatermark: normalizeRunOplogWatermark(record.oplog_watermark, updatedAt),
   };
 }
 
@@ -189,6 +200,11 @@ function toRemoteRunTagState(context: RemoteRunTagsContext): RemoteRunTagState {
   const remoteTags = context.baseOverlayTags?.tags ?? context.artifactTags?.tags ?? [];
   const effectiveTags = context.localOverlayTags?.tags ?? remoteTags;
   const dirty = !equalTags(effectiveTags, remoteTags);
+  const watermark =
+    context.localOverlayTags?.oplogWatermark ??
+    context.baseOverlayTags?.oplogWatermark ??
+    context.artifactTags?.oplogWatermark ??
+    normalizeRunOplogWatermark(undefined);
 
   return {
     tags: effectiveTags,
@@ -199,6 +215,7 @@ function toRemoteRunTagState(context: RemoteRunTagsContext): RemoteRunTagState {
       context.localOverlayTags?.updatedAt ??
       context.baseOverlayTags?.updatedAt ??
       context.artifactTags?.updatedAt,
+    oplogWatermark: watermark,
     metadataPath: context.paths.overlayTagsPath,
   };
 }
@@ -240,9 +257,16 @@ export function writeRemoteRunTags(
     return readRemoteRunTags(repoDir, manifestPath);
   }
 
+  const operation = createRunTagsSetOperation({
+    runId: buildRunIdFromRelativePath(context.paths.runRelativePath),
+    runPath: context.paths.runRelativePath,
+    tags: cleaned,
+    actor: { kind: 'dashboard' },
+  });
   const entry = {
     tags: cleaned,
-    updated_at: new Date().toISOString(),
+    updated_at: operation.authored_at,
+    oplog_watermark: watermarkFromRunOperation(operation),
   };
   mkdirSync(path.dirname(context.paths.overlayTagsPath), { recursive: true });
   writeFileSync(context.paths.overlayTagsPath, `${JSON.stringify(entry, null, 2)}\n`, 'utf8');

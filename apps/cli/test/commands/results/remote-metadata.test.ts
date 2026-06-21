@@ -11,6 +11,7 @@ import {
   readRemoteRunTags,
   writeRemoteRunTags,
 } from '../../../src/commands/results/remote-metadata.js';
+import { RUN_OPLOG_REF } from '../../../src/commands/results/run-oplog.js';
 
 const RUN_TIMESTAMP = '2026-06-06T10-00-00-000Z';
 
@@ -72,6 +73,8 @@ describe('remote metadata tags', () => {
     expect(state.remoteTags).toEqual(['remote-baseline']);
     expect(state.pendingTags).toEqual(['pending', 'remote-baseline']);
     expect(state.dirty).toBe(true);
+    expect(state.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
+    expect(state.oplogWatermark.operation_id).toBeString();
     expect(state.metadataPath).toContain(
       path.join('metadata', 'runs', 'default', RUN_TIMESTAMP, 'tags.json'),
     );
@@ -83,6 +86,7 @@ describe('remote metadata tags', () => {
     expect(reloaded.tags).toEqual(['pending', 'remote-baseline']);
     expect(reloaded.pendingTags).toEqual(['pending', 'remote-baseline']);
     expect(reloaded.dirty).toBe(true);
+    expect(reloaded.oplogWatermark.operation_id).toBe(state.oplogWatermark.operation_id);
   });
 
   it('uses committed metadata overlays as the clean remote baseline', () => {
@@ -98,6 +102,7 @@ describe('remote metadata tags', () => {
     expect(reloaded.remoteTags).toEqual(['accepted']);
     expect(reloaded.pendingTags).toBeUndefined();
     expect(reloaded.dirty).toBe(false);
+    expect(reloaded.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
   });
 
   it('persists clearing remote tags as an empty pending overlay', () => {
