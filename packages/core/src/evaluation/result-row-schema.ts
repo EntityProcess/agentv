@@ -20,6 +20,7 @@ const MIGRATION_GUIDANCE =
 
 const RESULT_ROW_ALIASES = {
   answerPath: 'answer_path',
+  artifactPointers: 'artifact_pointers',
   artifactDir: 'artifact_dir',
   conversationId: 'conversation_id',
   costUsd: 'cost_usd',

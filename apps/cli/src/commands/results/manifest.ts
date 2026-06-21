@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   type EvaluationResult,
+  type ResultArtifactPointersWire,
   type TraceSummary,
   type TranscriptJsonLine,
   buildTraceFromMessages,
@@ -43,6 +44,7 @@ export interface ResultManifestRecord {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly response_path?: string;
   readonly artifact_dir?: string;
   readonly task_dir?: string;
@@ -114,6 +116,10 @@ function readOptionalJson<T>(baseDir: string, relativePath: string | undefined):
   }
 }
 
+function resolveTranscriptPath(record: ResultManifestRecord): string | undefined {
+  return record.transcript_path ?? record.artifact_pointers?.transcript?.path;
+}
+
 function hydrateInput(
   baseDir: string,
   record: ResultManifestRecord,
@@ -143,7 +149,7 @@ function hydrateOutput(
 }
 
 function hydrateTrace(baseDir: string, record: ResultManifestRecord): EvaluationResult['trace'] {
-  const transcriptText = readOptionalText(baseDir, record.transcript_path);
+  const transcriptText = readOptionalText(baseDir, resolveTranscriptPath(record));
   if (transcriptText) {
     try {
       return traceFromTranscriptJsonLines(parseJsonlLines<TranscriptJsonLine>(transcriptText));

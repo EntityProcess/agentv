@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
+import { AGENTV_RESULTS_REFS } from '../../src/evaluation/result-artifact-contract.js';
 import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.js';
 import {
   DEFAULT_RESULTS_BRANCH,
@@ -332,6 +333,12 @@ describe('results repo write path', () => {
     );
 
     expect(DEFAULT_RESULTS_BRANCH).toBe('agentv/results/v1');
+    expect(DEFAULT_RESULTS_BRANCH).toBe(AGENTV_RESULTS_REFS.primary);
+    expect(AGENTV_RESULTS_REFS).toEqual({
+      primary: 'agentv/results/v1',
+      artifacts: 'agentv/results/v1/artifacts',
+      oplog: 'agentv/results/v1/oplog',
+    });
     expect(normalized.branch).toBe('agentv/results/v1');
     expect(normalized.repo_path).toBe('/tmp/source-project');
     expect(normalized.auto_push).toBe(false);

@@ -79,6 +79,55 @@ describe('results shared source resolution', () => {
     expect(results[0].trace.toolCalls).toEqual({ rg: 1 });
   });
 
+  it('hydrates transcripts from artifact pointers when transcript_path is absent', () => {
+    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', '2026-03-25T10-00-00-000Z');
+    const transcriptRelativePath = 'pointer-case/outputs/transcript.jsonl';
+    mkdirSync(path.join(runDir, 'pointer-case', 'outputs'), { recursive: true });
+    writeFileSync(
+      path.join(runDir, transcriptRelativePath),
+      `${JSON.stringify({
+        schema_version: 'agentv.transcript.v1',
+        test_id: 'pointer-case',
+        target: 'codex',
+        message_index: 0,
+        role: 'assistant',
+        content: 'Loaded from pointer',
+        source: { provider: 'codex', session_id: 'session-pointer' },
+      })}\n`,
+    );
+    const indexPath = path.join(runDir, 'index.jsonl');
+    writeFileSync(
+      indexPath,
+      `${JSON.stringify({
+        timestamp: '2026-03-25T10:00:00.000Z',
+        test_id: 'pointer-case',
+        target: 'codex',
+        score: 1,
+        grading_path: 'pointer-case/grading.json',
+        timing_path: 'pointer-case/timing.json',
+        artifact_pointers: {
+          transcript: {
+            ref: 'agentv/results/v1/artifacts',
+            key: 'transcripts/pointer-case/outputs/transcript.jsonl',
+            object_version: 'sha256:test',
+            path: transcriptRelativePath,
+            sha256: 'test',
+            size: 1,
+            schema_version: 'agentv.transcript.v1',
+            media_type: 'application/x-ndjson',
+            family: 'transcripts',
+          },
+        },
+      })}\n`,
+    );
+
+    const results = loadManifestResults(indexPath);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].trace.messages[0]?.content).toBe('Loaded from pointer');
+    expect(results[0].trace.messages[0]?.role).toBe('assistant');
+  });
+
   it('rejects eval-case-only rows with migration guidance', () => {
     const runDir = path.join(tempDir, '.agentv', 'results', 'runs', '2026-03-25T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });

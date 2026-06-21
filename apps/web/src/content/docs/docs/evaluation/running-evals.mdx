@@ -439,14 +439,21 @@ Each result row's `artifact_dir` can include both `outputs/trace.json` and
 artifact; use each index row's `transcript_path` to find the per-result
 transcript.
 
+Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
+entries such as `artifact_pointers.trace` and `artifact_pointers.transcript`
+carry the storage `ref`, artifact `key`, canonical run-relative `path`,
+`object_version`, `sha256`, `size`, `schema_version`, and `media_type` so
+viewers and exports can migrate from git refs to object storage without changing
+the run record contract.
+
 `outputs/trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
 It stores the canonical span graph, source metadata, capture/redaction policy,
 conversion warnings, score provenance, and opaque evidence references.
 
-`outputs/transcript.jsonl` is a derived compatibility artifact for reading and
-replay. It uses provider-neutral `agentv.transcript.v1` rows with stable
-top-level fields for message order, role/content, tool calls and paired results,
-timing, token usage, cost, source metadata, capture state, and trace pointers.
+`outputs/transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
+It uses provider-neutral `agentv.transcript.v1` rows with stable top-level fields
+for message order, role/content, tool calls and paired results, timing, token
+usage, cost, source metadata, capture state, and trace pointers.
 Provider-native payloads can appear only inside opaque nested fields such as
 `metadata`, `source.metadata`, tool `input`, or tool `output`.
 

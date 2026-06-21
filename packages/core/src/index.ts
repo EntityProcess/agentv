@@ -9,6 +9,7 @@ export {
   ResultRowSchemaError,
   normalizeResultRow,
 } from './evaluation/result-row-schema.js';
+export * from './evaluation/result-artifact-contract.js';
 export { parseYamlValue } from './evaluation/yaml-loader.js';
 export * from './evaluation/yaml-parser.js';
 export {
