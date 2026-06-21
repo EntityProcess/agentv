@@ -145,8 +145,11 @@ The effective input at runtime becomes `[...suite input, ...test input]`.
 
 Suite-level `input` accepts the same formats as test-level `input`:
 - **String** — wrapped as `[{ role: "user", content: "..." }]`
-- **Object** — wrapped as structured user-message content
+- **Object without a top-level `role` key** — wrapped as structured user-message content
+- **Single message object** — a `{ role, content }` object using a supported message role
 - **Message array** — used as-is, including system messages and file references
+
+The top-level `role` key is reserved for message objects. If your structured payload needs a field named `role`, nest it under another key.
 
 ```yaml
 input:

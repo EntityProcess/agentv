@@ -27,8 +27,15 @@ const MessageSchema = z.object({
   content: MessageContentSchema,
 });
 
-/** Input: string/object shorthand or message array */
-const InputSchema = z.union([z.string(), JsonObjectSchema, z.array(MessageSchema)]);
+const InputObjectShorthandSchema = z.object({ role: z.never().optional() }).catchall(z.unknown());
+
+/** Input: string/object shorthand, single message, or message array */
+const InputSchema = z.union([
+  z.string(),
+  MessageSchema,
+  InputObjectShorthandSchema,
+  z.array(MessageSchema),
+]);
 
 /** Expected output: string, object, or message array */
 const ExpectedOutputSchema = z.union([z.string(), JsonObjectSchema, z.array(MessageSchema)]);

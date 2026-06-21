@@ -595,7 +595,7 @@ function validateMessages(
 
     // Validate role field
     const role = message.role;
-    const validRoles = ['system', 'user', 'assistant'];
+    const validRoles = ['system', 'user', 'assistant', 'tool'];
     if (!validRoles.includes(role as string)) {
       errors.push({
         severity: 'error',

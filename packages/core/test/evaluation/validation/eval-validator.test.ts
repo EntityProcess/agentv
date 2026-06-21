@@ -73,6 +73,47 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates eval file with suite-level single-message input object', async () => {
+    const filePath = path.join(tempDir, 'suite-input-message-object.yaml');
+    await writeFile(
+      filePath,
+      `input:
+  role: user
+  content:
+    task: classify
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "The login button is broken."
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects suite-level object input with invalid reserved role', async () => {
+    const filePath = path.join(tempDir, 'suite-input-invalid-role-object.yaml');
+    await writeFile(
+      filePath,
+      `input:
+  role: admin
+  task: classify
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "The login button is broken."
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.location === 'input[0].role')).toBe(true);
+  });
+
   it('validates eval file with test-level structured object input shorthand', async () => {
     const filePath = path.join(tempDir, 'test-input-object.yaml');
     await writeFile(
@@ -90,6 +131,25 @@ tests:
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects test-level object input with invalid reserved role', async () => {
+    const filePath = path.join(tempDir, 'test-input-invalid-role-object.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+    input:
+      role: admin
+      task: classify
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.location === 'tests[0].input[0].role')).toBe(true);
   });
 
   it('validates eval file with input alias message array', async () => {

@@ -129,7 +129,8 @@ tests:
 
 **Shorthand forms:**
 - `input` (string, including YAML block scalars) expands to `[{role: "user", content: "..."}]`
-- `input` (object) expands to `[{role: "user", content: {...}}]`
+- `input` (object without a top-level `role`) expands to `[{role: "user", content: {...}}]`
+- top-level `role` is reserved for message objects; use `{role, content}` when you mean a message, or nest payload role data under another key
 - `expected_output` (string/object) expands to `[{role: "assistant", content: ...}]`
 - Use these canonical field names on disk; keep the wire format `snake_case`
 
@@ -175,7 +176,7 @@ tests: ./cases.yaml
 ```
 
 Effective input: `[...suite input, ...test input]`. Skipped when `execution.skip_defaults: true`.
-Accepts the same formats as test `input`: string/block scalar, structured object, or full message array. Use the full message array only when you need roles, multiple messages, or file/image content blocks.
+Accepts the same formats as test `input`: string/block scalar, structured object without a top-level `role`, single message object, or full message array. Use the full message array only when you need multiple messages or file/image content blocks.
 
 ## Tests as String Path
 
