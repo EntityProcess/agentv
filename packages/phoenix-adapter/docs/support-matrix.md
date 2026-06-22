@@ -5,9 +5,9 @@ YAML-to-Phoenix adapter fixture. It is not the supported AgentV product path:
 AgentV does not export or project completed runs, traces, transcripts, datasets,
 experiments, or indexes into Phoenix.
 
-The current supported Phoenix boundary is read-only correlation/read-through
-from safe `external_trace` metadata when Codex, Arize, or another hook already
-emitted spans independently.
+The current supported Phoenix boundary is link-out correlation from safe
+`external_trace` metadata when Codex, Arize, or another hook already emitted
+spans independently.
 
 If the legacy fixture is run for internal parity checks, its deterministic
 coverage is:

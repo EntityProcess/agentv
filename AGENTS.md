@@ -17,7 +17,7 @@ Phoenix boundary after the 2026-06-20 product decision:
 - AgentV-owned run bundles, traces, transcripts, datasets, experiments, indexes, and Git-backed artifacts are not exported or projected into Phoenix.
 - The local Dashboard is the supported zero-infra inspection path for AgentV run, trace, and session artifacts.
 - Phoenix may be referenced as UI inspiration and optional external trace infrastructure only when Codex, Arize, or another hook already emitted spans independently.
-- Optional Phoenix integration is read-only correlation/read-through through Phoenix GraphQL/API using safe `external_trace` metadata.
+- Optional Phoenix integration is link-out correlation only through safe `external_trace` metadata and an `Open in Phoenix` URL when available.
 - Dashboard must not require the `px` CLI at runtime or query Phoenix database tables directly.
 
 Design guardrails:

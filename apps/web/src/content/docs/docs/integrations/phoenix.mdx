@@ -23,10 +23,9 @@ Phoenix can still appear in AgentV workflows in two narrow ways:
   already emitted spans independently.
 
 When an AgentV run artifact includes safe `external_trace` metadata, AgentV may
-link to that external Phoenix session. Dashboard can also read the linked
-session through Phoenix GraphQL/API from the AgentV server process and show a
-compact session panel. AgentV must not write AgentV artifacts into Phoenix as
-part of that flow.
+link to that external Phoenix session or trace. Dashboard does not read Phoenix
+sessions, traces, or spans through a server-side proxy; it opens Phoenix as the
+external viewer when a safe UI URL is present.
 
 ## Local Inspection
 
@@ -41,31 +40,9 @@ workspaces, remote results repositories, trace sidecars, transcripts, and
 artifact manifests. It does not require Phoenix, the `px` CLI, Phoenix database
 tables, or any Phoenix runtime process.
 
-If a run has `external_trace` metadata and the Dashboard server has a Phoenix
-endpoint configured, the run detail page can show the linked Phoenix session
-summary, turns, trace IDs, root span input/output, timing, token usage, costs,
-annotations, a trace tree, and selected span details. Missing configuration,
-unreachable Phoenix, schema mismatches, or no matching session render as
-recoverable empty/error states; AgentV run detail still loads from AgentV
-artifacts.
-
-Configure the Dashboard server with one of:
-
-```bash
-AGENTV_PHOENIX_ENDPOINT=https://phoenix.example
-PHOENIX_HOST=https://phoenix.example
-```
-
-Optional server-side auth can be supplied with:
-
-```bash
-AGENTV_PHOENIX_API_KEY=...
-AGENTV_PHOENIX_AUTHORIZATION="Bearer ..."
-PHOENIX_CLIENT_HEADERS='{"Authorization":"Bearer ..."}'
-```
-
-These credentials stay server-side and are not written to AgentV artifacts or
-sent to the browser.
+If a run has safe `external_trace.ui_url` metadata, the run detail page can show
+an **Open in Phoenix** link. Missing Phoenix metadata does not affect AgentV run
+detail because Dashboard reads AgentV artifacts as the canonical source.
 
 ## External Trace Metadata
 
@@ -106,6 +83,7 @@ already-existing session.
   transcripts, datasets, experiments, or indexes.
 - No Phoenix-owned AgentV transcript, index, or storage model.
 - No Dashboard runtime dependency on Phoenix or `px`.
+- No Dashboard Phoenix GraphQL/REST proxy or embedded Phoenix session/span UI.
 - No direct Dashboard access to Phoenix database tables.
 - No Phoenix dataset or experiment creation as part of the zero-infra local path.
 - No browser-side exposure of Phoenix API keys, authorization headers, cookies,
