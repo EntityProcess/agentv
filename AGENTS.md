@@ -25,6 +25,7 @@ Design guardrails:
 - Prefer core primitives plus plugins or wrappers over new built-ins.
 - Document composition patterns before inventing a new feature.
 - Match industry-standard lowest-common-denominator contracts when possible.
+- When designing AgentV contracts, check public reference standards such as Claude Skills, Vercel agent-eval, Hugging Face Datasets, and OpenInference before inventing AgentV-specific shapes. Use their shared lowest common denominator where it fits, and document any intentional divergence.
 - Apply YAGNI aggressively and solve the current request with the smallest surface that works.
 - Keep extensions non-breaking unless a same-week unreleased surface should be hard-corrected.
 - Design for AI comprehension with self-describing modules, clear extension points, and no dead scaffolding.

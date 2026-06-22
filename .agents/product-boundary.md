@@ -73,6 +73,15 @@ If existing primitives cover the need, document the pattern instead of building 
 
 Before adding features, research how peer frameworks solve the problem. Prefer the lowest common denominator that covers most use cases. Novel features without industry precedent need strong justification and should usually start as plugins.
 
+Use public reference standards before inventing AgentV-specific contracts:
+
+- Claude Skills for assertion, expectation, grading, and skill-eval terminology.
+- Vercel agent-eval for fixture-driven agent evals, repeated attempts, hidden verifiers, and result-bundle ergonomics.
+- Hugging Face Datasets for dataset, split, record, and portable corpus conventions.
+- OpenInference for trace, span, tool-call, and model-observability semantics.
+
+Treat these as reference inputs, not dependencies. AgentV should adopt the shared lowest common denominator when it fits the repo-native artifact model, and document any intentional divergence in the relevant plan, ADR, or contract docs.
+
 ### 5. YAGNI - You Aren't Gonna Need It
 
 Do not build features until there is a concrete need. Start with the simplest version that satisfies current demand.
