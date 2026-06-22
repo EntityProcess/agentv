@@ -10,7 +10,7 @@ Utilities for multi-model benchmarking workflows with AgentV.
 
 ```bash
 # Compare a recent canonical run
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl
+agentv compare .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 Output:
@@ -34,19 +34,19 @@ Pairwise Summary:
 
 ```bash
 # N-way matrix (all targets)
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl
+agentv compare .agentv/results/default/<timestamp>/index.jsonl
 
 # With baseline regression check (exits 1 if any target regresses)
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1
 
 # Pairwise from combined file
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 
 # Filter to specific targets
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --targets gpt-4.1 --targets gpt-5-mini
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --targets gpt-4.1 --targets gpt-5-mini
 
 # JSON output
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
 ```
 
 ### Pairwise Mode
@@ -54,7 +54,7 @@ agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
 Extract a head-to-head comparison between two specific targets:
 
 ```bash
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 ```
 
 ```
@@ -88,7 +88,7 @@ Each line includes a `target` field to identify which model produced the result:
 ### Key Files
 
 - `evals/benchmark.eval.yaml` - Example eval config with 3 tests
-- canonical run workspaces under `.agentv/results/runs/<timestamp>/`
+- canonical run workspaces under `.agentv/results/default/<timestamp>/`
 
 ## split-by-target
 
@@ -130,11 +130,11 @@ Use `agentv compare` directly on the canonical run manifest for pairwise or matr
 bun agentv eval my-eval.yaml
 
 # 2. Compare any two targets from the same run
-bun agentv compare .agentv/results/runs/<timestamp>/index.jsonl \
+bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
   --baseline gpt-4.1 --candidate claude-sonnet-4
 
 # 3. JSON output for CI pipelines
-bun agentv compare .agentv/results/runs/<timestamp>/index.jsonl \
+bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
   --baseline gpt-4.1 --candidate claude-sonnet-4 --json
 ```
 
@@ -148,8 +148,8 @@ Computes aggregate win/loss/tie rates from `agentv compare --json` output, makin
 
 ```bash
 # Save comparison output to a file
-bun agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl \
-  .agentv/results/runs/<candidate-timestamp>/index.jsonl --json > comparison.json
+bun agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<candidate-timestamp>/index.jsonl --json > comparison.json
 
 # Print a human-readable summary table
 bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json
@@ -167,10 +167,10 @@ Pass a directory of comparison JSON files to get per-metric win rates. Each file
 
 ```bash
 # Run comparisons for different metrics
-bun agentv compare .agentv/results/runs/<baseline-accuracy>/index.jsonl \
-  .agentv/results/runs/<candidate-accuracy>/index.jsonl --json > comparisons/accuracy.json
-bun agentv compare .agentv/results/runs/<baseline-latency>/index.jsonl \
-  .agentv/results/runs/<candidate-latency>/index.jsonl --json > comparisons/latency.json
+bun agentv compare .agentv/results/default/<baseline-accuracy>/index.jsonl \
+  .agentv/results/default/<candidate-accuracy>/index.jsonl --json > comparisons/accuracy.json
+bun agentv compare .agentv/results/default/<baseline-latency>/index.jsonl \
+  .agentv/results/default/<candidate-latency>/index.jsonl --json > comparisons/latency.json
 
 # Aggregate across all metrics
 bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparisons/
@@ -285,7 +285,7 @@ bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
 bun agentv eval my-eval.yaml
 
 # 2. Compare two targets from the run manifest
-bun agentv compare .agentv/results/runs/<timestamp>/index.jsonl \
+bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
   --baseline gpt-4.1 --candidate claude-sonnet-4 --json > comparison.json
 
 # 3. Get win-rate summary

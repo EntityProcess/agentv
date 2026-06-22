@@ -48,7 +48,7 @@ agentv eval examples/red-team/suites/llm01-prompt-injection.yaml --target your-t
 # is present verbatim in the JSONL):
 agentv eval examples/red-team/ \
   && jq 'select(.metadata.governance.owasp_llm_top_10_2025 // [] | index("LLM01"))' \
-       .agentv/results/runs/default/*/index.jsonl
+       .agentv/results/default/*/index.jsonl
 ```
 
 The pack is **opt-in**. It is not bundled into `agentv init` — copy the

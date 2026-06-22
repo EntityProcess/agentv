@@ -729,7 +729,7 @@ function toTraceError(error: TraceError | string): TraceError {
 /**
  * Build the result-local trace read model for an evaluation case from provider
  * messages and execution metrics. This is the projection used by result JSONL,
- * code-grader stdin, `outputs/answer.md`, and `outputs/transcript.jsonl`.
+ * code-grader stdin, `outputs/answer.md`, and `transcript.jsonl`.
  */
 export function buildTraceFromMessages(options: BuildTraceOptions = {}): Trace {
   const messages = buildTraceMessages(options.input, options.output);

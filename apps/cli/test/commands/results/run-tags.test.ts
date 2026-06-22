@@ -17,7 +17,7 @@ describe('run tags sidecar', () => {
 
   beforeEach(() => {
     tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-run-tags-'));
-    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', 'default', '2026-clear-tags');
+    const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-clear-tags');
     mkdirSync(runDir, { recursive: true });
     manifestPath = path.join(runDir, 'index.jsonl');
     writeFileSync(manifestPath, '{"test_id":"alpha","score":1}\n', 'utf8');

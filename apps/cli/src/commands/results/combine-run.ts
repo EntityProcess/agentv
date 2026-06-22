@@ -33,7 +33,12 @@ import {
   buildTestTargetKey,
   buildTimingArtifact,
 } from '../eval/artifact-writer.js';
-import { createRunDirName, resolveRunManifestPath } from '../eval/result-layout.js';
+import {
+  buildDefaultRunDirFromName,
+  createRunDirName,
+  relativeRunPathFromCwd,
+  resolveRunManifestPath,
+} from '../eval/result-layout.js';
 import {
   type ResultManifestRecord,
   loadManifestResults,
@@ -287,7 +292,7 @@ function defaultCombinedRunDir(cwd: string, startedAt: string | undefined): stri
     parsed && !Number.isNaN(parsed.getTime())
       ? createRunDirName(parsed)
       : sanitizePathSegment(startedAt ?? 'unknown-time');
-  return path.join(cwd, '.agentv', 'results', 'runs', 'combined', timestamp);
+  return buildDefaultRunDirFromName(cwd, 'combined', timestamp);
 }
 
 function uniqueRunDir(baseDir: string): string {
@@ -300,13 +305,12 @@ function uniqueRunDir(baseDir: string): string {
 }
 
 function toRunId(cwd: string, runDir: string): string {
-  const runsRoot = path.join(cwd, '.agentv', 'results', 'runs');
-  const relative = path.relative(runsRoot, runDir);
-  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+  const relative = relativeRunPathFromCwd(cwd, runDir);
+  if (!relative) {
     return path.basename(runDir);
   }
-  const parts = relative.split(path.sep);
-  return parts.length > 1 ? `${parts[0]}::${parts.slice(1).join(path.sep)}` : relative;
+  const parts = relative.split(path.posix.sep);
+  return parts.length > 1 ? `${parts[0]}::${parts.slice(1).join(path.posix.sep)}` : relative;
 }
 
 const MANIFEST_PATH_FIELDS = [
@@ -316,6 +320,7 @@ const MANIFEST_PATH_FIELDS = [
   'input_path',
   'output_path',
   'response_path',
+  'trace_path',
   'transcript_path',
   'metrics_path',
   'raw_provider_log_path',
@@ -444,6 +449,13 @@ function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManife
   );
   rewritten.artifact_pointers = artifactPointers;
   if (
+    row.record.trace_path &&
+    rewritten.trace_path === row.record.trace_path &&
+    artifactPointers?.trace?.path
+  ) {
+    rewritten.trace_path = artifactPointers.trace.path;
+  }
+  if (
     row.record.transcript_path &&
     rewritten.transcript_path === row.record.transcript_path &&
     artifactPointers?.transcript?.path
@@ -476,9 +488,15 @@ export function buildCombineRunSources(
 ): CombineRunSource[] {
   return sourcePaths.map((sourcePath, index) => {
     const manifestPath = resolveResultSourcePath(sourcePath, cwd);
+    const runDir = path.dirname(resolveRunManifestPath(manifestPath));
+    if (!relativeRunPathFromCwd(cwd, runDir)) {
+      throw new Error(
+        `Run workspace is outside the canonical results layout: ${runDir}. Expected .agentv/results/<experiment>/<timestamp>`,
+      );
+    }
     return {
-      id: options?.ids?.[index] ?? path.basename(path.dirname(manifestPath)),
-      displayName: options?.displayNames?.[index] ?? path.basename(path.dirname(manifestPath)),
+      id: options?.ids?.[index] ?? toRunId(cwd, runDir),
+      displayName: options?.displayNames?.[index] ?? path.basename(runDir),
       manifestPath,
       tags: options?.tags?.[index],
     };
@@ -498,6 +516,11 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
       ? path.resolve(options.cwd, options.outputDir)
       : defaultCombinedRunDir(options.cwd, startedAt),
   );
+  if (!relativeRunPathFromCwd(options.cwd, runDir)) {
+    throw new Error(
+      `Output run workspace must use .agentv/results/<experiment>/<timestamp>: ${runDir}`,
+    );
+  }
   const { rows, conflicts } = selectRows(
     loadedSources,
     options.duplicatePolicy,

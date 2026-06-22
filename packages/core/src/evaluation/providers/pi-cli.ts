@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { trackChild } from '../../runtime/child-tracker.js';
+import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
@@ -325,15 +326,15 @@ export class PiCliProvider implements Provider {
     }
   }
 
-  private resolveLogDirectory(): string | undefined {
+  private resolveLogDirectory(request: ProviderRequest): string | undefined {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'pi-cli');
+    return resolveDefaultProviderLogDir('pi-cli', request);
   }
 
   private async createStreamLogger(request: ProviderRequest): Promise<PiStreamLogger | undefined> {
-    const logDir = this.resolveLogDirectory();
+    const logDir = this.resolveLogDirectory(request);
     if (!logDir) {
       return undefined;
     }

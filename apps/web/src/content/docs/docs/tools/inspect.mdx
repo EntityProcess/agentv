@@ -19,7 +19,7 @@ For full tool-call inspection, prefer OTLP JSON exports over eval manifests.
 
 ### `inspect list`
 
-Enumerate canonical evaluation run workspaces from `.agentv/results/runs/`.
+Enumerate canonical evaluation run workspaces from `.agentv/results/`.
 
 ```bash
 agentv inspect list [--limit N] [--format json|table]
@@ -94,7 +94,7 @@ agentv inspect show trace.otlp.json --format json \
   | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
-agentv inspect stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target --format json \
+agentv inspect stats .agentv/results/default/<timestamp>/index.jsonl --group-by target --format json \
   | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
 ```
 

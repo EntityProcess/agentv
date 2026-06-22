@@ -12,14 +12,14 @@ Compare model performance across different configurations:
 
 ## Sample Files
 
-- canonical run workspaces under `.agentv/results/runs/<timestamp>/`
+- canonical run workspaces under `.agentv/results/default/<timestamp>/`
 
 ## Usage
 
 ### N-Way Matrix (run manifest)
 
 ```bash
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl
+agentv compare .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 Output:
@@ -41,14 +41,14 @@ Pairwise Summary:
 ### Baseline Regression Check
 
 ```bash
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1
 # Exits 1 if any target regresses vs gpt-4.1
 ```
 
 ### Pairwise from a Single Run Manifest
 
 ```bash
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 ```
 
 ```
@@ -66,13 +66,13 @@ Summary: 0 wins, 0 losses, 3 ties | Mean Δ: -0.017 | Status: regressed
 ### Two-Run Pairwise
 
 ```bash
-agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl \
-  .agentv/results/runs/<candidate-timestamp>/index.jsonl
+agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<candidate-timestamp>/index.jsonl
 ```
 
 Output:
 ```
-Comparing: .agentv/results/runs/<baseline-timestamp>/index.jsonl → .agentv/results/runs/<candidate-timestamp>/index.jsonl
+Comparing: .agentv/results/default/<baseline-timestamp>/index.jsonl → .agentv/results/default/<candidate-timestamp>/index.jsonl
 
   Test ID          Baseline  Candidate     Delta  Result
   ───────────────  ────────  ─────────  ────────  ────────
@@ -90,8 +90,8 @@ Summary: 1 win, 0 losses, 4 ties | Mean Δ: +0.054 | Status: improved
 Use a stricter threshold (0.05) for win/loss classification:
 
 ```bash
-agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl \
-  .agentv/results/runs/<candidate-timestamp>/index.jsonl --threshold 0.05
+agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<candidate-timestamp>/index.jsonl --threshold 0.05
 ```
 
 ### JSON Output
@@ -99,7 +99,7 @@ agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl \
 For machine-readable output (CI pipelines, scripts):
 
 ```bash
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
 ```
 
 Output uses snake_case for Python ecosystem compatibility:
@@ -130,8 +130,8 @@ Use exit codes for automated quality gates:
 
 ```bash
 # N-way: fail if any target regresses vs baseline
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline gpt-4.1 || echo "Regression detected!"
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 || echo "Regression detected!"
 
 # Two-run: fail if candidate regresses
-agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/results/runs/<candidate-timestamp>/index.jsonl || echo "Regression detected!"
+agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl || echo "Regression detected!"
 ```

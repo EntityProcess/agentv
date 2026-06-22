@@ -39,7 +39,7 @@ The experiment label is written to `manifest.json` and propagated to `index.json
 Each run produces a separate directory. The experiment is metadata, not a path segment:
 
 ```
-.agentv/results/runs/
+.agentv/results/
 ├── 2026-03-28T10-00-00-000Z/       # with_skills run
 │   ├── manifest.json                # { "experiment": "with_skills", ... }
 │   └── coding-ability/
@@ -58,8 +58,8 @@ After both runs complete and are graded:
 
 ```bash
 # Compare the two runs
-agentv compare .agentv/results/runs/<with-skills-ts>/index.jsonl \
-               .agentv/results/runs/<without-skills-ts>/index.jsonl
+agentv compare .agentv/results/with-skills/<timestamp>/index.jsonl \
+               .agentv/results/without-skills/<timestamp>/index.jsonl
 ```
 
 ## Key Files

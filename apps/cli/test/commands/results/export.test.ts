@@ -241,7 +241,7 @@ describe('results export', () => {
   it('deriveExportRunId keeps retry identity tied to the source run', () => {
     expect(
       deriveExportRunId(
-        path.join(tempDir, '.agentv', 'results', 'runs', 'demo', '2026-run', 'index.jsonl'),
+        path.join(tempDir, '.agentv', 'results', 'demo', '2026-run', 'index.jsonl'),
       ),
     ).toBe('2026-run');
     expect(deriveExportRunId(path.join(tempDir, 'legacy-results.jsonl'))).toBe('legacy-results');
@@ -354,9 +354,9 @@ describe('results export', () => {
       output_path: 'privacy/test-private/outputs/answer.md',
       answer_path: 'privacy/test-private/outputs/answer.md',
       response_path: 'privacy/test-private/outputs/response.md',
-      trace_path: 'privacy/test-private/outputs/trace.json',
+      trace_path: 'privacy/test-private/trace.json',
     });
-    expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/outputs/trace.json');
+    expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/trace.json');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
     expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/grading.json');
     expect(bundle.entries[0].raw_content).toBeDefined();
@@ -419,7 +419,7 @@ describe('results export', () => {
       output_path: 'demo/test-greeting/outputs/answer.md',
       answer_path: 'demo/test-greeting/outputs/answer.md',
       response_path: 'demo/test-greeting/outputs/response.md',
-      transcript_path: 'demo/test-greeting/outputs/transcript.jsonl',
+      transcript_path: 'demo/test-greeting/transcript.jsonl',
       input_path: 'demo/test-greeting/input.md',
     });
     expect(entries[0].projection_identity).toMatchObject({

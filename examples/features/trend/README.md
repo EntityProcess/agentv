@@ -29,8 +29,8 @@ Most real users will run `trend` against their latest eval history with `--last`
 To reproduce that flow from this example directory, first copy the sample runs into the normal runtime layout:
 
 ```bash
-mkdir -p .agentv/results/runs
-cp -R sample-runs/* .agentv/results/runs/
+mkdir -p .agentv/results/default
+cp -R sample-runs/* .agentv/results/default/
 ```
 
 Then run:
@@ -66,7 +66,7 @@ Interpretation:
 
 ## Explicit Inputs
 
-If you want to see the same analysis without copying files into `.agentv/results/runs/`, point `trend` at the sample runs directly:
+If you want to see the same analysis without copying files into `.agentv/results/`, point `trend` at the sample runs directly:
 
 ```bash
 bun ../../../apps/cli/src/cli.ts trend \

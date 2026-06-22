@@ -114,7 +114,7 @@ EOF
 }
 
 write_project_config() {
-  mkdir -p "$project_dir/.agentv/results/runs"
+  mkdir -p "$project_dir/.agentv/results/default"
   local results_url
   results_url="$(repo_to_url "$results_repo")"
   if [[ -f "$source_dir/.agentv/targets.yaml" ]]; then

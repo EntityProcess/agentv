@@ -153,7 +153,7 @@ export function resolveTrendSources(
 
   if (metas.length < 2) {
     throw new Error(
-      'Trend analysis requires at least 2 canonical run workspaces in .agentv/results/runs/',
+      'Trend analysis requires at least 2 canonical run workspaces in .agentv/results/',
     );
   }
 
@@ -414,7 +414,7 @@ export const trendCommand = command({
     last: option({
       type: optional(number),
       long: 'last',
-      description: 'Use the most recent N runs from .agentv/results/runs/',
+      description: 'Use the most recent N runs from .agentv/results/',
     }),
     suite: option({
       type: optional(string),

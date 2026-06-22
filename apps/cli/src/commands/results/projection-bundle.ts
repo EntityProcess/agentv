@@ -147,9 +147,10 @@ function shortHash(parts: readonly string[], length = 20): string {
 }
 
 function tracePathFor(indexEntry: IndexArtifactEntry): string | undefined {
-  return indexEntry.artifact_dir
-    ? path.posix.join(indexEntry.artifact_dir, 'outputs', 'trace.json')
-    : undefined;
+  return (
+    indexEntry.trace_path ??
+    (indexEntry.artifact_dir ? path.posix.join(indexEntry.artifact_dir, 'trace.json') : undefined)
+  );
 }
 
 function artifactRefs(

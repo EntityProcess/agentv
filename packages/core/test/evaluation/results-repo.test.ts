@@ -140,8 +140,8 @@ function writeRunArtifactsWithPointers(
   timestamp: string,
 ): void {
   writeRunArtifacts(runDir, experiment, timestamp);
-  const outputsDir = path.join(runDir, 'alpha', 'outputs');
-  mkdirSync(outputsDir, { recursive: true });
+  const artifactDir = path.join(runDir, 'alpha');
+  mkdirSync(artifactDir, { recursive: true });
   const traceContent = Buffer.from(
     JSON.stringify({
       schema_version: 'agentv.trace.v1',
@@ -157,8 +157,8 @@ function writeRunArtifactsWithPointers(
       content: 'sidecar transcript',
     })}\n`,
   );
-  writeFileSync(path.join(outputsDir, 'trace.json'), traceContent);
-  writeFileSync(path.join(outputsDir, 'transcript.jsonl'), transcriptContent);
+  writeFileSync(path.join(artifactDir, 'trace.json'), traceContent);
+  writeFileSync(path.join(artifactDir, 'transcript.jsonl'), transcriptContent);
 
   const traceSha = sha256Hex(traceContent);
   const transcriptSha = sha256Hex(transcriptContent);
@@ -170,9 +170,9 @@ function writeRunArtifactsWithPointers(
       artifact_pointers: {
         trace: {
           ref: AGENTV_RESULTS_REFS.artifacts,
-          key: 'traces/alpha/outputs/trace.json',
+          key: 'traces/alpha/trace.json',
           object_version: `sha256:${traceSha}`,
-          path: 'alpha/outputs/trace.json',
+          path: 'alpha/trace.json',
           sha256: traceSha,
           size: traceContent.byteLength,
           schema_version: 'agentv.trace.v1',
@@ -181,9 +181,9 @@ function writeRunArtifactsWithPointers(
         },
         transcript: {
           ref: AGENTV_RESULTS_REFS.artifacts,
-          key: 'transcripts/alpha/outputs/transcript.jsonl',
+          key: 'transcripts/alpha/transcript.jsonl',
           object_version: `sha256:${transcriptSha}`,
-          path: 'alpha/outputs/transcript.jsonl',
+          path: 'alpha/transcript.jsonl',
           sha256: transcriptSha,
           size: transcriptContent.byteLength,
           schema_version: 'agentv.transcript.v1',
@@ -1050,7 +1050,7 @@ describe('results repo write path', () => {
     git('git add README.md && git commit --quiet -m "seed results repo"', resultsRepoDir);
 
     const runTimestamp = '2026-06-17T11-00-00-000Z';
-    const runDir = path.join(projectDir, '.agentv', 'results', 'runs', 'external', runTimestamp);
+    const runDir = path.join(projectDir, '.agentv', 'results', 'external', runTimestamp);
     writeRunArtifacts(runDir, 'external', '2026-06-17T11:00:00.000Z');
 
     const published = await directPushResults({
@@ -1223,15 +1223,15 @@ describe('results repo write path', () => {
     );
     expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
     expect(resultTree).toContain(`runs/${destinationPath}/benchmark.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
 
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
     );
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/trace.json`);
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
     expect(artifactTree).not.toContain(`runs/${destinationPath}/benchmark.json`);
     expect(artifactTree).not.toContain(`runs/${destinationPath}/index.jsonl`);
 
@@ -1324,14 +1324,14 @@ describe('results repo write path', () => {
     );
     expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
     expect(resultTree).toContain(`runs/${destinationPath}/benchmark.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
+    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
     );
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/trace.json`);
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/outputs/transcript.jsonl`);
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/trace.json`);
+    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
 
     await expect(
       directPushResults({
@@ -1947,7 +1947,7 @@ describe('results branch stable genesis', () => {
 
 describe('buildWipBranchName', () => {
   it('produces an agentv/wip/<hostname>/<basename> branch name', () => {
-    const runDir = '/some/path/.agentv/results/runs/default/2026-01-15T10-00-00';
+    const runDir = '/some/path/.agentv/results/default/2026-01-15T10-00-00';
     const branch = buildWipBranchName(runDir);
     expect(branch).toMatch(/^agentv\/wip\/[^/]+\/2026-01-15T10-00-00$/);
   });

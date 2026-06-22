@@ -66,6 +66,14 @@ export function runTagsPath(manifestPath: string): string {
 function inferRunRelativePath(manifestPath: string): string {
   const runDir = path.dirname(manifestPath);
   const segments = runDir.split(path.sep);
+  const resultsIndex = segments.lastIndexOf('results');
+  if (resultsIndex >= 0 && resultsIndex < segments.length - 2) {
+    const runSegments = segments.slice(resultsIndex + 1);
+    const namespace = runSegments[0];
+    if (namespace !== 'metadata' && namespace !== 'runs') {
+      return runSegments.join('/');
+    }
+  }
   const runsIndex = segments.lastIndexOf('runs');
   if (runsIndex >= 0 && runsIndex < segments.length - 1) {
     return segments.slice(runsIndex + 1).join('/');

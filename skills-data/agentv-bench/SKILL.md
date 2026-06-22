@@ -123,7 +123,7 @@ Prefer deterministic graders over LLM graders whenever possible. If an assertion
 
 This section is one continuous sequence — don't stop partway through.
 
-Each run produces a new `.agentv/results/runs/<timestamp>/` directory automatically. Use timestamps to identify iterations when comparing runs.
+Each run produces a new `.agentv/results/default/<timestamp>/` directory automatically. Use timestamps to identify iterations when comparing runs.
 
 ### Choosing a run mode
 
@@ -346,7 +346,7 @@ If a prompt file is referenced in both task input and grader configs, optimize f
 After improving:
 
 1. Apply your changes to the agent's prompts/skills/config
-2. Re-run all test cases (agentv creates a new `.agentv/results/runs/<timestamp>/` directory automatically)
+2. Re-run all test cases (agentv creates a new `.agentv/results/default/<timestamp>/` directory automatically)
 3. Compare against the previous iteration (Step 4). If running in automated mode, use the **automated keep/discard** logic below instead of manual judgment — it will decide whether to keep or revert the change for you.
 4. Present results to the user (or log the decision if running automated keep/discard)
 5. Stop when ANY of:

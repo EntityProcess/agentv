@@ -4,7 +4,7 @@ import type { EvaluationResult, TraceSummary } from '@agentv/core';
 import { DEFAULT_THRESHOLD, toCamelCaseDeep, toSnakeCaseDeep } from '@agentv/core';
 import {
   RESULT_INDEX_FILENAME,
-  RESULT_RUNS_DIRNAME,
+  buildResultsRootDir,
   resolveExistingRunPrimaryPath,
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
@@ -612,24 +612,31 @@ function collectRunManifestPaths(
   }
 }
 
-export function listResultFilesFromRunsDir(runsDir: string, limit?: number): ResultFileMeta[] {
+function listResultFilesFromRoot(
+  runsDir: string,
+  options?: { limit?: number; skipTopLevelDirs?: ReadonlySet<string> },
+): ResultFileMeta[] {
   const files: { filePath: string; displayName: string; runId: string; sortName: string }[] = [];
 
   try {
     const entries = readdirSync(runsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
+        if (options?.skipTopLevelDirs?.has(entry.name)) {
+          continue;
+        }
         collectRunManifestPaths(runsDir, path.join(runsDir, entry.name), files);
       }
     }
   } catch {
-    // runs/ doesn't exist yet
+    // Results root doesn't exist yet
   }
 
   // Sort by run directory name descending (most recent first for timestamped runs).
   files.sort((a, b) => b.sortName.localeCompare(a.sortName));
 
-  const limited = limit !== undefined && limit > 0 ? files.slice(0, limit) : files;
+  const limited =
+    options?.limit !== undefined && options.limit > 0 ? files.slice(0, options.limit) : files;
 
   const metas: ResultFileMeta[] = [];
 
@@ -665,13 +672,26 @@ export function listResultFilesFromRunsDir(runsDir: string, limit?: number): Res
 }
 
 /**
- * Enumerate canonical run manifests in `.agentv/results/runs/`.
+ * Enumerate canonical run manifests in `.agentv/results/`.
+ *
+ * Reserved local namespaces such as `.agentv/results/runs/` and
+ * `.agentv/results/metadata/` are intentionally skipped by default discovery.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
-  return listResultFilesFromRunsDir(
-    path.join(cwd, '.agentv', 'results', RESULT_RUNS_DIRNAME),
+  const metas = listResultFilesFromRoot(buildResultsRootDir(cwd), {
+    skipTopLevelDirs: new Set(['metadata', 'runs']),
+  }).sort((a, b) => {
+    const byTimestamp = b.timestamp.localeCompare(a.timestamp);
+    return byTimestamp !== 0 ? byTimestamp : b.displayName.localeCompare(a.displayName);
+  });
+  return limit !== undefined && limit > 0 ? metas.slice(0, limit) : metas;
+}
+
+export function listResultFilesFromRunsDir(runsDir: string, limit?: number): ResultFileMeta[] {
+  return listResultFilesFromRoot(runsDir, {
     limit,
-  );
+    skipTopLevelDirs: new Set(['metadata', 'runs']),
+  });
 }
 
 /**

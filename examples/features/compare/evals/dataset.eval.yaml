@@ -3,7 +3,7 @@
 #   agentv eval evals/dataset.eval.yaml --target baseline
 #   agentv eval evals/dataset.eval.yaml --target candidate
 # Then compare:
-#   agentv compare .agentv/results/runs/<baseline-timestamp>/index.jsonl .agentv/results/runs/<candidate-timestamp>/index.jsonl
+#   agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl
 
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare

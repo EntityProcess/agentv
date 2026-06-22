@@ -35,7 +35,7 @@ async function createRunWorkspace(
   runName: string,
   records: readonly RunRecordInput[],
 ): Promise<{ runDir: string; indexPath: string }> {
-  const runDir = path.join(rootDir, '.agentv', 'results', 'runs', runName);
+  const runDir = path.join(rootDir, '.agentv', 'results', 'default', runName);
   await mkdir(runDir, { recursive: true });
   const indexPath = path.join(runDir, 'index.jsonl');
   await writeFile(

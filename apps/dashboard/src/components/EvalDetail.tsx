@@ -493,7 +493,7 @@ function TranscriptTab({
         <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
         <p className="mt-2 text-sm text-gray-500">
           {transcriptData?.message ??
-            'This run does not include canonical outputs/transcript.jsonl. Dashboard does not parse response.md or markdown transcripts for this view.'}
+            'This run does not include canonical transcript.jsonl. Dashboard does not parse response.md or markdown transcripts for this view.'}
         </p>
       </div>
     );

@@ -46,7 +46,7 @@ agent-browser --session docs-shots close
 kill $(lsof -ti:14800) 2>/dev/null
 ```
 
-**Screenshots with realistic data:** Dashboard screenshots must have populated data — multiple runs with varying pass rates and real targets. If results are sparse, create synthetic JSONL files in `.agentv/results/runs/<experiment>/<timestamp>/index.jsonl` with realistic fields before launching Dashboard.
+**Screenshots with realistic data:** Dashboard screenshots must have populated data — multiple runs with varying pass rates and real targets. If results are sparse, create synthetic JSONL files in `.agentv/results/<experiment>/<timestamp>/index.jsonl` with realistic fields before launching Dashboard.
 
 Synthetic JSONL record format:
 ```json

@@ -44,6 +44,7 @@ export interface ResultManifestRecord {
   readonly input_path?: string;
   readonly output_path?: string;
   readonly answer_path?: string;
+  readonly trace_path?: string;
   readonly transcript_path?: string;
   readonly metrics_path?: string;
   readonly raw_provider_log_path?: string;

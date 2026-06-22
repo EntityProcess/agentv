@@ -224,8 +224,8 @@ describe('parseAgentSkillsEvals', () => {
         {
           id: 1,
           prompt: 'test prompt',
-          transcript_path: 'outputs/transcript.jsonl',
-          raw_provider_log_path: 'outputs/raw/provider.log',
+          transcript_path: 'transcript.jsonl',
+          raw_provider_log_path: 'provider.log',
         },
       ],
     });

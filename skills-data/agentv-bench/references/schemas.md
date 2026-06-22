@@ -164,7 +164,7 @@ Output from the grader agent. Located at `<run-dir>/grading.json`.
 
 ## metrics.json
 
-Output from the executor agent. Located at `<run-dir>/outputs/metrics.json`.
+Output from the executor agent. Located at `<run-dir>/metrics.json`.
 
 ```json
 {

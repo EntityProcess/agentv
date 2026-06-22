@@ -45,7 +45,7 @@ describe('results combine', () => {
   });
 
   function seedRun(name: string, records: object[]): string {
-    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', name);
+    const runDir = path.join(tempDir, '.agentv', 'results', 'default', name);
     mkdirSync(path.join(runDir, 'demo', 'test-a'), { recursive: true });
     writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records), 'utf8');
     writeFileSync(path.join(runDir, 'demo', 'test-a', 'grading.json'), '{"assertions":[]}\n');
@@ -98,15 +98,16 @@ describe('results combine', () => {
     const first = seedRun('run-a', [
       result({
         artifact_dir: 'demo/test-a',
-        transcript_path: 'demo/test-a/outputs/transcript.jsonl',
-        metrics_path: 'demo/test-a/outputs/metrics.json',
-        raw_provider_log_path: 'demo/test-a/outputs/raw/provider.log',
+        trace_path: 'demo/test-a/trace.json',
+        transcript_path: 'demo/test-a/transcript.jsonl',
+        metrics_path: 'demo/test-a/metrics.json',
+        raw_provider_log_path: 'demo/test-a/provider.log',
         artifact_pointers: {
           trace: {
             ref: 'agentv/artifacts/v1',
-            key: 'traces/demo/test-a/outputs/trace.json',
+            key: 'traces/demo/test-a/trace.json',
             object_version: 'sha256:trace',
-            path: 'demo/test-a/outputs/trace.json',
+            path: 'demo/test-a/trace.json',
             sha256: 'trace',
             size: 18,
             schema_version: 'agentv.trace.v1',
@@ -115,9 +116,9 @@ describe('results combine', () => {
           },
           transcript: {
             ref: 'agentv/artifacts/v1',
-            key: 'transcripts/demo/test-a/outputs/transcript.jsonl',
+            key: 'transcripts/demo/test-a/transcript.jsonl',
             object_version: 'sha256:transcript',
-            path: 'demo/test-a/outputs/transcript.jsonl',
+            path: 'demo/test-a/transcript.jsonl',
             sha256: 'transcript',
             size: 180,
             schema_version: 'agentv.transcript.v1',
@@ -127,10 +128,10 @@ describe('results combine', () => {
         },
       }),
     ]);
-    mkdirSync(path.join(first, 'demo', 'test-a', 'outputs', 'raw'), { recursive: true });
-    writeFileSync(path.join(first, 'demo', 'test-a', 'outputs', 'trace.json'), '{"trace":[]}\n');
+    mkdirSync(path.join(first, 'demo', 'test-a', 'outputs'), { recursive: true });
+    writeFileSync(path.join(first, 'demo', 'test-a', 'trace.json'), '{"trace":[]}\n');
     writeFileSync(
-      path.join(first, 'demo', 'test-a', 'outputs', 'transcript.jsonl'),
+      path.join(first, 'demo', 'test-a', 'transcript.jsonl'),
       `${JSON.stringify({
         schema_version: 'agentv.transcript.v1',
         test_id: 'test-a',
@@ -142,11 +143,11 @@ describe('results combine', () => {
       })}\n`,
     );
     writeFileSync(
-      path.join(first, 'demo', 'test-a', 'outputs', 'metrics.json'),
+      path.join(first, 'demo', 'test-a', 'metrics.json'),
       '{"schema_version":"agentv.metrics.v1"}\n',
     );
     writeFileSync(
-      path.join(first, 'demo', 'test-a', 'outputs', 'raw', 'provider.log'),
+      path.join(first, 'demo', 'test-a', 'provider.log'),
       '{"event":"provider-native"}\n',
     );
     const second = seedRun('run-b', [
@@ -172,37 +173,32 @@ describe('results combine', () => {
 
     const [record] = readIndex(combined.manifestPath);
     expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
-    expect(record.transcript_path).toBe('sources/source-1/demo/test-a/outputs/transcript.jsonl');
-    expect(record.metrics_path).toBe('sources/source-1/demo/test-a/outputs/metrics.json');
-    expect(record.raw_provider_log_path).toBe(
-      'sources/source-1/demo/test-a/outputs/raw/provider.log',
-    );
+    expect(record.trace_path).toBe('sources/source-1/demo/test-a/trace.json');
+    expect(record.transcript_path).toBe('sources/source-1/demo/test-a/transcript.jsonl');
+    expect(record.metrics_path).toBe('sources/source-1/demo/test-a/metrics.json');
+    expect(record.raw_provider_log_path).toBe('sources/source-1/demo/test-a/provider.log');
     expect(record.artifact_pointers).toMatchObject({
       trace: {
-        key: 'traces/sources/source-1/demo/test-a/outputs/trace.json',
-        path: 'sources/source-1/demo/test-a/outputs/trace.json',
+        key: 'traces/sources/source-1/demo/test-a/trace.json',
+        path: 'sources/source-1/demo/test-a/trace.json',
       },
       transcript: {
-        key: 'transcripts/sources/source-1/demo/test-a/outputs/transcript.jsonl',
-        path: 'sources/source-1/demo/test-a/outputs/transcript.jsonl',
+        key: 'transcripts/sources/source-1/demo/test-a/transcript.jsonl',
+        path: 'sources/source-1/demo/test-a/transcript.jsonl',
       },
     });
     expect(record.artifact_pointers).not.toHaveProperty('metrics');
+    expect(existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/trace.json'))).toBe(
+      true,
+    );
     expect(
-      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/trace.json')),
+      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/transcript.jsonl')),
     ).toBe(true);
     expect(
-      existsSync(
-        path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/transcript.jsonl'),
-      ),
+      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/metrics.json')),
     ).toBe(true);
     expect(
-      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/metrics.json')),
-    ).toBe(true);
-    expect(
-      existsSync(
-        path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/raw/provider.log'),
-      ),
+      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/provider.log')),
     ).toBe(true);
   });
 

@@ -5,6 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import { recordCodexLogEntry } from './codex-log-tracker.js';
+import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
@@ -319,7 +320,7 @@ export class CodexProvider implements Provider {
     return undefined;
   }
 
-  private resolveLogDirectory(): string | undefined {
+  private resolveLogDirectory(request: ProviderRequest): string | undefined {
     const disabled = isCodexLogStreamingDisabled();
     if (disabled || this.config.streamLog === false) {
       return undefined;
@@ -327,13 +328,13 @@ export class CodexProvider implements Provider {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'codex');
+    return resolveDefaultProviderLogDir('codex', request);
   }
 
   private async createStreamLogger(
     request: ProviderRequest,
   ): Promise<CodexSdkStreamLogger | undefined> {
-    const logDir = this.resolveLogDirectory();
+    const logDir = this.resolveLogDirectory(request);
     if (!logDir) {
       return undefined;
     }

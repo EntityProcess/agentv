@@ -43,6 +43,7 @@ const RESULT_ROW_ALIASES = {
   testId: 'test_id',
   timingPath: 'timing_path',
   tokenUsage: 'token_usage',
+  tracePath: 'trace_path',
   transcriptPath: 'transcript_path',
   workspacePath: 'workspace_path',
 } as const;

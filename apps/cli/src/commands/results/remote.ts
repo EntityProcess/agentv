@@ -22,6 +22,7 @@ import {
   syncResultsRepoForProject,
 } from '@agentv/core';
 
+import { relativeRunPathFromCwd } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import {
   type ResultFileMeta,
@@ -124,17 +125,8 @@ export interface RemoteResultsStatus extends ResultsRepoStatus {
 }
 
 function relativeLocalRunPath(cwd: string, manifestPath: string): string | undefined {
-  const runsRoot = path.resolve(cwd, '.agentv', 'results', 'runs');
   const manifestDir = path.resolve(path.dirname(manifestPath));
-  const relativeRunPath = path.relative(runsRoot, manifestDir);
-  if (
-    relativeRunPath.length === 0 ||
-    relativeRunPath.startsWith('..') ||
-    path.isAbsolute(relativeRunPath)
-  ) {
-    return undefined;
-  }
-  return relativeRunPath.split(path.sep).join(path.posix.sep);
+  return relativeRunPathFromCwd(cwd, manifestDir);
 }
 
 function remoteMetadataManifestPath(
@@ -180,14 +172,14 @@ function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {
 }
 
 export function getRelativeRunPath(cwd: string, runDir: string): string {
-  const relative = path.relative(path.join(cwd, '.agentv', 'results', 'runs'), runDir);
-  if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+  const relative = relativeRunPathFromCwd(cwd, runDir);
+  if (relative) {
     return relative;
   }
 
-  const experiment = path.basename(path.dirname(runDir));
-  const runName = path.basename(runDir);
-  return experiment && experiment !== runName ? path.join(experiment, runName) : runName;
+  throw new Error(
+    `Run workspace must use .agentv/results/<experiment>/<timestamp>: ${path.resolve(runDir)}`,
+  );
 }
 
 function buildCommitTitle(payload: RemoteExportPayload): string {

@@ -35,7 +35,7 @@ function flattenTree(nodes: readonly TraceSpanNode[]): TraceSpanNode[] {
 describe('trace session read model', () => {
   it('projects snake_case trace artifacts into stable Dashboard span trees', () => {
     const session = traceEnvelopeToTraceSessionResponse(traceSessionEnvelopeFixture, {
-      artifactPath: 'nested-session__codex/outputs/trace.json',
+      artifactPath: 'nested-session__codex/trace.json',
     });
     const tree = buildTraceSpanTree(session.spans);
 
@@ -47,12 +47,12 @@ describe('trace session read model', () => {
       trace_id: 'trace-123',
       root_span_id: 'root-span',
       source: {
-        artifact_path: 'nested-session__codex/outputs/trace.json',
+        artifact_path: 'nested-session__codex/trace.json',
       },
       artifact_links: [
         { name: 'answer_path', path: 'outputs/answer.md' },
-        { name: 'trace_path', path: 'outputs/trace.json' },
-        { name: 'transcript_path', path: 'outputs/transcript.jsonl' },
+        { name: 'trace_path', path: 'trace.json' },
+        { name: 'transcript_path', path: 'transcript.jsonl' },
       ],
     });
     expect(session.spans.map((span) => span.id)).toEqual([

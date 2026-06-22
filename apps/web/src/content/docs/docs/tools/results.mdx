@@ -40,10 +40,10 @@ Examples:
 
 ```bash
 # Generate report.html next to the run manifest
-agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude
+agentv results report .agentv/results/default/2026-03-14T10-32-00_claude
 
 # Use an explicit output path
-agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude/index.jsonl \
+agentv results report .agentv/results/default/2026-03-14T10-32-00_claude/index.jsonl \
   --out ./reports/human-review.html
 ```
 
@@ -62,17 +62,17 @@ One minimal publication workflow is:
 
 ```bash
 # 1. Run an eval and sync or copy the run workspace into your public results repo.
-agentv eval evals/demo.eval.yaml --output .agentv/results/runs/demo-live
+agentv eval evals/demo.eval.yaml --output .agentv/results/demo-live
 
 # 2. In the public results repo, render the report into the Pages source directory.
-agentv results report .agentv/results/runs/demo-live --out docs/index.html
+agentv results report .agentv/results/demo-live --out docs/index.html
 
 # 3. Review the generated HTML before publishing.
 grep -RInE 'sk-[A-Za-z0-9]|Bearer |localhost|127\.0\.0\.1|/home/|/Users/|/tmp/' docs/index.html
 
 # 4. Commit the run artifacts and docs/index.html, then enable GitHub Pages
 #    for the repository's docs/ directory or the branch used for Pages.
-git add .agentv/results/runs/demo-live docs/index.html README.md
+git add .agentv/results/demo-live docs/index.html README.md
 git commit -m "docs(results): publish static AgentV report"
 git push
 ```
@@ -110,15 +110,15 @@ Duplicate policy is explicit:
 
 ### Metrics sidecar
 
-Each per-case artifact directory includes `outputs/metrics.json`
+Each per-case artifact directory includes `metrics.json`
 (`schema_version: "agentv.metrics.v1"`). This is an AgentV-owned
-derived projection over `outputs/trace.json`, the result row, and
+derived projection over `trace.json`, the result row, and
 `grading.json`. It is the compact executor behavior summary for dashboards,
 comparison exports, and metric-style graders; it is not canonical trace storage
 and does not carry token/cost usage.
 
-`outputs/transcript.jsonl` remains the ordered conversational/log compatibility
-projection. Full trace detail stays in `outputs/trace.json`
+`transcript.jsonl` remains the ordered conversational/log compatibility
+projection. Full trace detail stays in `trace.json`
 (`agentv.trace.v1`). `benchmark.json` remains the run-level aggregate summary,
 and `index.jsonl` carries the lightweight `metrics_path` plus
 the trace/transcript artifact pointers used for detached payload publishing.
@@ -126,7 +126,7 @@ Duration, token, and cost usage remains in `timing.json`, including source
 labels such as `provider_reported`, `token_estimated`, `aggregate`, or
 `unavailable`.
 
-The `metrics` section aligns with Claude Agent Skills `outputs/metrics.json`
+The `metrics` section aligns with Claude Agent Skills `metrics.json`
 while adding AgentV/Vercel-style detail:
 
 | Field group | Purpose |
@@ -138,26 +138,27 @@ Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 
 | Vercel field | AgentV field | Artifact location |
 |--------------|--------------|-------------------|
-| `shellCommands` | `metrics.shell_commands` | `outputs/metrics.json` |
-| `filesRead` | `metrics.files_read` | `outputs/metrics.json` |
-| `filesModified` | `metrics.files_modified` | `outputs/metrics.json` |
-| `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `outputs/metrics.json`; compact counts can also appear in `grading.json.execution_metrics` and `benchmark.json.run_summary[*].tool_calls` |
-| `totalToolCalls` | `metrics.total_tool_calls` | `outputs/metrics.json` |
-| `webFetches` | `metrics.web_fetches` | `outputs/metrics.json` |
-| `totalTurns` | `metrics.total_turns` | `outputs/metrics.json`; conversational rows remain in `outputs/transcript.jsonl` |
-| `errors` | `metrics.errors` | `outputs/metrics.json`; compact count remains in `grading.json.execution_metrics.errors_encountered` |
-| `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `outputs/metrics.json` |
+| `shellCommands` | `metrics.shell_commands` | `metrics.json` |
+| `filesRead` | `metrics.files_read` | `metrics.json` |
+| `filesModified` | `metrics.files_modified` | `metrics.json` |
+| `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `metrics.json`; compact counts can also appear in `grading.json.execution_metrics` and `benchmark.json.run_summary[*].tool_calls` |
+| `totalToolCalls` | `metrics.total_tool_calls` | `metrics.json` |
+| `webFetches` | `metrics.web_fetches` | `metrics.json` |
+| `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational rows remain in `transcript.jsonl` |
+| `errors` | `metrics.errors` | `metrics.json`; compact count remains in `grading.json.execution_metrics.errors_encountered` |
+| `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `metrics.json` |
 
 Agent Skills eval artifacts map into AgentV like this:
 
 | Agent Skills pattern | AgentV field | Artifact location |
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
-| Per-case `outputs/` | Final answer and sidecars | `outputs/answer.md`, `outputs/response.md`, `outputs/trace.json`, `outputs/transcript.jsonl`, `outputs/metrics.json` |
+| Per-case `outputs/` | Generated target output artifacts | `outputs/answer.md`, `outputs/response.md` |
+| Per-case sidecars | Trace, transcript, metrics, and raw provider evidence | `trace.json`, `transcript.jsonl`, `metrics.json`, `provider.log` |
 | Per-case `timing.json` | Duration, token totals, cost, and usage source labels | `timing.json` |
 | Per-case `grading.json` | Assertions, graders, execution metrics, workspace changes | `grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `benchmark.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `benchmark.json` |
-| Transcript/log outlier analysis | Ordered transcript and canonical trace | `outputs/transcript.jsonl` for log compatibility; `outputs/trace.json` for full detail |
+| Transcript/log outlier analysis | Ordered transcript and canonical trace | `transcript.jsonl` for log compatibility; `trace.json` for full detail |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `benchmark.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle
@@ -214,10 +215,10 @@ policy so downstream processing is auditable.
 For lightweight terminal workflows:
 
 ```bash
-agentv results summary .agentv/results/runs/<timestamp>
-agentv results failures .agentv/results/runs/<timestamp>
-agentv results show .agentv/results/runs/<timestamp> --test-id my-case
-agentv results validate .agentv/results/runs/<timestamp>
+agentv results summary .agentv/results/default/<timestamp>
+agentv results failures .agentv/results/default/<timestamp>
+agentv results show .agentv/results/default/<timestamp> --test-id my-case
+agentv results validate .agentv/results/default/<timestamp>
 ```
 
 For a review-centric workflow built around these artifacts, see [Human Review Checkpoint](/docs/guides/human-review/).

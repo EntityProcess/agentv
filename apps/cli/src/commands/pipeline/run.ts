@@ -75,7 +75,7 @@ export const evalRunCommand = command({
       type: optional(string),
       long: 'out',
       description:
-        'Output directory for results (default: .agentv/results/runs/<experiment>/<timestamp>)',
+        'Output directory for results (default: .agentv/results/<experiment>/<timestamp>)',
     }),
     workers: option({
       type: optional(number),
@@ -227,14 +227,14 @@ export const evalRunCommand = command({
     // ── Step 2: Invoke CLI targets in parallel ───────────────────────
     if (targetInfo) {
       const envVars = loadEnvFile(evalDir);
-      // Set AGENTV_RUN_TIMESTAMP so CLI targets group artifacts under one run folder.
+      // Set AGENTV_RUN_* so CLI targets group artifacts under this run folder.
       if (!process.env.AGENTV_RUN_TIMESTAMP) {
         process.env.AGENTV_RUN_TIMESTAMP = new Date()
           .toISOString()
           .replace(/:/g, '-')
           .replace(/\./g, '-');
       }
-      const mergedEnv = { ...process.env, ...envVars };
+      const mergedEnv = { ...process.env, ...envVars, AGENTV_RUN_DIR: outDir };
       const maxWorkers = workers ?? targetWorkers ?? 5;
       let invCompleted = 0;
       const invTotal = testIds.length;

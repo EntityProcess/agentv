@@ -6,7 +6,7 @@ import path from 'node:path';
 import { validateRunDirectory } from '../../../src/commands/results/validate.js';
 
 describe('results validate', () => {
-  it('accepts experiment-scoped canonical run directories without layout warnings', () => {
+  it('accepts experiment-scoped result directories without layout warnings', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-validate-test-'));
 
     try {
@@ -14,7 +14,6 @@ describe('results validate', () => {
         tempDir,
         '.agentv',
         'results',
-        'runs',
         'with-skills',
         '2026-03-27T12-42-24-429Z',
       );
@@ -34,7 +33,7 @@ describe('results validate', () => {
 
       expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
       expect(diagnostics.map((d) => d.message)).not.toContain(
-        "Directory is not under a 'runs/' tree. Expected: .agentv/results/runs/<experiment>/<run-dir>",
+        'Directory is not under the canonical results tree. Expected: .agentv/results/<experiment>/<timestamp>',
       );
       expect(
         diagnostics.some((d) => d.message.includes('does not match the expected pattern')),

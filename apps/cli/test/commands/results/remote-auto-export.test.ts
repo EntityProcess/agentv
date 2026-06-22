@@ -60,7 +60,7 @@ ${params.branch ? `    branch: ${JSON.stringify(params.branch)}\n` : ''}    path
 }
 
 function writeRunArtifacts(projectDir: string): string {
-  const runDir = path.join(projectDir, '.agentv', 'results', 'runs', 'default', 'run-001');
+  const runDir = path.join(projectDir, '.agentv', 'results', 'default', 'run-001');
   mkdirSync(runDir, { recursive: true });
   writeFileSync(
     path.join(runDir, 'index.jsonl'),
@@ -78,15 +78,15 @@ function sha256Hex(content: Buffer | string): string {
 }
 
 function writeRunArtifactsWithPointers(projectDir: string): string {
-  const runDir = path.join(projectDir, '.agentv', 'results', 'runs', 'default', 'run-002');
-  const outputsDir = path.join(runDir, 'alpha', 'outputs');
-  mkdirSync(outputsDir, { recursive: true });
+  const runDir = path.join(projectDir, '.agentv', 'results', 'default', 'run-002');
+  const artifactDir = path.join(runDir, 'alpha');
+  mkdirSync(artifactDir, { recursive: true });
   const traceContent = Buffer.from('{"schema_version":"agentv.trace.v1","spans":[]}\n');
   const transcriptContent = Buffer.from(
     '{"schema_version":"agentv.transcript.v1","role":"assistant","content":"ok"}\n',
   );
-  writeFileSync(path.join(outputsDir, 'trace.json'), traceContent);
-  writeFileSync(path.join(outputsDir, 'transcript.jsonl'), transcriptContent);
+  writeFileSync(path.join(artifactDir, 'trace.json'), traceContent);
+  writeFileSync(path.join(artifactDir, 'transcript.jsonl'), transcriptContent);
   const traceSha = sha256Hex(traceContent);
   const transcriptSha = sha256Hex(transcriptContent);
   writeFileSync(
@@ -97,9 +97,9 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
       artifact_pointers: {
         trace: {
           ref: AGENTV_RESULTS_ARTIFACTS_REF,
-          key: 'traces/alpha/outputs/trace.json',
+          key: 'traces/alpha/trace.json',
           object_version: `sha256:${traceSha}`,
-          path: 'alpha/outputs/trace.json',
+          path: 'alpha/trace.json',
           sha256: traceSha,
           size: traceContent.byteLength,
           schema_version: 'agentv.trace.v1',
@@ -108,9 +108,9 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
         },
         transcript: {
           ref: AGENTV_RESULTS_ARTIFACTS_REF,
-          key: 'transcripts/alpha/outputs/transcript.jsonl',
+          key: 'transcripts/alpha/transcript.jsonl',
           object_version: `sha256:${transcriptSha}`,
-          path: 'alpha/outputs/transcript.jsonl',
+          path: 'alpha/transcript.jsonl',
           sha256: transcriptSha,
           size: transcriptContent.byteLength,
           schema_version: 'agentv.transcript.v1',
@@ -228,24 +228,24 @@ describe('maybeAutoExportRunArtifacts', () => {
     );
     expect(resultTree).toContain('runs/default/run-002/index.jsonl');
     expect(resultTree).toContain('runs/default/run-002/benchmark.json');
-    expect(resultTree).not.toContain('runs/default/run-002/alpha/outputs/trace.json');
-    expect(resultTree).not.toContain('runs/default/run-002/alpha/outputs/transcript.jsonl');
+    expect(resultTree).not.toContain('runs/default/run-002/alpha/trace.json');
+    expect(resultTree).not.toContain('runs/default/run-002/alpha/transcript.jsonl');
     const index = JSON.parse(
       git(
         `git --git-dir "${remoteDir}" show ${resultsBranch}:runs/default/run-002/index.jsonl`,
         rootDir,
       ),
     );
-    expect(index.artifact_pointers.trace.key).toBe('runs/default/run-002/alpha/outputs/trace.json');
+    expect(index.artifact_pointers.trace.key).toBe('runs/default/run-002/alpha/trace.json');
     expect(index.artifact_pointers.transcript.key).toBe(
-      'runs/default/run-002/alpha/outputs/transcript.jsonl',
+      'runs/default/run-002/alpha/transcript.jsonl',
     );
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_ARTIFACTS_REF}`,
       rootDir,
     );
-    expect(artifactTree).toContain('runs/default/run-002/alpha/outputs/trace.json');
-    expect(artifactTree).toContain('runs/default/run-002/alpha/outputs/transcript.jsonl');
+    expect(artifactTree).toContain('runs/default/run-002/alpha/trace.json');
+    expect(artifactTree).toContain('runs/default/run-002/alpha/transcript.jsonl');
   }, 20_000);
 
   it('returns already_published when the final results branch is already up to date', async () => {

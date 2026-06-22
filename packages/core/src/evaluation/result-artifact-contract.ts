@@ -6,7 +6,7 @@
  * per-result artifact directories; these pointers describe where those same
  * AgentV-owned artifacts belong when projected to a results ref, sidecar ref,
  * or object store. Use pointers for large detached payload bytes, not as the
- * discovery path for ordinary sidecars such as `outputs/metrics.json`; normal
+ * discovery path for ordinary sidecars such as `metrics.json`; normal
  * sidecars should use explicit path fields such as `metrics_path`.
  *
  * Git remote publishing treats the configured results branch as the
@@ -25,9 +25,9 @@ export const AGENTV_RESULTS_REFS = {
   oplog: AGENTV_RESULTS_OPLOG_REF,
 } as const;
 
-export const CANONICAL_TRACE_ARTIFACT_PATH = 'outputs/trace.json' as const;
-export const CANONICAL_TRANSCRIPT_ARTIFACT_PATH = 'outputs/transcript.jsonl' as const;
-export const CANONICAL_METRICS_ARTIFACT_PATH = 'outputs/metrics.json' as const;
+export const CANONICAL_TRACE_ARTIFACT_PATH = 'trace.json' as const;
+export const CANONICAL_TRANSCRIPT_ARTIFACT_PATH = 'transcript.jsonl' as const;
+export const CANONICAL_METRICS_ARTIFACT_PATH = 'metrics.json' as const;
 
 export const TRANSCRIPT_SCHEMA_VERSION = 'agentv.transcript.v1' as const;
 export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;

@@ -40,7 +40,7 @@ interface DashboardRun {
   command: string;
   /** Target name passed via --target (if any). Stored so the run list can show it before the first result is written. */
   target?: string;
-  /** Absolute path to the run directory (e.g. .agentv/results/runs/default/<timestamp>). Used to correlate this in-memory run with the filesystem run when the JSONL has 0 records yet. */
+  /** Absolute path to the run directory (e.g. .agentv/results/default/<timestamp>). Used to correlate this in-memory run with the filesystem run when the JSONL has 0 records yet. */
   outputDir?: string;
   startedAt: string;
   finishedAt?: string;

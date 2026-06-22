@@ -29,9 +29,9 @@ Point directly at run workspaces or `index.jsonl` manifests when you need a spec
 
 ```bash
 agentv trend \
-  .agentv/results/runs/2026-03-01T10-00-00-000Z/ \
-  .agentv/results/runs/2026-03-08T10-00-00-000Z/index.jsonl \
-  .agentv/results/runs/2026-03-15T10-00-00-000Z/
+  .agentv/results/default/2026-03-01T10-00-00-000Z/ \
+  .agentv/results/default/2026-03-08T10-00-00-000Z/index.jsonl \
+  .agentv/results/default/2026-03-15T10-00-00-000Z/
 ```
 
 Concrete regression-gating example:
@@ -45,8 +45,8 @@ agentv trend --last 8 --suite code-review --target claude-sonnet \
 
 `trend` only accepts canonical run workspaces:
 
-- `.agentv/results/runs/<run-id>/`
-- `.agentv/results/runs/<run-id>/index.jsonl`
+- `.agentv/results/<experiment>/<run-id>/`
+- `.agentv/results/<experiment>/<run-id>/index.jsonl`
 
 Legacy flat `results.jsonl` files are rejected. The command stays on lightweight `index.jsonl` manifests and does not require per-test artifact hydration.
 
@@ -54,7 +54,7 @@ Legacy flat `results.jsonl` files are rejected. The command stays on lightweight
 
 | Option | Description |
 |--------|-------------|
-| `--last <n>` | Use the most recent `n` runs from `.agentv/results/runs/` |
+| `--last <n>` | Use the most recent `n` runs from `.agentv/results/` |
 | `--suite <name>` | Filter records to one suite |
 | `--target <name>` | Filter records to one target inside each run |
 | `--slope-threshold <n>` | Minimum absolute slope required to classify improving or degrading (default: `0.01`) |
@@ -112,7 +112,7 @@ Regression Gate: threshold=0.010 fail_on_degrading=true triggered=true
   "runs": [
     {
       "label": "2026-03-01T10:00:00.000Z",
-      "path": "/repo/.agentv/results/runs/2026-03-01T10-00-00-000Z/index.jsonl",
+      "path": "/repo/.agentv/results/default/2026-03-01T10-00-00-000Z/index.jsonl",
       "timestamp": "2026-03-01T10:00:00.000Z",
       "matched_test_count": 42,
       "mean_score": 0.92

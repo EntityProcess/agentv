@@ -612,9 +612,9 @@ describe('parseJsonlResults', () => {
       artifactPointers: {
         transcript: {
           ref: 'agentv/artifacts/v1',
-          key: 'transcripts/pointer-row/outputs/transcript.jsonl',
+          key: 'transcripts/pointer-row/transcript.jsonl',
           object_version: 'sha256:test',
-          path: 'pointer-row/outputs/transcript.jsonl',
+          path: 'pointer-row/transcript.jsonl',
           sha256: 'test',
           size: 1,
           schema_version: 'agentv.transcript.v1',
@@ -633,7 +633,7 @@ describe('parseJsonlResults', () => {
       target: 'codex',
       score: 1,
       output: 'done',
-      raw_provider_log_path: 'raw-log-case/outputs/raw/provider.log',
+      raw_provider_log_path: 'raw-log-case/provider.log',
     })}\n`;
 
     const results = parseJsonlResults(content);
@@ -778,7 +778,14 @@ describe('writeArtifactsFromResults', () => {
     ]);
 
     const alphaEntries = await readdir(path.join(paths.testArtifactDir, 'alpha'));
-    expect(alphaEntries.sort()).toEqual(['grading.json', 'outputs', 'timing.json']);
+    expect(alphaEntries.sort()).toEqual([
+      'grading.json',
+      'metrics.json',
+      'outputs',
+      'timing.json',
+      'trace.json',
+      'transcript.jsonl',
+    ]);
 
     const alphaGrading: GradingArtifact = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
@@ -807,6 +814,9 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines).toHaveLength(2);
     expect(indexLines[0]?.grading_path).toBe('alpha/grading.json');
     expect(indexLines[0]?.timing_path).toBe('alpha/timing.json');
+    expect(indexLines[0]?.trace_path).toBe('alpha/trace.json');
+    expect(indexLines[0]?.transcript_path).toBe('alpha/transcript.jsonl');
+    expect(indexLines[0]?.metrics_path).toBe('alpha/metrics.json');
   });
 
   it('handles empty results array', async () => {
@@ -898,16 +908,14 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptPath = path.join(testDir, 'transcript-case', 'outputs', 'transcript.jsonl');
+    const transcriptPath = path.join(testDir, 'transcript-case', 'transcript.jsonl');
     const transcriptLines = (await readFile(transcriptPath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
 
     const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'transcript-case', 'outputs', 'trace.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'transcript-case', 'trace.json'), 'utf8')),
     );
     const projectedEnvelope = fromTraceEnvelopeWire(envelope);
     const projectedTranscript = traceEnvelopeToTranscriptJsonLines(projectedEnvelope, {
@@ -991,30 +999,28 @@ describe('writeArtifactsFromResults', () => {
       'execute_tool',
     ]);
     await expect(
-      readFile(path.join(testDir, 'transcript-case', 'outputs', 'transcript.json'), 'utf8'),
+      readFile(path.join(testDir, 'transcript-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.transcript_path).toBe('transcript-case/outputs/transcript.jsonl');
+    expect(indexLine.trace_path).toBe('transcript-case/trace.json');
+    expect(indexLine.transcript_path).toBe('transcript-case/transcript.jsonl');
     expect(indexLine.transcript_path.endsWith(CANONICAL_TRANSCRIPT_ARTIFACT_PATH)).toBe(true);
-    expect(indexLine.metrics_path).toBe('transcript-case/outputs/metrics.json');
+    expect(indexLine.metrics_path).toBe('transcript-case/metrics.json');
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
-    expect(indexLine).not.toHaveProperty('trace_path');
 
-    const traceContent = await readFile(
-      path.join(testDir, 'transcript-case', 'outputs', 'trace.json'),
-    );
+    const traceContent = await readFile(path.join(testDir, 'transcript-case', 'trace.json'));
     const transcriptContent = await readFile(transcriptPath);
     const traceSha = sha256Hex(traceContent);
     const transcriptSha = sha256Hex(transcriptContent);
 
     expect(indexLine.artifact_pointers.trace).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'traces/transcript-case/outputs/trace.json',
+      key: 'traces/transcript-case/trace.json',
       object_version: `sha256:${traceSha}`,
-      path: 'transcript-case/outputs/trace.json',
+      path: 'transcript-case/trace.json',
       sha256: traceSha,
       size: traceContent.byteLength,
       schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
@@ -1023,9 +1029,9 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(indexLine.artifact_pointers.transcript).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'transcripts/transcript-case/outputs/transcript.jsonl',
+      key: 'transcripts/transcript-case/transcript.jsonl',
       object_version: `sha256:${transcriptSha}`,
-      path: 'transcript-case/outputs/transcript.jsonl',
+      path: 'transcript-case/transcript.jsonl',
       sha256: transcriptSha,
       size: transcriptContent.byteLength,
       schema_version: TRANSCRIPT_SCHEMA_VERSION,
@@ -1129,12 +1135,10 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.metrics_path).toBe('summary-case/outputs/metrics.json');
+    expect(indexLine.metrics_path).toBe('summary-case/metrics.json');
 
     const summary = MetricsArtifactWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'summary-case', 'outputs', 'metrics.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'summary-case', 'metrics.json'), 'utf8')),
     );
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
@@ -1278,14 +1282,10 @@ describe('writeArtifactsFromResults', () => {
     const runTiming = JSON.parse(await readFile(path.join(testDir, 'timing.json'), 'utf8'));
 
     MetricsArtifactWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'aggregate-usage', 'outputs', 'metrics.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'aggregate-usage', 'metrics.json'), 'utf8')),
     );
     MetricsArtifactWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'estimated-usage', 'outputs', 'metrics.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'estimated-usage', 'metrics.json'), 'utf8')),
     );
 
     expect(aggregateTiming).toMatchObject({
@@ -1343,30 +1343,28 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'outputs', 'raw', 'provider.log');
+    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'provider.log');
     expect(await readFile(copiedRawLogPath, 'utf8')).toBe(rawLog);
 
-    const transcriptPath = path.join(testDir, 'raw-log-case', 'outputs', 'transcript.jsonl');
+    const transcriptPath = path.join(testDir, 'raw-log-case', 'transcript.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toContain(
       '"schema_version":"agentv.transcript.v1"',
     );
     await expect(
-      readFile(path.join(testDir, 'raw-log-case', 'outputs', 'transcript.json'), 'utf8'),
+      readFile(path.join(testDir, 'raw-log-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
 
     const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'raw-log-case', 'outputs', 'trace.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'raw-log-case', 'trace.json'), 'utf8')),
     );
-    expect(envelope.artifacts.raw_provider_log_path).toBe('outputs/raw/provider.log');
-    expect(envelope.artifacts.transcript_path).toBe('outputs/transcript.jsonl');
+    expect(envelope.artifacts.raw_provider_log_path).toBe('provider.log');
+    expect(envelope.artifacts.transcript_path).toBe('transcript.jsonl');
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.raw_provider_log_path).toBe('raw-log-case/outputs/raw/provider.log');
-    expect(indexLine.transcript_path).toBe('raw-log-case/outputs/transcript.jsonl');
+    expect(indexLine.raw_provider_log_path).toBe('raw-log-case/provider.log');
+    expect(indexLine.transcript_path).toBe('raw-log-case/transcript.jsonl');
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
@@ -1413,9 +1411,7 @@ describe('writeArtifactsFromResults', () => {
     expect(JSON.stringify(indexLine)).not.toContain('api_key');
 
     const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'external-trace-case', 'outputs', 'trace.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'external-trace-case', 'trace.json'), 'utf8')),
     );
     expect(envelope.external_trace).toEqual(indexLine.external_trace);
     expect(envelope.source.metadata ?? {}).not.toHaveProperty('external_trace');
@@ -1434,18 +1430,18 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptPath = path.join(testDir, 'no-transcript-case', 'outputs', 'transcript.jsonl');
+    const transcriptPath = path.join(testDir, 'no-transcript-case', 'transcript.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('transcript_path');
-    expect(indexLine.metrics_path).toBe('no-transcript-case/outputs/metrics.json');
+    expect(indexLine.metrics_path).toBe('no-transcript-case/metrics.json');
     expect(indexLine.artifact_pointers.trace).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'traces/no-transcript-case/outputs/trace.json',
-      path: 'no-transcript-case/outputs/trace.json',
+      key: 'traces/no-transcript-case/trace.json',
+      path: 'no-transcript-case/trace.json',
       schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
       media_type: TRACE_JSON_MEDIA_TYPE,
       family: 'traces',
@@ -1454,9 +1450,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.artifact_pointers).not.toHaveProperty('metrics');
 
     const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(
-        await readFile(path.join(testDir, 'no-transcript-case', 'outputs', 'trace.json'), 'utf8'),
-      ),
+      JSON.parse(await readFile(path.join(testDir, 'no-transcript-case', 'trace.json'), 'utf8')),
     );
     expect(envelope.artifacts).not.toHaveProperty('transcript_path');
     expect(envelope.artifacts.metrics_path).toBe(CANONICAL_METRICS_ARTIFACT_PATH);

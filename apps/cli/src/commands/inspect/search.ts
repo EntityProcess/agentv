@@ -1,7 +1,7 @@
 /**
  * `agentv inspect search` — regex search across evaluation results and transcripts.
  *
- * Scans JSONL files in `.agentv/results/runs/` and `.agentv/transcripts/` for
+ * Scans JSONL files in `.agentv/results/` and `.agentv/transcripts/` for
  * lines matching a regex pattern. Outputs file path, test_id, and matching
  * content with surrounding context.
  *
@@ -44,6 +44,26 @@ function collectJsonlFiles(dir: string): string[] {
     const entries = readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...collectJsonlFiles(fullPath));
+      } else if (entry.name.endsWith('.jsonl')) {
+        files.push(fullPath);
+      }
+    }
+  } catch {
+    // Directory may not exist
+  }
+  return files;
+}
+
+function collectCurrentResultJsonlFiles(cwd: string): string[] {
+  const resultsDir = path.join(cwd, '.agentv', 'results');
+  const files: string[] = [];
+  try {
+    const entries = readdirSync(resultsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name === 'runs') continue;
+      const fullPath = path.join(resultsDir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectJsonlFiles(fullPath));
       } else if (entry.name.endsWith('.jsonl')) {
@@ -142,7 +162,7 @@ export function searchJsonlFile(
  * Discover all searchable JSONL sources under a base path.
  * If the path is a file, search that single file.
  * If it's a directory, recursively find all .jsonl files.
- * If not specified, scan both .agentv/results/runs/ and .agentv/transcripts/.
+ * If not specified, scan both .agentv/results/ and .agentv/transcripts/.
  */
 function discoverSources(basePath: string | undefined, cwd: string): string[] {
   if (basePath) {
@@ -163,7 +183,7 @@ function discoverSources(basePath: string | undefined, cwd: string): string[] {
 
   // Default: scan both results and transcripts
   const sources: string[] = [];
-  sources.push(...collectJsonlFiles(path.join(cwd, '.agentv', 'results', 'runs')));
+  sources.push(...collectCurrentResultJsonlFiles(cwd));
   sources.push(...collectJsonlFiles(path.join(cwd, '.agentv', 'transcripts')));
   return sources;
 }
@@ -226,7 +246,7 @@ export const inspectSearchCommand = command({
       type: optional(string),
       displayName: 'path',
       description:
-        'Directory or file to search (default: .agentv/results/runs/ and .agentv/transcripts/)',
+        'Directory or file to search (default: .agentv/results/ and .agentv/transcripts/)',
     }),
     target: option({
       type: optional(string),

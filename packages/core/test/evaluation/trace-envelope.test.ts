@@ -116,8 +116,8 @@ describe('execution trace artifact v1', () => {
           },
         },
         artifacts: {
-          trace_path: 'outputs/trace.json',
-          transcript_path: 'outputs/transcript.jsonl',
+          trace_path: 'trace.json',
+          transcript_path: 'transcript.jsonl',
         },
       },
     );
@@ -160,7 +160,7 @@ describe('execution trace artifact v1', () => {
       target: 'replay_coding_agent',
     });
     expect(wire.trace.format).toBe('otlp_openinference_spans');
-    expect(wire.artifacts?.trace_path).toBe('outputs/trace.json');
+    expect(wire.artifacts?.trace_path).toBe('trace.json');
     expect(wire.artifacts).not.toHaveProperty('execution_trace_path');
     expect(wire.trace.spans[0]?.attributes['gen_ai.operation.name']).toBe('invoke_agent');
     expect(wire.trace.spans[0]?.attributes['openinference.span.kind']).toBe('AGENT');

@@ -166,7 +166,7 @@
   },
   "source": {
     "kind": "agentv_run",
-    "path": ".agentv/results/runs/run-nested-subagent/index.jsonl",
+    "path": ".agentv/results/default/run-nested-subagent/index.jsonl",
     "provider": "codex",
     "format": "agentv_result",
     "version": "1",
@@ -188,7 +188,7 @@
     }
   },
   "artifacts": {
-    "trace_path": "outputs/trace.json",
-    "transcript_path": "outputs/transcript.jsonl"
+    "trace_path": "trace.json",
+    "transcript_path": "transcript.jsonl"
   }
 }

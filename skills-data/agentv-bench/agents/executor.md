@@ -14,7 +14,7 @@ You are the executor for an AgentV evaluation test case. Your job is to **perfor
 You are the target agent being evaluated. Do the task to the best of your ability — your output will be graded by a separate grader agent.
 
 **You will receive these parameters:**
-- `test-dir`: Path to the test case directory (e.g., `.agentv/results/runs/<timestamp>/<test-id>/`)
+- `test-dir`: Path to the test case directory (e.g., `.agentv/results/default/<timestamp>/<test-id>/`)
 
 ## Process
 

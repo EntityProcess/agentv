@@ -22,9 +22,9 @@ If no results repo is configured, or auto-push is disabled, `agentv eval` still 
 
 | Location | Path or ref | What it contains |
 | --- | --- | --- |
-| Local project | `.agentv/results/runs/<experiment>/<run-id>/benchmark.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
-| Local project | `.agentv/results/runs/<experiment>/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
-| Results repo remote | `agentv/wip/<hostname>/<run-dir-basename>` | A forced-updated branch containing the checkpointed run under `.agentv/results/runs/<same-relative-run-path>/`. |
+| Local project | `.agentv/results/<experiment>/<run-id>/benchmark.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
+| Local project | `.agentv/results/<experiment>/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
+| Results repo remote | `agentv/wip/<hostname>/<run-dir-basename>` | A forced-updated branch containing the checkpointed run under `.agentv/results/<same-relative-run-path>/`. |
 | Results repo storage branch | Configured `results.repo.branch`; local checkout configs default to `agentv/results/v1` | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
 
 The WIP branch name is derived from the current host and the run directory basename. Non-branch-safe characters are replaced with `-`; the host component is capped at 40 characters and the run component at 60 characters.
@@ -55,19 +55,19 @@ git branch -r --list 'origin/agentv/wip/*'
 git switch --detach origin/agentv/wip/<hostname>/<run-dir-basename>
 
 # 4. Inspect the checkpointed run path.
-find .agentv/results/runs -name benchmark.json
+find .agentv/results -name benchmark.json
 
-# 5. Copy the run tree into the eval project, preserving paths under runs/.
+# 5. Copy the run tree into the eval project, preserving experiment paths.
 PROJECT=/path/to/eval-project
-mkdir -p "$PROJECT/.agentv/results/runs"
-rsync -a .agentv/results/runs/ "$PROJECT/.agentv/results/runs/"
+mkdir -p "$PROJECT/.agentv/results"
+rsync -a .agentv/results/ "$PROJECT/.agentv/results/"
 
 # 6. Resume from the recovered run directory.
 cd "$PROJECT"
-agentv eval <eval-file> --output .agentv/results/runs/<experiment>/<run-id> --resume
+agentv eval <eval-file> --output .agentv/results/<experiment>/<run-id> --resume
 ```
 
-If the recovered `benchmark.json` contains `metadata.eval_file`, use that as `<eval-file>`. If the run lives directly under `.agentv/results/runs/<run-id>/` instead of an experiment directory, pass that path to `--output`.
+If the recovered `benchmark.json` contains `metadata.eval_file`, use that as `<eval-file>`.
 
 After the resumed run publishes successfully, AgentV cleans up any WIP branch it creates for the resumed run. Delete the original orphaned branch manually when you no longer need it:
 

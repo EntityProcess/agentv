@@ -11,7 +11,7 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/runs/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts. Use this generated run folder as the portable audit surface: copy or sync the run directory, not a hand-authored parallel bundle.
+Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`. When no experiment is defined, AgentV uses `.agentv/results/default/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts. Use this generated run folder as the portable audit surface: copy or sync the run directory, not a hand-authored parallel bundle.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -150,7 +150,7 @@ result-oriented workflows. For full-fidelity span inspection, export OTLP JSON e
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv inspect stats .agentv/results/runs/<timestamp>/index.jsonl
+agentv inspect stats .agentv/results/default/<timestamp>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
@@ -326,13 +326,13 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 agentv eval evals/my-eval.yaml --resume
 
 # Or target a specific run dir explicitly
-agentv eval evals/my-eval.yaml --output .agentv/results/runs/<timestamp> --resume
+agentv eval evals/my-eval.yaml --output .agentv/results/default/<timestamp> --resume
 
 # Re-run errors AND failed cases against the last run dir
 agentv eval evals/my-eval.yaml --rerun-failed
 
 # Re-run only execution errors from any prior run by path
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/runs/<timestamp>/index.jsonl
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
@@ -434,10 +434,11 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 ## Transcript And Trace Artifacts
 
-Each result row's `artifact_dir` can include both `outputs/trace.json` and
-`outputs/transcript.jsonl`. The run root does not contain a mixed transcript
-artifact; use each index row's `transcript_path` to find the per-result
-transcript.
+Each result row's `artifact_dir` is a case-local folder under the timestamped
+run bundle. It can include `trace.json`, `transcript.jsonl`, `provider.log`,
+`grading.json`, `timing.json`, `metrics.json`, and generated outputs under
+`outputs/`. The run root does not contain a mixed transcript artifact; use each
+index row's `transcript_path` to find the per-result transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
 entries such as `artifact_pointers.trace` and `artifact_pointers.transcript`
@@ -460,11 +461,11 @@ pointer/backend contract instead of using Git LFS as the core abstraction so
 S3, B2, or other object stores can use the same `key`, `object_version`,
 `sha256`, `size`, `media_type`, and `schema_version` fields later.
 
-`outputs/trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
+`trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
 It stores the canonical span graph, source metadata, capture/redaction policy,
 conversion warnings, score provenance, and opaque evidence references.
 
-`outputs/transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
+`transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
 It uses provider-neutral `agentv.transcript.v1` rows with stable top-level fields
 for message order, role/content, tool calls and paired results, timing, token
 usage, cost, source metadata, capture state, and trace pointers.
@@ -473,7 +474,7 @@ Provider-native payloads can appear only inside opaque nested fields such as
 
 When an agent provider captures a native stream or session log, the result row
 may also include `raw_provider_log_path`, pointing at
-`outputs/raw/provider.log`. That file is raw evidence copied byte-for-byte from
+`provider.log`. That file is raw evidence copied byte-for-byte from
 the provider log and is not parsed, normalized, or required for replay, import,
 Agent Skills conversion, or grading. AgentV does not write or maintain a
 parallel `outputs/transcript.json` source of truth.

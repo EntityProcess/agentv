@@ -86,7 +86,7 @@ export const resultsCombineCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Output run workspace directory (defaults to .agentv/results/runs/combined/<earliest-source-time>)',
+        'Output run workspace directory (defaults to .agentv/results/combined/<earliest-source-time>)',
     }),
     displayName: option({
       type: optional(string),

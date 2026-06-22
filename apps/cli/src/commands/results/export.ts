@@ -140,7 +140,7 @@ export const resultsExportCommand = command({
       type: optional(string),
       displayName: 'source',
       description:
-        'Run workspace directory or index.jsonl manifest to export (defaults to most recent in .agentv/results/runs/)',
+        'Run workspace directory or index.jsonl manifest to export (defaults to most recent in .agentv/results/)',
     }),
     out: option({
       type: optional(string),

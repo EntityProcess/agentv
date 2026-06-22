@@ -25,7 +25,7 @@ bun agentv eval examples/features/document-extraction/evals/confusion-metrics.ev
 
 # Aggregate TP/TN/FP/FN into a table (only works with confusion-metrics.eval.yaml)
 bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
-  .agentv/results/runs/<timestamp>/index.jsonl
+  .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 ## Pattern 1: Field Accuracy (`field-accuracy.eval.yaml`)
@@ -71,7 +71,7 @@ graders:
 **Output**: Aggregate metrics table with fractional precision/recall:
 
 ```
-Processed 5 evaluation results from .agentv/results/runs/<timestamp>/index.jsonl
+Processed 5 evaluation results from .agentv/results/default/<timestamp>/index.jsonl
 
 Field          | TP | TN | FP | FN | Precision | Recall | F1    | Count
 ---------------+----+----+----+----+-----------+--------+-------+------
@@ -96,7 +96,7 @@ Macro-F1: 0.759
 The `aggregate_metrics.ts` script only works with graders that emit `details.metrics`:
 
 ```bash
-bun run scripts/aggregate_metrics.ts .agentv/results/runs/<timestamp>/index.jsonl [options]
+bun run scripts/aggregate_metrics.ts .agentv/results/default/<timestamp>/index.jsonl [options]
 
 Options:
   --grader <name>  Filter to a specific grader

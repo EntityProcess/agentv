@@ -3,7 +3,7 @@
  * artifacts compatible with the AgentV dashboard and results commands.
  *
  * Checks:
- *   1. Directory follows the `runs/<experiment>/<timestamp>` naming convention
+ *   1. Directory follows the `.agentv/results/<experiment>/<timestamp>` naming convention
  *   2. index.jsonl exists and each line has required fields
  *   3. Per-test grading.json exists for every entry in the index
  *   4. Per-test timing.json exists (warning if missing)
@@ -44,20 +44,25 @@ interface IndexEntry {
 function checkDirectoryNaming(runDir: string): Diagnostic[] {
   const dirName = path.basename(runDir);
   const pathSegments = path.normalize(runDir).split(path.sep).filter(Boolean);
-  const runsIndex = pathSegments.lastIndexOf('runs');
+  const resultsIndex = pathSegments.lastIndexOf('results');
   const diagnostics: Diagnostic[] = [];
 
-  if (runsIndex < 0 || runsIndex >= pathSegments.length - 1) {
+  if (resultsIndex >= 0 && pathSegments[resultsIndex + 1] === 'runs') {
+    diagnostics.push({
+      severity: 'error',
+      message:
+        'The .agentv/results/runs namespace is no longer supported. Expected: .agentv/results/<experiment>/<timestamp>',
+    });
+  } else if (resultsIndex < 0 || resultsIndex > pathSegments.length - 3) {
     diagnostics.push({
       severity: 'warning',
       message:
-        "Directory is not under a 'runs/' tree. Expected: .agentv/results/runs/<experiment>/<run-dir>",
+        'Directory is not under the canonical results tree. Expected: .agentv/results/<experiment>/<timestamp>',
     });
   }
 
   const isNewFormat = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(dirName);
-  const isLegacyFormat = /^eval_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(dirName);
-  if (!isNewFormat && !isLegacyFormat) {
+  if (!isNewFormat) {
     diagnostics.push({
       severity: 'warning',
       message: `Directory name '${dirName}' does not match the expected pattern '<ISO-timestamp>'. Example: 2026-03-27T12-42-24-429Z`,
