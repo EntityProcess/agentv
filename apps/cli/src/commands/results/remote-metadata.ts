@@ -288,7 +288,7 @@ export function writeRemoteRunTags(
     context.baseOverlayTags === undefined
   ) {
     rmSync(context.paths.overlayTagsPath, { force: true });
-    return readRemoteRunTags(repoDir, manifestPath);
+    return readRemoteRunTags(repoDir, manifestPath, comparisonRef);
   }
 
   const operation = createRunTagsSetOperation({
