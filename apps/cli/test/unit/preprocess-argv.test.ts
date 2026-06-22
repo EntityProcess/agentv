@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  inferEvalSubcommand,
   preprocessArgv,
   shouldRunBeforeSessionHook,
   usesDeprecatedStudioAlias,
@@ -23,6 +24,22 @@ describe('preprocessArgv', () => {
     it('inserts `run` when eval is followed by a file path', () => {
       const result = preprocessArgv(['node', 'agentv', 'eval', 'file.yaml', '--verbose']);
       expect(result).toEqual(['node', 'agentv', 'eval', 'run', 'file.yaml', '--verbose']);
+    });
+
+    it('inserts `vitest` when eval is followed by a verifier test file', () => {
+      const result = preprocessArgv(['node', 'agentv', 'eval', 'graders/welcome-banner.test.ts']);
+      expect(result).toEqual([
+        'node',
+        'agentv',
+        'eval',
+        'vitest',
+        'graders/welcome-banner.test.ts',
+      ]);
+    });
+
+    it('inserts `vitest` for Vercel-style EVAL.ts verifier files', () => {
+      const result = preprocessArgv(['node', 'agentv', 'eval', 'evals/task/EVAL.ts']);
+      expect(result).toEqual(['node', 'agentv', 'eval', 'vitest', 'evals/task/EVAL.ts']);
     });
 
     it('does not insert `run` when eval is followed by a known subcommand', () => {
@@ -112,6 +129,19 @@ describe('preprocessArgv', () => {
       expect(shouldRunBeforeSessionHook(['node', 'agentv', 'eval', 'run', 'evals/demo.yaml'])).toBe(
         true,
       );
+    });
+  });
+
+  describe('inferEvalSubcommand', () => {
+    it.each([
+      ['graders/welcome-banner.test.ts', 'vitest'],
+      ['graders/welcome-banner.spec.tsx', 'vitest'],
+      ['vercel/evals/task/EVAL.ts', 'vitest'],
+      ['evals/greeting.eval.ts', 'run'],
+      ['evals/dataset.eval.yaml', 'run'],
+      ['graders/custom-grader.ts', 'run'],
+    ] as const)('infers %s as %s', (input, expected) => {
+      expect(inferEvalSubcommand(input)).toBe(expected);
     });
   });
 });

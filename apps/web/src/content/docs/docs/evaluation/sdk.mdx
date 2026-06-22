@@ -46,7 +46,7 @@ Use the simplest surface that matches the job:
 - **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
 - **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
 - **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
-- **`agentv eval vitest`** for deterministic workspace checks that fit normal Vitest `expect(...)` tests.
+- **`agentv eval <verifier.test.ts>`** for deterministic workspace checks that fit normal Vitest `expect(...)` tests.
 
 There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
 
@@ -297,7 +297,7 @@ it('links to the dashboard', () => {
 assertions:
   - name: vitest-welcome-banner
     type: code-grader
-    command: [agentv, eval, vitest, graders/welcome-banner.test.ts]
+    command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
 Use `defineWorkspaceGrader` only for tiny one-off file checks or custom score shaping:
@@ -313,7 +313,7 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 ]);
 ```
 
-`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` custom scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. Plain Vitest verifier files can use `command: [agentv, eval, vitest, ...]` without a custom wrapper. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` custom scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. Plain Vitest verifier files can use `command: [agentv, eval, graders/check.test.ts]` without a custom wrapper; use `agentv eval vitest` when you need adapter flags. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
 For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/graders/code-graders/).
 

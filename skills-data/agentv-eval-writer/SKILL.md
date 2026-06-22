@@ -365,6 +365,13 @@ Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidenc
 Raw stdin uses snake_case and includes: `criteria`, `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 SDK handlers receive the same payload in camelCase: `expectedOutput`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`, `fileChanges`, `workspacePath`.
 When a workspace is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
+For deterministic workspace checks that fit normal Vitest `expect(...)` tests, prefer a plain verifier file and the built-in adapter:
+```yaml
+- name: welcome_banner
+  type: code-grader
+  command: [agentv, eval, graders/welcome-banner.test.ts]
+```
+AgentV infers the Vitest adapter for `*.test.ts`, `*.spec.ts`, and Vercel-style `EVAL.ts` files. Use the explicit `agentv eval vitest` subcommand only when you need adapter flags such as `--cwd`, `--in-workspace`, or `--vitest-command`.
 See docs at https://agentv.dev/graders/code-graders/
 
 ### llm-grader
@@ -644,7 +651,7 @@ export default defineCodeGrader(({ output, trace }) => {
 });
 ```
 
-`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineCodeGrader()` scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`.
+`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineCodeGrader()` scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
 
 ### Convention-Based Discovery
 
