@@ -35,16 +35,30 @@ const RESULTS_REPO_METADATA_DIR = 'metadata';
 // Top-level directories AgentV owns on the results branch. The auto-sync
 // dirty-commit path stages only these so it never touches unrelated repo files.
 const RESULTS_REPO_TRACKED_DIRS = [RESULTS_REPO_RUNS_DIR, RESULTS_REPO_METADATA_DIR] as const;
-const RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
-const RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
+const FALLBACK_RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
+const FALLBACK_RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
+const GIT_COMMIT_IDENTITY_ENV_KEYS = [
+  'GIT_AUTHOR_NAME',
+  'GIT_AUTHOR_EMAIL',
+  'GIT_COMMITTER_NAME',
+  'GIT_COMMITTER_EMAIL',
+] as const;
+const GIT_ENV_INHERIT_ALLOWLIST = new Set([
+  'GIT_ASKPASS',
+  'GIT_PASSWORD',
+  'GIT_SSH_COMMAND',
+  'GIT_TOKEN',
+  'GIT_USERNAME',
+]);
 export const DEFAULT_RESULTS_BRANCH = AGENTV_RESULTS_PRIMARY_REF;
 const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // The results branch is a self-rooted orphan whose first commit is a fixed,
-// byte-identical empty-tree genesis. Pinning the message, identity (see
-// ensureResultsRepoCommitIdentity), and author/committer dates makes the root
-// commit SHA deterministic across every machine and clone, so all clients share
+// byte-identical empty-tree genesis. Pinning the message, identity, and dates
+// through per-command env makes the root commit SHA deterministic across every
+// machine and clone, so all clients share
 // one genesis and fast-forward/append to a single ref instead of each minting a
-// divergent root. See createOrphanResultsBranch.
+// divergent root. This identity is applied via per-command env only so AgentV
+// never overwrites the user's git config. See createOrphanResultsBranch.
 const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
 const RESULT_INDEX_FILENAME = 'index.jsonl';
@@ -254,7 +268,7 @@ async function runCommand(
 function getGitEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined && !(key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND')) {
+    if (value !== undefined && (!key.startsWith('GIT_') || GIT_ENV_INHERIT_ALLOWLIST.has(key))) {
       env[key] = value;
     }
   }
@@ -276,9 +290,72 @@ async function runGh(
   return runCommand('gh', args, options);
 }
 
-async function ensureResultsRepoCommitIdentity(repoDir: string): Promise<void> {
-  await runGit(['config', 'user.email', RESULTS_REPO_COMMIT_EMAIL], { cwd: repoDir });
-  await runGit(['config', 'user.name', RESULTS_REPO_COMMIT_NAME], { cwd: repoDir });
+function gitErrorText(error: unknown): string {
+  const parts: string[] = [];
+  if (error && typeof error === 'object') {
+    const record = error as { stdout?: unknown; stderr?: unknown; message?: unknown };
+    if (typeof record.stdout === 'string') parts.push(record.stdout);
+    if (typeof record.stderr === 'string') parts.push(record.stderr);
+    if (typeof record.message === 'string') parts.push(record.message);
+  } else if (typeof error === 'string') {
+    parts.push(error);
+  }
+  return parts.join('\n').toLowerCase();
+}
+
+function isMissingGitIdentityError(error: unknown): boolean {
+  const text = gitErrorText(error);
+  return (
+    text.includes('author identity unknown') ||
+    text.includes('committer identity unknown') ||
+    text.includes('please tell me who you are') ||
+    text.includes('unable to auto-detect email address') ||
+    text.includes('empty ident name')
+  );
+}
+
+function fallbackResultsRepoCommitEnv(): NodeJS.ProcessEnv {
+  return {
+    GIT_AUTHOR_NAME: FALLBACK_RESULTS_REPO_COMMIT_NAME,
+    GIT_AUTHOR_EMAIL: FALLBACK_RESULTS_REPO_COMMIT_EMAIL,
+    GIT_COMMITTER_NAME: FALLBACK_RESULTS_REPO_COMMIT_NAME,
+    GIT_COMMITTER_EMAIL: FALLBACK_RESULTS_REPO_COMMIT_EMAIL,
+  };
+}
+
+function configuredGitCommitIdentityEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of GIT_COMMIT_IDENTITY_ENV_KEYS) {
+    const value = process.env[key];
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  return env;
+}
+
+async function runGitWithFallbackCommitIdentity(
+  args: readonly string[],
+  options: { cwd: string; env?: NodeJS.ProcessEnv },
+): Promise<{ stdout: string; stderr: string }> {
+  const env = {
+    ...configuredGitCommitIdentityEnv(),
+    ...options.env,
+  };
+  try {
+    return await runGit(args, { ...options, env });
+  } catch (error) {
+    if (!isMissingGitIdentityError(error)) {
+      throw error;
+    }
+    return runGit(args, {
+      ...options,
+      env: {
+        ...env,
+        ...fallbackResultsRepoCommitEnv(),
+      },
+    });
+  }
 }
 
 async function resolveDefaultBranch(repoDir: string): Promise<string> {
@@ -432,16 +509,12 @@ async function createOrphanResultsBranch(repoDir: string, branch: string): Promi
 // identity, and author/committer dates are all fixed, so two inits at different
 // wall-clock times — on different machines — produce the identical root SHA.
 async function createResultsGenesisCommit(repoDir: string): Promise<string> {
-  await ensureResultsRepoCommitIdentity(repoDir);
   const { stdout } = await runGit(
     ['commit-tree', GIT_EMPTY_TREE, '-m', RESULTS_REPO_GENESIS_MESSAGE],
     {
       cwd: repoDir,
       env: {
-        GIT_AUTHOR_NAME: RESULTS_REPO_COMMIT_NAME,
-        GIT_AUTHOR_EMAIL: RESULTS_REPO_COMMIT_EMAIL,
-        GIT_COMMITTER_NAME: RESULTS_REPO_COMMIT_NAME,
-        GIT_COMMITTER_EMAIL: RESULTS_REPO_COMMIT_EMAIL,
+        ...fallbackResultsRepoCommitEnv(),
         GIT_AUTHOR_DATE: RESULTS_REPO_GENESIS_DATE,
         GIT_COMMITTER_DATE: RESULTS_REPO_GENESIS_DATE,
       },
@@ -1142,8 +1215,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       if (inspection.syncStatus === 'dirty') {
         const trackedDirs = await existingTrackedResultsDirs(repoDir);
         await runGit(['add', '--all', '--', ...trackedDirs], { cwd: repoDir });
-        await ensureResultsRepoCommitIdentity(repoDir);
-        await runGit(
+        await runGitWithFallbackCommitIdentity(
           ['commit', '-m', 'chore(results): sync local result metadata', '--', ...trackedDirs],
           {
             cwd: repoDir,
@@ -1357,8 +1429,9 @@ export async function commitAndPushResultsBranch(params: {
     return false;
   }
 
-  await ensureResultsRepoCommitIdentity(params.repoDir);
-  await runGit(['commit', '-m', params.commitMessage], { cwd: params.repoDir });
+  await runGitWithFallbackCommitIdentity(['commit', '-m', params.commitMessage], {
+    cwd: params.repoDir,
+  });
   await runGit(['push', '-u', 'origin', params.branchName], { cwd: params.repoDir });
   return true;
 }
@@ -1873,7 +1946,6 @@ async function commitResultsRunWithTemporaryIndex(params: {
       };
     }
 
-    await ensureResultsRepoCommitIdentity(params.repoDir);
     const commitArgs = [
       'commit-tree',
       newTree,
@@ -1883,7 +1955,9 @@ async function commitResultsRunWithTemporaryIndex(params: {
       '-m',
       `AgentV-Run: ${params.targetRunId}`,
     ];
-    const { stdout: commitStdout } = await runGit(commitArgs, { cwd: params.repoDir });
+    const { stdout: commitStdout } = await runGitWithFallbackCommitIdentity(commitArgs, {
+      cwd: params.repoDir,
+    });
     const commitSha = commitStdout.trim();
     await runGit(
       [
@@ -2391,9 +2465,6 @@ export async function setupWipWorktree(params: {
   await runGit(['worktree', 'add', '-B', params.wipBranch, worktreeDir, baseRef], {
     cwd: cloneDir,
   });
-  // Ensure commits work even without a global git user config.
-  await runGit(['config', 'user.email', 'agentv@wip-checkpoint'], { cwd: worktreeDir });
-  await runGit(['config', 'user.name', 'AgentV WIP Checkpoint'], { cwd: worktreeDir });
   return {
     wipBranch: params.wipBranch,
     worktreeDir,
@@ -2443,7 +2514,7 @@ export async function pushWipCheckpoint(params: {
     return false;
   }
   const timestamp = new Date().toISOString();
-  await runGit(
+  await runGitWithFallbackCommitIdentity(
     ['commit', '--amend', '-m', `wip(results): checkpoint ${params.handle.wipBranch} ${timestamp}`],
     { cwd: params.handle.worktreeDir },
   );
