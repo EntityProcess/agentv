@@ -1,0 +1,97 @@
+please switch to main and delete stale branches like fix/openai-codex-target-env
+
+---
+
+yes
+
+---
+
+remove it
+
+---
+
+is there research done in ai-research-wiki on agent-eval, if so please research how that does workspace setup (e.g. using sandbox) and whether agentv can adopt such pattern. $coordinator
+
+---
+
+i believe we recently did reserach on  vercel agent-eval and we forked it to EntityProcess org
+
+---
+
+does agent-eval have the ability to run evals from the dashboard
+
+---
+
+spawn agent to move all their time stamped runs to the results folder we no longer need the runs folder this aligns better with versal. that means the target logs like co-pilot logs should not be in the output folder it should be in the results time stamped folder sitting alongside the transcript. use workmux skill
+
+---
+
+do we currently plan to support displaying runs in subfolders which means backward compatibility or this is going to be hard deprecation for the dashboard. given not many users use the dashboard at the moment maybe hard deprecation is a good option
+
+---
+
+Also should we group runs by experiment similar to vercel. do we already grip runs by experiment and if no experiment is defined it goes into the default folder under the results folder
+
+---
+
+explain how the current folder structure works and what it will end up being so I can compare
+
+---
+
+wait why are traces and transcripts in their own folder shouldn't we have one trace one transcript per test case inside the timestamp folder
+
+---
+
+Also ensure we have a bead created
+
+---
+
+and we don't need backward compatibility this will make things over complicated
+
+---
+
+What is versa one need multiple runs per case do they aggregate the results across multiple runs and get the average or do they simply get the last run or something else
+
+---
+
++what's the purpose of multiple runs though I don't think agent very currently uses multiple runs isn't for CI gating we just have a single run and if it's below threshold it fails I don't see the point of multiple runs
+
+---
+
+ok if it's to deal with flaky test then that is a problem we need to solve in agent v in that case this is valid and we should implement. please create design and beads for this
+
+---
+
+Then spawn work marks worker to work on it
+
+---
+
+also a line to vercel how are multiple runs used in CI. if one run fails and the other passes how does vercel handle it
+
+---
+
+I thought the pass rates in agent v is for each assertion . will this caused confusion
+
+---
+
+but pass rates should align with Claude skills https://github.com/anthropics/skills/blob/main/skills/skill-creator/references/schemas.md they use pass rate for assertions
+
+---
+
+how does vercel calculate the pass rate of each assertion.  i think we need to be clear about terms here.
+
+---
+
+So your man reversal cannot do pass rate by assertions it's either a binary pass fail
+
+---
+
+vercel I mean
+
+---
+
+also in agents MD mention Claude skills, vercel agent eval, hugging face dataset, and openinference as standards we should find lowest common denominator of when designing agentv contracts. avoid inventing our own. might be in architecture or strategy MD.if you're not sure Go have a look at the AI research wiki I don't mention that wicker in our agents because this is a public repo
+
+---
+
+seems like the flaky design worker has finished
