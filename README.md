@@ -88,7 +88,7 @@ cat ./run/index.jsonl                         # JSONL results for scripts/CI
 Use AgentV programmatically:
 
 ```typescript
-import { evaluate } from '@agentv/core';
+import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
   tests: [

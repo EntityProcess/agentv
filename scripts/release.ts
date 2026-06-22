@@ -44,6 +44,7 @@ const PRIMARY_PACKAGE = 'apps/cli/package.json';
 interface PackageJson {
   name: string;
   version: string;
+  dependencies?: Record<string, string>;
   [key: string]: unknown;
 }
 
@@ -67,6 +68,12 @@ function readPackageJson(path: string): PackageJson {
 
 function writePackageJson(path: string, pkg: PackageJson): void {
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
+}
+
+function syncInternalRuntimeDependencies(pkg: PackageJson, version: string): void {
+  if (pkg.name === '@agentv/sdk' && pkg.dependencies?.['@agentv/core']) {
+    pkg.dependencies['@agentv/core'] = version;
+  }
 }
 
 function bumpVersion(currentVersion: string, bumpType: BumpType): string {
@@ -401,6 +408,7 @@ async function main() {
     const pkg = readPackageJson(fullPath);
     const oldVersion = pkg.version;
     pkg.version = newVersion;
+    syncInternalRuntimeDependencies(pkg, newVersion);
     writePackageJson(fullPath, pkg);
     console.log(`   ✓ ${pkg.name}: ${oldVersion} → ${newVersion}`);
   }

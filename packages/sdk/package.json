@@ -22,17 +22,18 @@
   },
   "scripts": {
     "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
-    "build": "tsup",
+    "build:deps": "bun --cwd ../.. --filter @agentv/core build",
+    "build": "bun run build:deps && tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun run build:deps && tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "fix": "biome check --write .",
-    "test": "bun test"
+    "test": "bun run build:deps && bun test"
   },
   "files": ["dist", "README.md"],
   "dependencies": {
-    "@agentv/core": "workspace:*",
+    "@agentv/core": "4.42.4",
     "yaml": "^2.8.3",
     "zod": "^3.23.8"
   }
