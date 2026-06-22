@@ -649,6 +649,44 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.modelReasoningEffort).toBe('low');
   });
 
+  it('resolves codex OpenAI-compatible endpoint settings', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'codex-local-openai',
+        provider: 'codex',
+        model: '${{ CODEX_MODEL }}',
+        model_reasoning_effort: 'medium',
+        model_verbosity: 'medium',
+        base_url: '${{ OPENAI_BASE_URL }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        api_format: 'responses',
+        sandbox_mode: 'danger-full-access',
+        approval_policy: 'never',
+      },
+      {
+        CODEX_MODEL: 'gpt-5.3-codex-spark',
+        OPENAI_BASE_URL: 'http://127.0.0.1:10531/v1',
+        OPENAI_API_KEY: 'dummy',
+      },
+    );
+
+    expect(target.kind).toBe('codex');
+    if (target.kind !== 'codex') {
+      throw new Error('expected codex target');
+    }
+
+    expect(target.config).toMatchObject({
+      model: 'gpt-5.3-codex-spark',
+      modelReasoningEffort: 'medium',
+      modelVerbosity: 'medium',
+      baseUrl: 'http://127.0.0.1:10531/v1',
+      apiKey: 'dummy',
+      apiFormat: 'responses',
+      sandboxMode: 'danger-full-access',
+      approvalPolicy: 'never',
+    });
+  });
+
   it('rejects unsupported codex model_reasoning_effort values', () => {
     expect(() =>
       resolveTargetDefinition(
@@ -849,6 +887,43 @@ describe('resolveTargetDefinition', () => {
       baseUrl: 'https://api.openai.example/v1',
       apiKey: 'openai-secret',
       wireApi: 'responses',
+    });
+  });
+
+  it('resolves copilot-sdk provider model identity overrides', () => {
+    const env = {
+      OPENAI_ENDPOINT: 'https://api.openai.example/v1',
+      OPENAI_API_KEY: 'openai-secret',
+      WIRE_MODEL: 'gpt-5.3-codex-spark',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-sdk-openai-wire-model',
+        provider: 'copilot-sdk',
+        model: 'gpt-5',
+        subprovider: 'openai',
+        base_url: '${{ OPENAI_ENDPOINT }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        api_format: 'responses',
+        model_id: 'gpt-5',
+        wire_model: '${{ WIRE_MODEL }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('copilot-sdk');
+    if (target.kind !== 'copilot-sdk') {
+      throw new Error('expected copilot-sdk target');
+    }
+
+    expect(target.config.customProvider).toEqual({
+      type: 'openai',
+      baseUrl: 'https://api.openai.example/v1',
+      apiKey: 'openai-secret',
+      wireApi: 'responses',
+      modelId: 'gpt-5',
+      wireModel: 'gpt-5.3-codex-spark',
     });
   });
 

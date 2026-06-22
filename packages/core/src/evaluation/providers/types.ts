@@ -386,6 +386,8 @@ export interface TargetDefinition {
   readonly version?: string | unknown | undefined;
   readonly api_version?: string | unknown | undefined;
   readonly api_format?: string | unknown | undefined;
+  readonly model_id?: string | unknown | undefined;
+  readonly wire_model?: string | unknown | undefined;
   // Anthropic fields
   readonly variant?: string | unknown | undefined;
   readonly thinking_budget?: number | unknown | undefined;
@@ -399,6 +401,9 @@ export interface TargetDefinition {
   readonly args?: unknown | undefined;
   readonly arguments?: unknown | undefined;
   readonly model_reasoning_effort?: string | unknown | undefined;
+  readonly model_verbosity?: string | unknown | undefined;
+  readonly sandbox_mode?: string | unknown | undefined;
+  readonly approval_policy?: string | unknown | undefined;
   readonly cwd?: string | unknown | undefined;
   readonly timeout_seconds?: number | unknown | undefined;
   readonly log_dir?: string | unknown | undefined;

@@ -73,8 +73,12 @@ export class CodexProvider implements Provider {
     if (this.config.executable) {
       codexOptions.codexPathOverride = this.config.executable;
     }
-    if (this.config.model) {
-      codexOptions.config = { model: this.config.model };
+    if (this.config.apiKey) {
+      codexOptions.apiKey = this.config.apiKey;
+    }
+    const codexConfig = this.buildCodexConfig();
+    if (Object.keys(codexConfig).length > 0) {
+      codexOptions.config = codexConfig;
     }
 
     const codex = new sdk.Codex(codexOptions);
@@ -91,6 +95,12 @@ export class CodexProvider implements Provider {
     }
     if (this.config.modelReasoningEffort) {
       threadOptions.modelReasoningEffort = this.config.modelReasoningEffort;
+    }
+    if (this.config.sandboxMode) {
+      threadOptions.sandboxMode = this.config.sandboxMode;
+    }
+    if (this.config.approvalPolicy) {
+      threadOptions.approvalPolicy = this.config.approvalPolicy;
     }
 
     const thread = codex.startThread(threadOptions);
@@ -170,6 +180,33 @@ export class CodexProvider implements Provider {
     } finally {
       await logger?.close();
     }
+  }
+
+  private buildCodexConfig(): Record<string, unknown> {
+    const config: Record<string, unknown> = {};
+    if (this.config.model) {
+      config.model = this.config.model;
+    }
+    if (this.config.modelVerbosity) {
+      config.model_verbosity = this.config.modelVerbosity;
+    }
+    if (this.config.baseUrl) {
+      if (this.config.apiFormat) {
+        const providerName = 'agentv-openai';
+        config.model_provider = providerName;
+        config.model_providers = {
+          [providerName]: {
+            name: 'OpenAI-compatible endpoint',
+            base_url: this.config.baseUrl,
+            env_key: 'CODEX_API_KEY',
+            wire_api: this.config.apiFormat,
+          },
+        };
+      } else {
+        config.openai_base_url = this.config.baseUrl;
+      }
+    }
+    return config;
   }
 
   private async runStreamedWithEvents(

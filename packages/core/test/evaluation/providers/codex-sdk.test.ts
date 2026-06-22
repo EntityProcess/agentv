@@ -132,6 +132,64 @@ describe('CodexProvider (SDK)', () => {
     expect(constructorArgs.config.model).toBe('o4-mini');
   });
 
+  it('passes OpenAI-compatible endpoint config and execution controls to Codex SDK', async () => {
+    const thread = createMockThread({
+      events: [
+        {
+          type: 'item.completed',
+          item: { id: 'msg-1', type: 'agent_message', text: 'response' },
+        },
+        {
+          type: 'turn.completed',
+          usage: { input_tokens: 10, output_tokens: 5, cached_input_tokens: 0 },
+        },
+      ],
+    });
+    const codexInstance = createMockCodex(thread);
+
+    const CodexMock = mock(function Codex() {
+      return codexInstance;
+    });
+    mock.module('@openai/codex-sdk', () => ({ Codex: CodexMock }));
+
+    const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
+
+    const provider = new CodexProvider('test-target', {
+      executable: 'codex',
+      model: 'gpt-5.3-codex-spark',
+      modelReasoningEffort: 'medium',
+      modelVerbosity: 'medium',
+      baseUrl: 'http://127.0.0.1:10531/v1',
+      apiKey: 'dummy',
+      apiFormat: 'responses',
+      sandboxMode: 'danger-full-access',
+      approvalPolicy: 'never',
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const constructorArgs = CodexMock.mock.calls[0][0];
+    expect(constructorArgs.apiKey).toBe('dummy');
+    expect(constructorArgs.config).toEqual({
+      model: 'gpt-5.3-codex-spark',
+      model_verbosity: 'medium',
+      model_provider: 'agentv-openai',
+      model_providers: {
+        'agentv-openai': {
+          name: 'OpenAI-compatible endpoint',
+          base_url: 'http://127.0.0.1:10531/v1',
+          env_key: 'CODEX_API_KEY',
+          wire_api: 'responses',
+        },
+      },
+    });
+
+    const threadOptions = codexInstance.startThread.mock.calls[0][0];
+    expect(threadOptions.modelReasoningEffort).toBe('medium');
+    expect(threadOptions.sandboxMode).toBe('danger-full-access');
+    expect(threadOptions.approvalPolicy).toBe('never');
+  });
+
   it('passes executable config to Codex constructor as codexPathOverride', async () => {
     const thread = createMockThread({
       events: [

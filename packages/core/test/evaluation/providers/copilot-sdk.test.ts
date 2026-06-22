@@ -18,7 +18,9 @@ type EventHandler = (event: any) => void;
 interface MockSession {
   on: ReturnType<typeof mock>;
   sendAndWait: ReturnType<typeof mock>;
-  destroy: ReturnType<typeof mock>;
+  disconnect?: ReturnType<typeof mock>;
+  destroy?: ReturnType<typeof mock>;
+  abort?: ReturnType<typeof mock>;
 }
 
 interface MockClient {
@@ -30,6 +32,7 @@ interface MockClient {
 function createMockSession(options?: {
   events?: Array<{ type: string; data?: unknown }>;
   sendError?: Error;
+  legacyDestroyOnly?: boolean;
 }): MockSession {
   let eventHandler: EventHandler | null = null;
 
@@ -51,8 +54,14 @@ function createMockSession(options?: {
         throw options.sendError;
       }
     }),
-    destroy: mock(async () => {}),
+    abort: mock(async () => {}),
   };
+
+  if (options?.legacyDestroyOnly) {
+    session.destroy = mock(async () => {});
+  } else {
+    session.disconnect = mock(async () => {});
+  }
 
   return session;
 }
@@ -112,7 +121,7 @@ describe('CopilotSdkProvider', () => {
     const content = extractLastAssistantContent(response.output);
     expect(content).toBe('Hello from Copilot SDK');
     expect(session.sendAndWait).toHaveBeenCalledTimes(1);
-    expect(session.destroy).toHaveBeenCalledTimes(1);
+    expect(session.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('passes model config to createSession', async () => {
@@ -209,6 +218,7 @@ describe('CopilotSdkProvider', () => {
     const constructorArgs = CopilotClientMock.mock.calls[0][0];
     // cwd is set so the subprocess resolves relative paths itself — args are NOT pre-resolved
     expect(constructorArgs.cwd).toBe(path.resolve(fixturesRoot));
+    expect(constructorArgs.workingDirectory).toBe(path.resolve(fixturesRoot));
     expect(constructorArgs.cliArgs).toEqual([
       '--plugin-dir',
       './plugins',
@@ -333,9 +343,27 @@ describe('CopilotSdkProvider', () => {
     await provider.invoke({ question: 'First' });
     await provider.invoke({ question: 'Second' });
 
-    // Session should be destroyed after each invocation
-    expect(session.destroy).toHaveBeenCalledTimes(2);
+    // Session should be disconnected after each invocation
+    expect(session.disconnect).toHaveBeenCalledTimes(2);
     expect(client.createSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to destroy for older SDK sessions', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+      legacyDestroyOnly: true,
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {});
+
+    await provider.invoke({ question: 'Test' });
+
+    expect(session.destroy).toHaveBeenCalledTimes(1);
   });
 
   it('extracts token usage from assistant.usage events', async () => {
@@ -445,6 +473,42 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.provider.baseUrl).toBe('https://my-resource.openai.azure.com');
     expect(sessionOptions.provider.apiKey).toBe('azure-secret');
     expect(sessionOptions.provider.azure).toEqual({ apiVersion: '2024-10-21' });
+  });
+
+  it('passes custom provider model identity overrides to createSession', async () => {
+    const session = createMockSession({
+      events: [{ type: 'assistant.message', data: { content: 'response' } }],
+    });
+    const client = createMockClient(session);
+    const sdkMock = mockCopilotSdk(client);
+
+    mock.module('@github/copilot-sdk', () => sdkMock);
+    const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
+
+    const provider = new CopilotSdkProvider('test-target', {
+      model: 'gpt-5',
+      customProvider: {
+        type: 'openai',
+        baseUrl: 'http://127.0.0.1:10531/v1',
+        apiKey: 'dummy',
+        wireApi: 'responses',
+        modelId: 'gpt-5',
+        wireModel: 'gpt-5.3-codex-spark',
+      },
+    });
+
+    await provider.invoke({ question: 'Test' });
+
+    const sessionOptions = client.createSession.mock.calls[0][0];
+    expect(sessionOptions.model).toBe('gpt-5');
+    expect(sessionOptions.provider).toMatchObject({
+      type: 'openai',
+      baseUrl: 'http://127.0.0.1:10531/v1',
+      apiKey: 'dummy',
+      wireApi: 'responses',
+      modelId: 'gpt-5',
+      wireModel: 'gpt-5.3-codex-spark',
+    });
   });
 
   it('normalizes bare azure resource name to full URL', async () => {

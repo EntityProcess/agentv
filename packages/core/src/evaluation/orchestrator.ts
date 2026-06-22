@@ -2029,78 +2029,81 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const providerError = extractProviderError(providerResponse);
 
-  // Execute target after_each hook (runs before workspace after_each)
-  const targetAfterEachHook = options.targetHooks?.after_each;
-  if (workspacePath && hasHookCommand(targetAfterEachHook)) {
-    const scriptContext: ScriptExecutionContext = {
-      workspacePath,
-      testId: evalCase.id,
-      evalRunId: evalRunId ?? '',
-      caseInput: evalCase.question,
-      caseMetadata: evalCase.metadata,
-      evalDir,
-      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
-    };
-    try {
-      await executeWorkspaceScript(
-        toScriptConfig(targetAfterEachHook, 'after_each', `target hook for '${evalCase.id}'`),
-        scriptContext,
-        'warn',
-      );
-    } catch {
-      // target after_each failures are non-fatal
-    }
-  }
-
-  // Reset workspace state before after_each hook (if configured)
-  if (
-    caseHooksEnabled &&
-    workspacePath &&
-    evalCase.workspace?.hooks?.after_each?.reset &&
-    evalCase.workspace.hooks.after_each.reset !== 'none'
-  ) {
-    try {
-      if (repoManager && evalCase.workspace.repos?.length) {
-        await repoManager.reset(
-          evalCase.workspace.repos,
-          workspacePath,
-          evalCase.workspace.hooks.after_each.reset,
+  const runAfterEachHooks = async () => {
+    // Execute target after_each hook before workspace after_each/reset.
+    const targetAfterEachHook = options.targetHooks?.after_each;
+    if (workspacePath && hasHookCommand(targetAfterEachHook)) {
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath,
+        testId: evalCase.id,
+        evalRunId: evalRunId ?? '',
+        caseInput: evalCase.question,
+        caseMetadata: evalCase.metadata,
+        evalDir,
+        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+      };
+      try {
+        await executeWorkspaceScript(
+          toScriptConfig(targetAfterEachHook, 'after_each', `target hook for '${evalCase.id}'`),
+          scriptContext,
+          'warn',
         );
-      } else {
-        await resetWorkspaceRoot(
-          workspacePath,
-          evalCase.workspace.hooks.after_each.reset,
-          baselineCommit,
-        );
+      } catch {
+        // target after_each failures are non-fatal
       }
-    } catch {
-      // Reset failures are non-fatal (like after_each)
     }
-  }
 
-  // Execute after_each hook (runs after evaluation, before cleanup)
-  const caseAfterEachHook = evalCase.workspace?.hooks?.after_each;
-  if (workspacePath && caseHooksEnabled && hasHookCommand(caseAfterEachHook)) {
-    const afterEachHook = caseAfterEachHook;
-    const scriptContext: ScriptExecutionContext = {
-      workspacePath,
-      testId: evalCase.id,
-      evalRunId: evalRunId ?? '',
-      caseInput: evalCase.question,
-      caseMetadata: evalCase.metadata,
-      evalDir,
-      workspaceFileDir: evalCase.workspace?.workspaceFileDir,
-    };
-    try {
-      afterEachOutput = await executeWorkspaceScript(
-        toScriptConfig(afterEachHook, 'after_each', `test '${evalCase.id}'`),
-        scriptContext,
-        'warn',
-      );
-    } catch {
-      // after_each failures are non-fatal
+    // Reset workspace state before after_each hook (if configured), but only
+    // after graders have inspected the agent-modified workspace.
+    if (
+      caseHooksEnabled &&
+      workspacePath &&
+      evalCase.workspace?.hooks?.after_each?.reset &&
+      evalCase.workspace.hooks.after_each.reset !== 'none'
+    ) {
+      try {
+        if (repoManager && evalCase.workspace.repos?.length) {
+          await repoManager.reset(
+            evalCase.workspace.repos,
+            workspacePath,
+            evalCase.workspace.hooks.after_each.reset,
+          );
+        } else {
+          await resetWorkspaceRoot(
+            workspacePath,
+            evalCase.workspace.hooks.after_each.reset,
+            baselineCommit,
+          );
+        }
+      } catch {
+        // Reset failures are non-fatal (like after_each)
+      }
     }
-  }
+
+    // Execute after_each hook (runs after grading, before cleanup)
+    const caseAfterEachHook = evalCase.workspace?.hooks?.after_each;
+    if (workspacePath && caseHooksEnabled && hasHookCommand(caseAfterEachHook)) {
+      const afterEachHook = caseAfterEachHook;
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath,
+        testId: evalCase.id,
+        evalRunId: evalRunId ?? '',
+        caseInput: evalCase.question,
+        caseMetadata: evalCase.metadata,
+        evalDir,
+        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+      };
+      try {
+        afterEachOutput = await executeWorkspaceScript(
+          toScriptConfig(afterEachHook, 'after_each', `test '${evalCase.id}'`),
+          scriptContext,
+          'warn',
+        );
+      } catch {
+        // after_each failures are non-fatal
+      }
+    }
+  };
 
   try {
     const result = await evaluateCandidate({
@@ -2133,6 +2136,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       threshold: evalCase.threshold ?? caseThreshold,
       dependencyResults,
     });
+    await runAfterEachHooks();
 
     const effectiveThreshold = evalCase.threshold ?? caseThreshold;
     const totalDurationMs = Date.now() - caseStartMs;
@@ -2236,6 +2240,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     return finalResult;
   } catch (error) {
+    await runAfterEachHooks().catch(() => {});
     const evalRun = { durationMs: Date.now() - caseStartMs };
     const errorResult = buildErrorResult(
       evalCase,
