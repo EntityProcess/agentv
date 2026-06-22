@@ -24,6 +24,5 @@ tests:
             "bun",
             "../../../../apps/cli/src/cli.ts",
             "eval",
-            "vitest",
             "../graders/welcome-banner.test.ts",
           ]

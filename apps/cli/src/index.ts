@@ -62,6 +62,7 @@ export const app = subcommands({
  * implicit `run` subcommand for backward-compatible `agentv eval <paths>`.
  */
 const EVAL_SUBCOMMANDS = new Set(['run', 'assert', 'aggregate', 'bundle', 'vitest']);
+const VITEST_VERIFIER_RE = /(?:^|[/\\])(?:EVAL|[^/\\]+[.-](?:test|spec))\.[cm]?[jt]sx?$/i;
 
 /**
  * Top-level CLI command names (excluding `eval` itself).
@@ -100,6 +101,10 @@ export function shouldRunBeforeSessionHook(argv: string[]): boolean {
   return !(argv[2] === 'eval' && argv[3] === 'vitest');
 }
 
+export function inferEvalSubcommand(arg: string | undefined): 'run' | 'vitest' {
+  return arg && VITEST_VERIFIER_RE.test(arg) ? 'vitest' : 'run';
+}
+
 /**
  * Preprocess argv for convenience aliases:
  * - `--eval-id` → `--test-id`
@@ -122,11 +127,12 @@ export function preprocessArgv(argv: string[]): string[] {
     }
   }
 
-  // Implicit `run` subcommand: `agentv eval [<arg>]` → `agentv eval run [<arg>]`
+  // Implicit eval subcommand: `agentv eval [<arg>]` injects the inferred command
   // when the first arg after `eval` is absent or is not a known eval subcommand.
   // Backward-compat: `eval` used to be a direct command; now it is a subcommands group.
   // Bare `agentv eval` falls through to the run handler so its TTY check can launch
-  // the interactive wizard.
+  // the interactive wizard. Vitest-looking verifier files use the protocol adapter
+  // directly so deterministic workspace graders can stay short in eval YAML.
   // Only applies when `eval` is the top-level subcommand.
   // Exception: `--help` / `-h` should show the eval group help, not run's help.
   const evalIdx = result.indexOf('eval');
@@ -139,7 +145,7 @@ export function preprocessArgv(argv: string[]): string[] {
       const isHelp = nextArg === '--help' || nextArg === '-h';
       const isKnownSubcommand = nextArg !== undefined && EVAL_SUBCOMMANDS.has(nextArg);
       if (!isHelp && !isKnownSubcommand) {
-        result.splice(evalIdx + 1, 0, 'run');
+        result.splice(evalIdx + 1, 0, inferEvalSubcommand(nextArg));
       }
     }
   }

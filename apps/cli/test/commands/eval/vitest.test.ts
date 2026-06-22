@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,13 +39,19 @@ const report = {
   ],
 };
 
-async function runCli(args: readonly string[], cwd: string, input: string) {
+async function runCli(
+  args: readonly string[],
+  cwd: string,
+  input: string,
+  env: Record<string, string> = {},
+) {
   return execa('bun', ['--no-env-file', CLI_ENTRY, ...args], {
     cwd,
     input,
     env: {
       AGENTV_HOME: path.join(cwd, '.agentv-home'),
       AGENTV_NO_UPDATE_CHECK: '1',
+      ...env,
     },
   });
 }
@@ -126,5 +132,63 @@ process.exit(1);
 
     const workspaceEntries = await readdir(workspacePath);
     expect(workspaceEntries.some((entry) => entry.startsWith('.agentv-vitest-'))).toBe(false);
+  });
+
+  it('infers the Vitest adapter for verifier-looking eval paths', async () => {
+    const workspacePath = path.join(tempDir, 'workspace');
+    const gradersPath = path.join(tempDir, 'graders');
+    const binPath = path.join(tempDir, 'bin');
+    const fakeBunx = path.join(binPath, 'bunx');
+    await mkdir(workspacePath, { recursive: true });
+    await mkdir(gradersPath, { recursive: true });
+    await mkdir(binPath, { recursive: true });
+    await writeFile(
+      path.join(gradersPath, 'welcome-banner.test.ts'),
+      'import { expect, it } from "vitest";\n',
+      'utf8',
+    );
+    await writeFile(
+      fakeBunx,
+      `#!/usr/bin/env bun
+import { writeFileSync } from 'node:fs';
+
+const args = process.argv.slice(2);
+writeFileSync('vitest-args.json', JSON.stringify(args));
+const outputArg = args.find((arg) => arg.startsWith('--outputFile='));
+if (!outputArg) throw new Error('missing outputFile arg');
+writeFileSync(outputArg.slice('--outputFile='.length), JSON.stringify(${JSON.stringify(report)}));
+process.exit(1);
+`,
+      'utf8',
+    );
+    await chmod(fakeBunx, 0o755);
+
+    const payload = JSON.stringify({
+      criteria: 'Verify the workspace',
+      expected_output: [],
+      input_files: [],
+      input: [{ role: 'user', content: 'Update the welcome banner' }],
+      workspace_path: workspacePath,
+    });
+
+    const result = await runCli(['eval', 'graders/welcome-banner.test.ts'], tempDir, payload, {
+      PATH: `${binPath}:${process.env.PATH ?? ''}`,
+    });
+
+    const output = JSON.parse(result.stdout);
+    expect(output.score).toBe(0.5);
+    expect(output.details).toMatchObject({
+      vitest_success: false,
+      num_total_tests: 2,
+      num_passed_tests: 1,
+      num_failed_tests: 1,
+    });
+
+    const vitestArgs = JSON.parse(
+      await readFile(path.join(workspacePath, 'vitest-args.json'), 'utf8'),
+    ) as string[];
+    expect(vitestArgs[0]).toBe('vitest');
+    expect(vitestArgs[1]).toBe('run');
+    expect(vitestArgs[2]).toMatch(/^\.agentv-vitest-.+\/0-welcome-banner\.test\.ts$/);
   });
 });

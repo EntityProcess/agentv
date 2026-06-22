@@ -9,7 +9,7 @@ import { evalVitestCommand } from './commands/vitest.js';
 export const evalCommand = subcommands({
   name: 'eval',
   description:
-    'Evaluation commands. Shorthand: `agentv eval <eval-paths...>` aliases `agentv eval run <eval-paths...>`.',
+    'Evaluation commands. Shorthand: eval files run with `eval run`; verifier-looking test files run with `eval vitest`.',
   cmds: {
     run: evalRunCommand,
     assert: evalAssertCommand,

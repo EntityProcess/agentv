@@ -244,10 +244,10 @@ Then use AgentV's built-in Vitest adapter as the `code-grader` command. The adap
 assertions:
   - name: vitest-welcome-banner
     type: code-grader
-    command: [agentv, eval, vitest, graders/welcome-banner.test.ts]
+    command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
-Use `agentv eval vitest --in-workspace verifiers/welcome-banner.test.ts` when the verifier file is already materialized inside the prepared workspace. Use the SDK's `defineVitestWorkspaceGrader()` only when embedding the adapter in a custom script or custom command. See `examples/features/vitest-workspace-grader/` for a runnable example.
+AgentV infers the Vitest adapter for verifier-looking files such as `*.test.ts`, `*.spec.ts`, and Vercel-style `EVAL.ts`. Use `agentv eval vitest --in-workspace verifiers/welcome-banner.test.ts` when the verifier file is already materialized inside the prepared workspace or you need other adapter options. Use the SDK's `defineVitestWorkspaceGrader()` only when embedding the adapter in a custom script or custom command. See `examples/features/vitest-workspace-grader/` for a runnable example.
 
 ### Lower-Level Workspace Helpers
 

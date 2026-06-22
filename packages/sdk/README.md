@@ -77,12 +77,12 @@ Then reference the verifier directly from eval YAML through AgentV's built-in co
 assertions:
   - name: vitest-welcome-banner
     type: code-grader
-    command: [agentv, eval, vitest, graders/welcome-banner.test.ts]
+    command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
 The command reads the normal code-grader stdin payload, runs Vitest in `workspace_path`, maps each Vitest test to an AgentV assertion, and computes score as `passed / total`.
 
-Use `defineVitestWorkspaceGrader` when embedding this adapter in a custom script or when you need custom command options:
+Use the explicit `agentv eval vitest` subcommand when you need adapter options such as `--cwd`, `--in-workspace`, or `--vitest-command`. Use `defineVitestWorkspaceGrader` when embedding this adapter in a custom script:
 
 ```typescript
 #!/usr/bin/env bun
