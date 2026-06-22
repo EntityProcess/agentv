@@ -10,6 +10,7 @@
  *   - GET /api/runs   — list available run workspaces with metadata
  *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/runs/:filename/log — stream the captured console.log for a run
+ *   - GET /api/runs/:filename/phoenix-session — read linked Phoenix session data
  *   - GET /api/runs/:filename/evals/:evalId/files/* — read artifact files as JSON,
  *     or as raw/downloadable text with ?raw=1 / ?download=1
  *   - GET /api/feedback  — read feedback reviews
@@ -52,13 +53,17 @@ import {
   AGENTV_RESULTS_ARTIFACTS_REF,
   DEFAULT_CATEGORY,
   type EvaluationResult,
+  type ExternalTraceMetadata,
+  type ExternalTraceMetadataWire,
   addProject,
+  externalTraceMetadataFromRecord,
   getProject,
   loadConfig,
   loadProjectRegistry,
   readGitResultArtifact,
   removeProject,
   syncProjects,
+  toExternalTraceMetadataWire,
   touchProject,
 } from '@agentv/core';
 import type { Context } from 'hono';
@@ -83,6 +88,7 @@ import {
   loadManifestResults,
   parseResultManifest,
 } from './manifest.js';
+import { readPhoenixLinkedSession } from './phoenix-readthrough.js';
 import {
   type SourcedResultFileMeta,
   clearRemoteRunTags,
@@ -997,6 +1003,69 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     });
   } catch {
     return c.json({ error: 'Failed to load run' }, 500);
+  }
+}
+
+interface ExternalTraceSelection {
+  readonly metadata: ExternalTraceMetadata;
+  readonly wire: ExternalTraceMetadataWire;
+}
+
+function isPhoenixExternalTrace(metadata: ExternalTraceMetadata): boolean {
+  const provider = metadata.provider?.toLowerCase();
+  return provider === undefined || provider === 'phoenix';
+}
+
+function externalTraceFromManifestRecord(
+  record: ResultManifestRecord,
+): ExternalTraceSelection | undefined {
+  const topLevel = record.external_trace
+    ? externalTraceMetadataFromRecord({ external_trace: record.external_trace })
+    : undefined;
+  const fromMetadata = externalTraceMetadataFromRecord(record.metadata);
+  const metadata = topLevel ?? fromMetadata;
+  if (!metadata || !isPhoenixExternalTrace(metadata)) {
+    return undefined;
+  }
+  try {
+    return {
+      metadata,
+      wire: toExternalTraceMetadataWire(metadata),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function findExternalTrace(
+  records: readonly ResultManifestRecord[],
+): ExternalTraceSelection | undefined {
+  for (const record of records) {
+    const externalTrace = externalTraceFromManifestRecord(record);
+    if (externalTrace) {
+      return externalTrace;
+    }
+  }
+  return undefined;
+}
+
+async function handlePhoenixSession(c: C, { searchDir, projectId }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const meta = await findRunById(searchDir, filename, projectId);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+
+  try {
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
+    const externalTrace = findExternalTrace(records);
+    return c.json(await readPhoenixLinkedSession(externalTrace?.metadata, externalTrace?.wire));
+  } catch (error) {
+    return c.json({
+      schema_version: 'agentv.dashboard.phoenix_session.v1',
+      status: 'schema_mismatch',
+      message: `Failed to inspect AgentV run metadata: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    });
   }
 }
 
@@ -2374,6 +2443,7 @@ export function createApp(
     return handleRunDelete(c, defaultCtx);
   });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
+  app.get('/api/runs/:filename/phoenix-session', (c) => handlePhoenixSession(c, defaultCtx));
   app.get('/api/runs/:filename/log', (c) => handleRunLog(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
   app.get('/api/runs/:filename/categories', (c) => handleRunCategories(c, defaultCtx));
@@ -2491,6 +2561,9 @@ export function createApp(
     return withProject(c, handleRunDelete);
   });
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
+  app.get('/api/projects/:projectId/runs/:filename/phoenix-session', (c) =>
+    withProject(c, handlePhoenixSession),
+  );
   app.get('/api/projects/:projectId/runs/:filename/log', (c) => withProject(c, handleRunLog));
   app.get('/api/projects/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
   app.get('/api/projects/:projectId/runs/:filename/categories', (c) =>

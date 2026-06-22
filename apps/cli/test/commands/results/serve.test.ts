@@ -454,15 +454,40 @@ function createMockStudioDir(baseDir: string): string {
 // ── Hono app (Dashboard SPA + API) ─────────────────────────────────────────
 
 describe('serve app', () => {
+  const PHOENIX_ENV_KEYS = [
+    'AGENTV_PHOENIX_ENDPOINT',
+    'AGENTV_PHOENIX_API_KEY',
+    'AGENTV_PHOENIX_AUTHORIZATION',
+    'AGENTV_PHOENIX_HEADERS',
+    'AGENTV_PHOENIX_GRAPHQL_URL',
+    'PHOENIX_HOST',
+    'PHOENIX_API_KEY',
+    'PHOENIX_CLIENT_HEADERS',
+  ] as const;
   let tempDir: string;
   let studioDir: string;
+  let originalFetch: typeof fetch;
+  let originalPhoenixEnv: Record<(typeof PHOENIX_ENV_KEYS)[number], string | undefined>;
 
   beforeEach(() => {
     tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-test-'));
     studioDir = createMockStudioDir(tempDir);
+    originalFetch = globalThis.fetch;
+    originalPhoenixEnv = Object.fromEntries(
+      PHOENIX_ENV_KEYS.map((key) => [key, process.env[key]]),
+    ) as Record<(typeof PHOENIX_ENV_KEYS)[number], string | undefined>;
   });
 
   afterEach(() => {
+    globalThis.fetch = originalFetch;
+    for (const key of PHOENIX_ENV_KEYS) {
+      const value = originalPhoenixEnv[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
     rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -965,6 +990,383 @@ describe('serve app', () => {
           ref: RUN_OPLOG_REF,
         },
       });
+    });
+
+    it('reads a linked Phoenix session through narrow server-side GraphQL/API requests', async () => {
+      const filename = '2026-03-25T10-15-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          source: 'codex',
+          endpoint: 'https://phoenix.example/v1/traces?api_key=artifact-secret',
+          project: 'agentv-dogfood',
+          session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
+          ui_url: 'https://phoenix.example/sessions/codex-session-1?token=artifact-secret',
+        },
+      });
+      process.env.AGENTV_PHOENIX_ENDPOINT = 'https://phoenix.example';
+      process.env.AGENTV_PHOENIX_API_KEY = 'server-secret';
+
+      const requests: Request[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        const url = new URL(request.url);
+        if (url.pathname === '/graphql') {
+          const body = (await request.json()) as {
+            query: string;
+            variables: Record<string, string | number>;
+          };
+          expect(body.query).toContain('AgentVPhoenixLinkedSessionByNode');
+          expect(body.query).toContain('AgentVPhoenixSessionFields');
+          expect(body.query).toContain('AgentVPhoenixTraceFields');
+          expect(body.query).toContain('AgentVPhoenixSpanFields');
+          expect(body.variables.id).toBe('UHJvamVjdFNlc3Npb246MQ==');
+          expect(request.headers.get('authorization')).toBe('Bearer server-secret');
+          return Response.json({
+            data: {
+              node: {
+                __typename: 'ProjectSession',
+                id: 'UHJvamVjdFNlc3Npb246MQ==',
+                sessionId: 'codex-session-1',
+                project: { id: 'project-1', name: 'agentv-dogfood' },
+                numTraces: 1,
+                tokenUsage: { prompt: 12, completion: 8, total: 20 },
+                costSummary: {
+                  prompt: { cost: 0.01, tokens: 12 },
+                  completion: { cost: 0.01, tokens: 8 },
+                  total: { cost: 0.02, tokens: 20 },
+                },
+                startTime: '2026-03-25T10:00:00.000Z',
+                endTime: '2026-03-25T10:00:04.000Z',
+                sessionAnnotations: [
+                  {
+                    id: 'ann-session',
+                    projectSessionId: 'codex-session-1',
+                    name: 'review',
+                    annotatorKind: 'HUMAN',
+                    label: 'pass',
+                    score: 1,
+                    explanation: 'Looks good',
+                    metadata: { cookie: 'annotation-cookie-secret' },
+                    identifier: 'session-review',
+                    createdAt: '2026-03-25T10:00:05.000Z',
+                    updatedAt: '2026-03-25T10:00:05.000Z',
+                  },
+                ],
+                traces: {
+                  edges: [
+                    {
+                      node: {
+                        id: 'trace-node-1',
+                        traceId: 'trace-1',
+                        startTime: '2026-03-25T10:00:00.000Z',
+                        endTime: '2026-03-25T10:00:04.000Z',
+                        latencyMs: 4000,
+                        projectId: 'project-1',
+                        project: { id: 'project-1', name: 'agentv-dogfood' },
+                        projectSessionId: 'UHJvamVjdFNlc3Npb246MQ==',
+                        costSummary: {
+                          total: { cost: 0.02, tokens: 20 },
+                        },
+                        traceAnnotations: [],
+                        rootSpan: {
+                          id: 'span-node-root',
+                          spanId: 'span-root',
+                          parentId: null,
+                          name: 'agent turn',
+                          spanKind: 'agent',
+                          statusCode: 'OK',
+                          startTime: '2026-03-25T10:00:00.000Z',
+                          endTime: '2026-03-25T10:00:04.000Z',
+                          latencyMs: 4000,
+                          input: {
+                            value: 'summarize the repo',
+                            truncatedValue: 'summarize the repo',
+                            mimeType: 'text/plain',
+                          },
+                          output: {
+                            value: 'repo summary',
+                            truncatedValue: 'repo summary',
+                            mimeType: 'text/plain',
+                          },
+                          attributes: JSON.stringify({
+                            'input.value': 'summarize the repo',
+                            'output.value': 'repo summary',
+                            authorization: 'span-authorization-secret',
+                            nested: { api_key: 'span-api-key-secret', visible: 'safe' },
+                          }),
+                          tokenCountTotal: 20,
+                          tokenCountPrompt: 12,
+                          tokenCountCompletion: 8,
+                          cumulativeTokenCountTotal: 20,
+                          cumulativeTokenCountPrompt: 12,
+                          cumulativeTokenCountCompletion: 8,
+                          costSummary: {
+                            total: { cost: 0.02, tokens: 20 },
+                          },
+                          spanAnnotations: [
+                            {
+                              id: 'ann-span',
+                              spanId: 'span-root',
+                              name: 'latency',
+                              annotatorKind: 'CODE',
+                              label: 'ok',
+                              score: null,
+                              explanation: null,
+                              metadata: {
+                                headers: { authorization: 'span-annotation-secret' },
+                                visible: 'safe',
+                              },
+                              identifier: 'span-latency',
+                              createdAt: '2026-03-25T10:00:05.000Z',
+                              updatedAt: '2026-03-25T10:00:05.000Z',
+                            },
+                          ],
+                          trace: {
+                            id: 'trace-node-1',
+                            traceId: 'trace-1',
+                            costSummary: { total: { cost: 0.02, tokens: 20 } },
+                          },
+                          project: { id: 'project-1', name: 'agentv-dogfood' },
+                        },
+                        spans: {
+                          edges: [
+                            {
+                              node: {
+                                id: 'span-node-root',
+                                spanId: 'span-root',
+                                parentId: null,
+                                name: 'agent turn',
+                                spanKind: 'agent',
+                                statusCode: 'OK',
+                                startTime: '2026-03-25T10:00:00.000Z',
+                                endTime: '2026-03-25T10:00:04.000Z',
+                                latencyMs: 4000,
+                                input: {
+                                  value: 'summarize the repo',
+                                  truncatedValue: 'summarize the repo',
+                                  mimeType: 'text/plain',
+                                },
+                                output: {
+                                  value: 'repo summary',
+                                  truncatedValue: 'repo summary',
+                                  mimeType: 'text/plain',
+                                },
+                                attributes: '{}',
+                                tokenCountTotal: 20,
+                                tokenCountPrompt: 12,
+                                tokenCountCompletion: 8,
+                                cumulativeTokenCountTotal: 20,
+                                cumulativeTokenCountPrompt: 12,
+                                cumulativeTokenCountCompletion: 8,
+                                costSummary: { total: { cost: 0.02, tokens: 20 } },
+                                spanAnnotations: [
+                                  {
+                                    id: 'ann-span',
+                                    spanId: 'span-root',
+                                    name: 'latency',
+                                    annotatorKind: 'CODE',
+                                    label: 'ok',
+                                    score: null,
+                                    explanation: null,
+                                    metadata: {},
+                                    identifier: 'span-latency',
+                                    createdAt: '2026-03-25T10:00:05.000Z',
+                                    updatedAt: '2026-03-25T10:00:05.000Z',
+                                  },
+                                ],
+                                trace: {
+                                  id: 'trace-node-1',
+                                  traceId: 'trace-1',
+                                  costSummary: { total: { cost: 0.02, tokens: 20 } },
+                                },
+                                project: { id: 'project-1', name: 'agentv-dogfood' },
+                              },
+                            },
+                            {
+                              node: {
+                                id: 'span-node-child',
+                                spanId: 'span-child',
+                                parentId: 'span-root',
+                                name: 'tool call',
+                                spanKind: 'tool',
+                                statusCode: 'OK',
+                                startTime: '2026-03-25T10:00:01.000Z',
+                                endTime: '2026-03-25T10:00:02.000Z',
+                                latencyMs: 1000,
+                                input: null,
+                                output: null,
+                                attributes: JSON.stringify({ 'openinference.span.kind': 'TOOL' }),
+                                tokenCountTotal: null,
+                                tokenCountPrompt: null,
+                                tokenCountCompletion: null,
+                                cumulativeTokenCountTotal: null,
+                                cumulativeTokenCountPrompt: null,
+                                cumulativeTokenCountCompletion: null,
+                                costSummary: null,
+                                spanAnnotations: [],
+                                trace: {
+                                  id: 'trace-node-1',
+                                  traceId: 'trace-1',
+                                  costSummary: { total: { cost: 0.02, tokens: 20 } },
+                                },
+                                project: { id: 'project-1', name: 'agentv-dogfood' },
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          });
+        }
+        return Response.json({ error: 'unexpected request' }, { status: 500 });
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}/phoenix-session`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        external_trace: { endpoint: string; ui_url: string };
+        session: { session_id: string; trace_count: number; token_usage?: { input?: number } };
+        turns: Array<{ root_span_id?: string; input?: string; output?: string; cost_usd?: number }>;
+        trace_tree: Array<{ span_id: string; depth: number }>;
+        annotations: Array<{ name?: string; target?: string }>;
+      };
+
+      expect(data.status).toBe('ok');
+      expect(data.external_trace).toMatchObject({
+        endpoint: 'https://phoenix.example/',
+        ui_url: 'https://phoenix.example/sessions/codex-session-1',
+      });
+      expect(data.session).toMatchObject({
+        session_id: 'codex-session-1',
+        trace_count: 1,
+        token_usage: { input: 12 },
+      });
+      expect(data.turns[0]).toMatchObject({
+        root_span_id: 'span-root',
+        input: 'summarize the repo',
+        output: 'repo summary',
+        cost_usd: 0.02,
+      });
+      expect(data.trace_tree.map(({ span_id, depth }) => ({ span_id, depth }))).toEqual([
+        { span_id: 'span-root', depth: 0 },
+        { span_id: 'span-child', depth: 1 },
+      ]);
+      expect(data.annotations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'review', target: 'session' }),
+          expect.objectContaining({ name: 'latency', target: 'span' }),
+        ]),
+      );
+      expect(requests.map((request) => new URL(request.url).pathname)).toEqual(['/graphql']);
+      const serialized = JSON.stringify(data);
+      expect(serialized).not.toContain('server-secret');
+      expect(serialized).not.toContain('artifact-secret');
+      expect(serialized).not.toContain('annotation-cookie-secret');
+      expect(serialized).not.toContain('span-authorization-secret');
+      expect(serialized).not.toContain('span-api-key-secret');
+      expect(serialized).not.toContain('span-annotation-secret');
+      expect(serialized).not.toContain('Authorization');
+      expect(serialized).toContain('safe');
+    });
+
+    it('does not use artifact Phoenix endpoints as server network config', async () => {
+      const filename = '2026-03-25T10-17-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          endpoint: 'https://artifact-controlled.example',
+          session_node_id: 'UHJvamVjdFNlc3Npb246MQ==',
+          ui_url: 'https://artifact-controlled.example/sessions/codex-session-1',
+        },
+      });
+      process.env.AGENTV_PHOENIX_API_KEY = 'server-secret';
+      const requests: Request[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        return Response.json({ error: 'unexpected request' }, { status: 500 });
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}/phoenix-session`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        message: string;
+        open_in_phoenix_url?: string;
+      };
+      expect(data.status).toBe('not_configured');
+      expect(data.message).toContain('AGENTV_PHOENIX_ENDPOINT');
+      expect(data.open_in_phoenix_url).toBe(
+        'https://artifact-controlled.example/sessions/codex-session-1',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
+    it('reports missing Phoenix configuration without contacting Phoenix', async () => {
+      const filename = '2026-03-25T10-20-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          session_id: 'codex-session-1',
+        },
+      });
+      const requests: Request[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(new Request(input, init));
+        return Response.json({ error: 'unexpected request' }, { status: 500 });
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}/phoenix-session`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { status: string; message: string };
+
+      expect(data.status).toBe('not_configured');
+      expect(data.message).toContain('AGENTV_PHOENIX_ENDPOINT');
+      expect(requests).toEqual([]);
+    });
+
+    it('keeps run detail readable when Phoenix is unreachable', async () => {
+      const filename = '2026-03-25T10-25-00-000Z';
+      createLocalRun(tempDir, filename, {
+        ...RESULT_A,
+        external_trace: {
+          provider: 'phoenix',
+          endpoint: 'https://phoenix.example',
+          trace_id: 'trace-1',
+          project: 'agentv-dogfood',
+        },
+      });
+      process.env.AGENTV_PHOENIX_ENDPOINT = 'https://phoenix.example';
+      globalThis.fetch = (async () => {
+        throw new Error('connect ECONNREFUSED');
+      }) as typeof fetch;
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const phoenixRes = await app.request(
+        `/api/runs/${encodeURIComponent(filename)}/phoenix-session`,
+      );
+      expect(phoenixRes.status).toBe(200);
+      const phoenixData = (await phoenixRes.json()) as { status: string; message: string };
+      expect(phoenixData.status).toBe('unreachable');
+      expect(phoenixData.message).toContain('connect ECONNREFUSED');
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as { results: Array<{ testId: string }> };
+      expect(detailData.results[0].testId).toBe('test-greeting');
     });
 
     it('exposes materialized final state and oplog watermark for local run tags', async () => {

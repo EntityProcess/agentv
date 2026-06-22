@@ -26,6 +26,7 @@ import { summarizeQuality } from '~/lib/result-summary';
 import { formatCategoryDisplay } from '~/lib/run-detail-context';
 
 import { PassRatePill } from './PassRatePill';
+import { PhoenixLinkedSessionPanel } from './PhoenixLinkedSessionPanel';
 import { ResultTable } from './ResultTable';
 import { StatsCards } from './StatsCards';
 
@@ -124,6 +125,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
     return (
       <div className="space-y-6">
         <StatsCards total={0} passed={0} failed={0} passRate={0} />
+        <PhoenixLinkedSessionPanel runId={runId} projectId={projectId} />
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
           <p className="text-lg text-gray-400">No evaluations found</p>
           <p className="mt-2 text-sm text-gray-500">This run has no results yet.</p>
@@ -142,6 +144,8 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
         executionErrors={summary.executionErrors}
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
+
+      <PhoenixLinkedSessionPanel runId={runId} projectId={projectId} />
 
       {/* Category Breakdown */}
       <div>

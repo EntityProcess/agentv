@@ -24,6 +24,15 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
+  type ExternalTraceMetadata,
+  type ExternalTraceMetadataWire,
+  ExternalTraceMetadataWireSchema,
+  externalTraceMetadataForResult,
+  fromExternalTraceMetadataWire,
+  omitExternalTraceMetadataKeys,
+  toExternalTraceMetadataWire,
+} from './external-trace.js';
+import {
   type ExportDuplicatePolicy,
   type ProjectionIdentity,
   type ProjectionIdentityIssue,
@@ -173,6 +182,7 @@ export interface TraceEnvelope {
   readonly artifactId: string;
   readonly createdAt: string;
   readonly eval: TraceEnvelopeEval;
+  readonly externalTrace?: ExternalTraceMetadata;
   readonly projectionIdentity?: ProjectionIdentity;
   readonly exportMetadata?: TraceEnvelopeExportMetadata;
   readonly replay?: TraceEnvelopeReplay;
@@ -338,6 +348,7 @@ export const TraceEnvelopeWireSchema = z
     artifact_id: z.string(),
     created_at: z.string(),
     eval: TraceEnvelopeEvalWireSchema,
+    external_trace: ExternalTraceMetadataWireSchema.optional(),
     projection_identity: ProjectionIdentityWireSchema.optional(),
     export_metadata: TraceEnvelopeExportMetadataWireSchema.optional(),
     replay: TraceEnvelopeReplayWireSchema.optional(),
@@ -357,6 +368,7 @@ export type TraceEnvelopeBodyWire = z.infer<typeof TraceEnvelopeBodyWireSchema>;
 export type TraceEnvelopeSpanWire = z.infer<typeof TraceEnvelopeSpanWireSchema>;
 export type TraceEnvelopeSourceWire = z.infer<typeof TraceEnvelopeSourceWireSchema>;
 export type TraceEnvelopeCaptureWire = z.infer<typeof TraceEnvelopeCaptureWireSchema>;
+export type TraceEnvelopeExternalTraceWire = ExternalTraceMetadataWire;
 export type TraceEnvelopeConversionWarningWire = z.infer<
   typeof TraceEnvelopeConversionWarningWireSchema
 >;
@@ -372,6 +384,7 @@ export interface BuildTraceEnvelopeOptions {
   readonly runId?: string;
   readonly experiment?: string;
   readonly source?: Partial<TraceEnvelopeSource>;
+  readonly externalTrace?: ExternalTraceMetadata;
   readonly replay?: TraceEnvelopeReplay;
   readonly capture?: Partial<TraceEnvelopeCapture>;
   readonly artifacts?: Readonly<Record<string, string | undefined>>;
@@ -609,8 +622,8 @@ function sourceFromResult(
       ? result.trace.metadata.provider
       : undefined;
   const metadata = dropUndefined({
-    ...result.trace.metadata,
-    ...options.source?.metadata,
+    ...omitExternalTraceMetadataKeys(result.trace.metadata),
+    ...omitExternalTraceMetadataKeys(options.source?.metadata),
   });
   return {
     kind: options.source?.kind ?? 'agentv_run',
@@ -970,6 +983,7 @@ export function buildTraceEnvelopeFromEvaluationResult(
   const attempt = options.attempt ?? 0;
   const variant = options.variant ?? null;
   const runId = options.runId ?? result.timestamp;
+  const externalTrace = options.externalTrace ?? externalTraceMetadataForResult(result, { runId });
   const evalIdentity: TraceEnvelopeEval = {
     evalId: options.evalId,
     evalPath: options.evalPath,
@@ -1004,6 +1018,7 @@ export function buildTraceEnvelopeFromEvaluationResult(
     artifactId,
     createdAt: now.toISOString(),
     eval: evalIdentity,
+    externalTrace,
     projectionIdentity,
     exportMetadata: options.duplicatePolicy
       ? {
@@ -1037,6 +1052,9 @@ export function toTraceEnvelopeWire(envelope: TraceEnvelope): TraceEnvelopeWire 
       artifact_id: envelope.artifactId,
       created_at: envelope.createdAt,
       eval: toTraceEnvelopeEvalWire(envelope.eval),
+      external_trace: envelope.externalTrace
+        ? toExternalTraceMetadataWire(envelope.externalTrace)
+        : undefined,
       projection_identity: envelope.projectionIdentity
         ? toProjectionIdentityWire(envelope.projectionIdentity)
         : undefined,
@@ -1061,6 +1079,9 @@ export function fromTraceEnvelopeWire(input: unknown): TraceEnvelope {
     artifactId: wire.artifact_id,
     createdAt: wire.created_at,
     eval: fromTraceEnvelopeEvalWire(wire.eval),
+    externalTrace: wire.external_trace
+      ? fromExternalTraceMetadataWire(wire.external_trace)
+      : undefined,
     projectionIdentity: wire.projection_identity
       ? fromProjectionIdentityWire(wire.projection_identity)
       : undefined,
