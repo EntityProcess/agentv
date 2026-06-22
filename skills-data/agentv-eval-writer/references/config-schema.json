@@ -45,6 +45,16 @@
       },
       "additionalProperties": false
     },
+    "results": {
+      "$ref": "#/definitions/resultsConfig"
+    },
+    "projects": {
+      "type": "array",
+      "description": "Global Dashboard project registry entries. Only valid in $AGENTV_HOME/config.yaml.",
+      "items": {
+        "$ref": "#/definitions/projectEntry"
+      }
+    },
     "hooks": {
       "type": "object",
       "description": "Lifecycle hooks that run at specific points during agentv execution.",
@@ -55,6 +65,90 @@
           "examples": ["bun scripts/load-secrets.ts", "eval $(aws ssm get-parameters-by-path ...)"]
         }
       },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "repoBlock": {
+      "type": "object",
+      "description": "Nested repository block. Use url for Git URLs, path for local checkout or clone paths, branch for the checked-out/storage branch, and remote for a Git remote name such as origin.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Git remote URL used for cloning or pushing.",
+          "examples": ["https://github.com/example/repo.git", "git@github.com:example/repo.git"]
+        },
+        "path": {
+          "type": "string",
+          "description": "Local checkout path. For results repos, this is an existing local repo when url is omitted, or the managed clone path when url is set.",
+          "examples": ["/srv/agentv/my-evals", ".", "~/data/agentv-results"]
+        },
+        "branch": {
+          "type": "string",
+          "description": "Source checkout branch or results storage branch.",
+          "examples": ["main", "agentv/results/v1"]
+        },
+        "remote": {
+          "type": "string",
+          "description": "Git remote name for an existing local checkout, such as origin.",
+          "examples": ["origin"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "resultsConfig": {
+      "type": "object",
+      "description": "Git-backed results repo configuration. Canonical form uses a nested repo block.",
+      "properties": {
+        "repo": {
+          "$ref": "#/definitions/repoBlock"
+        },
+        "sync": {
+          "type": "object",
+          "properties": {
+            "auto_push": {
+              "type": "boolean",
+              "description": "Push result commits best-effort after each completed run."
+            },
+            "require_push": {
+              "type": "boolean",
+              "description": "Fail the command if a configured push fails after writing local artifacts."
+            }
+          },
+          "additionalProperties": false
+        },
+        "branch_prefix": {
+          "type": "string",
+          "description": "Prefix for temporary result branch names; this is not the storage branch."
+        }
+      },
+      "required": ["repo"],
+      "additionalProperties": false
+    },
+    "projectEntry": {
+      "type": "object",
+      "description": "Dashboard project registry entry.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "repo": {
+          "$ref": "#/definitions/repoBlock"
+        },
+        "results": {
+          "$ref": "#/definitions/resultsConfig"
+        },
+        "added_at": {
+          "type": "string"
+        },
+        "last_opened_at": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "name", "repo"],
       "additionalProperties": false
     }
   },

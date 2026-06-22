@@ -129,9 +129,10 @@ eval_patterns:
   - "examples/**/dataset*.yaml"
 
 results:
-  repo_url: $results_url
-  branch: agentv/results/v1
-  path: /data/results/agentv-evalresults
+  repo:
+    url: $results_url
+    branch: agentv/results/v1
+    path: /data/results/agentv-evalresults
   sync:
     auto_push: false
     require_push: false
@@ -162,11 +163,15 @@ const existingEntry = projects.find((project) => {
 const nextEntry = {
   id: "agentv-examples",
   name: "AgentV Examples",
-  path: "/data/projects/agentv-examples",
+  repo: {
+    path: "/data/projects/agentv-examples",
+  },
   results: {
-    repo_url: resultsRepo,
-    branch: "agentv/results/v1",
-    path: "/data/results/agentv-evalresults",
+    repo: {
+      url: resultsRepo,
+      branch: "agentv/results/v1",
+      path: "/data/results/agentv-evalresults",
+    },
     sync: {
       auto_push: false,
       require_push: false,

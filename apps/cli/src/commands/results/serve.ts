@@ -125,7 +125,7 @@ const DIRECT_DASHBOARD_SOURCE_GUIDANCE = [
   'Dashboard reads configured project run sources only.',
   'Run it from a project root, or pass --dir so Dashboard uses <project>/.agentv/results/runs/:',
   '  agentv dashboard --dir <project-dir>',
-  'To browse external results, configure results.repo_url or results.repo_path in config YAML.',
+  'To browse external results, configure results.repo.url or results.repo.path in config YAML.',
   'For a one-off run bundle, use: agentv results report <run-workspace-or-index.jsonl>',
 ].join('\n');
 

@@ -25,7 +25,7 @@ If no results repo is configured, or auto-push is disabled, `agentv eval` still 
 | Local project | `.agentv/results/runs/<experiment>/<run-id>/benchmark.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
 | Local project | `.agentv/results/runs/<experiment>/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
 | Results repo remote | `agentv/wip/<hostname>/<run-dir-basename>` | A forced-updated branch containing the checkpointed run under `.agentv/results/runs/<same-relative-run-path>/`. |
-| Results repo storage branch | Configured `results.branch`; `repo_path` configs default to `agentv/results/v1` | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
+| Results repo storage branch | Configured `results.repo.branch`; local checkout configs default to `agentv/results/v1` | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
 
 The WIP branch name is derived from the current host and the run directory basename. Non-branch-safe characters are replaced with `-`; the host component is capped at 40 characters and the run component at 60 characters.
 

@@ -327,6 +327,75 @@ describe('parseResultsConfig', () => {
     });
   });
 
+  it('parses nested repo config for a managed results clone', () => {
+    const result = parseResultsConfig(
+      {
+        repo: {
+          url: 'https://github.com/example/results.git',
+          branch: 'agentv/results/v1',
+          remote: 'origin',
+          path: '~/data/agentv-results',
+        },
+        sync: {
+          auto_push: true,
+        },
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      mode: 'github',
+      repo: 'https://github.com/example/results.git',
+      repo_url: 'https://github.com/example/results.git',
+      branch: 'agentv/results/v1',
+      remote: 'origin',
+      path: '~/data/agentv-results',
+      sync: {
+        auto_push: true,
+      },
+    });
+  });
+
+  it('parses nested repo config for an existing local results checkout', () => {
+    const result = parseResultsConfig(
+      {
+        repo: {
+          path: '.',
+          branch: 'agentv/results/v1',
+          remote: 'origin',
+        },
+        sync: {
+          require_push: true,
+        },
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      mode: 'github',
+      repo_path: '.',
+      branch: 'agentv/results/v1',
+      remote: 'origin',
+      sync: {
+        require_push: true,
+      },
+    });
+  });
+
+  it('returns undefined when nested repo config is mixed with flat repo fields', () => {
+    const result = parseResultsConfig(
+      {
+        repo: {
+          url: 'https://github.com/example/results.git',
+        },
+        branch: 'agentv/results/v1',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
   it('returns undefined when mode is not github', () => {
     const result = parseResultsConfig(
       {

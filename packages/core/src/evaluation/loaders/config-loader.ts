@@ -600,6 +600,87 @@ function isFilesystemPath(p: string): boolean {
   );
 }
 
+function readTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isGitRemoteUrl(value: string): boolean {
+  return /^(https?:\/\/|ssh:\/\/|git@|file:\/\/).+/.test(value);
+}
+
+type NestedResultsRepoConfig = {
+  readonly repo_url?: string;
+  readonly repo_path?: string;
+  readonly branch?: string;
+  readonly remote?: string;
+  readonly path?: string;
+};
+
+function parseNestedResultsRepoConfig(
+  raw: unknown,
+  configPath: string,
+): NestedResultsRepoConfig | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid results.repo in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const repo = raw as Record<string, unknown>;
+  const url = readTrimmedString(repo.url);
+  const repoPath = readTrimmedString(repo.path);
+  const branch = readTrimmedString(repo.branch);
+  const remote = readTrimmedString(repo.remote);
+
+  if (repo.url !== undefined && !url) {
+    logWarning(`Invalid results.repo.url in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+  if (url && !isGitRemoteUrl(url)) {
+    logWarning(`Invalid results.repo.url in ${configPath}, expected Git remote URL`);
+    return undefined;
+  }
+  if (repo.path !== undefined && !repoPath) {
+    logWarning(`Invalid results.repo.path in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+  if (!url && !repoPath) {
+    logWarning(`Invalid results.repo in ${configPath}, expected url or path`);
+    return undefined;
+  }
+  if (url && repoPath && !isFilesystemPath(repoPath)) {
+    logWarning(
+      `Invalid results.repo.path in ${configPath}: '${repoPath}' must be an absolute or home-relative filesystem path when results.repo.url is set.`,
+    );
+    return undefined;
+  }
+  if (repo.branch !== undefined && !branch) {
+    logWarning(`Invalid results.repo.branch in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+  if (repo.remote !== undefined && !remote) {
+    logWarning(`Invalid results.repo.remote in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+  if (remote && isGitRemoteUrl(remote)) {
+    logWarning(
+      `Invalid results.repo.remote in ${configPath}: use results.repo.url for Git remote URLs and results.repo.remote for the remote name such as origin.`,
+    );
+    return undefined;
+  }
+
+  return {
+    ...(url && { repo_url: url }),
+    ...(repoPath && !url && { repo_path: repoPath }),
+    ...(url && repoPath && { path: repoPath }),
+    ...(branch && { branch }),
+    ...(remote && { remote }),
+  };
+}
+
 export function parseResultsConfig(raw: unknown, configPath: string): ResultsConfig | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
@@ -616,21 +697,48 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     return undefined;
   }
 
+  const hasNestedRepo = obj.repo !== undefined && typeof obj.repo === 'object' && obj.repo !== null;
+  const nestedRepo = hasNestedRepo ? parseNestedResultsRepoConfig(obj.repo, configPath) : undefined;
+  if (hasNestedRepo && !nestedRepo) {
+    return undefined;
+  }
+  if (obj.repo !== undefined && !hasNestedRepo && typeof obj.repo !== 'string') {
+    logWarning(`Invalid results.repo in ${configPath}, expected string or object`);
+    return undefined;
+  }
+  if (
+    nestedRepo &&
+    ['repo_url', 'repo_path', 'branch', 'remote', 'path'].some((field) => obj[field] !== undefined)
+  ) {
+    logWarning(
+      `Invalid results in ${configPath}, do not mix nested results.repo with flat repo_url, repo_path, branch, remote, or path fields`,
+    );
+    return undefined;
+  }
+
   const legacyRepo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
-  const repoUrl = typeof obj.repo_url === 'string' ? obj.repo_url.trim() : '';
-  const repoPath = typeof obj.repo_path === 'string' ? obj.repo_path.trim() : '';
+  const repoUrl =
+    nestedRepo?.repo_url ?? (typeof obj.repo_url === 'string' ? obj.repo_url.trim() : '');
+  const repoPath =
+    nestedRepo?.repo_path ?? (typeof obj.repo_path === 'string' ? obj.repo_path.trim() : '');
   const repo = legacyRepo || repoUrl;
   if (!repo && !repoPath) {
-    logWarning(`Invalid results in ${configPath}, expected repo_url/repo or repo_path`);
+    logWarning(
+      `Invalid results in ${configPath}, expected nested repo.url/repo.path or compatible repo_url/repo_path`,
+    );
     return undefined;
   }
   if (repo && repoPath) {
-    logWarning(`Invalid results in ${configPath}, set only one of repo_url/repo or repo_path`);
+    logWarning(
+      `Invalid results in ${configPath}, set only one of nested repo.url/repo.path or compatible repo_url/repo_path`,
+    );
     return undefined;
   }
 
   let branch: string | undefined;
-  if (obj.branch !== undefined) {
+  if (nestedRepo?.branch !== undefined) {
+    branch = nestedRepo.branch;
+  } else if (obj.branch !== undefined) {
     if (typeof obj.branch !== 'string' || obj.branch.trim().length === 0) {
       logWarning(`Invalid results.branch in ${configPath}, expected non-empty string`);
       return undefined;
@@ -639,7 +747,9 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   }
 
   let remote: string | undefined;
-  if (obj.remote !== undefined) {
+  if (nestedRepo?.remote !== undefined) {
+    remote = nestedRepo.remote;
+  } else if (obj.remote !== undefined) {
     if (typeof obj.remote !== 'string' || obj.remote.trim().length === 0) {
       logWarning(`Invalid results.remote in ${configPath}, expected non-empty string`);
       return undefined;
@@ -648,7 +758,9 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   }
 
   let resultsPath: string | undefined;
-  if (obj.path !== undefined) {
+  if (nestedRepo?.path !== undefined) {
+    resultsPath = nestedRepo.path;
+  } else if (obj.path !== undefined) {
     if (typeof obj.path !== 'string' || obj.path.trim().length === 0) {
       logWarning(`Invalid results.path in ${configPath}, expected non-empty string`);
       return undefined;

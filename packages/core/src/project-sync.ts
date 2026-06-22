@@ -26,10 +26,10 @@ import type { ProjectEntry } from './projects.js';
  */
 export async function syncProject(entry: ProjectEntry): Promise<void> {
   if (!entry.repoUrl) {
-    throw new Error(`Project '${entry.id}' has no repo_url defined`);
+    throw new Error(`Project '${entry.id}' has no repo.url defined`);
   }
   if (!entry.ref) {
-    throw new Error(`Project '${entry.id}' has no ref defined`);
+    throw new Error(`Project '${entry.id}' has no repo.branch defined`);
   }
   const dest = entry.path;
 

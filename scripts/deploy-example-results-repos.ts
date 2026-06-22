@@ -132,6 +132,10 @@ function repoSlug(repo: string): string {
     .toLowerCase();
 }
 
+function repoUrl(repo: string): string {
+  return `https://github.com/${repo}.git`;
+}
+
 function assertRepoName(value: string, field: string): void {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) {
     throw new Error(`${field} must be GitHub owner/name, got: ${value}`);
@@ -416,10 +420,13 @@ This repo is configured to push evaluation results to \`${params.resultsRepo}\`.
   const configPath = path.join(params.repoDir, '.agentv', 'config.yaml');
   const config = readYamlObject(configPath);
   config.results = {
-    mode: 'github',
-    repo: params.resultsRepo,
-    path: params.resultsPath,
-    auto_push: params.autoPush,
+    repo: {
+      url: repoUrl(params.resultsRepo),
+      path: params.resultsPath,
+    },
+    sync: {
+      auto_push: params.autoPush,
+    },
     ...(params.branchPrefix ? { branch_prefix: params.branchPrefix } : {}),
   };
 

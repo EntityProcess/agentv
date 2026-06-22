@@ -30,9 +30,9 @@ describe('syncProject', () => {
     mock.restore();
   });
 
-  it('throws when entry has no repo_url', async () => {
+  it('throws when entry has no repo.url', async () => {
     const entry = makeEntry({ path: tmpDir });
-    await expect(syncProject(entry)).rejects.toThrow(/no repo_url defined/);
+    await expect(syncProject(entry)).rejects.toThrow(/no repo\.url defined/);
   });
 
   it('runs git clone when .git does not exist', async () => {
@@ -82,13 +82,13 @@ describe('syncProjects', () => {
     mock.restore();
   });
 
-  it('skips entries with no repo_url', async () => {
+  it('skips entries with no repo.url', async () => {
     const spy = spyOn(childProcess, 'execFileSync').mockReturnValue(Buffer.from(''));
     await syncProjects([makeEntry()]);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('syncs entries that have a repo_url', async () => {
+  it('syncs entries that have a repo.url', async () => {
     const spy = spyOn(childProcess, 'execFileSync').mockReturnValue(Buffer.from(''));
     const entries = [makeEntry({ repoUrl: 'git@github.com:example/repo.git', ref: 'main' })];
     await syncProjects(entries);
