@@ -135,6 +135,8 @@ describe('results report', () => {
     expect(html).toContain('contains');
     expect(html).toContain('regex');
     expect(html).toContain('AgentV Evaluation Report');
+    expect(html).toContain('class="brand-wordmark" aria-label="AgentV"');
+    expect(html).toContain('class="brand-middle" aria-hidden="true">GENT</span>');
     expect(html).not.toContain('<th>Progress</th>');
     expect(html).not.toContain('metric-stack');
     expect(html).toContain('<span class="pass-rate-track">');

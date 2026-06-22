@@ -16,6 +16,14 @@ body {
   white-space: nowrap;
 }
 
+.av-brand-name__letter {
+  @apply text-cyan-400;
+}
+
+.av-brand-name__middle {
+  @apply text-gray-300;
+}
+
 /* Scrollbar styling for dark theme */
 ::-webkit-scrollbar {
   @apply w-2;

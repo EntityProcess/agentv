@@ -8,7 +8,7 @@ const className = Astro.props.class;
 
 <span class:list={['av-brand-wordmark', className]} aria-label="AgentV" translate="no">
   <span class="av-brand-wordmark__letter" aria-hidden="true">A</span>
-  <span aria-hidden="true">GENT</span>
+  <span class="av-brand-wordmark__middle" aria-hidden="true">GENT</span>
   <span class="av-brand-wordmark__letter" aria-hidden="true">V</span>
 </span>
 
@@ -34,6 +34,14 @@ const className = Astro.props.class;
 
   .av-brand-wordmark__letter {
     color: var(--av-brand-letter-color, #06b6d4);
+  }
+
+  .av-brand-wordmark__middle {
+    color: var(--av-brand-middle-color, hsl(240, 5%, 42%));
+  }
+
+  :global(:root[data-theme="dark"]) .av-brand-wordmark {
+    --av-brand-middle-color: hsl(0, 0%, 85%);
   }
 
   .av-brand-wordmark--inline {
