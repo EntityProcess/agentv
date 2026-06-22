@@ -636,11 +636,7 @@ const CODEX_MODEL_REASONING_EFFORT_VALUES = new Set<CodexModelReasoningEffort>([
   'xhigh',
 ]);
 
-const CODEX_MODEL_VERBOSITY_VALUES = new Set<CodexModelVerbosity>([
-  'low',
-  'medium',
-  'high',
-]);
+const CODEX_MODEL_VERBOSITY_VALUES = new Set<CodexModelVerbosity>(['low', 'medium', 'high']);
 
 const CODEX_SANDBOX_MODE_VALUES = new Set<CodexSandboxMode>([
   'read-only',
@@ -1375,11 +1371,7 @@ function resolveCodexConfig(
     optionalEnv: true,
   });
 
-  const apiFormat = resolveApiFormat(
-    { ...target, api_format: apiFormatSource },
-    env,
-    target.name,
-  );
+  const apiFormat = resolveApiFormat({ ...target, api_format: apiFormatSource }, env, target.name);
 
   const sandboxMode = normalizeCodexSandboxMode(
     resolveOptionalString(sandboxModeSource, env, `${target.name} codex sandbox mode`, {
