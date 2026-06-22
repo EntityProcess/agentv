@@ -1,0 +1,33 @@
+did we do any UI work on phoenix? I'm thinking we can simply and simply direct users to the Phoenix URL instead of creating a wrapper UI with trace/spans/sessions
+
+---
+
+is there much code to remove
+
+---
+
+is there much code to remove
+
+---
+
+ok spawn workmux worker to remove it.
+
+---
+
+for https://github.com/EntityProcess/agentv/pull/1482 i see there's an author "AgentV Results" where is this author coming from. i tseems to be some logic in agentv overwriting the author can we remove it overwrite logic .
+
+---
+
+if it requires a git username and password then just use whatever is configured in the envrionment. if it errors without one then we resort to agentv (but make sure to restore original user details)
+
+---
+
+You are the Efficiency Reviewer for a simplify pass on /home/entity/projects/EntityProcess/agentv__worktrees/fix-results-git-author-fallback. Review only the current diff against origin/main. Do not edit files. Focus on unnecessary work, repeated operations, hot-path bloat, memory cleanup, and overly broad environment handling. Check the actual diff and surrounding code. Return concise actionable findings with file/line references, or say no efficiency findings.
+
+---
+
+You are the Code Quality Reviewer for a simplify pass on /home/entity/projects/EntityProcess/agentv__worktrees/fix-results-git-author-fallback. Review only the current diff against origin/main. Do not edit files. Focus on clarity, abstraction boundaries, stringly code, unnecessary comments, dead code, and maintainability. Check the actual diff and surrounding code. Return concise actionable findings with file/line references, or say no quality findings.
+
+---
+
+You are the Code Reuse Reviewer for a simplify pass on /home/entity/projects/EntityProcess/agentv__worktrees/fix-results-git-author-fallback. Review only the current diff against origin/main. Do not edit files. Focus on whether the new helpers/tests in packages/core/src/evaluation/results-repo.ts and packages/core/test/evaluation/results-repo.test.ts duplicate existing utilities or should reuse existing patterns. Check nearby code before judging. Return concise actionable findings with file/line references, or say no reuse findings.
