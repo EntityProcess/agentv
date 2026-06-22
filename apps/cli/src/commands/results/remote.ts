@@ -538,6 +538,7 @@ export async function setRemoteRunTags(
   meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   tags: readonly string[],
   projectId?: string,
+  expectedTagRevision?: string,
 ): Promise<RemoteRunTagState> {
   if (meta.source !== 'remote' && !meta.on_remote) {
     throw new Error('Remote metadata can only be set on remote runs');
@@ -551,13 +552,20 @@ export async function setRemoteRunTags(
     throw new Error('Remote metadata can only be set on remote runs');
   }
   assertWritableResultsRepo(config.path);
-  return writeRemoteRunTags(config.path, manifestPath, tags, getResultsStorageRef(config));
+  return writeRemoteRunTags(
+    config.path,
+    manifestPath,
+    tags,
+    getResultsStorageRef(config),
+    expectedTagRevision,
+  );
 }
 
 export async function clearRemoteRunTags(
   cwd: string,
   meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   projectId?: string,
+  expectedTagRevision?: string,
 ): Promise<RemoteRunTagState> {
   if (meta.source !== 'remote' && !meta.on_remote) {
     throw new Error('Remote metadata can only be removed from remote runs');
@@ -571,7 +579,12 @@ export async function clearRemoteRunTags(
     throw new Error('Remote metadata can only be removed from remote runs');
   }
   assertWritableResultsRepo(config.path);
-  return deleteRemoteRunTags(config.path, manifestPath, getResultsStorageRef(config));
+  return deleteRemoteRunTags(
+    config.path,
+    manifestPath,
+    getResultsStorageRef(config),
+    expectedTagRevision,
+  );
 }
 
 export async function maybeAutoExportRunArtifacts(

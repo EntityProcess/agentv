@@ -692,12 +692,13 @@ export async function deleteRunApi(runId: string, projectId?: string): Promise<v
 /**
  * Replace the tags on a run. Tags are stored as a sidecar `tags.json` file
  * next to the run's manifest and surface as chips in the compare views.
- * Pass an empty array to clear all tags while preserving the clear watermark.
+ * Pass the row's `tag_revision` to reject stale browser edits.
  */
 export async function saveRunTagsApi(
   runId: string,
   tags: string[],
   projectId?: string,
+  expectedTagRevision?: string,
 ): Promise<RunTagsResponse> {
   const url = projectId
     ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`
@@ -705,7 +706,10 @@ export async function saveRunTagsApi(
   const res = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tags }),
+    body: JSON.stringify({
+      tags,
+      ...(expectedTagRevision ? { expected_tag_revision: expectedTagRevision } : {}),
+    }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -714,12 +718,24 @@ export async function saveRunTagsApi(
   return res.json() as Promise<RunTagsResponse>;
 }
 
-/** Clear the tags for a run while preserving the clear watermark. */
-export async function deleteRunTagsApi(runId: string, projectId?: string): Promise<void> {
+/** Clear the tags for a run, rejecting stale browser edits when a revision is provided. */
+export async function deleteRunTagsApi(
+  runId: string,
+  projectId?: string,
+  expectedTagRevision?: string,
+): Promise<void> {
   const url = projectId
     ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`
     : `/api/runs/${encodeURIComponent(runId)}/tags`;
-  const res = await fetch(url, { method: 'DELETE' });
+  const res = await fetch(url, {
+    method: 'DELETE',
+    ...(expectedTagRevision
+      ? {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_tag_revision: expectedTagRevision }),
+        }
+      : {}),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error((err as { error?: string }).error ?? `Failed to delete tags: ${res.status}`);

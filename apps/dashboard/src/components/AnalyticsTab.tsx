@@ -747,6 +747,7 @@ function PerRunRow({
             <TagsEditor
               runId={run.run_id}
               currentTags={tags}
+              tagRevision={run.tag_revision}
               source={run.source}
               projectId={projectId}
               onClose={onEndEdit}
@@ -793,12 +794,14 @@ function TagChips({ tags, dirty }: { tags: string[]; dirty: boolean }) {
 function TagsEditor({
   runId,
   currentTags,
+  tagRevision,
   source,
   projectId,
   onClose,
 }: {
   runId: string;
   currentTags: string[];
+  tagRevision?: string;
   source: 'local' | 'remote';
   projectId?: string;
   onClose: () => void;
@@ -814,7 +817,7 @@ function TagsEditor({
   }, []);
 
   const saveMut = useMutation({
-    mutationFn: () => saveRunTagsApi(runId, tags, projectId),
+    mutationFn: () => saveRunTagsApi(runId, tags, projectId, tagRevision),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
@@ -829,7 +832,7 @@ function TagsEditor({
   });
 
   const clearMut = useMutation({
-    mutationFn: () => deleteRunTagsApi(runId, projectId),
+    mutationFn: () => deleteRunTagsApi(runId, projectId, tagRevision),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['compare'] });
       qc.invalidateQueries({ queryKey: ['runs'] });
