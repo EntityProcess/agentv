@@ -35,7 +35,7 @@ npm install @agentv/sdk
 import { defineCodeGrader } from '@agentv/sdk';
 ```
 
-The general policy is hard convergence for same-week or unreleased surface names: use the correct package, field, or wire name instead of carrying aliases. The package rename is the exception because `@agentv/eval` was already published. It remains a temporary deprecated compatibility package that re-exports `@agentv/sdk` for existing consumers, but it should not appear in new docs, examples, scaffolds, or skills except as migration guidance.
+The general policy is hard convergence for same-week or unreleased surface names: use the correct package, field, or wire name instead of carrying aliases. `@agentv/eval` was already published, then deprecated on npm, and has been removed from this repository. New docs, examples, scaffolds, and skills should use `@agentv/sdk` directly.
 
 ## Choose a Surface
 

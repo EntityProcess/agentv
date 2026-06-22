@@ -32,6 +32,7 @@ Contract gates:
 ## Published Packages
 
 - `packages/core/` publishes as `@agentv/core`
+- `packages/sdk/` publishes as `@agentv/sdk`
 - `apps/cli/` publishes as `agentv`
 - The CLI bundles workspace dependencies via tsup with `noExternal: ["@agentv/core"]`
 - Install with `bun install -g agentv` or `npm install -g agentv`
